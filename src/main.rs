@@ -50,11 +50,17 @@ impl App {
 }
 
 impl support::App for App {
-    fn draw(&self, display : &glium::Display) {
-        self.mesh.draw(&display);
+
+    fn draw(&self, _frame_time : &support::FrameTime, frame : &mut glium::Frame) {
+
+        let r = _frame_time.now_as_duration().as_secs_f64();
+        let r = (r.cos() + 0.5) / 2.0;
+
+        frame.clear_color(r as f32, 0.0, 0.0, 0.0);
+        self.mesh.draw(frame);
     }
 
-    fn handle_event(&mut self, _dt : f64, display : &glium::Display, event : glutin::Event) {
+    fn handle_event(&mut self, _frame_time : &support::FrameTime, event : glutin::Event) {
         use glutin::WindowEvent::*;
         use glutin::Event::WindowEvent;
         // use glutin::{ ControlFlow };
@@ -65,7 +71,7 @@ impl support::App for App {
                 CloseRequested => self.running = false,
                 // Redraw the triangle when the window is resized.
                 Resized(..) => {
-                    self.mesh.draw(display);
+                    // self.mesh.draw(frame);
                 },
                 _ => (),
             }
@@ -73,73 +79,20 @@ impl support::App for App {
         };
     }
 
-    fn update(&mut self, _dt : f64) {
+    fn update(&mut self, _frame_time : &support::FrameTime) {
     }
 
     fn is_running(&self) -> bool {
-        true
+        self.running
     }
 }
 
 
 fn main() {
     let mut system = System::new();
-
-    let vertex_buffer = {
-        #[derive(Copy, Clone)]
-        struct Vertex {
-            position: [f32; 2],
-            color: [f32; 3],
-            uv: [f32; 2],
-        }
-
-        implement_vertex!(Vertex, position, color, uv);
-
-        glium::VertexBuffer::new(&system.display,
-            &[
-            Vertex { position: [-0.5, -0.5], color: [0.0, 1.0, 0.0], uv:[0.0, 0.0] },
-            Vertex { position: [ 0.0,  0.5], color: [0.0, 0.0, 1.0], uv:[0.0, 0.0]},
-            Vertex { position: [ 0.5, -0.5], color: [1.0, 0.0, 0.0], uv:[0.0, 0.0] },
-            ]
-        ).unwrap()
-    };
-
-    let index_buffer = glium::IndexBuffer::new(&system.display, PrimitiveType::TrianglesList,
-        &[0u16, 1, 2]).unwrap();
-
-    let mesh = Mesh::new(&system, vertex_buffer, index_buffer);
-
-    // Draw the triangle to the screen.
-    mesh.draw(&system.display);
-
-    let run = |_display : &glium::Display, event | -> glutin::ControlFlow {
-        use glutin::WindowEvent::*;
-        use glutin::Event::WindowEvent;
-        use glutin::{ ControlFlow };
-
-        match event {
-            WindowEvent { event, .. } => match event {
-                // Break from the main loop when the window is closed.
-                CloseRequested => ControlFlow::Break,
-                // Redraw the triangle when the window is resized.
-                Resized(..) => {
-                    // mesh.draw(display);
-                    ControlFlow::Continue
-                },
-                _ => ControlFlow::Continue,
-            }
-            _ => ControlFlow::Continue,
-        }
-    };
-
-    let draw = |display : &glium::Display| {
-        mesh.draw(display);
-    };
-
-    loop {
-        system.run(run);
-        system.display(draw);
-    };
+    let mut app = App::new(&system);
+    system.run_app(&mut app);
 }
+
 
 

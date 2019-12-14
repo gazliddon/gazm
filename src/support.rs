@@ -3,6 +3,7 @@ use imgui::{Context};
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use glium::{glutin};
 use imgui_glium_renderer::Renderer;
+// use glium::{Surface};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,9 +23,16 @@ impl FrameTime {
         }
     }
 
+    pub fn dt_as_duration(&self) -> Duration {
+        self.last_sync - self.base_time
+    }
+
+    pub fn now_as_duration(&self) -> Duration {
+        self.last_sync - self.base_time
+    }
+
     pub fn dt(&self) -> f64 {
-        let dur = self.last_sync - self.base_time;
-        dur.as_secs_f64()
+        self.dt_as_duration().as_secs_f64()
     }
 
     pub fn update(&mut self) -> f64 {
@@ -45,9 +53,9 @@ pub struct System {
 }
 
 pub trait App {
-    fn draw(&self, display : &glium::Display);
-    fn handle_event(&mut self, dt : f64, display : &glium::Display, event : glutin::Event);
-    fn update(&mut self, dt : f64);
+    fn draw(&self, frame_time : &FrameTime, display : &mut glium::Frame);
+    fn handle_event(&mut self, frame_time : &FrameTime, event : glutin::Event);
+    fn update(&mut self, frame_time : &FrameTime);
     fn is_running(&self) -> bool;
 }
 
@@ -63,11 +71,13 @@ impl System {
         let imgui_renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
 
         let mut platform = WinitPlatform::init(&mut imgui);
+
         {
             let gl_window = display.gl_window();
             let window = gl_window.window();
             platform.attach_window(imgui.io_mut(), &window, HiDpiMode::Rounded);
         }
+
         Self {
             display,
             imgui_renderer,
@@ -77,53 +87,32 @@ impl System {
         }
     }
 
-    pub fn process(&mut self, app : &mut App) {
+    pub fn process(&mut self, app : &mut dyn App) {
         let event_loop = &mut self.event_loop;
-        let display = &self.display;
 
-        let dt = self.frame_time.update();
+        self.frame_time.update();
+
+        let dt = &self.frame_time;
 
         event_loop.poll_events(|event| {
-            app.handle_event(dt, display, event);
+            app.handle_event(dt, event);
         });
 
         app.update(dt);
-        app.draw(display);
 
-        display.finish();
+        let mut frame = self.display.draw();
+
+        app.draw(dt, &mut frame);
+
+        frame.finish().unwrap();
+
     }
 
-    pub fn run_app(&mut self, app: &mut App) {
+    pub fn run_app(&mut self, app: &mut dyn App) {
         while app.is_running() {
             self.process(app);
         }
     }
-
-    pub fn run<F>(&mut self, func: F ) -> glutin::ControlFlow
-        where F: Fn(&glium::Display, glutin::Event) -> glutin::ControlFlow {
-            let mut run = true;
-
-            use glutin::{ ControlFlow };
-
-            let ret = ControlFlow::Continue;
-            let event_loop = &mut self.event_loop;
-            let display = &self.display;
-
-            while run {
-                event_loop.poll_events(|event| {
-                    func(display, event);
-                });
-
-                run = false;
-            }
-            ret
-        }
-
-    pub fn display<F>(&self, func: F)
-        where F : Fn(&glium::Display) -> () {
-            func(&self.display);
-            self.display.finish();
-        }
 }
 
 pub fn make_shaders(display : &glium::Display) -> glium::Program {

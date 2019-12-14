@@ -8,11 +8,11 @@ pub struct Mesh<T : Copy, I : Copy + glium::index::Index> {
 }
 
 pub trait MeshTrait {
-    fn draw(&self, display : &glium::Display);
+    fn draw(&self, display : &mut glium::Frame);
 }
 
 impl <T :Copy ,I : Copy + glium::index::Index> MeshTrait for Mesh<T,I> {
-    fn draw(&self, display : &glium::Display) {
+    fn draw(&self, frame : &mut glium::Frame) {
         // building the uniforms
         let uniforms = uniform! {
             matrix: [
@@ -23,11 +23,7 @@ impl <T :Copy ,I : Copy + glium::index::Index> MeshTrait for Mesh<T,I> {
             ]
         };
 
-        // drawing a frame
-        let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 0.0);
-        target.draw(&self.vertex_buffer, &self.index_buffer, &self.program, &uniforms, &Default::default()).unwrap();
-        target.finish().unwrap();
+        frame.draw(&self.vertex_buffer, &self.index_buffer, &self.program, &uniforms, &Default::default()).unwrap();
     }
 }
 
@@ -40,24 +36,6 @@ impl<T :Copy ,I : Copy + glium::index::Index> Mesh<T,I> {
             index_buffer,
             program
         }
-    }
-
-    pub fn draw(&self, display : &glium::Display) {
-        // building the uniforms
-        let uniforms = uniform! {
-            matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32]
-            ]
-        };
-
-        // drawing a frame
-        let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 0.0);
-        target.draw(&self.vertex_buffer, &self.index_buffer, &self.program, &uniforms, &Default::default()).unwrap();
-        target.finish().unwrap();
     }
 }
 
