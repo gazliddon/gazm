@@ -3,21 +3,20 @@ extern crate glium;
 extern crate imgui;
 extern crate cgmath;
 
-mod support;
 mod mesh;
-mod frametime;
+mod app;
 
 #[allow(unused_imports)]
 use glium::{glutin, Surface};
 #[allow(unused_imports)]
 use glium::index::PrimitiveType;
-use support::{ System };
+use app::{ System, FrameTime };
 use mesh::Mesh;
 
 struct App {
     mesh : Box<dyn mesh::MeshTrait>,
     running : bool,
-    frame_time : frametime::FrameTime
+    frame_time : FrameTime
 }
 
 impl App {
@@ -48,7 +47,7 @@ impl App {
         Self {
             mesh : Box::new(mesh),
             running : true,
-            frame_time : frametime::FrameTime::default()
+            frame_time : FrameTime::default()
         }
     }
 
@@ -57,7 +56,7 @@ impl App {
 pub fn cos01(x: f64) -> f64 { (x.cos() / 2.0) + 0.5 }
 pub fn sin01(x: f64) -> f64 { (x.sin() / 2.0) + 0.5 }
 
-impl support::App for App {
+impl app::system::App for App {
 
     fn draw(&self, frame : &mut glium::Frame) {
         use cgmath::*;
@@ -78,7 +77,7 @@ impl support::App for App {
         self.running = false;
     }
 
-    fn update(&mut self, frame_time : &frametime::FrameTime) {
+    fn update(&mut self, frame_time : &FrameTime) {
         self.frame_time = *frame_time;
     }
 
@@ -109,7 +108,6 @@ impl support::App for App {
                 ));
             });
     }
-
 }
 
 fn main() {
