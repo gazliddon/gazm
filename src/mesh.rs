@@ -1,6 +1,5 @@
 use crate::support::{System, make_shaders};
 use glium::{Surface};
-use cgmath::prelude::*;
 
 pub struct Mesh<T : Copy, I : Copy + glium::index::Index> {
     pub index_buffer : glium::IndexBuffer<I>,

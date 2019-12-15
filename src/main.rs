@@ -5,6 +5,7 @@ extern crate cgmath;
 
 mod support;
 mod mesh;
+mod frametime;
 
 #[allow(unused_imports)]
 use glium::{glutin, Surface};
@@ -16,6 +17,7 @@ use mesh::Mesh;
 struct App {
     mesh : Box<dyn mesh::MeshTrait>,
     running : bool,
+    frame_time : frametime::FrameTime
 }
 
 impl App {
@@ -46,22 +48,23 @@ impl App {
         Self {
             mesh : Box::new(mesh),
             running : true,
+            frame_time : frametime::FrameTime::default()
         }
     }
 
 }
 
 pub fn cos01(x: f64) -> f64 { (x.cos() / 2.0) + 0.5 }
+pub fn sin01(x: f64) -> f64 { (x.sin() / 2.0) + 0.5 }
 
 impl support::App for App {
 
-    fn draw(&self, frame_time : &support::FrameTime, frame : &mut glium::Frame) {
-        let t = frame_time.now_as_duration().as_secs_f64();
+    fn draw(&self, frame : &mut glium::Frame) {
+        use cgmath::*;
 
+        let t = self.frame_time.now_as_duration().as_secs_f64();
         frame.clear_color(cos01(t * 10.0) as f32, 0.0, 0.0, 0.0);
-
-        let m = cgmath::Matrix4::<f32>::from_scale(cos01(t) as f32);
-
+        let m = Matrix4::<f32>::from_scale(cos01(t) as f32);
         self.mesh.draw(m, frame);
     }
 
@@ -75,12 +78,38 @@ impl support::App for App {
         self.running = false;
     }
 
-    fn update(&mut self, _frame_time : &support::FrameTime) {
+    fn update(&mut self, frame_time : &frametime::FrameTime) {
+        self.frame_time = *frame_time;
     }
 
     fn is_running(&self) -> bool {
         self.running
     }
+
+    fn ui(&self, ui : &mut imgui::Ui) {
+        use imgui::*;
+
+        // let mut open = true;
+
+        // ui.show_demo_window(&mut open);
+
+        Window::new(im_str!("Hello world"))
+            .size([300.0, 100.0], Condition::FirstUseEver)
+            .build(ui, || {
+                ui.text(im_str!("Hello world!!!!!"));
+                ui.text(im_str!("This...is...imgui-rs!"));
+                ui.text(im_str!("This....is...imgui-rs!"));
+                ui.separator();
+
+                let mouse_pos = ui.io().mouse_pos;
+
+                ui.text(format!(
+                        "Mouse Position: ({:.1},{:.1})",
+                        mouse_pos[0], mouse_pos[1]
+                ));
+            });
+    }
+
 }
 
 fn main() {

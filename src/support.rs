@@ -4,45 +4,9 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use glium::{glutin};
 use imgui_glium_renderer::Renderer;
 // use glium::{Surface};
+//
 
-
-////////////////////////////////////////////////////////////////////////////////
-
-use std::time::{ Duration, Instant };
-
-pub struct FrameTime {
-    base_time : Instant,
-    last_sync : Instant,
-    last_dt   : Duration,
-}
-
-impl FrameTime {
-    pub fn from_now() -> Self {
-        Self {
-            base_time : Instant::now(),
-            last_sync : Instant::now(),
-            last_dt : Duration::new(0,0),
-        }
-    }
-
-    pub fn now_as_duration(&self) -> Duration {
-        self.last_sync - self.base_time
-    }
-
-    pub fn dt(&self) -> f64 {
-        self.last_dt.as_secs_f64()
-    }
-
-    pub fn update(&mut self)  {
-        let now = Instant::now();
-        let dt = now - self.last_sync;
-        self.last_dt = dt;
-        self.last_sync = now;
-    }
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
+use crate::frametime::FrameTime;
 
 pub struct System {
     pub display : glium::Display,
@@ -51,10 +15,11 @@ pub struct System {
     pub event_loop : glutin::EventsLoop,
     pub frame_time : FrameTime,
     pub imgui : Context,
+    font_id : imgui::FontId,
 }
 
 pub trait App {
-    fn draw(&self, frame_time : &FrameTime, display : &mut glium::Frame);
+    fn draw(&self, display : &mut glium::Frame);
 
     fn handle_event(&mut self, _frame_time : &FrameTime, input_event : glutin::Event) {
         use glutin::WindowEvent::*;
@@ -71,25 +36,7 @@ pub trait App {
         };
     }
 
-    fn ui(&mut self, ui : &mut imgui::Ui) {
-
-        use imgui::*;
-
-        Window::new(im_str!("Hello world"))
-            .size([300.0, 100.0], Condition::FirstUseEver)
-            .build(ui, || {
-                ui.text(im_str!("Hello world!"));
-                ui.text(im_str!("こんにちは世界！"));
-                ui.text(im_str!("This...is...imgui-rs!"));
-                ui.separator();
-
-                let mouse_pos = ui.io().mouse_pos;
-
-                ui.text(format!(
-                        "Mouse Position: ({:.1},{:.1})",
-                        mouse_pos[0], mouse_pos[1]
-                ));
-            });
+    fn ui(&self, _ui : &mut imgui::Ui) {
     }
 
     fn update(&mut self, frame_time : &FrameTime);
@@ -100,7 +47,6 @@ pub trait App {
 
 impl System {
     pub fn new() -> Self {
-        println!("Starting....");
 
         let event_loop = glutin::EventsLoop::new();
         let wb = glutin::WindowBuilder::new();
@@ -108,8 +54,8 @@ impl System {
         let display = glium::Display::new(wb, cb, &event_loop).unwrap();
 
         let mut imgui = Context::create();
+
         imgui.set_ini_filename(None);
-        let imgui_renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
 
         let mut platform = WinitPlatform::init(&mut imgui);
 
@@ -119,55 +65,104 @@ impl System {
             platform.attach_window(imgui.io_mut(), &window, HiDpiMode::Rounded);
         }
 
+        let hidpi_factor = platform.hidpi_factor();
+        let font_size = (15.0 * hidpi_factor) as f32;
+        let rbytes = include_bytes!("../resources/Roboto-Regular.ttf");
+
+        let font_id = imgui.fonts().add_font(&[
+            imgui::FontSource::TtfData {
+                data: rbytes,
+                size_pixels: font_size,
+                config: Some(imgui::FontConfig {
+                    name: Some(String::from("Roboto")),
+                    // size_pixels: font_size,
+                    oversample_h: 4,
+                    oversample_v: 4,
+                    pixel_snap_h : true,
+                    ..imgui::FontConfig::default()
+                }),
+            },
+            ]);
+
+        imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+
+
+        let imgui_renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
+
         Self {
             display,
             imgui_renderer,
             platform,
             event_loop,
             frame_time : FrameTime::from_now(),
-            imgui
+            imgui,
+            font_id,
         }
     }
 
     pub fn process(&mut self, app : &mut dyn App) {
 
-        let event_loop = &mut self.event_loop;
+        {
+            let event_loop = &mut self.event_loop;
+            let dt = &mut self.frame_time;
 
-        self.frame_time.update();
+            let gl_window = self.display.gl_window();
+            let window = gl_window.window();
+            let platform = &mut self.platform;
+            let ev_mut = self.imgui.io_mut();
 
-        let dt = &self.frame_time;
+            // Update frame time
+            dt.update();
 
-        let gl_window = self.display.gl_window();
-        let window = gl_window.window();
-        let io_mut = self.imgui.io_mut();
-        let platform = &mut self.platform;
+            // Handle all events
+            event_loop.poll_events(|event| {
+                platform.handle_event(ev_mut, &window, &event);
+                app.handle_event(dt, event);
+            });
 
-        event_loop.poll_events(|event| {
-            platform.handle_event(io_mut, &window, &event);
-            app.handle_event(dt, event);
-        });
+            // Update the app
+            app.update(dt);
+        }
 
-        let io = self.imgui.io_mut();
-        platform.prepare_frame(io, &window).unwrap();
 
-        let mut ui = self.imgui.frame();
+        {
+            let platform = &mut self.platform;
+            let gl_window = self.display.gl_window();
+            let window = gl_window.window();
+            // Drawing from here
+            //
+            let imgui = &mut self.imgui;
+            let renderer = &mut self.imgui_renderer;
 
-        app.update(dt);
-        app.ui(&mut ui);
+            platform
+                .prepare_frame(imgui.io_mut(), &window)
+                .expect("Preparing frame start");
 
-        let mut frame = self.display.draw();
+            let mut ui = imgui.frame();
 
-        self.platform.prepare_render(&ui, &window);
+            let font_id = ui.push_font(self.font_id);
 
-        let draw_data = ui.render();
+            app.ui(&mut ui);
 
-        app.draw(dt, &mut frame);
+            font_id.pop(&ui);
 
-        self.imgui_renderer
-            .render(&mut frame, draw_data)
-            .expect("Rendering failed");
+            platform.prepare_render(&ui, &window);
+            let draw_data = ui.render();
 
-        frame.finish().unwrap();
+            // let draw_data = ui.render();
+
+            let mut frame = self.display.draw();
+
+            app.draw(&mut frame);
+
+            renderer
+                .render(&mut frame, draw_data)
+                .expect("Rendering failed");
+
+            frame
+                .finish()
+                .expect("Frame completion failed");
+            }
     }
 
     pub fn run_app(&mut self, app: &mut dyn App) {
