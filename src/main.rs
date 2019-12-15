@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate glium;
 extern crate imgui;
+extern crate cgmath;
 
 mod support;
 mod mesh;
@@ -47,36 +48,31 @@ impl App {
             running : true,
         }
     }
+
 }
+
+pub fn cos01(x: f64) -> f64 { (x.cos() / 2.0) + 0.5 }
 
 impl support::App for App {
 
-    fn draw(&self, _frame_time : &support::FrameTime, frame : &mut glium::Frame) {
+    fn draw(&self, frame_time : &support::FrameTime, frame : &mut glium::Frame) {
+        let t = frame_time.now_as_duration().as_secs_f64();
 
-        let r = _frame_time.now_as_duration().as_secs_f64();
-        let r = (r.cos() + 0.5) / 2.0;
+        frame.clear_color(cos01(t * 10.0) as f32, 0.0, 0.0, 0.0);
 
-        frame.clear_color(r as f32, 0.0, 0.0, 0.0);
-        self.mesh.draw(frame);
+        let m = cgmath::Matrix4::<f32>::from_scale(cos01(t) as f32);
+
+        self.mesh.draw(m, frame);
     }
 
-    fn handle_event(&mut self, _frame_time : &support::FrameTime, event : glutin::Event) {
-        use glutin::WindowEvent::*;
-        use glutin::Event::WindowEvent;
-        // use glutin::{ ControlFlow };
+    fn handle_character(&mut self, c : char) {
+        if c == 'q' {
+            self.close_requested()
+        }
+    }
 
-        match event {
-            WindowEvent { event, .. } => match event {
-                // Break from the main loop when the window is closed.
-                CloseRequested => self.running = false,
-                // Redraw the triangle when the window is resized.
-                Resized(..) => {
-                    // self.mesh.draw(frame);
-                },
-                _ => (),
-            }
-            _ => (),
-        };
+    fn close_requested(&mut self) {
+        self.running = false;
     }
 
     fn update(&mut self, _frame_time : &support::FrameTime) {
@@ -86,7 +82,6 @@ impl support::App for App {
         self.running
     }
 }
-
 
 fn main() {
     let mut system = System::new();

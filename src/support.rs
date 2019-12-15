@@ -13,6 +13,7 @@ use std::time::{ Duration, Instant };
 pub struct FrameTime {
     base_time : Instant,
     last_sync : Instant,
+    last_dt   : Duration,
 }
 
 impl FrameTime {
@@ -20,11 +21,8 @@ impl FrameTime {
         Self {
             base_time : Instant::now(),
             last_sync : Instant::now(),
+            last_dt : Duration::new(0,0),
         }
-    }
-
-    pub fn dt_as_duration(&self) -> Duration {
-        self.last_sync - self.base_time
     }
 
     pub fn now_as_duration(&self) -> Duration {
@@ -32,12 +30,14 @@ impl FrameTime {
     }
 
     pub fn dt(&self) -> f64 {
-        self.dt_as_duration().as_secs_f64()
+        self.last_dt.as_secs_f64()
     }
 
-    pub fn update(&mut self) -> f64 {
-        self.last_sync = Instant::now();
-        self.dt()
+    pub fn update(&mut self)  {
+        let now = Instant::now();
+        let dt = now - self.last_sync;
+        self.last_dt = dt;
+        self.last_sync = now;
     }
 
 }
@@ -50,17 +50,58 @@ pub struct System {
     pub platform : WinitPlatform,
     pub event_loop : glutin::EventsLoop,
     pub frame_time : FrameTime,
+    pub imgui : Context,
 }
 
 pub trait App {
     fn draw(&self, frame_time : &FrameTime, display : &mut glium::Frame);
-    fn handle_event(&mut self, frame_time : &FrameTime, event : glutin::Event);
+
+    fn handle_event(&mut self, _frame_time : &FrameTime, input_event : glutin::Event) {
+        use glutin::WindowEvent::*;
+        use glutin::Event::WindowEvent;
+        if let WindowEvent {event, ..} = input_event {
+            match event {
+                ReceivedCharacter(ch) => self.handle_character(ch),
+                CloseRequested => self.close_requested(),
+                Resized(..) => {
+                    // self.mesh.draw(frame);
+                },
+                _ => (),
+            }
+        };
+    }
+
+    fn ui(&mut self, ui : &mut imgui::Ui) {
+
+        use imgui::*;
+
+        Window::new(im_str!("Hello world"))
+            .size([300.0, 100.0], Condition::FirstUseEver)
+            .build(ui, || {
+                ui.text(im_str!("Hello world!"));
+                ui.text(im_str!("こんにちは世界！"));
+                ui.text(im_str!("This...is...imgui-rs!"));
+                ui.separator();
+
+                let mouse_pos = ui.io().mouse_pos;
+
+                ui.text(format!(
+                        "Mouse Position: ({:.1},{:.1})",
+                        mouse_pos[0], mouse_pos[1]
+                ));
+            });
+    }
+
     fn update(&mut self, frame_time : &FrameTime);
     fn is_running(&self) -> bool;
+    fn close_requested(&mut self);
+    fn handle_character(&mut self, c : char);
 }
 
 impl System {
     pub fn new() -> Self {
+        println!("Starting....");
+
         let event_loop = glutin::EventsLoop::new();
         let wb = glutin::WindowBuilder::new();
         let cb = glutin::ContextBuilder::new();
@@ -83,29 +124,50 @@ impl System {
             imgui_renderer,
             platform,
             event_loop,
-            frame_time : FrameTime::from_now()
+            frame_time : FrameTime::from_now(),
+            imgui
         }
     }
 
     pub fn process(&mut self, app : &mut dyn App) {
+
         let event_loop = &mut self.event_loop;
 
         self.frame_time.update();
 
         let dt = &self.frame_time;
 
+        let gl_window = self.display.gl_window();
+        let window = gl_window.window();
+        let io_mut = self.imgui.io_mut();
+        let platform = &mut self.platform;
+
         event_loop.poll_events(|event| {
+            platform.handle_event(io_mut, &window, &event);
             app.handle_event(dt, event);
         });
 
+        let io = self.imgui.io_mut();
+        platform.prepare_frame(io, &window).unwrap();
+
+        let mut ui = self.imgui.frame();
+
         app.update(dt);
+        app.ui(&mut ui);
 
         let mut frame = self.display.draw();
 
+        self.platform.prepare_render(&ui, &window);
+
+        let draw_data = ui.render();
+
         app.draw(dt, &mut frame);
 
-        frame.finish().unwrap();
+        self.imgui_renderer
+            .render(&mut frame, draw_data)
+            .expect("Rendering failed");
 
+        frame.finish().unwrap();
     }
 
     pub fn run_app(&mut self, app: &mut dyn App) {

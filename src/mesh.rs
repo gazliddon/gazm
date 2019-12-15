@@ -1,5 +1,6 @@
 use crate::support::{System, make_shaders};
 use glium::{Surface};
+use cgmath::prelude::*;
 
 pub struct Mesh<T : Copy, I : Copy + glium::index::Index> {
     pub index_buffer : glium::IndexBuffer<I>,
@@ -8,20 +9,17 @@ pub struct Mesh<T : Copy, I : Copy + glium::index::Index> {
 }
 
 pub trait MeshTrait {
-    fn draw(&self, display : &mut glium::Frame);
+    // fn draw(&self, display : &mut glium::Frame);
+    fn draw(&self, m : cgmath::Matrix4<f32>, display : &mut glium::Frame);
 }
 
 impl <T :Copy ,I : Copy + glium::index::Index> MeshTrait for Mesh<T,I> {
-    fn draw(&self, frame : &mut glium::Frame) {
+    fn draw(&self, m : cgmath::Matrix4<f32> , frame : &mut glium::Frame) {
+
+        let matrix: [[f32; 4]; 4] = m.into();
+
         // building the uniforms
-        let uniforms = uniform! {
-            matrix: [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0f32]
-            ]
-        };
+        let uniforms = uniform! { matrix: matrix };
 
         frame.draw(&self.vertex_buffer, &self.index_buffer, &self.program, &uniforms, &Default::default()).unwrap();
     }
@@ -34,8 +32,10 @@ impl<T :Copy ,I : Copy + glium::index::Index> Mesh<T,I> {
         Self {
             vertex_buffer,
             index_buffer,
-            program
+            program,
         }
     }
 }
+
+
 
