@@ -1,7 +1,7 @@
 mod system;
-mod app;
 mod frametime;
 mod sampler;
+mod app;
 
 pub use system::*;
 pub use app::*;

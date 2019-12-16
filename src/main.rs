@@ -4,8 +4,15 @@ extern crate imgui;
 extern crate cgmath;
 extern crate num;
 
+extern crate env_logger;
+#[macro_use] extern crate log;
+
+#[macro_use] extern crate bitflags;
+#[macro_use] extern crate serde_derive;
+
 mod mesh;
 mod app;
+mod emu;
 
 #[allow(unused_imports)]
 use glium::{glutin, Surface};
