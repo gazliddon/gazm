@@ -2,6 +2,7 @@
 extern crate glium;
 extern crate imgui;
 extern crate cgmath;
+extern crate num;
 
 mod mesh;
 mod app;
@@ -10,16 +11,16 @@ mod app;
 use glium::{glutin, Surface};
 #[allow(unused_imports)]
 use glium::index::PrimitiveType;
-use app::{ System, FrameTime };
+use app::{ System, FrameTime, App };
 use mesh::Mesh;
 
-struct App {
+struct MyApp {
     mesh : Box<dyn mesh::MeshTrait>,
     running : bool,
     frame_time : FrameTime
 }
 
-impl App {
+impl MyApp {
     pub fn new(system : &System) -> Self {
         let vertex_buffer = {
             #[derive(Copy, Clone)]
@@ -56,7 +57,7 @@ impl App {
 pub fn cos01(x: f64) -> f64 { (x.cos() / 2.0) + 0.5 }
 pub fn sin01(x: f64) -> f64 { (x.sin() / 2.0) + 0.5 }
 
-impl app::system::App for App {
+impl App for MyApp {
 
     fn draw(&self, frame : &mut glium::Frame) {
         use cgmath::*;
@@ -112,7 +113,7 @@ impl app::system::App for App {
 
 fn main() {
     let mut system = System::new();
-    let mut app = App::new(&system);
+    let mut app = MyApp::new(&system);
     system.run_app(&mut app);
 }
 

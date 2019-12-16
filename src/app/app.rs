@@ -1,5 +1,5 @@
 use glium::{glutin};
-use crate::FrameTime;
+use super::FrameTime;
 
 pub trait App {
     fn draw(&self, display : &mut glium::Frame);

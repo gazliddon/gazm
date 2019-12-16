@@ -1,4 +1,3 @@
-////////////////////////////////////////////////////////////////////////////////
 
 use std::time::{ Duration, Instant };
 #[derive(Copy, Clone)]
@@ -8,6 +7,7 @@ pub struct FrameTime {
     last_dt   : Duration,
 }
 
+#[allow(dead_code)]
 impl FrameTime {
     pub fn from_now() -> Self {
         Self {
