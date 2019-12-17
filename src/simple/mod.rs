@@ -1,14 +1,10 @@
-mod io;
-mod simplecore;
-mod simplegdb;
-mod filewatcher;
-mod utils;
-mod state;
-mod breakpoints;
+pub mod io;
+pub mod simplecore;
+pub mod simplegdb;
+pub mod filewatcher;
+pub mod utils;
+pub mod state;
+pub mod breakpoints;
 
-pub use io::*;
-pub use simplecore::*;
-pub use simplegdb::*;
-
-use crate::emu;
+use crate::emu::{ mem, gdbstub, cpu };
 

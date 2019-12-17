@@ -3,7 +3,7 @@ use std::thread;
 
 use std::net::{TcpListener};
 
-use super::emu::gdbstub;
+use super::gdbstub;
 
 
 // pub enum Events {

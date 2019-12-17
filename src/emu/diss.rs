@@ -1,6 +1,7 @@
 use super::mem::MemoryIO;
-
 use super::cpu::{RegEnum, IndexedFlags, IndexModes, InstructionDecoder, get_tfr_regs};
+
+// use super::cpu::isa::decode_op;
 
 pub trait SymTab {
     fn get_symbol(&self, val : u16) -> Option<String>;
@@ -16,13 +17,14 @@ pub trait SymTab {
 
 
 #[derive(Default)]
+#[allow(dead_code)]
 pub struct Disassembler {
     text : String,
     is_upper_case : bool,
     hex_prefix: String,
 
 }
-
+#[allow(dead_code)]
 impl Disassembler {
 
     pub fn new() -> Self {
@@ -64,6 +66,7 @@ impl Disassembler {
     }
 }
 
+#[allow(dead_code)]
 fn stack_regs(op : u8 ) -> Vec<RegEnum>{
 
     let mut res = Vec::new();
@@ -104,11 +107,13 @@ fn stack_regs(op : u8 ) -> Vec<RegEnum>{
 }
 
 
+#[allow(dead_code)]
 fn tfr_regs(op : u8) -> Vec<RegEnum> {
     let (a,b) = get_tfr_regs(op);
     vec![a,b]
 }
 
+#[allow(dead_code)]
 fn regs_to_str(byte : u8, f : fn(u8) -> Vec<RegEnum>) ->  String {
 
     let regs : Vec<String> = f(byte)
@@ -119,6 +124,7 @@ fn regs_to_str(byte : u8, f : fn(u8) -> Vec<RegEnum>) ->  String {
     regs.join(",")
 } 
 
+#[allow(dead_code)]
 impl Disassembler {
     fn direct_8<M : MemoryIO>(&mut self, mem : &mut M, diss : &mut InstructionDecoder) { self.text_from_byte_op("<OP", mem,diss) }
     fn direct_16<M : MemoryIO>(&mut self, mem : &mut M, diss : &mut InstructionDecoder) { self.text_from_byte_op("<OP", mem,diss) }
@@ -241,6 +247,7 @@ impl Disassembler {
 
 macro_rules! op {
     ($op:ident, $text:expr) => {
+#[allow(dead_code)]
         fn $op<M: MemoryIO>(&mut self, mem : &mut M,  res : &mut InstructionDecoder) { self.add_op(mem, res, $text) }
     };
     ($op:ident) => {
@@ -248,6 +255,7 @@ macro_rules! op {
     };
 }
 
+#[allow(dead_code)]
 impl Disassembler {
 
     op!(neg);
@@ -385,7 +393,7 @@ impl Disassembler {
     op!(sts);
 
     fn unimplemented(&mut self, _diss : &mut InstructionDecoder) {
-
+        panic!("unimplemented")
     }
 
     pub fn diss<M: MemoryIO>(&mut self, mem : &mut M, addr : u16, _syms : Option<&dyn SymTab> ) -> (InstructionDecoder, String) {

@@ -14,6 +14,7 @@
 //     }
 // }
 
+#[macro_export]
 macro_rules! op_table {
     ($op:expr, $fail:block) => {
         match $op {
@@ -293,12 +294,14 @@ macro_rules! op_table {
 
 
 
+#[macro_export]
 macro_rules! single_op {
     ($addr:ident, $op:ident, $this:ident, $mem:expr, $res:expr) => {
         { $this.$addr($mem, $res); $this.$op($mem, $res); }
     }
 }
 
+#[macro_export]
 macro_rules! decode_op {
     ($op:expr, $this:ident, $mem:expr, $res:expr) => {
         match $op {

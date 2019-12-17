@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 #[macro_use] mod isa;
 
@@ -13,7 +12,6 @@ mod alu;
 mod clock;
 
 pub use registers::*;
-pub use isa::*;
 pub use indexed::*;
 pub use cpucore::*;
 pub use decoder::*;

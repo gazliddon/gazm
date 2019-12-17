@@ -10,7 +10,7 @@ mod simple;
 
 use glium::{Surface};
 use glium::index::PrimitiveType;
-use app::{ System, FrameTime, App };
+use app::{ system::System, frametime::FrameTime, app::App };
 use mesh::Mesh;
 
 struct MyApp {

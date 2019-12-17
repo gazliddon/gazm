@@ -14,7 +14,7 @@ IO
     9831  switches 2
 */
 
-use super::emu::mem;
+use super::mem;
 
 use mem::{*};
 use mem::memcore::MemoryIO;

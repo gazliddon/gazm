@@ -24,14 +24,13 @@ IO
 
 use clap::{ArgMatches};
 
-use super::{ emu, io, filewatcher, state, utils, breakpoints };
+use super::{ gdbstub, cpu, mem, io, filewatcher, state, utils, breakpoints };
 
-use emu::mem::memcore::MemoryIO;
+use mem::memcore::MemoryIO;
 
 use io::*;
 
 use breakpoints::{BreakPoint, BreakPoints, BreakPointTypes};
-use emu::{ gdbstub, cpu, mem};
 use cpu::{ Regs, StandardClock };
 use gdbstub::Message;
 

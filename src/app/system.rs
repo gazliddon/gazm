@@ -1,4 +1,4 @@
-use super::{ App, FrameTime };
+use super::{ app::App, frametime::FrameTime };
 
 use imgui::{Context};
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
