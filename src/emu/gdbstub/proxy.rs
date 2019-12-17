@@ -2,7 +2,7 @@ use std::net::{TcpListener};
 use std::sync::mpsc;
 use std::thread;
 
-use crate::gdbstub::{ DebuggerHost, GdbRemote, Reply, Sigs};
+use super::{DebuggerHost, Reply, Sigs};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BreakPointTypes {
@@ -12,6 +12,7 @@ pub enum BreakPointTypes {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Message {
     Disconnected,
     Connected,
@@ -37,6 +38,7 @@ struct DebuggerProxy {
     pub rx  : mpsc::Receiver<Message>,
 }
 
+#[allow(dead_code)]
 impl DebuggerProxy {
 
     pub fn new(tx : mpsc::Sender<Message>, rx : mpsc::Receiver<Message>) -> Self {
@@ -76,7 +78,7 @@ impl DebuggerProxy {
         let listener = TcpListener::bind("127.0.0.1:6809").unwrap();
 
         loop {
-            let mut gdb = GdbRemote::new(&listener);
+            let mut gdb = super::GdbRemote::new(&listener);
 
             info!("GBD connected");
 
@@ -160,9 +162,9 @@ impl DebuggerHost for DebuggerProxy {
         self.send_wait_ack(Message::ForcePc(_pc));
     }
 
-    fn set_step(&mut self) -> Sigs {
+    fn set_step(&mut self) -> super::Sigs {
         self.send_wait_ack(Message::Step);
-        Sigs::SIGTRAP
+        super::Sigs::SIGTRAP
     }
 
     fn add_breakpoint(&mut self, addr : u16) {
@@ -192,12 +194,14 @@ impl DebuggerHost for DebuggerProxy {
     }
 }
 
+#[allow(dead_code)]
 pub struct ThreadedGdb {
     pub rx  : mpsc::Receiver<Message>,
     pub tx  : mpsc::Sender<Message>,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+#[allow(dead_code)]
 impl ThreadedGdb {
 
     pub fn new() -> ThreadedGdb {

@@ -67,6 +67,7 @@ impl MemoryIO for MemMap {
     }
 }
 
+#[allow(dead_code)]
 impl MemMap {
     pub fn new() -> MemMap {
         MemMap {

@@ -2,12 +2,14 @@ use notify::{RecommendedWatcher, Watcher, RecursiveMode, DebouncedEvent};
 use std::sync::mpsc::{ channel, Receiver };
 use std::time::Duration;
 
+#[allow(dead_code)]
 pub struct FileWatcher {
     file : String,
     watcher : RecommendedWatcher,
     rx : Receiver<DebouncedEvent>,
 }
 
+#[allow(dead_code)]
 impl FileWatcher {
     pub fn new(file : &str) -> Self {
         let (tx, rx)  = channel();

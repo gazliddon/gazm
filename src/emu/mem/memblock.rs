@@ -11,6 +11,7 @@ pub struct MemBlock {
     pub name : String,
 }
 
+#[allow(dead_code)]
 impl MemBlock {
 
     pub fn new(name: &str, read_only : bool, base: u16, size: usize) -> MemBlock {
@@ -45,6 +46,7 @@ impl MemBlock {
     }
 }
 
+#[allow(dead_code)]
 impl MemMap {
     pub fn add_mem_block(&mut self, name : &str, writable : bool, base : u16, size : usize) {
         let mb = Box::new(MemBlock::new(name, writable, base, size));
@@ -52,6 +54,7 @@ impl MemMap {
     }
 }
 
+#[allow(dead_code)]
 impl MemoryIO for MemBlock {
 
     fn inspect_byte(&self, addr:u16) -> u8 {

@@ -1,4 +1,5 @@
 #[derive(Clone, Debug,PartialEq, PartialOrd)]
+#[allow(dead_code)]
 pub enum BreakPointTypes {
     READ,
     WRITE,
@@ -6,11 +7,13 @@ pub enum BreakPointTypes {
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[allow(dead_code)]
 pub struct BreakPoint {
     addr : u16,
     kind : BreakPointTypes,
 }
 
+#[allow(dead_code)]
 impl BreakPoint {
     pub fn new( kind : BreakPointTypes, addr : u16 ) -> BreakPoint {
         BreakPoint {
@@ -29,10 +32,12 @@ impl BreakPoint {
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[allow(dead_code)]
 pub struct BreakPoints {
     break_points : Vec<BreakPoint>,
 }
 
+#[allow(dead_code)]
 impl BreakPoints {
 
     pub fn new() -> BreakPoints {

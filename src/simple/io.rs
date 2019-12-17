@@ -14,14 +14,22 @@ IO
     9831  switches 2
 */
 
-use crate::mem::*;
+use super::emu::mem;
 
+use mem::{*};
+use mem::memcore::MemoryIO;
+
+#[allow(dead_code)]
 const IO_BASE   : u16   = 0x9800;
+#[allow(dead_code)]
 const IO_RASTER : u16   = 0x9830;
+#[allow(dead_code)]
 const IO_SW_1   : u16   = 0x9831;
+#[allow(dead_code)]
 const IO_SW_2   : u16   = 0x9832;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 struct Color {
     r : u8,
     g : u8,
@@ -29,11 +37,13 @@ struct Color {
 }
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub struct Io {
     pub palette : [u8 ; 16 * 3],
     halt : bool,
 }
 
+#[allow(dead_code)]
 impl Io {
     pub fn new() -> Self {
         Self {

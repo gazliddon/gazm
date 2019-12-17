@@ -24,4 +24,9 @@ serde_derive = "*"
 
 log="*"
 env_logger="*"
+notify = "*"
 
+itertools = "*"
+
+
+clap = "*"

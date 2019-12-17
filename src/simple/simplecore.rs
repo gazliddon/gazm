@@ -18,29 +18,29 @@ IO
     9831  switches 2
 
 */
-use crate::cpu;
+// use emu::cpu;
 
-use crate::filewatcher::FileWatcher;
+// use filewatcher::FileWatcher;
 
 use clap::{ArgMatches};
-use crate::cpu::{Regs, StandardClock};
 
-use crate::mem::*;
+use super::{ emu, io, filewatcher, state, utils, breakpoints };
 
-use crate::simple::Io;
+use emu::mem::memcore::MemoryIO;
 
+use io::*;
+
+use breakpoints::{BreakPoint, BreakPoints, BreakPointTypes};
+use emu::{ gdbstub, cpu, mem};
+use cpu::{ Regs, StandardClock };
+use gdbstub::Message;
 
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::gdbstub::{ ThreadedGdb, Message, Sigs};
-
-use crate::utils;
-use crate::state;
-
-use crate::breakpoints::{BreakPoint, BreakPoints, BreakPointTypes};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 enum SimState {
     Paused,
     Running,
@@ -48,9 +48,10 @@ enum SimState {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum SimEvent {
     Debugger(Message),
-    Halt(Sigs),
+    Halt(gdbstub::Sigs),
     HitSync,
     Pause,
     Quit,
@@ -63,10 +64,10 @@ pub enum SimEvent {
 ////////////////////////////////////////////////////////////////////////////////
 // Extend breakpoint to be initialisable from gdb bp descriptions
 
+#[allow(dead_code)]
 impl BreakPoint {
 
-    pub fn from_gdb_type( bp_type : crate::gdbstub::BreakPointTypes, addr : u16 ) -> Self {
-        use crate::gdbstub;
+    pub fn from_gdb_type( bp_type : gdbstub::BreakPointTypes, addr : u16 ) -> Self {
         let my_type = match bp_type {
             gdbstub::BreakPointTypes::Read  => BreakPointTypes::READ,
             gdbstub::BreakPointTypes::Write => BreakPointTypes::WRITE,
@@ -81,15 +82,20 @@ impl BreakPoint {
 
 
 
+#[allow(dead_code)]
 const W : usize = 304;
+#[allow(dead_code)]
 const H : usize = 256;
+#[allow(dead_code)]
 const DIMS : (u32, u32) = (W as u32, H as u32);
+#[allow(dead_code)]
 const SCR_BYTES : usize = W * H * 3; 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 enum MemRegion {
     Illegal,
     Ram,
@@ -98,19 +104,21 @@ enum MemRegion {
 }
 
 struct SimpleMem {
-    pub ram            : MemBlock,
-    pub screen         : MemBlock,
+    pub ram            : mem::MemBlock,
+    pub screen         : mem::MemBlock,
     pub io             : Io,
     addr_to_region     : [MemRegion; 0x1_0000],
     name               : String,
 }
 
+#[allow(dead_code)]
 fn pix_to_rgb(p : u8, palette : &[u8], dest : &mut[u8])  {
     let p = p as usize;
     let palette = &palette[p * 3 ..];
     dest.copy_from_slice(&palette[..3]);
 }
 
+#[allow(dead_code)]
 fn to_rgb(mem : &[u8], palette : &[u8]) -> [u8; SCR_BYTES]{
     let mut ret : [u8; SCR_BYTES] = [0; SCR_BYTES];
 
@@ -129,11 +137,12 @@ fn to_rgb(mem : &[u8], palette : &[u8]) -> [u8; SCR_BYTES]{
     ret
 }
 
+#[allow(dead_code)]
 impl SimpleMem {
     pub fn new() -> Self {
 
-        let screen    = MemBlock::new("screen", false, 0x0000,0x9800);
-        let ram       = MemBlock::new("ram", false, 0x9900, 0x1_0000 - 0x9900);
+        let screen    = mem::MemBlock::new("screen", false, 0x0000,0x9800);
+        let ram       = mem::MemBlock::new("ram", false, 0x9900, 0x1_0000 - 0x9900);
         let name      = "simple".to_string();
         let io        = Io::new();
 
@@ -141,12 +150,12 @@ impl SimpleMem {
 
             use self::MemRegion::*;
 
-            let mems : &[(MemRegion, &dyn MemoryIO )] = &[
+            let mems : &[(MemRegion, &dyn mem::MemoryIO )] = &[
                 (IO, &io),
                 (Screen, &screen ),
                 (Ram, &ram ), ];
 
-            build_addr_to_region(Illegal, mems)
+            mem::build_addr_to_region(Illegal, mems)
         };
 
         SimpleMem {
@@ -154,7 +163,7 @@ impl SimpleMem {
         }
     }
 
-    fn get_region(&self, _addr : u16) -> &dyn MemoryIO {
+    fn get_region(&self, _addr : u16) -> &dyn mem::MemoryIO {
         let region = self.addr_to_region[_addr as usize];
 
         use self::MemRegion::*;
@@ -167,7 +176,7 @@ impl SimpleMem {
         }
     }
 
-    fn get_region_mut(&mut self, _addr : u16) -> &mut dyn MemoryIO {
+    fn get_region_mut(&mut self, _addr : u16) -> &mut dyn mem::MemoryIO {
         let region = self.addr_to_region[_addr as usize];
         use self::MemRegion::*;
 
@@ -181,7 +190,7 @@ impl SimpleMem {
 
 }
 
-impl MemoryIO for SimpleMem {
+impl mem::MemoryIO for SimpleMem {
     fn upload(&mut self, addr : u16, _data : &[u8]) {
         let mut addr = addr;
 
@@ -195,7 +204,7 @@ impl MemoryIO for SimpleMem {
         (0, 0xffff)
     }
 
-    fn update_sha1(&self, _digest : &mut Sha1) {
+    fn update_sha1(&self, _digest : &mut sha1::Sha1) {
         unimplemented!("TBD")
     }
 
@@ -220,6 +229,7 @@ impl MemoryIO for SimpleMem {
 }
 
 
+#[allow(dead_code)]
 fn pop_u8<'a, I>(vals: &mut I) -> u8
 where
 I: Iterator<Item = &'a u8>,
@@ -227,6 +237,7 @@ I: Iterator<Item = &'a u8>,
     *vals.next().unwrap()
 }
 
+#[allow(dead_code)]
 fn pop_u16<'a, I>(vals: &mut I) -> u16
 where
 I: Iterator<Item = &'a u8>,
@@ -236,36 +247,36 @@ I: Iterator<Item = &'a u8>,
     l | (h << 8)
 }
 
+#[allow(dead_code)]
 pub struct Simple {
     regs         : Regs,
     mem          : SimpleMem,
     rc_clock     : Rc<RefCell<StandardClock>>,
     file         : Option<String>,
-    watcher      : Option<FileWatcher>,
+    watcher      : Option<filewatcher::FileWatcher>,
     events       : Vec<SimEvent>,
-    win          : crate::window::Window,
     dirty        : bool,
-    gdb          : ThreadedGdb,
+    gdb          : gdbstub::ThreadedGdb,
     break_points : BreakPoints,
     verbose      : bool,
 }
 
+#[allow(dead_code)]
 impl Simple {
     pub fn new() -> Self {
-        let rc_clock = Rc::new(RefCell::new(StandardClock::new(2_000_000)));
+        let rc_clock = Rc::new(RefCell::new(cpu::StandardClock::new(2_000_000)));
 
         let mem = SimpleMem::new();
         let regs = Regs::new();
-        let win = crate::window::Window::new("my lovely window", DIMS);
 
-        let gdb = ThreadedGdb::new();
+        let gdb = gdbstub::ThreadedGdb::new();
 
         let break_points = BreakPoints::new();
 
         let verbose = false;
 
         Simple {
-            mem, regs, rc_clock, win, gdb, break_points, verbose,
+            mem, regs, rc_clock, gdb, break_points, verbose,
             file    : None,
             watcher : None,
             events  : vec![],
@@ -278,8 +289,8 @@ impl Simple {
         let exec_break = self.break_points.has_exec_breakpoint(self.regs.pc);
 
         if exec_break {
-            self.add_event(SimEvent::Halt(Sigs::SIGTRAP));
-            Some(SimEvent::Halt(Sigs::SIGTRAP))
+            self.add_event(SimEvent::Halt(gdbstub::Sigs::SIGTRAP));
+            Some(SimEvent::Halt(gdbstub::Sigs::SIGTRAP))
 
         } else {
 
@@ -299,7 +310,7 @@ impl Simple {
                     }
                 }
                 Err(_cpu_err) => {
-                    Some(SimEvent::Halt(Sigs::SIGILL))
+                    Some(SimEvent::Halt(gdbstub::Sigs::SIGILL))
                 }
             };
 
@@ -352,7 +363,7 @@ impl Simple {
 
         if matches.is_present("watch-rom") {
             info!("Adding watch for rom file");
-            let watcher = FileWatcher::new(file);
+            let watcher = filewatcher::FileWatcher::new(file);
             ret.watcher = Some(watcher);
         }
 
@@ -379,20 +390,20 @@ impl Simple {
     }
 
     pub fn handle_window(&mut self) {
-        use crate::window::Action;
+        // use crate::window::Action;
 
-        for ev in self.win.update() {
-            let sim_event = match ev {
-                Action::Reset    => Some(SimEvent::Reset),
-                Action::Quit     => Some(SimEvent::Quit),
-                Action::Pause    => Some(SimEvent::Pause),
-                Action::ToggleVerbose => Some(SimEvent::ToggleVerbose),
-                Action::Continue => None
-            };
-            if let Some(event) = sim_event {
-                self.add_event(event);
-            }
-        }
+        // for ev in self.win.update() {
+        //     let sim_event = match ev {
+        //         Action::Reset    => Some(SimEvent::Reset),
+        //         Action::Quit     => Some(SimEvent::Quit),
+        //         Action::Pause    => Some(SimEvent::Pause),
+        //         Action::ToggleVerbose => Some(SimEvent::ToggleVerbose),
+        //         Action::Continue => None
+        //     };
+        //     if let Some(event) = sim_event {
+        //         self.add_event(event);
+        //     }
+        // }
     }
 
     pub fn handle_debugger(&mut self) {
@@ -543,13 +554,13 @@ impl Simple {
     }
 
     pub fn update_texture(&mut self) {
-        let buffer = {
+        let _buffer = {
             let scr = &self.mem.screen.data;
             let pal = &self.mem.io.palette;
             to_rgb(scr, pal)
         };
 
-        self.win.update_texture(&buffer);
+        // self.win.update_texture(&buffer);
     }
 
     pub fn run(&mut self) {
@@ -631,7 +642,7 @@ impl Simple {
 
                 SimState::Running => {
                     self.run_to_sync(2_000_000 / 60);
-                    self.win.draw();
+                    // self.win.draw();
                 }
 
                 SimState::Paused => {

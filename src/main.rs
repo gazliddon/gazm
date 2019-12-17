@@ -1,10 +1,13 @@
-#[macro_use]
-extern crate glium;
-extern crate imgui;
-extern crate cgmath;
-extern crate num;
+#[macro_use] extern crate glium;
 
-extern crate env_logger;
+// extern crate imgui;
+// extern crate cgmath;
+// extern crate num;
+// extern crate clap;
+// extern crate notify;
+
+// extern crate env_logger;
+
 #[macro_use] extern crate log;
 
 #[macro_use] extern crate bitflags;
@@ -13,6 +16,7 @@ extern crate env_logger;
 mod mesh;
 mod app;
 mod emu;
+mod simple;
 
 #[allow(unused_imports)]
 use glium::{glutin, Surface};

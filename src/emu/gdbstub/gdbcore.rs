@@ -1,10 +1,13 @@
 use std::net::{TcpListener, Shutdown,TcpStream};
 use std::io::{Read, Write};
-use crate::gdbstub::reply::{Reply, Endian};
 
-use crate::gdbstub::Sigs;
+use super::{Reply, Endian, Sigs};
+
+
+// use self::Sigs;
 
 ////////////////////////////////////////////////////////////////////////////////
+#[allow(dead_code)]
 enum PacketResult {
     Ok(Vec<u8>),
     BadChecksum(Vec<u8>),
@@ -15,6 +18,7 @@ enum PacketResult {
 
 static mut PNUM : u32 = 0;
 
+#[allow(dead_code)]
 pub trait DebuggerHost {
     fn do_break(&mut self);
     fn read_registers(&self, _reply : &mut Reply) ;
@@ -35,16 +39,20 @@ pub trait DebuggerHost {
     fn set_reg(&self, _r_num : usize, _val : u16);
 }
 
+#[allow(dead_code)]
 pub struct GdbRemote {
     remote: TcpStream,
     endian : Endian,
 }
 
+#[allow(dead_code)]
 pub type GdbResult = Result<(), ()>;
+#[allow(dead_code)]
 fn args_as_string(data : &[u8]) -> String {
     String::from_utf8(data.to_vec()).unwrap()
 }
 
+#[allow(dead_code)]
 impl GdbRemote {
     pub fn new(listener: &TcpListener) -> GdbRemote {
 

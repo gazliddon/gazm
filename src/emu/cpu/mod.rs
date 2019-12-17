@@ -22,5 +22,5 @@ pub use alu::*;
 pub use clock::*;
 pub use flags::*;
 
-use super::mem;
+pub use super::mem;
 

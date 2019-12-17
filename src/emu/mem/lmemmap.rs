@@ -88,6 +88,7 @@ pub struct LoggingMemMap {
     log_cell : RefCell<Vec<LogEntry>>,
 }
 
+#[allow(dead_code)]
 impl LoggingMemMap {
 
     pub fn new(mm : MemMap) -> LoggingMemMap {

@@ -4,6 +4,7 @@ use std::ops::Range;
 pub use sha1::Sha1;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum MemError {
     AddressError(u16),
     IllegalWrite(u16),
@@ -11,6 +12,7 @@ pub enum MemError {
     BreakPointWrite(u16),
 }
 
+#[allow(dead_code)]
 pub fn build_addr_to_region<E : Copy>(illegal : E, mem_tab :  &[(E, &dyn MemoryIO )]) -> [E; 0x1_0000] {
 
     let mut ret = [illegal; 0x1_0000];
@@ -26,27 +28,32 @@ pub fn build_addr_to_region<E : Copy>(illegal : E, mem_tab :  &[(E, &dyn MemoryI
     ret
 }
 
+#[allow(dead_code)]
 fn to_mem_range( address : u16, size :u16 ) -> Range<u32> {
     use std::cmp::min;
     let last_mem = u32::from(address) + u32::from(size);
     ( u32::from(address) .. min(0x1_0000, last_mem) )
 }
 
+#[allow(dead_code)]
 pub fn as_word(lo : u8, hi : u8) -> u16 {
     u16::from(lo) | ( u16::from(hi) << 8 )
 }
 
+#[allow(dead_code)]
 pub fn as_bytes(val : u16) -> (u8,u8) {
     ( (val&0xff) as u8, (val>>8) as u8 )
 }
 
 
+#[allow(dead_code)]
 pub trait CheckedMemoryIo {
     fn inspect_byte(&self, _addr:u16) -> Result<(), MemError>;
     fn load_byte(&mut self, _addr:u16) -> Result<(), MemError>;
     fn store_byte(&mut self, _addr:u16, _val:u8) -> Result<(), MemError>;
 }
 
+#[allow(dead_code)]
 pub trait MemoryIO {
     fn inspect_word(&self, _addr:u16) -> u16 {
         let lo = self.inspect_byte(_addr.wrapping_add(1));

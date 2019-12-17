@@ -3,7 +3,8 @@ use std::thread;
 
 use std::net::{TcpListener};
 
-use crate::gdbstub;
+use crate::emu::gdbstub;
+
 
 // pub enum Events {
 //     HasDisconnected,
@@ -20,6 +21,7 @@ use crate::gdbstub;
 // }
 //
 
+#[allow(dead_code)]
 pub enum Events {
     DoBreak,
     ForcePc(u16),
@@ -30,18 +32,21 @@ pub enum Events {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[allow(dead_code)]
 pub enum ConnState {
     Start,
     Waiting,
     Connected,
 }
 
+#[allow(dead_code)]
 pub enum ConnEvent {
     HasDisconnected,
     HasConnected,
     HasNoEvent,
 }
 
+#[allow(dead_code)]
 pub struct GdbConnection {
     state : ConnState,
     gdb : Option<gdbstub::GdbRemote>,
@@ -49,6 +54,7 @@ pub struct GdbConnection {
     rx : mpsc::Receiver<gdbstub::GdbRemote>,
 }
 
+#[allow(dead_code)]
 impl GdbConnection {
 
     pub fn new() -> Self {

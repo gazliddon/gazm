@@ -1,5 +1,6 @@
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Sigs {
     SIGHUP    = 1,  // Hangup (POSIX)
     SIGINT    = 2,  // Terminal interrupt (ANSI)

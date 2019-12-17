@@ -7,6 +7,7 @@ pub enum Endian {
     Little,
 }
 
+#[allow(dead_code)]
 pub fn swap_32(val : u32) -> u32 {
     let b0 = val & 0xff;
     let b1 = ( val >> 8 ) & 0xff;
@@ -16,6 +17,7 @@ pub fn swap_32(val : u32) -> u32 {
     (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
 }
 
+#[allow(dead_code)]
 pub fn swap_16(val : u16) -> u16 {
     let b0 = val & 0xff;
     let b1 = ( val >> 8 ) & 0xff;
@@ -24,6 +26,7 @@ pub fn swap_16(val : u16) -> u16 {
 }
 
 
+#[allow(dead_code)]
 pub struct Reply {
     /// Packet data
     data: Vec<u8>,
@@ -34,6 +37,7 @@ pub struct Reply {
     endian : Endian
 }
 
+#[allow(dead_code)]
 impl Reply {
     pub fn new(endian : &Endian) -> Reply {
         // 32bytes is probably sufficient for the majority of replies
