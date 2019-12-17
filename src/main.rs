@@ -1,15 +1,5 @@
 #[macro_use] extern crate glium;
-
-// extern crate imgui;
-// extern crate cgmath;
-// extern crate num;
-// extern crate clap;
-// extern crate notify;
-
-// extern crate env_logger;
-
 #[macro_use] extern crate log;
-
 #[macro_use] extern crate bitflags;
 #[macro_use] extern crate serde_derive;
 
@@ -18,9 +8,7 @@ mod app;
 mod emu;
 mod simple;
 
-#[allow(unused_imports)]
-use glium::{glutin, Surface};
-#[allow(unused_imports)]
+use glium::{Surface};
 use glium::index::PrimitiveType;
 use app::{ System, FrameTime, App };
 use mesh::Mesh;
@@ -99,10 +87,6 @@ impl App for MyApp {
 
     fn ui(&self, ui : &mut imgui::Ui) {
         use imgui::*;
-
-        // let mut open = true;
-
-        // ui.show_demo_window(&mut open);
 
         Window::new(im_str!("Hello world"))
             .size([300.0, 100.0], Condition::FirstUseEver)

@@ -2,7 +2,7 @@ use std::net::{TcpListener};
 use std::sync::mpsc;
 use std::thread;
 
-use super::{DebuggerHost, Reply, Sigs};
+use super::{DebuggerHost, Reply, Sigs, GdbRemote};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BreakPointTypes {
@@ -78,7 +78,7 @@ impl DebuggerProxy {
         let listener = TcpListener::bind("127.0.0.1:6809").unwrap();
 
         loop {
-            let mut gdb = super::GdbRemote::new(&listener);
+            let mut gdb = GdbRemote::new(&listener);
 
             info!("GBD connected");
 
@@ -162,9 +162,9 @@ impl DebuggerHost for DebuggerProxy {
         self.send_wait_ack(Message::ForcePc(_pc));
     }
 
-    fn set_step(&mut self) -> super::Sigs {
+    fn set_step(&mut self) -> Sigs {
         self.send_wait_ack(Message::Step);
-        super::Sigs::SIGTRAP
+        Sigs::SIGTRAP
     }
 
     fn add_breakpoint(&mut self, addr : u16) {

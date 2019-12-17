@@ -390,7 +390,6 @@ impl Simple {
     }
 
     pub fn handle_window(&mut self) {
-        // use crate::window::Action;
 
         // for ev in self.win.update() {
         //     let sim_event = match ev {

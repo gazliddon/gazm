@@ -1,5 +1,5 @@
 use clap::{ArgMatches};
-use crate::tests::tester;
+use super::tests::tester;
 
 impl tester::Tester for GregTest {
     fn from_matches( matches : &ArgMatches ) -> GregTest {

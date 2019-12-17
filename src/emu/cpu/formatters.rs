@@ -1,5 +1,4 @@
-use super::{Regs};
-use super::{Flags};
+use super::{Regs, Flags};
 
 use std::fmt;
 

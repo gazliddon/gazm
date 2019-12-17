@@ -1,13 +1,19 @@
 // Handles CPU emulation
 
-use super::mem::{ MemoryIO, MemError };
-use super::Flags;
+use super::{
+    Regs,
+    RegEnum,
+    InstructionDecoder,
+    Flags,
+    mem::{
+        MemoryIO,
+        MemError
+    },
+    AddressLines, Direct, Extended, Immediate, Inherent, Relative, Indexed,
+    Clock, alu
+};
 
-use super::{Regs, RegEnum, InstructionDecoder};
-use super::{AddressLines, Direct, Extended, Immediate, Inherent, Relative, Indexed};
-use super::{Clock, alu};
-
-use super::alu::{GazAlu};
+use alu::{GazAlu};
 
 use std::cell::RefCell;
 use std::rc::Rc;

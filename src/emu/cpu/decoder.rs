@@ -1,4 +1,4 @@
-use super::super::mem::MemoryIO;
+use super::mem::MemoryIO;
 
 #[derive(Debug,Clone,Default)]
 pub struct InstructionDecoder {

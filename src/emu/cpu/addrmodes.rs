@@ -1,6 +1,5 @@
-use super::mem::MemoryIO;
-use super::{ Regs, InstructionDecoder, IndexModes, CpuErr};
-use super::IndexedFlags;
+use super::{ Regs, InstructionDecoder, IndexModes, CpuErr, IndexedFlags, mem};
+use mem::MemoryIO;
 
 pub trait AddressLines {
 

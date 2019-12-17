@@ -1,6 +1,5 @@
 use super::Flags;
 
-extern crate num;
 use std;
 
 fn a_or_b<T>(f : bool, a : T, b : T) -> T {

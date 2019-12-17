@@ -1,4 +1,4 @@
-use crate::app::{System};
+use super::app::{System};
 use glium::{Surface};
 
 pub struct Mesh<T : Copy, I : Copy + glium::index::Index> {

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::diss;
+use super::diss;
 
 use serde_yaml;
 
@@ -19,7 +19,7 @@ pub struct SymbolTable {
 
 impl SymbolTable {
     pub fn new(file_name : &'static str) -> Self {
-        use crate::utils::load_file_as_string;
+        use super::utils::load_file_as_string;
         let s = load_file_as_string(&file_name.to_string());
         let v : BTreeMap<String,u16> = serde_yaml::from_str(&s).unwrap(); 
 
