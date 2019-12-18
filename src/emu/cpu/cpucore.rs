@@ -1347,7 +1347,7 @@ pub fn step<M: MemoryIO, C : Clock>(regs : &mut Regs, mem : &mut M, ref_clock : 
 }
 
 pub fn diss<M: MemoryIO, C : Clock>(regs : &mut Regs, mem : &mut M, ref_clock : &Rc<RefCell<C>>) -> Result<InstructionDecoder, CpuErr> {
-    let mut ctx = Context::new(mem,regs,ref_clock);
+    let ctx = Context::new(mem,regs,ref_clock);
     Ok(ctx.ins.clone())
 }
 

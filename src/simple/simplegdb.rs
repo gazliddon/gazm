@@ -103,8 +103,8 @@ impl GdbConnection {
                 if is_gdb.is_ok() {
                     self.state = Connected;
                     event = ConnEvent::HasConnected;
-                    self.gdb = Some(is_gdb.unwrap());
-                    info!("gdb connected")
+                    info!("gdb connected");
+                    self.gdb = is_gdb.ok();
                 }
             },
 
