@@ -3,7 +3,6 @@ use serde::de::Deserializer;
 
 #[derive(Debug, Clone,  Serialize, Deserialize)]
 pub enum AddrMode {
-    TBD,
     Indexed,
     Direct,
     Extended,
