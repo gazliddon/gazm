@@ -10,6 +10,7 @@ mod addrmodes;
 mod decoder;
 mod alu;
 mod clock;
+pub mod isa_dbase;
 
 pub use registers::*;
 pub use indexed::*;

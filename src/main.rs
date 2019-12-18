@@ -107,6 +107,10 @@ impl App for MyApp {
 }
 
 fn main() {
+    use emu::cpu::isa_dbase::Dbase;
+
+    let _x = Dbase::new();
+
     let mut system = System::new();
     let mut app = MyApp::new(&system);
     system.run_app(&mut app);

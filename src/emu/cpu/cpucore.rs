@@ -55,6 +55,7 @@ pub struct Context<'a, C : 'a + Clock, M : 'a + MemoryIO> {
     mem : &'a mut M,
     ref_clock : &'a Rc<RefCell<C>>,
     ins : InstructionDecoder,
+    cycles : usize,
 }
 
 impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
@@ -1311,7 +1312,7 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
 
     fn new(mem : &'a mut M, regs : &'a mut Regs, ref_clock: &'a Rc<RefCell<C>>) -> Context<'a, C,M> {
         let ins = InstructionDecoder::new(regs.pc);
-        Context { regs, mem, ref_clock, ins, }
+        Context { regs, mem, ref_clock, ins, cycles: 0}
     }
 
     pub fn fetch_instruction(&mut self) -> u16 {
@@ -1332,12 +1333,21 @@ pub fn step<M: MemoryIO, C : Clock>(regs : &mut Regs, mem : &mut M, ref_clock : 
     let mut ctx = Context::new(mem,regs,ref_clock);
 
     macro_rules! handle_op {
-        ($addr:ident, $action:ident) => ({ ctx.$action::<$addr>() }) }
+        ($addr:ident, $action:ident, $cycles:expr) => ({ 
+            let _size : usize = 0;
+            ctx.cycles = $cycles;
+            ctx.$action::<$addr>() })
+    }
 
     op_table!(ctx.fetch_instruction(), { ctx.unimplemented() })?;
 
     ctx.regs.pc =  ctx.ins.next_addr;
 
+    Ok(ctx.ins.clone())
+}
+
+pub fn diss<M: MemoryIO, C : Clock>(regs : &mut Regs, mem : &mut M, ref_clock : &Rc<RefCell<C>>) -> Result<InstructionDecoder, CpuErr> {
+    let mut ctx = Context::new(mem,regs,ref_clock);
     Ok(ctx.ins.clone())
 }
 
