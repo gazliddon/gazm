@@ -7,7 +7,7 @@
 // #![allow(dead_code)]
 // #![allow(unused_variables)]
 
-#![allow(dead_code)]
+#[allow(dead_code)]
 
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate bitflags;

@@ -9,8 +9,16 @@ use super::{
         MemoryIO,
         MemError
     },
-    AddressLines, Direct, Extended, Immediate, Inherent, Relative, Indexed,
-    Clock, alu
+    AddressLines,
+    Direct,
+    Extended,
+    Immediate8,
+    Immediate16,
+    Inherent,
+    Relative,
+    Indexed,
+    Clock, alu,
+    isa_dbase
 };
 
 use alu::{GazAlu};
@@ -56,6 +64,7 @@ pub struct Context<'a, C : 'a + Clock, M : 'a + MemoryIO> {
     ref_clock : &'a Rc<RefCell<C>>,
     ins : InstructionDecoder,
     cycles : usize,
+    instruction_info :  &'static isa_dbase::Instruction,
 }
 
 impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
@@ -1295,10 +1304,6 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
         Err(CpuErr::Unimplemented(self.ins.clone()))
     }
 
-    fn reset< A : AddressLines>(&mut self)  -> Result<(), CpuErr> {
-        Err(CpuErr::Unimplemented(self.ins.clone()))
-    }
-
     fn sync< A : AddressLines>(&mut self)  -> Result<(), CpuErr> {
         Ok(())
     }
@@ -1312,11 +1317,64 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
 
     fn new(mem : &'a mut M, regs : &'a mut Regs, ref_clock: &'a Rc<RefCell<C>>) -> Context<'a, C,M> {
         let ins = InstructionDecoder::new(regs.pc);
-        Context { regs, mem, ref_clock, ins, cycles: 0}
+        let instruction_info = isa_dbase::unknown();
+        Context { regs, mem, ref_clock, ins, cycles: 0,
+            instruction_info 
+        }
     }
 
     pub fn fetch_instruction(&mut self) -> u16 {
-        self.ins.fetch_instruction(self.mem)
+        let op_code = self.ins.fetch_instruction(self.mem);
+        self.instruction_info = isa_dbase::get(op_code as usize);
+        op_code
+    }
+
+    fn diss_op<A: AddressLines>(&mut self) -> String {
+        let opcode = &self.instruction_info.opcode;
+        let addr_mode = A::name();
+        let effective_address = "EA";
+        format!("{} {} {}", opcode, addr_mode, effective_address)
+    }
+
+    pub fn diss(&mut self) -> String {
+        let pc = self.regs.pc;
+
+        let op_code = self.ins.fetch_instruction(self.mem);
+
+        self.instruction_info = isa_dbase::get(op_code as usize);
+
+        macro_rules! handle_op {
+            ($addr:ident, $action:ident, $cycles:expr) => ({ 
+                self.diss_op::<$addr>()
+            })
+        }
+
+        let text = op_table!(self.fetch_instruction(), { "".into() });
+
+        self.regs.pc = pc + self.instruction_info.size;
+
+        text
+    }
+
+    pub fn step(&mut self) -> Result<(), CpuErr> {
+        macro_rules! handle_op {
+            ($addr:ident, $action:ident, $cycles:expr) => ({ 
+                self.$action::<$addr>() })
+        }
+
+        op_table!(self.fetch_instruction(), { self.unimplemented() })?;
+        self.regs.pc =  self.ins.next_addr;
+        Ok(())
+    }
+
+    pub fn reset(&mut self) {
+        let pc = self.mem.load_word(0xfffe);
+        self.set_pc(pc);
+        *self.regs = Regs {
+            pc,
+            flags : Flags::I | Flags::F,
+            .. Default::default()
+        };
     }
 }
 
@@ -1329,20 +1387,8 @@ pub fn reset<M: MemoryIO>(regs : &mut Regs, mem : &mut M) {
 }
 
 pub fn step<M: MemoryIO, C : Clock>(regs : &mut Regs, mem : &mut M, ref_clock : &Rc<RefCell<C>>) -> Result<InstructionDecoder, CpuErr> {
-
     let mut ctx = Context::new(mem,regs,ref_clock);
-
-    macro_rules! handle_op {
-        ($addr:ident, $action:ident, $cycles:expr) => ({ 
-            let _size : usize = 0;
-            ctx.cycles = $cycles;
-            ctx.$action::<$addr>() })
-    }
-
-    op_table!(ctx.fetch_instruction(), { ctx.unimplemented() })?;
-
-    ctx.regs.pc =  ctx.ins.next_addr;
-
+    ctx.step()?;
     Ok(ctx.ins.clone())
 }
 

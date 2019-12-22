@@ -21,26 +21,22 @@ IO
 // use emu::cpu;
 
 // use filewatcher::FileWatcher;
+//
 
 use clap::{ArgMatches};
-
-use super::{ gdbstub, cpu, mem, io, filewatcher, state, utils, breakpoints };
-
+use super::{ cpu, mem, io, filewatcher, state, utils };
 use mem::memcore::MemoryIO;
 
 use io::*;
 
-use breakpoints::{BreakPoint, BreakPoints, BreakPointTypes};
 use cpu::{ Regs, StandardClock };
-use gdbstub::Message;
 
 use std::rc::Rc;
 use std::cell::RefCell;
 
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(dead_code)]
-enum SimState {
+pub enum SimState {
     Paused,
     Running,
     Quitting,
@@ -49,37 +45,21 @@ enum SimState {
 #[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum SimEvent {
-    Debugger(Message),
-    Halt(gdbstub::Sigs),
     HitSync,
+    Halt,
     Pause,
     Quit,
     RomChanged,
     MaxCycles,
     Reset,
     ToggleVerbose,
+    Run,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Extend breakpoint to be initialisable from gdb bp descriptions
 
-#[allow(dead_code)]
-impl BreakPoint {
-
-    pub fn from_gdb_type( bp_type : gdbstub::BreakPointTypes, addr : u16 ) -> Self {
-        let my_type = match bp_type {
-            gdbstub::BreakPointTypes::Read  => BreakPointTypes::READ,
-            gdbstub::BreakPointTypes::Write => BreakPointTypes::WRITE,
-            gdbstub::BreakPointTypes::Exec  => BreakPointTypes::EXEC,
-        };
-
-        Self::new(my_type, addr)
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
-
-
 
 #[allow(dead_code)]
 const W : usize = 304;
@@ -227,25 +207,6 @@ impl mem::MemoryIO for SimpleMem {
     }
 }
 
-
-#[allow(dead_code)]
-fn pop_u8<'a, I>(vals: &mut I) -> u8
-where
-I: Iterator<Item = &'a u8>,
-{
-    *vals.next().unwrap()
-}
-
-#[allow(dead_code)]
-fn pop_u16<'a, I>(vals: &mut I) -> u16
-where
-I: Iterator<Item = &'a u8>,
-{
-    let h = u16::from(*vals.next().unwrap());
-    let l = u16::from(*vals.next().unwrap());
-    l | (h << 8)
-}
-
 #[allow(dead_code)]
 pub struct Simple {
     regs         : Regs,
@@ -255,9 +216,8 @@ pub struct Simple {
     watcher      : Option<filewatcher::FileWatcher>,
     events       : Vec<SimEvent>,
     dirty        : bool,
-    gdb          : gdbstub::ThreadedGdb,
-    break_points : BreakPoints,
     verbose      : bool,
+    state        : state::State<SimState>
 }
 
 #[allow(dead_code)]
@@ -268,35 +228,23 @@ impl Simple {
         let mem = SimpleMem::new();
         let regs = Regs::new();
 
-        let gdb = gdbstub::ThreadedGdb::new();
-
-        let break_points = BreakPoints::new();
-
         let verbose = false;
 
         Simple {
-            mem, regs, rc_clock, gdb, break_points, verbose,
+            mem, regs, rc_clock, verbose,
             file    : None,
             watcher : None,
             events  : vec![],
             dirty   : false,
+            state   : state::State::new(SimState::Paused)
         }
     }
 
     pub fn step(&mut self) -> Option<SimEvent> {
-
-        let exec_break = self.break_points.has_exec_breakpoint(self.regs.pc);
-
-        if exec_break {
-            self.add_event(SimEvent::Halt(gdbstub::Sigs::SIGTRAP));
-            Some(SimEvent::Halt(gdbstub::Sigs::SIGTRAP))
-
-        } else {
-
+        {
             if self.verbose {
                 info!("dissassembly here : {:02x}", self.regs.pc);
             }
-
 
             let res = cpu::step(&mut self.regs, &mut self.mem, &self.rc_clock);
 
@@ -308,8 +256,9 @@ impl Simple {
                         None
                     }
                 }
+
                 Err(_cpu_err) => {
-                    Some(SimEvent::Halt(gdbstub::Sigs::SIGILL))
+                    Some(SimEvent::Halt)
                 }
             };
 
@@ -374,9 +323,7 @@ impl Simple {
         // stop on an event
         // Could be an error or whatever
         for _ in 0..max_instructions {
-
             let ret = self.step();
-
             if ret.is_some() {
                 return ret;
             }
@@ -388,167 +335,9 @@ impl Simple {
         self.events.push(event)
     }
 
-    pub fn handle_window(&mut self) {
-
-        // for ev in self.win.update() {
-        //     let sim_event = match ev {
-        //         Action::Reset    => Some(SimEvent::Reset),
-        //         Action::Quit     => Some(SimEvent::Quit),
-        //         Action::Pause    => Some(SimEvent::Pause),
-        //         Action::ToggleVerbose => Some(SimEvent::ToggleVerbose),
-        //         Action::Continue => None
-        //     };
-        //     if let Some(event) = sim_event {
-        //         self.add_event(event);
-        //     }
-        // }
-    }
-
-    pub fn handle_debugger(&mut self) {
-        while let Some(msg) = self.gdb.poll() {
-            match msg {
-                Message::Disconnected | Message::Connected | Message::DoBreak  => {
-                    self.add_event(SimEvent::Debugger(msg));
-                    self.gdb.ack()
-                },
-
-                Message::Step => {
-                    warn!("Should send back correct sig for step mode");
-                    self.add_event(SimEvent::Debugger(msg));
-                    self.gdb.ack()
-                }
-
-                Message::SetReg(register_number, v16) => {
-
-                    let regs = &mut self.regs;
-
-                    let v8 = v16 as u8;
-
-                    match register_number {
-                        0 => { regs.flags.set_flags(v8) }
-                        1 => { regs.a = v8; }
-                        2 => { regs.b = v8; }
-                        3 => { regs.dp = v8;}
-                        4 => { regs.x = v16 }
-                        5 => { regs.y = v16 }
-                        6 => { regs.s = v16 }
-                        7 => { regs.u = v16 }
-                        8 => { regs.pc = v16}
-                        _ => { warn!("illgal reg num {} for set_reg", register_number) }
-                    };
-
-                    self.gdb.ack()
-                },
-
-                Message::GetReg(register_number) => {
-
-                    let regs = &mut self.regs;
-
-                    let val = match register_number {
-                        0 => { u16::from(regs.flags.bits()) },
-                        1 => { u16::from(regs.a) }
-                        2 => { u16::from(regs.b) }
-                        3 => { u16::from(regs.dp) }
-                        4 => { regs.x }
-                        5 => { regs.y }
-                        6 => { regs.s }
-                        7 => { regs.u }
-                        8 => { regs.pc }
-                        _ => { warn!("illgal reg num {} for get_reg", register_number ); 0 }
-                    };
-
-                    self.gdb.reply(Message::SetReg(register_number, val))
-                },
-
-                Message::Resume => {
-                    self.add_event(SimEvent::Debugger(msg));
-                }
-
-                Message::BreakPoint(bp_type, addr) => {
-                    let break_point = BreakPoint::from_gdb_type(bp_type, addr);
-                    self.break_points.add(&break_point);
-                    self.gdb.ack()
-                }
-
-                Message::DeleteBreakPoint(bp_type, addr) => {
-                    let break_point = BreakPoint::from_gdb_type(bp_type, addr);
-                    self.break_points.remove(&break_point);
-                    self.gdb.ack()
-                }
-
-                Message::ForcePc(addr) => {
-                    self.regs.pc = addr;
-                    self.gdb.ack();
-                }
-
-                Message::Examine(addr) => {
-                    let reply =  Message::Write( addr, self.mem.inspect_byte(addr));
-                    self.gdb.reply(reply);
-                }
-
-                Message::WriteRegisters(data) => {
-
-                    let mut _it = data.iter();
-
-                    macro_rules! take8 {
-                        () => { _it.next().unwrap().clone() }
-                    }
-
-                    macro_rules! take16 {
-                        () => ({
-                            let h = take8!() as u16;
-                            let l = take8!() as u16;
-                            h << 8 | l
-                        })
-                    }
-
-                    let regs = &mut self.regs;
-
-                    regs.flags.set_flags(take8!());
-                    regs.a = take8!();
-                    regs.b = take8!();
-                    regs.dp = take8!();
-                    regs.x = take16!();
-                    regs.y = take16!();
-                    regs.s = take16!();
-                    regs.u = take16!();
-                    regs.pc = take16!();
-
-                    info!("received registers and pc = ${:04x}", regs.pc);
-
-                    self.gdb.ack();
-                }
-
-                Message::ReadRegisters => {
-                    let regs = &self.regs;
-
-                    let cc = regs.flags.bits();
-
-                    let ret : Vec<u8> = vec![
-                        cc, regs.a, regs.b, regs.dp,
-
-                        (regs.x >> 8) as u8,
-                        regs.x as u8,
-
-                        (regs.y >> 8) as u8,
-                        regs.y as u8,
-
-                        (regs.u >> 8) as u8,
-                        regs.u as u8,
-
-                        (regs.s >> 8) as u8,
-                        regs.s as u8,
-
-                        (regs.pc >> 8) as u8,
-                        regs.pc as u8,
-                    ];
-
-                    self.gdb.reply(Message::WriteRegisters(ret));
-                }
-
-                _ => info!("unimplemented msg {:?}", msg),
-            }
-        }
+    fn toggle_verbose(&mut self) {
+        let v = self.verbose;
+        self.verbose = ! v;
     }
 
     pub fn update_texture(&mut self) {
@@ -561,95 +350,43 @@ impl Simple {
         // self.win.update_texture(&buffer);
     }
 
-    pub fn run(&mut self) {
+    pub fn update(&mut self) -> SimState {
+
         use self::SimEvent::*;
-        let mut state = state::State::new(&SimState::Paused);
 
-        self.reset();
+        self.handle_file_watcher();
 
-        loop {
-            self.handle_window();
-            self.handle_file_watcher();
-            self.handle_debugger();
+        while let Some(event) = self.events.pop() {
 
-            while let Some(event) = self.events.pop() {
-                match event {
-                    RomChanged => self.rom_changed(),
-                    HitSync =>  self.update_texture(),
-                    ToggleVerbose => {
-                        let v = self.verbose;
-                        self.verbose = ! v;
-
-                    }
-                    _ => (),
-                };
-
-                match state.get() {
-                    SimState::Running => {
-                        match event {
-                            Pause => state.set(&SimState::Paused),
-                            Quit => state.set(&SimState::Quitting),
-
-                            Halt(sig) => {
-                                self.gdb.reply(Message::Halt(sig));
-                                state.set(&SimState::Paused)
-                            }
-
-                            Debugger(msg) => {
-                                match msg {
-                                    Message::Connected => state.set(&SimState::Paused),
-                                    Message::DoBreak => state.set(&SimState::Paused),
-                                    _ => warn!("Unhandled debugger msg {:?} in state {:?}", msg, state.get())
-                                }
-                            }
-                            _ => (),
-                        }
-                    },
-
-                    SimState::Paused => {
-                        match event {
-                            Pause => state.set(&SimState::Running),
-                            Quit => state.set(&SimState::Quitting),
-
-                            Debugger(msg) => {
-                                match msg {
-                                    Message::Resume => state.set(&SimState::Running),
-                                    Message::Step => {self.step();}
-                                    Message::Disconnected => state.set(&SimState::Running),
-                                    _ => warn!("Unhandled debugger msg {:?} in state {:?}", msg, state.get())
-                                }
-                            }
-                            _ => ()
-                        }
-                    },
-
-                    SimState::Quitting => {
-                    },
-                };
-            };
-
-            if state.has_changed() {
-                info!("State changed: {:?}", state);
-                state.clear_change();
+            if self.state.get() == SimState::Quitting {
+                break;
             }
 
-            match state.get() {
-                SimState::Quitting => {
-                    break;
-                },
-
-                SimState::Running => {
-                    self.run_to_sync(2_000_000 / 60);
-                    // self.win.draw();
-                }
-
-                SimState::Paused => {
-                    use std::{thread, time};
-                    let sleep_time = time::Duration::from_millis(1);
-                    thread::sleep(sleep_time);
-                }
+            match event {
+                RomChanged => self.rom_changed(),
+                ToggleVerbose => self.toggle_verbose(),
+                Pause => self.state.set(SimState::Paused),
+                Quit => self.state.set(SimState::Quitting),
+                Halt => self.state.set(SimState::Paused),
+                Run => self.state.set(SimState::Running),
+                _ => (),
             };
-        }
+        };
+
+        match self.state.get() {
+            SimState::Quitting => {
+            },
+
+            SimState::Running => {
+                self.run_to_sync(2_000_000 / 60);
+                self.update_texture();
+            }
+
+            SimState::Paused => {
+            }
+        };
+
+        self.state.get()
     }
 }
 

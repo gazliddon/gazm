@@ -1,64 +1,98 @@
-#[macro_use] extern crate glium;
-#[macro_use] extern crate log;
-#[macro_use] extern crate bitflags;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate glium;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate bitflags;
+#[macro_use]
+extern crate serde_derive;
 
-mod mesh;
+#[macro_use]
+extern crate lazy_static;
+
 mod app;
 mod emu;
+mod mesh;
 mod simple;
 
-use glium::{Surface};
+use app::{frametime::FrameTime, system::System, App};
 use glium::index::PrimitiveType;
-use app::{ system::System, frametime::FrameTime, App };
+use glium::Surface;
 use mesh::Mesh;
 
+#[allow(dead_code)]
 struct MyApp {
-    mesh : Box<dyn mesh::MeshTrait>,
-    running : bool,
-    frame_time : FrameTime
+    mesh: Box<dyn mesh::MeshTrait>,
+    running: bool,
+    frame_time: FrameTime,
+    machine: simple::simplecore::Simple,
+}
+
+#[derive(Copy, Clone)]
+struct Vertex {
+    position: [f32; 2],
+    color: [f32; 3],
+    uv: [f32; 2],
+}
+
+fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
+    let vertex_buffer = {
+        implement_vertex!(Vertex, position, color, uv);
+
+        glium::VertexBuffer::new(
+            &system.display,
+            &[
+                Vertex {
+                    position: [-0.5, -0.5],
+                    color: [0.0, 1.0, 0.0],
+                    uv: [0.0, 0.0],
+                },
+                Vertex {
+                    position: [0.0, 0.5],
+                    color: [0.0, 0.0, 1.0],
+                    uv: [0.0, 0.0],
+                },
+                Vertex {
+                    position: [0.5, -0.5],
+                    color: [1.0, 0.0, 0.0],
+                    uv: [0.0, 0.0],
+                },
+            ],
+        )
+        .unwrap()
+    };
+    let index_buffer =
+        glium::IndexBuffer::new(&system.display, PrimitiveType::TrianglesList, &[0u16, 1, 2])
+            .unwrap();
+
+    Box::new(Mesh::new(&system, vertex_buffer, index_buffer))
 }
 
 impl MyApp {
-    pub fn new(system : &System) -> Self {
-        let vertex_buffer = {
-            #[derive(Copy, Clone)]
-            struct Vertex {
-                position: [f32; 2],
-                color: [f32; 3],
-                uv: [f32; 2],
-            }
+    pub fn new(system: &System) -> Self {
+        use simple::simplecore::Simple;
 
-            implement_vertex!(Vertex, position, color, uv);
-
-            glium::VertexBuffer::new(&system.display,
-                &[
-                Vertex { position: [-0.5, -0.5], color: [0.0, 1.0, 0.0], uv:[0.0, 0.0] },
-                Vertex { position: [ 0.0,  0.5], color: [0.0, 0.0, 1.0], uv:[0.0, 0.0]},
-                Vertex { position: [ 0.5, -0.5], color: [1.0, 0.0, 0.0], uv:[0.0, 0.0] },
-                ]
-            ).unwrap()
-        };
-        let index_buffer = glium::IndexBuffer::new(&system.display, PrimitiveType::TrianglesList,
-            &[0u16, 1, 2]).unwrap();
-
-        let mesh = Mesh::new(&system, vertex_buffer, index_buffer);
+        let machine = Simple::new();
+        let mesh = make_mesh(&system);
 
         Self {
-            mesh : Box::new(mesh),
-            running : true,
-            frame_time : FrameTime::default()
+            machine,
+            mesh,
+            running: true,
+            frame_time: FrameTime::default(),
         }
     }
-
 }
 
-pub fn cos01(x: f64) -> f64 { (x.cos() / 2.0) + 0.5 }
-pub fn sin01(x: f64) -> f64 { (x.sin() / 2.0) + 0.5 }
+pub fn cos01(x: f64) -> f64 {
+    (x.cos() / 2.0) + 0.5
+}
+pub fn sin01(x: f64) -> f64 {
+    (x.sin() / 2.0) + 0.5
+}
 
 impl App for MyApp {
-
-    fn draw(&self, frame : &mut glium::Frame) {
+    fn draw(&self, frame: &mut glium::Frame) {
         use cgmath::*;
 
         let t = self.frame_time.now_as_duration().as_secs_f64();
@@ -67,7 +101,7 @@ impl App for MyApp {
         self.mesh.draw(m, frame);
     }
 
-    fn handle_character(&mut self, c : char) {
+    fn handle_character(&mut self, c: char) {
         if c == 'q' {
             self.close_requested()
         }
@@ -77,7 +111,7 @@ impl App for MyApp {
         self.running = false;
     }
 
-    fn update(&mut self, frame_time : &FrameTime) {
+    fn update(&mut self, frame_time: &FrameTime) {
         self.frame_time = *frame_time;
     }
 
@@ -85,7 +119,7 @@ impl App for MyApp {
         self.running
     }
 
-    fn ui(&self, ui : &mut imgui::Ui) {
+    fn ui(&self, ui: &mut imgui::Ui) {
         use imgui::*;
 
         Window::new(im_str!("Hello world"))
@@ -99,22 +133,16 @@ impl App for MyApp {
                 let mouse_pos = ui.io().mouse_pos;
 
                 ui.text(format!(
-                        "Mouse Position: ({:.1},{:.1})",
-                        mouse_pos[0], mouse_pos[1]
+                    "Mouse Position: ({:.1},{:.1})",
+                    mouse_pos[0], mouse_pos[1]
                 ));
             });
     }
 }
 
 fn main() {
-    use emu::cpu::isa_dbase::Dbase;
-
-    let _x = Dbase::new();
-
     let mut system = System::new();
     let mut app = MyApp::new(&system);
+
     system.run_app(&mut app);
 }
-
-
-

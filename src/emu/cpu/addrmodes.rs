@@ -3,6 +3,10 @@ use mem::MemoryIO;
 
 pub trait AddressLines {
 
+    fn diss<M: MemoryIO>(_mem : &mut M, _regs : &mut Regs, _ins : &mut InstructionDecoder) -> String {
+        panic!("NOT IMP {:?}", Self::name())
+    }
+
     fn ea<M: MemoryIO>(_mem : &mut M, _regs : &mut Regs, _ins : &mut InstructionDecoder) -> Result<u16,CpuErr> {
         warn!("EA for {}", Self::name());
         Err(CpuErr::IllegalAddressingMode)
@@ -30,14 +34,6 @@ pub trait AddressLines {
     }
 
     fn name() -> String;
-
-    fn diss_byte<M: MemoryIO>(_mem : &mut M,_regs : &mut Regs, _ins : &mut InstructionDecoder) -> String {
-        "TBD".to_string()
-    }
-
-    fn diss_word<M: MemoryIO>(_mem : &mut M, _regs : &mut Regs, _ins : &mut InstructionDecoder) -> String {
-        "TBD".to_string()
-    }
 }
 
 
@@ -79,7 +75,7 @@ impl AddressLines for Direct {
         Ok(ea)
     }
 
-    fn diss_byte<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> String {
+    fn diss<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> String {
         let val = ins.fetch_byte(mem);
         format!("<{:02x}", val)
     }
@@ -125,32 +121,45 @@ impl AddressLines for Extended {
         Ok(addr)
     }
 
-    fn diss_byte<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> String {
+    fn diss<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> String {
         let val = ins.fetch_word(mem);
-        format!("{:02x}", val)
+        format!(">{:02x}", val)
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-pub struct Immediate { }
 
-impl AddressLines for Immediate {
+pub struct Immediate8 { }
+
+impl AddressLines for Immediate8 {
     fn name() -> String {
-        "Immediate".to_string()
+        "Immediate8".to_string()
     }
 
     fn fetch_byte<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> Result<u8,CpuErr> {
         Ok( ins.fetch_byte(mem) )
     }
 
-    fn fetch_word<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> Result<u16,CpuErr> {
-        ins.add_cycles(1);
-        Ok(ins.fetch_word(mem))
+    fn diss<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> String {
+        let val = ins.fetch_byte(mem);
+        format!("#{:02x}", val)
+    }
+}
+
+pub struct Immediate16 { }
+
+impl AddressLines for Immediate16 {
+    fn name() -> String {
+        "Immediate16".to_string()
     }
 
-    fn diss_byte<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> String {
+    fn fetch_word<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> Result<u16,CpuErr> {
+        Ok( ins.fetch_word(mem) )
+    }
+
+    fn diss<M: MemoryIO>(mem : &mut M, _regs : &mut Regs, ins : &mut InstructionDecoder) -> String {
         let val = ins.fetch_word(mem);
-        format!("#{:02x}", val)
+        format!("#{:04x}", val)
     }
 }
 
@@ -166,7 +175,7 @@ impl AddressLines for Inherent {
     }
 
 
-    fn diss_byte<M: MemoryIO>(_mem : &mut M, _regs : &mut Regs, _ins : &mut InstructionDecoder) -> String {
+    fn diss<M: MemoryIO>(_mem : &mut M, _regs : &mut Regs, _ins : &mut InstructionDecoder) -> String {
         "".to_string()
     }
 }
@@ -175,6 +184,32 @@ impl AddressLines for Inherent {
 pub struct Indexed {}
 
 impl Indexed { 
+    fn get_cycles(itype : &IndexModes) -> u32 {
+        use IndexModes::*;
+
+        match itype {
+            RPlus(_) => {0}
+            RPlusPlus(_) => {0}
+            RSub(_) => {0}
+            RSubSub(_) => {0}
+            RZero(_) => {0}
+            RAddB(_) => {0}
+            RAddA(_) => {0}
+            RAddi8(_) => {0}
+            RAddi16(_) => {0}
+            RAddD(_) => {0}
+            PCAddi8 => {0}
+            PCAddi16 => {0}
+            Illegal => {0}
+            Ea=> {0}
+            ROff(_,_)=> {0}
+        }
+    }
+
+    fn add_cycles(itype : &IndexModes, ins : &mut InstructionDecoder) {
+        ins.add_cycles(Self::get_cycles(itype));
+    }
+
 
     fn get_index_mode<M: MemoryIO>(mem : &mut M, regs : &mut Regs, ins : &mut InstructionDecoder) -> Result<(u16, IndexedFlags),CpuErr> {
 
@@ -184,34 +219,35 @@ impl Indexed {
 
         let itype = index_mode.get_index_type();
 
+        Self::add_cycles(&itype, ins);
+
         match itype {
             IndexModes::RPlus(r) => { 
-                // format!(",{:?}+",r)
-                ins.add_cycles(3);
+                // format!("{:?}+",r)
                 let addr = regs.get(&r);
                 regs.inc(&r);
                 Ok(( addr,index_mode ))
             },
 
             IndexModes::RPlusPlus(r) => {
-                ins.add_cycles(4);
+                // format!("{:?}++",r)
                 let addr = regs.get(&r);
                 regs.incinc(&r);
                 Ok(( addr,index_mode ))
             },
 
             IndexModes::RSub(r) => {
-                ins.add_cycles(3);
+                // format!("{:?}-",r)
                 Ok((  regs.dec(&r),index_mode  ))
             },
 
             IndexModes::RSubSub(r) => {
-                ins.add_cycles(4);
+                // format!("{:?}--",r)
                 Ok((  regs.decdec(&r), index_mode  ))
             },
 
             IndexModes::RZero(r) => { 
-                ins.add_cycles(1);
+                // format!("{:?}",r)
                 Ok((  regs.get(&r), index_mode  ))
             },
 
@@ -228,7 +264,7 @@ impl Indexed {
             },
 
             IndexModes::RAddi8(r) => {
-                // format!("{},{:?}",diss.fetch_byte(mem) as i8, r)
+                // format!("{},{:?}",self.fetch_byte_as_i16(mem) as i8, r)
                 let v = ins.fetch_byte_as_i16(mem) as u16;
                 Ok((  regs.get(&r).wrapping_add(v), index_mode  ))
             },
@@ -263,7 +299,6 @@ impl Indexed {
 
             IndexModes::Ea=> {
                 // format!("0x{:04X}", diss.fetch_word(mem))
-                ins.add_cycles(6);
                 Ok((  ins.fetch_word(mem), index_mode  ))
             },
 
@@ -273,7 +308,6 @@ impl Indexed {
             },
         }
     }
-
 }
 
 impl AddressLines for Indexed {
@@ -337,32 +371,4 @@ impl AddressLines for Relative {
         Ok(ins.fetch_word(mem))
     }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-// pub trait FetchWrite<M: MemoryIO> {
-//     fn fetch<A: AddressLines>(mem : &mut M, regs : &mut Regs, ins : &mut InstructionDecoder) -> Result<Self, CpuErr>;
-//     fn store<A: AddressLines>(mem : &mut M, regs : &mut Regs, ins : &mut InstructionDecoder, val : Self ) ;
-// }
-
-// impl<M : MemoryIO> FetchWrite<M> for u8 {
-//     fn fetch<A: AddressLines>(mem : &mut M, regs : &mut Regs, ins : &mut InstructionDecoder) -> Result<u8,CpuErr> {
-//         A::fetch_byte(mem, regs,ins)
-//     }
-
-//     fn store<A: AddressLines>(mem : &mut M, regs : &mut Regs, ins : &mut InstructionDecoder, val : u8 )  {
-//         A::store_byte(mem , regs , ins , val ) ;
-//     }
-// }
-
-// impl<M : MemoryIO> FetchWrite<M> for u16 {
-//     fn fetch<A: AddressLines>(mem : &mut M, regs : &mut Regs, ins : &mut InstructionDecoder) -> Result<u16,CpuErr> {
-//         A::fetch_word(mem, regs,ins)
-//     }
-
-//     fn store<A: AddressLines>(mem : &mut M, regs : &mut Regs, ins : &mut InstructionDecoder, val : u16 )  {
-//         A::store_word(mem , regs , ins , val ) ;
-//     }
-// }
-
 
