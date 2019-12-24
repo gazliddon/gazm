@@ -38,7 +38,7 @@
         "addr_mode": "Direct",
         "cycles": 6,
         "ins": "08",
-        "opcode": "ASL(LSL)",
+        "opcode": "LSL/ASL",
         "size": 2
     },
     {
@@ -119,14 +119,14 @@
         "size": 1
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 3,
         "ins": "1A",
         "opcode": "ORCC",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 3,
         "ins": "1C",
         "opcode": "ANDCC",
@@ -140,14 +140,14 @@
         "size": 1
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Inherent",
         "cycles": 8,
         "ins": "1E",
         "opcode": "EXG",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Inherent",
         "cycles": 6,
         "ins": "1F",
         "opcode": "TFR",
@@ -294,28 +294,28 @@
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Inherent",
         "cycles": 5,
         "ins": "34",
         "opcode": "PSHS",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Inherent",
         "cycles": 5,
         "ins": "35",
         "opcode": "PULS",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Inherent",
         "cycles": 5,
         "ins": "36",
         "opcode": "PSHU",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Inherent",
         "cycles": 5,
         "ins": "37",
         "opcode": "PULU",
@@ -343,7 +343,7 @@
         "size": 1
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Inherent",
         "cycles": 22,
         "ins": "3C",
         "opcode": "CWAI",
@@ -402,7 +402,7 @@
         "addr_mode": "Inherent",
         "cycles": 2,
         "ins": "48",
-        "opcode": "ASLA/LSLA",
+        "opcode": "LSLA/ASLA",
         "size": 1
     },
     {
@@ -479,7 +479,7 @@
         "addr_mode": "Inherent",
         "cycles": 2,
         "ins": "58",
-        "opcode": "ASLB/LSLB",
+        "opcode": "LSLB/ASLB",
         "size": 1
     },
     {
@@ -556,7 +556,7 @@
         "addr_mode": "Indexed",
         "cycles": 6,
         "ins": "68",
-        "opcode": "ASL/LSL",
+        "opcode": "LSL/ASL",
         "size": 2
     },
     {
@@ -640,7 +640,7 @@
         "addr_mode": "Extended",
         "cycles": 7,
         "ins": "78",
-        "opcode": "ASL/LSL",
+        "opcode": "LSL/ASL",
         "size": 3
     },
     {
@@ -686,84 +686,84 @@
         "size": 3
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "80",
         "opcode": "SUBA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "81",
         "opcode": "CMPA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "82",
         "opcode": "SBCA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 4,
         "ins": "83",
         "opcode": "SUBD",
         "size": 3
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "84",
         "opcode": "ANDA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "85",
         "opcode": "BITA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "86",
         "opcode": "LDA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "88",
         "opcode": "EORA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "89",
         "opcode": "ADCA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "8A",
         "opcode": "ORA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "8B",
         "opcode": "ADDA",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 4,
         "ins": "8C",
         "opcode": "CMPX",
@@ -777,7 +777,7 @@
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 3,
         "ins": "8E",
         "opcode": "LDX",
@@ -1120,91 +1120,91 @@
         "size": 3
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "C0",
         "opcode": "SUBB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "C1",
         "opcode": "CMPB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "C2",
         "opcode": "SBCB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 4,
         "ins": "C3",
         "opcode": "ADDD",
         "size": 3
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "C4",
         "opcode": "ANDB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "C5",
         "opcode": "BITB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "C6",
         "opcode": "LDB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "C8",
         "opcode": "EORB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "C9",
         "opcode": "ADCB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "CA",
         "opcode": "ORB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate8",
         "cycles": 2,
         "ins": "CB",
         "opcode": "ADDB",
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 3,
         "ins": "CC",
         "opcode": "LDD",
         "size": 3
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 3,
         "ins": "CE",
         "opcode": "LDU",
@@ -1578,7 +1578,7 @@
         "addr_mode": "Relative",
         "cycles": 5,
         "ins": "1025",
-        "opcode": "LBCS/LBLO",
+        "opcode": "LBLO/LBCS",
         "size": 4
     },
     {
@@ -1659,21 +1659,21 @@
         "size": 2
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 5,
         "ins": "1083",
         "opcode": "CMPD",
         "size": 4
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 5,
         "ins": "108C",
         "opcode": "CMPY",
         "size": 4
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 5,
         "ins": "108E",
         "opcode": "LDY",
@@ -1764,7 +1764,7 @@
         "size": 4
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 4,
         "ins": "10CE",
         "opcode": "LDS",
@@ -1816,7 +1816,7 @@
         "addr_mode": "Inherent",
         "cycles": 20,
         "ins": "113F",
-        "opcode": "SWI2",
+        "opcode": "SWI3",
         "size": 2
     },
     {
@@ -1827,14 +1827,14 @@
         "size": 3
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 5,
         "ins": "1183",
         "opcode": "CMPU",
         "size": 4
     },
     {
-        "addr_mode": "Immediate",
+        "addr_mode": "Immediate16",
         "cycles": 5,
         "ins": "118C",
         "opcode": "CMPS",

@@ -11,6 +11,7 @@ extern crate serde_derive;
 extern crate lazy_static;
 
 mod app;
+#[macro_use]
 mod emu;
 mod mesh;
 mod simple;

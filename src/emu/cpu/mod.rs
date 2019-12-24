@@ -1,5 +1,6 @@
 
-#[macro_use] mod isa;
+#[macro_use]
+pub mod isa;
 
 mod indexed;
 mod cpucore;

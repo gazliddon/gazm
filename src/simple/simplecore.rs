@@ -220,9 +220,47 @@ pub struct Simple {
     state        : state::State<SimState>
 }
 
+
+fn test_dbase() {
+    // TODO! Hack to force init of lazy static
+    // for testing
+    {
+        let table = cpu::isa_dbase::all_instructions();
+
+        macro_rules! handle_op {
+            ($addr:ident, $action:ident, $opcode:expr) => ({ 
+
+                let i = cpu::isa_dbase::get($opcode);
+                let addr = stringify!($addr);
+                let action = stringify!($action);
+
+                let db_addr_mode = format!("{:?}", i.addr_mode);
+
+                let db_action = i.opcode
+                    .clone()
+                    .to_lowercase()
+                    .replace("/", "_");
+
+                if addr != db_addr_mode || db_action != action {
+                    println!("{:04x}   {:<15} {:<10}", $opcode, addr, action);
+                    println!("{:04x}   {:<15} {:<10}", $opcode, db_addr_mode, db_action);
+                }
+
+            })
+        }
+
+        for i in table.iter() {
+            op_table!(i.ins, {panic!("NOT IMPLEMENTED")});
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl Simple {
     pub fn new() -> Self {
+
+        test_dbase();
+
         let rc_clock = Rc::new(RefCell::new(cpu::StandardClock::new(2_000_000)));
 
         let mem = SimpleMem::new();
@@ -242,31 +280,32 @@ impl Simple {
 
     pub fn step(&mut self) -> Option<SimEvent> {
         {
-            if self.verbose {
-                info!("dissassembly here : {:02x}", self.regs.pc);
-            }
+            panic!()
+                // if self.verbose {
+                //     info!("dissassembly here : {:02x}", self.regs.pc);
+                // }
 
-            let res = cpu::step(&mut self.regs, &mut self.mem, &self.rc_clock);
+                // let res = cpu::step(&mut self.regs, &mut self.mem, &self.rc_clock);
 
-            let ret =  match res {
-                Ok(i) => {
-                    if i.op_code == 0x13 {
-                        Some(SimEvent::HitSync)
-                    } else {
-                        None
-                    }
-                }
+                // let ret =  match res {
+                //     Ok(i) => {
+                //         if i.op_code == 0x13 {
+                //             Some(SimEvent::HitSync)
+                //         } else {
+                //             None
+                //         }
+                //     }
 
-                Err(_cpu_err) => {
-                    Some(SimEvent::Halt)
-                }
-            };
+                //     Err(_cpu_err) => {
+                //         Some(SimEvent::Halt)
+                //     }
+                // };
 
-            if let Some(ref ev) = ret {
-                self.add_event(ev.clone());
-            };
+                // if let Some(ref ev) = ret {
+                //     self.add_event(ev.clone());
+                // };
 
-            ret
+                // ret
         }
     }
 
