@@ -220,7 +220,7 @@ pub struct Simple {
     state        : state::State<SimState>
 }
 
-
+#[allow(clippy::cognitive_complexity)]
 fn test_dbase() {
     // TODO! Hack to force init of lazy static
     // for testing
