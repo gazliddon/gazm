@@ -225,18 +225,19 @@ fn test_dbase() {
     // TODO! Hack to force init of lazy static
     // for testing
     {
-        let table = cpu::isa_dbase::all_instructions();
+
+        let dbase = cpu::isa_dbase::Dbase::new();
 
         macro_rules! handle_op {
             ($addr:ident, $action:ident, $opcode:expr) => ({ 
 
-                let i = cpu::isa_dbase::get($opcode);
+                let i = dbase.get($opcode);
                 let addr = stringify!($addr);
                 let action = stringify!($action);
 
                 let db_addr_mode = format!("{:?}", i.addr_mode);
 
-                let db_action = i.opcode
+                let db_action = i.action
                     .clone()
                     .to_lowercase()
                     .replace("/", "_");
@@ -249,8 +250,8 @@ fn test_dbase() {
             })
         }
 
-        for i in table.iter() {
-            op_table!(i.ins, {panic!("NOT IMPLEMENTED")});
+        for i in dbase.all_instructions().iter() {
+            op_table!(i.opcode, {panic!("NOT IMPLEMENTED")});
         }
     }
 }

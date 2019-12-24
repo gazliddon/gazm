@@ -1344,7 +1344,7 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
             })
         }
 
-        op_table!(ins.instruction_info.ins, { "".into() })
+        op_table!(ins.instruction_info.opcode, { "".into() })
     }
 
     pub fn step(&mut self) -> Result<(), CpuErr> {
@@ -1355,7 +1355,7 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
                 self.$action::<$addr>() })
         }
 
-        op_table!(ins.instruction_info.ins, { self.unimplemented() })?;
+        op_table!(ins.instruction_info.opcode, { self.unimplemented() })?;
 
         self.regs.pc =  ins.next_addr;
 

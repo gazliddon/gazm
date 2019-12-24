@@ -2,6 +2,12 @@ use super::mem::MemoryIO;
 
 use super::isa_dbase;
 
+lazy_static! {
+    static ref DBASE : isa_dbase::Dbase = {
+         isa_dbase::Dbase::new()
+    };
+}
+
 #[derive(Debug,Clone)]
 pub struct InstructionDecoder {
     index : u16,
@@ -46,7 +52,7 @@ fn decode_op(addr : u16, mut read : impl FnMut(u16)->u8) -> InstructionDecoder
 
     // Fetch a reference to the extended infomation about this
     // opcode
-    let instruction_info = isa_dbase::get(op_code);
+    let instruction_info = DBASE.get(op_code);
 
     // Create the decoded instruction
     InstructionDecoder {

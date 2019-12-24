@@ -20,70 +20,61 @@ where D: Deserializer<'de> {
     Ok(z)
 }
 
-fn usize_to_u16<'de, D>(deserializer: D) -> Result<u16, D::Error>
-where D: Deserializer<'de> {
-    u16::deserialize(deserializer)
-}
-
 #[serde(deny_unknown_fields)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Instruction {
+    // pub display : Option<String>,
     pub addr_mode : AddrMode,
 
-#[serde(deserialize_with = "usize_to_u16")]
+#[serde(deserialize_with = "u16::deserialize")]
     pub cycles : u16,
-    pub opcode : String,
+    pub action : String,
 #[serde(deserialize_with = "hex_str_to_num")]
-    pub ins : u16,
-#[serde(deserialize_with = "usize_to_u16")]
+    pub opcode : u16,
+#[serde(deserialize_with = "u16::deserialize")]
     pub size : u16,
 }
 
-lazy_static! {
-    static ref UNKNOWN : Instruction = Instruction {
-            addr_mode : AddrMode::Inherent,
-            cycles : 0,
-            ins : 0,
-            opcode : ("???").into(),
-            size : 1,
-        };
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Dbase {
+    unknown: Instruction,
+    instructions: Vec<Instruction>,
+#[serde(skip)]
+    lookup: Vec<Instruction>
+}
 
-    static ref INSTRUCTIONS : Vec<Instruction> = {
-        let json_str = include_str!("resources/opcodes.json");
+impl Dbase {
 
-        let ret = serde_json::from_str(json_str);
+    fn from_data(instructions : Vec<Instruction>, unknown : Instruction) -> Self {
+        let max = instructions.iter().map(|p| p.opcode).max().unwrap_or(0);
 
-        if !ret.is_ok() {
-            println!("{:?}", ret)
-        }
+        let mut lookup : Vec<Instruction> = vec![unknown.clone(); (max as usize)+1];
 
-        ret.unwrap()
-    };
-
-    static ref INSTRUCTIONS_LOOKUP : Vec<Instruction> = {
-
-        let max = INSTRUCTIONS.iter().map(|p| p.ins).max().unwrap_or(0);
-        let mut lookup : Vec<Instruction> = vec![UNKNOWN.clone(); (max as usize)+1];
-
-        for i in INSTRUCTIONS.iter() {
-            let op_code = i.ins;
-            lookup[op_code as usize] = i.clone();
+        for i in instructions.iter() {
+            lookup[i.opcode as usize] = i.clone();
         }
 
         for (i,o) in lookup.iter_mut().enumerate() {
-            o.ins = i as u16;
+            o.opcode = i as u16;
         }
 
-        lookup
+        Self {
+            lookup, instructions, unknown
+        }
+    }
 
-    };
+    pub fn new() -> Self {
+        let json_str = include_str!("resources/opcodes.json");
+        let loaded : Dbase = serde_json::from_str(json_str).unwrap();
+        Self::from_data(loaded.instructions, loaded.unknown)
+    }
+
+    pub fn get(&self, opcode : u16) -> &Instruction {
+        &self.lookup[opcode as usize]
+    }
+    pub fn all_instructions(&self) -> &Vec<Instruction> {
+        &self.instructions
+    }
 }
 
-pub fn all_instructions() -> &'static Vec<Instruction> {
-    &INSTRUCTIONS
-}
-
-pub fn get(ins : u16) -> &'static Instruction {
-    &INSTRUCTIONS_LOOKUP[ins as usize]
-}
 
