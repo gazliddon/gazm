@@ -3,8 +3,16 @@ name = "glht"
 version = "0.1.0"
 authors = ["garyliddon"]
 edition = "2018"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+sha1 = "0.5.0"
+serde = "*"
+serde_yaml = "*"
+serde_json = "*"
+serde_derive = "*"
 
 [dependencies]
 glium="*"
@@ -27,6 +35,5 @@ env_logger="*"
 notify = "*"
 
 itertools = "*"
-
 
 clap = "*"

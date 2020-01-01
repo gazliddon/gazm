@@ -64,24 +64,12 @@ pub struct Context<'a, C : 'a + Clock, M : 'a + MemoryIO> {
     cycles : usize,
 }
 
-impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
-    fn inc_cycles(&mut self) {
-        // self.ins.inc_cycles();
-        self.ref_clock.borrow_mut().inc_cycles();
-    }
-
-    fn add_cycles(&mut self, i0 : usize) {
-        // self.ins.add_cycles(i0 as u32);
-        self.ref_clock.borrow_mut().add_cycles(i0);
-    }
-}
-
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
 impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
 
     fn set_pc(&mut self, v : u16) {
-        panic!("")
+        panic!("Set PC!")
         // self.ins.next_addr = v;
     }
 
@@ -222,7 +210,6 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
         if v {
             self.set_pc_rel(offset)
         }
-
         Ok(())
     }
 
@@ -312,7 +299,6 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
         let v =  self.fetch_byte::<A>()?;
         let cc = self.regs.flags.bits();
         self.regs.flags.set_flags(v | cc);
-        self.inc_cycles();
         Ok(())
     }
 
@@ -377,7 +363,6 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
     }
 
     fn tfr<A : AddressLines>(&mut self) -> Result<(), CpuErr> {
-        self.add_cycles(4);
         let operand = self.fetch_byte::<A>()?;
         let (a,b) = get_tfr_regs(operand as u8);
         let av = self.regs.get(&a);
@@ -386,7 +371,6 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
     }
 
     fn abx<A : AddressLines>(&mut self)  -> Result<(), CpuErr> {
-        self.add_cycles(1);
         let x = self.regs.x;
         self.regs.x = x.wrapping_add(u16::from(self.regs.b));
         Ok(())
@@ -488,7 +472,6 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
 
 
     fn andcc<A : AddressLines>(&mut self) -> Result<(), CpuErr> {
-        self.inc_cycles();
         let i0 = self.regs.flags.bits();
         let i1 = self.fetch_byte::<A>()?;
         let new_f = u8::and(&mut self.regs.flags, 0, u32::from(i0), u32::from(i1));
@@ -525,7 +508,6 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
     }
 
     fn addd<A : AddressLines>(&mut self)  -> Result<(), CpuErr> {
-        self.inc_cycles();
         self.modd_2::<A>(Flags::NZVC.bits(), u16::add)?;
         Ok(())
     }
@@ -1319,10 +1301,18 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
         Err(CpuErr::Unimplemented)
     }
 }
+
+pub struct Dissembly {
+    text : String,
+    addr : u16,
+    next_instruction_addr : u16,
+    instruction : InstructionDecoder,
+}
+
 #[allow(unused_variables, unused_mut)]
 impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
 
-    fn new(mem : &'a mut M, regs : &'a mut Regs, ref_clock: &'a Rc<RefCell<C>>) -> Context<'a, C,M> {
+    pub fn new(mem : &'a mut M, regs : &'a mut Regs, ref_clock: &'a Rc<RefCell<C>>) -> Context<'a, C,M> {
         Context { regs, mem, ref_clock, cycles: 0, }
     }
 
@@ -1332,26 +1322,32 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
         "fucked".to_string()
     }
 
-    pub fn diss(&self, addr : u16) -> String {
-
+    pub fn diss(&self, addr : u16) -> Dissembly {
         let ins = InstructionDecoder::new_from_inspect_mem(addr, self.mem);
 
         let op_code = ins.op_code;
 
         macro_rules! handle_op {
-            ($addr:ident, $action:ident, $opcode:expr) => ({ 
+            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => ({ 
                 self.diss_op::<$addr>(&ins)
             })
         }
 
-        op_table!(ins.instruction_info.opcode, { "".into() })
+        let text = op_table!(ins.instruction_info.opcode, { "".into() });
+
+        let next_instruction_addr =  ins.next_addr;
+
+        Dissembly {
+            text, addr, next_instruction_addr,
+            instruction : ins,
+        }
     }
 
     pub fn step(&mut self) -> Result<(), CpuErr> {
         let ins = InstructionDecoder::new_from_read_mem(self.regs.pc, self.mem);
 
         macro_rules! handle_op {
-            ($addr:ident, $action:ident, $opcode:expr) => ({ 
+            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => ({ 
                 self.$action::<$addr>() })
         }
 
@@ -1364,7 +1360,7 @@ impl<'a, C : 'a + Clock, M : 'a + MemoryIO> Context<'a, C, M> {
 
     pub fn reset(&mut self) {
         let pc = self.mem.load_word(0xfffe);
-        self.set_pc(pc);
+        info!("PC IS {:04x}", pc);
         *self.regs = Regs {
             pc,
             flags : Flags::I | Flags::F,

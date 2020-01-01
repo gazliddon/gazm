@@ -137,9 +137,12 @@ impl SimpleMem {
             mem::build_addr_to_region(Illegal, mems)
         };
 
-        SimpleMem {
+        let ret = SimpleMem {
             ram,screen,name, addr_to_region, io
-        }
+        };
+
+
+        ret
     }
 
     fn get_region(&self, _addr : u16) -> &dyn mem::MemoryIO {
@@ -170,10 +173,15 @@ impl SimpleMem {
 }
 
 impl mem::MemoryIO for SimpleMem {
-    fn upload(&mut self, addr : u16, _data : &[u8]) {
+    fn upload(&mut self, addr : u16, data : &[u8]) {
+
+        info!("Uploading data to addr {:04x}", addr);
+        info!("top addr would be {:04x}", addr as usize + data.len() - 1);
+        info!("last two bytes would be {:02x} {:02x}", data[data.len()-2], data[data.len()-1]);
+
         let mut addr = addr;
 
-        for i in _data {
+        for i in data {
             self.store_byte(addr, *i);
             addr = addr.wrapping_add(1);
         }
@@ -217,102 +225,64 @@ pub struct Simple {
     events       : Vec<SimEvent>,
     dirty        : bool,
     verbose      : bool,
-    state        : state::State<SimState>
-}
-
-#[allow(clippy::cognitive_complexity)]
-fn test_dbase() {
-    // TODO! Hack to force init of lazy static
-    // for testing
-    {
-
-        let dbase = cpu::isa_dbase::Dbase::new();
-
-        macro_rules! handle_op {
-            ($addr:ident, $action:ident, $opcode:expr) => ({ 
-
-                let i = dbase.get($opcode);
-                let addr = stringify!($addr);
-                let action = stringify!($action);
-
-                let db_addr_mode = format!("{:?}", i.addr_mode);
-
-                let db_action = i.action
-                    .clone()
-                    .to_lowercase()
-                    .replace("/", "_");
-
-                if addr != db_addr_mode || db_action != action {
-                    println!("{:04x}   {:<15} {:<10}", $opcode, addr, action);
-                    println!("{:04x}   {:<15} {:<10}", $opcode, db_addr_mode, db_action);
-                }
-
-            })
-        }
-
-        for i in dbase.all_instructions().iter() {
-            op_table!(i.opcode, {panic!("NOT IMPLEMENTED")});
-        }
-    }
+    state        : state::State<SimState>,
 }
 
 #[allow(dead_code)]
 impl Simple {
     pub fn new() -> Self {
+        let clock = cpu::StandardClock::new(2_000_000);
 
-        test_dbase();
-
-        let rc_clock = Rc::new(RefCell::new(cpu::StandardClock::new(2_000_000)));
-
+        let rc_clock = Rc::new(RefCell::new(clock));
         let mem = SimpleMem::new();
         let regs = Regs::new();
 
         let verbose = false;
 
-        Simple {
+        let path = std::env::current_dir().expect("getting dir");
+        info!("Creatning Simple 6809 machine");
+        info!("cd = {}", path.display());
+
+        let mut ret = Simple {
             mem, regs, rc_clock, verbose,
             file    : None,
             watcher : None,
             events  : vec![],
             dirty   : false,
             state   : state::State::new(SimState::Paused)
-        }
+        };
+
+        let file = "./asm/out/all.bin";
+        let addr : u16 = 0x9900;
+
+        ret.upload(file, addr);
+
+        info!("0xfff0 region = {:?}", ret.mem.get_region(0x9900).get_mem_as_str(0xfff0,16));
+
+        ret.reset();
+
+        ret
+    }
+
+    fn upload(&mut self, file : &str, addr : u16) {
+        let bytes = std::fs::read(file).expect("Can't load rom");
+        self.mem.upload(addr, &bytes);
+        info!("Uploaded {} to 0x{:04x}", file, addr);
+    }
+
+    fn get_context(&mut self) -> cpu::Context<StandardClock,SimpleMem> {
+        cpu::Context::new(&mut self.mem, &mut self.regs, &self.rc_clock)
     }
 
     pub fn step(&mut self) -> Option<SimEvent> {
-        {
-            panic!()
-                // if self.verbose {
-                //     info!("dissassembly here : {:02x}", self.regs.pc);
-                // }
-
-                // let res = cpu::step(&mut self.regs, &mut self.mem, &self.rc_clock);
-
-                // let ret =  match res {
-                //     Ok(i) => {
-                //         if i.op_code == 0x13 {
-                //             Some(SimEvent::HitSync)
-                //         } else {
-                //             None
-                //         }
-                //     }
-
-                //     Err(_cpu_err) => {
-                //         Some(SimEvent::Halt)
-                //     }
-                // };
-
-                // if let Some(ref ev) = ret {
-                //     self.add_event(ev.clone());
-                // };
-
-                // ret
-        }
+        let mut ctx = self.get_context();
+        ctx.step().expect("Can't step");
+        Some(SimEvent::Halt)
     }
 
     pub fn reset(&mut self) {
-        cpu::reset(&mut self.regs, &mut self.mem);
-        info!("Reset! pc=${:03x}", self.regs.pc);
+        self.get_context().reset();
+        info!("Reset! pc=0x{:04x}", self.regs.pc);
     }
 
     fn handle_file_watcher(&mut self)  {
@@ -359,14 +329,10 @@ impl Simple {
     }
 
     fn run_to_sync(&mut self, max_instructions : usize ) -> Option<SimEvent> {
-        // run for n instructions OR
-        // stop on an event
-        // Could be an error or whatever
+        let mut ctx = self.get_context();
+
         for _ in 0..max_instructions {
-            let ret = self.step();
-            if ret.is_some() {
-                return ret;
-            }
+            ctx.step().expect("Can't step");
         }
         None
     }

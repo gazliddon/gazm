@@ -7,6 +7,7 @@
 
     },
 
+
     "unknown" : {
             "addr_mode": "Inherent",
             "cycles": 1,
@@ -1876,13 +1877,6 @@
             "cycles": 7,
             "opcode": "11A3",
             "action": "CMPU",
-            "size": 3
-        },
-        {
-            "addr_mode": "Indexed",
-            "cycles": 7,
-            "opcode": "11AC",
-            "action": "CMPS",
             "size": 3
         },
         {

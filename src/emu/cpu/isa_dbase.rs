@@ -25,7 +25,6 @@ where D: Deserializer<'de> {
 pub struct Instruction {
     // pub display : Option<String>,
     pub addr_mode : AddrMode,
-
 #[serde(deserialize_with = "u16::deserialize")]
     pub cycles : u16,
     pub action : String,
@@ -33,6 +32,8 @@ pub struct Instruction {
     pub opcode : u16,
 #[serde(deserialize_with = "u16::deserialize")]
     pub size : u16,
+#[serde(default)]
+    pub operand_size : u16,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

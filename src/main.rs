@@ -1,3 +1,7 @@
+
+extern crate env_logger;
+
+
 #[macro_use]
 extern crate glium;
 #[macro_use]
@@ -106,6 +110,10 @@ impl App for MyApp {
         if c == 'q' {
             self.close_requested()
         }
+
+        if c == 's' {
+            self.machine.step();
+        }
     }
 
     fn close_requested(&mut self) {
@@ -142,8 +150,11 @@ impl App for MyApp {
 }
 
 fn main() {
+    use std::env;
+    env::set_var("RUST_LOG", "info");
+    env_logger::init();
+
     let mut system = System::new();
     let mut app = MyApp::new(&system);
-
     system.run_app(&mut app);
 }
