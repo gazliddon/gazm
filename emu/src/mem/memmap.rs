@@ -7,6 +7,8 @@ pub trait MemMapIO {
     fn add_memory(&mut self, mem : Box<dyn MemoryIO> ) ;
 }
 
+
+#[derive(Default)]
 pub struct MemMap {
     all_memory: Vec< Box<dyn MemoryIO>>,
     name : String,

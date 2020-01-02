@@ -137,12 +137,9 @@ impl SimpleMem {
             mem::build_addr_to_region(Illegal, mems)
         };
 
-        let ret = SimpleMem {
+        SimpleMem {
             ram,screen,name, addr_to_region, io
-        };
-
-
-        ret
+        }
     }
 
     fn get_region(&self, _addr : u16) -> &dyn mem::MemoryIO {
@@ -191,7 +188,7 @@ impl mem::MemoryIO for SimpleMem {
         (0, 0xffff)
     }
 
-    fn update_sha1(&self, _digest : &mut sha1::Sha1) {
+    fn update_sha1(&self, _digest : &mut emu::sha1::Sha1) {
         unimplemented!("TBD")
     }
 
@@ -256,9 +253,7 @@ impl Simple {
         let addr : u16 = 0x9900;
 
         ret.upload(file, addr);
-
-        info!("0xfff0 region = {:?}", ret.mem.get_region(0x9900).get_mem_as_str(0xfff0,16));
-
+        info!("0xfff0 region = {}", ret.mem.get_region(0x9900).get_mem_as_str(0xfff0,16));
         ret.reset();
 
         ret
@@ -281,8 +276,9 @@ impl Simple {
     }
 
     pub fn reset(&mut self) {
-        self.get_context().reset();
-        info!("Reset! pc=0x{:04x}", self.regs.pc);
+        let mut ctx = self.get_context();
+        ctx.reset();
+        info!("Reset\n\t{}", self.regs );
     }
 
     fn handle_file_watcher(&mut self)  {

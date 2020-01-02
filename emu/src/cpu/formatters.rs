@@ -12,7 +12,8 @@ impl fmt::Display for Regs {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{:04x} {:04x} {:02x} {:02x} {:04x} {:04x} {:04x} {:04x} {:02x} : {}",
+            "{}\n{:04x} {:04x} {:02x} {:02x} {:04x} {:04x} {:04x} {:04x} {:02x} : {}",
+            Self::get_hdr(),
             self.pc,
             self.get_d(), 
             self.a, 

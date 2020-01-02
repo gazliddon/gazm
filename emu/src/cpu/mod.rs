@@ -1,7 +1,7 @@
 
+
 #[macro_use]
 pub mod isa;
-
 mod indexed;
 mod cpucore;
 mod registers;

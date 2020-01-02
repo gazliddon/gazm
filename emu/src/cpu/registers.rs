@@ -92,7 +92,5 @@ impl Regs {
             flags: Flags::new(0),
         }
     }
-
-
 }
 

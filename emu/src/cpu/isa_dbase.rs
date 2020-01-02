@@ -12,6 +12,10 @@ pub enum AddrMode {
     Immediate16,
 }
 
+impl Default for AddrMode {
+    fn default() -> Self { Self::Inherent }
+}
+
 // Custome deserializers
 fn hex_str_to_num<'de, D>(deserializer: D) -> Result<u16, D::Error>
 where D: Deserializer<'de> {
@@ -21,7 +25,7 @@ where D: Deserializer<'de> {
 }
 
 #[serde(deny_unknown_fields)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Instruction {
     // pub display : Option<String>,
     pub addr_mode : AddrMode,
@@ -36,7 +40,7 @@ pub struct Instruction {
     pub operand_size : u16,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Dbase {
     unknown: Instruction,
     instructions: Vec<Instruction>,

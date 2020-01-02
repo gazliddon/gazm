@@ -17,7 +17,9 @@ tsk_size        equ sizeof{task}
 
 num_of_tasks    equ 100
 
-tasks           zmb tsk_size * num_of_tasks
+task_buffer_size equ tsk_size*num_of_tasks
+
+tasks           zmb task_buffer_size
 
 tasks_end
 
