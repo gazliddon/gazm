@@ -1,31 +1,29 @@
-use super::{ App, frametime::FrameTime };
+use super::{frametime::FrameTime, App};
 
-use imgui::{Context};
-use imgui_winit_support::{HiDpiMode, WinitPlatform};
-use glium::{glutin};
+use glium::glutin;
+use imgui::Context;
 use imgui_glium_renderer::Renderer;
+use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 pub struct System {
-    pub display : glium::Display,
-    pub imgui_renderer : imgui_glium_renderer::Renderer,
-    pub platform : WinitPlatform,
-    pub event_loop : glutin::EventsLoop,
-    pub frame_time : FrameTime,
-    pub imgui : Context,
+    pub display: glium::Display,
+    pub imgui_renderer: imgui_glium_renderer::Renderer,
+    pub platform: WinitPlatform,
+    pub event_loop: glutin::EventsLoop,
+    pub frame_time: FrameTime,
+    pub imgui: Context,
 }
 
 impl System {
     pub fn new() -> Self {
-
         let event_loop = glutin::EventsLoop::new();
         let wb = glutin::WindowBuilder::new();
-    
+
         let cb = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_multisampling(4);
 
-        let display = glium::Display::new(wb, cb, &event_loop)
-            .expect("Building display");
+        let display = glium::Display::new(wb, cb, &event_loop).expect("Building display");
 
         let mut imgui = Context::create();
 
@@ -43,38 +41,36 @@ impl System {
         let font_size = (20.0 * hidpi_factor) as f32;
         let rbytes = include_bytes!("../../resources/Roboto-Regular.ttf");
 
-        imgui.fonts().add_font(&[
-            imgui::FontSource::TtfData {
-                data: rbytes,
+        imgui.fonts().add_font(&[imgui::FontSource::TtfData {
+            data: rbytes,
+            size_pixels: font_size,
+            config: Some(imgui::FontConfig {
                 size_pixels: font_size,
-                config: Some(imgui::FontConfig {
-                    size_pixels: font_size,
-                    name: Some(String::from("Roboto")),
-                    // size_pixels: font_size,
-                    oversample_h: 4,
-                    oversample_v: 4,
-                    pixel_snap_h : true,
-                    ..imgui::FontConfig::default()
-                }),
-            },
-            ]);
+                name: Some(String::from("Roboto")),
+                // size_pixels: font_size,
+                oversample_h: 4,
+                oversample_v: 4,
+                pixel_snap_h: true,
+                ..imgui::FontConfig::default()
+            }),
+        }]);
 
         imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
 
-        let imgui_renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
+        let imgui_renderer =
+            Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
 
         Self {
             display,
             imgui_renderer,
             platform,
             event_loop,
-            frame_time : FrameTime::from_now(),
+            frame_time: FrameTime::from_now(),
             imgui,
         }
     }
 
     fn render(&mut self, app: &dyn App) {
-
         let platform = &mut self.platform;
         let gl_window = self.display.gl_window();
         let window = gl_window.window();
@@ -105,13 +101,10 @@ impl System {
             .render(&mut frame, draw_data)
             .expect("Rendering failed");
 
-        frame
-            .finish()
-            .expect("Frame completion failed");
+        frame.finish().expect("Frame completion failed");
     }
 
-    fn process(&mut self, app : &mut dyn App) {
-
+    fn process(&mut self, app: &mut dyn App) {
         let io = self.imgui.io_mut();
         let dt = &mut self.frame_time;
 
@@ -143,4 +136,3 @@ impl System {
         }
     }
 }
-

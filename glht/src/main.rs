@@ -1,6 +1,4 @@
-
 extern crate env_logger;
-
 
 #[macro_use]
 extern crate glium;
@@ -9,7 +7,6 @@ extern crate log;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate serde_derive;
-
 
 extern crate emu;
 

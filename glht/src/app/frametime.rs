@@ -1,19 +1,18 @@
-
-use std::time::{ Duration, Instant };
+use std::time::{Duration, Instant};
 #[derive(Copy, Clone)]
 pub struct FrameTime {
-    base_time : Instant,
-    last_sync : Instant,
-    last_dt   : Duration,
+    base_time: Instant,
+    last_sync: Instant,
+    last_dt: Duration,
 }
 
 #[allow(dead_code)]
 impl FrameTime {
     pub fn from_now() -> Self {
         Self {
-            base_time : Instant::now(),
-            last_sync : Instant::now(),
-            last_dt : Duration::new(0,0),
+            base_time: Instant::now(),
+            last_sync: Instant::now(),
+            last_dt: Duration::new(0, 0),
         }
     }
 
@@ -25,13 +24,12 @@ impl FrameTime {
         self.last_dt.as_secs_f64()
     }
 
-    pub fn update(&mut self)  {
+    pub fn update(&mut self) {
         let now = Instant::now();
         let dt = now - self.last_sync;
         self.last_dt = dt;
         self.last_sync = now;
     }
-
 }
 
 impl Default for FrameTime {

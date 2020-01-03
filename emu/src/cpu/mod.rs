@@ -1,26 +1,23 @@
-
-
 #[macro_use]
 pub mod isa;
-mod indexed;
-mod cpucore;
-mod registers;
-mod flags;
-mod formatters;
 mod addrmodes;
-mod decoder;
 mod alu;
 mod clock;
+mod cpucore;
+mod decoder;
+mod flags;
+mod formatters;
+mod indexed;
 pub mod isa_dbase;
+mod registers;
 
-pub use registers::*;
-pub use indexed::*;
-pub use cpucore::*;
-pub use decoder::*;
 pub use addrmodes::*;
 pub use alu::*;
 pub use clock::*;
+pub use cpucore::*;
+pub use decoder::*;
 pub use flags::*;
+pub use indexed::*;
+pub use registers::*;
 
 use super::mem;
-

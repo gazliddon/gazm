@@ -4,7 +4,7 @@ IO
 
     9830   R get raster hpos, W halt until vsync? (maybe raster pos?)
 
-    9831  switches 1 
+    9831  switches 1
                 b0 = Up
                 b1 = Down
                 b2 = Left
@@ -16,39 +16,39 @@ IO
 
 use super::mem;
 
-use mem::{*};
 use mem::memcore::MemoryIO;
+use mem::*;
 
 #[allow(dead_code)]
-const IO_BASE   : u16   = 0x9800;
+const IO_BASE: u16 = 0x9800;
 #[allow(dead_code)]
-const IO_RASTER : u16   = 0x9830;
+const IO_RASTER: u16 = 0x9830;
 #[allow(dead_code)]
-const IO_SW_1   : u16   = 0x9831;
+const IO_SW_1: u16 = 0x9831;
 #[allow(dead_code)]
-const IO_SW_2   : u16   = 0x9832;
+const IO_SW_2: u16 = 0x9832;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(dead_code)]
 struct Color {
-    r : u8,
-    g : u8,
-    b : u8,
+    r: u8,
+    g: u8,
+    b: u8,
 }
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
 pub struct Io {
-    pub palette : [u8 ; 16 * 3],
-    halt : bool,
+    pub palette: [u8; 16 * 3],
+    halt: bool,
 }
 
 #[allow(dead_code)]
 impl Io {
     pub fn new() -> Self {
         Self {
-            palette : [0; 16 * 3] ,
-            halt : false
+            palette: [0; 16 * 3],
+            halt: false,
         }
     }
 
@@ -60,14 +60,13 @@ impl Io {
         self.halt
     }
 
-    fn is_palette(addr : u16) -> bool {
-        ( addr >= IO_BASE )  & ( addr < IO_BASE.wrapping_add(3 * 16) )
+    fn is_palette(addr: u16) -> bool {
+        (addr >= IO_BASE) & (addr < IO_BASE.wrapping_add(3 * 16))
     }
 }
 
 impl MemoryIO for Io {
-
-    fn inspect_byte(&self, addr:u16) -> u8 {
+    fn inspect_byte(&self, addr: u16) -> u8 {
         if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize]
         } else {
@@ -75,7 +74,7 @@ impl MemoryIO for Io {
         }
     }
 
-    fn upload(&mut self, _addr : u16, _data : &[u8]) {
+    fn upload(&mut self, _addr: u16, _data: &[u8]) {
         panic!("TBD")
     }
 
@@ -83,13 +82,11 @@ impl MemoryIO for Io {
         (IO_BASE, IO_BASE.wrapping_add(0xff))
     }
 
-    fn update_sha1(&self, _digest : &mut Sha1) {
+    fn update_sha1(&self, _digest: &mut Sha1) {
         panic!("TBD")
     }
 
-
-    fn load_byte(&mut self, addr:u16) -> u8 {
-
+    fn load_byte(&mut self, addr: u16) -> u8 {
         if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize]
         } else if addr == IO_RASTER {
@@ -99,7 +96,7 @@ impl MemoryIO for Io {
         }
     }
 
-    fn store_byte(&mut self, addr:u16, val:u8) {
+    fn store_byte(&mut self, addr: u16, val: u8) {
         if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize] = val
         } else if addr == IO_RASTER {

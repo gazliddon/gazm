@@ -1,4 +1,3 @@
-
 bitflags! {
 
 #[derive( Default, Serialize, Deserialize)]
@@ -13,14 +12,14 @@ bitflags! {
         const V  = 1 << 1;
         const C  = 1 ;
 
-        const NZVCH = 
+        const NZVCH =
             Self::N.bits |
             Self::Z.bits |
             Self::V.bits |
             Self::C.bits |
             Self::H.bits ;
 
-        const NZVC = 
+        const NZVC =
             Self::N.bits |
             Self::Z.bits |
             Self::V.bits |
@@ -33,28 +32,24 @@ bitflags! {
 }
 
 impl Flags {
-    pub fn new(val : u8) -> Flags {
-        Flags {
-            bits: val
-        }
+    pub fn new(val: u8) -> Flags {
+        Flags { bits: val }
     }
 
     #[inline]
-    pub fn set_flags(&mut self, val : u8) {
+    pub fn set_flags(&mut self, val: u8) {
         self.bits = val
     }
 
-    pub fn set_w_mask(&mut self, mask : u8, val : u8) {
+    pub fn set_w_mask(&mut self, mask: u8, val: u8) {
         self.bits = (self.bits & !mask) | (val & mask)
     }
-
-
 
     pub fn le(self) -> bool {
         let v = self.contains(Flags::V);
         let n = self.contains(Flags::N);
         let z = self.contains(Flags::Z);
-        z | (v^n)
+        z | (v ^ n)
     }
 
     pub fn gt(self) -> bool {

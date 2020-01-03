@@ -1,24 +1,21 @@
 // use mem::Memory;
-use super::{ MemoryIO };
-use std::fmt;
+use super::MemoryIO;
 use sha1::Sha1;
+use std::fmt;
 
 pub trait MemMapIO {
-    fn add_memory(&mut self, mem : Box<dyn MemoryIO> ) ;
+    fn add_memory(&mut self, mem: Box<dyn MemoryIO>);
 }
-
 
 #[derive(Default)]
 pub struct MemMap {
-    all_memory: Vec< Box<dyn MemoryIO>>,
-    name : String,
+    all_memory: Vec<Box<dyn MemoryIO>>,
+    name: String,
 }
 
 impl fmt::Debug for MemMap {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
-        let mut strs : Vec<String> = Vec::new();
+        let mut strs: Vec<String> = Vec::new();
 
         for m in &self.all_memory {
             strs.push(m.get_name().clone())
@@ -29,14 +26,13 @@ impl fmt::Debug for MemMap {
 }
 
 impl MemoryIO for MemMap {
-
-    fn update_sha1(&self, digest : &mut Sha1) {
+    fn update_sha1(&self, digest: &mut Sha1) {
         for m in &self.all_memory {
             m.update_sha1(digest);
         }
     }
 
-    fn upload(&mut self, addr : u16, data : &[u8]) {
+    fn upload(&mut self, addr: u16, data: &[u8]) {
         for (i, item) in data.iter().enumerate() {
             let a = addr.wrapping_add(i as u16);
             self.store_byte(a, *item)
@@ -51,16 +47,16 @@ impl MemoryIO for MemMap {
         (0, 0xffff)
     }
 
-    fn load_byte(&mut self, addr:u16) -> u8 {
+    fn load_byte(&mut self, addr: u16) -> u8 {
         for m in &mut self.all_memory {
             if m.is_in_range(addr) {
-                return m.load_byte(addr)
+                return m.load_byte(addr);
             }
         }
         0
     }
 
-    fn store_byte(&mut self, addr:u16, val:u8) {
+    fn store_byte(&mut self, addr: u16, val: u8) {
         for m in &mut self.all_memory {
             if m.is_in_range(addr) {
                 m.store_byte(addr, val)
@@ -73,8 +69,8 @@ impl MemoryIO for MemMap {
 impl MemMap {
     pub fn new() -> MemMap {
         MemMap {
-            all_memory : Vec::new(),
-            name : "all memory".to_string(),
+            all_memory: Vec::new(),
+            name: "all memory".to_string(),
         }
     }
 
@@ -89,8 +85,7 @@ impl MemMap {
 }
 
 impl MemMapIO for MemMap {
-    fn add_memory(&mut self, mem : Box<dyn MemoryIO> ) {
+    fn add_memory(&mut self, mem: Box<dyn MemoryIO>) {
         self.all_memory.push(mem)
     }
 }
-

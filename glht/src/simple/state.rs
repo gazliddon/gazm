@@ -1,19 +1,19 @@
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct State<S : PartialEq + Clone + Copy > {
-    state : S,
-    last_state : Option<S>,
+pub struct State<S: PartialEq + Clone + Copy> {
+    state: S,
+    last_state: Option<S>,
 }
 
 #[allow(dead_code)]
-impl<S : PartialEq + Clone + Copy> State <S> {
-    pub fn new(state : S) -> Self {
+impl<S: PartialEq + Clone + Copy> State<S> {
+    pub fn new(state: S) -> Self {
         Self {
             state,
-            last_state : None,
+            last_state: None,
         }
     }
 
-    pub fn set(&mut self, new_state : S) {
+    pub fn set(&mut self, new_state: S) {
         let old_state = self.state;
         self.state = new_state;
         self.last_state = Some(old_state);
@@ -35,4 +35,3 @@ impl<S : PartialEq + Clone + Copy> State <S> {
         self.state
     }
 }
-

@@ -20,10 +20,10 @@ fn main() {
     f.write(source.as_bytes()).unwrap();
 }
 
-use serde::{Deserialize};
 use serde::de::Deserializer;
+use serde::Deserialize;
 
-#[derive(Debug, Clone,  Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AddrMode {
     Indexed,
     Direct,
@@ -36,7 +36,9 @@ pub enum AddrMode {
 
 // Custome deserializers
 fn hex_str_to_num<'de, D>(deserializer: D) -> Result<u16, D::Error>
-where D: Deserializer<'de> {
+where
+    D: Deserializer<'de>,
+{
     let hex_string = String::deserialize(deserializer)?;
     let z = u16::from_str_radix(&hex_string, 16).expect("Convert from hex str to u16");
     Ok(z)
@@ -44,42 +46,37 @@ where D: Deserializer<'de> {
 
 // Custome deserializers
 fn fixup_action<'de, D>(deserializer: D) -> Result<String, D::Error>
-where D: Deserializer<'de> {
+where
+    D: Deserializer<'de>,
+{
     let action = String::deserialize(deserializer)?;
     Ok(action.to_lowercase().replace("/", "_"))
 }
-
 
 #[serde(deny_unknown_fields)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Instruction {
     // pub display : Option<String>,
-    pub addr_mode : AddrMode,
-#[serde(deserialize_with = "u16::deserialize")]
-    pub cycles : u16,
-#[serde(deserialize_with = "fixup_action")]
-    pub action : String,
-#[serde(deserialize_with = "hex_str_to_num")]
-    pub opcode : u16,
-#[serde(deserialize_with = "u16::deserialize")]
-    pub size : u16,
-#[serde(default)]
-#[serde(deserialize_with = "u16::deserialize")]
-    pub operand_size : u16,
+    pub addr_mode: AddrMode,
+    #[serde(deserialize_with = "u16::deserialize")]
+    pub cycles: u16,
+    #[serde(deserialize_with = "fixup_action")]
+    pub action: String,
+    #[serde(deserialize_with = "hex_str_to_num")]
+    pub opcode: u16,
+    #[serde(deserialize_with = "u16::deserialize")]
+    pub size: u16,
+    #[serde(default)]
+    #[serde(deserialize_with = "u16::deserialize")]
+    pub operand_size: u16,
 }
-
 
 impl Instruction {
     pub fn as_macro(&self) -> String {
         format!(
             "0x{:04x} => handle_op!({:?}, {}, 0x{:04x}, {}, {}),",
-            self.opcode,
-            self.addr_mode,
-            self.action,
-            self.opcode,
-            self.cycles,
-            self.size
-            )
+            self.opcode, self.addr_mode, self.action, self.opcode, self.cycles, self.size
+        )
     }
 }
 
@@ -87,42 +84,44 @@ impl Instruction {
 pub struct Dbase {
     unknown: Instruction,
     instructions: Vec<Instruction>,
-#[serde(skip)]
-    lookup: Vec<Instruction>
+    #[serde(skip)]
+    lookup: Vec<Instruction>,
 }
 
 impl Dbase {
-    pub fn from_filename(file_name : &str) -> Self {
+    pub fn from_filename(file_name: &str) -> Self {
         let json_str = std::fs::read_to_string(file_name).unwrap();
-        let loaded : Dbase = serde_json::from_str(&json_str).unwrap();
+        let loaded: Dbase = serde_json::from_str(&json_str).unwrap();
         Self::from_data(loaded.instructions, loaded.unknown)
     }
 
-    fn from_data(instructions : Vec<Instruction>, unknown : Instruction) -> Self {
+    fn from_data(instructions: Vec<Instruction>, unknown: Instruction) -> Self {
         let max = instructions.iter().map(|p| p.opcode).max().unwrap_or(0);
 
-        let mut lookup : Vec<Instruction> = vec![unknown.clone(); (max as usize)+1];
+        let mut lookup: Vec<Instruction> = vec![unknown.clone(); (max as usize) + 1];
 
         for i in instructions.iter() {
             lookup[i.opcode as usize] = i.clone();
         }
 
-        for (i,o) in lookup.iter_mut().enumerate() {
+        for (i, o) in lookup.iter_mut().enumerate() {
             o.opcode = i as u16;
         }
 
         Self {
-            lookup, instructions, unknown
+            lookup,
+            instructions,
+            unknown,
         }
     }
 
     pub fn new() -> Self {
         let json_str = include_str!("src/cpu/resources/opcodes.json");
-        let loaded : Dbase = serde_json::from_str(json_str).unwrap();
+        let loaded: Dbase = serde_json::from_str(json_str).unwrap();
         Self::from_data(loaded.instructions, loaded.unknown)
     }
 
-    pub fn get(&self, opcode : u16) -> &Instruction {
+    pub fn get(&self, opcode: u16) -> &Instruction {
         &self.lookup[opcode as usize]
     }
 
@@ -133,34 +132,36 @@ impl Dbase {
 
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f,
+        write!(
+            f,
             "0x{:04x} => handle_op!({:?}, {}, 0x{:04x}, {}, {}),",
-            self.opcode,
-            self.addr_mode,
-            self.action,
-            self.opcode,
-            self.cycles,
-            self.size
-            )
+            self.opcode, self.addr_mode, self.action, self.opcode, self.cycles, self.size
+        )
     }
 }
 
 impl fmt::Display for Dbase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}", r#"
+        writeln!(
+            f,
+            "{}",
+            r#"
 #[macro_export]
 macro_rules! op_table {
     ($op:expr, $fail:block) => {
-        match $op {"#)?;
+        match $op {"#
+        )?;
         for i in self.instructions.iter() {
             writeln!(f, "\t\t{}", i)?
         }
-        writeln!(f,"{}", r#"
+        writeln!(
+            f,
+            "{}",
+            r#"
             _ => $fail
         }
     }
-}"#)
+}"#
+        )
     }
 }
-
-

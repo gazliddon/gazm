@@ -1,4 +1,4 @@
-use super::{Regs, Flags};
+use super::{Flags, Regs};
 
 use std::fmt;
 
@@ -15,15 +15,16 @@ impl fmt::Display for Regs {
             "{}\n{:04x} {:04x} {:02x} {:02x} {:04x} {:04x} {:04x} {:04x} {:02x} : {}",
             Self::get_hdr(),
             self.pc,
-            self.get_d(), 
-            self.a, 
-            self.b, 
+            self.get_d(),
+            self.a,
+            self.b,
             self.x,
             self.y,
             self.u,
             self.s,
             self.dp,
-            self.flags)
+            self.flags
+        )
     }
 }
 

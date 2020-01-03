@@ -1,4 +1,4 @@
-/* 
+/*
  * Simple 6809 machine to test code on
 
     0000 -> 97ff Screen (304 * 256 pixels / 4bbpp)
@@ -8,7 +8,7 @@
 IO
     9800 -> 982F = Palette ram - 16 * RGB byte per col = 0x30]
     9830  raster pos
-    9831  switches 1 
+    9831  switches 1
                 b0 = Up
                 b1 = Down
                 b2 = Left
@@ -23,16 +23,16 @@ IO
 // use filewatcher::FileWatcher;
 //
 
-use clap::{ArgMatches};
-use super::{ cpu, mem, io, filewatcher, state, utils };
+use super::{cpu, filewatcher, io, mem, state, utils};
+use clap::ArgMatches;
 use mem::memcore::MemoryIO;
 
 use io::*;
 
-use cpu::{ Regs, StandardClock };
+use cpu::{Regs, StandardClock};
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(dead_code)]
@@ -62,14 +62,13 @@ pub enum SimEvent {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[allow(dead_code)]
-const W : usize = 304;
+const W: usize = 304;
 #[allow(dead_code)]
-const H : usize = 256;
+const H: usize = 256;
 #[allow(dead_code)]
-const DIMS : (u32, u32) = (W as u32, H as u32);
+const DIMS: (u32, u32) = (W as u32, H as u32);
 #[allow(dead_code)]
-const SCR_BYTES : usize = W * H * 3; 
-
+const SCR_BYTES: usize = W * H * 3;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -83,35 +82,34 @@ enum MemRegion {
 }
 
 struct SimpleMem {
-    pub ram            : mem::MemBlock,
-    pub screen         : mem::MemBlock,
-    pub io             : Io,
-    addr_to_region     : [MemRegion; 0x1_0000],
-    name               : String,
+    pub ram: mem::MemBlock,
+    pub screen: mem::MemBlock,
+    pub io: Io,
+    addr_to_region: [MemRegion; 0x1_0000],
+    name: String,
 }
 
 #[allow(dead_code)]
-fn pix_to_rgb(p : u8, palette : &[u8], dest : &mut[u8])  {
+fn pix_to_rgb(p: u8, palette: &[u8], dest: &mut [u8]) {
     let p = p as usize;
-    let palette = &palette[p * 3 ..];
+    let palette = &palette[p * 3..];
     dest.copy_from_slice(&palette[..3]);
 }
 
 #[allow(dead_code)]
-fn to_rgb(mem : &[u8], palette : &[u8]) -> [u8; SCR_BYTES]{
-    let mut ret : [u8; SCR_BYTES] = [0; SCR_BYTES];
+fn to_rgb(mem: &[u8], palette: &[u8]) -> [u8; SCR_BYTES] {
+    let mut ret: [u8; SCR_BYTES] = [0; SCR_BYTES];
 
     for (i, b) in mem.iter().enumerate() {
-
         let x = (i / H) * 2;
         let y = i % H;
-        let d = ( x + y * W )  * 3;
+        let d = (x + y * W) * 3;
 
         let dest = &mut ret[d..];
 
-        pix_to_rgb(b&0xf, palette, &mut dest[..3]);
-        pix_to_rgb(b>>4, palette, &mut dest[3..6]);
-    };
+        pix_to_rgb(b & 0xf, palette, &mut dest[..3]);
+        pix_to_rgb(b >> 4, palette, &mut dest[3..6]);
+    }
 
     ret
 }
@@ -119,62 +117,64 @@ fn to_rgb(mem : &[u8], palette : &[u8]) -> [u8; SCR_BYTES]{
 #[allow(dead_code)]
 impl SimpleMem {
     pub fn new() -> Self {
-
-        let screen    = mem::MemBlock::new("screen", false, 0x0000,0x9800);
-        let ram       = mem::MemBlock::new("ram", false, 0x9900, 0x1_0000 - 0x9900);
-        let name      = "simple".to_string();
-        let io        = Io::new();
+        let screen = mem::MemBlock::new("screen", false, 0x0000, 0x9800);
+        let ram = mem::MemBlock::new("ram", false, 0x9900, 0x1_0000 - 0x9900);
+        let name = "simple".to_string();
+        let io = Io::new();
 
         let addr_to_region = {
-
             use self::MemRegion::*;
 
-            let mems : &[(MemRegion, &dyn mem::MemoryIO )] = &[
-                (IO, &io),
-                (Screen, &screen ),
-                (Ram, &ram ), ];
+            let mems: &[(MemRegion, &dyn mem::MemoryIO)] =
+                &[(IO, &io), (Screen, &screen), (Ram, &ram)];
 
             mem::build_addr_to_region(Illegal, mems)
         };
 
         SimpleMem {
-            ram,screen,name, addr_to_region, io
+            ram,
+            screen,
+            name,
+            addr_to_region,
+            io,
         }
     }
 
-    fn get_region(&self, _addr : u16) -> &dyn mem::MemoryIO {
+    fn get_region(&self, _addr: u16) -> &dyn mem::MemoryIO {
         let region = self.addr_to_region[_addr as usize];
 
         use self::MemRegion::*;
 
         match region {
-            Ram       => &self.ram,
-            IO        => &self.io,
-            Screen    => &self.screen,
-            Illegal   => panic!("Illegal! inspect from {:02x}", _addr),
+            Ram => &self.ram,
+            IO => &self.io,
+            Screen => &self.screen,
+            Illegal => panic!("Illegal! inspect from {:02x}", _addr),
         }
     }
 
-    fn get_region_mut(&mut self, _addr : u16) -> &mut dyn mem::MemoryIO {
+    fn get_region_mut(&mut self, _addr: u16) -> &mut dyn mem::MemoryIO {
         let region = self.addr_to_region[_addr as usize];
         use self::MemRegion::*;
 
         match region {
-            Ram       => &mut self.ram,
-            IO        => &mut self.io,
-            Screen    => &mut self.screen,
-            Illegal   => panic!("Illegal! inspect from {:02x}", _addr),
+            Ram => &mut self.ram,
+            IO => &mut self.io,
+            Screen => &mut self.screen,
+            Illegal => panic!("Illegal! inspect from {:02x}", _addr),
         }
     }
-
 }
 
 impl mem::MemoryIO for SimpleMem {
-    fn upload(&mut self, addr : u16, data : &[u8]) {
-
+    fn upload(&mut self, addr: u16, data: &[u8]) {
         info!("Uploading data to addr {:04x}", addr);
         info!("top addr would be {:04x}", addr as usize + data.len() - 1);
-        info!("last two bytes would be {:02x} {:02x}", data[data.len()-2], data[data.len()-1]);
+        info!(
+            "last two bytes would be {:02x} {:02x}",
+            data[data.len() - 2],
+            data[data.len() - 1]
+        );
 
         let mut addr = addr;
 
@@ -188,21 +188,21 @@ impl mem::MemoryIO for SimpleMem {
         (0, 0xffff)
     }
 
-    fn update_sha1(&self, _digest : &mut emu::sha1::Sha1) {
+    fn update_sha1(&self, _digest: &mut emu::sha1::Sha1) {
         unimplemented!("TBD")
     }
 
-    fn inspect_byte(&self, addr:u16) -> u8 {
+    fn inspect_byte(&self, addr: u16) -> u8 {
         let reg = self.get_region(addr);
         reg.inspect_byte(addr)
     }
 
-    fn load_byte(&mut self, addr:u16) -> u8 {
+    fn load_byte(&mut self, addr: u16) -> u8 {
         let reg = self.get_region_mut(addr);
         reg.load_byte(addr)
     }
 
-    fn store_byte(&mut self, addr:u16, val:u8) {
+    fn store_byte(&mut self, addr: u16, val: u8) {
         let reg = self.get_region_mut(addr);
         reg.store_byte(addr, val)
     }
@@ -214,15 +214,15 @@ impl mem::MemoryIO for SimpleMem {
 
 #[allow(dead_code)]
 pub struct Simple {
-    regs         : Regs,
-    mem          : SimpleMem,
-    rc_clock     : Rc<RefCell<StandardClock>>,
-    file         : Option<String>,
-    watcher      : Option<filewatcher::FileWatcher>,
-    events       : Vec<SimEvent>,
-    dirty        : bool,
-    verbose      : bool,
-    state        : state::State<SimState>,
+    regs: Regs,
+    mem: SimpleMem,
+    rc_clock: Rc<RefCell<StandardClock>>,
+    file: Option<String>,
+    watcher: Option<filewatcher::FileWatcher>,
+    events: Vec<SimEvent>,
+    dirty: bool,
+    verbose: bool,
+    state: state::State<SimState>,
 }
 
 #[allow(dead_code)]
@@ -241,31 +241,37 @@ impl Simple {
         info!("cd = {}", path.display());
 
         let mut ret = Simple {
-            mem, regs, rc_clock, verbose,
-            file    : None,
-            watcher : None,
-            events  : vec![],
-            dirty   : false,
-            state   : state::State::new(SimState::Paused)
+            mem,
+            regs,
+            rc_clock,
+            verbose,
+            file: None,
+            watcher: None,
+            events: vec![],
+            dirty: false,
+            state: state::State::new(SimState::Paused),
         };
 
         let file = "./asm/out/all.bin";
-        let addr : u16 = 0x9900;
+        let addr: u16 = 0x9900;
 
         ret.upload(file, addr);
-        info!("0xfff0 region = {}", ret.mem.get_region(0x9900).get_mem_as_str(0xfff0,16));
+        info!(
+            "0xfff0 region = {}",
+            ret.mem.get_region(0x9900).get_mem_as_str(0xfff0, 16)
+        );
         ret.reset();
 
         ret
     }
 
-    fn upload(&mut self, file : &str, addr : u16) {
+    fn upload(&mut self, file: &str, addr: u16) {
         let bytes = std::fs::read(file).expect("Can't load rom");
         self.mem.upload(addr, &bytes);
         info!("Uploaded {} to 0x{:04x}", file, addr);
     }
 
-    fn get_context(&mut self) -> cpu::Context<StandardClock,SimpleMem> {
+    fn get_context(&mut self) -> cpu::Context<StandardClock, SimpleMem> {
         cpu::Context::new(&mut self.mem, &mut self.regs, &self.rc_clock)
     }
 
@@ -278,10 +284,10 @@ impl Simple {
     pub fn reset(&mut self) {
         let mut ctx = self.get_context();
         ctx.reset();
-        info!("Reset\n\t{}", self.regs );
+        info!("Reset\n\t{}", self.regs);
     }
 
-    fn handle_file_watcher(&mut self)  {
+    fn handle_file_watcher(&mut self) {
         let mut has_changed = false;
 
         if let Some(ref mut watcher) = self.watcher {
@@ -308,7 +314,7 @@ impl Simple {
         }
     }
 
-    pub fn from_matches(matches : &ArgMatches) -> Self {
+    pub fn from_matches(matches: &ArgMatches) -> Self {
         let mut ret = Self::new();
         let file = matches.value_of("ROM FILE").unwrap();
         ret.file = Some(file.to_string());
@@ -324,7 +330,7 @@ impl Simple {
         ret
     }
 
-    fn run_to_sync(&mut self, max_instructions : usize ) -> Option<SimEvent> {
+    fn run_to_sync(&mut self, max_instructions: usize) -> Option<SimEvent> {
         let mut ctx = self.get_context();
 
         for _ in 0..max_instructions {
@@ -333,13 +339,13 @@ impl Simple {
         None
     }
 
-    fn add_event(&mut self, event : SimEvent) {
+    fn add_event(&mut self, event: SimEvent) {
         self.events.push(event)
     }
 
     fn toggle_verbose(&mut self) {
         let v = self.verbose;
-        self.verbose = ! v;
+        self.verbose = !v;
     }
 
     pub fn update_texture(&mut self) {
@@ -353,13 +359,11 @@ impl Simple {
     }
 
     pub fn update(&mut self) -> SimState {
-
         use self::SimEvent::*;
 
         self.handle_file_watcher();
 
         while let Some(event) = self.events.pop() {
-
             if self.state.get() == SimState::Quitting {
                 break;
             }
@@ -373,23 +377,19 @@ impl Simple {
                 Run => self.state.set(SimState::Running),
                 _ => (),
             };
-        };
+        }
 
         match self.state.get() {
-            SimState::Quitting => {
-            },
+            SimState::Quitting => {}
 
             SimState::Running => {
                 self.run_to_sync(2_000_000 / 60);
                 self.update_texture();
             }
 
-            SimState::Paused => {
-            }
+            SimState::Paused => {}
         };
 
         self.state.get()
     }
 }
-
-

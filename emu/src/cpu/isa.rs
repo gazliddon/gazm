@@ -1,6 +1,5 @@
 include!(concat!(env!("OUT_DIR"), "/isa_macros.rs"));
 
-
 // #[macro_export]
 // macro_rules! op_table {
 //     ($op:expr, $fail:block) => {
@@ -277,7 +276,3 @@ include!(concat!(env!("OUT_DIR"), "/isa_macros.rs"));
 //         }
 //     }
 // }
-
-
-
-
