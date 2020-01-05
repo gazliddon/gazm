@@ -6,7 +6,13 @@ quick_error! {
     pub enum Error {
         Collison(a : Chunk, b : Chunk)
 
-        Io(location : Location, err : std::io::Error) {
+            Io(err: std::io::Error) {
+                from()
+            }
+
+        Misc(err : String) { }
+
+        ReadingFile(location : Location, err : std::io::Error) {
             context(loc : &'a Location, err: std::io::Error)
                 -> (loc.clone(), err)
         }
