@@ -14,10 +14,9 @@ IO
     9831  switches 2
 */
 
-use super::mem;
 
-use mem::memcore::MemoryIO;
-use mem::*;
+use super::emu::mem::memcore::MemoryIO;
+use super::emu::sha1::Sha1;
 
 #[allow(dead_code)]
 const IO_BASE: u16 = 0x9800;
