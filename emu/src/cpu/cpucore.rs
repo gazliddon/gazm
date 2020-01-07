@@ -1339,12 +1339,6 @@ impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
     }
 }
 
-pub struct Dissembly {
-    text: String,
-    addr: u16,
-    next_instruction_addr: u16,
-    instruction: InstructionDecoder,
-}
 
 #[allow(unused_variables, unused_mut)]
 impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
@@ -1358,35 +1352,6 @@ impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
             mem,
             ref_clock,
             cycles: 0,
-        }
-    }
-
-    fn diss_op<A: AddressLines>(&self, ins: &InstructionDecoder) -> String {
-        let addr_mode = A::name();
-        // effective_address = "EA";
-        "fucked".to_string()
-    }
-
-    pub fn diss(&self, addr: u16) -> Dissembly {
-        let ins = InstructionDecoder::new_from_inspect_mem(addr, self.mem);
-
-        let op_code = ins.op_code;
-
-        macro_rules! handle_op {
-            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
-                self.diss_op::<$addr>(&ins)
-            }};
-        }
-
-        let text = op_table!(ins.instruction_info.opcode, { "".into() });
-
-        let next_instruction_addr = ins.next_addr;
-
-        Dissembly {
-            text,
-            addr,
-            next_instruction_addr,
-            instruction: ins,
         }
     }
 
@@ -1417,13 +1382,8 @@ impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
     }
 }
 
-pub fn reset<M: MemoryIO>(regs: &mut Regs, mem: &mut M) {
-    *regs = Regs {
-        pc: mem.load_word(0xfffe),
-        flags: Flags::I | Flags::F,
-        ..Default::default()
-    };
-}
+
+
 
 //
 // }}}

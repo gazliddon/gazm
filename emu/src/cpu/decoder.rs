@@ -53,7 +53,7 @@ fn decode_op(addr: u16, mut read: impl FnMut(u16) -> u8) -> InstructionDecoder {
 
     // Create the decoded instruction
     InstructionDecoder {
-        next_addr: index,
+        next_addr: addr.wrapping_add(instruction_info.size),
         index,
         addr,
         op_code,
@@ -66,6 +66,18 @@ fn decode_op(addr: u16, mut read: impl FnMut(u16) -> u8) -> InstructionDecoder {
 impl InstructionDecoder {
     pub fn new(_addr: u16) -> Self {
         panic!()
+    }
+
+    pub fn fetch_inspect_word<M: MemoryIO>(&mut self, mem: &M) -> u16 {
+        let w = mem.inspect_word(self.addr.wrapping_add(self.index));
+        self.index = self.index.wrapping_add(2);
+        w
+    }
+
+    pub fn fetch_inspecte_byte<M: MemoryIO>(&mut self, mem: &M) -> u8 {
+        let b = mem.inspect_byte(self.addr.wrapping_add(self.index));
+        self.index = self.index.wrapping_add(1);
+        b
     }
 
     pub fn new_from_inspect_mem<M: MemoryIO>(addr: u16, mem: &M) -> Self {

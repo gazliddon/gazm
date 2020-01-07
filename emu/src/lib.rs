@@ -15,4 +15,7 @@ pub mod cpu;
 #[allow(dead_code)]
 pub mod mem;
 
+#[allow(dead_code)]
+pub mod diss;
+
 pub use sha1;

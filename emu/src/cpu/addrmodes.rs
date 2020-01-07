@@ -2,7 +2,7 @@ use super::{mem, CpuErr, IndexModes, IndexedFlags, InstructionDecoder, Regs};
 use mem::MemoryIO;
 
 pub trait AddressLines {
-    fn diss<M: MemoryIO>(_mem: &mut M, _regs: &mut Regs, _ins: &mut InstructionDecoder) -> String {
+    fn diss<M: MemoryIO>(_mem: &M, _ins: &mut InstructionDecoder) -> String {
         panic!("NOT IMP {:?}", Self::name())
     }
 
@@ -118,9 +118,9 @@ impl AddressLines for Direct {
         Ok(ea)
     }
 
-    fn diss<M: MemoryIO>(mem: &mut M, _regs: &mut Regs, ins: &mut InstructionDecoder) -> String {
-        let val = ins.fetch_byte(mem);
-        format!("<{:02x}", val)
+    fn diss<M: MemoryIO>(mem: &M, ins: &mut InstructionDecoder) -> String {
+        let val = ins.fetch_inspecte_byte(mem);
+        format!("<${:02x}", val)
     }
 }
 
@@ -180,9 +180,9 @@ impl AddressLines for Extended {
         Ok(addr)
     }
 
-    fn diss<M: MemoryIO>(mem: &mut M, _regs: &mut Regs, ins: &mut InstructionDecoder) -> String {
-        let val = ins.fetch_word(mem);
-        format!(">{:02x}", val)
+    fn diss<M: MemoryIO>(mem: &M,  ins: &mut InstructionDecoder) -> String {
+        let val = ins.fetch_inspect_word(mem);
+        format!(">${:02x}", val)
     }
 }
 
@@ -203,9 +203,9 @@ impl AddressLines for Immediate8 {
         Ok(ins.fetch_byte(mem))
     }
 
-    fn diss<M: MemoryIO>(mem: &mut M, _regs: &mut Regs, ins: &mut InstructionDecoder) -> String {
-        let val = ins.fetch_byte(mem);
-        format!("#{:02x}", val)
+    fn diss<M: MemoryIO>(mem: &M,  ins: &mut InstructionDecoder) -> String {
+        let val = ins.fetch_inspecte_byte(mem);
+        format!("#${:02x}", val)
     }
 }
 
@@ -224,9 +224,9 @@ impl AddressLines for Immediate16 {
         Ok(ins.fetch_word(mem))
     }
 
-    fn diss<M: MemoryIO>(mem: &mut M, _regs: &mut Regs, ins: &mut InstructionDecoder) -> String {
-        let val = ins.fetch_word(mem);
-        format!("#{:04x}", val)
+    fn diss<M: MemoryIO>(mem: &M,  ins: &mut InstructionDecoder) -> String {
+        let val = ins.fetch_inspect_word(mem);
+        format!("#${:04x}", val)
     }
 }
 
@@ -245,7 +245,7 @@ impl AddressLines for Inherent {
         Ok(ins.fetch_byte(mem))
     }
 
-    fn diss<M: MemoryIO>(_mem: &mut M, _regs: &mut Regs, _ins: &mut InstructionDecoder) -> String {
+    fn diss<M: MemoryIO>(_mem: &M, _ins: &mut InstructionDecoder) -> String {
         "".to_string()
     }
 }

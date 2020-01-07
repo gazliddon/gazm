@@ -23,7 +23,7 @@ IO
 // use filewatcher::FileWatcher;
 //
 
-use super::{cpu, filewatcher, io, mem, state, utils};
+use super::{cpu, filewatcher, io, mem, state, utils, diss};
 use clap::ArgMatches;
 use mem::memcore::MemoryIO;
 
@@ -81,7 +81,7 @@ enum MemRegion {
     Screen,
 }
 
-struct SimpleMem {
+pub struct SimpleMem {
     pub ram: mem::MemBlock,
     pub screen: mem::MemBlock,
     pub io: Io,
@@ -271,18 +271,22 @@ impl Simple {
         info!("Uploaded {} to 0x{:04x}", file, addr);
     }
 
-    fn get_context(&mut self) -> cpu::Context<StandardClock, SimpleMem> {
+    pub fn get_context_mut(&mut self) -> cpu::Context<StandardClock, SimpleMem> {
         cpu::Context::new(&mut self.mem, &mut self.regs, &self.rc_clock)
     }
 
+    pub fn get_dissambler(&self) -> diss::Disassembler<SimpleMem> {
+        diss::Disassembler::new(&self.mem)
+    }
+
     pub fn step(&mut self) -> Option<SimEvent> {
-        let mut ctx = self.get_context();
+        let mut ctx = self.get_context_mut();
         ctx.step().expect("Can't step");
         Some(SimEvent::Halt)
     }
 
     pub fn reset(&mut self) {
-        let mut ctx = self.get_context();
+        let mut ctx = self.get_context_mut();
         ctx.reset();
         info!("Reset\n\t{}", self.regs);
     }
@@ -331,7 +335,7 @@ impl Simple {
     }
 
     fn run_to_sync(&mut self, max_instructions: usize) -> Option<SimEvent> {
-        let mut ctx = self.get_context();
+        let mut ctx = self.get_context_mut();
 
         for _ in 0..max_instructions {
             ctx.step().expect("Can't step");
@@ -393,3 +397,6 @@ impl Simple {
         self.state.get()
     }
 }
+
+
+

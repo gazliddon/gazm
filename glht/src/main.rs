@@ -1,6 +1,9 @@
 extern crate env_logger;
 
 #[macro_use]
+extern crate imgui;
+
+#[macro_use]
 extern crate glium;
 #[macro_use]
 extern crate log;
@@ -13,6 +16,8 @@ extern crate emu;
 mod app;
 mod mesh;
 mod simple;
+#[allow(dead_code)]
+mod dbgwin;
 
 use app::{frametime::FrameTime, system::System, App};
 use glium::index::PrimitiveType;
@@ -122,23 +127,27 @@ impl App for MyApp {
         self.running
     }
 
-    fn ui(&self, ui: &mut imgui::Ui) {
+    fn ui(&mut self, ui: &mut imgui::Ui) {
         use imgui::*;
+
 
         Window::new(im_str!("Hello world"))
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(ui, || {
-                ui.text(im_str!("Hello world!!!!!"));
-                ui.text(im_str!("This...is...imgui-rs!"));
-                ui.text(im_str!("This....is...imgui-rs!"));
-                ui.separator();
 
-                let mouse_pos = ui.io().mouse_pos;
+                dbgwin::render(&ui, &self.machine);
 
-                ui.text(format!(
-                    "Mouse Position: ({:.1},{:.1})",
-                    mouse_pos[0], mouse_pos[1]
-                ));
+                // ui.text(im_str!("Hello world!!!!!"));
+                // ui.text(im_str!("This...is...imgui-rs!"));
+                // ui.text(im_str!("This....is...imgui-rs!"));
+                // ui.separator();
+
+                // let mouse_pos = ui.io().mouse_pos;
+
+                // ui.text(format!(
+                //     "Mouse Position: ({:.1},{:.1})",
+                //     mouse_pos[0], mouse_pos[1]
+                // ));
             });
     }
 }

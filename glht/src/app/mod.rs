@@ -21,7 +21,7 @@ pub trait App {
         };
     }
 
-    fn ui(&self, _ui: &mut imgui::Ui) {}
+    fn ui(&mut self, _ui: &mut imgui::Ui) {}
 
     fn update(&mut self, frame_time: &FrameTime);
     fn is_running(&self) -> bool;
