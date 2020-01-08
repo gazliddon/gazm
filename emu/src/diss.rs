@@ -2,7 +2,7 @@
 use super::mem::{MemoryIO};
 use super::cpu::{
     AddressLines, Direct, Extended, Immediate16, Immediate8, Indexed, Inherent,
-    InstructionDecoder, Relative,
+    InstructionDecoder, Relative, Regs
 };
 
 pub struct Dissembly {
@@ -14,12 +14,13 @@ pub struct Dissembly {
 
 pub struct Disassembler<'a, M: 'a + MemoryIO> {
     mem: &'a M,
+    regs: &'a Regs,
 }
 
 impl<'a,  M: 'a + MemoryIO> Disassembler<'a, M> {
-    pub fn new(mem : &'a M) -> Self {
+    pub fn new(mem : &'a M, regs : &'a Regs) -> Self {
         Self {
-            mem
+            mem, regs
         }
     }
 
@@ -28,7 +29,7 @@ impl<'a,  M: 'a + MemoryIO> Disassembler<'a, M> {
         // effective_address = "EA";
         
         let action =&_ins.instruction_info.action;
-        format!("{:<5}{}", action, A::diss(self.mem, _ins))
+        format!("{:<5}{}", action, A::diss(self.mem, self.regs, _ins))
     }
 
     pub fn diss(&self, addr : u16) -> Dissembly {

@@ -178,7 +178,7 @@ impl Simple {
     }
 
     pub fn get_dissambler(&self) -> diss::Disassembler<SimpleMem> {
-        diss::Disassembler::new(&self.mem)
+        diss::Disassembler::new(&self.mem, &self.regs)
     }
 
     pub fn step(&mut self) -> Option<SimEvent> {
