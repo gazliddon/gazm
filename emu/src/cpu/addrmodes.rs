@@ -388,33 +388,19 @@ impl AddressLines for Indexed {
 
         match itype {
             IndexModes::RPlus(r) => { format!("{:?}+",r) }
-
             IndexModes::RPlusPlus(r) => { format!("{:?}++",r) }
-
             IndexModes::RSub(r) => { format!("{:?}-",r) }
-
             IndexModes::RSubSub(r) => { format!("{:?}--",r) }
-
             IndexModes::RZero(r) => { format!("{:?}",r) }
-
             IndexModes::RAddB(r) => { format!("B,{:?}", r) }
-
             IndexModes::RAddA(r) => { format!("A,{:?}", r) }
-
             IndexModes::RAddi8(r) => { format!("{},{:?}",ins.fetch_inspecte_byte(mem) as i8, r) }
-
             IndexModes::RAddi16(r) => { format!("{},{:?}",ins.fetch_inspecte_byte(mem) as i8, r) }
-
             IndexModes::RAddD(r) => { format!("D,{:?}", r) }
-
             IndexModes::PCAddi8 => { format!("PC,{:?}",ins.fetch_inspecte_byte(mem) as i8) }
-
             IndexModes::PCAddi16 => { format!("PC,{:?}",ins.fetch_inspecte_byte(mem)) }
-
             IndexModes::Illegal => format!("ILLEGAL INDEX MODE {:?}", itype),
-
             IndexModes::Ea => { format!("0x{:04X}", ins.fetch_inspect_word(mem)) }
-
             IndexModes::ROff(r, offset) => { format!("{}, {:?}", offset, r) }
         }
     }
