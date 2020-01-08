@@ -29,7 +29,7 @@ impl<'a,  M: 'a + MemoryIO> Disassembler<'a, M> {
         // effective_address = "EA";
         
         let action =&_ins.instruction_info.action;
-        format!("{:<5}{}", action, A::diss(self.mem, self.regs, _ins))
+        format!("{:<5}{}", action, A::diss(self.mem, _ins))
     }
 
     pub fn diss(&self, addr : u16) -> Dissembly {

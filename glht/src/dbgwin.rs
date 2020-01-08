@@ -25,6 +25,7 @@ impl DbgWin {
         let mut addr =  self.addr;
 
         let diss = machine.get_dissambler();
+
         draw_list.add_text(
             pos.clone(),
             YELLOW,
