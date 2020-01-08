@@ -4,7 +4,7 @@ use super::{
     alu,
     mem::{MemError, MemoryIO},
     AddressLines, Clock, Direct, Extended, Flags, Immediate16, Immediate8, Indexed, Inherent,
-    InstructionDecoder, RegEnum, Regs, Relative,
+    InstructionDecoder, RegEnum, Regs, Relative, Relative16
 };
 
 use alu::GazAlu;

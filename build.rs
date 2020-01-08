@@ -10,6 +10,7 @@ extern crate serde_derive;
 
 fn main() {
     let dbase = Dbase::from_filename("src/emu/cpu/resources/opcodes.json");
+
     let source = format!("{}", dbase);
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -29,6 +30,7 @@ pub enum AddrMode {
     Direct,
     Extended,
     Relative,
+    Relative16,
     Inherent,
     Immediate8,
     Immediate16,

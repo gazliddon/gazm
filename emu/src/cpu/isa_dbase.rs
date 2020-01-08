@@ -7,6 +7,7 @@ pub enum AddrMode {
     Direct,
     Extended,
     Relative,
+    Relative16,
     Inherent,
     Immediate8,
     Immediate16,

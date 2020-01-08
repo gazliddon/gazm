@@ -116,14 +116,14 @@
             "size": 1
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "16",
             "action": "LBRA",
             "size": 3
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 9,
             "opcode": "17",
             "action": "LBSR",
@@ -1572,98 +1572,98 @@
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "1022",
             "action": "LBHI",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "1023",
             "action": "LBLS",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "1024",
             "action": "LBHS/LBCC",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "1025",
             "action": "LBLO/LBCS",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "1026",
             "action": "LBNE",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "1027",
             "action": "LBEQ",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "1028",
             "action": "LBVC",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "1029",
             "action": "LBVS",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "102A",
             "action": "LBPL",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "102B",
             "action": "LBMI",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "102C",
             "action": "LBGE",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "102D",
             "action": "LBLT",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "102E",
             "action": "LBGT",
             "size": 4
         },
         {
-            "addr_mode": "Relative",
+            "addr_mode": "Relative16",
             "cycles": 5,
             "opcode": "102F",
             "action": "LBLE",

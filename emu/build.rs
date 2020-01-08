@@ -15,6 +15,7 @@ fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
 
     let dest_path = Path::new(&out_dir).join("isa_macros.rs");
+
     let mut f = File::create(&dest_path).unwrap();
 
     f.write(source.as_bytes()).unwrap();
@@ -29,6 +30,7 @@ pub enum AddrMode {
     Direct,
     Extended,
     Relative,
+    Relative16,
     Inherent,
     Immediate8,
     Immediate16,

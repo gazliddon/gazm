@@ -2,7 +2,7 @@
 use super::mem::{MemoryIO};
 use super::cpu::{
     AddressLines, Direct, Extended, Immediate16, Immediate8, Indexed, Inherent,
-    InstructionDecoder, Relative, Regs
+    InstructionDecoder, Relative, Relative16, Regs
 };
 
 pub struct Dissembly {
