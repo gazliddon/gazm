@@ -1,3 +1,5 @@
+// #![feature(option_flattening)]
+
 use super::chunk::{ Chunk, Location };
 
 use super::error;
@@ -13,6 +15,7 @@ use std::collections::HashMap;
 
 
 ////////////////////////////////////////////////////////////////////////////////
+
 pub struct SourceFile {
     file : String,
     lines : Vec<String>
@@ -38,9 +41,10 @@ impl SourceFile {
         self.lines.get(line -1)
     }
 }
+use std::cell::RefCell;
 
 pub struct SourceStore {
-    files : HashMap<String, SourceFile>,
+    files: RefCell<HashMap<String,SourceFile>>,
     source_dir : String
 }
 
@@ -48,7 +52,7 @@ impl SourceStore {
 
     pub fn new(source_dir : &str) -> Self {
         Self {
-            files: HashMap::new(),
+            files: RefCell::new(HashMap::new()),
             source_dir : source_dir.to_string()
         }
     }
@@ -56,25 +60,39 @@ impl SourceStore {
         format!("{}/{}", self.source_dir, file)
     }
 
-    pub fn get(&mut self, file : &str) -> error::Result<&SourceFile> {
-        let key = self.make_key(file);
 
-        if !self.files.contains_key(&key) {
-            let source_file = SourceFile::new(&key)?;
-            self.files.insert(key.clone(), source_file);
+    pub fn get<F>(&self, file : &str, func : F) where
+        F : FnOnce(&SourceFile) {
+
+            let key = self.make_key(file);
+
+            let mut files  = self.files.borrow_mut();
+
+            if !files.contains_key(&key) {
+                match SourceFile::new(&key) {
+                    Ok(source_file) => {
+                        files.insert(key.clone(), source_file);
+                    },
+                    _ => { return}
+                }
+            }
+
+            func(files.get(&key).unwrap())
         }
 
-        Ok( self.files.get(&key).unwrap() )
-    }
+    pub fn get_line(&self, loc : &Location) -> Option<String> {
 
-    pub fn get_line(&mut self, loc : &Location) -> error::Result<&String> {
-        let source_file = self.get(loc.file.to_str().unwrap())?;
+        let mut res =  None;
 
-        if let Some(line) = source_file.line(loc.line_number) {
-            Ok(line)
-        } else {
-            Err(error::Error::Misc("Can't find line".to_string()))
-        }
+        self.get(
+            loc.file.to_str().unwrap(),
+            |sf| {
+                let line = sf.line(loc.line_number).unwrap();
+                res = Some(line.clone());
+            }
+        );
+
+        res
     }
 }
 
@@ -125,14 +143,11 @@ impl Rom {
         self.addr_to_loc[_addr as usize].as_ref().cloned()
     }
 
-    pub fn get_source_line(&mut self, _addr : u16) -> error::Result<&String> {
-
-        if let Some(loc) = self.get_source_location(_addr) {
-            self.sources.get_line(&loc)
-        } else {
-            Err(error::Error::Misc("whoops".to_string()))
-        }
-
+    pub fn get_source_line(&self, _addr : u16) -> Option<String> {
+        self
+            .get_source_location(_addr)
+            .map(|loc| self.sources.get_line(&loc))
+            .unwrap_or(None)
     }
 
     pub fn add_symbol(&mut self, name : &str, value : u16) {

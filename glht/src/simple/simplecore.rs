@@ -120,7 +120,7 @@ pub struct Simple {
     dirty: bool,
     verbose: bool,
     state: state::State<SimState>,
-    rom : romloader::Rom,
+    pub rom : romloader::Rom,
 }
 
 #[allow(dead_code)]

@@ -37,7 +37,9 @@ impl DbgWin {
 
             let d = diss.diss(addr);
 
-            let text = format!("{:04x}    {}", addr, d.text);
+            let src = machine.rom.get_source_line(addr).unwrap_or_else(|| "".to_string());
+
+            let text = format!("{:04x}    {:<20} {}", addr, d.text, src);
 
             draw_list.add_text(
                 pos.clone(),
