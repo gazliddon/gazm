@@ -33,13 +33,15 @@ impl DbgWin {
 
         pos[1] += h;
 
-        for _i in 0..10 {
-
+        let dissasemble = |addr : u16| {
             let d = diss.diss(addr);
-
             let src = machine.rom.get_source_line(addr).unwrap_or_else(|| "".to_string());
-
             let text = format!("{:04x}    {:<20} {}", addr, d.text, src);
+            (d.next_instruction_addr,text)
+        };
+
+        for _i in 0..10 {
+            let (next_ins, text ) = dissasemble(addr);
 
             draw_list.add_text(
                 pos.clone(),
@@ -48,7 +50,7 @@ impl DbgWin {
 
             pos[1] += h;
 
-            addr = d.next_instruction_addr;
+            addr = next_ins;
         }
     }
 

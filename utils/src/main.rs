@@ -3,6 +3,8 @@
 #[allow(dead_code)] mod error;
 #[allow(dead_code)] mod rom;
 #[allow(dead_code)] mod romloader;
+#[allow(dead_code)] mod sourcestore;
+
 
 use rom::{Rom};
 
