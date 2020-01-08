@@ -54,20 +54,17 @@ impl SourceStore {
         format!("{}/{}", self.source_dir, file)
     }
 
-
     pub fn get<F>(&self, file : &str, func : F) where
         F : FnOnce(&SourceFile) {
-
             let key = self.make_key(file);
 
             let mut files  = self.files.borrow_mut();
 
             if !files.contains_key(&key) {
-                match SourceFile::new(&key) {
-                    Ok(source_file) => {
-                        files.insert(key.clone(), source_file);
-                    },
-                    _ => { return}
+                if let Ok(source_file) = SourceFile::new(&key) {
+                    files.insert(key.clone(), source_file);
+                } else {
+                    return;
                 }
             }
 
@@ -75,14 +72,12 @@ impl SourceStore {
         }
 
     pub fn get_line(&self, loc : &Location) -> Option<String> {
-
         let mut res =  None;
 
         self.get(
             loc.file.to_str().unwrap(),
             |sf| {
-                let line = sf.line(loc.line_number).unwrap();
-                res = Some(line.clone());
+                res = sf.line(loc.line_number).cloned();
             }
         );
 
