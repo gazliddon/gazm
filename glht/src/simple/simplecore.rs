@@ -120,11 +120,14 @@ pub struct Simple {
     dirty: bool,
     verbose: bool,
     state: state::State<SimState>,
+    rom : romloader::Rom,
 }
 
 #[allow(dead_code)]
 impl Simple {
     pub fn new() -> Self {
+
+        let sym_file = "./asm/out/all.syms";
         let clock = cpu::StandardClock::new(2_000_000);
 
         let rc_clock = Rc::new(RefCell::new(clock));
@@ -137,6 +140,10 @@ impl Simple {
         info!("Creatning Simple 6809 machine");
         info!("cd = {}", path.display());
 
+        let rom = romloader::Rom::from_sym_file(sym_file).expect("Load syms");
+
+        info!("loaded symbol file {} as ROM", sym_file);
+
         let mut ret = Simple {
             mem,
             regs,
@@ -147,23 +154,20 @@ impl Simple {
             events: vec![],
             dirty: false,
             state: state::State::new(SimState::Paused),
+            rom,
         };
 
-        let file = "./asm/out/all.bin";
-        let addr: u16 = 0x9900;
+        let addr = 0x9900;
+        let size = ( 0x10_000 - 0x9900 ) as u16;
+        let rom_data = ret.rom.get_slice(addr, size);
+        ret.mem.upload(addr, rom_data);
 
-
-        ret.upload(file, addr);
-        info!(
-            "0xfff0 region = {}",
-            ret.mem.get_region(0x9900).get_mem_as_str(0xfff0, 16)
-        );
         ret.reset();
 
         ret
     }
 
-    fn upload(&mut self, file: &str, addr: u16) {
+    fn load(&mut self, file: &str, addr: u16) {
         let bytes = std::fs::read(file).expect("Can't load rom");
         self.mem.upload(addr, &bytes);
         info!("Uploaded {} to 0x{:04x}", file, addr);

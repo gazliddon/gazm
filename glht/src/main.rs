@@ -12,6 +12,7 @@ extern crate log;
 extern crate serde_derive;
 
 extern crate emu;
+extern crate romloader;
 
 mod app;
 mod mesh;
@@ -30,6 +31,7 @@ struct MyApp {
     running: bool,
     frame_time: FrameTime,
     machine: simple::simplecore::Simple,
+    dbgwin : dbgwin::DbgWin,
 }
 
 #[derive(Copy, Clone)]
@@ -84,6 +86,7 @@ impl MyApp {
             mesh,
             running: true,
             frame_time: FrameTime::default(),
+            dbgwin: dbgwin::DbgWin::new(0x9900)
         }
     }
 }
@@ -110,8 +113,8 @@ impl App for MyApp {
             self.close_requested()
         }
 
-        if c == 's' {
-            self.machine.step();
+        if c == 'j' {
+            self.dbgwin.next_instruction(&self.machine)
         }
     }
 
@@ -135,7 +138,7 @@ impl App for MyApp {
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(ui, || {
 
-                dbgwin::render(&ui, &self.machine);
+                self.dbgwin.render(&ui, &self.machine);
 
                 // ui.text(im_str!("Hello world!!!!!"));
                 // ui.text(im_str!("This...is...imgui-rs!"));
@@ -154,10 +157,16 @@ impl App for MyApp {
 
 fn main() {
     use std::env;
+
+    let file = "asm/out/all.syms";
+    let mut _rom = romloader::Rom::from_sym_file(file).unwrap();
+
     env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     let mut system = System::new();
+
     let mut app = MyApp::new(&system);
+
     system.run_app(&mut app);
 }

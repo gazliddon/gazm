@@ -459,4 +459,9 @@ impl AddressLines for Relative {
     ) -> Result<u16, CpuErr> {
         Ok(ins.fetch_word(mem))
     }
+
+    fn diss<M: MemoryIO>(mem: &M, ins: &mut InstructionDecoder) -> String {
+        let val = ins.fetch_inspecte_byte(mem) as i8;
+        format!(" PC + {}", val)
+    }
 }

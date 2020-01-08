@@ -154,6 +154,17 @@ impl Rom {
         }
     }
 
+    pub fn get_slice(&self, addr : u16, size : u16) -> &[u8]  {
+        let addr = addr as usize;
+        let size = size as usize;
+
+        if addr + (size -1 ) > 0x10_000 {
+            panic!("FUCKED")
+        }
+
+        &self.data[addr..(addr+size)]
+    }
+
 
     pub fn from_chunks( chunks : Vec<Chunk> ) -> error::Result<Self> {
         let (data, addr_to_loc) = make_rom(&chunks)?;
