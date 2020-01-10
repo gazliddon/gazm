@@ -68,43 +68,43 @@ impl InstructionDecoder {
         panic!()
     }
 
-    pub fn fetch_inspect_word<M: MemoryIO>(&mut self, mem: &M) -> u16 {
+    pub fn fetch_inspect_word(&mut self, mem: &dyn MemoryIO) -> u16 {
         let w = mem.inspect_word(self.addr.wrapping_add(self.index));
         self.index = self.index.wrapping_add(2);
         w
     }
 
-    pub fn fetch_inspecte_byte<M: MemoryIO>(&mut self, mem: &M) -> u8 {
+    pub fn fetch_inspecte_byte(&mut self, mem: &dyn MemoryIO) -> u8 {
         let b = mem.inspect_byte(self.addr.wrapping_add(self.index));
         self.index = self.index.wrapping_add(1);
         b
     }
 
-    pub fn new_from_inspect_mem<M: MemoryIO>(addr: u16, mem: &M) -> Self {
+    pub fn new_from_inspect_mem(addr: u16, mem: &dyn MemoryIO) -> Self {
         decode_op(addr, |addr| mem.inspect_byte(addr))
     }
 
-    pub fn new_from_read_mem<M: MemoryIO>(addr: u16, mem: &mut M) -> Self {
+    pub fn new_from_read_mem(addr: u16, mem: &mut dyn MemoryIO) -> Self {
         decode_op(addr, |addr| mem.load_byte(addr))
     }
 
-    pub fn fetch_byte<M: MemoryIO>(&mut self, mem: &mut M) -> u8 {
+    pub fn fetch_byte(&mut self, mem: &mut dyn MemoryIO) -> u8 {
         let b = mem.load_byte(self.addr.wrapping_add(self.index));
         self.index = self.index.wrapping_add(1);
         b
     }
 
-    pub fn fetch_word<M: MemoryIO>(&mut self, mem: &mut M) -> u16 {
+    pub fn fetch_word(&mut self, mem: &mut dyn MemoryIO) -> u16 {
         let w = mem.load_word(self.addr.wrapping_add(self.index));
         self.index = self.index.wrapping_add(2);
         w
     }
 
-    pub fn fetch_byte_as_i8<M: MemoryIO>(&mut self, mem: &mut M) -> i8 {
+    pub fn fetch_byte_as_i8(&mut self, mem: &mut dyn MemoryIO) -> i8 {
         self.fetch_byte(mem) as i8
     }
 
-    pub fn fetch_byte_as_i16<M: MemoryIO>(&mut self, mem: &mut M) -> i16 {
+    pub fn fetch_byte_as_i16(&mut self, mem: &mut dyn MemoryIO) -> i16 {
         i16::from(self.fetch_byte_as_i8(mem))
     }
 }

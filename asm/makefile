@@ -1,16 +1,15 @@
 BIN := ../bin/osx
-
 AS := $(BIN)/lwasm
-LN := $(BIN)/lwlink
 OUT := out
-
-SRC := $(wildcard *.s)
 
 all : dirs code
 	@echo Done
 
-code : $(OUT)/all.bin $(OUT)/all.syms makefile
+code : $(OUT)/demo.syms $(OUT)/test.syms makefile
 	@echo Built code
+
+$(OUT)/demo.syms : $(wildcard demo/*.68)
+$(OUT)/all : $(wildcard all/*.68)
 
 dirs : $(OUT)
 	@echo Made directories
@@ -18,10 +17,9 @@ dirs : $(OUT)
 $(OUT) :
 	@mkdir -p $(OUT)
 
-$(OUT)/all.bin $(OUT)/all.syms $(OUT)/all.map : $(SRC)
-	@$(AS) -9 -r -o $(OUT)/all.bin all.s -s -l$(OUT)/all.syms --map=$(OUT)/all.map
-	@ls -lt $(OUT)/all.bin
-	@echo Compiled all.s
+$(OUT)/%.syms  : %/all.68
+	$(AS) -9 -r $*/all.68 -s -l$@ -I$*
+	@echo Created $@
 
 clean :
 	@rm -rf $(OUT)

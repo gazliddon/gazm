@@ -6,7 +6,7 @@ pub trait AddressLines {
     //     panic!("NOT IMP {:?}", Self::name())
     // }
 
-    fn diss<M: MemoryIO>(_mem: &M, _ins: &mut InstructionDecoder) -> String;
+    fn diss(_mem: &dyn MemoryIO, _ins: &mut InstructionDecoder) -> String;
 
     fn ea<M: MemoryIO>(
         _mem: &mut M,
@@ -120,7 +120,7 @@ impl AddressLines for Direct {
         Ok(ea)
     }
 
-    fn diss<M: MemoryIO>(mem: &M,  ins: &mut InstructionDecoder) -> String {
+    fn diss(mem: &dyn MemoryIO,  ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspecte_byte(mem);
         format!("<${:02x}", val)
     }
@@ -182,7 +182,7 @@ impl AddressLines for Extended {
         Ok(addr)
     }
 
-    fn diss<M: MemoryIO>(mem: &M,  ins: &mut InstructionDecoder) -> String {
+    fn diss(mem: &dyn MemoryIO,  ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspect_word(mem);
         format!(">${:02x}", val)
     }
@@ -205,7 +205,7 @@ impl AddressLines for Immediate8 {
         Ok(ins.fetch_byte(mem))
     }
 
-    fn diss<M: MemoryIO>(mem: &M,   ins: &mut InstructionDecoder) -> String {
+    fn diss(mem: &dyn MemoryIO,   ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspecte_byte(mem);
         format!("#${:02x}", val)
     }
@@ -226,7 +226,7 @@ impl AddressLines for Immediate16 {
         Ok(ins.fetch_word(mem))
     }
 
-    fn diss<M: MemoryIO>(mem: &M,   ins: &mut InstructionDecoder) -> String {
+    fn diss(mem: &dyn MemoryIO,   ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspect_word(mem);
         format!("#${:04x}", val)
     }
@@ -247,7 +247,7 @@ impl AddressLines for Inherent {
         Ok(ins.fetch_byte(mem))
     }
 
-    fn diss<M: MemoryIO>(_mem: &M,  _ins: &mut InstructionDecoder) -> String {
+    fn diss(_mem: &dyn MemoryIO,  _ins: &mut InstructionDecoder) -> String {
         "".to_string()
     }
 }
@@ -380,7 +380,7 @@ impl Indexed {
 
 impl AddressLines for Indexed {
 
-    fn diss<M: MemoryIO>(mem: &M, ins: &mut InstructionDecoder) -> String {
+    fn diss(mem: &dyn MemoryIO, ins: &mut InstructionDecoder) -> String {
         let index_mode_id = ins.fetch_inspecte_byte(mem);
 
         let index_mode = IndexedFlags::new(index_mode_id);
@@ -482,7 +482,7 @@ impl AddressLines for Relative {
         Ok(ins.fetch_byte(mem))
     }
 
-    fn diss<M: MemoryIO>(mem: &M,  ins: &mut InstructionDecoder) -> String {
+    fn diss(mem: &dyn MemoryIO,  ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspecte_byte(mem) as i8;
         format!(" ${:04x} + {}", ins.addr, val)
     }
@@ -511,7 +511,7 @@ impl AddressLines for Relative16 {
         Ok(ins.fetch_word(mem))
     }
 
-    fn diss<M: MemoryIO>(mem: &M,  ins: &mut InstructionDecoder) -> String {
+    fn diss(mem: &dyn MemoryIO,  ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspect_word(mem) as i16;
         format!(" ${:04x} + {}", ins.addr, val)
     }

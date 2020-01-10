@@ -9,7 +9,7 @@
 use rom::{Rom};
 
 fn main() {
-    let file = "asm/out/all.syms";
+    let file = "asm/out/test.syms";
 
     let mut _rom = Rom::from_sym_file(file).unwrap();
 

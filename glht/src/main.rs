@@ -30,7 +30,7 @@ struct MyApp {
     mesh: Box<dyn mesh::MeshTrait>,
     running: bool,
     frame_time: FrameTime,
-    machine: simple::simplecore::Simple,
+    machine : Box<dyn simple::simplecore::Machine>,
     dbgwin : dbgwin::DbgWin,
 }
 
@@ -76,9 +76,10 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
 
 impl MyApp {
     pub fn new(system: &System) -> Self {
-        use simple::simplecore::Simple;
 
-        let machine = Simple::new();
+        let sym_file = "./asm/out/demo.syms";
+        let machine = Box::new(simple::simplecore::make_simple(sym_file));
+
         let mesh = make_mesh(&system);
 
         Self {
@@ -114,7 +115,7 @@ impl App for MyApp {
         }
 
         if c == 'j' {
-            self.dbgwin.next_instruction(&self.machine)
+            self.dbgwin.next_instruction(self.machine.as_mut())
         }
     }
 
@@ -133,12 +134,11 @@ impl App for MyApp {
     fn ui(&mut self, ui: &mut imgui::Ui) {
         use imgui::*;
 
-
         Window::new(im_str!("Hello world"))
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(ui, || {
 
-                self.dbgwin.render(&ui, &self.machine);
+                self.dbgwin.render(&ui, self.machine.as_ref());
 
                 // ui.text(im_str!("Hello world!!!!!"));
                 // ui.text(im_str!("This...is...imgui-rs!"));
@@ -157,9 +157,6 @@ impl App for MyApp {
 
 fn main() {
     use std::env;
-
-    let file = "asm/out/all.syms";
-    let mut _rom = romloader::Rom::from_sym_file(file).unwrap();
 
     env::set_var("RUST_LOG", "info");
     env_logger::init();

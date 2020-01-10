@@ -4,7 +4,26 @@
 * Make instruction dbase generate at compile time
 * Make list of errors to correct in disassembly
 
+# 6809 Assembler
+https://github.com/Geal/nom
+https://github.com/Geal/nom/blob/master/examples/s_expression.rs
 
+## Very Rough Grammar
+```
+hexdigit [0-9a-fA-F]
+number [0-9]+, $[hexdigit]+, 0x[hexdigit]+
+opcode = [...]
+
+label_start = [_a-zA-Z]
+label = label_start(labelstart|[0-8])*
+loc_lobel = @label
+
+immediate = #value
+for_direct = <value
+reg = [abxydus]
+reg_list = reg (,reg)*
+
+```
 
 # Vim Plugin
 * https://github.com/tpope/vim-scriptease

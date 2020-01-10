@@ -40,20 +40,20 @@ fn get_tfr_reg(op: u8) -> RegEnum {
     }
 }
 
-pub fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
+fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
     (get_tfr_reg(op >> 4), get_tfr_reg(op & 0xf))
 }
 
-pub struct Context<'a, C: 'a + Clock, M: 'a + MemoryIO> {
+pub struct Context<'a, C: 'a + Clock> {
     regs: &'a mut Regs,
-    mem: &'a mut M,
+    mem: &'a mut dyn MemoryIO,
     ref_clock: &'a Rc<RefCell<C>>,
     cycles: usize,
 }
 
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
-impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
+impl<'a, C: 'a + Clock> Context<'a, C> {
     fn set_pc(&mut self, v: u16) {
         panic!("Set PC!")
         // self.ins.next_addr = v;
@@ -267,7 +267,7 @@ impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
 ////////////////////////////////////////////////////////////////////////////////
 // Stakc functions
 
-impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
+impl<'a, C: 'a + Clock> Context<'a, C> {
     fn pushu_byte(&mut self, v: u8) -> Result<(), CpuErr> {
         let u = self.regs.u.wrapping_sub(1);
         self.mem.store_byte(u, v);
@@ -323,7 +323,7 @@ impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
+impl<'a, C: 'a + Clock> Context<'a, C> {
     fn orcc<A: AddressLines>(&mut self) -> Result<(), CpuErr> {
         let v = self.fetch_byte::<A>()?;
         let cc = self.regs.flags.bits();
@@ -1339,14 +1339,14 @@ impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
     }
 }
 
-
 #[allow(unused_variables, unused_mut)]
-impl<'a, C: 'a + Clock, M: 'a + MemoryIO> Context<'a, C, M> {
+impl<'a, C: 'a + Clock> Context<'a, C> {
+
     pub fn new(
-        mem: &'a mut M,
+        mem: &'a mut dyn MemoryIO,
         regs: &'a mut Regs,
         ref_clock: &'a Rc<RefCell<C>>,
-    ) -> Context<'a, C, M> {
+    ) -> Context<'a, C> {
         Context {
             regs,
             mem,

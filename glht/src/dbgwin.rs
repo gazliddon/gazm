@@ -1,4 +1,4 @@
-use super::simple::simplecore::Simple;
+use super::simple::simplecore::Machine;
 
 pub struct DbgWin {
     addr : u16
@@ -12,7 +12,7 @@ impl DbgWin {
         }
     }
 
-    pub fn render(&self, ui: &imgui::Ui, machine : &Simple) {
+    pub fn render(&self, ui: &imgui::Ui, machine : &dyn Machine) {
 
         let [_,h] = ui.calc_text_size(im_str!( " " ), false, std::f32::MAX);
         let draw_list = ui.get_window_draw_list();
@@ -34,8 +34,9 @@ impl DbgWin {
         pos[1] += h;
 
         let dissasemble = |addr : u16| {
+            let rom = machine.get_rom();
             let d = diss.diss(addr);
-            let src = machine.rom.get_source_line(addr).unwrap_or_else(|| "".to_string());
+            let src = rom.get_source_line(addr).unwrap_or_else(|| "".to_string());
             let text = format!("{:04x}    {:<20} {}", addr, d.text, src);
             (d.next_instruction_addr,text)
         };
@@ -54,7 +55,7 @@ impl DbgWin {
         }
     }
 
-    pub fn next_instruction(&mut self, machine : &Simple) {
+    pub fn next_instruction(&mut self, machine : &dyn Machine) {
         let diss = machine.get_dissambler();
         let d = diss.diss(self.addr);
         self.addr = d.next_instruction_addr;

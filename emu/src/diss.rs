@@ -12,13 +12,13 @@ pub struct Dissembly {
     instruction: InstructionDecoder,
 }
 
-pub struct Disassembler<'a, M: 'a + MemoryIO> {
-    mem: &'a M,
+pub struct Disassembler<'a> {
+    mem: &'a dyn MemoryIO,
     regs: &'a Regs,
 }
 
-impl<'a,  M: 'a + MemoryIO> Disassembler<'a, M> {
-    pub fn new(mem : &'a M, regs : &'a Regs) -> Self {
+impl<'a> Disassembler<'a> {
+    pub fn new(mem : &'a dyn MemoryIO, regs : &'a Regs) -> Self {
         Self {
             mem, regs
         }

@@ -74,7 +74,7 @@ else
 command -nargs=+ HiLink hi def link <args>
 endif
 
-HiLink mc6809Inst Statement
+HiLink mc6809Inst Identifier
 HiLink mc6809comment Comment
 HiLink mc6809Label Type
 HiLink mc6809Directive PreProc

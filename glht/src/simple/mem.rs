@@ -47,8 +47,8 @@ enum MemRegion {
 }
 
 pub struct SimpleMem {
-    pub ram: emu::mem::MemBlock,
-    pub screen: emu::mem::MemBlock,
+    ram: emu::mem::MemBlock,
+    screen: emu::mem::MemBlock,
     pub io: Io,
     addr_to_region: [MemRegion; 0x1_0000],
     name: String,
@@ -57,6 +57,11 @@ pub struct SimpleMem {
 
 #[allow(dead_code)]
 impl SimpleMem {
+
+    pub fn get_screen(&self) -> &emu::mem::MemBlock {
+        &self.screen
+    }
+
     pub fn new() -> Self {
         let screen = emu::mem::MemBlock::new("screen", false, 0x0000, 0x9800);
         let ram = emu::mem::MemBlock::new("ram", false, 0x9900, 0x1_0000 - 0x9900);
@@ -81,7 +86,7 @@ impl SimpleMem {
         }
     }
 
-    pub fn get_region(&self, _addr: u16) -> &dyn MemoryIO {
+    fn get_region(&self, _addr: u16) -> &dyn MemoryIO {
         let region = self.addr_to_region[_addr as usize];
 
         use self::MemRegion::*;
@@ -94,7 +99,7 @@ impl SimpleMem {
         }
     }
 
-    pub fn get_region_mut(&mut self, _addr: u16) -> &mut dyn MemoryIO {
+    fn get_region_mut(&mut self, _addr: u16) -> &mut dyn MemoryIO {
         let region = self.addr_to_region[_addr as usize];
         use self::MemRegion::*;
 
@@ -109,14 +114,6 @@ impl SimpleMem {
 
 impl MemoryIO for SimpleMem {
     fn upload(&mut self, addr: u16, data: &[u8]) {
-        info!("Uploading data to addr {:04x}", addr);
-        info!("top addr would be {:04x}", addr as usize + data.len() - 1);
-        info!(
-            "last two bytes would be {:02x} {:02x}",
-            data[data.len() - 2],
-            data[data.len() - 1]
-        );
-
         let mut addr = addr;
 
         for i in data {

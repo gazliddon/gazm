@@ -1,5 +1,5 @@
     org $9900
-        include	"equates.s"
+    include	"equates.s"
 
 start
         lda #$55
@@ -321,5 +321,3 @@ v2        fdb  frqvec
 v3        fdb  irqvec
 v4        fdb  swivec
 nmi_v     fdb  nmivec
-start_v   fdb  start
-

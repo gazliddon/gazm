@@ -75,9 +75,8 @@ impl Rom {
             ( sym, loc) })
     }
 
-    pub fn get_slice(&self, addr : u16, size : u16) -> &[u8]  {
+    pub fn get_slice(&self, addr : u16, size : usize) -> &[u8]  {
         let addr = addr as usize;
-        let size = size as usize;
 
         if addr + (size -1 ) > 0x10_000 {
             panic!("FUCKED")
