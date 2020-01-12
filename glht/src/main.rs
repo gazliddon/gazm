@@ -110,12 +110,25 @@ impl App for MyApp {
     }
 
     fn handle_character(&mut self, c: char) {
+
         if c == 'q' {
             self.close_requested()
         }
 
+
+        let dbgwin = &mut self.dbgwin;
+        use dbgwin::Events::*;
+
         if c == 'j' {
-            self.dbgwin.next_instruction(self.machine.as_mut())
+            dbgwin.event(CursorDown);
+        }
+
+        if c == 'k' {
+            dbgwin.event(CursorUp);
+        }
+
+        if c == ' ' {
+            dbgwin.event(Space);
         }
     }
 

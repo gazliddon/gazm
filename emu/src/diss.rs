@@ -1,33 +1,41 @@
 
 use super::mem::{MemoryIO};
+
 use super::cpu::{
     AddressLines, Direct, Extended, Immediate16, Immediate8, Indexed, Inherent,
-    InstructionDecoder, Relative, Relative16, Regs
+    InstructionDecoder, Relative, Relative16
 };
 
 pub struct Dissembly {
     pub text: String,
-    addr: u16,
+    pub addr: u16,
     pub next_instruction_addr: u16,
     instruction: InstructionDecoder,
 }
 
+
+
+impl Dissembly {
+    pub fn is_illegal(&self) -> bool {
+        self.instruction.instruction_info.action == "unknown"
+    }
+    pub fn is_legal(&self) -> bool {
+        !self.is_illegal()
+    }
+}
+
 pub struct Disassembler<'a> {
-    mem: &'a dyn MemoryIO,
-    regs: &'a Regs,
+    pub mem: &'a dyn MemoryIO,
 }
 
 impl<'a> Disassembler<'a> {
-    pub fn new(mem : &'a dyn MemoryIO, regs : &'a Regs) -> Self {
+    pub fn new(mem : &'a dyn MemoryIO) -> Self {
         Self {
-            mem, regs
+            mem
         }
     }
 
     fn diss_op<A: AddressLines>(&self, _ins: &mut InstructionDecoder) -> String {
-        let _addr_mode = A::name();
-        // effective_address = "EA";
-        
         let action =&_ins.instruction_info.action;
         format!("{:<5}{}", action, A::diss(self.mem, _ins))
     }
@@ -43,7 +51,6 @@ impl<'a> Disassembler<'a> {
         }
 
         let text = op_table!(ins.instruction_info.opcode, { "".into() });
-
         let next_instruction_addr = ins.next_addr;
 
         Dissembly {

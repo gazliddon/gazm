@@ -64,6 +64,11 @@ pub trait MemoryIO {
         panic!("TBD")
     }
 
+    fn is_valid_addr(&self, addr : u16) -> bool {
+        let (l,h) = self.get_range();
+        addr >=l && addr <= h
+    }
+
     fn upload(&mut self, _addr: u16, _data: &[u8]);
 
     fn get_range(&self) -> (u16, u16);

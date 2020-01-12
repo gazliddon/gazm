@@ -1,9 +1,15 @@
 use super::mem::MemoryIO;
 
-use super::isa_dbase;
+use romloader::{ Dbase, Instruction };
+use std::str;
+
+const RBYTE : &[u8] = include_bytes!("resources/opcodes.json");
 
 lazy_static! {
-    static ref DBASE: isa_dbase::Dbase = { isa_dbase::Dbase::new() };
+    static ref DBASE: Dbase = {
+        let bytes_str = str::from_utf8(RBYTE).unwrap();
+        Dbase::from_text(bytes_str)
+    };
 }
 
 #[derive(Debug, Clone)]
@@ -14,7 +20,7 @@ pub struct InstructionDecoder {
     pub addr: u16,
     pub data: [u8; 5],
     pub next_addr: u16,
-    pub instruction_info: &'static isa_dbase::Instruction,
+    pub instruction_info: &'static Instruction,
 }
 
 // Decode an op

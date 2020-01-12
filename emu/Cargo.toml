@@ -14,12 +14,14 @@ serde = "*"
 serde_yaml = "*"
 serde_json = "*"
 serde_derive = "*"
+romloader = {path = "../utils"}
 
 [dependencies]
 num="*"
 lazy_static = "1.0"
 sha1 = "0.5.0"
 bitflags="*"
+romloader = {path = "../utils"}
 
 serde = "*"
 serde_yaml = "*"

@@ -99,15 +99,15 @@ impl SimpleMem {
         }
     }
 
-    fn get_region_mut(&mut self, _addr: u16) -> &mut dyn MemoryIO {
-        let region = self.addr_to_region[_addr as usize];
+    fn get_region_mut(&mut self, addr: u16) -> &mut dyn MemoryIO {
+        let region = self.addr_to_region[addr as usize];
         use self::MemRegion::*;
 
         match region {
             Ram => &mut self.ram,
             IO => &mut self.io,
             Screen => &mut self.screen,
-            Illegal => panic!("Illegal! inspect from {:02x}", _addr),
+            Illegal => panic!("Illegal! inspect from {:02x}", addr),
         }
     }
 }
@@ -120,6 +120,11 @@ impl MemoryIO for SimpleMem {
             self.store_byte(addr, *i);
             addr = addr.wrapping_add(1);
         }
+    }
+
+    fn is_valid_addr(&self, addr : u16) -> bool {
+        let region = self.addr_to_region[addr as usize];
+        region != self::MemRegion::Illegal
     }
 
     fn get_range(&self) -> (u16, u16) {

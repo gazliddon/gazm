@@ -38,7 +38,7 @@ impl System {
         }
 
         let hidpi_factor = platform.hidpi_factor();
-        let font_size = (15.0 * hidpi_factor) as f32;
+        let font_size = (18.0 * hidpi_factor) as f32;
         let rbytes = include_bytes!("../../resources/Inconsolata.otf");
 
         imgui.fonts().add_font(&[imgui::FontSource::TtfData {
