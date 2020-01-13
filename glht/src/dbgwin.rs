@@ -2,6 +2,73 @@ use super::simple::simplecore::Machine;
 use super::emu::diss::{  Disassembler };
 // use romloader::Rom;
 
+
+////////////////////////////////////////////////////////////////////////////////
+struct EdgeDistances {
+    to_top: isize,
+    to_top_scrollzone: isize,
+    to_bottom: isize,
+    to_bottom_scrollzone: isize,
+    scroll_zone : isize,
+    desired_scroll_zone: usize,
+    cursor: isize,
+    lines : usize,
+}
+
+pub enum ScrollAction {
+    ScrollTo { distance : isize, cursor : isize },
+    DontMove,
+}
+
+impl EdgeDistances {
+
+    pub fn new(cursor : isize, lines: usize, desired_scroll_zone : usize) -> Self {
+        let lines = lines as isize;
+        let mut scroll_zone = desired_scroll_zone as isize;
+
+        // do we have space for a scroll zone?
+
+        if lines - (scroll_zone * 2) < 1 {
+            scroll_zone = 0;
+        }
+
+        let to_bottom = (lines -1) - cursor;
+
+        EdgeDistances {
+            to_top: cursor,
+            to_top_scrollzone: cursor - scroll_zone,
+            to_bottom,
+            to_bottom_scrollzone: to_bottom - 3,
+            scroll_zone,
+            desired_scroll_zone,
+            cursor,
+            lines : lines as usize,
+        }
+    }
+
+    pub fn what_should_do(&self) -> ScrollAction {
+        if self.to_top > 0 {
+            return ScrollAction::ScrollTo{distance : self.to_top, cursor : 0};
+        }
+
+        if self.to_bottom < 0 {
+            return ScrollAction::ScrollTo{distance : self.to_bottom, cursor : self.lines as isize - 1};
+        }
+
+        if self.to_top_scrollzone > 0 {
+            return ScrollAction::ScrollTo{distance : self.to_top_scrollzone, cursor : self.to_top_scrollzone};
+        }
+
+        if self.to_bottom_scrollzone < 0 {
+            return ScrollAction::ScrollTo{distance : self.to_bottom_scrollzone, cursor : ( self.lines as isize - self.scroll_zone ) - 1};
+        }
+
+        ScrollAction::DontMove
+    }
+} 
+
+////////////////////////////////////////////////////////////////////////////////
+
 pub struct DbgWin {
     addr : u16,
     cursor : isize,
@@ -14,32 +81,6 @@ pub enum Events {
     Space,
     PageUp,
     PageDown,
-}
-
-fn find_previous_instruction(addr : u16, disassembler : &Disassembler) -> Option<u16> {
-    let mut ret = None;
-
-    let mut prev_addr = addr;
-
-    loop {
-        prev_addr = prev_addr.wrapping_sub(1);
-        if prev_addr > addr || !disassembler.mem.is_valid_addr(addr) {
-            break;
-        }
-
-        let d = disassembler.diss(prev_addr);
-
-        if d.next_instruction_addr == addr {
-            ret = Some(prev_addr);
-            break;
-        }
-
-        if d.next_instruction_addr < addr {
-            ret = Some(addr.wrapping_sub(1));
-            break;
-        }
-    }
-    ret
 }
 
 type Cursor = [isize;2];
@@ -64,15 +105,23 @@ const YELLOW: [f32; 3] = [1.0, 1.0, 0.0];
 const RED: [f32; 3] = [1.0, 0.0, 0.0];
 
 struct DisassemblerIterator<'a> {
-    addr : u16,
+    addr : Option<u16>,
     disassmbler : Disassembler<'a>,
 }
 
 impl<'a> DisassemblerIterator<'a> {
     pub fn from_machine(machine : &'a dyn Machine, addr : u16) -> Self {
+        let disassmbler  = machine.get_dissambler();
+
+        let mut this_addr = None;
+
+        if disassmbler.mem.is_valid_addr(addr) {
+            this_addr = Some(addr)
+        }
+
         Self {
-            addr,
-            disassmbler : machine.get_dissambler()
+            addr : this_addr,
+            disassmbler,
         }
     }
 }
@@ -82,55 +131,21 @@ use emu::diss::Dissembly;
 impl<'a> Iterator for DisassemblerIterator<'a> {
     type Item = Dissembly;
     fn next(&mut self) -> Option<Dissembly> {
-        if self.disassmbler.mem.is_valid_addr(self.addr) {
-            let ret = self.disassmbler.diss(self.addr);
-            self.addr = ret.next_instruction_addr;
-            Some(ret)
-        } else {
-            None
+        // Is their a current address?
+
+        if let Some(addr) = self.addr {
+            // is it for a valid  address?
+            if self.disassmbler.mem.is_valid_addr(addr) {
+                // yes!
+                let ret = self.disassmbler.diss(addr);
+                self.addr = ret.next_instruction_addr;
+                return Some(ret);
+            }
         }
+        None
     }
 }
 
-
-pub fn render_source(ui: &imgui::Ui, machine: &dyn Machine, addr : u16, lines : usize, pos : [f32;2], line_height : f32, cursor : isize) {
-
-    let draw_list = ui.get_window_draw_list();
-
-    let mut addr =  addr;
-    let mut pos = pos;
-
-    let diss = machine.get_dissambler();
-
-    let dissasemble = |addr : u16| {
-        let rom = machine.get_rom();
-        let d = diss.diss(addr);
-        let src = rom.get_source_line(addr).unwrap_or_else(|| "".to_string());
-        let text = format!("{:04x}    {:<20} {}", addr, d.text, src);
-        (d.next_instruction_addr,text)
-    };
-
-    for _i in 0..lines {
-        let (next_ins, text ) = dissasemble(addr);
-
-        let col = if _i as isize == cursor {
-            let br = [pos[0], pos[1] + line_height ];
-            draw_list.add_rect_filled_multicolor(pos,br, RED, RED, RED, RED );
-            YELLOW
-        } else {
-            WHITE
-        };
-
-        draw_list.add_text(
-            pos.clone(),
-            col,
-            &text);
-
-        pos[1] += line_height;
-
-        addr = next_ins;
-    }
-}
 
 impl DbgWin {
 
@@ -257,17 +272,14 @@ impl DbgWin {
         }
     }
 
-    pub fn next_instruction(&mut self, machine : &dyn Machine) {
-        let diss = machine.get_dissambler();
-        let d = diss.diss(self.addr);
-        self.addr = d.next_instruction_addr;
+    pub fn next_instruction(&mut self, _machine : &dyn Machine) {
+        // let diss = machine.get_dissambler();
+        // let d = diss.diss(self.addr);
+        panic!()
     }
 
-    pub fn prev_instruction(&mut self, machine : &dyn Machine) {
-        let diss = machine.get_dissambler();
-        if let Some(addr) = find_previous_instruction(self.addr, &diss) {
-            self.addr = addr
-        }
+    pub fn prev_instruction(&mut self, _machine : &dyn Machine) {
+        panic!()
     }
 }
 

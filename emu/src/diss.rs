@@ -6,14 +6,65 @@ use super::cpu::{
     InstructionDecoder, Relative, Relative16
 };
 
-pub struct Dissembly {
-    pub text: String,
-    pub addr: u16,
-    pub next_instruction_addr: u16,
-    instruction: InstructionDecoder,
+use lru_cache::LruCache;
+
+use std::sync::Mutex;
+
+lazy_static! {
+    static ref CACHE : Mutex<LruCache<u16,Dissembly>> = {
+        let ret = LruCache::new(10000);
+        Mutex::new(ret)
+    };
+}
+
+fn try_cache_or_create<F>( addr : u16, create : F) -> Dissembly where
+F : Fn() -> Dissembly {
+    let mut cache =  CACHE.lock().unwrap();
+    if let Some(cached) = cache.get_mut(&addr).cloned() {
+        cached 
+    } else {
+        let ret = create();
+        cache.insert(addr, ret.clone());
+        ret
+    }
+}
+
+use std::collections::HashMap;
+
+struct AssemblyCache {
+    cache: LruCache<u16, Dissembly>,
+    previous_instruction: HashMap<u16, u16>,
+}
+
+impl AssemblyCache {
+    pub fn new(cache_size : usize) -> Self {
+        Self {
+            cache : LruCache::new(cache_size),
+            previous_instruction: HashMap::new()
+        }
+    }
+
+    pub fn try_cache_or_create<F>(&mut self, addr : u16, create : F) -> Dissembly where
+        F : Fn() -> Dissembly {
+            if let Some(cached) = self.cache.get_mut(&addr).cloned() {
+                cached 
+            } else {
+                let ret = create();
+                self.cache.insert(addr, ret.clone());
+                ret
+            }
+        }
 }
 
 
+
+#[derive(Clone)]
+pub struct Dissembly {
+    pub text: String,
+    pub addr: u16,
+    pub next_instruction_addr: Option<u16>,
+    instruction: InstructionDecoder,
+}
 
 impl Dissembly {
     pub fn is_illegal(&self) -> bool {
@@ -42,22 +93,33 @@ impl<'a> Disassembler<'a> {
 
     pub fn diss(&self, addr : u16) -> Dissembly {
 
-        let mut ins = InstructionDecoder::new_from_inspect_mem(addr, self.mem);
-        
-        macro_rules! handle_op {
-            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
-                self.diss_op::<$addr>(&mut ins)
-            }};
-        }
+        try_cache_or_create(addr, || {
 
-        let text = op_table!(ins.instruction_info.opcode, { "".into() });
-        let next_instruction_addr = ins.next_addr;
+            let mut ins = InstructionDecoder::new_from_inspect_mem(addr, self.mem);
 
-        Dissembly {
-            text,
-            addr,
-            next_instruction_addr,
-            instruction: ins,
-        }
+            macro_rules! handle_op {
+                ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
+                    self.diss_op::<$addr>(&mut ins)
+                }};
+            }
+
+            let text = op_table!(ins.instruction_info.opcode, { "".into() });
+
+            // Now work out the address of the next instruction
+            // None for adddresses that are invalid
+
+            let next_instruction_addr = if self.mem.is_valid_addr(ins.next_addr) {
+                Some(ins.next_addr)
+            } else {
+                None
+            };
+
+            Dissembly {
+                text,
+                addr,
+                next_instruction_addr,
+                instruction: ins,
+            }
+        })
     }
 }

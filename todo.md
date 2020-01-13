@@ -4,6 +4,71 @@
 * Make instruction dbase generate at compile time
 * Make list of errors to correct in disassembly
 
+
+
+# Find previous instruction
+
+* Have I dissasmbled this instruction before?
+    * Check cache
+    * Return is so
+
+
+
+# 6809 Assembler
+
+* Scroll Window States
+    * Cursor in bottom scroll zone -> try Scroll Up
+    * Cursor in top scrollzone -> try Scroll down
+    * Cursor off top of screen by 1-> Cursor to top of screen, try scroll down
+    * Cursor off bottom of screen by 1 -> cursor bottom, try scroll 
+
+OffTop(),
+OffBottom(is)
+InTopScrollZone
+InBottomScrollZone
+
+
+```
+struct EdgeDistances {
+    to_top: isize,
+    to_top_scrollzone: isize,
+    to_bottom: isize,
+    to_bottom_scrollzone: isize,
+    scroll_zone : isize,
+    desired_scroll_zone: usize,
+    cursor: isize,
+}
+
+impl EdgeDistances {
+    pub fn new(cursor : isize, lines: usize, scroll_zone : usize) -> Self {
+        let lines = lines as isize;
+        let mut scroll_zone = desired_scroll_zone as isize;
+
+        // do we have space for a scroll zone?
+
+        if lines - (scroll_zone * 2) < 1 {
+            scroll_zone = 0;
+        }
+
+        let to_bottom = (lines -1) - cursor;
+
+        EdgeDistances {
+            to_top: cursor,
+            to_top_scrollzone: cursor - scroll_zone,
+            to_bottom: to_bottom,
+            to_bottom_scrollzone: to_bottom - 3,
+            scroll_zone: scroll_zone as usize,
+            desired_scroll_zone,
+            cursor,
+        }
+
+    }
+} 
+
+```
+
+
+
 # 6809 Assembler
 https://github.com/Geal/nom
 https://github.com/Geal/nom/blob/master/examples/s_expression.rs
