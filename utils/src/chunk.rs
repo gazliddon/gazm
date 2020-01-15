@@ -1,16 +1,15 @@
 use std::fmt;
-use std::path::PathBuf;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Location {
-    pub file : PathBuf,
+    pub file : String,
     pub line_number : usize,
 }
 
 impl Location {
     pub fn new(file : &str, line_number : usize) -> Self {
         Self {
-            file : PathBuf::from(file),
+            file : file.to_string(),
             line_number
         }
     }

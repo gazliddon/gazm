@@ -10,42 +10,26 @@ pub struct Symbol {
     value : u16,
 }
 
-fn make_rom(chunks : &[Chunk]) -> error::Result<( RomData, Vec<Option<Location>> )> {
-
-    let mut used : Vec<Option<&Chunk>> = vec![None;0x10_000];
-    let mut rom : RomData = [0;0x10_000];
-
-    for c in chunks {
-        for addr in c.addr_range() {
-            if let Some(cref) = used [addr] {
-                return Err(error::Error::Collison( c.clone(), cref.clone()));
-            } else {
-                used[ addr ] = Some(c);
-                rom[addr] = c.data[addr - c.addr as usize];
-            }
-        }
-    }
-
-    let addr_to_loc = used
-        .into_iter()
-        .map(|c| c.map(|v| v.location.clone()))
-        .collect();
-
-    Ok(( rom, addr_to_loc))
-}
 
 pub type RomData = [u8;0x10_000];
+
+use std::collections::HashMap;
 
 pub struct Rom {
     pub data : RomData,
     chunks : Vec<Chunk>,
     addr_to_loc : Vec<Option<Location>>,
-    symbols : std::collections::HashMap<String,Symbol>,
+    location_to_addr_range: HashMap<Location,std::ops::Range<usize>>,
+    symbols : HashMap<String,Symbol>,
 
     pub sources : SourceStore,
 }
 
 impl Rom {
+
+    pub fn get_location_addr_range(&self, loc : &Location) -> Option<&std::ops::Range<usize>> {
+        self.location_to_addr_range.get(loc)
+    }
 
     pub fn get_source_location(&self, _addr : u16) -> Option<&Location> {
         self.addr_to_loc[_addr as usize].as_ref()
@@ -63,7 +47,7 @@ impl Rom {
 
         if self.symbols.get(&name).is_some() {
             // TODO fix this
-            panic!("Duplicate symble!")
+            panic!("Duplicate symbol!")
         }
 
         self.symbols.insert(name.clone(), Symbol {name, value});
@@ -86,13 +70,37 @@ impl Rom {
     }
 
     pub fn from_chunks( chunks : Vec<Chunk> ) -> error::Result<Self> {
-        let (data, addr_to_loc) = make_rom(&chunks)?;
+        let mut used : Vec<Option<&Chunk>> = vec![None;0x10_000];
+        let mut data : RomData = [0;0x10_000];
+
+        let mut location_to_addr_range = HashMap::new();
+
+        for c in &chunks {
+            location_to_addr_range.insert(c.location.clone(),c.addr_range());
+
+            for addr in c.addr_range() {
+                if let Some(cref) = used [addr] {
+                    return Err(error::Error::Collison( c.clone(), cref.clone()));
+                } else {
+                    used[ addr ] = Some(c);
+                    data[addr] = c.data[addr - c.addr as usize];
+                }
+            }
+        }
+
+        println!("{:?}", location_to_addr_range);
+
+        let addr_to_loc = used
+            .into_iter()
+            .map(|c| c.map(|v| v.location.clone()))
+            .collect();
 
         let rom = Rom {
             chunks,
-            data,
-            addr_to_loc,
-            symbols : std::collections::HashMap::new(),
+            data, 
+            addr_to_loc ,
+            symbols : HashMap::new(),
+            location_to_addr_range,
             sources : SourceStore::new("asm")
         };
 

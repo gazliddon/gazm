@@ -2,6 +2,8 @@ use super::simple::simplecore::Machine;
 use super::emu::diss::{  Disassembler };
 // use romloader::Rom;
 
+use crate::window::{TextWinDims};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 struct EdgeDistances {
@@ -21,7 +23,6 @@ pub enum ScrollAction {
 }
 
 impl EdgeDistances {
-
     pub fn new(cursor : isize, lines: usize, desired_scroll_zone : usize) -> Self {
         let lines = lines as isize;
         let mut scroll_zone = desired_scroll_zone as isize;
@@ -94,12 +95,6 @@ struct MessageBar {
 impl MessageBar {
 }
 
-struct TextWinDims {
-    pixel_dims : [f32;2 ],
-    char_dims : [usize;2],
-    line_height: f32,
-
-}
 const WHITE: [f32; 3] = [1.0, 1.0, 1.0];
 const YELLOW: [f32; 3] = [1.0, 1.0, 0.0];
 const RED: [f32; 3] = [1.0, 0.0, 0.0];
@@ -157,24 +152,6 @@ impl DbgWin {
         }
     }
 
-    fn get_window_dimensions(&self, ui: &imgui::Ui) ->TextWinDims {
-
-        let [_,line_height] = ui.calc_text_size(im_str!( " " ), false, std::f32::MAX);
-        let [ww,wh] = ui.content_region_avail();
-        let lines = (wh / line_height ) - 2.0;
-
-        let lines : usize = if lines < 0.0 {
-            0 as usize
-        } else {
-            lines as usize
-        };
-
-        TextWinDims {
-            pixel_dims: [ww,wh],
-            char_dims: [0,lines],
-            line_height
-        }
-    }
 
     fn iter<'a>(&self, machine : &'a dyn Machine) -> DisassemblerIterator<'a> {
         DisassemblerIterator::from_machine(machine, self.addr)
@@ -183,7 +160,7 @@ impl DbgWin {
 
     pub fn render(&mut self, ui: &imgui::Ui, machine : &dyn Machine) {
 
-        let window_dims = self.get_window_dimensions(&ui);
+        let window_dims = TextWinDims::new(ui);
         let lines = window_dims.char_dims[1];
         let line_height = window_dims.line_height;
 

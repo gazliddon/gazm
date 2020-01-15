@@ -3,22 +3,29 @@ extern crate env_logger;
 #[macro_use]
 extern crate imgui;
 
-#[macro_use]
-extern crate glium;
-#[macro_use]
-extern crate log;
+#[macro_use] extern crate lazy_static;
+
+#[macro_use] extern crate glium;
+#[macro_use] extern crate log;
+
 #[allow(unused_imports)]
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate serde_derive;
 
 extern crate emu;
 extern crate romloader;
 
+#[allow(dead_code)]
+mod colour;
+
+#[allow(dead_code)]
+mod window;
+#[allow(dead_code)]
+mod sourcewin;
 mod app;
 mod mesh;
 mod simple;
-#[allow(dead_code)]
-mod dbgwin;
+#[allow(dead_code)] mod dbgwin;
+#[allow(dead_code)] mod textscreen;
 
 use app::{frametime::FrameTime, system::System, App};
 use glium::index::PrimitiveType;
@@ -32,6 +39,7 @@ struct MyApp {
     frame_time: FrameTime,
     machine : Box<dyn simple::simplecore::Machine>,
     dbgwin : dbgwin::DbgWin,
+    sourcewin : sourcewin::SourceWin,
 }
 
 #[derive(Copy, Clone)]
@@ -87,7 +95,9 @@ impl MyApp {
             mesh,
             running: true,
             frame_time: FrameTime::default(),
-            dbgwin: dbgwin::DbgWin::new(0x9900)
+            dbgwin: dbgwin::DbgWin::new(0x9900),
+            sourcewin: sourcewin::SourceWin::new(),
+
         }
     }
 }
@@ -151,7 +161,11 @@ impl App for MyApp {
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(ui, || {
 
-                self.dbgwin.render(&ui, self.machine.as_ref());
+                let machine = self.machine.as_ref();
+
+                // self.dbgwin.render(&ui, self.machine.as_ref());
+                
+                self.sourcewin.render(&ui, &machine.get_rom());
 
                 // ui.text(im_str!("Hello world!!!!!"));
                 // ui.text(im_str!("This...is...imgui-rs!"));

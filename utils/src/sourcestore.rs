@@ -10,8 +10,8 @@ use std::collections::HashMap;
 ////////////////////////////////////////////////////////////////////////////////
 
 pub struct SourceFile {
-    file : String,
-    lines : Vec<String>
+    pub file : String,
+    pub lines : Vec<String>
 }
 
 impl SourceFile {
@@ -54,7 +54,7 @@ impl SourceStore {
         format!("{}/{}", self.source_dir, file)
     }
 
-    pub fn get<F>(&self, file : &str, func : F) where
+    pub fn get<F>(&self, file : &str, func : F) -> bool where
         F : FnOnce(&SourceFile) {
             let key = self.make_key(file);
 
@@ -64,18 +64,19 @@ impl SourceStore {
                 if let Ok(source_file) = SourceFile::new(&key) {
                     files.insert(key.clone(), source_file);
                 } else {
-                    return;
+                    return false;
                 }
             }
 
-            func(files.get(&key).unwrap())
+            func(files.get(&key).unwrap());
+            true
         }
 
     pub fn get_line(&self, loc : &Location) -> Option<String> {
         let mut res =  None;
 
         self.get(
-            loc.file.to_str().unwrap(),
+            &loc.file,
             |sf| {
                 res = sf.line(loc.line_number).cloned();
             }

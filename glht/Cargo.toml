@@ -17,7 +17,7 @@ imgui-glium-renderer="*"
 imgui-winit-support="*"
 cgmath="*"
 num="*"
-# lazy_static = "1.0"
+lazy_static = "1.0"
 # sha1 = "0.5.0"
 # bitflags="*"
 
