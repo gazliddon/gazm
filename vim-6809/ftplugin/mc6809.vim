@@ -5,7 +5,7 @@
 let b:loaded_ftplugin=1
 
 " Spaces only plz
-
+setlocal tabstop=9
 setlocal shiftwidth=0
 setlocal expandtab
 

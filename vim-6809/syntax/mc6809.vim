@@ -1,14 +1,8 @@
-
-
-echom "Entering mc6809 syntax file from mc6809"
-
-" if exists("b:current_syntax")
-"   finish
-" endif
+if exists("b:current_syntax")
+  finish
+endif
 
 syn clear
-
-message "got past guard"
 
 " Case is not important
 syn case ignore
