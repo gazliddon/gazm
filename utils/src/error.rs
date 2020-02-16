@@ -1,4 +1,5 @@
-use super::chunk::{ Chunk, Location };
+use super::chunk::{ Chunk };
+use super::location::Location;
 pub use quick_error::ResultExt;
 
 quick_error! {

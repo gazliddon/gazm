@@ -130,8 +130,6 @@ impl Step {
             flags: Flags::new(as_u8_from_bin("flags"))
         };
 
-        // println!("{}", as_string("m0"));
-
         let d = as_u16("d");
 
         regs.set_d(d);

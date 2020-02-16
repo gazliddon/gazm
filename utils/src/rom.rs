@@ -1,5 +1,7 @@
 
-use super::chunk::{ Chunk, Location };
+use super::chunk::{ Chunk};
+
+use super::location::Location;
 
 use super::error;
 use crate::sourcestore::SourceStore;
@@ -10,10 +12,9 @@ pub struct Symbol {
     value : u16,
 }
 
-
 pub type RomData = [u8;0x10_000];
 
-use std::collections::HashMap;
+use std::collections::{ HashMap};
 
 pub struct Rom {
     pub data : RomData,
@@ -35,11 +36,10 @@ impl Rom {
         self.addr_to_loc[_addr as usize].as_ref()
     }
 
-    pub fn get_source_line(&self, _addr : u16) -> Option<String> {
+    pub fn get_source_line(&self, _addr : u16) -> Option<&String> {
         self
             .get_source_location(_addr)
-            .map(|loc| self.sources.get_line(&loc))
-            .unwrap_or(None)
+            .and_then(|loc| self.sources.get_line(&loc))
     }
 
     pub fn add_symbol(&mut self, name : &str, value : u16) {
@@ -70,6 +70,7 @@ impl Rom {
     }
 
     pub fn from_chunks( chunks : Vec<Chunk> ) -> error::Result<Self> {
+
         let mut used : Vec<Option<&Chunk>> = vec![None;0x10_000];
         let mut data : RomData = [0;0x10_000];
 
@@ -88,12 +89,12 @@ impl Rom {
             }
         }
 
-        println!("{:?}", location_to_addr_range);
-
         let addr_to_loc = used
             .into_iter()
-            .map(|c| c.map(|v| v.location.clone()))
+            .map(|c| c.cloned().map(|v| v.location))
             .collect();
+
+        let sources = SourceStore::new("asm", &chunks);
 
         let rom = Rom {
             chunks,
@@ -101,7 +102,7 @@ impl Rom {
             addr_to_loc ,
             symbols : HashMap::new(),
             location_to_addr_range,
-            sources : SourceStore::new("asm")
+            sources 
         };
 
         Ok(rom)

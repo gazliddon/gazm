@@ -231,7 +231,7 @@ screen_clear
          pshs u
 
          ldu #SCREEN
-         ;; fill registers with clear color
+         ;; fill registers with clear colour
          tfr a,b ;; d = a a
          tfr a,dp
          tfr d,x

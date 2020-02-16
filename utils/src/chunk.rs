@@ -1,21 +1,13 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Location {
-    pub file : String,
-    pub line_number : usize,
-}
+use super::location::*;
 
-impl Location {
-    pub fn new(file : &str, line_number : usize) -> Self {
-        Self {
-            file : file.to_string(),
-            line_number
-        }
-    }
 
-    pub fn set_line_number(&mut self, line_number : usize) {
-        self.line_number = line_number;
+impl fmt::Display for Chunk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "0x{:04x}", self.addr)?;
+        writeln!(f, "\t{:?}", self.location)?;
+        write!(f,"\t{:02X?}", self.data)
     }
 }
 
@@ -27,18 +19,11 @@ pub struct Chunk {
     pub last_addr : u16,
 }
 
-impl fmt::Display for Chunk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "0x{:04x}", self.addr)?;
-        writeln!(f, "\t{:?}", self.location)?;
-        write!(f,"\t{:02X?}", self.data)
-    }
-}
 
 impl Chunk {
     pub fn addr_range(&self) -> std::ops::Range<usize> {
         let addr = self.addr as usize;
-        (addr..(addr+self.data.len()))
+        addr..addr+self.data.len()
     }
 
     fn set_last_addr(&mut self) {

@@ -1,8 +1,12 @@
-use super::simple::simplecore::Machine;
-use super::emu::diss::{  Disassembler };
+use crate::simple::simplecore::Machine;
+use ::emu::diss::{  Disassembler };
 // use romloader::Rom;
 
-use crate::window::{TextWinDims};
+// use crate::window::{TextWinDims};
+//
+
+
+use crate::events::Events;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,13 +80,6 @@ pub struct DbgWin {
     dims : Option<[usize;2]>
 }
 
-pub enum Events {
-    CursorUp,
-    CursorDown,
-    Space,
-    PageUp,
-    PageDown,
-}
 
 type Cursor = [isize;2];
 
@@ -157,73 +154,72 @@ impl DbgWin {
         DisassemblerIterator::from_machine(machine, self.addr)
     }
 
+    pub fn render(&mut self, _ui: &imgui::Ui, _machine : &dyn Machine) {
 
-    pub fn render(&mut self, ui: &imgui::Ui, machine : &dyn Machine) {
+        // let window_dims = TextWinDims::new(ui);
+        // let lines = window_dims.char_dims[1];
+        // let line_height = window_dims.line_height;
 
-        let window_dims = TextWinDims::new(ui);
-        let lines = window_dims.char_dims[1];
-        let line_height = window_dims.line_height;
+        // self.dims = Some(window_dims.char_dims);
 
-        self.dims = Some(window_dims.char_dims);
+        // // sort out cursor position
 
-        // sort out cursor position
+        // if self.cursor < 0 {
+        //     self.cursor = 0;
+        // }
 
-        if self.cursor < 0 {
-            self.cursor = 0;
-        }
+        // if self.cursor >= lines as isize {
+        //     self.cursor = lines as isize - 1 ;
+        //     self.next_instruction(machine);
+        // }
 
-        if self.cursor >= lines as isize {
-            self.cursor = lines as isize - 1 ;
-            self.next_instruction(machine);
-        }
+        // // sort out cursor position
 
-        // sort out cursor position
+        // let mut pos = ui.cursor_screen_pos();
 
-        let mut pos = ui.cursor_screen_pos();
+        // let draw_list = ui.get_window_draw_list();
 
-        let draw_list = ui.get_window_draw_list();
+        // draw_list.add_text(
+        //     pos.clone(),
+        //     YELLOW,
+        //     format!("wh : {:?} lines: {} line: {}", window_dims.pixel_dims, lines, self.cursor));
 
-        draw_list.add_text(
-            pos.clone(),
-            YELLOW,
-            format!("wh : {:?} lines: {} line: {}", window_dims.pixel_dims, lines, self.cursor));
+        // pos[1] += line_height;
 
-        pos[1] += line_height;
+        // draw_list.add_text(
+        //     pos.clone(),
+        //     YELLOW,
+        //     "ADDR    CODE");
 
-        draw_list.add_text(
-            pos.clone(),
-            YELLOW,
-            "ADDR    CODE");
+        // pos[1] += line_height;
 
-        pos[1] += line_height;
+        // for (i, diss) in self.iter(machine).enumerate() {
 
-        for (i, diss) in self.iter(machine).enumerate() {
+        //     if i == lines {
+        //         break;
+        //     }
 
-            if i == lines {
-                break;
-            }
+        //     let addr = diss.addr;
 
-            let addr = diss.addr;
+        //     let rom = machine.get_rom();
+        //     let src = rom.get_source_line(addr).unwrap_or_else(|| "".to_string());
+        //     let text = format!("{:04x}    {:<20} {}", addr, diss.text, src);
 
-            let rom = machine.get_rom();
-            let src = rom.get_source_line(addr).unwrap_or_else(|| "".to_string());
-            let text = format!("{:04x}    {:<20} {}", addr, diss.text, src);
+        //     let col = if i as isize == self.cursor {
+        //         let br = [pos[0] + window_dims.pixel_dims[0], pos[1] + line_height ];
+        //         draw_list.add_rect_filled_multicolor(pos,br, RED, RED, RED, RED );
+        //         YELLOW
+        //     } else {
+        //         WHITE
+        //     };
 
-            let col = if i as isize == self.cursor {
-                let br = [pos[0] + window_dims.pixel_dims[0], pos[1] + line_height ];
-                draw_list.add_rect_filled_multicolor(pos,br, RED, RED, RED, RED );
-                YELLOW
-            } else {
-                WHITE
-            };
+        //     draw_list.add_text(
+        //         pos.clone(),
+        //         col,
+        //         &text);
 
-            draw_list.add_text(
-                pos.clone(),
-                col,
-                &text);
-
-            pos[1] += line_height;
-        }
+        //     pos[1] += line_height;
+        // }
 
     }
 

@@ -1,10 +1,11 @@
+#[macro_use] extern crate log;
 #[macro_use] extern crate quick_error;
 #[allow(dead_code)] mod chunk;
 #[allow(dead_code)] mod error;
 #[allow(dead_code)] mod rom;
 #[allow(dead_code)] mod romloader;
 #[allow(dead_code)] mod sourcestore;
-
+#[allow(dead_code)] mod location;
 
 use rom::{Rom};
 

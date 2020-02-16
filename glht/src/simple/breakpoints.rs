@@ -28,7 +28,7 @@ impl BreakPoint {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Default)]
 #[allow(dead_code)]
 pub struct BreakPoints {
     break_points: Vec<BreakPoint>,
@@ -37,9 +37,7 @@ pub struct BreakPoints {
 #[allow(dead_code)]
 impl BreakPoints {
     pub fn new() -> BreakPoints {
-        BreakPoints {
-            break_points: vec![],
-        }
+        Self::default()
     }
 
     pub fn has_breakpoint(&self, addr: u16, kind: BreakPointTypes) -> bool {

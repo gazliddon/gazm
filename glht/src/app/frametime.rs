@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 #[derive(Copy, Clone)]
-pub struct FrameTime {
+pub  struct FrameTime {
     base_time: Instant,
     last_sync: Instant,
     last_dt: Duration,

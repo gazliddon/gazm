@@ -13,3 +13,7 @@ serde = "*"
 serde_yaml = "*"
 serde_json = "*"
 serde_derive = "*"
+
+
+log="*"
+env_logger="*"

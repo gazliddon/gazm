@@ -1,8 +1,12 @@
 use super::{
     rom::{Rom},
     error,
-    chunk::*
+    chunk::*,
+    location::*,
+
 };
+
+
 
 use error::{ResultExt};
 

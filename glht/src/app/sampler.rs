@@ -10,7 +10,7 @@ pub struct Sampler<T: CanSample> {
 
 #[allow(dead_code)]
 impl<T: CanSample> Sampler<T> {
-    pub fn len(&self) -> T {
+    pub fn length(&self) -> T {
         num::NumCast::from(self.samples.len()).unwrap()
     }
 
@@ -20,17 +20,14 @@ impl<T: CanSample> Sampler<T> {
 
     pub fn avg(&self) -> T {
         if self.samples.is_empty() {
-            self.len()
+            self.length()
         } else {
-            self.sum() / self.len()
+            self.sum() / self.length()
         }
     }
 
     pub fn new() -> Self {
-        let mut samples = Vec::new();
-        let max_size = 60;
-        samples.reserve_exact(max_size);
-        Self { samples, max_size }
+        Self::default()
     }
 
     pub fn add(&mut self, s: T) {
@@ -50,5 +47,15 @@ impl<T: CanSample> Sampler<T> {
     pub fn min(&self) -> T {
         let v = self.samples.iter().min_by(|a, b| a.partial_cmp(b).unwrap());
         *v.unwrap()
+    }
+}
+
+impl<T : CanSample> Default for Sampler<T> {
+    fn default() -> Self {
+        let mut samples = Vec::new();
+        let max_size = 60;
+        samples.reserve_exact(max_size);
+        Self { samples, max_size }
+
     }
 }

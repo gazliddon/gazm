@@ -1,4 +1,5 @@
-use super::{frametime::FrameTime, App};
+use super::{ App};
+use super::frametime::FrameTime;
 
 use glium::glutin;
 use imgui::Context;
@@ -14,8 +15,8 @@ pub struct System {
     pub imgui: Context,
 }
 
-impl System {
-    pub fn new() -> Self {
+impl Default for System {
+    fn default() -> Self {
         let event_loop = glutin::EventsLoop::new();
         let wb = glutin::WindowBuilder::new();
 
@@ -27,7 +28,7 @@ impl System {
 
         let mut imgui = Context::create();
 
-        imgui.set_ini_filename(None);
+        imgui.set_ini_filename(Some("glht.ini".into()));
 
         let mut platform = WinitPlatform::init(&mut imgui);
 
@@ -70,6 +71,13 @@ impl System {
         }
     }
 
+}
+
+impl System {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     fn render(&mut self, app: &mut dyn App) {
         let platform = &mut self.platform;
         let gl_window = self.display.gl_window();
@@ -106,27 +114,23 @@ impl System {
 
     fn process(&mut self, app: &mut dyn App) {
         let io = self.imgui.io_mut();
-        let dt = &mut self.frame_time;
 
-        dt.update();
-        {
-            let event_loop = &mut self.event_loop;
+        self.frame_time.update();
 
-            let gl_window = self.display.gl_window();
-            let window = gl_window.window();
-            let platform = &mut self.platform;
+        let mut redraw = false;
 
-            // Update frame time
+        let dt = self.frame_time;
+        let gl_window = self.display.gl_window();
+        let window = gl_window.window();
 
-            // Handle all events
-            event_loop.poll_events(|event| {
-                platform.handle_event(io, &window, &event);
-                app.handle_event(dt, event);
-            });
-            // Update the app
-        }
+        let platform = &mut self.platform;
 
-        app.update(dt);
+        self.event_loop.poll_events(|event| {
+            platform.handle_event(io, &window, &event);
+            redraw = redraw || app.handle_event(&dt, event);
+        });
+
+        app.update(&dt);
     }
 
     pub fn run_app(&mut self, app: &mut dyn App) {

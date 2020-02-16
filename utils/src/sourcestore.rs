@@ -1,22 +1,24 @@
-use super::chunk::{ Location };
+use super::location::{ Location };
+use super::chunk::{ Chunk };
 
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{BufReader};
 use super::error;
-use std::collections::HashMap;
+use std::collections::{HashMap,HashSet} ;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub struct SourceFile {
+#[derive(Clone, Debug)]
+struct SourceFile {
     pub file : String,
     pub lines : Vec<String>
 }
 
 impl SourceFile {
     pub fn new( file : &str ) -> error::Result<Self> {
-        // info!("Trying to load {}", file);
+        
         let f = File::open(file)?;
         let f = BufReader::new(f);
 
@@ -27,61 +29,117 @@ impl SourceFile {
             lines : lines?
         };
 
+        info!("loaded sourcefile : {} ", file);
+
         Ok(ret)
     }
 
-    pub fn line(&self, line : usize) -> Option<&String> {
+}
+
+pub struct SourceLine {
+    pub loc : Location,
+    pub addr : Option<u16>,
+    pub line : Option<String>,
+}
+
+pub struct AnnotatedSourceFile {
+    pub lines : Vec<SourceLine>
+}
+
+impl AnnotatedSourceFile {
+    pub fn line(&self, line : usize) -> Option<&SourceLine> {
         self.lines.get(line -1)
     }
+
+    pub fn num_of_lines(&self) -> usize {
+        self.lines.len()
+    }
 }
-use std::cell::RefCell;
 
 pub struct SourceStore {
-    files: RefCell<HashMap<String,SourceFile>>,
-    source_dir : String
+    annotated_files: HashMap<String, AnnotatedSourceFile>,
+    source_dir : String,
+    loc_to_addr : HashMap<Location, u16>,
+    addr_to_loc : HashMap<u16, Location>,
 }
 
 impl SourceStore {
 
-    pub fn new(source_dir : &str) -> Self {
-        Self {
-            files: RefCell::new(HashMap::new()),
-            source_dir : source_dir.to_string()
+    pub fn addr_to_source_line(&self, _addr : u16) -> Option<&SourceLine> {
+        panic!()
+    }
+
+    pub fn loc_to_source_line(&self, _loc : &Location) -> Option<&SourceLine> {
+        panic!()
+    }
+
+    pub fn new(source_dir : &str, chunks : &[Chunk]) -> Self {
+
+        let mut addr_to_loc = HashMap::new();
+        let mut loc_to_addr = HashMap::new();
+        let mut file_set = HashSet::new();
+
+        let mk_key = |f| Self::make_key_source_dir(source_dir, f);
+
+        // Cycle through the chunks, load all source
+        for chunk in chunks {
+            file_set.insert(&chunk.location.file);
+            addr_to_loc.insert(chunk.addr, chunk.location.clone());
+            loc_to_addr.insert(chunk.location.clone(), chunk.addr);
         }
+
+        let files_iter = file_set.into_iter().map(|key|
+            SourceFile::new(&key).map(|sf| (key, sf)))
+            .filter(|x|x.is_ok())
+            .map(|x|x.unwrap());
+
+        let mut annotated_files = HashMap::new();
+
+        for (raw_file, sf) in files_iter {
+
+            let lines =
+                sf.lines.iter().enumerate()
+                .map(|(i,line)| {
+                    let loc = Location::new(raw_file, i + 1);
+                    let addr = loc_to_addr.get(&loc).cloned();
+                    SourceLine {
+                        loc,addr, line :Some(line.clone()),
+                    }}).collect();
+
+            let annotated_source = AnnotatedSourceFile { lines };
+            annotated_files.insert(mk_key(raw_file), annotated_source);
+        }
+
+        Self {
+            loc_to_addr,
+            addr_to_loc,
+            source_dir : source_dir.to_string(),
+            annotated_files,
+        }
+    }
+
+    fn make_key_source_dir(source_dir : &str, file : &str) -> String {
+        format!("{}/{}", source_dir, file)
     }
 
     fn make_key(&self, file : &str) -> String {
-        format!("{}/{}", self.source_dir, file)
+        Self::make_key_source_dir(&self.source_dir, file)
     }
 
-    pub fn get<F>(&self, file : &str, func : F) -> bool where
-        F : FnOnce(&SourceFile) {
-            let key = self.make_key(file);
+    pub fn get(&self, file : &str) -> Option<&AnnotatedSourceFile> {
+        let key = self.make_key(file);
+        self.annotated_files.get(&key)
+    }
 
-            let mut files  = self.files.borrow_mut();
+    pub fn loc_to_addr(&self, loc : &Location) -> Option<u16> {
+        self.loc_to_addr.get(loc).cloned()
+    }
 
-            if !files.contains_key(&key) {
-                if let Ok(source_file) = SourceFile::new(&key) {
-                    files.insert(key.clone(), source_file);
-                } else {
-                    return false;
-                }
-            }
+    pub fn add_to_loc(&self, _addr : u16) -> Option<&Location> {
+        self.addr_to_loc.get(&_addr)
+    }
 
-            func(files.get(&key).unwrap());
-            true
-        }
-
-    pub fn get_line(&self, loc : &Location) -> Option<String> {
-        let mut res =  None;
-
-        self.get(
-            &loc.file,
-            |sf| {
-                res = sf.line(loc.line_number).cloned();
-            }
-        );
-
-        res
+    pub fn get_line(&self, _loc : &Location) -> Option<&String> {
+        panic!()
     }
 }

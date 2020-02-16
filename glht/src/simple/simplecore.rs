@@ -103,7 +103,7 @@ pub trait Machine {
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
     fn get_context_mut(&mut self) -> cpu::Context<StandardClock>;
 
-
+    fn get_regs(&self) -> &cpu::Regs;
 
     fn get_dissambler(&self) -> diss::Disassembler {
         diss::Disassembler::new(self.get_mem())
@@ -146,6 +146,11 @@ pub struct SimpleMachine {
 }
 
 impl Machine for SimpleMachine {
+    
+    fn get_regs(&self) -> &cpu::Regs {
+        &self.regs
+    }
+
     fn get_rom(&self) -> &romloader::Rom {
         &self.rom
     }
@@ -248,7 +253,7 @@ fn load_rom_to_mem(file : &str, mem : impl MemoryIO + 'static, addr : u16, size 
 }
 
 pub fn make_simple(file : &str) -> SimpleMachine {
-    let mem = SimpleMem::new();
+    let mem = SimpleMem::default();
     load_rom_to_mem(file, mem, 0x9900, 0x10_000 - 0x9900)
 }
 

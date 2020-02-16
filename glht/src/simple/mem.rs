@@ -54,15 +54,9 @@ pub struct SimpleMem {
     name: String,
 }
 
+impl Default for SimpleMem {
 
-#[allow(dead_code)]
-impl SimpleMem {
-
-    pub fn get_screen(&self) -> &emu::mem::MemBlock {
-        &self.screen
-    }
-
-    pub fn new() -> Self {
+    fn default() -> Self {
         let screen = emu::mem::MemBlock::new("screen", false, 0x0000, 0x9800);
         let ram = emu::mem::MemBlock::new("ram", false, 0x9900, 0x1_0000 - 0x9900);
         let name = "simple".to_string();
@@ -84,6 +78,15 @@ impl SimpleMem {
             addr_to_region,
             io,
         }
+    }
+
+}
+
+#[allow(dead_code)]
+impl SimpleMem {
+
+    pub fn get_screen(&self) -> &emu::mem::MemBlock {
+        &self.screen
     }
 
     fn get_region(&self, _addr: u16) -> &dyn MemoryIO {

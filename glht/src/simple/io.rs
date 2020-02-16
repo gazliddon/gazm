@@ -42,13 +42,20 @@ pub struct Io {
     halt: bool,
 }
 
-#[allow(dead_code)]
-impl Io {
-    pub fn new() -> Self {
+impl Default for Io {
+    fn default() -> Self {
         Self {
             palette: [0; 16 * 3],
             halt: false,
         }
+    }
+
+}
+
+#[allow(dead_code)]
+impl Io {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn clear_halt(&mut self) {

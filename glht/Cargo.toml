@@ -10,7 +10,7 @@ edition = "2018"
 
 emu = { path = "../emu" }
 romloader = {path = "../utils"}
-
+vector2d="*"
 glium="*"
 imgui="*"
 imgui-glium-renderer="*"

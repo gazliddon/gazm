@@ -9,7 +9,7 @@ code : $(OUT)/demo.syms $(OUT)/test.syms makefile
 	@echo Built code
 
 $(OUT)/demo.syms : $(wildcard demo/*.68)
-$(OUT)/all : $(wildcard all/*.68)
+$(OUT)/test.syms : $(wildcard test/*.68)
 
 dirs : $(OUT)
 	@echo Made directories
@@ -18,7 +18,7 @@ $(OUT) :
 	@mkdir -p $(OUT)
 
 $(OUT)/%.syms  : %/all.68
-	$(AS) -9 -r $*/all.68 -s -l$@ -I$*
+	$(AS) -9 -r $*/all.68 -s -l$@ -I.
 	@echo Created $@
 
 clean :

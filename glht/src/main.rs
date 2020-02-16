@@ -1,36 +1,28 @@
-extern crate env_logger;
 
-#[macro_use]
-extern crate imgui;
-
-#[macro_use] extern crate lazy_static;
-
+#[macro_use] extern crate imgui;
 #[macro_use] extern crate glium;
 #[macro_use] extern crate log;
 
 #[allow(unused_imports)]
 #[macro_use] extern crate serde_derive;
 
-extern crate emu;
-extern crate romloader;
-
-#[allow(dead_code)]
-mod colour;
-
-#[allow(dead_code)]
-mod window;
-#[allow(dead_code)]
-mod sourcewin;
-mod app;
-mod mesh;
-mod simple;
+#[allow(dead_code)] mod colour;
+#[allow(dead_code)] mod app;
+#[allow(dead_code)] mod window;
+#[allow(dead_code)] mod sourcewin;
+#[allow(dead_code)] mod mesh;
+#[allow(dead_code)] mod simple;
 #[allow(dead_code)] mod dbgwin;
 #[allow(dead_code)] mod textscreen;
+#[allow(dead_code)] mod events;
+#[allow(dead_code)] mod styles;
+
 
 use app::{frametime::FrameTime, system::System, App};
 use glium::index::PrimitiveType;
 use glium::Surface;
 use mesh::Mesh;
+use vector2d::{ Vector2D  as V2};
 
 #[allow(dead_code)]
 struct MyApp {
@@ -96,8 +88,7 @@ impl MyApp {
             running: true,
             frame_time: FrameTime::default(),
             dbgwin: dbgwin::DbgWin::new(0x9900),
-            sourcewin: sourcewin::SourceWin::new(),
-
+            sourcewin : sourcewin::SourceWin::new()
         }
     }
 }
@@ -126,8 +117,9 @@ impl App for MyApp {
         }
 
 
-        let dbgwin = &mut self.dbgwin;
-        use dbgwin::Events::*;
+        let dbgwin = &mut self.sourcewin;
+        use events::Events::*;
+
 
         if c == 'j' {
             dbgwin.event(CursorDown);
@@ -154,6 +146,11 @@ impl App for MyApp {
         self.running
     }
 
+    fn resize(&mut self, w : f64, h: f64) {
+        let dims = V2{x : w as usize, y : h as usize};
+        self.sourcewin.resize(dims);
+    }
+
     fn ui(&mut self, ui: &mut imgui::Ui) {
         use imgui::*;
 
@@ -162,10 +159,12 @@ impl App for MyApp {
             .build(ui, || {
 
                 let machine = self.machine.as_ref();
+                let pc = machine.get_regs().pc;
 
-                // self.dbgwin.render(&ui, self.machine.as_ref());
+                self.sourcewin.render(&ui, &machine.get_rom().sources, pc);
+
+                // self.dbgwin.render(&ui, machine);
                 
-                self.sourcewin.render(&ui, &machine.get_rom());
 
                 // ui.text(im_str!("Hello world!!!!!"));
                 // ui.text(im_str!("This...is...imgui-rs!"));
@@ -182,6 +181,8 @@ impl App for MyApp {
     }
 }
 
+
+
 fn main() {
     use std::env;
 
@@ -189,7 +190,6 @@ fn main() {
     env_logger::init();
 
     let mut system = System::new();
-
     let mut app = MyApp::new(&system);
 
     system.run_app(&mut app);
