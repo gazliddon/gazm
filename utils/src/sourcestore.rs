@@ -17,6 +17,17 @@ struct SourceFile {
 }
 
 impl SourceFile {
+
+    pub fn new_error(file: &str) -> error::Result<Self> {
+        let ret = Self::new(file);
+
+        if ret.is_err() {
+            info!("Cannot load source {}", file);
+        }
+
+        ret
+    }
+
     pub fn new( file : &str ) -> error::Result<Self> {
         
         let f = File::open(file)?;
@@ -80,16 +91,18 @@ impl SourceStore {
         let mut file_set = HashSet::new();
 
         let mk_key = |f| Self::make_key_source_dir(source_dir, f);
+            info!("Loading chunks..");
 
         // Cycle through the chunks, load all source
         for chunk in chunks {
-            file_set.insert(&chunk.location.file);
+            info!("{}", &chunk.location.file);
+            file_set.insert(mk_key(&chunk.location.file));
             addr_to_loc.insert(chunk.addr, chunk.location.clone());
             loc_to_addr.insert(chunk.location.clone(), chunk.addr);
         }
 
         let files_iter = file_set.into_iter().map(|key|
-            SourceFile::new(&key).map(|sf| (key, sf)))
+            SourceFile::new_error(&key).map(|sf| (key, sf)))
             .filter(|x|x.is_ok())
             .map(|x|x.unwrap());
 
@@ -100,14 +113,15 @@ impl SourceStore {
             let lines =
                 sf.lines.iter().enumerate()
                 .map(|(i,line)| {
-                    let loc = Location::new(raw_file, i + 1);
+                    let loc = Location::new(&raw_file, i + 1);
                     let addr = loc_to_addr.get(&loc).cloned();
                     SourceLine {
                         loc,addr, line :Some(line.clone()),
                     }}).collect();
 
             let annotated_source = AnnotatedSourceFile { lines };
-            annotated_files.insert(mk_key(raw_file), annotated_source);
+            annotated_files.insert(raw_file.clone(),annotated_source);
+            info!("Added source file {}", raw_file);
         }
 
         Self {
