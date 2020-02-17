@@ -211,7 +211,7 @@ impl SourceWin {
                             c.set_col(line_style).write(" ").write(&line_str);
 
                         } else {
-                            c.write("*LINE NOT FOUND*");
+                            c.write(&format!( "{} {} *LINE NOT FOUND*",&file, line  ));
                         }
 
                         c.cr();

@@ -83,9 +83,8 @@ impl SourceStore {
     }
 
     pub fn loc_to_source_line(&self, _loc : &Location) -> Option<&SourceLine> {
-        let annotated_file = self.annotated_files.get(&_loc.file)?;
+        let annotated_file = self.get(&_loc.file)?;
         let line_no = _loc.line as isize - 1;
-
         annotated_file.lines.get(line_no as usize)
     }
 

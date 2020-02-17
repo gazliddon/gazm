@@ -1,16 +1,6 @@
 # Todo
-
-* How do I make a vim 6809 assembly theme?
-* Make instruction dbase generate at compile time
-* Make list of errors to correct in disassembly
-
-
-
-# Find previous instruction
-
-* Have I dissasmbled this instruction before?
-    * Check cache
-    * Return is so
+* Chang Loc to have a non zero usize
+    * https://doc.rust-lang.org/std/num/struct.NonZeroUsize.html
 
 
 
