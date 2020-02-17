@@ -47,12 +47,14 @@ impl SourceFile {
 
 }
 
+#[derive(Clone, Debug)]
 pub struct SourceLine {
     pub loc : Location,
     pub addr : Option<u16>,
     pub line : Option<String>,
 }
 
+#[derive(Clone, Debug)]
 pub struct AnnotatedSourceFile {
     pub lines : Vec<SourceLine>
 }
@@ -79,7 +81,6 @@ impl SourceStore {
     pub fn addr_to_source_line(&self, addr : u16) -> Option<&SourceLine> {
         let loc = self.addr_to_loc.get(&addr)?;
         self.loc_to_source_line(loc)
-
     }
 
     pub fn loc_to_source_line(&self, _loc : &Location) -> Option<&SourceLine> {
@@ -94,37 +95,37 @@ impl SourceStore {
         let mut loc_to_addr = HashMap::new();
         let mut file_set = HashSet::new();
 
-        let mk_key = |f| Self::make_key_source_dir(source_dir, f);
-        info!("Loading {} chunks", chunks.len());
+        info!("Interpreting {} chunks", chunks.len());
 
         // Cycle through the chunks, load all source
         for chunk in chunks {
-            file_set.insert(mk_key(&chunk.location.file));
+            file_set.insert(chunk.location.file.clone());
             addr_to_loc.insert(chunk.addr, chunk.location.clone());
             loc_to_addr.insert(chunk.location.clone(), chunk.addr);
         }
 
-        let files_iter = file_set.into_iter().map(|key|
-            SourceFile::new_error(&key).map(|sf| (key, sf)))
-            .filter(|x|x.is_ok())
-            .map(|x|x.unwrap());
-
         let mut annotated_files = HashMap::new();
 
-        for (raw_file, sf) in files_iter {
+        for file in file_set {
+            let key = Self::make_key_source_dir(source_dir, &file);
 
-            let lines =
-                sf.lines.iter().enumerate()
-                .map(|(i,line)| {
-                    let loc = Location::new(&raw_file, i + 1);
-                    let addr = loc_to_addr.get(&loc).cloned();
-                    SourceLine {
-                        loc,addr, line :Some(line.clone()),
-                    }}).collect();
+            if let Ok(sf) = SourceFile::new_error(&key) {
+                let lines =
+                    sf.lines.iter().enumerate()
+                    .map(|(i,line)| {
+                        let loc = Location::new(&file, i + 1);
+                        let addr = loc_to_addr.get(&loc).cloned();
+                        SourceLine {
+                            loc,addr, line :Some(line.clone()),
+                        }}).collect();
 
-            let annotated_source = AnnotatedSourceFile { lines };
-            annotated_files.insert(raw_file.clone(),annotated_source);
-            info!("Added source file {}", raw_file);
+                let annotated_source = AnnotatedSourceFile { lines };
+                info!("Added source file {}", &file);
+                println!("{:?}", &annotated_source);
+                annotated_files.insert(key,annotated_source);
+            } else {
+                warn!("NO GOOD! TBD better message");
+            }
         }
 
         Self {

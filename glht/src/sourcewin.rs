@@ -206,7 +206,7 @@ impl SourceWin {
 
                             let line_str = source_line.line.clone().unwrap_or_else(|| blank.clone());
 
-                            // c.set_col(line_style).clear_line();
+                            c.set_col(line_style).clear_line();
                             c.set_col(addr_style).write(&addr_str);
                             c.set_col(line_style).write(" ").write(&line_str);
 
