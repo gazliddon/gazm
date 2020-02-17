@@ -76,12 +76,17 @@ pub struct SourceStore {
 
 impl SourceStore {
 
-    pub fn addr_to_source_line(&self, _addr : u16) -> Option<&SourceLine> {
-        panic!()
+    pub fn addr_to_source_line(&self, addr : u16) -> Option<&SourceLine> {
+        let loc = self.addr_to_loc.get(&addr)?;
+        self.loc_to_source_line(loc)
+
     }
 
     pub fn loc_to_source_line(&self, _loc : &Location) -> Option<&SourceLine> {
-        panic!()
+        let annotated_file = self.annotated_files.get(&_loc.file)?;
+        let line_no = _loc.line as isize - 1;
+
+        annotated_file.lines.get(line_no as usize)
     }
 
     pub fn new(source_dir : &str, chunks : &[Chunk]) -> Self {
@@ -91,11 +96,10 @@ impl SourceStore {
         let mut file_set = HashSet::new();
 
         let mk_key = |f| Self::make_key_source_dir(source_dir, f);
-            info!("Loading chunks..");
+        info!("Loading {} chunks", chunks.len());
 
         // Cycle through the chunks, load all source
         for chunk in chunks {
-            info!("{}", &chunk.location.file);
             file_set.insert(mk_key(&chunk.location.file));
             addr_to_loc.insert(chunk.addr, chunk.location.clone());
             loc_to_addr.insert(chunk.location.clone(), chunk.addr);
