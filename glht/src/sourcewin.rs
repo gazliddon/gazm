@@ -225,7 +225,7 @@ impl SourceWin {
                     c.set_col(&text_styles.normal);
 
                     let blank = String::new();
-                    let mut loc = Location::new(&file, self.scroll_offset + 1);
+                    let mut loc = Location::new(&file, self.scroll_offset );
 
                     for line in self.scroll_offset..(self.scroll_offset + window_dims.y) {
 
@@ -255,7 +255,7 @@ impl SourceWin {
                             break;
                         }
 
-                        loc.line+=1;
+                        loc.inc_line_number();
                         c.cr();
                     }
 

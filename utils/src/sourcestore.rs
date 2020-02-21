@@ -85,8 +85,7 @@ impl SourceStore {
 
     pub fn loc_to_source_line(&self, _loc : &Location) -> Option<&SourceLine> {
         let annotated_file = self.get(&_loc.file)?;
-        let line_no = _loc.line as isize - 1;
-        annotated_file.lines.get(line_no as usize)
+        annotated_file.lines.get(_loc.get_line_number())
     }
 
     pub fn new(source_dir : &str, chunks : &[Chunk]) -> Self {
@@ -113,7 +112,7 @@ impl SourceStore {
                 let lines =
                     sf.lines.iter().enumerate()
                     .map(|(i,line)| {
-                        let loc = Location::new(file, i + 1);
+                        let loc = Location::new(file, i);
                         let addr = loc_to_addr.get(&loc).cloned();
                         SourceLine {
                             loc,addr, line :Some(line.clone()),

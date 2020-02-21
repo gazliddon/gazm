@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Location {
     pub file : String,
-    pub line : usize,
+    line : usize,
 }
 
 pub struct SourceChunk {
@@ -30,6 +30,15 @@ impl Location {
 
     pub fn set_line_number(&mut self, line : usize) {
         self.line = line;
+    }
+
+    pub fn get_line_number(&self) -> usize {
+        self.line
+    }
+
+    pub fn inc_line_number(&mut self) -> usize {
+        self.line += 1;
+        self.get_line_number()
     }
 }
 

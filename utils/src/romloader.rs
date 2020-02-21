@@ -77,7 +77,7 @@ fn get_chunks(file : &str) -> error::Result<Vec<Chunk>> {
                     let source_file = &matches["source_file"];
 
                     current_chunk = Some(
-                        Chunk::new(addr, data, source_file, line)
+                        Chunk::new(addr, data, source_file, line - 1)
                     );
                     Ok(())
                 };
