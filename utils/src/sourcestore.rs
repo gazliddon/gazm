@@ -106,25 +106,24 @@ impl SourceStore {
 
         let mut annotated_files = HashMap::new();
 
-        for file in file_set {
-            let key = Self::make_key_source_dir(source_dir, &file);
+        for file in &file_set {
+            let key = Self::make_key_source_dir(source_dir, file);
 
             if let Ok(sf) = SourceFile::new_error(&key) {
                 let lines =
                     sf.lines.iter().enumerate()
                     .map(|(i,line)| {
-                        let loc = Location::new(&file, i + 1);
+                        let loc = Location::new(file, i + 1);
                         let addr = loc_to_addr.get(&loc).cloned();
                         SourceLine {
                             loc,addr, line :Some(line.clone()),
                         }}).collect();
 
                 let annotated_source = AnnotatedSourceFile { lines };
-                info!("Added source file {}", &file);
-                println!("{:?}", &annotated_source);
+                info!("Annotated source file {}", &file);
                 annotated_files.insert(key,annotated_source);
             } else {
-                warn!("NO GOOD! TBD better message");
+                warn!("Can't annotate source file {}", file);
             }
         }
 

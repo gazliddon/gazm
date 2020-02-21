@@ -23,7 +23,8 @@ use Events::*;
 use super::styles::*;
 
 pub struct SourceWin {
-    line : isize,
+    cursor : usize,
+    scroll_offset : usize,
     text_screen: TextScreen,
     styles : StylesDatabase,
     source_file : Option<String>,
@@ -70,7 +71,8 @@ impl Default for SourceWin {
             V2 { x: 30, y :30 });
 
         Self {
-            line : 0,
+            cursor : 0,
+            scroll_offset : 0,
             text_screen ,
             styles : StylesDatabase::default(),
             source_file: None,
@@ -128,6 +130,38 @@ impl TextStyles {
     }
 }
 
+struct ScrollZones {
+    top : V2<usize>,
+    bottom : V2<usize>
+}
+
+impl ScrollZones {
+    pub fn new(win_dims : &TextWinDims, top_line : usize, _lines_in_doc : usize, sz : usize) -> Self {
+        let win_char_height = win_dims.get_window_char_dims().y;
+
+        let top = V2::new(top_line, top_line + sz);
+        let bottom = V2::new(( top_line + win_char_height ) - sz, sz);
+        Self {
+            top,
+            bottom
+        }
+    }
+
+    fn in_span(line : usize, span : &V2<usize>) -> bool {
+        let V2{x : y, y : h} = *span;
+        h > 0 && (line >= y && line < (y+h))
+
+    }
+
+    pub fn in_top_zone(&self, line : usize) -> bool {
+        Self::in_span(line, &self.top)
+    }
+
+    pub fn in_bottom_zone(&self, line : usize) -> bool {
+        Self::in_span(line, &self.bottom)
+    }
+}
+
 
 impl SourceWin {
 
@@ -139,11 +173,11 @@ impl SourceWin {
     pub fn event(&mut self, event : Events) {
         match event {
             CursorUp => {
-                if self.line > 0 { self.line-=1 }
+                if self.cursor > 0 { self.cursor-=1 }
             }
 
             CursorDown => {
-                self.line+=1
+                self.cursor+=1
             }
 
             _ => ()
@@ -157,13 +191,16 @@ impl SourceWin {
     pub fn update(&mut self) {
     }
 
+    fn get_scroll_zones(&self, win_dims : &TextWinDims, lines_in_doc : usize) -> ScrollZones {
+        ScrollZones::new(win_dims, self.cursor,lines_in_doc, 3 )
+    }
+
     pub fn render(&mut self, ui: &imgui::Ui, source_store : &SourceStore, pc : u16) {
         use romloader::Location;
 
         let window_info = TextWinDims::new(ui);
 
         if window_info.is_visible() {
-
 
             if self.source_file.is_none() {
                 self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
@@ -176,8 +213,8 @@ impl SourceWin {
                 let window_dims = window_info.get_window_char_dims();
 
                 if let Some(sf) = source_store.get(&file) {
-                    let h = window_dims.y;
-                    let lines = std::cmp::min(h, sf.num_of_lines());
+
+                    let _scroll_zones = self.get_scroll_zones(&window_info, sf.num_of_lines());
 
                     let mut screen = TextScreen::new(window_dims);
 
@@ -188,21 +225,24 @@ impl SourceWin {
                     c.set_col(&text_styles.normal);
 
                     let blank = String::new();
+                    let mut loc = Location::new(&file, self.scroll_offset + 1);
 
-                    for line in 1..=lines {
-                        let loc = Location::new(&file,line);
+                    for line in self.scroll_offset..(self.scroll_offset + window_dims.y) {
 
                         if let Some(source_line) = source_store.loc_to_source_line(&loc) {
 
-                            let is_cursor_line  = self.line as usize == ( line - 1 );
+                            let is_cursor_line  = self.cursor as usize == line;
+
                             let is_pc_line = Some(pc) == source_line.addr;
 
                             let (line_style, addr_style) = text_styles.get_source_win_style(is_cursor_line, is_pc_line);
 
                             let addr_str = source_line.addr
                                 .map(|addr|
-                                    format!("${:04x}", addr))
-                                .unwrap_or_else(|| blank.clone());
+                                    format!("{:04x}", addr))
+                                .unwrap_or_else(||blank.clone());
+
+                            let addr_str = format!("{:^8}", addr_str);
 
                             let line_str = source_line.line.clone().unwrap_or_else(|| blank.clone());
 
@@ -212,12 +252,13 @@ impl SourceWin {
 
                         } else {
                             c.write(&format!( "{} {} *LINE NOT FOUND*",&file, line  ));
+                            break;
                         }
 
+                        loc.line+=1;
                         c.cr();
                     }
 
-                    // self.text_screen = screen;
                     screen.render(ui);
                 }
             }
@@ -237,7 +278,6 @@ struct DebuggerState<'a> {
     pub rom : &'a romloader::Rom,
     pub styles : &'a StylesDatabase,
 }
-
 
 struct SourceLine {
     pub addr : String,
