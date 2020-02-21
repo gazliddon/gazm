@@ -168,6 +168,10 @@ impl ScrollZones {
     pub fn in_bottom_zone(&self, line : usize) -> bool {
         Self::in_span(line, &self.bottom)
     }
+
+    pub fn in_scroll_zone(&self, line : usize) -> bool {
+        self.in_bottom_zone(line) || self.in_top_zone(line)
+    }
 }
 
 
@@ -232,7 +236,7 @@ impl SourceWin {
 
                 if let Some(sf) = source_store.get(&file) {
 
-                    let _scroll_zones = self.get_scroll_zones(&window_info, sf.num_of_lines());
+                    let scroll_zones = self.get_scroll_zones(&window_info, sf.num_of_lines());
 
                     let mut screen = TextScreen::new(window_dims);
 
@@ -251,7 +255,7 @@ impl SourceWin {
 
                             let is_cursor_line  = self.cursor as usize == line;
                             let is_pc_line = Some(pc) == source_line.addr;
-                            let is_debug_line = false;
+                            let is_debug_line = scroll_zones.in_scroll_zone(line);
 
                             let (line_style, addr_style) = text_styles.get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
 
