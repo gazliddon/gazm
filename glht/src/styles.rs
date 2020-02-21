@@ -29,7 +29,7 @@ impl std::default::Default for StylesDatabase {
         ret.add("addr_cursor", &addr.add_scalar_sat(0.2));
         ret.add("addr_pc", &pc.add_scalar_sat(0.2));
 
-        ret.add("deubg", &debug);
+        ret.add("debug", &debug);
 
         ret
     }
