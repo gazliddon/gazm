@@ -5,4 +5,6 @@ pub enum Events {
     Space,
     PageUp,
     PageDown,
+    ScrollUp,
+    ScrollDown,
 }

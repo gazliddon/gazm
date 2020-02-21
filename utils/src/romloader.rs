@@ -6,8 +6,6 @@ use super::{
 
 };
 
-
-
 use error::{ResultExt};
 
 use regex::Regex;

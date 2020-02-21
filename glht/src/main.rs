@@ -120,6 +120,13 @@ impl App for MyApp {
         let dbgwin = &mut self.sourcewin;
         use events::Events::*;
 
+        if c == 'i' {
+            dbgwin.event(ScrollUp);
+        }
+
+        if c == 'o'  {
+            dbgwin.event(ScrollDown);
+        }
 
         if c == 'j' {
             dbgwin.event(CursorDown);

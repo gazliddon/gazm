@@ -88,6 +88,7 @@ struct TextStyles {
     pub cursor : ColourCell,
     pub cursor_addr : ColourCell,
     pub addr : ColourCell,
+    pub debug: ColourCell,
 }
 
 impl TextStyles {
@@ -99,34 +100,41 @@ impl TextStyles {
         let cursor = styles.get("cursor");
         let cursor_addr = styles.get("addr_cursor");
         let addr = styles.get("addr");
+        let debug = styles.get("debug");
 
         Self {
             normal ,
-            pc ,
-            cursor ,
-            cursor_addr ,
-            addr ,
-
+            pc,
+            cursor,
+            cursor_addr,
+            addr,
+            debug,
         }
     }
 
-    pub fn get_source_win_style(&self,  is_cursor_line : bool , is_pc_line : bool ) -> (&ColourCell, &ColourCell) {
+    pub fn get_source_win_style(&self,  is_cursor_line : bool , is_pc_line : bool, is_debug_line : bool ) -> (&ColourCell, &ColourCell) {
 
-        let mut line_style;
-
-        let addr_style = if is_cursor_line {
-            line_style = &self.cursor;
-            &self.cursor_addr
+        if is_debug_line {
+            (&self.debug, &self.debug)
         } else {
-            line_style = &self.normal;
-            &self.addr
-        };
 
-        if is_pc_line {
-            line_style = &self.pc;
+            let mut line_style;
+
+            let addr_style = if is_cursor_line {
+                line_style = &self.cursor;
+                &self.cursor_addr
+            } else {
+                line_style = &self.normal;
+                &self.addr
+            };
+
+            if is_pc_line {
+                line_style = &self.pc;
+            }
+
+            (line_style, addr_style)
         }
 
-        (line_style, addr_style)
     }
 }
 
@@ -180,6 +188,16 @@ impl SourceWin {
                 self.cursor+=1
             }
 
+            ScrollUp => {
+                self.scroll_offset += 1
+            },
+
+            ScrollDown => {
+                if self.scroll_offset >= 1 {
+                    self.scroll_offset -= 1
+                }
+            },
+
             _ => ()
         }
     }
@@ -232,10 +250,10 @@ impl SourceWin {
                         if let Some(source_line) = source_store.loc_to_source_line(&loc) {
 
                             let is_cursor_line  = self.cursor as usize == line;
-
                             let is_pc_line = Some(pc) == source_line.addr;
+                            let is_debug_line = false;
 
-                            let (line_style, addr_style) = text_styles.get_source_win_style(is_cursor_line, is_pc_line);
+                            let (line_style, addr_style) = text_styles.get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
 
                             let addr_str = source_line.addr
                                 .map(|addr|
