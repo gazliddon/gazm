@@ -18,6 +18,7 @@ impl std::default::Default for StylesDatabase {
         let normal = ColourCell::new(WHITE.clone(),BLUE.clone()).add_scalar_sat(-0.25);
         let addr = normal.add_scalar_sat(0.1);
         let pc = ColourCell::new(YELLOW.clone(), RED.clone()).add_scalar_sat(-0.15);
+        let debug = ColourCell::new(WHITE.clone(), PURPLE.clone());
 
 
         ret.add("normal", &normal);
@@ -27,6 +28,8 @@ impl std::default::Default for StylesDatabase {
         ret.add("cursor", &normal.add_scalar(0.25));
         ret.add("addr_cursor", &addr.add_scalar_sat(0.2));
         ret.add("addr_pc", &pc.add_scalar_sat(0.2));
+
+        ret.add("deubg", &debug);
 
         ret
     }
