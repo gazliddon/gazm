@@ -144,14 +144,42 @@ struct ScrollZones {
 }
 
 impl ScrollZones {
-    pub fn new(win_dims : &TextWinDims, top_line : usize, _lines_in_doc : usize, sz : usize) -> Self {
-        let win_char_height = win_dims.get_window_char_dims().y;
 
-        let top = V2::new(top_line, top_line + sz);
-        let bottom = V2::new(( top_line + win_char_height ) - sz, sz);
+    pub fn new(win_dims : &TextWinDims, top_line : usize, _lines_in_doc : usize, sz : usize) -> Self {
+
+        let sz = sz as isize;
+        let top_line = top_line as isize;
+
+        let win_char_height = win_dims.get_window_char_dims().y as isize;
+
+        let adj = if top_line < sz {
+            sz - (sz - top_line)
+        } else {
+            sz
+        };
+
+        let top = V2::new(top_line, adj) ;
+
+        let bottom_line = top_line + win_char_height - 1;
+
+        let bottom_adj = if bottom_line < sz {
+            0
+        } else {
+            sz
+        };
+
+        let bottom = V2::new(( bottom_line - bottom_adj ) + 1, bottom_adj);
+
+        // println!("bottom_line: {:?}", bottom_line);
+        // println!("wc+_dims:    {:?}", win_dims.get_window_char_dims());
+        // println!("top:         {:?}", top);
+        // println!("bottom:      {:?}", bottom);
+
+        // panic!("lskalkssa");
+
         Self {
-            top,
-            bottom
+            top : top.as_usizes(),
+            bottom : bottom.as_usizes(),
         }
     }
 
@@ -183,27 +211,52 @@ impl SourceWin {
 
 
     pub fn event(&mut self, event : Events) {
+        let mut cursor = self.cursor as isize;
+        let mut scroll_offset = self.scroll_offset as isize;
+
         match event {
             CursorUp => {
-                if self.cursor > 0 { self.cursor-=1 }
+                cursor-=1;
             }
 
             CursorDown => {
-                self.cursor+=1
+                cursor+=1;
             }
 
             ScrollUp => {
-                self.scroll_offset += 1
-            },
+                scroll_offset+=1;
+                cursor+=1;
+            }
 
             ScrollDown => {
-                if self.scroll_offset >= 1 {
-                    self.scroll_offset -= 1
-                }
-            },
+                cursor-=1;
+                scroll_offset-=1;
+            }
+
+            PageUp => {
+                cursor+=1;
+                scroll_offset+=20;
+            }
+
+            PageDown => {
+                cursor-=20;
+                scroll_offset-=20;
+            }
 
             _ => ()
         }
+
+        if cursor < 0 {
+            cursor = 0;
+        }
+
+        if scroll_offset < 0 {
+            scroll_offset = 0;
+        }
+
+        self.cursor = cursor as usize;
+        self.scroll_offset = scroll_offset as usize;
+
     }
 
     pub fn resize(&mut self,  dims : V2<usize>) {
@@ -214,10 +267,11 @@ impl SourceWin {
     }
 
     fn get_scroll_zones(&self, win_dims : &TextWinDims, lines_in_doc : usize) -> ScrollZones {
-        ScrollZones::new(win_dims, self.cursor,lines_in_doc, 3 )
+        ScrollZones::new(win_dims, self.scroll_offset,lines_in_doc, 3 )
     }
 
     pub fn render(&mut self, ui: &imgui::Ui, source_store : &SourceStore, pc : u16) {
+
         use romloader::Location;
 
         let window_info = TextWinDims::new(ui);
@@ -255,7 +309,11 @@ impl SourceWin {
 
                             let is_cursor_line  = self.cursor as usize == line;
                             let is_pc_line = Some(pc) == source_line.addr;
-                            let is_debug_line = scroll_zones.in_scroll_zone(line);
+                            let mut is_debug_line = scroll_zones.in_scroll_zone(line);
+
+                            if is_cursor_line && is_debug_line {
+                                is_debug_line = false;
+                            }
 
                             let (line_style, addr_style) = text_styles.get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
 

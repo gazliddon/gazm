@@ -23,6 +23,7 @@ use glium::index::PrimitiveType;
 use glium::Surface;
 use mesh::Mesh;
 use vector2d::{ Vector2D  as V2};
+use glium::glutin;
 
 #[allow(dead_code)]
 struct MyApp {
@@ -100,6 +101,35 @@ pub fn sin01(x: f64) -> f64 {
     (x.sin() / 2.0) + 0.5
 }
 
+
+enum KeyPress {
+    Unknown(glutin::VirtualKeyCode),
+    Bare(glutin::VirtualKeyCode),
+    Ctrl(glutin::VirtualKeyCode),
+    Alt(glutin::VirtualKeyCode),
+    Shift(glutin::VirtualKeyCode),
+    CtrlAlt(glutin::VirtualKeyCode),
+    CtrlShift(glutin::VirtualKeyCode),
+    CtrlAltShift(glutin::VirtualKeyCode),
+}
+
+impl KeyPress {
+    pub fn new(key : glutin::VirtualKeyCode, mods : glutin::ModifiersState ) -> Self {
+        use glutin::ModifiersState;
+        // let key = key.clone();
+        match mods {
+            ModifiersState{shift:false, ctrl: false, alt: false, ..} => Self::Bare(key),
+            ModifiersState{shift:true, ctrl: false, alt: false, ..} => Self::Shift(key),
+            ModifiersState{shift:false, ctrl: true, alt: false, ..} => Self::Ctrl(key),
+            ModifiersState{shift:false, ctrl: false, alt: true, ..} => Self::Alt(key),
+            ModifiersState{shift:true, ctrl: true, alt: false, ..} => Self::CtrlShift(key),
+            ModifiersState{shift:true, ctrl: true, alt: true, ..} => Self::CtrlAltShift(key),
+            ModifiersState{shift:false, ctrl: true, alt: true, ..} => Self::CtrlAlt(key),
+            _ => Self::Unknown(key),
+        }
+    }
+}
+
 impl App for MyApp {
     fn draw(&self, frame: &mut glium::Frame) {
         use cgmath::*;
@@ -110,18 +140,52 @@ impl App for MyApp {
         self.mesh.draw(m, frame);
     }
 
+    fn handle_key(&mut self, code : glutin::VirtualKeyCode, mods : glutin::ModifiersState) {
+        use glutin::VirtualKeyCode as VK;
+
+        let dbgwin = &mut self.sourcewin;
+
+        let kp = KeyPress::new(code, mods);
+
+        use KeyPress::*;
+        use events::Events::*;
+
+        match kp {
+            Bare(VK::Q) => {
+                self.close_requested();
+            },
+
+            Bare(VK::J) => {
+                dbgwin.event(CursorDown);
+            }
+
+            Bare(VK::K) => {
+                dbgwin.event(CursorUp);
+            }
+
+            Ctrl(VK::D) => {
+                dbgwin.event(PageDown);
+            }
+
+            Ctrl(VK::U) => {
+                dbgwin.event(PageUp);
+            }
+
+            _ => (),
+        }
+    }
+
     fn handle_character(&mut self, c: char) {
 
         if c == 'q' {
             self.close_requested()
         }
 
-
-        let dbgwin = &mut self.sourcewin;
         use events::Events::*;
+        let dbgwin = &mut self.sourcewin;
 
         if c == 'i' {
-            dbgwin.event(ScrollUp);
+            self.dbgwin.event(ScrollUp);
         }
 
         if c == 'o'  {
@@ -171,7 +235,7 @@ impl App for MyApp {
                 self.sourcewin.render(&ui, &machine.get_rom().sources, pc);
 
                 // self.dbgwin.render(&ui, machine);
-                
+
 
                 // ui.text(im_str!("Hello world!!!!!"));
                 // ui.text(im_str!("This...is...imgui-rs!"));
