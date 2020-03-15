@@ -1,21 +1,24 @@
+use super::glium;
+use super::imgui;
+use super::glutin;
+
 pub mod frametime;
 pub mod sampler;
 pub mod system;
 
 use frametime::FrameTime;
-use glium::glutin;
 
 pub trait App {
     fn draw(&self, display: &mut glium::Frame);
 
-    fn handle_event(&mut self, _frame_time: &FrameTime, input_event: glutin::Event) -> bool {
-        use glutin::Event;
+    fn handle_event(&mut self, _frame_time: &FrameTime, input_event: glutin::event::Event) -> bool {
+        use glutin::event::Event;
         let mut ret = false;
 
         match input_event {
             // Window events
             Event::WindowEvent {event, ..} => {
-                use glutin::WindowEvent::*;
+                use glutin::event::WindowEvent::*;
                 match event {
                     ReceivedCharacter(ch) => self.handle_character(ch),
                     CloseRequested => self.close_requested(),
@@ -31,9 +34,11 @@ pub trait App {
 
             // Device events
             Event::DeviceEvent { event, ..} => {
-                use glutin::KeyboardInput;
-                use glutin::DeviceEvent::*;
-                use glutin::ElementState::*;
+                use glutin::event::KeyboardInput;
+                use glutin::event::DeviceEvent::*;
+                use glutin::event::ElementState::*;
+
+                println!("{:?}", event);
 
                 match event {
                     Motion{..} => (),
@@ -63,7 +68,7 @@ pub trait App {
     fn suspend(&mut self) {
     }
 
-    fn handle_key(&mut self, _code : glutin::VirtualKeyCode, _mods : glutin::ModifiersState) {
+    fn handle_key(&mut self, _code : glutin::event::VirtualKeyCode, _mods : glutin::event::ModifiersState) {
     }
 
     fn ui(&mut self, _ui: &mut imgui::Ui) {}

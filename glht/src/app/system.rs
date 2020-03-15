@@ -1,14 +1,15 @@
-use super::{ App};
+use super::{ App };
 use super::frametime::FrameTime;
 
-use glium::glutin;
+use glutin;
+use imgui_glium_renderer::{ imgui, Renderer };
+
 use imgui::Context;
-use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 pub struct System {
-    pub display: glium::Display,
-    pub imgui_renderer: imgui_glium_renderer::Renderer,
+    pub display: glutin::Display,
+    pub imgui_renderer: Renderer,
     pub platform: WinitPlatform,
     pub event_loop: glutin::EventsLoop,
     pub frame_time: FrameTime,
@@ -17,14 +18,16 @@ pub struct System {
 
 impl Default for System {
     fn default() -> Self {
-        let event_loop = glutin::EventsLoop::new();
+
+        let event_loop = glutin::event::EventsLoop::new();
         let wb = glutin::WindowBuilder::new();
 
         let cb = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_multisampling(4);
 
-        let display = glium::Display::new(wb, cb, &event_loop).expect("Building display");
+
+        let display = Display::new(wb, cb, &event_loop).expect("Building display");
 
         let mut imgui = Context::create();
 
@@ -126,8 +129,8 @@ impl System {
         let platform = &mut self.platform;
 
         self.event_loop.poll_events(|event| {
+            redraw = redraw || app.handle_event(&dt, event.clone());
             platform.handle_event(io, &window, &event);
-            redraw = redraw || app.handle_event(&dt, event);
         });
 
         app.update(&dt);

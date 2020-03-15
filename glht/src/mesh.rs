@@ -1,4 +1,5 @@
 use super::app::system::System;
+use super::glium;
 use glium::Surface;
 
 pub struct Mesh<T: Copy, I: Copy + glium::index::Index> {

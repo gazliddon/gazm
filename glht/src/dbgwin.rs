@@ -1,5 +1,8 @@
 use crate::simple::simplecore::Machine;
 use ::emu::diss::{  Disassembler };
+
+use super::imgui;
+
 // use romloader::Rom;
 
 // use crate::window::{TextWinDims};

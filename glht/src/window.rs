@@ -1,6 +1,7 @@
 use crate::colour::*;
 
 use vector2d::{Vector2D as V2};
+use super::imgui;
 
 impl std::convert::From<Colour> for imgui::ImColor {
     fn from(v: Colour) -> Self {

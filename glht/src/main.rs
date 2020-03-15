@@ -1,6 +1,10 @@
+extern crate glutin;
 
-#[macro_use] extern crate imgui;
-#[macro_use] extern crate glium;
+#[macro_use] extern crate imgui_glium_renderer;
+
+pub use imgui_glium_renderer::glium;
+pub use imgui_glium_renderer::imgui;
+
 #[macro_use] extern crate log;
 
 #[allow(unused_imports)]
@@ -18,12 +22,13 @@
 #[allow(dead_code)] mod styles;
 
 
+
 use app::{frametime::FrameTime, system::System, App};
+
 use glium::index::PrimitiveType;
 use glium::Surface;
 use mesh::Mesh;
 use vector2d::{ Vector2D  as V2};
-use glium::glutin;
 
 #[allow(dead_code)]
 struct MyApp {

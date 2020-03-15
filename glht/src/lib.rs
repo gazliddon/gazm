@@ -1,6 +1,11 @@
+#[allow(unused_imports)]
+extern crate glutin;
 
-#[macro_use] extern crate imgui;
-#[macro_use] extern crate glium;
+#[macro_use] extern crate imgui_glium_renderer;
+
+pub use imgui_glium_renderer::glium;
+pub use imgui_glium_renderer::imgui;
+
 #[macro_use] extern crate log;
 
 #[allow(unused_imports)]
