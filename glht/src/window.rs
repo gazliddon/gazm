@@ -1,15 +1,17 @@
 use crate::colour::*;
 
-use vector2d::{Vector2D as V2};
-use super::imgui;
+use crate::imgui;
+use imgui::im_str;
 
-impl std::convert::From<Colour> for imgui::ImColor {
+use vector2d::Vector2D as V2;
+
+impl std::convert::From<Colour> for imgui::color::ImColor32 {
     fn from(v: Colour) -> Self {
         Self::from(*v.as_array())
     }
 }
 
-impl std::convert::From<&Colour> for imgui::ImColor {
+impl std::convert::From<&Colour> for imgui::color::ImColor32 {
     fn from(v: &Colour) -> Self {
         Self::from(*v.as_array())
     }

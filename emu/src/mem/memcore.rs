@@ -31,7 +31,7 @@ pub fn build_addr_to_region<E: Copy>(illegal: E, mem_tab: &[(E, &dyn MemoryIO)])
 fn to_mem_range(address: u16, size: u16) -> Range<u32> {
     use std::cmp::min;
     let last_mem = u32::from(address) + u32::from(size);
-    (u32::from(address)..min(0x1_0000, last_mem))
+    u32::from(address)..min(0x1_0000, last_mem)
 }
 
 #[allow(dead_code)]

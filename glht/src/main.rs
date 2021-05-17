@@ -1,9 +1,11 @@
-extern crate glutin;
+#[allow(unused_imports)]
+#[macro_use] extern crate imgui_winit_support;
 
+#[allow(unused_imports)]
 #[macro_use] extern crate imgui_glium_renderer;
 
-pub use imgui_glium_renderer::glium;
-pub use imgui_glium_renderer::imgui;
+#[allow(unused_imports)]
+#[macro_use] pub extern crate glium;
 
 #[macro_use] extern crate log;
 
@@ -21,14 +23,15 @@ pub use imgui_glium_renderer::imgui;
 #[allow(dead_code)] mod events;
 #[allow(dead_code)] mod styles;
 
-
+pub use imgui_glium_renderer::imgui;
+pub use glium::glutin;
 
 use app::{frametime::FrameTime, system::System, App};
 
 use glium::index::PrimitiveType;
 use glium::Surface;
 use mesh::Mesh;
-use vector2d::{ Vector2D  as V2};
+use vector2d::Vector2D  as V2;
 
 #[allow(dead_code)]
 struct MyApp {
@@ -106,32 +109,24 @@ pub fn sin01(x: f64) -> f64 {
     (x.sin() / 2.0) + 0.5
 }
 
+use glutin::event::VirtualKeyCode;
 
+#[allow(dead_code)]
 enum KeyPress {
-    Unknown(glutin::VirtualKeyCode),
-    Bare(glutin::VirtualKeyCode),
-    Ctrl(glutin::VirtualKeyCode),
-    Alt(glutin::VirtualKeyCode),
-    Shift(glutin::VirtualKeyCode),
-    CtrlAlt(glutin::VirtualKeyCode),
-    CtrlShift(glutin::VirtualKeyCode),
-    CtrlAltShift(glutin::VirtualKeyCode),
+    Unknown(VirtualKeyCode),
+    Bare(VirtualKeyCode),
+    Ctrl(VirtualKeyCode),
+    Alt(VirtualKeyCode),
+    Shift(VirtualKeyCode),
+    CtrlAlt(VirtualKeyCode),
+    CtrlShift(VirtualKeyCode),
+    CtrlAltShift(VirtualKeyCode),
 }
 
 impl KeyPress {
-    pub fn new(key : glutin::VirtualKeyCode, mods : glutin::ModifiersState ) -> Self {
-        use glutin::ModifiersState;
+    pub fn new(key : VirtualKeyCode) -> Self {
         // let key = key.clone();
-        match mods {
-            ModifiersState{shift:false, ctrl: false, alt: false, ..} => Self::Bare(key),
-            ModifiersState{shift:true, ctrl: false, alt: false, ..} => Self::Shift(key),
-            ModifiersState{shift:false, ctrl: true, alt: false, ..} => Self::Ctrl(key),
-            ModifiersState{shift:false, ctrl: false, alt: true, ..} => Self::Alt(key),
-            ModifiersState{shift:true, ctrl: true, alt: false, ..} => Self::CtrlShift(key),
-            ModifiersState{shift:true, ctrl: true, alt: true, ..} => Self::CtrlAltShift(key),
-            ModifiersState{shift:false, ctrl: true, alt: true, ..} => Self::CtrlAlt(key),
-            _ => Self::Unknown(key),
-        }
+             Self::Bare(key)
     }
 }
 
@@ -145,12 +140,12 @@ impl App for MyApp {
         self.mesh.draw(m, frame);
     }
 
-    fn handle_key(&mut self, code : glutin::VirtualKeyCode, mods : glutin::ModifiersState) {
-        use glutin::VirtualKeyCode as VK;
+    fn handle_key(&mut self, code : glutin::event::VirtualKeyCode) {
+        use glutin::event::VirtualKeyCode as VK;
 
         let dbgwin = &mut self.sourcewin;
 
-        let kp = KeyPress::new(code, mods);
+        let kp = KeyPress::new(code);
 
         use KeyPress::*;
         use events::Events::*;
@@ -266,7 +261,13 @@ fn main() {
     env_logger::init();
 
     let mut system = System::new();
+
     let mut app = MyApp::new(&system);
 
-    system.run_app(&mut app);
+    let mut func = 
+        |quit : &mut bool, ui: &mut imgui::Ui| {
+
+            };
+
+    system.main_loop(app);
 }
