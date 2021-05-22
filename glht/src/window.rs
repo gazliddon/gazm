@@ -60,7 +60,7 @@ impl TextWinDims {
         let char_dims= V2{x:char_width, y:char_height};
         let win_char_dims = ( pixel_dims.div_components(char_dims) ).as_usizes();
 
-        let base_pos = ui.cursor_screen_pos();
+        let base_pos = ui.window_pos();
         let base_pos = V2{x:base_pos[0], y:base_pos[1]};
 
         TextWinDims { pixel_dims, char_dims, win_char_dims, base_pos }

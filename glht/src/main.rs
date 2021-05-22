@@ -226,12 +226,13 @@ impl App for MyApp {
         use imgui::*;
 
         Window::new(im_str!("Hello world"))
-            .size([300.0, 100.0], Condition::FirstUseEver)
+            // .size([0.0, 0.0], Condition::FirstUseEver)
+            .position([0.0, 0.0], Condition::Always)
+            .no_decoration()
+            .movable(false)
             .build(ui, || {
-
                 let machine = self.machine.as_ref();
                 let pc = machine.get_regs().pc;
-
                 self.sourcewin.render(&ui, &machine.get_rom().sources, pc);
 
                 // self.dbgwin.render(&ui, machine);
@@ -260,14 +261,8 @@ fn main() {
     env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    let mut system = System::new();
-
-    let mut app = MyApp::new(&system);
-
-    let mut func = 
-        |quit : &mut bool, ui: &mut imgui::Ui| {
-
-            };
+    let system = System::new();
+    let app = MyApp::new(&system);
 
     system.main_loop(app);
 }

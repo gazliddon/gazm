@@ -7,7 +7,7 @@
 // A PC
 //
 use super::imgui;
-use romloader::{ SourceStore};
+use romloader::SourceStore;
 
 use super::window::*;
 
@@ -15,7 +15,7 @@ use super::styles;
 
 use super::textscreen::{TextScreen, ColourCell, Cell, CursorTrait};
 
-use vector2d::{ Vector2D  as V2};
+use vector2d::Vector2D  as V2;
 
 use super::events::Events;
 use Events::*;

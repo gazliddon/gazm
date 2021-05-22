@@ -7,7 +7,7 @@ pub mod system;
 
 use frametime::FrameTime;
 
-pub trait App : Sized {
+pub trait App {
     fn draw(&self, display: &mut glium::Frame);
 
     fn handle_event(&mut self, input_event: &glutin::event::Event<()>) -> bool {
