@@ -1,5 +1,5 @@
 use crate::simple::simplecore::Machine;
-use ::emu::diss::{  Disassembler };
+use ::emu::diss::Disassembler;
 
 use super::imgui;
 

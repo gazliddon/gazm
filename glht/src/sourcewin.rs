@@ -30,6 +30,29 @@ pub struct SourceWin {
     source_file : Option<String>,
 }
 
+impl Default for SourceWin {
+    fn default() -> Self {
+
+        let text_screen = TextScreen::new(
+            V2 { x: 30, y :30 });
+
+        Self {
+            cursor : 0,
+            scroll_offset : 0,
+            text_screen ,
+            styles : StylesDatabase::default(),
+            source_file: None,
+
+        }
+    }
+}
+
+pub enum Zone {
+    TOP,
+    MIDDLE,
+    BOTTOM,
+}
+
 
 
 impl TextScreen {
@@ -64,22 +87,6 @@ impl TextScreen {
     }
 }
 
-impl Default for SourceWin {
-    fn default() -> Self {
-
-        let text_screen = TextScreen::new(
-            V2 { x: 30, y :30 });
-
-        Self {
-            cursor : 0,
-            scroll_offset : 0,
-            text_screen ,
-            styles : StylesDatabase::default(),
-            source_file: None,
-
-        }
-    }
-}
 
 
 struct TextStyles {
@@ -209,8 +216,30 @@ impl SourceWin {
         Self::default()
     }
 
+    pub fn new2(h : usize)->Self {
+        let w = 60;
+        Self {
+            text_screen: TextScreen::new(V2{x: w, y : h}),
+            ..Default::default()
+        }
+    }
+
+    pub fn dims(&self) -> V2<isize> {
+        self.text_screen.dims
+    }
+
+    pub fn get_zone_from_cursor(&self, dims : &TextWinDims, cursor : usize) -> Zone {
+        if cursor <= 3 {
+            Zone::TOP
+        } else if cursor >= ( dims.get_window_char_dims().y - 3 ) {
+            Zone::BOTTOM
+        } else {
+            Zone::MIDDLE
+        }
+    }
 
     pub fn event(&mut self, event : Events) {
+
         let mut cursor = self.cursor as isize;
         let mut scroll_offset = self.scroll_offset as isize;
 
@@ -270,78 +299,78 @@ impl SourceWin {
         ScrollZones::new(win_dims, self.scroll_offset,lines_in_doc, 3 )
     }
 
-    pub fn render(&mut self, ui: &imgui::Ui, source_store : &SourceStore, pc : u16) {
+    fn get_source_file<'a>(&'a self, source_store : &'a SourceStore) -> Option<&'a romloader::AnnotatedSourceFile> {
+        self.source_file.as_ref().and_then(|f| source_store.get(f))
+    }
 
+    pub fn render(&mut self, ui: &imgui::Ui, source_store : &SourceStore, pc : u16) {
         use romloader::Location;
 
         let window_info = TextWinDims::new(ui);
 
-        if window_info.is_visible() {
+        if !window_info.is_visible() {
+            return
+        }
 
-            if self.source_file.is_none() {
-                self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
-            }
+        if self.source_file.is_none() {
+            self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
+        }
 
-            if let Some(file) = &self.source_file {
+        if let Some(sf) = self.get_source_file(source_store) {
+            let file = self.source_file.clone().unwrap_or(String::from("No file"));
 
-                let text_styles = TextStyles::new(&self.styles);
+            let text_styles = TextStyles::new(&self.styles);
+            let window_dims = window_info.get_window_char_dims();
 
-                let window_dims = window_info.get_window_char_dims();
+            let scroll_zones = self.get_scroll_zones(&window_info, sf.num_of_lines());
 
-                if let Some(sf) = source_store.get(&file) {
+            let mut screen = TextScreen::new(window_dims);
 
-                    let scroll_zones = self.get_scroll_zones(&window_info, sf.num_of_lines());
+            screen.clear(' ',&text_styles.normal);
 
-                    let mut screen = TextScreen::new(window_dims);
+            let mut c = screen.cursor();
+            c.set_col(&text_styles.normal);
 
-                    screen.clear(' ',&text_styles.normal);
+            let blank = String::new();
+            let mut loc = Location::new(&file, self.scroll_offset );
 
-                    let mut c = screen.cursor();
+            for line in self.scroll_offset..(self.scroll_offset + window_dims.y) {
 
-                    c.set_col(&text_styles.normal);
+                if let Some(source_line) = source_store.loc_to_source_line(&loc) {
 
-                    let blank = String::new();
-                    let mut loc = Location::new(&file, self.scroll_offset );
+                    let is_cursor_line  = self.cursor as usize == line;
+                    let is_pc_line = Some(pc) == source_line.addr;
+                    let mut is_debug_line = scroll_zones.in_scroll_zone(line);
 
-                    for line in self.scroll_offset..(self.scroll_offset + window_dims.y) {
-
-                        if let Some(source_line) = source_store.loc_to_source_line(&loc) {
-
-                            let is_cursor_line  = self.cursor as usize == line;
-                            let is_pc_line = Some(pc) == source_line.addr;
-                            let mut is_debug_line = scroll_zones.in_scroll_zone(line);
-
-                            if is_cursor_line && is_debug_line {
-                                is_debug_line = false;
-                            }
-
-                            let (line_style, addr_style) = text_styles.get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
-
-                            let addr_str = source_line.addr
-                                .map(|addr|
-                                    format!("{:04x}", addr))
-                                .unwrap_or_else(||blank.clone());
-
-                            let addr_str = format!("{:^8}", addr_str);
-
-                            let line_str = source_line.line.clone().unwrap_or_else(|| blank.clone());
-
-                            c.set_col(line_style).clear_line();
-                            c.set_col(addr_style).write(&addr_str);
-                            c.set_col(line_style).write(" ").write(&line_str);
-
-                        } else {
-                            c.write(&format!( "{} {} *LINE NOT FOUND*",&file, line  ));
-                            break;
-                        }
-
-                        loc.inc_line_number();
-                        c.cr();
+                    if is_cursor_line && is_debug_line {
+                        is_debug_line = false;
                     }
 
-                    screen.render(ui);
+                    let (line_style, addr_style) = text_styles.get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
+
+                    let addr_str = source_line.addr
+                        .map(|addr|
+                            format!("{:04x}", addr))
+                        .unwrap_or_else(||blank.clone());
+
+                    let addr_str = format!("{:^8}", addr_str);
+
+                    let line_str = source_line.line.clone().unwrap_or_else(|| blank.clone());
+
+                    c.set_col(line_style).clear_line();
+                    c.set_col(addr_style).write(&addr_str);
+                    c.set_col(line_style).write(" ").write(&line_str);
+
+                } else {
+                    c.write(&format!( "{} {} *LINE NOT FOUND*",file, line  ));
+                    break;
                 }
+
+                loc.inc_line_number();
+                c.cr();
             }
+
+            screen.render(ui);
         }
     }
 }

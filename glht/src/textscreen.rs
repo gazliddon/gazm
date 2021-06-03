@@ -137,6 +137,8 @@ pub trait CursorTrait {
     fn get_cell(&self) -> Option<Cell>;
     fn get_pos(&self) -> V2<isize>;
 
+    fn write_cells(&mut self, text : &[Cell])-> &mut Self;
+
     fn write(&mut self, text : &str)-> &mut Self;
     fn set_col(&mut self, c : &ColourCell) -> &mut Self;
     fn set_pos(&mut self, pos : V2<isize> ) -> &mut Self;
@@ -169,6 +171,9 @@ pub trait CursorTrait {
 
 
 impl<'a> CursorTrait for Cursor<'a> {
+    fn write_cells(&mut self, text : &[Cell])-> &mut Self {
+        self
+    }
 
     fn get_col(&self) -> &ColourCell {
         &self.current_color
@@ -324,6 +329,21 @@ impl TextScreen {
 
         Self::write_clipped(&db, pos, txt.len(), func )
     }
+
+    pub fn write_cells(&mut self, pos : &V2<isize>, txt : &[Cell]) -> V2<isize> {
+        let db = &self.dim_box.clone();
+
+        let func = |y : usize, scr_r,  txt_r : std::ops::Range<usize>| {
+
+            let cols : Vec<ColourCell> = txt[txt_r.clone()].iter().map(|c| c.col.clone()).collect();
+            let string : Vec<_> = txt[txt_r.clone()].iter().map(|c| c.text.as_bytes()[0]).collect();
+            self.text[y].replace_range(scr_r,&( String::from_utf8(string).unwrap() ));
+
+        };
+
+        Self::write_clipped(&db, pos, txt.len(), func )
+    }
+
 
     pub fn write_with_colour(&mut self, pos : &V2<isize>, txt : &str, _col : &ColourCell) -> V2<isize> {
         let db = &self.dim_box.clone();
