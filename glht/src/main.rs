@@ -11,6 +11,7 @@
 
 #[allow(unused_imports)]
 #[macro_use] extern crate serde_derive;
+#[allow(dead_code)] mod styles;
 
 #[allow(dead_code)] mod colour;
 #[allow(dead_code)] mod app;
@@ -21,7 +22,7 @@
 #[allow(dead_code)] mod dbgwin;
 #[allow(dead_code)] mod textscreen;
 #[allow(dead_code)] mod events;
-#[allow(dead_code)] mod styles;
+#[allow(dead_code)] mod docwin;
 
 pub use imgui_glium_renderer::imgui;
 pub use glium::glutin;
@@ -131,7 +132,7 @@ impl KeyPress {
 }
 
 impl App for MyApp {
-    fn draw(&self, frame: &mut glium::Frame) {
+    fn draw(&self, dims: V2<usize>,frame: &mut glium::Frame) {
         use cgmath::*;
 
         let t = self.frame_time.now_as_duration().as_secs_f64();
@@ -222,11 +223,11 @@ impl App for MyApp {
         self.sourcewin.resize(dims);
     }
 
-    fn ui(&mut self, ui: &mut imgui::Ui) {
+    fn ui(&mut self, dims : V2<usize>, ui: &mut imgui::Ui) {
         use imgui::*;
 
         Window::new(im_str!("Hello world"))
-            // .size([0.0, 0.0], Condition::FirstUseEver)
+            .size([dims.x as f32, dims.y as f32], Condition::Always)
             .position([0.0, 0.0], Condition::Always)
             .no_decoration()
             .movable(false)

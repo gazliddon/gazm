@@ -12,6 +12,7 @@ use imgui::Context;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use glium::Display;
 use std::time::Instant;
+use vector2d::Vector2D as V2;
 
 pub struct System {
     pub display: Display,
@@ -165,8 +166,12 @@ impl System {
                     let gl_window = display.gl_window();
                     let mut target = display.draw();
 
-                    app.draw(&mut target);
-                    app.ui(&mut ui);
+
+                    let dims_raw = gl_window.window().inner_size();
+                    let dims = V2::<usize>::new(dims_raw.width as usize,dims_raw.height as usize);
+
+                    app.draw(dims.clone(), &mut target);
+                    app.ui(dims.clone(), &mut ui);
 
                     platform.prepare_render(&ui, gl_window.window());
                     let draw_data = ui.render();

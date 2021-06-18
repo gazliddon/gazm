@@ -218,6 +218,7 @@ impl SourceWin {
 
     pub fn new2(h : usize)->Self {
         let w = 60;
+        let h = 60;
         Self {
             text_screen: TextScreen::new(V2{x: w, y : h}),
             ..Default::default()
@@ -309,6 +310,13 @@ impl SourceWin {
         let window_info = TextWinDims::new(ui);
 
         if !window_info.is_visible() {
+            let cd = window_info.get_char_dims();
+            let pd = window_info.get_pixel_dims();
+
+            println!("char dims {} {}", cd.x, cd.y);
+            println!("pixel dims {} {}", pd.x, pd.y);
+            panic!("Ficled");
+
             return
         }
 
@@ -371,6 +379,8 @@ impl SourceWin {
             }
 
             screen.render(ui);
+        } else {
+            panic!("can't fine file!")
         }
     }
 }

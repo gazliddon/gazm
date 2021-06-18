@@ -5,10 +5,12 @@ pub mod frametime;
 pub mod sampler;
 pub mod system;
 
+use vector2d::Vector2D as V2;
+
 use frametime::FrameTime;
 
 pub trait App {
-    fn draw(&self, display: &mut glium::Frame);
+    fn draw(&self, dims: V2<usize>, display: &mut glium::Frame);
 
     fn handle_event(&mut self, input_event: &glutin::event::Event<()>) -> bool {
         use glutin::event::Event;
@@ -72,7 +74,7 @@ pub trait App {
     fn handle_key(&mut self, _code : glutin::event::VirtualKeyCode ) {
     }
 
-    fn ui(&mut self, _ui: &mut imgui::Ui) {}
+    fn ui(&mut self, dims : V2<usize>, _ui: &mut imgui::Ui) {}
     fn update(&mut self, frame_time: &FrameTime);
     fn is_running(&self) -> bool;
     fn close_requested(&mut self);

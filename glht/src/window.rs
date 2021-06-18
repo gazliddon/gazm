@@ -28,7 +28,6 @@ pub struct TextWinDims {
 
 impl TextWinDims {
 
-
     pub fn get_box_dims(&self, tl : V2<usize>, wh : V2<usize>) -> [V2<f32>;2] {
         let tl = self.get_pixel_pos(tl);
         let br = tl + self.char_dims.mul_components(wh.as_f32s());
@@ -50,6 +49,10 @@ impl TextWinDims {
 
     pub fn is_visible(&self) -> bool {
         self.win_char_dims.x > 0 && self.win_char_dims.y > 0
+    }
+
+    pub fn get_pixel_dims(&self) -> V2<f32> {
+        self.pixel_dims
     }
 
     pub fn new(ui : &imgui::Ui) -> Self {
