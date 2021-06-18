@@ -11,7 +11,7 @@ use romloader::SourceStore;
 
 use super::window::*;
 
-use super::styles;
+use super::styles::TextStyles;
 
 use super::textscreen::{TextScreen, ColourCell, Cell, CursorTrait};
 
@@ -89,61 +89,6 @@ impl TextScreen {
 
 
 
-struct TextStyles {
-    pub normal : ColourCell,
-    pub pc : ColourCell,
-    pub cursor : ColourCell,
-    pub cursor_addr : ColourCell,
-    pub addr : ColourCell,
-    pub debug: ColourCell,
-}
-
-impl TextStyles {
-
-    pub fn new(styles : &styles::StylesDatabase) -> Self {
-
-        let normal = styles.get("normal");
-        let pc = styles.get("pc");
-        let cursor = styles.get("cursor");
-        let cursor_addr = styles.get("addr_cursor");
-        let addr = styles.get("addr");
-        let debug = styles.get("debug");
-
-        Self {
-            normal ,
-            pc,
-            cursor,
-            cursor_addr,
-            addr,
-            debug,
-        }
-    }
-
-    pub fn get_source_win_style(&self,  is_cursor_line : bool , is_pc_line : bool, is_debug_line : bool ) -> (&ColourCell, &ColourCell) {
-
-        if is_debug_line {
-            (&self.debug, &self.debug)
-        } else {
-
-            let mut line_style;
-
-            let addr_style = if is_cursor_line {
-                line_style = &self.cursor;
-                &self.cursor_addr
-            } else {
-                line_style = &self.normal;
-                &self.addr
-            };
-
-            if is_pc_line {
-                line_style = &self.pc;
-            }
-
-            (line_style, addr_style)
-        }
-
-    }
-}
 
 struct ScrollZones {
     top : V2<usize>,
@@ -214,15 +159,6 @@ impl SourceWin {
 
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn new2(h : usize)->Self {
-        let w = 60;
-        let h = 60;
-        Self {
-            text_screen: TextScreen::new(V2{x: w, y : h}),
-            ..Default::default()
-        }
     }
 
     pub fn dims(&self) -> V2<isize> {
@@ -317,7 +253,7 @@ impl SourceWin {
             println!("pixel dims {} {}", pd.x, pd.y);
             panic!("Ficled");
 
-            return
+            // return
         }
 
         if self.source_file.is_none() {

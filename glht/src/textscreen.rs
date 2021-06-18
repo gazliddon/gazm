@@ -1,5 +1,5 @@
 use crate::colour::*;
-use vector2d::{ Vector2D as V2};
+use vector2d::Vector2D as V2;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -171,7 +171,7 @@ pub trait CursorTrait {
 
 
 impl<'a> CursorTrait for Cursor<'a> {
-    fn write_cells(&mut self, text : &[Cell])-> &mut Self {
+    fn write_cells(&mut self, _text : &[Cell])-> &mut Self {
         self
     }
 
@@ -335,7 +335,7 @@ impl TextScreen {
 
         let func = |y : usize, scr_r,  txt_r : std::ops::Range<usize>| {
 
-            let cols : Vec<ColourCell> = txt[txt_r.clone()].iter().map(|c| c.col.clone()).collect();
+            let _cols : Vec<ColourCell> = txt[txt_r.clone()].iter().map(|c| c.col.clone()).collect();
             let string : Vec<_> = txt[txt_r.clone()].iter().map(|c| c.text.as_bytes()[0]).collect();
             self.text[y].replace_range(scr_r,&( String::from_utf8(string).unwrap() ));
 

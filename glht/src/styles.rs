@@ -1,5 +1,5 @@
 use crate::colour::*;
-use super::textscreen::{ ColourCell, };
+use super::textscreen::ColourCell;
 
 use std::collections::HashMap;
 
@@ -47,5 +47,62 @@ impl StylesDatabase {
         } else {
             ColourCell::new(BLACK.clone(), WHITE.clone())
         }
+    }
+}
+
+
+pub struct TextStyles {
+    pub normal : ColourCell,
+    pub pc : ColourCell,
+    pub cursor : ColourCell,
+    pub cursor_addr : ColourCell,
+    pub addr : ColourCell,
+    pub debug: ColourCell,
+}
+
+impl TextStyles {
+
+    pub fn new(styles : &StylesDatabase) -> Self {
+
+        let normal = styles.get("normal");
+        let pc = styles.get("pc");
+        let cursor = styles.get("cursor");
+        let cursor_addr = styles.get("addr_cursor");
+        let addr = styles.get("addr");
+        let debug = styles.get("debug");
+
+        Self {
+            normal ,
+            pc,
+            cursor,
+            cursor_addr,
+            addr,
+            debug,
+        }
+    }
+
+    pub fn get_source_win_style(&self,  is_cursor_line : bool , is_pc_line : bool, is_debug_line : bool ) -> (&ColourCell, &ColourCell) {
+
+        if is_debug_line {
+            (&self.debug, &self.debug)
+        } else {
+
+            let mut line_style;
+
+            let addr_style = if is_cursor_line {
+                line_style = &self.cursor;
+                &self.cursor_addr
+            } else {
+                line_style = &self.normal;
+                &self.addr
+            };
+
+            if is_pc_line {
+                line_style = &self.pc;
+            }
+
+            (line_style, addr_style)
+        }
+
     }
 }

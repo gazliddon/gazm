@@ -37,8 +37,8 @@ where
     Ok(action.to_lowercase().replace("/", "_"))
 }
 
-#[serde(deny_unknown_fields)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Instruction {
     // pub display : Option<String>,
     pub addr_mode: AddrMode,

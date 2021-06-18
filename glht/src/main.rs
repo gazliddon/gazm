@@ -132,7 +132,7 @@ impl KeyPress {
 }
 
 impl App for MyApp {
-    fn draw(&self, dims: V2<usize>,frame: &mut glium::Frame) {
+    fn draw(&self, _dims: V2<usize>,frame: &mut glium::Frame) {
         use cgmath::*;
 
         let t = self.frame_time.now_as_duration().as_secs_f64();

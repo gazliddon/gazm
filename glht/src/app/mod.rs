@@ -74,7 +74,7 @@ pub trait App {
     fn handle_key(&mut self, _code : glutin::event::VirtualKeyCode ) {
     }
 
-    fn ui(&mut self, dims : V2<usize>, _ui: &mut imgui::Ui) {}
+    fn ui(&mut self, _dims : V2<usize>, _ui: &mut imgui::Ui) {}
     fn update(&mut self, frame_time: &FrameTime);
     fn is_running(&self) -> bool;
     fn close_requested(&mut self);
