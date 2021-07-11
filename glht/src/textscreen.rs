@@ -188,6 +188,7 @@ impl<'a> CursorTrait for Cursor<'a> {
         self
     }
 
+
     fn set_col(&mut self, c : &ColourCell) -> &mut Self{
         self.current_color = c.clone();
         self

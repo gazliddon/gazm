@@ -11,7 +11,7 @@ use std::collections::{HashMap,HashSet} ;
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Clone, Debug)]
-struct SourceFile {
+pub struct SourceFile {
     pub file : String,
     pub lines : Vec<String>
 }

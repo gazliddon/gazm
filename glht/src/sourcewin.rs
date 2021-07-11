@@ -8,6 +8,7 @@
 //
 use super::imgui;
 use romloader::SourceStore;
+use super::docwin;
 
 use super::window::*;
 
@@ -53,7 +54,29 @@ pub enum Zone {
     BOTTOM,
 }
 
+pub fn text_render(ui : &imgui::Ui, view : &dyn docwin::Doc) {
+    let wind_dims = TextWinDims::new(ui);
 
+    let char_box_dims = V2{x:1, y:1};
+    let V2{x : _, y : rows} = wind_dims.get_window_char_dims();
+    let draw_list = ui.get_window_draw_list();
+
+    for y in 0..rows {
+        if let Some(row) = view.get_line(y) {
+            for Cell {col, pos, text} in row.iter() {
+                let ColourCell{bg,fg} = &col;
+
+                let [tl, br] = wind_dims.get_box_dims(
+                    pos.as_usizes(),
+                    char_box_dims);
+                let tl = [tl.x, tl.y];
+                let br = [br.x, br.y];
+                draw_list.add_rect_filled_multicolor(tl, br, bg, bg, bg, bg );
+                draw_list.add_text(tl,fg,text);
+            }
+        }
+    }
+}
 
 impl TextScreen {
     pub fn render(&self, ui: &imgui::Ui ) {

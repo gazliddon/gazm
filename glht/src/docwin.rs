@@ -1,5 +1,16 @@
-use super::textscreen::{ Cell, TextScreen};
+use super::textscreen::{ Cell, TextScreen, CursorTrait};
 use super::styles::{ StylesDatabase, TextStyles };
+use romloader::AnnotatedSourceFile;
+
+impl Doc for AnnotatedSourceFile {
+    fn get_line(&self,_line : usize) -> Option<&[Cell]> {
+        None
+    }
+
+    fn num_of_lines(&self) -> usize {
+        self.num_of_lines()
+    }
+}
 
 use vector2d::Vector2D  as V2;
 
@@ -21,16 +32,17 @@ impl DocWin {
     }
 
     pub fn render(&mut self, doc : &dyn Doc) {
-
         let text_styles = TextStyles::new(&self.styles);
 
-        self.text_screen.clear(' ',&text_styles.normal);
+        let ts = &mut self.text_screen;
 
-        let mut _c = self.text_screen.cursor();
+        ts.clear(' ',&text_styles.normal);
+
+        let mut c = ts.cursor();
 
         for line in self.top..(self.top + self.dims.y) {
-            if let Some(_text) = doc.get_line(line) {
-                // c.write
+            if let Some(text) = doc.get_line(line) {
+                c.write_cells(text);
             }
         }
     }
