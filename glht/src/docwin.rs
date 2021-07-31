@@ -2,20 +2,12 @@ use super::textscreen::{ Cell, TextScreen, CursorTrait};
 use super::styles::{ StylesDatabase, TextStyles };
 use romloader::AnnotatedSourceFile;
 
-impl Doc for AnnotatedSourceFile {
-    fn get_line(&self,_line : usize) -> Option<&[Cell]> {
-        None
-    }
-
-    fn num_of_lines(&self) -> usize {
-        self.num_of_lines()
-    }
-}
-
 use vector2d::Vector2D  as V2;
 
 pub trait Doc {
-    fn get_line(&self,line : usize) -> Option<&[Cell]>;
+    fn get_line(&self, line : usize, dest : &mut Vec<Cell>) {
+    }
+    
     fn num_of_lines(&self) -> usize;
 }
 

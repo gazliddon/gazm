@@ -18,6 +18,7 @@ pub struct SourceFile {
 
 impl SourceFile {
 
+
     pub fn new_error(file: &str) -> error::Result<Self> {
         let ret = Self::new(file);
 
@@ -26,6 +27,14 @@ impl SourceFile {
         }
 
         ret
+    }
+
+    pub fn get_line(&self, line : usize) -> Option<&String> {
+        if line >= self.lines.len() {
+            None
+        } else {
+            Some(&self.lines[line])
+        }
     }
 
     pub fn new( file : &str ) -> error::Result<Self> {

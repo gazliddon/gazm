@@ -67,6 +67,11 @@ impl Default for ColourCell {
     }
 }
 
+struct Glyph {
+    cols : ColourCell,
+    glyph : char
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScrBox {
     pub pos : V2<isize>,
@@ -417,6 +422,8 @@ impl TextScreen {
         self.colours = colours;
     }
 }
+
+// Sourcewin
 
 
 ////////////////////////////////////////////////////////////////////////////////

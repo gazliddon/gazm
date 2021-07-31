@@ -23,6 +23,21 @@ use Events::*;
 
 use super::styles::*;
 
+impl docwin::Doc for romloader::SourceFile {
+
+    fn get_line(&self, line : usize, dest : &mut Vec<Cell>) {
+        if line <= self.num_of_lines() {
+            for (i,c) in self.lines[line].chars().enumerate() {
+                // dest[i].text=c.to_string()
+            }
+        }
+    }
+
+    fn num_of_lines(&self) -> usize {
+        0
+    }
+}
+
 pub struct SourceWin {
     cursor : usize,
     scroll_offset : usize,
