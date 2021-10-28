@@ -13,7 +13,6 @@
 #[macro_use] extern crate serde_derive;
 #[allow(dead_code)] mod styles;
 
-#[allow(dead_code)] mod colour;
 #[allow(dead_code)] mod app;
 #[allow(dead_code)] mod window;
 #[allow(dead_code)] mod sourcewin;
@@ -23,6 +22,8 @@
 #[allow(dead_code)] mod textscreen;
 #[allow(dead_code)] mod events;
 #[allow(dead_code)] mod docwin;
+#[allow(dead_code)] mod colour;
+#[allow(dead_code)] mod colourcell;
 
 pub use imgui_glium_renderer::imgui;
 pub use glium::glutin;
@@ -227,6 +228,7 @@ impl App for MyApp {
         use imgui::*;
 
         Window::new(im_str!("Hello world"))
+            .bg_alpha(1.0)
             .size([dims.x as f32, dims.y as f32], Condition::Always)
             .position([0.0, 0.0], Condition::Always)
             .no_decoration()

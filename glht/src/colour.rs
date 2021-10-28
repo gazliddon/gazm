@@ -1,5 +1,4 @@
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub struct Colour {
     pub data: [f32;4]
 }
@@ -25,7 +24,6 @@ pub trait ColourOps  : Sized {
 
     fn add(&self, rhs : &Self) -> Self;
     fn mul(&self, rhs : &Self) -> Self;
-
 
     fn add_saturate(&self, rhs : &Self) -> Self {
         self.add(rhs).saturate()

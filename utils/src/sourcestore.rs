@@ -29,6 +29,10 @@ impl SourceFile {
         ret
     }
 
+    pub fn num_of_lines(&self) -> usize {
+        self.lines.len()
+    }
+
     pub fn get_line(&self, line : usize) -> Option<&String> {
         if line >= self.lines.len() {
             None

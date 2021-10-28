@@ -1,75 +1,24 @@
-use crate::colour::*;
+// use crate::colour::*;
 use vector2d::Vector2D as V2;
+use super::colourcell::ColourCell;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct ColourCell {
-    pub fg : Colour,
-    pub bg : Colour,
+#[derive(Debug, Clone, Copy)]
+pub struct Glyph {
+    pub cols : ColourCell,
+    pub glyph : char
 }
 
-impl ColourCell {
-    pub fn new(fg : Colour, bg : Colour) -> Self {
-        Self { fg, bg }
-    }
-
-    fn fmap<F>(&self, func : F) -> Self  
-        where F : Fn(&Colour) -> Colour
-        {
-            Self {
-                bg : func(&self.bg),
-                fg : func(&self.fg)
-            }
-        }
-
-    fn cross<F>(&self, rhs : &Self, func : F) -> Self 
-        where F : Fn(&Colour, &Colour) -> Colour
-        {
-
-            Self {
-                fg : func(&self.fg, &rhs.fg ),
-                bg : func(&self.bg, &rhs.bg ),
-
-            }
-
-        }
-}
-
-impl ColourOps for ColourCell { 
-    fn mul(&self, rhs : &Self) -> Self {
-        self.cross(rhs, |lhs, rhs| lhs.mul(rhs))
-    }
-
-    fn add(&self, rhs : &Self) -> Self {
-        self.cross(rhs, |lhs, rhs| lhs.add(rhs))
-    }
-
-    fn add_scalar(&self, n : f32 ) -> Self {
-        self.fmap(|c| c.add_scalar(n))
-    }
-
-    fn mul_scalar(&self, n : f32 ) -> Self {
-        self.fmap(|c| c.mul_scalar(n))
-    }
-
-    fn saturate(&self ) -> Self {
-        self.fmap(|c| c.saturate())
-    }
-}
-
-impl Default for ColourCell {
-    fn default()  -> Self {
+impl Glyph {
+    pub fn new(glyph : char, cols : &ColourCell) -> Self {
         Self {
-            fg: WHITE.clone(),
-            bg: BLACK.clone(),
+            glyph, cols: cols.clone()
         }
     }
-}
-
-struct Glyph {
-    cols : ColourCell,
-    glyph : char
+    pub fn new_bw(glyph : char) -> Self {
+        Glyph::new(glyph, &ColourCell::new_bw())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,13 +28,14 @@ pub struct ScrBox {
 }
 
 impl ScrBox {
-    pub fn new(pos : V2<isize>, dims : V2<usize>) -> Self {
-        Self {pos, dims}
+    pub fn new(pos : &V2<isize>, dims : &V2<usize>) -> Self {
+        Self {pos : *pos, dims: *dims}
     }
 
     pub fn get_br(&self) -> V2<isize> {
         ( self.dims.as_isizes() + self.pos ) - V2{x:1,y:1}
     }
+
 
     pub fn in_bounds(&self, pos : &V2<isize>) -> bool {
         let V2{x,y} = *pos;
@@ -119,7 +69,7 @@ impl ScrBox {
             let h = ( bry-tl.y ) + 1;
 
             if w >= 0 && h >= 0  {
-                return Some( Self::new(tl, V2{x: w,y: h}.as_usizes()) )
+                return Some( Self::new(&tl, &V2{x: w,y: h}.as_usizes()) )
             }
         }
 
@@ -139,10 +89,10 @@ pub struct Cursor<'a> {
 
 pub trait CursorTrait {
     fn get_dims(&self) -> V2<isize>;
-    fn get_cell(&self) -> Option<Cell>;
+    fn get_cell(&self) -> Option<&Glyph>;
     fn get_pos(&self) -> V2<isize>;
 
-    fn write_cells(&mut self, text : &[Cell])-> &mut Self;
+    fn write_cells(&mut self, text : &[Glyph])-> &mut Self;
 
     fn write(&mut self, text : &str)-> &mut Self;
     fn set_col(&mut self, c : &ColourCell) -> &mut Self;
@@ -176,7 +126,7 @@ pub trait CursorTrait {
 
 
 impl<'a> CursorTrait for Cursor<'a> {
-    fn write_cells(&mut self, _text : &[Cell])-> &mut Self {
+    fn write_cells(&mut self, _text : &[Glyph])-> &mut Self {
         self
     }
 
@@ -204,7 +154,7 @@ impl<'a> CursorTrait for Cursor<'a> {
         self
     }
 
-    fn get_cell(&self) -> Option<Cell>{
+    fn get_cell(&self) -> Option<&Glyph>{
         self.screen.get_cell(self.pos)
     }
 
@@ -222,18 +172,20 @@ pub struct TextScreen {
     pub colours : Vec<ColourCell>,
     pub dims : V2<isize>,
     pub dim_box : ScrBox,
+    pub glyph_text: Vec<Vec<Glyph>>
 }
 
-#[derive(Debug, Clone)]
-pub struct Cell<'a> {
-    pub text : &'a str,
-    pub col : &'a ColourCell,
-    pub pos : V2<isize>,
-}
 
 impl TextScreen {
+    pub fn get_glyph_from_index(&self, index  : usize) -> Option<&Glyph> {
+        if let Some(pos) = self.index_to_coords(index) {
+            self.get_cell(pos.as_isizes())
+        } else {
+            None
+        }
+    }
 
-    pub fn get_cell_from_index(&self, index  : usize) -> Option<Cell> {
+    pub fn get_cell_from_index(&self, index  : usize) -> Option<&Glyph> {
         if let Some(pos) = self.index_to_coords(index) {
             self.get_cell(pos.as_isizes())
         } else {
@@ -272,7 +224,7 @@ impl TextScreen {
     }
 
     pub fn fill_colour_line(&mut self, line : usize, col : &ColourCell) -> Option<ScrBox> {
-        let col_box = ScrBox::new(V2{x:0,y:line as isize}, V2{x:self.dims.x as usize,y:1});
+        let col_box = ScrBox::new(&V2{x:0,y:line as isize}, &V2{x:self.dims.x as usize,y:1});
         self.fill_colour_box(&col_box,col)
     }
 
@@ -308,7 +260,7 @@ impl TextScreen {
         where F : FnMut(usize, std::ops::Range<usize>, std::ops::Range<usize>)
 
         {
-            let text_box = ScrBox::new(*pos, V2{x:txt_len, y:1});
+            let text_box = ScrBox::new(pos, &V2{x:txt_len, y:1});
 
             if let Some((scr_box, text_box)) = Self::get_cliped_box(dim_box,&text_box) {
                 let V2{x,y} = scr_box.pos.as_usizes();
@@ -336,18 +288,8 @@ impl TextScreen {
         Self::write_clipped(&db, pos, txt.len(), func )
     }
 
-    pub fn write_cells(&mut self, pos : &V2<isize>, txt : &[Cell]) -> V2<isize> {
-        let db = &self.dim_box.clone();
-
-        let func = |y : usize, scr_r,  txt_r : std::ops::Range<usize>| {
-
-            let _cols : Vec<ColourCell> = txt[txt_r.clone()].iter().map(|c| c.col.clone()).collect();
-            let string : Vec<_> = txt[txt_r.clone()].iter().map(|c| c.text.as_bytes()[0]).collect();
-            self.text[y].replace_range(scr_r,&( String::from_utf8(string).unwrap() ));
-
-        };
-
-        Self::write_clipped(&db, pos, txt.len(), func )
+    pub fn write_cells(&mut self, _pos : &V2<isize>, _txt : &[Glyph]) -> V2<isize> {
+        panic!("TBD")
     }
 
 
@@ -367,28 +309,12 @@ impl TextScreen {
         Self::write_clipped(&db, pos, txt.len(), func )
     }
 
-    pub fn get_cell(&self, pos : V2<isize>) -> Option<Cell> {
-        if let Some(idx) = self.coords_to_index(&pos) {
-            let V2{x,y} = pos.as_usizes();
-            let text = &self.text[y][x..=x];
-            let col = &self.colours[idx];
-            let ret = Cell { text, col, pos };
-            Some(ret)
-        } else {
-            None
-        }
+    pub fn get_cell(&self, _pos : V2<isize>) -> Option<&Glyph> {
+        panic!("TBD")
     }
 
-    pub fn new(dims : V2<usize>) -> Self {
-        let mut ret = Self {
-            text : vec![],
-            colours: vec![],
-            dims: dims.as_isizes(),
-            dim_box : ScrBox::new(V2{x:0, y:0}, dims)
-        };
-
-        ret.clear(' ', &ColourCell::default());
-        ret
+    pub fn new(_dims : V2<usize>) -> Self {
+        panic!("TBD")
     }
 
     pub fn resize(&mut self, dims : V2<usize> ) {

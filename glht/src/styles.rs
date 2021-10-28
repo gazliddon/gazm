@@ -1,5 +1,5 @@
 use crate::colour::*;
-use super::textscreen::ColourCell;
+use super::colourcell::ColourCell;
 
 use std::collections::HashMap;
 

@@ -1,6 +1,5 @@
-use crate::colour::*;
-
-use crate::imgui;
+use super::colour::*;
+use super::imgui;
 use imgui::im_str;
 
 use vector2d::Vector2D as V2;
@@ -28,14 +27,31 @@ pub struct TextWinDims {
 
 impl TextWinDims {
 
-    pub fn get_box_dims(&self, tl : V2<usize>, wh : V2<usize>) -> [V2<f32>;2] {
+    pub fn height(&self) -> usize {
+        self.win_char_dims.y
+    }
+
+    pub fn width(&self) -> usize {
+        self.win_char_dims.x
+    }
+
+    pub fn as_pixel_extents_arrays(&self, tl : &V2<isize>, wh : &V2<usize>) -> [[f32;2];2] {
+        let [tl,br] = self.as_pixel_extents(tl,wh);
+        [[tl.x,tl.y], [br.x, br.y]]
+    }
+
+    pub fn as_pixel_extents(&self, tl : &V2<isize>, wh : &V2<usize>) -> [V2<f32>;2] {
         let tl = self.get_pixel_pos(tl);
-        let br = tl + self.char_dims.mul_components(wh.as_f32s());
+
+        let mut br = tl + self.char_dims.mul_components(wh.as_f32s());
+
+        if wh.x > 0 { br.x= br.x - 1f32 };
+        if wh.y > 0 { br.y= br.y - 1f32 };
 
         [tl,br]
     }
 
-    pub fn get_pixel_pos(&self, pos : V2<usize>) -> V2<f32> {
+    pub fn get_pixel_pos(&self, pos : &V2<isize>) -> V2<f32> {
         self.base_pos + ( pos.as_f32s().mul_components(self.char_dims) )
     }
 
