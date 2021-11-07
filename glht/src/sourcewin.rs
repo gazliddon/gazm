@@ -6,6 +6,7 @@
 // A Source Store
 // A PC
 //
+use romloader::SourceStore;
 use super::imgui;
 use romloader::SourceStore;
 // use romloader::AnnotatedSourceFile;
