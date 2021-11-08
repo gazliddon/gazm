@@ -8,6 +8,7 @@ pub  struct FrameTime {
 
 #[allow(dead_code)]
 impl FrameTime {
+
     pub fn from_now() -> Self {
         Self {
             base_time: Instant::now(),

@@ -1,9 +1,9 @@
-use super::location::{ Location };
-use super::chunk::{ Chunk };
+use super::location::Location;
+use super::chunk::Chunk;
 
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{BufReader};
+use std::io::BufReader;
 use super::error;
 use std::collections::{HashMap,HashSet} ;
 
@@ -74,11 +74,18 @@ pub struct AnnotatedSourceFile {
 
 impl AnnotatedSourceFile {
     pub fn line(&self, line : usize) -> Option<&SourceLine> {
-        self.lines.get(line -1)
+        self.lines.get(line)
     }
 
     pub fn num_of_lines(&self) -> usize {
         self.lines.len()
+    }
+
+    pub fn text_line(&self, line : usize) -> Option<&String> {
+        self.lines.get(line).map(|v| v.line.as_ref()).flatten()
+    }
+    pub fn text_line_string(&self, line : usize) -> String {
+        self.text_line(line).cloned().unwrap_or(String::new())
     }
 }
 

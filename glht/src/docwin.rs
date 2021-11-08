@@ -3,7 +3,7 @@ pub use super::textscreen::Glyph;
 
 use super::styles::StylesDatabase;
 
-use vector2d::Vector2D  as V2;
+use super::v2::*;
 
 pub trait Doc {
     fn num_of_lines(&self) -> usize;

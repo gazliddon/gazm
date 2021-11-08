@@ -2,7 +2,7 @@ use super::colour::*;
 use super::imgui;
 use imgui::im_str;
 
-use vector2d::Vector2D as V2;
+use super::v2::*;
 
 impl std::convert::From<Colour> for imgui::color::ImColor32 {
     fn from(v: Colour) -> Self {
@@ -42,12 +42,7 @@ impl TextWinDims {
 
     pub fn as_pixel_extents(&self, tl : &V2<isize>, wh : &V2<usize>) -> [V2<f32>;2] {
         let tl = self.get_pixel_pos(tl);
-
-        let mut br = tl + self.char_dims.mul_components(wh.as_f32s());
-
-        if wh.x > 0 { br.x= br.x - 1f32 };
-        if wh.y > 0 { br.y= br.y - 1f32 };
-
+        let br = tl + self.char_dims.mul_components(wh.as_f32s());
         [tl,br]
     }
 
@@ -72,15 +67,17 @@ impl TextWinDims {
     }
 
     pub fn new(ui : &imgui::Ui) -> Self {
-        let [char_width,char_height] = ui.calc_text_size(im_str!( " " ), false, std::f32::MAX);
-        let [ww,wh] = ui.content_region_avail();
+        let [char_width,char_height] = ui.calc_text_size(im_str!( "A" ), false, std::f32::MAX);
+        let [ww,wh] = ui.content_region_max();
 
         let pixel_dims = V2{x:ww,y:wh};
         let char_dims= V2{x:char_width, y:char_height};
         let win_char_dims = ( pixel_dims.div_components(char_dims) ).as_usizes();
 
+        let xoff = char_dims.x as f32 / 2.0;
+
         let base_pos = ui.window_pos();
-        let base_pos = V2{x:base_pos[0], y:base_pos[1]};
+        let base_pos = V2{x:base_pos[0] + xoff, y:base_pos[1]};
 
         TextWinDims { pixel_dims, char_dims, win_char_dims, base_pos }
     }

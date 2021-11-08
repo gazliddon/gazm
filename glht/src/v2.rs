@@ -1,6 +1,7 @@
 pub use vector2d::Vector2D as V2;
 
-pub type V2F = V2<f32>;
+pub type V2f = V2<f32>;
+pub type V2d = V2<f64>;
 
 pub trait ToArray<U> {
     fn as_array(&self) -> [U;2];

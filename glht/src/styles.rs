@@ -15,10 +15,10 @@ impl std::default::Default for StylesDatabase {
             styles
         };
 
-        let normal = ColourCell::new(WHITE.clone(),BLUE.clone()).add_scalar_sat(-0.25);
+        let normal = ColourCell::new(WHITE,BLUE).add_scalar_sat(-0.25);
         let addr = normal.add_scalar_sat(0.1);
-        let pc = ColourCell::new(YELLOW.clone(), RED.clone()).add_scalar_sat(-0.15);
-        let debug = ColourCell::new(WHITE.clone(), PURPLE.clone());
+        let pc = ColourCell::new(YELLOW, RED).add_scalar_sat(-0.15);
+        let debug = ColourCell::new(WHITE, PURPLE);
 
 
         ret.add("normal", &normal);
@@ -45,7 +45,7 @@ impl StylesDatabase {
         if let Some(col_cell) = self.styles.get(name) {
             col_cell.clone()
         } else {
-            ColourCell::new(BLACK.clone(), WHITE.clone())
+            ColourCell::new(BLACK, WHITE)
         }
     }
 }

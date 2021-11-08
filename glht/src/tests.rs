@@ -1,6 +1,6 @@
 use super::*;
-use vector2d::{ Vector2D as V2};
 
+use super::v2::*;
 
 #[test]
 fn test_scr_box() {

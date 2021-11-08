@@ -5,7 +5,7 @@ pub mod frametime;
 pub mod sampler;
 pub mod system;
 
-use vector2d::Vector2D as V2;
+use crate::v2::*;
 
 use frametime::FrameTime;
 

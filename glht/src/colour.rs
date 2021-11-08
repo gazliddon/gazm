@@ -53,7 +53,6 @@ pub trait ColourOps  : Sized {
 impl ColourOps for Colour {
 
     fn mul(&self, rhs : &Self) -> Self {
-
         let r = self.data[0] * rhs.data[0];
         let g = self.data[1] * rhs.data[1];
         let b = self.data[2] * rhs.data[2];
@@ -73,7 +72,7 @@ impl ColourOps for Colour {
     }
 
     fn mul_scalar(&self, amount : f32) -> Self {
-        let mut ret = self.clone();
+        let mut ret = *self;
 
         for c in &mut ret.data {
             *c *=  amount;
@@ -83,7 +82,7 @@ impl ColourOps for Colour {
     }
 
     fn saturate(&self) -> Self {
-        let mut ret = self.clone();
+        let mut ret = *self;
         for c in &mut ret.data {
             *c = (*c).min(1.0).max(0.0);
         }
@@ -91,15 +90,13 @@ impl ColourOps for Colour {
     }
 
     fn add_scalar(&self, amount : f32) -> Self {
-        let mut ret = self.clone();
+        let mut ret = *self;
         for c in &mut ret.data {
             *c += amount
         }
 
         ret
     }
-
-
 }
 
 impl Colour {
@@ -121,14 +118,12 @@ impl Colour {
 
 }
 
-
-
-pub static WHITE : Colour = col!(1.0,1.0,1.0,1.0);
-pub static BLACK : Colour = col!(0.0,0.0,0.0,1.0);
-pub static RED : Colour = col!(1.0,0.0,0.0,1.0);
-pub static GREEN : Colour = col!(0.0,1.0,0.0,1.0);
-pub static BLUE : Colour = col!(0.0,0.0,1.0,1.0);
-pub static YELLOW : Colour = col!(1.0,1.0,0.0,1.0);
-pub static PURPLE : Colour = col!(1.0,0.0,1.0,1.0);
+pub static WHITE :&'static Colour  = &col!(1.0,1.0,1.0,1.0);
+pub static BLACK :&'static Colour = &col!(0.0,0.0,0.0,1.0);
+pub static RED :&'static Colour = &col!(1.0,0.0,0.0,1.0);
+pub static GREEN :&'static Colour = &col!(0.0,1.0,0.0,1.0);
+pub static BLUE :&'static Colour = &col!(0.0,0.0,1.0,1.0);
+pub static YELLOW :&'static Colour = &col!(1.0,1.0,0.0,1.0);
+pub static PURPLE :&'static Colour = &col!(1.0,0.0,1.0,1.0);
 
 

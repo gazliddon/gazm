@@ -1,4 +1,5 @@
-use crate::colour::{ Colour, WHITE, BLACK, ColourOps };
+use crate::colour::{ Colour, WHITE, BLACK};
+pub use crate::colour::ColourOps;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub struct ColourCell {
@@ -12,8 +13,8 @@ impl ColourCell {
             bg : BLACK.clone() 
     }}
 
-    pub fn new(fg : Colour, bg : Colour) -> Self {
-        Self { fg, bg }
+    pub fn new(fg : &Colour, bg : &Colour) -> Self {
+        Self { fg: fg.clone(), bg: bg.clone() }
     }
 
     fn fmap<F>(&self, func : F) -> Self  

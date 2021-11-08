@@ -24,6 +24,9 @@
 #[allow(dead_code)] mod docwin;
 #[allow(dead_code)] mod colour;
 #[allow(dead_code)] mod colourcell;
+#[allow(dead_code)] mod scrbox;
+#[allow(dead_code)] mod textcontext;
+#[allow(dead_code)] mod v2;
 
 pub use imgui_glium_renderer::imgui;
 pub use glium::glutin;
@@ -33,7 +36,7 @@ use app::{frametime::FrameTime, system::System, App};
 use glium::index::PrimitiveType;
 use glium::Surface;
 use mesh::Mesh;
-use vector2d::Vector2D  as V2;
+use v2::*;
 
 #[allow(dead_code)]
 struct MyApp {
@@ -132,6 +135,22 @@ impl KeyPress {
     }
 }
 
+
+
+
+trait ToArray<U> {
+    fn as_array(&self) -> [U;2];
+}
+
+impl<U> ToArray<U> for V2<U> 
+where U : Copy + Clone
+{
+    fn as_array(&self) -> [U;2] {
+        [self.x, self.y]
+    }
+}
+
+
 impl App for MyApp {
     fn draw(&self, _dims: V2<usize>,frame: &mut glium::Frame) {
         use cgmath::*;
@@ -227,36 +246,27 @@ impl App for MyApp {
     fn ui(&mut self, dims : V2<usize>, ui: &mut imgui::Ui) {
         use imgui::*;
 
+        let size = dims.as_f32s().as_array();
+
+        let machine = self.machine.as_ref();
+        let pc = machine.get_regs().pc;
+        let sources = &machine.get_rom().sources;
+
+        self.sourcewin.update(&self.frame_time,sources, pc);
+
+
         Window::new(im_str!("Hello world"))
             .bg_alpha(1.0)
-            .size([dims.x as f32, dims.y as f32], Condition::Always)
-            .position([0.0, 0.0], Condition::Always)
+            .size(size, Condition::Always)
             .no_decoration()
+            .position([0.0, 0.0], Condition::Always)
             .movable(false)
             .build(ui, || {
-                let machine = self.machine.as_ref();
-                let pc = machine.get_regs().pc;
-                self.sourcewin.render(&ui, &machine.get_rom().sources, pc);
-
-                // self.dbgwin.render(&ui, machine);
-
-
-                // ui.text(im_str!("Hello world!!!!!"));
-                // ui.text(im_str!("This...is...imgui-rs!"));
-                // ui.text(im_str!("This....is...imgui-rs!"));
-                // ui.separator();
-
-                // let mouse_pos = ui.io().mouse_pos;
-
-                // ui.text(format!(
-                //     "Mouse Position: ({:.1},{:.1})",
-                //     mouse_pos[0], mouse_pos[1]
-                // ));
+                let tc = textcontext::TextContext::new(ui);
+                self.sourcewin.render(&tc, sources);
             });
     }
 }
-
-
 
 fn main() {
     use std::env;

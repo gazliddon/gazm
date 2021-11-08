@@ -12,7 +12,7 @@ use imgui::Context;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use glium::Display;
 use std::time::Instant;
-use vector2d::Vector2D as V2;
+use crate::v2::*;
 
 pub struct System {
     pub display: Display,
@@ -49,7 +49,7 @@ impl Default for System {
         }
 
         let hidpi_factor = platform.hidpi_factor();
-        let font_size = (18.0 * hidpi_factor) as f32;
+        let font_size = (15.0 * hidpi_factor) as f32;
         let rbytes = include_bytes!("../../resources/Inconsolata.otf");
 
         imgui.fonts().add_font(&[imgui::FontSource::TtfData {
@@ -58,7 +58,6 @@ impl Default for System {
             config: Some(imgui::FontConfig {
                 size_pixels: font_size,
                 name: Some(String::from("Roboto")),
-                // size_pixels: font_size,
                 oversample_h: 4,
                 oversample_v: 4,
                 pixel_snap_h: true,
@@ -82,6 +81,7 @@ impl Default for System {
     }
 
 }
+
 
 impl System {
     pub fn new() -> Self {
@@ -162,22 +162,26 @@ impl System {
                 Event::RedrawRequested(_) => {
                     let mut ui = imgui.frame();
 
-
                     let gl_window = display.gl_window();
                     let mut target = display.draw();
 
-
-                    let dims_raw = gl_window.window().inner_size();
-                    let dims = V2::<usize>::new(dims_raw.width as usize,dims_raw.height as usize);
+                    // Get the inner size
+                    // convert to logical pixels using hidpi
+                    let hdpi =  platform.hidpi_factor();
+                    let dims =  gl_window.window().inner_size().to_logical::<f64>(hdpi);
+                    let dims = V2::new(dims.width ,dims.height).as_usizes();
 
                     app.draw(dims.clone(), &mut target);
                     app.ui(dims.clone(), &mut ui);
 
                     platform.prepare_render(&ui, gl_window.window());
+
                     let draw_data = ui.render();
+
                     renderer
                         .render(&mut target, draw_data)
                         .expect("Rendering failed");
+
                     target.finish().expect("Failed to swap buffers");
                 }
 

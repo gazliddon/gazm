@@ -7,50 +7,93 @@
 // A PC
 //
 use romloader::SourceStore;
-use super::imgui;
-use romloader::SourceStore;
-// use romloader::AnnotatedSourceFile;
+use super::scrbox::ScrBox;
 use super::docwin;
-
 use super::window::*;
-
 use super::styles::TextStyles;
-
-use super::textscreen::{TextScreen, ScrBox};
 use super::colourcell::ColourCell;
-use super::colour::Colour;
-
-use vector2d::Vector2D  as V2;
+use super::v2::*;
 
 use super::events::Events;
 use Events::*;
-
 use super::styles::*;
-
 use docwin::Glyph;
+use super::textcontext::*;
+use super::colour::*;
 
-pub struct SourceView {
-    glyphs : Vec<Vec<Glyph>>,
+trait RenderDoc<'a> {
+    fn render_line(&mut self, cursor : usize, win_ypos : usize, doc_ypos : usize);
+    fn window_height(&self) -> usize;
+    fn doc_height(&self) -> usize;
+
+    fn render_doc(&mut self, offset : usize, cursor : usize)  -> usize {
+        let mut lines_rendered = 0;
+
+        let range = ( 0..self.window_height()).map(|y| (y, y + offset));
+
+        for ( win_ypos, doc_ypos ) in range {
+            self.render_line(cursor, win_ypos, doc_ypos);
+            lines_rendered = lines_rendered + 1;
+        }
+        lines_rendered
+    }
+}
+
+struct SourceRenderer<'a> {
+    sf : &'a romloader::AnnotatedSourceFile,
+    pc : u16,
+    text_styles : &'a TextStyles,
+    blank: String,
+    lp : LinePrinter<'a>,
+
+}
+
+impl<'a> SourceRenderer<'a> {
+    pub fn new(pc : u16, sf: &'a romloader::AnnotatedSourceFile, text_styles: &'a TextStyles, tc : &'a TextContext<'a>) -> Self {
+        let blank = String::new();
+        let lp = LinePrinter::new(tc);
+        Self {
+            blank, sf, pc, text_styles, lp
+        }
+    }
+}
+
+impl<'a> RenderDoc<'a> for SourceRenderer<'a> {
+    fn window_height(&self) -> usize {
+        self.lp.tc.height()
+    }
+
+    fn doc_height(&self) -> usize {
+        self.sf.num_of_lines()
+    }
+
+    fn render_line(&mut self, cursor : usize, win_ypos : usize, doc_ypos : usize) {
+        if let Some(sl) = self.sf.line(doc_ypos) {
+
+            let addr_str = sl.addr.map(|x| format!("{:04X}",x)).unwrap_or(self.blank.clone());
+
+            let source_text = sl.line.as_ref().unwrap_or(&self.blank);
+
+            let is_pc_line = sl.addr.map(|p| p == self.pc).unwrap_or(false);
+            let is_cursor_line = win_ypos == cursor;
+            let is_debug_line = false;
+
+            let (line_col, addr_col) = self.text_styles.get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
+
+            self.lp.cols(addr_col);
+            self.lp.print(&format!("{:4} ", addr_str));
+            self.lp.cols(line_col);
+            self.lp.print(" ");
+            self.lp.print(source_text);
+        }
+
+        self.lp.cr();
+    }
 }
 
 
-impl docwin::Doc for SourceView {
-    fn num_of_lines(&self) -> usize {
-        self.glyphs.len()
-    }
-
-    fn get_line<'a>(&'a self, line : usize) -> Option<Box<dyn Iterator<Item = Glyph> + 'a>> {
-        if let Some(l) = self.glyphs.get(line)  {
-            let i = l.iter().cloned();
-            Some(Box::new(i))
-        } else {
-            None
-        }
-    }
-
-    fn get_line_chars<'a>(&'a self, _line : usize) -> Option<&'a str> {
-        panic!("fucked")
-    }
+pub struct SourceView {
+    glyphs : Vec<Vec<Glyph>>,
 }
 
 impl SourceView {
@@ -69,7 +112,10 @@ pub struct SourceWin {
     scroll_offset : usize,
     styles : StylesDatabase,
     source_file : Option<String>,
-    source_view : SourceView
+    source_view : SourceView,
+    frame_time : FrameTime,
+    pc : u16,
+
 }
 
 impl Default for SourceWin {
@@ -84,7 +130,9 @@ impl Default for SourceWin {
             scroll_offset : 0,
             styles : StylesDatabase::default(),
             source_file: None,
-            source_view
+            source_view,
+            frame_time : FrameTime::from_now(), 
+            pc: 0
         }
     }
 }
@@ -95,197 +143,6 @@ pub enum Zone {
     BOTTOM,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct PrintStr {
-    pub text : String,
-    pub cols : ColourCell,
-}
-
-impl PrintStr {
-    pub fn new()-> Self {
-        let mut text = String::new();
-        text.reserve(100);
-        Self {
-            text,
-            cols : ColourCell::new_bw()
-        }
-    }
-
-    pub fn clear(&mut self) {
-        *self = Self::new()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.text.len() == 0
-    }
-
-    pub fn add(&mut self,  c : char, cols : ColourCell ) -> bool {
-
-        if cols == self.cols || self.is_empty() {
-            self.text.push(c);
-            self.cols = cols;
-            true
-        } else  {
-            false
-        }
-    }
-}
-
-struct TextContext<'a> {
-    ui : &'a imgui::Ui<'a>,
-    win_dims : TextWinDims,
-    text_dims : ScrBox,
-    dl : imgui::DrawListMut<'a>,
-}
-
-enum Command<'a> {
-    Box(V2<usize>),
-    Char(char),
-    String(&'a str),
-}
-
-struct DrawCommand<'a> {
-    pos : V2<isize>,
-    colour : &'a Colour,
-    command : Command<'a>
-}
-
-impl<'a> DrawCommand<'a> {
-    pub fn new(pos : &'a V2<isize>, colour : &'a Colour, command : Command<'a>)  -> Self {
-        Self {
-            pos : *pos, colour, command
-        }
-    }
-}
-
-
-impl<'a> TextContext<'a> {
-
-    pub fn draw(&'a self, command : DrawCommand<'a>) {
-        let pos = &command.pos;
-        let col = command.colour;
-
-        self.with_clip_rect(&self.text_dims, || {
-            match &command.command {
-                Command::Box(dims) => self.do_draw_box(col, &ScrBox::new(pos, &dims)),
-                Command::Char(ch) => self.do_draw_char(*ch, col, &pos),
-                Command::String(text) => self.do_draw_text(text, col, &pos),
-            };
-        });
-    }
-
-    fn clip(&self, scr_box : &'a ScrBox) -> Option<ScrBox> {
-        ScrBox::clip_box(&self.text_dims, &scr_box)
-    }
-
-    fn do_draw_box(&self, col : &'a Colour, scr_box : &'a ScrBox)  {
-        let [tl, br] = self.win_dims.as_pixel_extents( &scr_box.pos, &scr_box.dims);
-        let tl = [tl.x, tl.y];
-        let br = [br.x, br.y];
-        self.dl.add_rect_filled_multicolor(tl, br, col, col, col, col );
-    }
-
-    fn do_draw_char(&self, ch : char, col : &'a Colour, pos : &'a V2<isize>) {
-        let mut s = String::new();
-        s.push(ch);
-        self.do_draw_text(&s, col, pos);
-    }
-
-    fn do_draw_text(&self, text : &'a str, col : &'a Colour, pos : &V2<isize>) {
-        let [tl, _] = self.win_dims.as_pixel_extents_arrays( &pos, &V2::new(1,1));
-        self.dl.add_text(tl,col,text);
-    }
-
-    fn with_clip_rect<F>(&'a self, scr_box : &'a ScrBox, f: F)
-    where
-        F: FnOnce(), {
-            if let Some(new_box) = self.clip(scr_box) {
-                let [min, max] = self.win_dims.as_pixel_extents_arrays( &new_box.pos, &new_box.dims);
-                self.dl.with_clip_rect_intersect(min,max, f);
-            }
-        }
-
-    pub fn new(ui : &'a imgui::Ui<'a>) -> Self {
-        let win_dims = TextWinDims::new(ui);
-        let dl = ui.get_window_draw_list();
-        let text_dims = ScrBox::new(&V2::new(0,0), &win_dims.get_window_char_dims());
-        Self {
-            dl, win_dims, ui, text_dims
-        }
-    }
-
-    pub fn clear(&self, col : &Colour) {
-        self.draw_box(&self.text_dims.pos, &self.text_dims.dims, col);
-    }
-
-    pub fn clear_line(&self, col : &Colour, line : usize) {
-
-        let pos = V2::new(0,line).as_isizes();
-        let dims = V2::new(self.width(),1);
-
-        self.draw_box(&pos, &dims, col);
-    }
-
-    pub fn height(&self)->usize {
-        self.win_dims.height()
-    }
-
-    pub fn width(&self)->usize {
-        self.win_dims.width()
-    }
-
-    pub fn draw_text(&'a self, pos : &'a V2<isize>, text : &'a str, col : &'a Colour) { 
-        let text_command = DrawCommand::new(pos,col, Command::String(text));
-        self.draw(text_command);
-    }
-
-    pub fn draw_box(&'a self, pos : &'a V2<isize>, dims : &'a V2<usize>, col : &Colour) { 
-        let box_command = DrawCommand::new(&pos, &col,Command::Box(*dims));
-        self.draw(box_command);
-    }
-
-    pub fn draw_text_with_bg(&'a self, pos : &'a V2<isize>, text : &'a str, cols : &ColourCell) { 
-        let dims = V2::new(text.len(), 1);
-        self.draw_box(pos, &dims, &cols.bg);
-        self.draw_text(pos, text, &cols.fg);
-    }
-
-}
-
-impl TextScreen {
-    pub fn render(&self, _ui: &imgui::Ui ) {
-        panic!("TBD")
-
-            // let wind_dims = TextWinDims::new(ui);
-
-            // let char_box_dims = V2{x:1, y:1};
-            // let V2{x : cols, y : rows} = wind_dims.get_window_char_dims();
-
-            // let draw_list = ui.get_window_draw_list();
-
-            // for y in 0..rows {
-            //     for x in 0..cols {
-
-            //         if let Some(Cell {col, pos, text}) = self.get_cell(V2{x,y}.as_isizes()) {
-
-            //             let ColourCell{bg,fg} = &col;
-
-            //             let [tl, br] = wind_dims.get_box_dims(
-            //                 pos.as_usizes(),
-            //                 char_box_dims);
-
-            //             let tl = [tl.x, tl.y];
-            //             let br = [br.x, br.y];
-
-            //             draw_list.add_rect_filled_multicolor(tl, br, bg, bg, bg, bg );
-            //             draw_list.add_text(tl,fg,text);
-            //         }
-            //     }
-
-            // }
-    }
-}
-
 struct ScrollZones {
     top : V2<usize>,
     bottom : V2<usize>
@@ -293,12 +150,12 @@ struct ScrollZones {
 
 impl ScrollZones {
 
-    pub fn new(win_dims : &TextWinDims, top_line : usize, _lines_in_doc : usize, sz : usize) -> Self {
+    pub fn new(win_dims : &ScrBox, top_line : usize, _lines_in_doc : usize, sz : usize) -> Self {
 
         let sz = sz as isize;
         let top_line = top_line as isize;
 
-        let win_char_height = win_dims.get_window_char_dims().y as isize;
+        let win_char_height = win_dims.dims.y as isize;
 
         let adj = if top_line < sz {
             sz - (sz - top_line)
@@ -331,10 +188,17 @@ impl ScrollZones {
         }
     }
 
+    pub fn get_top_zone(&self) -> Option<ScrBox> {
+        None
+    }
+
+    pub fn get_bottom_zone(&self) -> Option<ScrBox> {
+        None
+    }
+
     fn in_span(line : usize, span : &V2<usize>) -> bool {
         let V2{x : y, y : h} = *span;
         h > 0 && (line >= y && line < (y+h))
-
     }
 
     pub fn in_top_zone(&self, line : usize) -> bool {
@@ -350,9 +214,11 @@ impl ScrollZones {
     }
 }
 
+// To print a document
+// Doc line number 
+// Screen cursor position
 
-struct Formatter {
-}
+use super::app::frametime::FrameTime;
 
 impl SourceWin {
 
@@ -429,10 +295,16 @@ impl SourceWin {
         info!("Resizing! rs: {:?} ",dims );
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, frame_time : &FrameTime, source_store : &SourceStore, pc: u16) {
+        self.frame_time = *frame_time;
+        self.pc = pc;
+
+        if self.source_file.is_none() {
+            self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
+        }
     }
 
-    fn get_scroll_zones(&self, win_dims : &TextWinDims, lines_in_doc : usize) -> ScrollZones {
+    fn get_scroll_zones(&self, win_dims : &ScrBox, lines_in_doc : usize) -> ScrollZones {
         ScrollZones::new(win_dims, self.scroll_offset,lines_in_doc, 3 )
     }
 
@@ -440,168 +312,50 @@ impl SourceWin {
         self.source_file.as_ref().and_then(|f| source_store.get(f))
     }
 
-    pub fn render(&mut self, ui: &imgui::Ui, source_store : &SourceStore, pc : u16) {
-        // use romloader::Location;
-        
-        let text_styles = TextStyles::new(&self.styles);
-
-        if self.source_file.is_none() {
-            self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
+    fn bind_cursor(&mut self, tc : &TextContext) {
+        if self.cursor >= tc.height() {
+            self.cursor = tc.height() -1;
         }
+    }
 
-        let tc = TextContext::new(ui);
-        let current_col = text_styles.normal;
+    pub fn render(&self, tc : &TextContext, source_store : &SourceStore) {
+        // self.bind_cursor(&tc);
 
-        // tc.clear(&current_col.bg);
+        let text_styles = TextStyles::new(&self.styles);
+        let offset = 0;
+
+        let mut lines = 0;
 
         if let Some(sf) = self.get_source_file(source_store) {
-
-            for (y,sl) in sf.lines.iter().enumerate() {
-                let mut chars_drawn = 0;
-
-                // tc.clear_line(&current_col.bg, y);
-
-                if let Some(ref line) = sl.line {
-                    let pos = V2::new(0,y).as_isizes();
-                    tc.draw_text_with_bg(&pos,&line, &current_col);
-                    chars_drawn = chars_drawn + line.len();
-                }
-
-                let to_draw = tc.width() - chars_drawn;
-
-                if to_draw > 0 {
-                    let pos = V2::new(chars_drawn, y).as_isizes();
-                    let dims = V2::new(to_draw, 1);
-                    tc.draw_box(&pos, &dims, &current_col.bg);
-                }
-            }
+            let mut renderer = SourceRenderer::new(self.pc, sf, &text_styles, tc);
+            lines = renderer.render_doc(offset,self.cursor);
         }
 
-        // tc.render_it(x, &self.source_view);
+        let scroll_zone_height = 10;
 
+        let sz_y = tc.height() - scroll_zone_height ;
+        let w = tc.width();
+        let dims = &V2::new(w,scroll_zone_height);
+        let col = &Colour::new(1.0, 0.0, 0.0, 0.5);
+        tc.draw_box(&V2::new(0,sz_y).as_isizes(), dims,col);
+        tc.draw_box(&V2::new(0,0), dims, col);
 
-        // if !window_info.is_visible() {
-        //     let cd = window_info.get_char_dims();
-        //     let pd = window_info.get_pixel_dims();
+        let ry = &ColourCell::new(WHITE, RED);
 
-        //     println!("char dims {} {}", cd.x, cd.y);
-        //     println!("pixel dims {} {}", pd.x, pd.y);
-        //     panic!("Ficled");
+        let sline = format!("c: {} - wh:{} {} - lines : {}", self.cursor, tc.width(), tc.height(), lines);
 
-        //     // return
-        // }
-
-        // if self.source_file.is_none() {
-        //     self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
-        // }
-
-        // if let Some(sf) = self.get_source_file(source_store) {
-        //     let file = self.source_file.clone().unwrap_or(String::from("No file"));
-
-        //     let text_styles = TextStyles::new(&self.styles);
-        //     let window_dims = window_info.get_window_char_dims();
-
-        //     let scroll_zones = self.get_scroll_zones(&window_info, sf.num_of_lines());
-
-        //     let mut screen = TextScreen::new(window_dims);
-
-        //     screen.clear(' ',&text_styles.normal);
-
-        //     let mut c = screen.cursor();
-        //     c.set_col(&text_styles.normal);
-
-        //     let blank = String::new();
-        //     let mut loc = Location::new(&file, self.scroll_offset );
-
-        //     for line in self.scroll_offset..(self.scroll_offset + window_dims.y) {
-
-        //         if let Some(source_line) = source_store.loc_to_source_line(&loc) {
-
-        //             let is_cursor_line  = self.cursor as usize == line;
-        //             let is_pc_line = Some(pc) == source_line.addr;
-        //             let mut is_debug_line = scroll_zones.in_scroll_zone(line);
-
-        //             if is_cursor_line && is_debug_line {
-        //                 is_debug_line = false;
-        //             }
-
-        //             let (line_style, addr_style) = text_styles.get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
-
-        //             let addr_str = source_line.addr
-        //                 .map(|addr|
-        //                     format!("{:04x}", addr))
-        //                 .unwrap_or_else(||blank.clone());
-
-        //             let addr_str = format!("{:^8}", addr_str);
-
-        //             let line_str = source_line.line.clone().unwrap_or_else(|| blank.clone());
-
-        //             c.set_col(line_style).clear_line();
-        //             c.set_col(addr_style).write(&addr_str);
-        //             c.set_col(line_style).write(" ").write(&line_str);
-
-        //         } else {
-        //             c.write(&format!( "{} {} *LINE NOT FOUND*",file, line  ));
-        //             break;
-        //         }
-
-        //         loc.inc_line_number();
-        //         c.cr();
-        //     }
-
-        //     screen.render(ui);
-        // } else {
-        //     panic!("can't fine file!")
-        // }
+        tc.draw_text_with_bg(&V2::new(0,0), &sline, ry );
     }
 }
 
-
-use emu::cpu::Regs;
-
-struct BreakPoints {
+struct ScrollTriggers {
+    top_zone : usize,
+    bottom_zone : usize,
 }
 
-struct DebuggerState<'a> {
-    pub regs : &'a Regs,
-    pub break_points : &'a BreakPoints,
-    pub rom : &'a romloader::Rom,
-    pub styles : &'a StylesDatabase,
+impl ScrollTriggers {
+    pub fn new(doc_offset : usize, doc_height : usize, window_height : usize ) -> Self {
+        panic!("TBD")
+    }
 }
-
-struct SourceLine {
-    pub addr : String,
-    pub source : String,
-
-}
-
-// impl<'a> DebuggerState<'a> {
-//     pub fn get_source_line(&self, loc : &'a romloader::Location) -> Option<Vec<Cell>> {
-
-//         let Regs{pc,..} = self.regs;
-
-//         if let Some(line) = self.rom.sources.get_line(&loc) {
-
-//             let mut ret = "normal";
-
-//             let addr_string = if let Some(addr) = self.rom.get_location_addr_range(&loc) {
-//                 if addr.start == *pc as usize {
-//                     ret = "pc"
-//                 }
-
-//                 format!("{:04X}", addr.start)
-//             } else {
-//                 "".to_string()
-//             };
-
-//             let final_str = format!("{:<4} {}", addr_string, line);
-//         }
-
-//         None
-//     }
-// }
-
-/*
-   (location, debugger_state, styles) -> formatted line
-   */
 
