@@ -1,130 +1,106 @@
-use super::imgui;
-use super::window::*;
 use super::scrbox::ScrBox;
 use super::colourcell::ColourCell;
 use super::colour::Colour;
 use super::v2::*;
 
-pub struct TextContext<'a> {
-    ui : &'a imgui::Ui<'a>,
-    pub win_dims : TextWinDims,
-    text_dims : ScrBox,
-    dl : imgui::DrawListMut<'a>,
-}
+pub trait TextRenderer {
+    fn get_window_dims(&self) -> ScrBox;
 
-enum Command<'a> {
-    Box(V2<usize>),
-    Char(char),
-    String(&'a str),
-}
-
-pub struct DrawCommand<'a> {
-    pos : V2<isize>,
-    colour : &'a Colour,
-    command : Command<'a>
-}
-
-impl<'a> DrawCommand<'a> {
-    fn new(pos : &'a V2<isize>, colour : &'a Colour, command : Command<'a>)  -> Self {
-        Self {
-            pos : *pos, colour, command
-        }
-    }
-}
-
-impl<'a> TextContext<'a> {
-    fn draw(&'a self, command : DrawCommand<'a>) {
-        let pos = &command.pos;
-        let col = command.colour;
-
-        self.with_clip_rect(&self.text_dims, || {
-            match &command.command {
-                Command::Box(dims) => self.draw_box(pos, &dims, col),
-                Command::Char(ch) => self.do_draw_char(*ch, col, &pos),
-                Command::String(text) => self.draw_text(&pos,text, col),
-            };
-        });
+    fn width(&self) -> usize {
+        self.get_window_dims().dims.x
     }
 
-    fn clip(&self, scr_box : &'a ScrBox) -> Option<ScrBox> {
-        ScrBox::clip_box(&self.text_dims, &scr_box)
+    fn height(&self) -> usize {
+        self.get_window_dims().dims.y
     }
 
-    fn do_draw_char(&self, ch : char, col : &'a Colour, pos : &'a V2<isize>) {
-        let pos = *pos + self.text_dims.pos;
+    fn draw_text(&self, pos : &V2<isize>, text : &str, col : &Colour);
+    fn draw_box(&self, pos : &V2<isize>, dims : &V2<usize>, col : &Colour);
+    fn draw_with_clip_rect<F>(&self, scr_box : &ScrBox, f: F) 
+        where F: FnOnce();
+
+    fn draw_text_with_bg(&self, pos : &V2<isize>, text : &str, cols : &ColourCell) { 
+        let dims = V2::new(text.len(), 1);
+        self.draw_box(pos, &dims, &cols.bg);
+        self.draw_text( pos, text, &cols.fg);
+    }
+
+    fn draw_char(&self, pos : &V2<isize>, ch : char, col : &Colour) {
         let mut s = String::new();
         s.push(ch);
-        self.draw_text(&pos, &s, col);
+        self.draw_text( &pos, &s, col);
     }
 
-    fn with_clip_rect<F>(&'a self, scr_box : &'a ScrBox, f: F)
-    where
-        F: FnOnce(), {
-            if let Some(new_box) = self.clip(scr_box) {
-                let [min, max] = self.win_dims.as_pixel_extents_arrays( &new_box.pos, &new_box.dims);
-                self.dl.with_clip_rect_intersect(min,max, f);
-            }
-        }
+    fn draw_char_with_bg(&self, pos : &V2<isize>, ch : char, cols : &ColourCell) {
+        let mut s = String::new();
+        s.push(ch);
+        self.draw_text_with_bg( pos, &s, cols);
+    }
+}
 
-    pub fn new(ui : &'a imgui::Ui<'a>) -> Self {
-        let win_dims = TextWinDims::new(ui);
-        let dl = ui.get_window_draw_list();
-        let text_dims = ScrBox::new(&V2::new(0,0), &win_dims.get_window_char_dims());
+pub struct TextContext<TR : TextRenderer> {
+    dims : ScrBox,
+    tr : TR,
+}
+
+impl<TR : TextRenderer> TextContext< TR> {
+    pub fn new(tr : TR) -> Self {
+        let dims = tr.get_window_dims();
+
         Self {
-            dl, win_dims, ui, text_dims
+            tr, dims
         }
+    }
+
+    fn clip(&self, scr_box : &ScrBox) -> Option<ScrBox> {
+        ScrBox::clip_box(&self.dims, &scr_box)
     }
 
     pub fn clear(&self, col : &Colour) {
-        self.draw_box(&self.text_dims.pos, &self.text_dims.dims, col);
+        self.tr.draw_box( &self.dims.pos, &self.dims.dims, col);
     }
 
     pub fn clear_line(&self, col : &Colour, line : usize) {
-
         let pos = V2::new(0,line).as_isizes();
         let dims = V2::new(self.width(),1);
-
-        self.draw_box(&pos, &dims, col);
+        self.tr.draw_box( &pos, &dims, col);
     }
 
     pub fn height(&self)->usize {
-        self.text_dims.dims.y
+        self.dims.dims.y
     }
 
     pub fn width(&self)->usize {
-        self.text_dims.dims.x
+        self.dims.dims.x
     }
 
-    pub fn draw_text(&'a self, pos : &'a V2<isize>, text : &'a str, col : &'a Colour) { 
-        let pos = *pos + self.text_dims.pos;
-        let [tl, _] = self.win_dims.as_pixel_extents_arrays( &pos, &V2::new(1,1));
-        self.dl.add_text(tl,col,text);
+    pub fn draw_text(&self, pos : &V2<isize>, text : &str, col : &Colour) { 
+        self.tr.draw_text( pos, text, col);
     }
 
-    pub fn draw_box(&'a self, pos : &'a V2<isize>, dims : &'a V2<usize>, col : &Colour) { 
-        let pos = *pos + self.text_dims.pos;
-        let [tl, br] = self.win_dims.as_pixel_extents( &pos, &dims);
-        let tl = [tl.x, tl.y];
-        let br = [br.x, br.y];
-        self.dl.add_rect_filled_multicolor(tl, br, col, col, col, col );
+    pub fn draw_text_with_bg(&self, pos : &V2<isize>, text : &str, cols : &ColourCell) { 
+        self.tr.draw_text_with_bg( pos, text, cols);
     }
 
-    pub fn draw_text_with_bg(&'a self, pos : &'a V2<isize>, text : &'a str, cols : &ColourCell) { 
-        let dims = V2::new(text.len(), 1);
-        self.draw_box(pos, &dims, &cols.bg);
-        self.draw_text(pos, text, &cols.fg);
+    pub fn draw_box(&self, pos : &V2<isize>, dims : &V2<usize>, col : &Colour) { 
+        self.tr.draw_box( pos, dims, col);
     }
+
+    fn draw_char(&self, pos : &V2<isize>, ch : char, col : &Colour) {
+        self.tr.draw_char( pos, ch, col);
+    }
+    
 }
 
-pub struct LinePrinter<'a> {
-    pub tc : &'a TextContext<'a>,
+pub struct LinePrinter<'a, TR : TextRenderer> {
+    pub tc : &'a TR,
     cols : ColourCell,
     pos : V2<isize>
 }
 
-impl<'a> LinePrinter<'a> {
+impl<'a, TR : TextRenderer> LinePrinter<'a, TR> {
 
-    pub fn new(tc : &'a TextContext<'a>) -> Self {
+    pub fn new(tc : &'a TR) -> Self {
         let cols = ColourCell::new_bw();
         let pos = V2::new(0,0);
         Self { tc, cols, pos}
@@ -135,7 +111,7 @@ impl<'a> LinePrinter<'a> {
         self
     }
 
-    fn chars_left(&'a self) -> isize {
+    fn chars_left(&self) -> isize {
         self.tc.width() as isize - self.pos.x
     }
 
@@ -161,3 +137,4 @@ impl<'a> LinePrinter<'a> {
         self
     }
 }
+

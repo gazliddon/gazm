@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub struct Colour {
     pub data: [f32;4]
+
 }
 
 impl Default for Colour {
@@ -8,6 +9,7 @@ impl Default for Colour {
         WHITE.clone()
     }
 }
+
 
 macro_rules! col {
     ($r:expr,$g:expr,$b:expr,$a:expr) => {

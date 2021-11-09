@@ -39,17 +39,16 @@ trait RenderDoc<'a> {
     }
 }
 
-struct SourceRenderer<'a> {
+struct SourceRenderer<'a,IR : TextRenderer > {
     sf : &'a romloader::AnnotatedSourceFile,
     pc : u16,
     text_styles : &'a TextStyles,
     blank: String,
-    lp : LinePrinter<'a>,
-
+    lp : LinePrinter<'a, IR>,
 }
 
-impl<'a> SourceRenderer<'a> {
-    pub fn new(pc : u16, sf: &'a romloader::AnnotatedSourceFile, text_styles: &'a TextStyles, tc : &'a TextContext<'a>) -> Self {
+impl<'a, TR : TextRenderer> SourceRenderer<'a, TR> {
+    pub fn new(pc : u16, sf: &'a romloader::AnnotatedSourceFile, text_styles: &'a TextStyles, tc : &'a TR) -> Self {
         let blank = String::new();
         let lp = LinePrinter::new(tc);
         Self {
@@ -58,9 +57,9 @@ impl<'a> SourceRenderer<'a> {
     }
 }
 
-impl<'a> RenderDoc<'a> for SourceRenderer<'a> {
+impl<'a, TR : TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
     fn window_height(&self) -> usize {
-        self.lp.tc.height()
+        self.lp.tc.get_window_dims().dims.y
     }
 
     fn doc_height(&self) -> usize {
@@ -115,7 +114,7 @@ pub struct SourceWin {
     source_view : SourceView,
     frame_time : FrameTime,
     pc : u16,
-
+    win_dims : V2<usize>
 }
 
 impl Default for SourceWin {
@@ -132,7 +131,8 @@ impl Default for SourceWin {
             source_file: None,
             source_view,
             frame_time : FrameTime::from_now(), 
-            pc: 0
+            pc: 0,
+            win_dims: V2::new(0,0)
         }
     }
 }
@@ -234,7 +234,7 @@ impl SourceWin {
     pub fn get_zone_from_cursor(&self, dims : &TextWinDims, cursor : usize) -> Zone {
         if cursor <= 3 {
             Zone::TOP
-        } else if cursor >= ( dims.get_window_char_dims().y - 3 ) {
+        } else if cursor >= ( dims.get_window_dims_in_chars().y - 3 ) {
             Zone::BOTTOM
         } else {
             Zone::MIDDLE
@@ -295,15 +295,6 @@ impl SourceWin {
         info!("Resizing! rs: {:?} ",dims );
     }
 
-    pub fn update(&mut self, frame_time : &FrameTime, source_store : &SourceStore, pc: u16) {
-        self.frame_time = *frame_time;
-        self.pc = pc;
-
-        if self.source_file.is_none() {
-            self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
-        }
-    }
-
     fn get_scroll_zones(&self, win_dims : &ScrBox, lines_in_doc : usize) -> ScrollZones {
         ScrollZones::new(win_dims, self.scroll_offset,lines_in_doc, 3 )
     }
@@ -312,13 +303,31 @@ impl SourceWin {
         self.source_file.as_ref().and_then(|f| source_store.get(f))
     }
 
-    fn bind_cursor(&mut self, tc : &TextContext) {
-        if self.cursor >= tc.height() {
-            self.cursor = tc.height() -1;
+    // fn bind_cursor(&mut self, tc : &TextContext) {
+    //     if self.cursor >= tc.height() {
+    //         self.cursor = tc.height() -1;
+    //     }
+    // }
+
+    pub fn update(&mut self, dims : &V2<usize>, frame_time : &FrameTime, source_store : &SourceStore, pc: u16) {
+        self.win_dims = *dims;
+        self.frame_time = *frame_time;
+        self.pc = pc;
+
+        if self.source_file.is_none() {
+            self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
         }
     }
 
-    pub fn render(&self, tc : &TextContext, source_store : &SourceStore) {
+    pub fn height(&self) -> usize {
+        self.win_dims.y
+    }
+
+    pub fn width(&self) -> usize {
+        self.win_dims.x
+    }
+
+    pub fn render<TR: TextRenderer>(&self, tc : &TR, source_store : &SourceStore) {
         // self.bind_cursor(&tc);
 
         let text_styles = TextStyles::new(&self.styles);
@@ -333,10 +342,11 @@ impl SourceWin {
 
         let scroll_zone_height = 10;
 
-        let sz_y = tc.height() - scroll_zone_height ;
-        let w = tc.width();
+        let sz_y = self.height() - scroll_zone_height ;
+        let w = self.width();
         let dims = &V2::new(w,scroll_zone_height);
         let col = &Colour::new(1.0, 0.0, 0.0, 0.5);
+
         tc.draw_box(&V2::new(0,sz_y).as_isizes(), dims,col);
         tc.draw_box(&V2::new(0,0), dims, col);
 
@@ -354,7 +364,7 @@ struct ScrollTriggers {
 }
 
 impl ScrollTriggers {
-    pub fn new(doc_offset : usize, doc_height : usize, window_height : usize ) -> Self {
+    pub fn new(_doc_offset : usize, _doc_height : usize, _window_height : usize ) -> Self {
         panic!("TBD")
     }
 }
