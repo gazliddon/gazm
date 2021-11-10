@@ -14,7 +14,6 @@
 #[allow(dead_code)] mod styles;
 
 #[allow(dead_code)] mod app;
-#[allow(dead_code)] mod window;
 #[allow(dead_code)] mod sourcewin;
 #[allow(dead_code)] mod mesh;
 #[allow(dead_code)] mod simple;
@@ -25,8 +24,7 @@
 #[allow(dead_code)] mod colour;
 #[allow(dead_code)] mod colourcell;
 #[allow(dead_code)] mod scrbox;
-#[allow(dead_code)] mod textcontext;
-#[allow(dead_code)] mod imguitext;
+#[allow(dead_code)] mod text;
 #[allow(dead_code)] mod v2;
 
 pub use imgui_glium_renderer::imgui;
@@ -253,9 +251,9 @@ impl App for MyApp {
         let pc = machine.get_regs().pc;
         let sources = &machine.get_rom().sources;
 
-        let win_dims = window::TextWinDims::from_ui(ui);
+        let win_dims = text::TextWinDims::new(&*ui);
 
-        self.sourcewin.update(&win_dims.get_window_dims_in_chars(), &self.frame_time,sources, pc);
+        self.sourcewin.update(win_dims, &self.frame_time,sources, pc);
 
         Window::new(im_str!("Hello world"))
             .bg_alpha(1.0)
@@ -264,7 +262,7 @@ impl App for MyApp {
             .position([0.0, 0.0], Condition::Always)
             .movable(false)
             .build(ui, || {
-                let tc = imguitext::ImgUiTextRender::new(&ui);
+                let tc = text::ImgUiTextRender::new(&ui);
                 self.sourcewin.render(&tc, sources);
             });
     }

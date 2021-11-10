@@ -8,8 +8,6 @@
 //
 use romloader::SourceStore;
 use super::scrbox::ScrBox;
-use super::docwin;
-use super::window::*;
 use super::styles::TextStyles;
 use super::colourcell::ColourCell;
 use super::v2::*;
@@ -17,8 +15,7 @@ use super::v2::*;
 use super::events::Events;
 use Events::*;
 use super::styles::*;
-use docwin::Glyph;
-use super::textcontext::*;
+use super::text::*;
 use super::colour::*;
 
 trait RenderDoc<'a> {
@@ -39,7 +36,7 @@ trait RenderDoc<'a> {
     }
 }
 
-struct SourceRenderer<'a,IR : TextRenderer > {
+struct SourceRenderer<'a,IR : TextRenderer  + Dimensions<isize>> {
     sf : &'a romloader::AnnotatedSourceFile,
     pc : u16,
     text_styles : &'a TextStyles,
@@ -47,7 +44,7 @@ struct SourceRenderer<'a,IR : TextRenderer > {
     lp : LinePrinter<'a, IR>,
 }
 
-impl<'a, TR : TextRenderer> SourceRenderer<'a, TR> {
+impl<'a, TR : TextRenderer + Dimensions<isize> > SourceRenderer<'a, TR> {
     pub fn new(pc : u16, sf: &'a romloader::AnnotatedSourceFile, text_styles: &'a TextStyles, tc : &'a TR) -> Self {
         let blank = String::new();
         let lp = LinePrinter::new(tc);
@@ -57,7 +54,7 @@ impl<'a, TR : TextRenderer> SourceRenderer<'a, TR> {
     }
 }
 
-impl<'a, TR : TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
+impl<'a, TR : TextRenderer + Dimensions<isize> > RenderDoc<'a> for SourceRenderer<'a, TR> {
     fn window_height(&self) -> usize {
         self.lp.tc.get_window_dims().dims.y
     }
@@ -90,28 +87,11 @@ impl<'a, TR : TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
     }
 }
 
-
-pub struct SourceView {
-    glyphs : Vec<Vec<Glyph>>,
-}
-
-impl SourceView {
-    pub fn new(src : &[String]) -> Self {
-        let gnew = |glyph| Glyph::new(glyph,&ColourCell::new_bw());
-
-        let  glyphs = src.iter().map(|line| {
-            line.chars().map(gnew).collect() });
-
-        SourceView { glyphs : glyphs.collect() }
-    }
-}
-
 pub struct SourceWin {
     cursor : usize,
     scroll_offset : usize,
     styles : StylesDatabase,
     source_file : Option<String>,
-    source_view : SourceView,
     frame_time : FrameTime,
     pc : u16,
     win_dims : V2<usize>
@@ -120,16 +100,11 @@ pub struct SourceWin {
 impl Default for SourceWin {
     fn default() -> Self {
 
-        let src = include_str!("sourcewin.rs");
-        let lines : Vec<_> = src.split("\n").map(String::from).collect();
-        let source_view = SourceView::new(&lines);
-
         Self {
             cursor : 0,
             scroll_offset : 0,
             styles : StylesDatabase::default(),
             source_file: None,
-            source_view,
             frame_time : FrameTime::from_now(), 
             pc: 0,
             win_dims: V2::new(0,0)
@@ -149,7 +124,6 @@ struct ScrollZones {
 }
 
 impl ScrollZones {
-
     pub fn new(win_dims : &ScrBox, top_line : usize, _lines_in_doc : usize, sz : usize) -> Self {
 
         let sz = sz as isize;
@@ -309,8 +283,8 @@ impl SourceWin {
     //     }
     // }
 
-    pub fn update(&mut self, dims : &V2<usize>, frame_time : &FrameTime, source_store : &SourceStore, pc: u16) {
-        self.win_dims = *dims;
+    pub fn update<D : Dimensions<isize>>(&mut self, dims : D, frame_time : &FrameTime, source_store : &SourceStore, pc: u16) {
+        self.win_dims = dims.dims().as_usizes();
         self.frame_time = *frame_time;
         self.pc = pc;
 
@@ -327,9 +301,7 @@ impl SourceWin {
         self.win_dims.x
     }
 
-    pub fn render<TR: TextRenderer>(&self, tc : &TR, source_store : &SourceStore) {
-        // self.bind_cursor(&tc);
-
+    pub fn render<TR: TextRenderer + Dimensions<isize>>(&self, tc : &TR, source_store : &SourceStore) {
         let text_styles = TextStyles::new(&self.styles);
         let offset = 0;
 

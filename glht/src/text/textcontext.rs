@@ -1,18 +1,11 @@
-use super::scrbox::ScrBox;
-use super::colourcell::ColourCell;
-use super::colour::Colour;
-use super::v2::*;
+use crate::scrbox::ScrBox;
+use crate::colourcell::ColourCell;
+use crate::colour::Colour;
+use crate::v2::*;
+use super::Dimensions;
 
 pub trait TextRenderer {
     fn get_window_dims(&self) -> ScrBox;
-
-    fn width(&self) -> usize {
-        self.get_window_dims().dims.x
-    }
-
-    fn height(&self) -> usize {
-        self.get_window_dims().dims.y
-    }
 
     fn draw_text(&self, pos : &V2<isize>, text : &str, col : &Colour);
     fn draw_box(&self, pos : &V2<isize>, dims : &V2<usize>, col : &Colour);
@@ -43,6 +36,17 @@ pub struct TextContext<TR : TextRenderer> {
     tr : TR,
 }
 
+impl<TR : TextRenderer> super::Dimensions<isize> for TextContext<TR> {
+    fn pos(&self) -> V2<isize> {
+        panic!("")
+
+    }
+    fn dims(&self) -> V2<isize> {
+        panic!("")
+    }
+
+}
+
 impl<TR : TextRenderer> TextContext< TR> {
     pub fn new(tr : TR) -> Self {
         let dims = tr.get_window_dims();
@@ -63,16 +67,9 @@ impl<TR : TextRenderer> TextContext< TR> {
     pub fn clear_line(&self, col : &Colour, line : usize) {
         let pos = V2::new(0,line).as_isizes();
         let dims = V2::new(self.width(),1);
-        self.tr.draw_box( &pos, &dims, col);
+        self.tr.draw_box( &pos, &dims.as_usizes(), col);
     }
 
-    pub fn height(&self)->usize {
-        self.dims.dims.y
-    }
-
-    pub fn width(&self)->usize {
-        self.dims.dims.x
-    }
 
     pub fn draw_text(&self, pos : &V2<isize>, text : &str, col : &Colour) { 
         self.tr.draw_text( pos, text, col);
@@ -89,7 +86,6 @@ impl<TR : TextRenderer> TextContext< TR> {
     fn draw_char(&self, pos : &V2<isize>, ch : char, col : &Colour) {
         self.tr.draw_char( pos, ch, col);
     }
-    
 }
 
 pub struct LinePrinter<'a, TR : TextRenderer> {
@@ -98,7 +94,7 @@ pub struct LinePrinter<'a, TR : TextRenderer> {
     pos : V2<isize>
 }
 
-impl<'a, TR : TextRenderer> LinePrinter<'a, TR> {
+impl<'a, TR : TextRenderer + Dimensions<isize> > LinePrinter<'a, TR> {
 
     pub fn new(tc : &'a TR) -> Self {
         let cols = ColourCell::new_bw();
