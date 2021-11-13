@@ -1,18 +1,19 @@
-use super::{ App, imgui, glutin, };
 use super::frametime::FrameTime;
+use super::{glutin, imgui, App};
 // use super::{glutin, imgui};
 //
 //
-use glutin::event_loop::{ControlFlow, EventLoop };
+use glutin::event_loop::{ControlFlow, EventLoop};
 
+use glutin::event::{Event, WindowEvent};
 use imgui_glium_renderer::Renderer;
-use glutin::event::{ Event, WindowEvent };
 
+use crate::v2::*;
+use glium::Display;
 use imgui::Context;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
-use glium::Display;
 use std::time::Instant;
-use crate::v2::*;
+
 
 pub struct System {
     pub display: Display,
@@ -25,14 +26,12 @@ pub struct System {
 
 impl Default for System {
     fn default() -> Self {
-
         let event_loop = EventLoop::new();
         let wb = glutin::window::WindowBuilder::new();
 
         let cb = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_multisampling(4);
-
 
         let display = Display::new(wb, cb, &event_loop).expect("Building display");
 
@@ -67,8 +66,7 @@ impl Default for System {
 
         imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
 
-        let renderer =
-            Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
+        let renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
 
         Self {
             display,
@@ -79,50 +77,23 @@ impl Default for System {
             imgui,
         }
     }
-
 }
-
 
 impl System {
     pub fn new() -> Self {
         Self::default()
     }
 
-    //fn render(&mut self, app: &mut dyn App) {
-    //    let platform = &mut self.platform;
-    //    let gl_window = self.display.gl_window();
-    //    let window = gl_window.window();
-    //    // Drawing from here
-    //    //
-    //    let imgui = &mut self.imgui;
-    //    let renderer = &mut self.renderer;
+    pub fn hidpi_factor(&self) -> f64 {
+        self.platform.hidpi_factor()
+    }
 
-    //    platform
-    //        .prepare_frame(imgui.io_mut(), window)
-    //        .expect("Preparing frame start");
+    pub fn to_logical(&self, v : &V2<f32>) -> V2<f32> {
+        let sc = self.hidpi_factor() as f32;
+        v / sc
+    }
 
-    //    let mut ui = imgui.frame();
-
-    //    app.ui(&mut ui);
-
-    //    platform.prepare_render(&ui, &window);
-
-    //    let draw_data = ui.render();
-
-    //    // let draw_data = ui.render();
-
-    //    let mut frame = self.display.draw();
-
-    //    app.draw(&mut frame);
-
-    //    renderer
-    //        .render(&mut frame, draw_data)
-    //        .expect("Rendering failed");
-
-    //    frame.finish().expect("Frame completion failed");
-    //}
-
-    pub fn main_loop<F: App + 'static >(self , mut app : F) {
+    pub fn main_loop<F: App + 'static>(self, mut app: F) {
         let System {
             event_loop,
             display,
@@ -136,7 +107,6 @@ impl System {
         let mut last_frame = Instant::now();
 
         event_loop.run(move |event, _, control_flow| {
-
             if !app.is_running() {
                 *control_flow = ControlFlow::Exit;
             }
@@ -167,12 +137,20 @@ impl System {
 
                     // Get the inner size
                     // convert to logical pixels using hidpi
-                    let hdpi =  platform.hidpi_factor();
-                    let dims =  gl_window.window().inner_size().to_logical::<f64>(hdpi);
-                    let dims = V2::new(dims.width ,dims.height).as_usizes();
+                    let hdpi = platform.hidpi_factor();
+                    let dims = gl_window.window().inner_size().to_logical::<f64>(hdpi);
 
-                    app.draw(dims.clone(), &mut target);
-                    app.ui(dims.clone(), &mut ui);
+                    let pos = gl_window
+                        .window()
+                        .inner_position()
+                        .unwrap_or(glutin::dpi::PhysicalPosition::<i32>::new(0, 0))
+                        .to_logical::<f64>(hdpi);
+
+                    let dims = V2::new(dims.width, dims.height).as_usizes();
+                    let pos = V2::new(pos.x, pos.y).as_isizes();
+
+                    app.draw(hdpi, pos, dims, &mut target);
+                    app.ui(hdpi, pos, dims, &mut ui);
 
                     platform.prepare_render(&ui, gl_window.window());
 
@@ -195,7 +173,6 @@ impl System {
                     app.handle_event(&event);
                     platform.handle_event(imgui.io_mut(), gl_window.window(), &event);
                 }
-
             }
         })
     }

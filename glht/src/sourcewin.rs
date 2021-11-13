@@ -7,26 +7,50 @@
 // A PC
 //
 use romloader::SourceStore;
-use super::scrbox::ScrBox;
 use super::styles::TextStyles;
-use super::colourcell::ColourCell;
 use super::v2::*;
-
 use super::events::Events;
 use Events::*;
 use super::styles::*;
 use super::text::*;
 use super::colour::*;
+use super::text::Dimensions;
+
+struct Cycler {
+    cols : Vec<Colour>,
+    per_entry : f64,
+    t_mul : f64,
+}
+
+impl Cycler {
+    pub fn new(speed : f64, cols : Vec<Colour>) -> Self {
+        let total_t = speed * cols.len() as f64;
+        let t_mul = 1.0 / total_t;
+        Self {
+            cols, per_entry : speed, t_mul
+        }
+    }
+
+    fn select(&self, t : f64) -> &Colour {
+        &self.cols[( t.abs() as usize ) % self.cols.len()]
+    }
+
+    pub fn get_col(&self, t : f64) -> Colour{
+        let t = t * self.t_mul;
+        let c1 = self.select(t);
+        let c2 = self.select(t + 1.0);
+        c1.blend(&c2, t.fract())
+    }
+}
+
 
 trait RenderDoc<'a> {
     fn render_line(&mut self, cursor : usize, win_ypos : usize, doc_ypos : usize);
-    fn window_height(&self) -> usize;
-    fn doc_height(&self) -> usize;
 
-    fn render_doc(&mut self, offset : usize, cursor : usize)  -> usize {
+    fn render_doc(&mut self, num_of_lines : usize, offset : usize, cursor : usize)  -> usize {
         let mut lines_rendered = 0;
 
-        let range = ( 0..self.window_height()).map(|y| (y, y + offset));
+        let range = ( 0..num_of_lines).map(|y| (y, y + offset));
 
         for ( win_ypos, doc_ypos ) in range {
             self.render_line(cursor, win_ypos, doc_ypos);
@@ -36,7 +60,7 @@ trait RenderDoc<'a> {
     }
 }
 
-struct SourceRenderer<'a,IR : TextRenderer  + Dimensions<isize>> {
+struct SourceRenderer<'a,IR : TextRenderer  > {
     sf : &'a romloader::AnnotatedSourceFile,
     pc : u16,
     text_styles : &'a TextStyles,
@@ -44,7 +68,7 @@ struct SourceRenderer<'a,IR : TextRenderer  + Dimensions<isize>> {
     lp : LinePrinter<'a, IR>,
 }
 
-impl<'a, TR : TextRenderer + Dimensions<isize> > SourceRenderer<'a, TR> {
+impl<'a, TR : TextRenderer  > SourceRenderer<'a, TR> {
     pub fn new(pc : u16, sf: &'a romloader::AnnotatedSourceFile, text_styles: &'a TextStyles, tc : &'a TR) -> Self {
         let blank = String::new();
         let lp = LinePrinter::new(tc);
@@ -54,14 +78,7 @@ impl<'a, TR : TextRenderer + Dimensions<isize> > SourceRenderer<'a, TR> {
     }
 }
 
-impl<'a, TR : TextRenderer + Dimensions<isize> > RenderDoc<'a> for SourceRenderer<'a, TR> {
-    fn window_height(&self) -> usize {
-        self.lp.tc.get_window_dims().dims.y
-    }
-
-    fn doc_height(&self) -> usize {
-        self.sf.num_of_lines()
-    }
+impl<'a, TR : TextRenderer  > RenderDoc<'a> for SourceRenderer<'a, TR> {
 
     fn render_line(&mut self, cursor : usize, win_ypos : usize, doc_ypos : usize) {
         if let Some(sl) = self.sf.line(doc_ypos) {
@@ -76,9 +93,9 @@ impl<'a, TR : TextRenderer + Dimensions<isize> > RenderDoc<'a> for SourceRendere
 
             let (line_col, addr_col) = self.text_styles.get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
 
-            self.lp.cols(addr_col);
+            self.lp.cols(&addr_col);
             self.lp.print(&format!("{:4} ", addr_str));
-            self.lp.cols(line_col);
+            self.lp.cols(&line_col);
             self.lp.print(" ");
             self.lp.print(source_text);
         }
@@ -94,7 +111,8 @@ pub struct SourceWin {
     source_file : Option<String>,
     frame_time : FrameTime,
     pc : u16,
-    win_dims : V2<usize>
+    win_dims : V2<usize>,
+    ccol : Colour
 }
 
 impl Default for SourceWin {
@@ -107,86 +125,12 @@ impl Default for SourceWin {
             source_file: None,
             frame_time : FrameTime::from_now(), 
             pc: 0,
-            win_dims: V2::new(0,0)
+            win_dims: V2::new(0,0),
+            ccol : *WHITE
         }
     }
 }
 
-pub enum Zone {
-    TOP,
-    MIDDLE,
-    BOTTOM,
-}
-
-struct ScrollZones {
-    top : V2<usize>,
-    bottom : V2<usize>
-}
-
-impl ScrollZones {
-    pub fn new(win_dims : &ScrBox, top_line : usize, _lines_in_doc : usize, sz : usize) -> Self {
-
-        let sz = sz as isize;
-        let top_line = top_line as isize;
-
-        let win_char_height = win_dims.dims.y as isize;
-
-        let adj = if top_line < sz {
-            sz - (sz - top_line)
-        } else {
-            sz
-        };
-
-        let top = V2::new(top_line, adj) ;
-
-        let bottom_line = top_line + win_char_height - 1;
-
-        let bottom_adj = if bottom_line < sz {
-            0
-        } else {
-            sz
-        };
-
-        let bottom = V2::new(( bottom_line - bottom_adj ) + 1, bottom_adj);
-
-        // println!("bottom_line: {:?}", bottom_line);
-        // println!("wc+_dims:    {:?}", win_dims.get_window_char_dims());
-        // println!("top:         {:?}", top);
-        // println!("bottom:      {:?}", bottom);
-
-        // panic!("lskalkssa");
-
-        Self {
-            top : top.as_usizes(),
-            bottom : bottom.as_usizes(),
-        }
-    }
-
-    pub fn get_top_zone(&self) -> Option<ScrBox> {
-        None
-    }
-
-    pub fn get_bottom_zone(&self) -> Option<ScrBox> {
-        None
-    }
-
-    fn in_span(line : usize, span : &V2<usize>) -> bool {
-        let V2{x : y, y : h} = *span;
-        h > 0 && (line >= y && line < (y+h))
-    }
-
-    pub fn in_top_zone(&self, line : usize) -> bool {
-        Self::in_span(line, &self.top)
-    }
-
-    pub fn in_bottom_zone(&self, line : usize) -> bool {
-        Self::in_span(line, &self.bottom)
-    }
-
-    pub fn in_scroll_zone(&self, line : usize) -> bool {
-        self.in_bottom_zone(line) || self.in_top_zone(line)
-    }
-}
 
 // To print a document
 // Doc line number 
@@ -203,16 +147,6 @@ impl SourceWin {
     pub fn dims(&self) -> V2<isize> {
         panic!("TBD")
             // self.text_screen.dims
-    }
-
-    pub fn get_zone_from_cursor(&self, dims : &TextWinDims, cursor : usize) -> Zone {
-        if cursor <= 3 {
-            Zone::TOP
-        } else if cursor >= ( dims.get_window_dims_in_chars().y - 3 ) {
-            Zone::BOTTOM
-        } else {
-            Zone::MIDDLE
-        }
     }
 
     pub fn event(&mut self, event : Events) {
@@ -269,64 +203,78 @@ impl SourceWin {
         info!("Resizing! rs: {:?} ",dims );
     }
 
-    fn get_scroll_zones(&self, win_dims : &ScrBox, lines_in_doc : usize) -> ScrollZones {
-        ScrollZones::new(win_dims, self.scroll_offset,lines_in_doc, 3 )
-    }
-
     fn get_source_file<'a>(&'a self, source_store : &'a SourceStore) -> Option<&'a romloader::AnnotatedSourceFile> {
         self.source_file.as_ref().and_then(|f| source_store.get(f))
     }
 
-    // fn bind_cursor(&mut self, tc : &TextContext) {
-    //     if self.cursor >= tc.height() {
-    //         self.cursor = tc.height() -1;
-    //     }
-    // }
-
-    pub fn update<D : Dimensions<isize>>(&mut self, dims : D, frame_time : &FrameTime, source_store : &SourceStore, pc: u16) {
-        self.win_dims = dims.dims().as_usizes();
+    pub fn update<D : Dimensions<usize>>(&mut self, dims : &D, frame_time : &FrameTime, source_store : &SourceStore, pc: u16) {
+        // FIX : dims being passed is wrong
+        self.win_dims = dims.dims();
         self.frame_time = *frame_time;
         self.pc = pc;
+
+        let cyc = Cycler::new(0.1, vec![
+            *WHITE,
+            *RED,
+            *BLUE,
+            *GREEN,
+        ]);
+
+        self.ccol = cyc.get_col(frame_time.now_as_seconds());
 
         if self.source_file.is_none() {
             self.source_file = source_store.add_to_loc(pc).map(|l| l.file.clone());
         }
+
+        if self.cursor >= self.win_dims.y {
+            self.cursor = self.win_dims.y -1;
+        }
     }
 
-    pub fn height(&self) -> usize {
-        self.win_dims.y
-    }
+    pub fn render<TR: TextRenderer >(&self, tc : &TR, source_store : &SourceStore) {
+        let w = self.win_dims.x;
+        let h = self.win_dims.y;
 
-    pub fn width(&self) -> usize {
-        self.win_dims.x
-    }
 
-    pub fn render<TR: TextRenderer + Dimensions<isize>>(&self, tc : &TR, source_store : &SourceStore) {
         let text_styles = TextStyles::new(&self.styles);
         let offset = 0;
 
-        let mut lines = 0;
-
         if let Some(sf) = self.get_source_file(source_store) {
             let mut renderer = SourceRenderer::new(self.pc, sf, &text_styles, tc);
-            lines = renderer.render_doc(offset,self.cursor);
+            renderer.render_doc(h, offset,self.cursor);
         }
 
-        let scroll_zone_height = 10;
+        // Pront scroll zones
 
-        let sz_y = self.height() - scroll_zone_height ;
-        let w = self.width();
+        let scroll_zone_height = 1;
+
+        let sz_y = h - scroll_zone_height ;
         let dims = &V2::new(w,scroll_zone_height);
-        let col = &Colour::new(1.0, 0.0, 0.0, 0.5);
+        let mut col = self.ccol;
+        col.set_alpha(0.5);
 
-        tc.draw_box(&V2::new(0,sz_y).as_isizes(), dims,col);
-        tc.draw_box(&V2::new(0,0), dims, col);
+        tc.draw_box(&V2::new(0,sz_y).as_isizes(), dims,&col);
+        tc.draw_box(&V2::new(0,0), dims, &self.ccol);
 
-        let ry = &ColourCell::new(WHITE, RED);
+        // let ry = &ColourCell::new(WHITE, RED);
+        // let sline = format!("c: {} - wh:{} {} - lines : {}", self.cursor, w, h, lines);
+        // tc.draw_text_with_bg(&V2::new(0,0), &sline, ry );
+        //
+        // let mut pos = V2::new(0,0);
+        // let dims = &V2::new(1,1);
+        // tc.draw_box(&pos,dims, super::colour::WHITE);
 
-        let sline = format!("c: {} - wh:{} {} - lines : {}", self.cursor, tc.width(), tc.height(), lines);
+        // pos.x = pos.x + 1;
+        // tc.draw_box(&pos,dims, super::colour::RED);
+        // pos.x = pos.x + 1;
+        // tc.draw_box(&pos,dims, super::colour::GREEN);
 
-        tc.draw_text_with_bg(&V2::new(0,0), &sline, ry );
+        // pos.x = pos.x + 1;
+        // tc.draw_text(&pos, "A", super::colour::WHITE);
+        // pos.x = pos.x + 1;
+        // tc.draw_text(&pos, "B", super::colour::WHITE);
+        // pos.x = pos.x + 1;
+        // tc.draw_text(&pos, "C", super::colour::WHITE);
     }
 }
 

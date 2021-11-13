@@ -43,6 +43,9 @@ impl ColourOps for ColourCell {
     fn mul(&self, rhs : &Self) -> Self {
         self.cross(rhs, |lhs, rhs| lhs.mul(rhs))
     }
+    fn sub(&self, rhs : &Self) -> Self {
+        self.cross(rhs, |lhs, rhs| lhs.sub(rhs))
+    }
 
     fn add(&self, rhs : &Self) -> Self {
         self.cross(rhs, |lhs, rhs| lhs.add(rhs))

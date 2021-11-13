@@ -1,87 +1,58 @@
-use super::TextRenderer;
-
 use crate::colour::*;
+use crate::imgui::{color, DrawListMut, Font, Ui};
 use crate::scrbox::ScrBox;
 use crate::v2::*;
+use std::f32;
 
-use crate::imgui;
-use imgui::im_str;
+use super::{Dimensions, TextRenderer};
 
-use super::{ Dimensions, FontInfo, TextWinDims };
-
-impl From<Colour> for imgui::color::ImColor32 {
+impl From<Colour> for color::ImColor32 {
     fn from(v: Colour) -> Self {
         Self::from(*v.as_array())
     }
 }
 
-impl From<&Colour> for imgui::color::ImColor32 {
+impl From<&Colour> for color::ImColor32 {
     fn from(v: &Colour) -> Self {
         Self::from(*v.as_array())
     }
 }
 
 pub struct ImgUiTextRender<'a> {
-    dl: imgui::DrawListMut<'a>,
-    offset : V2<f32>,
-    pub win_dims: TextWinDims,
-    pub text_dims: ScrBox,
+    dl: DrawListMut<'a>,
+    offset: V2<f32>,
+    pos: V2<f32>,
+    grid_spacing: V2<f32>,
+    grid_dims: V2<usize>,
 }
 
-impl<'a> Dimensions<f32> for &imgui::Ui<'a> {
-    fn pos(&self) -> V2<f32> {
-        let [x, y] = self.window_pos();
-        V2::new(x, y)
-    }
-
+impl Dimensions<f32> for Font {
     fn dims(&self) -> V2<f32> {
-        let [ww, wh] = self.content_region_max();
-        V2::new(ww, wh)
-    }
-}
-
-
-
-impl<'a> FontInfo for &imgui::Ui<'a> {
-    fn char_extents(&self) -> V2<f32> {
-        let [x,y] = self.calc_text_size(im_str!("A"), false, std::f32::MAX);
-        let char_dims = V2 { x,y };
-        char_dims
-    }
-}
-
-impl<'a> Dimensions<isize> for ImgUiTextRender<'a> {
-    fn pos(&self) -> V2<isize> {
-        self.text_dims.pos
-    }
-
-    fn dims(&self) -> V2<isize> {
-        self.text_dims.dims.as_isizes()
+        V2::new(self.fallback_advance_x, self.font_size)
     }
 }
 
 impl<'a> ImgUiTextRender<'a> {
-    pub fn new(ui: &'a imgui::Ui<'a>) -> Self {
+    pub fn new(pos : &V2<f32>, grid_spacing: &V2<f32>, grid_dims: &V2<usize>, ui: &'a Ui<'a>) -> Self {
         let dl = ui.get_window_draw_list();
-        let win_dims =  TextWinDims::new(&*ui);
 
         // FIX
         // No idea why this is offset
-        let offset = win_dims.get_char_dims().mul_components(V2::new(0.5, 0.0));
+        let offset = V2::new(grid_spacing.x / 2.0, 0.0);
 
-        let text_dims = ScrBox::new(&V2::new(0, 0), &win_dims.get_window_dims_in_chars());
         Self {
-            text_dims,
             dl,
-            win_dims,
             offset,
+            grid_spacing: *grid_spacing,
+            pos : *pos,
+            grid_dims : *grid_dims
         }
     }
 
     fn xform(&self, pos: &V2<isize>) -> [f32; 2] {
-        let pos = *pos + self.text_dims.pos;
-        let r = self.win_dims.xform(&pos) + self.offset;
-        r.as_array()
+        let pos = self.pos + (pos.as_f32s().mul_components(self.grid_spacing));
+        let pos = pos + self.offset;
+        pos.as_array()
     }
 
     fn xform_box(&self, pos: &V2<isize>, dims: &V2<usize>) -> [[f32; 2]; 2] {
@@ -92,14 +63,28 @@ impl<'a> ImgUiTextRender<'a> {
     }
 }
 
-impl<'a> TextRenderer for ImgUiTextRender<'a> {
-    fn get_window_dims(&self) -> ScrBox {
-        self.text_dims
+impl<'a> Dimensions<usize> for ImgUiTextRender<'a> {
+    fn dims(&self) -> V2<usize> {
+        self.grid_dims
     }
+}
 
+impl<'a> TextRenderer for ImgUiTextRender<'a> {
     fn draw_text(&self, pos: &V2<isize>, text: &str, col: &Colour) {
         let tl = self.xform(pos);
         self.dl.add_text(tl, col, text);
+
+        // let mut s = String::new();
+
+        // let mut new_pos = *pos;
+
+        // for ch in text.chars() {
+        //     s.clear();
+        //     s.push(ch);
+        //     let tl = self.xform(&new_pos);
+        //     self.dl.add_text(tl, col, text);
+        //     new_pos.x = new_pos.x + 1;
+        // }
     }
 
     fn draw_box(&self, pos: &V2<isize>, dims: &V2<usize>, col: &Colour) {
@@ -112,7 +97,8 @@ impl<'a> TextRenderer for ImgUiTextRender<'a> {
     where
         F: FnOnce(),
     {
-        if let Some(new_box) = ScrBox::clip_box(&self.text_dims, &scr_box) {
+        let whole_grid = ScrBox::new(&V2::new(0, 0), &self.grid_dims);
+        if let Some(new_box) = ScrBox::clip_box(&whole_grid, &scr_box) {
             let [min, max] = self.xform_box(&new_box.pos, &new_box.dims);
             self.dl.with_clip_rect_intersect(min, max, f);
         }

@@ -36,6 +36,7 @@ use glium::index::PrimitiveType;
 use glium::Surface;
 use mesh::Mesh;
 use v2::*;
+use imgui::{Ui, im_str, Condition, Window};
 
 #[allow(dead_code)]
 struct MyApp {
@@ -53,6 +54,7 @@ struct Vertex {
     color: [f32; 3],
     uv: [f32; 2],
 }
+
 
 fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
     let vertex_buffer = {
@@ -134,9 +136,6 @@ impl KeyPress {
     }
 }
 
-
-
-
 trait ToArray<U> {
     fn as_array(&self) -> [U;2];
 }
@@ -151,7 +150,8 @@ where U : Copy + Clone
 
 
 impl App for MyApp {
-    fn draw(&self, _dims: V2<usize>,frame: &mut glium::Frame) {
+
+    fn draw(&self, _hdpi : f64, _pos: V2<isize>,  _dims: V2<usize>,frame: &mut glium::Frame) {
         use cgmath::*;
 
         let t = self.frame_time.now_as_duration().as_secs_f64();
@@ -238,35 +238,39 @@ impl App for MyApp {
     }
 
     fn resize(&mut self, w : f64, h: f64) {
-        let dims = V2{x : w as usize, y : h as usize};
-        self.sourcewin.resize(dims);
+        let dims = V2::new(w,h);
+        self.sourcewin.resize(dims.as_usizes());
     }
 
-    fn ui(&mut self, dims : V2<usize>, ui: &mut imgui::Ui) {
-        use imgui::*;
+    fn ui(&mut self, hdpi : f64, _pos : V2<isize>,  dims : V2<usize>, ui: &mut Ui) {
+        use text::Dimensions;
 
-        let size = dims.as_f32s().as_array();
+        let char_dims = ui.current_font().dims() / hdpi as f32;
+        let grid_cell_dims = &dims.as_f32s().div_components(char_dims).as_usizes();
+
+        // println!("dims: {:?} gcd: {:?} cd ; {:?}", dims, char_dims, grid_cell_dims);
 
         let machine = self.machine.as_ref();
         let pc = machine.get_regs().pc;
         let sources = &machine.get_rom().sources;
 
-        let win_dims = text::TextWinDims::new(&*ui);
+        self.sourcewin.update(grid_cell_dims, &self.frame_time,sources, pc);
 
-        self.sourcewin.update(win_dims, &self.frame_time,sources, pc);
+        let pos = V2::new(0.0,0.0);
 
         Window::new(im_str!("Hello world"))
-            .bg_alpha(1.0)
-            .size(size, Condition::Always)
+            .bg_alpha(0.9)
+            .size(dims.as_f32s().as_array(), Condition::Always)
             .no_decoration()
             .position([0.0, 0.0], Condition::Always)
             .movable(false)
             .build(ui, || {
-                let tc = text::ImgUiTextRender::new(&ui);
+                let tc = text::ImgUiTextRender::new(&pos, &char_dims, grid_cell_dims, &ui);
                 self.sourcewin.render(&tc, sources);
             });
     }
 }
+
 
 fn main() {
     use std::env;

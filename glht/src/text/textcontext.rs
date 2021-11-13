@@ -2,54 +2,31 @@ use crate::scrbox::ScrBox;
 use crate::colourcell::ColourCell;
 use crate::colour::Colour;
 use crate::v2::*;
+
 use super::Dimensions;
-
-pub trait TextRenderer {
-    fn get_window_dims(&self) -> ScrBox;
-
-    fn draw_text(&self, pos : &V2<isize>, text : &str, col : &Colour);
-    fn draw_box(&self, pos : &V2<isize>, dims : &V2<usize>, col : &Colour);
-    fn draw_with_clip_rect<F>(&self, scr_box : &ScrBox, f: F) 
-        where F: FnOnce();
-
-    fn draw_text_with_bg(&self, pos : &V2<isize>, text : &str, cols : &ColourCell) { 
-        let dims = V2::new(text.len(), 1);
-        self.draw_box(pos, &dims, &cols.bg);
-        self.draw_text( pos, text, &cols.fg);
-    }
-
-    fn draw_char(&self, pos : &V2<isize>, ch : char, col : &Colour) {
-        let mut s = String::new();
-        s.push(ch);
-        self.draw_text( &pos, &s, col);
-    }
-
-    fn draw_char_with_bg(&self, pos : &V2<isize>, ch : char, cols : &ColourCell) {
-        let mut s = String::new();
-        s.push(ch);
-        self.draw_text_with_bg( pos, &s, cols);
-    }
-}
+use super::TextRenderer;
 
 pub struct TextContext<TR : TextRenderer> {
     dims : ScrBox,
     tr : TR,
 }
 
-impl<TR : TextRenderer> super::Dimensions<isize> for TextContext<TR> {
-    fn pos(&self) -> V2<isize> {
-        panic!("")
-
-    }
+impl<TR : TextRenderer> super::Dimensions<isize> for TextContext<TR> { 
     fn dims(&self) -> V2<isize> {
-        panic!("")
+        self.dims.dims.as_isizes()
     }
-
 }
 
-impl<TR : TextRenderer> TextContext< TR> {
+impl<TR : TextRenderer> super::Extents<isize> for TextContext<TR> {
+    fn pos(&self) -> V2<isize> {
+        self.dims.pos
+    }
+}
+
+impl<TR : TextRenderer > TextContext< TR> {
     pub fn new(tr : TR) -> Self {
-        let dims = tr.get_window_dims();
+        let dims = tr.dims();
+        let dims = ScrBox::new(&V2::new(0,0), &dims);
 
         Self {
             tr, dims
@@ -70,7 +47,6 @@ impl<TR : TextRenderer> TextContext< TR> {
         self.tr.draw_box( &pos, &dims.as_usizes(), col);
     }
 
-
     pub fn draw_text(&self, pos : &V2<isize>, text : &str, col : &Colour) { 
         self.tr.draw_text( pos, text, col);
     }
@@ -88,13 +64,13 @@ impl<TR : TextRenderer> TextContext< TR> {
     }
 }
 
-pub struct LinePrinter<'a, TR : TextRenderer> {
+pub struct LinePrinter<'a, TR : TextRenderer > {
     pub tc : &'a TR,
     cols : ColourCell,
     pos : V2<isize>
 }
 
-impl<'a, TR : TextRenderer + Dimensions<isize> > LinePrinter<'a, TR> {
+impl<'a, TR : TextRenderer > LinePrinter<'a, TR> {
 
     pub fn new(tc : &'a TR) -> Self {
         let cols = ColourCell::new_bw();

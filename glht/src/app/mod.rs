@@ -10,7 +10,8 @@ use crate::v2::*;
 use frametime::FrameTime;
 
 pub trait App {
-    fn draw(&self, dims: V2<usize>, display: &mut glium::Frame);
+    fn draw(&self, hdpi : f64, pos : V2<isize>, dims: V2<usize>, display: &mut glium::Frame);
+
 
     fn handle_event(&mut self, input_event: &glutin::event::Event<()>) -> bool {
         use glutin::event::Event;
@@ -74,7 +75,8 @@ pub trait App {
     fn handle_key(&mut self, _code : glutin::event::VirtualKeyCode ) {
     }
 
-    fn ui(&mut self, _dims : V2<usize>, _ui: &mut imgui::Ui) {}
+    fn ui(&mut self, _hdpi : f64, _pos: V2<isize>,  _dims : V2<usize>, _ui: &mut imgui::Ui) {}
+
     fn update(&mut self, frame_time: &FrameTime);
     fn is_running(&self) -> bool;
     fn close_requested(&mut self);

@@ -26,6 +26,7 @@ pub trait ColourOps  : Sized {
 
     fn add(&self, rhs : &Self) -> Self;
     fn mul(&self, rhs : &Self) -> Self;
+    fn sub(&self, rhs : &Self) -> Self;
 
     fn add_saturate(&self, rhs : &Self) -> Self {
         self.add(rhs).saturate()
@@ -50,16 +51,28 @@ pub trait ColourOps  : Sized {
     fn mul_scalar_sat(& self, n : f32 ) -> Self {
         self.mul_scalar(n).saturate()
     }
+    fn blend(&self, rhs : &Self, frac : f64) -> Self {
+        let t_frac = frac.fract();
+        let diff = rhs.sub(self).mul_scalar(t_frac as f32);
+        let col = self.add(&diff);
+        col
+    }
 }
 
 impl ColourOps for Colour {
+    fn sub(&self, rhs : &Self) -> Self {
+        let r = self.data[0] - rhs.data[0];
+        let g = self.data[1] - rhs.data[1];
+        let b = self.data[2] - rhs.data[2];
+        let a = self.data[3] - rhs.data[3];
+        Colour::new(r,g,b,a)
+    }
 
     fn mul(&self, rhs : &Self) -> Self {
         let r = self.data[0] * rhs.data[0];
         let g = self.data[1] * rhs.data[1];
         let b = self.data[2] * rhs.data[2];
         let a = self.data[3] * rhs.data[3];
-
         Colour::new(r,g,b,a)
     }
 
@@ -112,6 +125,11 @@ impl Colour {
     pub fn new_rgb(r : f32, g : f32, b: f32) -> Self {
         Self { data : [r,g,b,0.0] }
     }
+
+    pub fn set_red(&mut self, v : f32) { self.data[0] = v }
+    pub fn set_green(&mut self, v: f32) {self.data[1] = v}
+    pub fn set_blue(&mut self, v: f32) {self.data[2] = v}
+    pub fn set_alpha(&mut self, v: f32) {self.data[3] = v}
 
     pub fn get_red(&self) -> f32 { self.as_array()[0] }
     pub fn get_green(&self) -> f32 { self.as_array()[1] }

@@ -21,6 +21,10 @@ impl FrameTime {
         self.last_sync - self.base_time
     }
 
+    pub fn now_as_seconds(&self) -> f64{
+        self.now_as_duration().as_secs_f64()
+    }
+
     pub fn dt(&self) -> f64 {
         self.last_dt.as_secs_f64()
     }
