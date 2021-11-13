@@ -1,51 +1,70 @@
 #[allow(unused_imports)]
-#[macro_use] extern crate imgui_winit_support;
+#[macro_use]
+extern crate imgui_winit_support;
 
 #[allow(unused_imports)]
-#[macro_use] extern crate imgui_glium_renderer;
+#[macro_use]
+extern crate imgui_glium_renderer;
 
 #[allow(unused_imports)]
-#[macro_use] pub extern crate glium;
+#[macro_use]
+pub extern crate glium;
 
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
 #[allow(unused_imports)]
-#[macro_use] extern crate serde_derive;
-#[allow(dead_code)] mod styles;
+#[macro_use]
+extern crate serde_derive;
+#[allow(dead_code)]
+mod styles;
 
-#[allow(dead_code)] mod app;
-#[allow(dead_code)] mod sourcewin;
-#[allow(dead_code)] mod mesh;
-#[allow(dead_code)] mod simple;
-#[allow(dead_code)] mod dbgwin;
-#[allow(dead_code)] mod textscreen;
-#[allow(dead_code)] mod events;
-#[allow(dead_code)] mod docwin;
-#[allow(dead_code)] mod colour;
-#[allow(dead_code)] mod colourcell;
-#[allow(dead_code)] mod scrbox;
-#[allow(dead_code)] mod text;
-#[allow(dead_code)] mod v2;
+#[allow(dead_code)]
+mod app;
+#[allow(dead_code)]
+mod colour;
+#[allow(dead_code)]
+mod colourcell;
+#[allow(dead_code)]
+mod dbgwin;
+#[allow(dead_code)]
+mod docwin;
+#[allow(dead_code)]
+mod events;
+#[allow(dead_code)]
+mod mesh;
+#[allow(dead_code)]
+mod scrbox;
+#[allow(dead_code)]
+mod simple;
+#[allow(dead_code)]
+mod sourcewin;
+#[allow(dead_code)]
+mod text;
+#[allow(dead_code)]
+mod textscreen;
+#[allow(dead_code)]
+mod v2;
 
-pub use imgui_glium_renderer::imgui;
 pub use glium::glutin;
+pub use imgui_glium_renderer::imgui;
 
 use app::{frametime::FrameTime, system::System, App};
 
 use glium::index::PrimitiveType;
 use glium::Surface;
+use imgui::{im_str, Condition, Ui, Window};
 use mesh::Mesh;
 use v2::*;
-use imgui::{Ui, im_str, Condition, Window};
 
 #[allow(dead_code)]
 struct MyApp {
     mesh: Box<dyn mesh::MeshTrait>,
     running: bool,
     frame_time: FrameTime,
-    machine : Box<dyn simple::simplecore::Machine>,
-    dbgwin : dbgwin::DbgWin,
-    sourcewin : sourcewin::SourceWin,
+    machine: Box<dyn simple::simplecore::Machine>,
+    dbgwin: dbgwin::DbgWin,
+    sourcewin: sourcewin::SourceWin,
 }
 
 #[derive(Copy, Clone)]
@@ -54,7 +73,6 @@ struct Vertex {
     color: [f32; 3],
     uv: [f32; 2],
 }
-
 
 fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
     let vertex_buffer = {
@@ -91,7 +109,6 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
 
 impl MyApp {
     pub fn new(system: &System) -> Self {
-
         let sym_file = "./asm/out/demo.syms";
         let machine = Box::new(simple::simplecore::make_simple(sym_file));
 
@@ -103,7 +120,7 @@ impl MyApp {
             running: true,
             frame_time: FrameTime::default(),
             dbgwin: dbgwin::DbgWin::new(0x9900),
-            sourcewin : sourcewin::SourceWin::new()
+            sourcewin: sourcewin::SourceWin::new(),
         }
     }
 }
@@ -130,28 +147,23 @@ enum KeyPress {
 }
 
 impl KeyPress {
-    pub fn new(key : VirtualKeyCode) -> Self {
-        // let key = key.clone();
-             Self::Bare(key)
-    }
 }
 
 trait ToArray<U> {
-    fn as_array(&self) -> [U;2];
+    fn as_array(&self) -> [U; 2];
 }
 
-impl<U> ToArray<U> for V2<U> 
-where U : Copy + Clone
+impl<U> ToArray<U> for V2<U>
+where
+    U: Copy + Clone,
 {
-    fn as_array(&self) -> [U;2] {
+    fn as_array(&self) -> [U; 2] {
         [self.x, self.y]
     }
 }
 
-
 impl App for MyApp {
-
-    fn draw(&self, _hdpi : f64, _pos: V2<isize>,  _dims: V2<usize>,frame: &mut glium::Frame) {
+    fn draw(&self, _hdpi: f64, _pos: V2<isize>, _dims: V2<usize>, frame: &mut glium::Frame) {
         use cgmath::*;
 
         let t = self.frame_time.now_as_duration().as_secs_f64();
@@ -160,69 +172,30 @@ impl App for MyApp {
         self.mesh.draw(m, frame);
     }
 
-    fn handle_key(&mut self, code : glutin::event::VirtualKeyCode) {
-        use glutin::event::VirtualKeyCode as VK;
-
-        let dbgwin = &mut self.sourcewin;
-
-        let kp = KeyPress::new(code);
-
-        use KeyPress::*;
+    fn handle_key(&mut self, _code: glutin::event::VirtualKeyCode, mstate : glutin::event::ModifiersState) {
+        use glutin::event::VirtualKeyCode as Vk;
         use events::Events::*;
 
-        match kp {
-            Bare(VK::Q) => {
-                self.close_requested();
-            },
+        let target = &mut self.sourcewin;
 
-            Bare(VK::J) => {
-                dbgwin.event(CursorDown);
+        if mstate.ctrl() {
+            match _code {
+                Vk::J => target.event(ScrollUp),
+                Vk::K => target.event(ScrollDown),
+                _ => ()
             }
-
-            Bare(VK::K) => {
-                dbgwin.event(CursorUp);
-            }
-
-            Ctrl(VK::D) => {
-                dbgwin.event(PageDown);
-            }
-
-            Ctrl(VK::U) => {
-                dbgwin.event(PageUp);
-            }
-
-            _ => (),
+        } else if mstate.is_empty() {
+            match _code {
+                Vk::Q => self.close_requested(),
+                Vk::J => target.event(CursorDown),
+                Vk::K => target.event(CursorUp),
+                Vk::Space => target.event(Space),
+                _ => ()
+            };
         }
     }
 
-    fn handle_character(&mut self, c: char) {
-
-        if c == 'q' {
-            self.close_requested()
-        }
-
-        use events::Events::*;
-        let dbgwin = &mut self.sourcewin;
-
-        if c == 'i' {
-            self.dbgwin.event(ScrollUp);
-        }
-
-        if c == 'o'  {
-            dbgwin.event(ScrollDown);
-        }
-
-        if c == 'j' {
-            dbgwin.event(CursorDown);
-        }
-
-        if c == 'k' {
-            dbgwin.event(CursorUp);
-        }
-
-        if c == ' ' {
-            dbgwin.event(Space);
-        }
+    fn handle_character(&mut self, _c: char, _mstate: glutin::event::ModifiersState) {
     }
 
     fn close_requested(&mut self) {
@@ -237,12 +210,12 @@ impl App for MyApp {
         self.running
     }
 
-    fn resize(&mut self, w : f64, h: f64) {
-        let dims = V2::new(w,h);
+    fn resize(&mut self, w: f64, h: f64) {
+        let dims = V2::new(w, h);
         self.sourcewin.resize(dims.as_usizes());
     }
 
-    fn ui(&mut self, hdpi : f64, _pos : V2<isize>,  dims : V2<usize>, ui: &mut Ui) {
+    fn ui(&mut self, hdpi: f64, _pos: V2<isize>, dims: V2<usize>, ui: &mut Ui) {
         use text::Dimensions;
 
         let char_dims = ui.current_font().dims() / hdpi as f32;
@@ -254,9 +227,10 @@ impl App for MyApp {
         let pc = machine.get_regs().pc;
         let sources = &machine.get_rom().sources;
 
-        self.sourcewin.update(grid_cell_dims, &self.frame_time,sources, pc);
+        self.sourcewin
+            .update(grid_cell_dims, &self.frame_time, sources, pc);
 
-        let pos = V2::new(0.0,0.0);
+        let pos = V2::new(0.0, 0.0);
 
         Window::new(im_str!("Hello world"))
             .bg_alpha(0.9)
@@ -270,7 +244,6 @@ impl App for MyApp {
             });
     }
 }
-
 
 fn main() {
     use std::env;

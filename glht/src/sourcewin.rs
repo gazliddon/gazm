@@ -165,21 +165,17 @@ impl SourceWin {
 
             ScrollUp => {
                 scroll_offset+=1;
-                cursor+=1;
             }
 
             ScrollDown => {
-                cursor-=1;
                 scroll_offset-=1;
             }
 
             PageUp => {
-                cursor+=1;
                 scroll_offset+=20;
             }
 
             PageDown => {
-                cursor-=20;
                 scroll_offset-=20;
             }
 
@@ -235,57 +231,73 @@ impl SourceWin {
         let w = self.win_dims.x;
         let h = self.win_dims.y;
 
-
         let text_styles = TextStyles::new(&self.styles);
-        let offset = 0;
+        let offset = self.scroll_offset;
 
         if let Some(sf) = self.get_source_file(source_store) {
             let mut renderer = SourceRenderer::new(self.pc, sf, &text_styles, tc);
             renderer.render_doc(h, offset,self.cursor);
+            let st = ScrollTriggers::new(offset, sf.num_of_lines(), self.win_dims, 3);
+            st.draw(tc,&self.ccol);
+
+            let st = format!("o: {:04} c: {:04} wh:{},{}", offset, self.cursor, w, h);
+            let ccel = super::colourcell::ColourCell::new(RED,YELLOW);
+            tc.draw_text_with_bg(&V2::new(w - st.len(), 0).as_isizes(), &st, &ccel);
         }
 
-        // Pront scroll zones
 
-        let scroll_zone_height = 1;
-
-        let sz_y = h - scroll_zone_height ;
-        let dims = &V2::new(w,scroll_zone_height);
-        let mut col = self.ccol;
-        col.set_alpha(0.5);
-
-        tc.draw_box(&V2::new(0,sz_y).as_isizes(), dims,&col);
-        tc.draw_box(&V2::new(0,0), dims, &self.ccol);
-
-        // let ry = &ColourCell::new(WHITE, RED);
-        // let sline = format!("c: {} - wh:{} {} - lines : {}", self.cursor, w, h, lines);
-        // tc.draw_text_with_bg(&V2::new(0,0), &sline, ry );
-        //
-        // let mut pos = V2::new(0,0);
-        // let dims = &V2::new(1,1);
-        // tc.draw_box(&pos,dims, super::colour::WHITE);
-
-        // pos.x = pos.x + 1;
-        // tc.draw_box(&pos,dims, super::colour::RED);
-        // pos.x = pos.x + 1;
-        // tc.draw_box(&pos,dims, super::colour::GREEN);
-
-        // pos.x = pos.x + 1;
-        // tc.draw_text(&pos, "A", super::colour::WHITE);
-        // pos.x = pos.x + 1;
-        // tc.draw_text(&pos, "B", super::colour::WHITE);
-        // pos.x = pos.x + 1;
-        // tc.draw_text(&pos, "C", super::colour::WHITE);
     }
 }
+use super::scrbox::ScrBox;
 
 struct ScrollTriggers {
-    top_zone : usize,
-    bottom_zone : usize,
+    top_zone : Option<ScrBox>,
+    bottom_zone : Option<ScrBox>,
 }
 
 impl ScrollTriggers {
-    pub fn new(_doc_offset : usize, _doc_height : usize, _window_height : usize ) -> Self {
-        panic!("TBD")
+    pub fn new<D : Dimensions<usize>>(_doc_offset : usize, _doc_height : usize, dims : D, _zone_size : usize) -> Self {
+
+        let mut top_zone = None;
+        let mut bottom_zone = None;
+        let szdims = &V2::new(dims.width(), _zone_size);
+
+        if _doc_offset > 0 {
+            top_zone = Some(ScrBox::new(&V2::new(0,0),  szdims));
+        }
+
+        let lines_to_print = _doc_height - _doc_offset;
+
+        if lines_to_print > dims.height() {
+            bottom_zone = Some(ScrBox::new(&V2::new(0,( dims.height() - _zone_size ) as isize), szdims));
+        }
+
+        Self {
+            top_zone,
+            bottom_zone, 
+        }
+    }
+
+    pub fn draw<TR: TextRenderer>(&self, tr : &TR, ccol : &Colour) {
+        let ccel = super::colourcell::ColourCell::new(RED,YELLOW);
+
+        let mut ccol = *ccol;
+        ccol.set_alpha(0.5);
+
+
+        let tz = format!("{:?}", self.top_zone);
+        let bz = format!("{:?}", self.bottom_zone);
+        tr.draw_text_with_bg(&V2::new(0,0), &tz, &ccel);
+        tr.draw_text_with_bg(&V2::new(0,( tr.height() - 1 ) as isize), &bz, &ccel);
+        
+        if let Some(top) = self.top_zone {
+            tr.draw_box(&top.pos, &top.dims,&ccol);
+        }
+
+        if let Some(bottom) = self.bottom_zone {
+            tr.draw_box(&bottom.pos, &bottom.dims,&ccol);
+        }
+
     }
 }
 

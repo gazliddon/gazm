@@ -106,11 +106,15 @@ impl System {
 
         let mut last_frame = Instant::now();
 
+        use glutin::event::ModifiersState;
+
+        let mut mstate = ModifiersState::empty();
+
         event_loop.run(move |event, _, control_flow| {
+            
             if !app.is_running() {
                 *control_flow = ControlFlow::Exit;
             }
-
             match event {
                 Event::NewEvents(_) => {
                     let now = Instant::now();
@@ -168,9 +172,14 @@ impl System {
                     ..
                 } => *control_flow = ControlFlow::Exit,
 
+                Event::WindowEvent{ event: WindowEvent::ModifiersChanged(new_mstate), ..}  =>{
+                    mstate = new_mstate;
+                },
+
                 event => {
                     let gl_window = display.gl_window();
-                    app.handle_event(&event);
+                    app.handle_event(&event, mstate);
+
                     platform.handle_event(imgui.io_mut(), gl_window.window(), &event);
                 }
             }

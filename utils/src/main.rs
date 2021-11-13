@@ -7,7 +7,7 @@
 #[allow(dead_code)] mod sourcestore;
 #[allow(dead_code)] mod location;
 
-use rom::{Rom};
+use rom::Rom;
 
 fn main() {
     let file = "asm/out/test.syms";
