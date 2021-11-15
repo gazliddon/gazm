@@ -98,6 +98,7 @@ impl MessageBar {
 const WHITE: [f32; 3] = [1.0, 1.0, 1.0];
 const YELLOW: [f32; 3] = [1.0, 1.0, 0.0];
 const RED: [f32; 3] = [1.0, 0.0, 0.0];
+use emu::mem::MemoryIO;
 
 struct DisassemblerIterator<'a> {
     addr : Option<u16>,
@@ -105,7 +106,7 @@ struct DisassemblerIterator<'a> {
 }
 
 impl<'a> DisassemblerIterator<'a> {
-    pub fn from_machine(machine : &'a dyn Machine, addr : u16) -> Self {
+    pub fn from_machine<M: MemoryIO>(machine : &'a M, addr : u16) -> Self {
         let disassmbler  = machine.get_dissambler();
 
         let mut this_addr = None;
@@ -153,9 +154,9 @@ impl DbgWin {
     }
 
 
-    fn iter<'a>(&self, machine : &'a dyn Machine) -> DisassemblerIterator<'a> {
-        DisassemblerIterator::from_machine(machine, self.addr)
-    }
+    // fn iter<'a>(&self, machine : &'a dyn Machine) -> DisassemblerIterator<'a, Machine<emu::mem::MemoryIO>> {
+    //     DisassemblerIterator::from_machine(machine, self.addr)
+    // }
 
     pub fn render(&mut self, _ui: &imgui::Ui, _machine : &dyn Machine) {
 

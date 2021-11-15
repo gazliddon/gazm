@@ -26,8 +26,6 @@ mod colour;
 #[allow(dead_code)]
 mod colourcell;
 #[allow(dead_code)]
-mod dbgwin;
-#[allow(dead_code)]
 mod docwin;
 #[allow(dead_code)]
 mod events;
@@ -57,13 +55,15 @@ use imgui::{im_str, Condition, Ui, Window};
 use mesh::Mesh;
 use v2::*;
 
+use simple::{ SimpleMachine, SimpleMem } ;
+
 #[allow(dead_code)]
 struct MyApp {
     mesh: Box<dyn mesh::MeshTrait>,
     running: bool,
     frame_time: FrameTime,
-    machine: Box<dyn simple::simplecore::Machine>,
-    dbgwin: dbgwin::DbgWin,
+    machine: SimpleMachine<SimpleMem>,
+    // dbgwin: dbgwin::DbgWin,
     sourcewin: sourcewin::SourceWin,
 }
 
@@ -110,7 +110,7 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
 impl MyApp {
     pub fn new(system: &System) -> Self {
         let sym_file = "./asm/out/demo.syms";
-        let machine = Box::new(simple::simplecore::make_simple(sym_file));
+        let machine = simple::make_simple(sym_file);
 
         let mesh = make_mesh(&system);
 
@@ -119,7 +119,7 @@ impl MyApp {
             mesh,
             running: true,
             frame_time: FrameTime::default(),
-            dbgwin: dbgwin::DbgWin::new(0x9900),
+            // dbgwin: dbgwin::DbgWin::new(0x9900),
             sourcewin: sourcewin::SourceWin::new(),
         }
     }
@@ -146,8 +146,7 @@ enum KeyPress {
     CtrlAltShift(VirtualKeyCode),
 }
 
-impl KeyPress {
-}
+impl KeyPress {}
 
 trait ToArray<U> {
     fn as_array(&self) -> [U; 2];
@@ -162,7 +161,7 @@ where
     }
 }
 
-impl App for MyApp {
+impl App<events::Events> for MyApp {
     fn draw(&self, _hdpi: f64, _pos: V2<isize>, _dims: V2<usize>, frame: &mut glium::Frame) {
         use cgmath::*;
 
@@ -172,30 +171,37 @@ impl App for MyApp {
         self.mesh.draw(m, frame);
     }
 
-    fn handle_key(&mut self, _code: glutin::event::VirtualKeyCode, mstate : glutin::event::ModifiersState) {
-        use glutin::event::VirtualKeyCode as Vk;
+    fn handle_key(
+        &mut self,
+        _code: glutin::event::VirtualKeyCode,
+        mstate: glutin::event::ModifiersState,
+    ) ->Option<events::Events> {
         use events::Events::*;
+        use glutin::event::VirtualKeyCode as Vk;
+        use simple::Machine;
 
         let target = &mut self.sourcewin;
 
-        if mstate.ctrl() {
+        let ret_event = if mstate.ctrl() {
             match _code {
                 Vk::J => target.event(ScrollUp),
                 Vk::K => target.event(ScrollDown),
-                _ => ()
+                _ => None,
             }
         } else if mstate.is_empty() {
             match _code {
-                Vk::Q => self.close_requested(),
+                Vk::Q => { self.close_requested();None },
                 Vk::J => target.event(CursorDown),
                 Vk::K => target.event(CursorUp),
                 Vk::Space => target.event(Space),
-                _ => ()
-            };
-        }
-    }
+                Vk::S => { self.machine.step();None },
+                _ => None,
+            }
+        } else {
+            None
+        };
 
-    fn handle_character(&mut self, _c: char, _mstate: glutin::event::ModifiersState) {
+        ret_event
     }
 
     fn close_requested(&mut self) {
@@ -222,13 +228,21 @@ impl App for MyApp {
         let grid_cell_dims = &dims.as_f32s().div_components(char_dims).as_usizes();
 
         // println!("dims: {:?} gcd: {:?} cd ; {:?}", dims, char_dims, grid_cell_dims);
+        
+        use simple::Machine;
 
-        let machine = self.machine.as_ref();
+        let machine = &self.machine;
         let pc = machine.get_regs().pc;
         let sources = &machine.get_rom().sources;
+        let state = machine.get_state();
 
-        self.sourcewin
-            .update(grid_cell_dims, &self.frame_time, sources, pc);
+        if self.sourcewin.is_empty() {
+            if let Some(sf) = sources.addr_to_loc(pc).map(|l| sources.get(&l.file)).flatten() {
+                self.sourcewin.set_source_file(sf.clone());
+            }
+        }
+
+        self.sourcewin.update(grid_cell_dims, &self.frame_time, pc, state );
 
         let pos = V2::new(0.0, 0.0);
 
@@ -240,7 +254,7 @@ impl App for MyApp {
             .movable(false)
             .build(ui, || {
                 let tc = text::ImgUiTextRender::new(&pos, &char_dims, grid_cell_dims, &ui);
-                self.sourcewin.render(&tc, sources);
+                self.sourcewin.render(&tc);
             });
     }
 }

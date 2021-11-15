@@ -171,7 +171,7 @@ impl SourceStore {
         self.loc_to_addr.get(loc).cloned()
     }
 
-    pub fn add_to_loc(&self, _addr : u16) -> Option<&Location> {
+    pub fn addr_to_loc(&self, _addr : u16) -> Option<&Location> {
         self.addr_to_loc.get(&_addr)
     }
 

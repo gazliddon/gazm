@@ -15,7 +15,6 @@ impl ScrBox {
         ( self.dims.as_isizes() + self.pos ) - V2{x:1,y:1}
     }
 
-
     pub fn in_bounds(&self, pos : &V2<isize>) -> bool {
         let V2{x,y} = *pos;
 

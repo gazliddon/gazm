@@ -20,11 +20,7 @@ impl<S: PartialEq + Clone + Copy> State<S> {
     }
 
     pub fn has_changed(&self) -> bool {
-        if let Some(last_state) = self.last_state {
-            last_state != self.state
-        } else {
-            false
-        }
+        Some(self.state) == self.last_state
     }
 
     pub fn clear_change(&mut self) {
@@ -33,5 +29,10 @@ impl<S: PartialEq + Clone + Copy> State<S> {
 
     pub fn get(&self) -> S {
         self.state
+    }
+
+
+    pub fn get_previous(&self) -> Option<S> {
+        self.last_state
     }
 }

@@ -39,7 +39,7 @@ use io::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(dead_code)]
-enum MemRegion {
+pub enum MemRegion {
     Illegal,
     Ram,
     IO,

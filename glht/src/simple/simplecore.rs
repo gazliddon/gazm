@@ -95,18 +95,23 @@ fn to_rgb(mem: &[u8], palette: &[u8]) -> [u8; SCR_BYTES] {
 }
 
 
-pub trait Machine {
+pub trait Machine<M: MemoryIO> {
+
+    fn get_state(&self) -> SimState;
+    fn set_state(&mut self, state : SimState) -> Option<SimState>;
+
 
     fn get_rom(&self) -> &romloader::Rom;
-    fn get_mem(&self) -> &dyn MemoryIO;
+    fn get_mem(&self) -> &M;
     fn get_mem_mut(&mut self) -> &mut dyn MemoryIO;
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
-    fn get_context_mut(&mut self) -> cpu::Context<StandardClock>;
+    fn get_context_mut(&mut self) -> cpu::Context<StandardClock, M >;
 
     fn get_regs(&self) -> &cpu::Regs;
 
     fn get_dissambler(&self) -> diss::Disassembler {
-        diss::Disassembler::new(self.get_mem())
+        panic!("")
+        // diss::Disassembler::new(self.get_mem())
     }
 
     fn update(&mut self) -> SimState;
@@ -133,9 +138,9 @@ pub trait Machine {
 }
 
 #[allow(dead_code)]
-pub struct SimpleMachine {
+pub struct SimpleMachine<M: MemoryIO> {
     regs: Regs,
-    mem: Box<dyn MemoryIO>,
+    mem: Box<M>,
     rc_clock: Rc<RefCell<StandardClock>>,
     watcher: Option<filewatcher::FileWatcher>,
     events: Vec<SimEvent>,
@@ -145,7 +150,7 @@ pub struct SimpleMachine {
     rom : romloader::Rom,
 }
 
-impl Machine for SimpleMachine {
+impl<M : MemoryIO>  Machine<M> for SimpleMachine<M> {
     
     fn get_regs(&self) -> &cpu::Regs {
         &self.regs
@@ -154,7 +159,7 @@ impl Machine for SimpleMachine {
     fn get_rom(&self) -> &romloader::Rom {
         &self.rom
     }
-    fn get_mem(&self) -> &dyn MemoryIO {
+    fn get_mem(&self) -> &M {
         self.mem.as_ref()
     }
 
@@ -166,7 +171,7 @@ impl Machine for SimpleMachine {
         &mut self.rc_clock
     }
 
-    fn get_context_mut(&mut self) -> cpu::Context<StandardClock> {
+    fn get_context_mut(&mut self) -> cpu::Context<StandardClock, M> {
         emu::cpu::Context::new(self.mem.as_mut(), &mut self.regs, &self.rc_clock)
     }
 
@@ -204,10 +209,19 @@ impl Machine for SimpleMachine {
 
         self.state.get()
     }
+
+    fn get_state(&self) -> SimState {
+        self.state.get()
+    }
+
+    fn set_state(&mut self, state : SimState) -> Option<SimState> {
+        self.state.set(state);
+        self.state.get_previous()
+    }
 }
 
 #[allow(dead_code)]
-impl SimpleMachine {
+impl<M : MemoryIO>  SimpleMachine<M> {
     fn add_event(&mut self, event: SimEvent) {
         self.events.push(event)
     }
@@ -217,7 +231,8 @@ impl SimpleMachine {
         self.verbose = !v;
     }
 
-    pub fn new(mem : impl MemoryIO + 'static, rom : romloader::Rom) -> Self {
+
+    pub fn new(mem : M, rom : romloader::Rom) -> Self {
 
         let path = std::env::current_dir().expect("getting dir");
         info!("Creatning Simple 6809 machine");
@@ -241,7 +256,7 @@ impl SimpleMachine {
     }
 }
 
-fn load_rom_to_mem(file : &str, mem : impl MemoryIO + 'static, addr : u16, size : usize) -> SimpleMachine {
+fn load_rom_to_mem<M : MemoryIO>(file : &str, mem : M, addr : u16, size : usize) -> SimpleMachine<M> {
     let mut mem = mem;
     let rom = romloader::Rom::from_sym_file(file).expect("Load syms");
     info!("loaded symbol file {} as ROM", file);
@@ -252,16 +267,10 @@ fn load_rom_to_mem(file : &str, mem : impl MemoryIO + 'static, addr : u16, size 
     ret
 }
 
-pub fn make_simple(file : &str) -> SimpleMachine {
+pub fn make_simple(file : &str) -> SimpleMachine<SimpleMem> {
     let mem = SimpleMem::default();
     load_rom_to_mem(file, mem, 0x9900, 0x10_000 - 0x9900)
 }
 
-#[allow(dead_code)]
-pub fn make_simple_all_ram(file : &str) -> SimpleMachine {
-    let (addr,size) = (0, 0x10_000);
-    let  mem = emu::mem::MemBlock::new("ram",false,addr,size);
-    load_rom_to_mem(file, mem, addr, size)
-}
 
 

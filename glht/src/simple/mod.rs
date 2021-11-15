@@ -1,9 +1,13 @@
 pub mod breakpoints;
 pub mod filewatcher;
 pub mod io;
-pub mod simplecore;
-pub mod state;
+mod simplecore;
+mod state;
 pub mod utils;
-pub mod mem;
+mod mem;
+
+pub use simplecore::*;
+pub use state::*;
+pub use mem::*;
 
 use ::emu;

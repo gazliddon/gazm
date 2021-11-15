@@ -7,4 +7,7 @@ pub enum Events {
     PageDown,
     ScrollUp,
     ScrollDown,
+    SimStep,
+    SimRun,
+    SimStop,
 }

@@ -10,7 +10,6 @@ impl Default for Colour {
     }
 }
 
-
 macro_rules! col {
     ($r:expr,$g:expr,$b:expr,$a:expr) => {
         Colour {

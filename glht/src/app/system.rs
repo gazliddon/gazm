@@ -5,7 +5,7 @@ use super::{glutin, imgui, App};
 //
 use glutin::event_loop::{ControlFlow, EventLoop};
 
-use glutin::event::{Event, WindowEvent};
+use glutin::event::{Event, WindowEvent, ModifiersState};
 use imgui_glium_renderer::Renderer;
 
 use crate::v2::*;
@@ -48,7 +48,7 @@ impl Default for System {
         }
 
         let hidpi_factor = platform.hidpi_factor();
-        let font_size = (18.0 * hidpi_factor) as f32;
+        let font_size = (16.0 * hidpi_factor) as f32;
         let rbytes = include_bytes!("../../resources/Inconsolata.otf");
 
         imgui.fonts().add_font(&[imgui::FontSource::TtfData {
@@ -93,7 +93,7 @@ impl System {
         v / sc
     }
 
-    pub fn main_loop<F: App + 'static>(self, mut app: F) {
+    pub fn main_loop<E, F: App<E> + 'static>(self, mut app: F) {
         let System {
             event_loop,
             display,
@@ -106,7 +106,6 @@ impl System {
 
         let mut last_frame = Instant::now();
 
-        use glutin::event::ModifiersState;
 
         let mut mstate = ModifiersState::empty();
 
