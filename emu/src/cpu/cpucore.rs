@@ -49,25 +49,23 @@ pub struct Context<'a, C: 'a + Clock, M : MemoryIO> {
     mem: &'a mut M,
     ref_clock: &'a Rc<RefCell<C>>,
     cycles: usize,
+    ins: InstructionDecoder,
 }
 
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
 impl<'a, C: 'a + Clock, M: MemoryIO> Context<'a, C, M> {
     fn set_pc(&mut self, v: u16) {
-        panic!("Set PC!")
-        // self.ins.next_addr = v;
+        self.ins.next_addr = v;
     }
 
     fn get_pc(&self) -> u16 {
-        // self.ins.next_addr
-        panic!("")
+        self.ins.next_addr
     }
 
     fn set_pc_rel(&mut self, v: i16) {
-        // let pc = self.ins.next_addr.wrapping_add(v as u16);
-        // self.set_pc(pc)
-        panic!("")
+        let pc = self.ins.next_addr.wrapping_add(v as u16);
+        self.set_pc(pc)
     }
 
     fn fetch_byte_as_i16<A: AddressLines>(&mut self) -> Result<i16, CpuErr> {
@@ -76,13 +74,11 @@ impl<'a, C: 'a + Clock, M: MemoryIO> Context<'a, C, M> {
     }
 
     fn store_byte<A: AddressLines>(&mut self, v: u8) -> Result<u16, CpuErr> {
-        // A::store_byte(self.mem, self.regs, &mut self.ins, v)
-        panic!("")
+        A::store_byte(self.mem, self.regs, &mut self.ins, v)
     }
 
     fn store_word<A: AddressLines>(&mut self, v: u16) -> Result<u16, CpuErr> {
-        // A::store_word(self.mem, self.regs, &mut self.ins, v)
-        panic!("")
+        A::store_word(self.mem, self.regs, &mut self.ins, v)
     }
 
     fn fetch_word_as_i16<A: AddressLines>(&mut self) -> Result<i16, CpuErr> {
@@ -91,18 +87,15 @@ impl<'a, C: 'a + Clock, M: MemoryIO> Context<'a, C, M> {
     }
 
     fn fetch_byte<A: AddressLines>(&mut self) -> Result<u8, CpuErr> {
-        // A::fetch_byte(self.mem, self.regs, &mut self.ins);
-        panic!("")
+        A::fetch_byte(self.mem, self.regs, &mut self.ins)
     }
 
     fn fetch_word<A: AddressLines>(&mut self) -> Result<u16, CpuErr> {
-        // A::fetch_word(self.mem, self.regs, &mut self.ins)
-        panic!("")
+        A::fetch_word(self.mem, self.regs, &mut self.ins)
     }
 
     fn ea<A: AddressLines>(&mut self) -> Result<u16, CpuErr> {
-        // A::ea(self.mem, self.regs, &mut self.ins)
-        panic!("")
+        A::ea(self.mem, self.regs, &mut self.ins)
     }
 
     fn op16_2<A: AddressLines>(
@@ -1347,16 +1340,18 @@ impl<'a, C: 'a + Clock, M : MemoryIO> Context<'a, C, M> {
         regs: &'a mut Regs,
         ref_clock: &'a Rc<RefCell<C>>,
     ) -> Context<'a, C, M> {
+        let ins = InstructionDecoder::new_from_read_mem(regs.pc, mem);
         Context {
             regs,
             mem,
             ref_clock,
             cycles: 0,
+            ins
         }
     }
 
     pub fn step(&mut self) -> Result<(), CpuErr> {
-        let ins = InstructionDecoder::new_from_read_mem(self.regs.pc, self.mem);
+        self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc, self.mem);
 
         macro_rules! handle_op {
             ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
@@ -1364,9 +1359,9 @@ impl<'a, C: 'a + Clock, M : MemoryIO> Context<'a, C, M> {
             }};
         }
 
-        op_table!(ins.instruction_info.opcode, { self.unimplemented() })?;
+        op_table!(self.ins.instruction_info.opcode, { self.unimplemented() })?;
 
-        self.regs.pc = ins.next_addr;
+        self.regs.pc = self.ins.next_addr;
 
         Ok(())
     }

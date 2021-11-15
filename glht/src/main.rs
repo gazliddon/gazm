@@ -1,47 +1,34 @@
-#[allow(unused_imports)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 #[macro_use]
 extern crate imgui_winit_support;
 
-#[allow(unused_imports)]
 #[macro_use]
 extern crate imgui_glium_renderer;
 
-#[allow(unused_imports)]
 #[macro_use]
 pub extern crate glium;
 
 #[macro_use]
 extern crate log;
 
-#[allow(unused_imports)]
 #[macro_use]
 extern crate serde_derive;
 #[allow(dead_code)]
 mod styles;
 
-#[allow(dead_code)]
 mod app;
-#[allow(dead_code)]
 mod colour;
-#[allow(dead_code)]
 mod colourcell;
-#[allow(dead_code)]
 mod docwin;
-#[allow(dead_code)]
 mod events;
-#[allow(dead_code)]
 mod mesh;
-#[allow(dead_code)]
 mod scrbox;
-#[allow(dead_code)]
 mod simple;
-#[allow(dead_code)]
 mod sourcewin;
-#[allow(dead_code)]
 mod text;
-#[allow(dead_code)]
 mod textscreen;
-#[allow(dead_code)]
 mod v2;
 
 pub use glium::glutin;
