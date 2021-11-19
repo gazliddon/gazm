@@ -67,7 +67,8 @@ impl<TR : TextRenderer > TextContext< TR> {
 pub struct LinePrinter<'a, TR : TextRenderer > {
     pub tc : &'a TR,
     cols : ColourCell,
-    pos : V2<isize>
+    pos : V2<isize>,
+    dims : V2<usize>,
 }
 
 impl<'a, TR : TextRenderer > LinePrinter<'a, TR> {
@@ -75,7 +76,13 @@ impl<'a, TR : TextRenderer > LinePrinter<'a, TR> {
     pub fn new(tc : &'a TR) -> Self {
         let cols = ColourCell::new_bw();
         let pos = V2::new(0,0);
-        Self { tc, cols, pos}
+        Self { tc, cols, pos, dims: tc.dims()}
+    }
+
+    pub fn cols_alpha(&mut self, cols : &ColourCell, alpha : f32) -> &mut Self{
+        self.cols = *cols;
+        self.cols.set_alpha((alpha,alpha));
+        self
     }
 
     pub fn cols(&mut self, cols : &ColourCell) -> &mut Self {
@@ -85,6 +92,22 @@ impl<'a, TR : TextRenderer > LinePrinter<'a, TR> {
 
     fn chars_left(&self) -> isize {
         self.tc.width() as isize - self.pos.x
+    }
+
+    pub fn has_finised(&self) -> bool {
+        self.lines_left() > 0
+    }
+
+    pub fn lines_left(&self) -> usize {
+        let r = self.tc.height() as isize - self.pos.y;
+        if r < 0 {
+            0
+        } else {
+            r as usize
+        }
+    }
+    pub fn println(&mut self, text : &str)  -> &mut Self {
+        self.print(text).cr()
     }
 
     pub fn print(&mut self, text : &str)  -> &mut Self {

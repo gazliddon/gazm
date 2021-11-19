@@ -11,6 +11,10 @@ impl ScrBox {
         Self {pos : *pos, dims: *dims}
     }
 
+    pub fn from_dims(dims : &V2<usize>) -> Self {
+        Self::new(&V2::new(0,0), dims)
+    }
+
     pub fn get_br(&self) -> V2<isize> {
         ( self.dims.as_isizes() + self.pos ) - V2{x:1,y:1}
     }
@@ -22,6 +26,21 @@ impl ScrBox {
         let br = self.get_br();
 
         x >= tl.x && x <= br.x && y >=tl.y && y <= br.y
+    }
+
+    pub fn split_vertical(&self, pos : usize) -> Option<(ScrBox, ScrBox)> {
+        let height = self.dims.y;
+        if pos < height && pos > 0 {
+            let h1 = pos;
+            let h2 = self.dims.y - pos;
+            let w1 = ScrBox::from_dims(&V2::new(self.dims.x, h1));
+            let mut w2 = *self;
+            w2.dims.y = h2;
+            w2.pos.y += h1 as isize;
+            Some(( w1,w2 ))
+        } else {
+            None
+        }
     }
 
     pub fn intersects(&self, a : &ScrBox) -> bool {

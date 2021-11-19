@@ -27,9 +27,13 @@ use super::emu;
 use emu::{cpu, diss};
 use emu::mem::MemoryIO;
 
+use emu::breakpoints::BreakPoints;
+
+use log::info;
+
 use super::{state, filewatcher};
 
-use super::mem::{SimpleMem};
+use super::mem::SimpleMem;
 use cpu::{Regs, StandardClock};
 
 use std::cell::RefCell;
@@ -94,18 +98,19 @@ fn to_rgb(mem: &[u8], palette: &[u8]) -> [u8; SCR_BYTES] {
     ret
 }
 
-
-pub trait Machine<M: MemoryIO> {
+pub trait Machine {
+    fn get_breakpoints(&self) ->Option<&BreakPoints>;
+    fn get_breakpoints_mut(&mut self) ->Option<&mut BreakPoints>;
 
     fn get_state(&self) -> SimState;
     fn set_state(&mut self, state : SimState) -> Option<SimState>;
 
 
     fn get_rom(&self) -> &romloader::Rom;
-    fn get_mem(&self) -> &M;
+    fn get_mem(&self) -> &dyn MemoryIO;
     fn get_mem_mut(&mut self) -> &mut dyn MemoryIO;
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
-    fn get_context_mut(&mut self) -> cpu::Context<StandardClock, M >;
+    fn get_context_mut(&mut self) -> cpu::Context<StandardClock>;
 
     fn get_regs(&self) -> &cpu::Regs;
 
@@ -140,7 +145,7 @@ pub trait Machine<M: MemoryIO> {
 #[allow(dead_code)]
 pub struct SimpleMachine<M: MemoryIO> {
     regs: Regs,
-    mem: Box<M>,
+    mem: M,
     rc_clock: Rc<RefCell<StandardClock>>,
     watcher: Option<filewatcher::FileWatcher>,
     events: Vec<SimEvent>,
@@ -148,9 +153,18 @@ pub struct SimpleMachine<M: MemoryIO> {
     verbose: bool,
     state: state::State<SimState>,
     rom : romloader::Rom,
+    breakpoints : emu::breakpoints::BreakPoints,
 }
 
-impl<M : MemoryIO>  Machine<M> for SimpleMachine<M> {
+impl<M: MemoryIO> Machine for SimpleMachine<M>  {
+
+    fn get_breakpoints(&self) -> Option<&BreakPoints>{
+        Some( &self.breakpoints )
+    }
+
+    fn get_breakpoints_mut(&mut self) ->Option<&mut BreakPoints> {
+        Some( &mut self.breakpoints )
+    }
     
     fn get_regs(&self) -> &cpu::Regs {
         &self.regs
@@ -159,20 +173,20 @@ impl<M : MemoryIO>  Machine<M> for SimpleMachine<M> {
     fn get_rom(&self) -> &romloader::Rom {
         &self.rom
     }
-    fn get_mem(&self) -> &M {
-        self.mem.as_ref()
+    fn get_mem(&self) -> &dyn MemoryIO {
+        &self.mem
     }
 
     fn get_mem_mut(&mut self) -> &mut dyn MemoryIO {
-        self.mem.as_mut()
+        &mut self.mem
     }
 
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>> {
         &mut self.rc_clock
     }
 
-    fn get_context_mut(&mut self) -> cpu::Context<StandardClock, M> {
-        emu::cpu::Context::new(self.mem.as_mut(), &mut self.regs, &self.rc_clock)
+    fn get_context_mut(&mut self) -> cpu::Context<StandardClock> {
+        emu::cpu::Context::new(&mut self.mem, &mut self.regs, &self.rc_clock)
     }
 
     fn update(&mut self) -> SimState {
@@ -221,7 +235,7 @@ impl<M : MemoryIO>  Machine<M> for SimpleMachine<M> {
 }
 
 #[allow(dead_code)]
-impl<M : MemoryIO>  SimpleMachine<M> {
+impl<M : MemoryIO>  SimpleMachine<M>{
     fn add_event(&mut self, event: SimEvent) {
         self.events.push(event)
     }
@@ -231,8 +245,7 @@ impl<M : MemoryIO>  SimpleMachine<M> {
         self.verbose = !v;
     }
 
-
-    pub fn new(mem : M, rom : romloader::Rom) -> Self {
+    pub fn new (mem : M, rom : romloader::Rom) -> Self {
 
         let path = std::env::current_dir().expect("getting dir");
         info!("Creatning Simple 6809 machine");
@@ -242,7 +255,6 @@ impl<M : MemoryIO>  SimpleMachine<M> {
         let rc_clock = Rc::new(RefCell::new(clock));
         let regs = Regs::new();
         let verbose = false;
-        let mem = Box::new(mem);
 
         Self {
             rom, mem, regs, rc_clock,
@@ -252,6 +264,7 @@ impl<M : MemoryIO>  SimpleMachine<M> {
             events: vec![],
             dirty: false,
             state: state::State::new(SimState::Paused),
+            breakpoints : emu::breakpoints::BreakPoints::new(),
         }
     }
 }

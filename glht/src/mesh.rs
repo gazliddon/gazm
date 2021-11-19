@@ -1,6 +1,5 @@
-use super::app::system::System;
-use super::glium;
-use glium::Surface;
+use crate::app::system::System;
+use glium::{ Surface, uniform, program };
 
 pub struct Mesh<T: Copy, I: Copy + glium::index::Index> {
     pub index_buffer: glium::IndexBuffer<I>,

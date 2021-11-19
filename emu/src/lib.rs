@@ -21,3 +21,5 @@ pub mod mem;
 pub mod diss;
 
 pub use sha1;
+
+pub mod breakpoints;

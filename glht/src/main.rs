@@ -1,23 +1,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
-#[macro_use]
-extern crate imgui_winit_support;
-
-#[macro_use]
-extern crate imgui_glium_renderer;
-
-#[macro_use]
-pub extern crate glium;
-
-#[macro_use]
-extern crate log;
-
-#[macro_use]
-extern crate serde_derive;
-#[allow(dead_code)]
 mod styles;
-
 mod app;
 mod colour;
 mod colourcell;
@@ -30,12 +14,11 @@ mod sourcewin;
 mod text;
 mod textscreen;
 mod v2;
+mod cycler;
 
-pub use glium::glutin;
-pub use imgui_glium_renderer::imgui;
-
+use glium::{ glutin, implement_vertex };
+use imgui_glium_renderer::imgui;
 use app::{frametime::FrameTime, system::System, App};
-
 use glium::index::PrimitiveType;
 use glium::Surface;
 use imgui::{im_str, Condition, Ui, Window};
@@ -106,7 +89,6 @@ impl MyApp {
             mesh,
             running: true,
             frame_time: FrameTime::default(),
-            // dbgwin: dbgwin::DbgWin::new(0x9900),
             sourcewin: sourcewin::SourceWin::new(),
         }
     }
@@ -214,14 +196,11 @@ impl App<events::Events> for MyApp {
         let char_dims = ui.current_font().dims() / hdpi as f32;
         let grid_cell_dims = &dims.as_f32s().div_components(char_dims).as_usizes();
 
-        // println!("dims: {:?} gcd: {:?} cd ; {:?}", dims, char_dims, grid_cell_dims);
-        
         use simple::Machine;
 
         let machine = &self.machine;
         let pc = machine.get_regs().pc;
         let sources = &machine.get_rom().sources;
-        let state = machine.get_state();
 
         if self.sourcewin.is_empty() {
             if let Some(sf) = sources.addr_to_loc(pc).map(|l| sources.get(&l.file)).flatten() {
@@ -229,7 +208,7 @@ impl App<events::Events> for MyApp {
             }
         }
 
-        self.sourcewin.update(grid_cell_dims, &self.frame_time, pc, state );
+        self.sourcewin.update(grid_cell_dims, &self.frame_time, machine );
 
         let pos = V2::new(0.0, 0.0);
 
@@ -241,7 +220,7 @@ impl App<events::Events> for MyApp {
             .movable(false)
             .build(ui, || {
                 let tc = text::ImgUiTextRender::new(&pos, &char_dims, grid_cell_dims, &ui);
-                self.sourcewin.render(&tc);
+                self.sourcewin.render(&tc,machine);
             });
     }
 }

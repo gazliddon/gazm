@@ -14,6 +14,22 @@ use imgui::Context;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use std::time::Instant;
 
+use lazy_static::*;
+
+lazy_static! {
+
+    static ref CODE_POINTS : Vec<u16> = {
+        vec![
+            0x2500,
+            0x257f,
+            0x0002,
+            0x007f,
+            0x0
+        ]
+    };
+
+
+}
 
 pub struct System {
     pub display: Display,
@@ -22,6 +38,7 @@ pub struct System {
     pub event_loop: EventLoop<()>,
     pub frame_time: FrameTime,
     pub imgui: Context,
+    scale : f64,
 }
 
 impl Default for System {
@@ -30,8 +47,11 @@ impl Default for System {
         let wb = glutin::window::WindowBuilder::new();
 
         let cb = glutin::ContextBuilder::new()
-            .with_vsync(true)
-            .with_multisampling(4);
+            .with_double_buffer(Some(true))
+            .with_multisampling(16)
+            .with_hardware_acceleration(Some(true))
+            .with_srgb(true)
+            .with_vsync(true);
 
         let display = Display::new(wb, cb, &event_loop).expect("Building display");
 
@@ -44,12 +64,14 @@ impl Default for System {
         {
             let gl_window = display.gl_window();
             let window = gl_window.window();
-            platform.attach_window(imgui.io_mut(), &window, HiDpiMode::Rounded);
+            platform.attach_window(imgui.io_mut(), &window, HiDpiMode::Default);
         }
 
-        let hidpi_factor = platform.hidpi_factor();
-        let font_size = (16.0 * hidpi_factor) as f32;
-        let rbytes = include_bytes!("../../resources/Inconsolata.otf");
+        let scale = platform.hidpi_factor();
+        let font_size = (18.0 * scale) as f32;
+        let rbytes = include_bytes!("../../resources/FiraCode-Retina.ttf");
+
+        let range = imgui::FontGlyphRanges::from_slice(&CODE_POINTS);
 
         imgui.fonts().add_font(&[imgui::FontSource::TtfData {
             data: rbytes,
@@ -57,14 +79,15 @@ impl Default for System {
             config: Some(imgui::FontConfig {
                 size_pixels: font_size,
                 name: Some(String::from("Roboto")),
-                oversample_h: 4,
-                oversample_v: 4,
+                oversample_h: 8,
+                oversample_v: 8,
                 pixel_snap_h: true,
+                glyph_ranges : range,
                 ..imgui::FontConfig::default()
             }),
         }]);
 
-        imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+        imgui.io_mut().font_global_scale = (1.0 / scale) as f32;
 
         let renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
 
@@ -75,6 +98,7 @@ impl Default for System {
             event_loop,
             frame_time: FrameTime::from_now(),
             imgui,
+            scale,
         }
     }
 }
@@ -108,6 +132,7 @@ impl System {
 
 
         let mut mstate = ModifiersState::empty();
+        let scale = self.scale;
 
         event_loop.run(move |event, _, control_flow| {
             
@@ -140,20 +165,19 @@ impl System {
 
                     // Get the inner size
                     // convert to logical pixels using hidpi
-                    let hdpi = platform.hidpi_factor();
-                    let dims = gl_window.window().inner_size().to_logical::<f64>(hdpi);
+                    let dims = gl_window.window().inner_size().to_logical::<f64>(scale);
 
                     let pos = gl_window
                         .window()
                         .inner_position()
                         .unwrap_or(glutin::dpi::PhysicalPosition::<i32>::new(0, 0))
-                        .to_logical::<f64>(hdpi);
+                        .to_logical::<f64>(scale);
 
                     let dims = V2::new(dims.width, dims.height).as_usizes();
                     let pos = V2::new(pos.x, pos.y).as_isizes();
 
-                    app.draw(hdpi, pos, dims, &mut target);
-                    app.ui(hdpi, pos, dims, &mut ui);
+                    app.draw(scale, pos, dims, &mut target);
+                    app.ui(scale, pos, dims, &mut ui);
 
                     platform.prepare_render(&ui, gl_window.window());
 

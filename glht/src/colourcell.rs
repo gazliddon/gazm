@@ -37,6 +37,15 @@ impl ColourCell {
             }
 
         }
+
+    pub fn set_bg_alpha(&mut self, alpha : f32) {
+        self.bg.set_alpha(alpha);
+    }
+
+    pub fn set_alpha(&mut self, alpha : (f32, f32)) {
+        self.fg.set_alpha(alpha.0);
+        self.bg.set_alpha(alpha.1);
+    }
 }
 
 impl ColourOps for ColourCell { 

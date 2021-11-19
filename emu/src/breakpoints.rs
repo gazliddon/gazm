@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
 #[allow(dead_code)]
 pub enum BreakPointTypes {
     READ,
@@ -6,7 +6,7 @@ pub enum BreakPointTypes {
     EXEC,
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
 #[allow(dead_code)]
 pub struct BreakPoint {
     addr: u16,
@@ -28,16 +28,20 @@ impl BreakPoint {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Default)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 #[allow(dead_code)]
 pub struct BreakPoints {
     break_points: Vec<BreakPoint>,
+    mem_to_bp: [Option<BreakPoint>; 0x1_0000],
 }
 
 #[allow(dead_code)]
 impl BreakPoints {
     pub fn new() -> BreakPoints {
-        Self::default()
+        Self {
+            break_points: vec![],
+            mem_to_bp: [None; 0x1_0000],
+        }
     }
 
     pub fn has_breakpoint(&self, addr: u16, kind: BreakPointTypes) -> bool {
@@ -76,7 +80,12 @@ impl BreakPoints {
         }
     }
 
-    pub fn remove_at_addr(&mut self, _addr: u16) {
-        panic!("tbd")
+    pub fn remove_all_at_addr(&mut self, _addr: u16) {
+        self.break_points = self
+            .break_points
+            .iter()
+            .filter(|bp| bp.addr != _addr)
+            .cloned()
+            .collect();
     }
 }

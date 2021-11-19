@@ -5,52 +5,21 @@
 // A Source Store
 // A PC
 //
-use super::colour::*;
-use super::events::Events;
-use super::styles::TextStyles;
-use super::styles::*;
-use super::text::Dimensions;
-use super::text::*;
-use super::v2::*;
+
+use log::info;
+
+use super::{
+    colour::*, colourcell::*, events::Events, scrbox::ScrBox, styles::TextStyles, styles::*,
+    text::Dimensions, text::*, v2::*,
+};
+
 use romloader::AnnotatedSourceFile;
 use Events::*;
 
-use super::simple::SimState;
-
-struct Cycler {
-    cols: Vec<Colour>,
-    per_entry: f64,
-    t_mul: f64,
-}
-
-pub struct SourceCtx<'a> {
-    sources: &'a romloader::SourceStore,
-    pc: u16,
-}
-
-impl Cycler {
-    pub fn new(speed: f64, cols: Vec<Colour>) -> Self {
-        let total_t = speed * cols.len() as f64;
-        let t_mul = 1.0 / total_t;
-
-        Self {
-            cols,
-            per_entry: speed,
-            t_mul,
-        }
-    }
-
-    fn select(&self, t: f64) -> &Colour {
-        &self.cols[(t.abs() as usize) % self.cols.len()]
-    }
-
-    pub fn get_col(&self, t: f64) -> Colour {
-        let t = t * self.t_mul;
-        let c1 = self.select(t);
-        let c2 = self.select(t + 1.0);
-        c1.blend(&c2, t.fract())
-    }
-}
+use super::simple::{Machine, SimState, SimpleMachine};
+use emu::cpu::Regs;
+use emu::mem::MemoryIO;
+use romloader::Location;
 
 trait RenderDoc<'a> {
     fn render_line(&mut self, cursor: usize, win_ypos: usize, doc_ypos: usize);
@@ -70,7 +39,7 @@ trait RenderDoc<'a> {
 
 struct SourceRenderer<'a, IR: TextRenderer> {
     sf: &'a AnnotatedSourceFile,
-    pc: u16,
+    machine: &'a dyn Machine,
     text_styles: &'a TextStyles,
     blank: String,
     lp: LinePrinter<'a, IR>,
@@ -78,7 +47,7 @@ struct SourceRenderer<'a, IR: TextRenderer> {
 
 impl<'a, TR: TextRenderer> SourceRenderer<'a, TR> {
     pub fn new(
-        pc: u16,
+        machine: &'a dyn Machine,
         sf: &'a romloader::AnnotatedSourceFile,
         text_styles: &'a TextStyles,
         tc: &'a TR,
@@ -88,9 +57,9 @@ impl<'a, TR: TextRenderer> SourceRenderer<'a, TR> {
         Self {
             blank,
             sf,
-            pc,
             text_styles,
             lp,
+            machine,
         }
     }
 }
@@ -104,8 +73,9 @@ impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
                 .unwrap_or(self.blank.clone());
 
             let source_text = sl.line.as_ref().unwrap_or(&self.blank);
+            let pc = self.machine.get_regs().pc;
 
-            let is_pc_line = sl.addr.map(|p| p == self.pc).unwrap_or(false);
+            let is_pc_line = sl.addr.map(|p| p == pc).unwrap_or(false);
             let is_cursor_line = win_ypos == cursor;
             let is_debug_line = false;
 
@@ -131,9 +101,7 @@ pub struct SourceWin {
     styles: StylesDatabase,
     source_file: Option<romloader::AnnotatedSourceFile>,
     frame_time: FrameTime,
-    pc: u16,
     win_dims: V2<usize>,
-    state: Option<SimState>,
 }
 
 impl Default for SourceWin {
@@ -145,9 +113,7 @@ impl Default for SourceWin {
             styles: StylesDatabase::default(),
             source_file: None,
             frame_time: FrameTime::from_now(),
-            pc: 0,
             win_dims: V2::new(0, 0),
-            state: None,
         }
     }
 }
@@ -169,6 +135,13 @@ impl SourceWin {
 
     pub fn has_source_file(&self) -> bool {
         !self.is_empty()
+    }
+
+    pub fn get_cursor_file_loc(&self) -> Option<Location> {
+        self.source_file
+            .as_ref()
+            .and_then(|sf| sf.line(self.cursor))
+            .map(|sl| sl.loc.clone())
     }
 
     pub fn event(&mut self, event: Events) -> Option<Events> {
@@ -235,15 +208,12 @@ impl SourceWin {
         &mut self,
         dims: &D,
         frame_time: &FrameTime,
-        pc: u16,
-        state: SimState,
+        _machine: &dyn Machine,
     ) {
         if self.has_source_file() {
             // FIX : dims being passed is wrong
             self.win_dims = dims.dims();
             self.frame_time = *frame_time;
-            self.pc = pc;
-            self.state = Some(state);
         }
     }
 
@@ -255,35 +225,24 @@ impl SourceWin {
         self.source_file = None;
     }
 
-    pub fn render<TR: TextRenderer>(&self, tc: &TR) {
+    pub fn render<TR: TextRenderer>(&self, tc: &TR, machine: &dyn Machine) {
         if self.has_source_file() {
-            let w = self.win_dims.x;
+            let _w = self.win_dims.x;
             let h = self.win_dims.y;
 
             let text_styles = TextStyles::new(&self.styles);
             let offset = self.scroll_offset;
 
             if let Some(sf) = &self.source_file {
-                let mut renderer = SourceRenderer::new(self.pc, sf, &text_styles, tc);
+                let mut renderer = SourceRenderer::new(machine, sf, &text_styles, tc);
                 renderer.render_doc(h, offset, self.cursor);
-
-                // let cyc = Cycler::new(0.1, vec![*WHITE, *RED, *BLUE, *GREEN]);
-                // let flash_col = cyc.get_col(self.frame_time.now_as_seconds());
-                // let norm_col = &GREEN;
-                // let st = ScrollTriggers::new(offset, sf.num_of_lines(), self.win_dims, self.scroll_zone_height);
-                // st.draw(tc, self.cursor, &norm_col, &flash_col);
-
-                let st = format!(
-                    "st: {:?}, o: {:04} c: {:04} wh:{},{}",
-                    self.state, offset, self.cursor, w, h
-                );
-                let ccel = super::colourcell::ColourCell::new(RED, YELLOW);
-                tc.draw_text_with_bg(&V2::new(w - st.len(), 0).as_isizes(), &st, &ccel);
             }
         }
+
+        let reg_win = RegWin::new();
+        reg_win.render(&V2::new(0, 0), tc, machine.get_regs());
     }
 }
-use super::scrbox::ScrBox;
 
 struct ScrollTriggers {
     top_zone: Option<ScrBox>,
@@ -364,5 +323,50 @@ impl ScrollTriggers {
             };
             tr.draw_box(&bottom.pos, &bottom.dims, &ccol);
         }
+    }
+}
+
+struct RegWin {}
+
+pub fn boxer<TR: TextRenderer>(render: &TR) {
+    let cel_col = ColourCell::new(&YELLOW, &RED.mul_scalar(0.2));
+    let h = 3;
+    let w = 10;
+
+    let horiz = "─".repeat(w);
+    let vert = "│";
+
+    let tr = '┐';
+    let br = '┘';
+    let tl = '┌';
+    let bl = '└';
+
+    let top = format!("{}{}{}", tl, horiz, tr);
+    let mid = format!("{}{}{}", vert, " ".repeat(w), vert);
+    let bottom = format!("{}{}{}", bl, horiz, br);
+
+    let mut v = LinePrinter::new(render);
+    v.cols_alpha(&cel_col, 1.0);
+    v.println(&top);
+    for _ in 0..h {
+        v.println(&mid);
+    }
+    v.println(&bottom);
+}
+
+impl RegWin {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn render<TR: TextRenderer>(&self, _pos: &V2<isize>, tr: &TR, _regs: &Regs) {
+        // let cel_col = ColourCell::new(&YELLOW, &RED.mul_scalar(0.2));
+        // let mut v = LinePrinter::new(tr);
+
+        // v.cols(&cel_col);
+        // v.println(&regs.get_hdr());
+        // v.println(&regs.get_text());
+
+        boxer(tr);
     }
 }

@@ -16,7 +16,7 @@ glium = { version = "0.29", default-features = true }
 
 cgmath="*"
 num="*"
-lazy_static = "1.0"
+lazy_static = "*"
 
 serde = "*"
 serde_yaml = "*"

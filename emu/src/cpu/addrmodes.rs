@@ -8,8 +8,8 @@ pub trait AddressLines {
 
     fn diss(_mem: &dyn MemoryIO, _ins: &mut InstructionDecoder) -> String;
 
-    fn ea<M: MemoryIO>(
-        _mem: &mut M,
+    fn ea(
+        _mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         _ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
@@ -17,8 +17,8 @@ pub trait AddressLines {
         Err(CpuErr::IllegalAddressingMode)
     }
 
-    fn store_byte<M: MemoryIO>(
-        _mem: &mut M,
+    fn store_byte(
+        _mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         _ins: &mut InstructionDecoder,
         _val: u8,
@@ -26,8 +26,8 @@ pub trait AddressLines {
         Err(CpuErr::IllegalAddressingMode)
     }
 
-    fn store_word<M: MemoryIO>(
-        _mem: &mut M,
+    fn store_word(
+        _mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         _ins: &mut InstructionDecoder,
         _val: u16,
@@ -35,24 +35,24 @@ pub trait AddressLines {
         Err(CpuErr::IllegalAddressingMode)
     }
 
-    fn fetch_byte<M: MemoryIO>(
-        _mem: &mut M,
+    fn fetch_byte(
+        _mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         _ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
         Err(CpuErr::IllegalAddressingMode)
     }
 
-    fn fetch_word<M: MemoryIO>(
-        _mem: &mut M,
+    fn fetch_word(
+        _mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         _ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
         Err(CpuErr::IllegalAddressingMode)
     }
 
-    fn fetch_byte_as_i16<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_byte_as_i16(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<i16, CpuErr> {
@@ -67,8 +67,8 @@ pub trait AddressLines {
 pub struct Direct {}
 
 impl AddressLines for Direct {
-    fn ea<M: MemoryIO>(
-        mem: &mut M,
+    fn ea(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
@@ -80,8 +80,8 @@ impl AddressLines for Direct {
         "Direct".to_string()
     }
 
-    fn fetch_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_byte(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
@@ -89,8 +89,8 @@ impl AddressLines for Direct {
         Ok(mem.load_byte(ea))
     }
 
-    fn fetch_word<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_word(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
@@ -98,8 +98,8 @@ impl AddressLines for Direct {
         Ok(mem.load_word(ea))
     }
 
-    fn store_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn store_byte(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
         val: u8,
@@ -109,8 +109,8 @@ impl AddressLines for Direct {
         Ok(ea)
     }
 
-    fn store_word<M: MemoryIO>(
-        mem: &mut M,
+    fn store_word(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
         val: u16,
@@ -130,8 +130,8 @@ impl AddressLines for Direct {
 pub struct Extended {}
 
 impl AddressLines for Extended {
-    fn ea<M: MemoryIO>(
-        mem: &mut M,
+    fn ea(
+        mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
@@ -142,8 +142,8 @@ impl AddressLines for Extended {
         "Extended".to_string()
     }
 
-    fn fetch_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_byte(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
@@ -151,8 +151,8 @@ impl AddressLines for Extended {
         Ok(mem.load_byte(addr))
     }
 
-    fn fetch_word<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_word(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
@@ -160,8 +160,8 @@ impl AddressLines for Extended {
         Ok(mem.load_word(addr))
     }
 
-    fn store_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn store_byte(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
         val: u8,
@@ -171,8 +171,8 @@ impl AddressLines for Extended {
         Ok(addr)
     }
 
-    fn store_word<M: MemoryIO>(
-        mem: &mut M,
+    fn store_word(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
         val: u16,
@@ -197,8 +197,8 @@ impl AddressLines for Immediate8 {
         "Immediate8".to_string()
     }
 
-    fn fetch_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_byte(
+        mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
@@ -218,8 +218,8 @@ impl AddressLines for Immediate16 {
         "Immediate16".to_string()
     }
 
-    fn fetch_word<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_word(
+        mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
@@ -239,8 +239,8 @@ impl AddressLines for Inherent {
     fn name() -> String {
         "Inherent".to_string()
     }
-    fn fetch_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_byte(
+        mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
@@ -280,8 +280,8 @@ impl Indexed {
         }
     }
 
-    fn get_index_mode<M: MemoryIO>(
-        mem: &mut M,
+    fn get_index_mode(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<(u16, IndexedFlags), CpuErr> {
@@ -405,12 +405,12 @@ impl AddressLines for Indexed {
         }
     }
 
-    fn ea<M: MemoryIO>(
-        mem: &mut M,
+    fn ea(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
-        let (ea, index_mode) = Indexed::get_index_mode::<M>(mem, regs, ins)?;
+        let (ea, index_mode) = Indexed::get_index_mode(mem, regs, ins)?;
 
         let ea = if index_mode.is_indirect() {
             mem.load_word(ea)
@@ -425,8 +425,8 @@ impl AddressLines for Indexed {
         "Indexed".to_string()
     }
 
-    fn fetch_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_byte(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
@@ -434,8 +434,8 @@ impl AddressLines for Indexed {
         Ok(mem.load_byte(ea))
     }
 
-    fn fetch_word<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_word(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
@@ -443,8 +443,8 @@ impl AddressLines for Indexed {
         Ok(mem.load_word(ea))
     }
 
-    fn store_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn store_byte(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
         val: u8,
@@ -454,8 +454,8 @@ impl AddressLines for Indexed {
         Ok(ea)
     }
 
-    fn store_word<M: MemoryIO>(
-        mem: &mut M,
+    fn store_word(
+        mem: &mut dyn MemoryIO,
         regs: &mut Regs,
         ins: &mut InstructionDecoder,
         val: u16,
@@ -474,8 +474,8 @@ impl AddressLines for Relative {
         "Relative".to_string()
     }
 
-    fn fetch_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_byte(
+        mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
@@ -495,16 +495,16 @@ impl AddressLines for Relative16 {
         "Relative16".to_string()
     }
 
-    fn fetch_byte<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_byte(
+        mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
         Ok(ins.fetch_byte(mem))
     }
 
-    fn fetch_word<M: MemoryIO>(
-        mem: &mut M,
+    fn fetch_word(
+        mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {

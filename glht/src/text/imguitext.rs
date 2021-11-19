@@ -73,18 +73,6 @@ impl<'a> TextRenderer for ImgUiTextRender<'a> {
     fn draw_text(&self, pos: &V2<isize>, text: &str, col: &Colour) {
         let tl = self.xform(pos);
         self.dl.add_text(tl, col, text);
-
-        // let mut s = String::new();
-
-        // let mut new_pos = *pos;
-
-        // for ch in text.chars() {
-        //     s.clear();
-        //     s.push(ch);
-        //     let tl = self.xform(&new_pos);
-        //     self.dl.add_text(tl, col, text);
-        //     new_pos.x = new_pos.x + 1;
-        // }
     }
 
     fn draw_box(&self, pos: &V2<isize>, dims: &V2<usize>, col: &Colour) {
