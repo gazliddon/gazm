@@ -15,7 +15,7 @@ IO
 */
 
 
-use super::emu::mem::memcore::MemoryIO;
+use super::emu::mem::{ MemoryIO, MemErrorTypes };
 use super::emu::sha1::Sha1;
 
 #[allow(dead_code)]
@@ -72,12 +72,13 @@ impl Io {
 }
 
 impl MemoryIO for Io {
-    fn inspect_byte(&self, addr: u16) -> u8 {
-        if Io::is_palette(addr) {
+    fn inspect_byte(&self, addr: u16) -> Result<u8, MemErrorTypes> {
+        let r = if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize]
         } else {
             0
-        }
+        };
+        Ok(r)
     }
 
     fn upload(&mut self, _addr: u16, _data: &[u8]) {
@@ -92,23 +93,25 @@ impl MemoryIO for Io {
         panic!("TBD")
     }
 
-    fn load_byte(&mut self, addr: u16) -> u8 {
-        if Io::is_palette(addr) {
+    fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
+        let r = if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize]
         } else if addr == IO_RASTER {
             0xff
         } else {
             0
-        }
+        };
+        Ok(r)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) {
+    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(), MemErrorTypes>{
         if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize] = val
         } else if addr == IO_RASTER {
             // if you write to IO_RASTER the cpu will halt until vsync
             self.halt = true
         }
+        Ok(())
     }
 
     fn get_name(&self) -> String {

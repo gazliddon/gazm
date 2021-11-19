@@ -1,5 +1,5 @@
 use super::mem::MemoryIO;
-
+use super::CpuErr;
 use romloader::{ Dbase, Instruction };
 use std::str;
 
@@ -74,36 +74,36 @@ impl InstructionDecoder {
         panic!()
     }
 
-    pub fn fetch_inspect_word(&mut self, mem: &dyn MemoryIO) -> u16 {
-        let w = mem.inspect_word(self.addr.wrapping_add(self.index));
+    pub fn fetch_inspect_word(&mut self, mem: &dyn MemoryIO) -> Result<u16,CpuErr> {
+        let w = mem.inspect_word(self.addr.wrapping_add(self.index))?;
         self.index = self.index.wrapping_add(2);
-        w
+        Ok(w)
     }
 
-    pub fn fetch_inspecte_byte(&mut self, mem: &dyn MemoryIO) -> u8 {
-        let b = mem.inspect_byte(self.addr.wrapping_add(self.index));
+    pub fn fetch_inspecte_byte(&mut self, mem: &dyn MemoryIO) -> Result<u8, CpuErr> {
+        let b = mem.inspect_byte(self.addr.wrapping_add(self.index))?;
         self.index = self.index.wrapping_add(1);
-        b
+        Ok(b)
     }
 
     pub fn new_from_inspect_mem(addr: u16, mem: &dyn MemoryIO) -> Self {
-        decode_op(addr, |addr| mem.inspect_byte(addr))
+        decode_op(addr, |addr| mem.inspect_byte(addr).unwrap())
     }
 
     pub fn new_from_read_mem(addr: u16, mem: &mut dyn MemoryIO) -> Self {
-        decode_op(addr, |addr| mem.load_byte(addr))
+        decode_op(addr, |addr| mem.load_byte(addr).unwrap())
     }
 
     pub fn fetch_byte(&mut self, mem: &mut dyn MemoryIO) -> u8 {
-        let b = mem.load_byte(self.addr.wrapping_add(self.index));
+        let b = mem.load_byte(self.addr.wrapping_add(self.index)).unwrap();
         self.index = self.index.wrapping_add(1);
         b
     }
 
-    pub fn fetch_word(&mut self, mem: &mut dyn MemoryIO) -> u16 {
-        let w = mem.load_word(self.addr.wrapping_add(self.index));
+    pub fn fetch_word(&mut self, mem: &mut dyn MemoryIO) -> Result<u16, CpuErr> {
+        let w = mem.load_word(self.addr.wrapping_add(self.index))?;
         self.index = self.index.wrapping_add(2);
-        w
+        Ok(w)
     }
 
     pub fn fetch_byte_as_i8(&mut self, mem: &mut dyn MemoryIO) -> i8 {

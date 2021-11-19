@@ -5,12 +5,14 @@ use std::vec::Vec;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(dead_code)]
-pub enum MemError {
-    AddressError(u16),
+
+pub enum MemErrorTypes {
+    IllegalAddress(u16),
     IllegalWrite(u16),
-    BreakPointRead(u16),
-    BreakPointWrite(u16),
+    IllegalRead(u16),
 }
+
+
 
 #[allow(dead_code)]
 pub fn build_addr_to_region<E: Copy>(illegal: E, mem_tab: &[(E, &dyn MemoryIO)]) -> [E; 0x1_0000] {
@@ -46,21 +48,22 @@ pub fn as_bytes(val: u16) -> (u8, u8) {
 
 #[allow(dead_code)]
 pub trait CheckedMemoryIo {
-    fn inspect_byte(&self, _addr: u16) -> Result<(), MemError>;
-    fn load_byte(&mut self, _addr: u16) -> Result<(), MemError>;
-    fn store_byte(&mut self, _addr: u16, _val: u8) -> Result<(), MemError>;
+    fn inspect_byte(&self, _addr: u16) -> Result<u16, MemErrorTypes>;
+    fn load_byte(&mut self, _addr: u16) -> Result<u8, MemErrorTypes>;
+    fn store_byte(&mut self, _addr: u16, _val: u8) -> Result<(), MemErrorTypes>;
 }
 
 #[allow(dead_code)]
+
 pub trait MemoryIO {
-    fn inspect_word(&self, _addr: u16) -> u16 {
-        let lo = self.inspect_byte(_addr.wrapping_add(1));
-        let hi = self.inspect_byte(_addr);
-        as_word(lo, hi)
+    fn inspect_word(&self, _addr: u16) -> Result<u16, MemErrorTypes> {
+        let lo = self.inspect_byte(_addr.wrapping_add(1))?;
+        let hi = self.inspect_byte(_addr)?;
+        Ok(as_word(lo, hi))
     }
 
     // Min implementation
-    fn inspect_byte(&self, _addr: u16) -> u8 {
+    fn inspect_byte(&self, _addr: u16) -> Result<u8,MemErrorTypes> {
         panic!("TBD")
     }
 
@@ -75,9 +78,9 @@ pub trait MemoryIO {
 
     fn update_sha1(&self, _digest: &mut Sha1);
 
-    fn load_byte(&mut self, _addr: u16) -> u8;
+    fn load_byte(&mut self, _addr: u16) -> Result<u8, MemErrorTypes>;
 
-    fn store_byte(&mut self, _addr: u16, _val: u8);
+    fn store_byte(&mut self, _addr: u16, _val: u8) -> Result<(), MemErrorTypes>;
 
     // Min implementation end
 
@@ -96,16 +99,16 @@ pub trait MemoryIO {
         (_val >= base) && (_val <= last)
     }
 
-    fn store_word(&mut self, addr: u16, val: u16) {
+    fn store_word(&mut self, addr: u16, val: u16) -> Result<(), MemErrorTypes>{
         let (lo, hi) = as_bytes(val);
-        self.store_byte(addr, hi);
-        self.store_byte(addr.wrapping_add(1), lo);
+        self.store_byte(addr, hi)?;
+        self.store_byte(addr.wrapping_add(1), lo)
     }
 
-    fn load_word(&mut self, addr: u16) -> u16 {
-        let lo = self.load_byte(addr.wrapping_add(1));
-        let hi = self.load_byte(addr);
-        as_word(lo, hi)
+    fn load_word(&mut self, addr: u16) -> Result<u16, MemErrorTypes> {
+        let lo = self.load_byte(addr.wrapping_add(1))?;
+        let hi = self.load_byte(addr)?;
+        Ok(as_word(lo, hi))
     }
 
     fn get_mem_as_str(&self, addr: u16, size: u16) -> String {
@@ -114,7 +117,7 @@ pub trait MemoryIO {
         let mut v: Vec<String> = Vec::new();
 
         for a in r {
-            let b = self.inspect_byte(a as u16);
+            let b = self.inspect_byte(a as u16).unwrap();
             let t = format!("{:02X}", b);
             v.push(t);
         }

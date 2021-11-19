@@ -1,5 +1,5 @@
 // use mem::Memory;
-use super::MemoryIO;
+use super::{ MemoryIO, MemErrorTypes };
 use sha1::Sha1;
 use std::fmt;
 
@@ -35,7 +35,7 @@ impl MemoryIO for MemMap {
     fn upload(&mut self, addr: u16, data: &[u8]) {
         for (i, item) in data.iter().enumerate() {
             let a = addr.wrapping_add(i as u16);
-            self.store_byte(a, *item)
+            self.store_byte(a, *item).unwrap()
         }
     }
 
@@ -47,21 +47,22 @@ impl MemoryIO for MemMap {
         (0, 0xffff)
     }
 
-    fn load_byte(&mut self, addr: u16) -> u8 {
+    fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
         for m in &mut self.all_memory {
             if m.is_in_range(addr) {
                 return m.load_byte(addr);
             }
         }
-        0
+        Err(MemErrorTypes::IllegalAddress(addr))
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) {
+    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(), MemErrorTypes>{
         for m in &mut self.all_memory {
             if m.is_in_range(addr) {
-                m.store_byte(addr, val)
+                return m.store_byte(addr, val)
             }
         }
+        Err(MemErrorTypes::IllegalAddress(addr))
     }
 }
 

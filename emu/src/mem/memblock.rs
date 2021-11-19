@@ -1,4 +1,4 @@
-use super::{MemMap, MemMapIO, MemoryIO};
+use super::{MemMap, MemMapIO, MemoryIO, MemErrorTypes};
 use sha1::Sha1;
 use std::vec::Vec;
 
@@ -60,9 +60,10 @@ impl MemMap {
 
 #[allow(dead_code)]
 impl MemoryIO for MemBlock {
-    fn inspect_byte(&self, addr: u16) -> u8 {
+    fn inspect_byte(&self, addr: u16) ->Result<u8, MemErrorTypes> {
         assert!(addr >= self.base && addr <= self.last_mem);
-        self.data[(addr - self.base) as usize]
+        let d = self.data[(addr - self.base) as usize];
+        Ok(d)
     }
 
     fn update_sha1(&self, digest: &mut Sha1) {
@@ -81,14 +82,16 @@ impl MemoryIO for MemBlock {
         (self.base, self.last_mem)
     }
 
-    fn load_byte(&mut self, addr: u16) -> u8 {
+    fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
         assert!(addr >= self.base && addr <= self.last_mem);
-        self.data[(addr - self.base) as usize]
+        let v = self.data[(addr - self.base) as usize];
+        Ok(v)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) {
+    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(), MemErrorTypes>{
         assert!(addr >= self.base && addr <= self.last_mem);
         let idx = (addr - self.base) as usize;
         self.data[idx] = val;
+        Ok(())
     }
 }

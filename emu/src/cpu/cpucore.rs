@@ -2,7 +2,7 @@
 
 use super::{
     alu,
-    mem::{MemError, MemoryIO},
+    mem::{MemErrorTypes, MemoryIO},
     AddressLines, Clock, Direct, Extended, Flags, Immediate16, Immediate8, Indexed, Inherent,
     InstructionDecoder, RegEnum, Regs, Relative, Relative16
 };
@@ -17,7 +17,7 @@ pub enum CpuErr {
     UnknownInstruction,
     Unimplemented,
     IllegalAddressingMode,
-    Memory(MemError),
+    Memory(MemErrorTypes),
 }
 // use cpu::alu;
 
@@ -210,11 +210,12 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
         func: fn(&mut Flags, u8, u32) -> u8,
     ) -> Result<u8, CpuErr> {
         let ea = self.ea::<A>()?;
-        let v = u32::from(self.mem.load_byte(ea));
+        let b = self.mem.load_byte(ea)?;
 
+        let v = u32::from(b);
         let r = func(&mut self.regs.flags, write_mask, v);
 
-        self.mem.store_byte(ea, r);
+        self.mem.store_byte(ea, r)?;
 
         Ok(r)
     }
@@ -263,52 +264,52 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
 impl<'a, C: 'a + Clock> Context<'a, C> {
     fn pushu_byte(&mut self, v: u8) -> Result<(), CpuErr> {
         let u = self.regs.u.wrapping_sub(1);
-        self.mem.store_byte(u, v);
+        self.mem.store_byte(u, v)?;
         self.regs.u = u;
         Ok(())
     }
 
     fn pushu_word(&mut self, v: u16) -> Result<(), CpuErr> {
         let u = self.regs.u.wrapping_sub(2);
-        self.mem.store_word(u, v);
+        self.mem.store_word(u, v)?;
         self.regs.u = u;
         Ok(())
     }
 
     fn popu_byte(&mut self) -> Result<u8, CpuErr> {
-        let r = self.mem.load_byte(self.regs.u);
+        let r = self.mem.load_byte(self.regs.u)?;
         self.regs.u = self.regs.u.wrapping_add(1);
         Ok(r)
     }
 
     fn popu_word(&mut self) -> Result<u16, CpuErr> {
-        let r = self.mem.load_word(self.regs.u);
+        let r = self.mem.load_word(self.regs.u)?;
         self.regs.u = self.regs.u.wrapping_add(2);
         Ok(r)
     }
 
     fn pushs_byte(&mut self, v: u8) -> Result<(), CpuErr> {
         let s = self.regs.s.wrapping_sub(1);
-        self.mem.store_byte(s, v);
+        self.mem.store_byte(s, v)?;
         self.regs.s = s;
         Ok(())
     }
 
     fn pushs_word(&mut self, v: u16) -> Result<(), CpuErr> {
         let s = self.regs.s.wrapping_sub(2);
-        self.mem.store_word(s, v);
+        self.mem.store_word(s, v)?;
         self.regs.s = s;
         Ok(())
     }
 
     fn pops_byte(&mut self) -> Result<u8, CpuErr> {
-        let r = self.mem.load_byte(self.regs.s);
+        let r = self.mem.load_byte(self.regs.s)?;
         self.regs.s = self.regs.s.wrapping_add(1);
         Ok(r)
     }
 
     fn pops_word(&mut self) -> Result<u16, CpuErr> {
-        let r = self.mem.load_word(self.regs.s);
+        let r = self.mem.load_word(self.regs.s)?;
         self.regs.s = self.regs.s.wrapping_add(2);
         Ok(r)
     }
@@ -1248,7 +1249,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
 
         push8!(self.regs.flags.bits());
 
-        let pc = self.mem.load_word(vec);
+        let pc = self.mem.load_word(vec)?;
         self.set_pc(pc);
         Ok(())
     }
@@ -1367,7 +1368,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
     }
 
     pub fn reset(&mut self) {
-        let pc = self.mem.load_word(0xfffe);
+        let pc = self.mem.load_word(0xfffe).unwrap();
         info!("PC IS {:04x}", pc);
         *self.regs = Regs {
             pc,
