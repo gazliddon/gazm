@@ -43,6 +43,13 @@ impl BreakPoints {
             mem_to_bp: [None; 0x1_0000],
         }
     }
+    pub fn has_any_breakpoint(&self, addr: u16) -> bool {
+        let a = self.has_exec_breakpoint(addr);
+        let b = self.has_read_breakpoint(addr);
+        let c = self.has_write_breakpoint(addr);
+
+        a || b || c
+    }
 
     pub fn has_breakpoint(&self, addr: u16, kind: BreakPointTypes) -> bool {
         let bp = BreakPoint { addr, kind };
@@ -71,7 +78,7 @@ impl BreakPoints {
             self.remove(b)
         }
 
-        self.break_points.push(b.clone());
+        self.break_points.push(*b);
     }
 
     pub fn remove(&mut self, b: &BreakPoint) {

@@ -83,10 +83,22 @@ impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
                 self.text_styles
                     .get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
 
+            let mut bp_str = " ";
+
+            if let Some(break_points) = self.machine.get_breakpoints() {
+                let has_bp = sl
+                    .addr
+                    .map(|addr| break_points.has_any_breakpoint(addr))
+                    .unwrap_or(false);
+                if has_bp {
+                    bp_str = "*";
+                }
+            }
+
             self.lp.cols(&addr_col);
-            self.lp.print(&format!("{:4} ", addr_str));
+            self.lp.print(&format!(" {} {:4}  ", bp_str, addr_str));
             self.lp.cols(&line_col);
-            self.lp.print(" ");
+            self.lp.print("  ");
             self.lp.print(source_text);
         }
 

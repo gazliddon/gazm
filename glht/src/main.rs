@@ -25,7 +25,7 @@ use imgui::{im_str, Condition, Ui, Window};
 use mesh::Mesh;
 use v2::*;
 
-use simple::{ SimpleMachine, SimpleMem } ;
+use simple::{ SimpleMachine, SimpleMem, Machine } ;
 
 #[allow(dead_code)]
 struct MyApp {
@@ -79,8 +79,14 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
 
 impl MyApp {
     pub fn new(system: &System) -> Self {
+        use emu::breakpoints::{BreakPoint, BreakPointTypes};
         let sym_file = "./asm/out/demo.syms";
-        let machine = simple::make_simple(sym_file);
+        let mut machine = simple::make_simple(sym_file);
+
+        // FIX : Remove!
+        //
+        let bp = BreakPoint::new (  BreakPointTypes::READ, 0x9904 );
+        machine.get_breakpoints_mut().map(|bps| bps.add(&bp));
 
         let mesh = make_mesh(&system);
 
