@@ -102,6 +102,8 @@ impl SimpleMem {
         }
     }
 
+    // TODO turn this to Result return
+
     fn get_region_mut(&mut self, addr: u16) -> &mut dyn MemoryIO {
         let region = self.addr_to_region[addr as usize];
         use self::MemRegion::*;
@@ -116,13 +118,14 @@ impl SimpleMem {
 }
 
 impl MemoryIO for SimpleMem {
-    fn upload(&mut self, addr: u16, data: &[u8]) {
+    fn upload(&mut self, addr: u16, data: &[u8]) -> Result<(), MemErrorTypes>{
         let mut addr = addr;
 
         for i in data {
-            self.store_byte(addr, *i).unwrap();
+            self.store_byte(addr, *i)?;
             addr = addr.wrapping_add(1);
         }
+        Ok(())
     }
 
     fn is_valid_addr(&self, addr : u16) -> bool {

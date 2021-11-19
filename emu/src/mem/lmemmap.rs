@@ -111,8 +111,8 @@ impl MemoryIO for LoggingMemMap {
         self.mem_map.update_sha1(digest)
     }
 
-    fn upload(&mut self, addr: u16, data: &[u8]) {
-        self.mem_map.upload(addr, data);
+    fn upload(&mut self, addr: u16, data: &[u8]) -> Result<(),MemErrorTypes> {
+        self.mem_map.upload(addr, data)
     }
 
     fn get_name(&self) -> String {

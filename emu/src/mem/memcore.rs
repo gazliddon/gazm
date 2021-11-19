@@ -72,7 +72,7 @@ pub trait MemoryIO {
         addr >=l && addr <= h
     }
 
-    fn upload(&mut self, _addr: u16, _data: &[u8]);
+    fn upload(&mut self, _addr: u16, _data: &[u8]) -> Result<(),MemErrorTypes>;
 
     fn get_range(&self) -> (u16, u16);
 

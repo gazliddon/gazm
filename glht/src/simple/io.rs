@@ -81,7 +81,7 @@ impl MemoryIO for Io {
         Ok(r)
     }
 
-    fn upload(&mut self, _addr: u16, _data: &[u8]) {
+    fn upload(&mut self, _addr: u16, _data: &[u8]) -> Result<(), MemErrorTypes>{
         panic!("TBD")
     }
 

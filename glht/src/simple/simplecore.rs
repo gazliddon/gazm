@@ -274,7 +274,7 @@ fn load_rom_to_mem<M : MemoryIO>(file : &str, mem : M, addr : u16, size : usize)
     let rom = romloader::Rom::from_sym_file(file).expect("Load syms");
     info!("loaded symbol file {} as ROM", file);
     let rom_data = rom.get_slice(addr, size);
-    mem.upload(addr, rom_data);
+    mem.upload(addr, rom_data).unwrap();
     let mut ret = SimpleMachine::new(mem, rom);
     ret.reset();
     ret

@@ -32,11 +32,12 @@ impl MemoryIO for MemMap {
         }
     }
 
-    fn upload(&mut self, addr: u16, data: &[u8]) {
+    fn upload(&mut self, addr: u16, data: &[u8]) -> Result<(), MemErrorTypes>{
         for (i, item) in data.iter().enumerate() {
             let a = addr.wrapping_add(i as u16);
-            self.store_byte(a, *item).unwrap()
+            self.store_byte(a, *item)?;
         }
+        Ok(())
     }
 
     fn get_name(&self) -> String {
