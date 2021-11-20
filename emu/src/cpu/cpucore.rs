@@ -12,7 +12,7 @@ use alu::GazAlu;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CpuErr {
     UnknownInstruction,
     Unimplemented,

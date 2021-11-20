@@ -1,31 +1,31 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
-mod styles;
 mod app;
 mod colour;
 mod colourcell;
+mod cycler;
 mod docwin;
 mod events;
 mod mesh;
 mod scrbox;
 mod simple;
 mod sourcewin;
+mod styles;
 mod text;
 mod textscreen;
 mod v2;
-mod cycler;
 
-use glium::{ glutin, implement_vertex };
-use imgui_glium_renderer::imgui;
 use app::{frametime::FrameTime, system::System, App};
 use glium::index::PrimitiveType;
 use glium::Surface;
+use glium::{glutin, implement_vertex};
 use imgui::{im_str, Condition, Ui, Window};
+use imgui_glium_renderer::imgui;
 use mesh::Mesh;
 use v2::*;
 
-use simple::{ SimpleMachine, SimpleMem, Machine } ;
+use simple::{Machine, SimpleMachine, SimpleMem};
 
 #[allow(dead_code)]
 struct MyApp {
@@ -77,7 +77,36 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
     Box::new(Mesh::new(&system, vertex_buffer, index_buffer))
 }
 
+use emu::breakpoints::{BreakPoint, BreakPoints};
+
 impl MyApp {
+    fn get_source_line(&self) -> Option<romloader::SourceLine> {
+        self.sourcewin
+            .get_cursor_file_loc()
+            .and_then(|loc| self.machine.get_rom().sources.loc_to_source_line(&loc).cloned())
+    }
+
+    fn break_point_fn_mut(&mut self, f: impl Fn(u16, &mut BreakPoints)) {
+        self.get_source_line().and_then(|sl| sl.addr).map(|addr| {
+            self.machine.get_breakpoints_mut().map(|bp| f(addr, bp))
+        });
+    }
+
+    fn break_points_at_addr_fn_mut(&mut self, f: impl Fn(Vec<&mut BreakPoint>)) {
+        self.break_point_fn_mut(|addr, breakpoints| {
+            let bp = breakpoints.get_breakpoints_mut(addr, 1);
+            f(bp);
+        });
+    }
+
+    pub fn toggle_breakpoints_at_addr(&mut self) {
+        self.break_points_at_addr_fn_mut(|mut breakpoints| {
+            for i in breakpoints.iter_mut() {
+                i.toggle_active();
+            }
+        });
+    }
+
     pub fn new(system: &System) -> Self {
         use emu::breakpoints::{BreakPoint, BreakPointTypes};
         let sym_file = "./asm/out/demo.syms";
@@ -85,8 +114,7 @@ impl MyApp {
 
         // FIX : Remove!
         //
-        let bp = BreakPoint::new (  BreakPointTypes::READ, 0x9904 );
-        machine.get_breakpoints_mut().map(|bps| bps.add(&bp));
+        machine.get_breakpoints_mut().map(|bps| bps.add(0x9904, BreakPointTypes::EXEC));
 
         let mesh = make_mesh(&system);
 
@@ -150,7 +178,7 @@ impl App<events::Events> for MyApp {
         &mut self,
         _code: glutin::event::VirtualKeyCode,
         mstate: glutin::event::ModifiersState,
-    ) ->Option<events::Events> {
+    ) -> Option<events::Events> {
         use events::Events::*;
         use glutin::event::VirtualKeyCode as Vk;
         use simple::Machine;
@@ -165,11 +193,21 @@ impl App<events::Events> for MyApp {
             }
         } else if mstate.is_empty() {
             match _code {
-                Vk::Q => { self.close_requested();None },
+                Vk::Q => {
+                    self.close_requested();
+                    None
+                }
                 Vk::J => target.event(CursorDown),
                 Vk::K => target.event(CursorUp),
                 Vk::Space => target.event(Space),
-                Vk::S => { self.machine.step();None },
+                Vk::S => {
+                    self.machine.step().expect("Handle this");
+                    None
+                }
+                Vk::B => {
+                    println!("Try to toggle breakpoint");
+                    None
+                }
                 _ => None,
             }
         } else {
@@ -209,12 +247,17 @@ impl App<events::Events> for MyApp {
         let sources = &machine.get_rom().sources;
 
         if self.sourcewin.is_empty() {
-            if let Some(sf) = sources.addr_to_loc(pc).map(|l| sources.get(&l.file)).flatten() {
+            if let Some(sf) = sources
+                .addr_to_loc(pc)
+                .map(|l| sources.get(&l.file))
+                .flatten()
+            {
                 self.sourcewin.set_source_file(sf.clone());
             }
         }
 
-        self.sourcewin.update(grid_cell_dims, &self.frame_time, machine );
+        self.sourcewin
+            .update(grid_cell_dims, &self.frame_time, machine);
 
         let pos = V2::new(0.0, 0.0);
 
@@ -226,7 +269,7 @@ impl App<events::Events> for MyApp {
             .movable(false)
             .build(ui, || {
                 let tc = text::ImgUiTextRender::new(&pos, &char_dims, grid_cell_dims, &ui);
-                self.sourcewin.render(&tc,machine);
+                self.sourcewin.render(&tc, machine);
             });
     }
 }

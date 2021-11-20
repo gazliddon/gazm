@@ -34,7 +34,7 @@ use log::info;
 use super::{state, filewatcher};
 
 use super::mem::SimpleMem;
-use cpu::{Regs, StandardClock};
+use cpu::{Regs, StandardClock,CpuErr};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -121,10 +121,9 @@ pub trait Machine {
 
     fn update(&mut self) -> SimState;
 
-    fn step(&mut self) -> Option<SimEvent> {
+    fn step(&mut self) -> Result<(), CpuErr> {
         let mut ctx = self.get_context_mut();
-        ctx.step().expect("Can't step");
-        Some(SimEvent::Halt)
+        ctx.step()
     }
 
     fn reset(&mut self) {
@@ -284,6 +283,5 @@ pub fn make_simple(file : &str) -> SimpleMachine<SimpleMem> {
     let mem = SimpleMem::default();
     load_rom_to_mem(file, mem, 0x9900, 0x10_000 - 0x9900)
 }
-
 
 
