@@ -14,8 +14,8 @@ pub struct MemBlock {
 #[allow(dead_code)]
 impl MemBlock {
     pub fn new(name: &str, read_only: bool, base: u16, size: usize) -> MemBlock {
-        let data = vec![0u8; size as usize];
-        let last_mem = base.wrapping_add(size as u16).wrapping_sub(1);
+        let data = vec![0u8; size as usize]; let last_mem = base.wrapping_add(size as
+            u16).wrapping_sub(1);
 
         if last_mem < base {
             panic!("Trying to add memory > that 16 bit address space");
