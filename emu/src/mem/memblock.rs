@@ -1,4 +1,4 @@
-use super::{MemMap, MemMapIO, MemoryIO, MemErrorTypes};
+use super::{MemMap, MemMapIO, MemoryIO, MemErrorTypes, Region};
 use sha1::Sha1;
 use std::vec::Vec;
 

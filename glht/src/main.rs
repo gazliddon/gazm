@@ -22,6 +22,7 @@ use glium::Surface;
 use glium::{glutin, implement_vertex};
 use imgui::{im_str, Condition, Ui, Window};
 use imgui_glium_renderer::imgui;
+use log::info;
 use mesh::Mesh;
 use v2::*;
 
@@ -77,19 +78,43 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
     Box::new(Mesh::new(&system, vertex_buffer, index_buffer))
 }
 
-use emu::breakpoints::{BreakPoint, BreakPoints};
+use emu::breakpoints::{BreakPoint, BreakPoints, BreakPointTypes};
 
 impl MyApp {
+    fn toggle_breakpoint_at_cursor(&mut self, bp_type: BreakPointTypes) {
+        use emu::breakpoints::BreakPointTypes::*;
+        self.break_point_fn_mut(|addr, break_points| {
+            info!(
+                "trying to set / unset breakpoint at {:04X} (bps: {})",
+                addr,
+                break_points.len()
+            );
+
+            if let Some(bp) = break_points.find_breakpoint_id(addr, bp_type) {
+                info!("Removing bp {} {:04X}", bp, addr);
+                break_points.remove_by_id(bp);
+            } else {
+                info!("Adding {:04X}", addr);
+                break_points.add(addr, bp_type);
+            }
+            info!("Done: (bps: {})", break_points.len());
+        });
+    }
+
     fn get_source_line(&self) -> Option<romloader::SourceLine> {
-        self.sourcewin
-            .get_cursor_file_loc()
-            .and_then(|loc| self.machine.get_rom().sources.loc_to_source_line(&loc).cloned())
+        self.sourcewin.get_cursor_file_loc().and_then(|loc| {
+            self.machine
+                .get_rom()
+                .sources
+                .loc_to_source_line(&loc)
+                .cloned()
+        })
     }
 
     fn break_point_fn_mut(&mut self, f: impl Fn(u16, &mut BreakPoints)) {
-        self.get_source_line().and_then(|sl| sl.addr).map(|addr| {
-            self.machine.get_breakpoints_mut().map(|bp| f(addr, bp))
-        });
+        self.get_source_line()
+            .and_then(|sl| sl.addr)
+            .map(|addr| self.machine.get_breakpoints_mut().map(|bp| f(addr, bp)));
     }
 
     fn break_points_at_addr_fn_mut(&mut self, f: impl Fn(Vec<&mut BreakPoint>)) {
@@ -114,7 +139,9 @@ impl MyApp {
 
         // FIX : Remove!
         //
-        machine.get_breakpoints_mut().map(|bps| bps.add(0x9904, BreakPointTypes::EXEC));
+        machine
+            .get_breakpoints_mut()
+            .map(|bps| bps.add(0x9904, BreakPointTypes::EXEC));
 
         let mesh = make_mesh(&system);
 
@@ -205,7 +232,7 @@ impl App<events::Events> for MyApp {
                     None
                 }
                 Vk::B => {
-                    println!("Try to toggle breakpoint");
+                    self.toggle_breakpoint_at_cursor(BreakPointTypes::EXEC);
                     None
                 }
                 _ => None,

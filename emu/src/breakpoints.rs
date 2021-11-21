@@ -1,5 +1,6 @@
+#![allow(dead_code)]
+
 #[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
-#[allow(dead_code)]
 pub enum BreakPointTypes {
     READ,
     WRITE,
@@ -7,7 +8,6 @@ pub enum BreakPointTypes {
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
-#[allow(dead_code)]
 pub struct BreakPoint {
     addr: u16,
     bp_type: BreakPointTypes,
@@ -15,8 +15,9 @@ pub struct BreakPoint {
     id: usize,
 }
 
-#[allow(dead_code)]
 impl BreakPoint {
+    /// Describes a breakpoint
+    /// constructs defaulted to active
     pub fn new(bp_type: BreakPointTypes, addr: u16, id: usize) -> BreakPoint {
         BreakPoint {
             bp_type,
@@ -36,14 +37,12 @@ impl BreakPoint {
 }
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub struct BreakPoints {
     break_points: std::collections::HashMap<usize, BreakPoint>,
     mem_to_bp: [Option<BreakPoint>; 0x1_0000],
     id: usize,
 }
 
-#[allow(dead_code)]
 impl BreakPoints {
     pub fn new() -> BreakPoints {
         Self {
@@ -52,6 +51,10 @@ impl BreakPoints {
             id: 0,
         }
     }
+    pub fn len(&self) -> usize {
+        self.break_points.len()
+    }
+
     pub fn has_any_breakpoint(&self, addr: u16) -> bool {
         let bp = self.get_breakpoints(addr, 1);
         bp.iter().filter(|b| b.addr == addr).count() > 0
@@ -66,15 +69,18 @@ impl BreakPoints {
         num > 0
     }
 
-    pub fn add(&mut self, addr: u16, bp_type: BreakPointTypes) {
+    pub fn add(&mut self, addr: u16, bp_type: BreakPointTypes) -> Option<usize>{
         if !self.has_breakpoint(addr, bp_type) {
             let ret = self.id;
             let bp = BreakPoint::new(bp_type, addr, ret);
             self.id = self.id + 1;
             self.break_points.insert(ret, bp);
+            Some(ret)
+        } else {
+            None
         }
     }
-    fn find_breakpoint_id(&self, addr: u16, bp_type: BreakPointTypes) -> Option<usize> {
+    pub fn find_breakpoint_id(&self, addr: u16, bp_type: BreakPointTypes) -> Option<usize> {
         self.find_breakpoint(addr, bp_type).map(|bp| bp.id)
     }
 
@@ -86,6 +92,9 @@ impl BreakPoints {
         }
         None
     }
+    pub fn remove_by_id(&mut self, id : usize) {
+        self.break_points.remove(&id);
+    }
 
     pub fn remove(&mut self, addr: u16, bp_type: BreakPointTypes) {
         if let Some(id) = self.find_breakpoint_id(addr, bp_type) {
@@ -93,20 +102,24 @@ impl BreakPoints {
         }
     }
 
-    pub fn get_breakpoints<'a>(&'a self, addr: u16, range: usize) -> Vec<&'a BreakPoint> {
-        let mut ret = vec![];
-
+    fn get_range(addr: u16, range: usize) -> Option<(u16, u16)> {
         let last_addr = addr as usize + range - 1;
-
         if range > 1 && last_addr < 0x1_0000 {
-            let last_addr = last_addr as u16;
-            ret = self
-                .break_points
+            Some((addr, last_addr as u16))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_breakpoints<'a>(&'a self, addr: u16, range: usize) -> Vec<&'a BreakPoint> {
+        if let Some((addr, last_addr)) = Self::get_range(addr, range) {
+            self.break_points
                 .values()
                 .filter(|bp| bp.addr >= addr && bp.addr <= last_addr)
-                .collect();
+                .collect()
+        } else {
+            vec![]
         }
-        ret
     }
 
     pub fn get_breakpoints_mut<'a>(
@@ -114,28 +127,21 @@ impl BreakPoints {
         addr: u16,
         range: usize,
     ) -> Vec<&'a mut BreakPoint> {
-        let mut ret = vec![];
-
-        let last_addr = addr as usize + range - 1;
-
-        if range > 1 && last_addr < 0x1_0000 {
-            let last_addr = last_addr as u16;
-
-            for (_, bp) in self.break_points.iter_mut() {
-                if addr >= bp.addr && bp.addr <= last_addr {
-                    ret.push(bp)
-                }
-            }
+        if let Some((addr, last_addr)) = Self::get_range(addr, range) {
+            self.break_points
+                .values_mut()
+                .filter(|bp| bp.addr >= addr && bp.addr <= last_addr)
+                .collect()
+        } else {
+            vec![]
         }
-        ret
     }
 
     pub fn remove_all_at_addr(&mut self, addr: u16) {
-        let v : Vec<usize> = self.get_breakpoints(addr, 1).iter().map(|b| b.id).collect();
+        let v: Vec<usize> = self.get_breakpoints(addr, 1).iter().map(|b| b.id).collect();
 
         for id in v {
             self.break_points.remove(&id);
         }
-
     }
 }

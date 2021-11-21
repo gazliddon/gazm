@@ -1,9 +1,11 @@
-pub mod lmemmap;
-pub mod memblock;
-pub mod memcore;
-pub mod memmap;
+mod lmemmap;
+mod memblock;
+mod memcore;
+mod memmap;
+mod region;
 
 pub use lmemmap::*;
 pub use memblock::*;
 pub use memcore::*;
 pub use memmap::*;
+pub use region::*;
