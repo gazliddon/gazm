@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use crate::mem::{ Region, RegionErr };
+
 #[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
 pub enum BreakPointTypes {
     READ,
@@ -16,8 +18,7 @@ pub struct BreakPoint {
 }
 
 impl BreakPoint {
-    /// Describes a breakpoint
-    /// constructs defaulted to active
+    /// Describes a breakpoint constructs defaulted to active
     pub fn new(bp_type: BreakPointTypes, addr: u16, id: usize) -> BreakPoint {
         BreakPoint {
             bp_type,
@@ -69,7 +70,7 @@ impl BreakPoints {
         num > 0
     }
 
-    pub fn add(&mut self, addr: u16, bp_type: BreakPointTypes) -> Option<usize>{
+    pub fn add(&mut self, addr: u16, bp_type: BreakPointTypes) -> Option<usize> {
         if !self.has_breakpoint(addr, bp_type) {
             let ret = self.id;
             let bp = BreakPoint::new(bp_type, addr, ret);
@@ -92,7 +93,7 @@ impl BreakPoints {
         }
         None
     }
-    pub fn remove_by_id(&mut self, id : usize) {
+    pub fn remove_by_id(&mut self, id: usize) {
         self.break_points.remove(&id);
     }
 
@@ -102,22 +103,19 @@ impl BreakPoints {
         }
     }
 
-    fn get_range(addr: u16, range: usize) -> Option<(u16, u16)> {
-        let last_addr = addr as usize + range - 1;
-        if range > 1 && last_addr < 0x1_0000 {
-            Some((addr, last_addr as u16))
-        } else {
-            None
-        }
+    fn get_range(addr: u16, range: u16) -> Result<Region,RegionErr> {
+        Region::checked_new(addr, range)
     }
 
-    pub fn get_breakpoints<'a>(&'a self, addr: u16, range: usize) -> Vec<&'a BreakPoint> {
-        if let Some((addr, last_addr)) = Self::get_range(addr, range) {
+    pub fn get_breakpoints<'a>(&'a self, addr: u16, range: u16) -> Vec<&'a BreakPoint> {
+        if let Ok(r) = Self::get_range(addr, range) {
+            println!("Got a range! ");
             self.break_points
                 .values()
-                .filter(|bp| bp.addr >= addr && bp.addr <= last_addr)
+                .filter(|bp| r.is_in_region(bp.addr))
                 .collect()
         } else {
+            println!("No range!");
             vec![]
         }
     }
@@ -125,12 +123,12 @@ impl BreakPoints {
     pub fn get_breakpoints_mut<'a>(
         &'a mut self,
         addr: u16,
-        range: usize,
+        range: u16,
     ) -> Vec<&'a mut BreakPoint> {
-        if let Some((addr, last_addr)) = Self::get_range(addr, range) {
+        if let Ok(r) = Self::get_range(addr, range) {
             self.break_points
                 .values_mut()
-                .filter(|bp| bp.addr >= addr && bp.addr <= last_addr)
+                .filter(|bp| r.is_in_region(bp.addr))
                 .collect()
         } else {
             vec![]
@@ -143,5 +141,36 @@ impl BreakPoints {
         for id in v {
             self.break_points.remove(&id);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // TODO! write tests
+    #[test]
+    fn count() {
+        let addr: u16 = 0x0000;
+
+        let mut bp = BreakPoints::new();
+        assert_eq!(bp.len(), 0);
+
+        bp.add(addr, BreakPointTypes::READ);
+
+        let matched = bp.get_breakpoints(addr, 1);
+        assert_eq!(matched.len(), 1);
+
+        assert!(bp.has_breakpoint(addr, BreakPointTypes::READ));
+
+        assert_eq!(bp.len(), 1);
+
+        bp.add(addr, BreakPointTypes::READ);
+
+        assert_eq!(bp.len(), 1);
+        bp.add(addr, BreakPointTypes::WRITE);
+        assert_eq!(bp.len(), 2);
+        bp.remove(addr, BreakPointTypes::READ);
+        assert_eq!(bp.len(), 1);
     }
 }
