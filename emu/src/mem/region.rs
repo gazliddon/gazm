@@ -11,7 +11,7 @@ pub enum RegionErr {
 }
 
 impl Region {
-    pub fn checked_new(addr: u16, size: u16) -> Result<Self, RegionErr> {
+    pub fn checked_new(addr: u16, size: usize) -> Result<Self, RegionErr> {
         if size == 0 {
             return Err(RegionErr::SizeIsZero);
         }
@@ -30,7 +30,7 @@ impl Region {
         (last_addr - addr) + 1
     }
 
-    pub fn new(addr: u16, mut size: u16) -> Self {
+    pub fn new(addr: u16, mut size: usize) -> Self {
         if size == 0 {
             size = 1;
         }
@@ -55,13 +55,13 @@ impl Region {
         (self.addr as usize, self.last_addr as usize)
     }
 
-    pub fn as_range(&self) -> std::ops::Range<usize> {
+    pub fn as_range(&self) -> std::ops::RangeInclusive<usize> {
         let (addr, last_addr) = self.to_usize();
-        addr..last_addr
+        addr..=last_addr
     }
 }
 
-fn calc_addr_last(addr: u16, size: u16) -> (usize, usize) {
+fn calc_addr_last(addr: u16, size: usize) -> (usize, usize) {
     (addr as usize, addr as usize + size as usize - 1)
 }
 
@@ -72,20 +72,24 @@ mod tests {
     #[test]
     fn valid_regions() {
         {
-            let mr = Region::checked_new(0, 0x10);
+            let start : u16 = 0;
+            let size = 0x10;
+
+            let mr = Region::checked_new(start, size);
             assert!(mr.is_ok());
             let mr = mr.unwrap();
-            assert!(mr.len() == 0x10);
-            assert!(
-                mr.as_range()
-                    == std::ops::Range {
-                        start: 0,
-                        end: 0x0f
-                    }
-            );
-            assert!(mr.is_in_region(0));
-            assert!(mr.is_in_region(0xf));
-            assert!(!mr.is_in_region(0x10));
+            assert!(mr.len() == size);
+
+            let desired = start as usize..=( size - 1);
+            let range = mr.as_range();
+
+            assert!(range == desired, "wanted {:?} got {:?}", desired, range);
+
+            assert!(mr.is_in_region(start));
+
+            assert!(mr.is_in_region(( start as usize + size - 1 ) as u16));
+
+            assert!(!mr.is_in_region(( start as usize + size ) as u16));
         }
     }
 
@@ -94,19 +98,25 @@ mod tests {
         let mr = Region::checked_new(0, 0);
         assert_eq!(mr, Err(RegionErr::SizeIsZero));
     }
+#[test]
+    fn contains() {
+        let mr = Region::checked_new(0, 0x1_0000);
+        assert!(mr.is_ok());
+        let mr = mr.unwrap();
+    }
+
 
     #[test]
     fn len() {
-        let len: u16 = 0x10;
+        let len: usize = 0x10;
         let addr: u16 = 0;
         let mr = Region::new(addr, len);
         assert_eq!(mr.len(), len as usize);
+
+        let desired = addr as usize ..= (addr as usize +len -1 ) as usize;
             assert!(
                 mr.as_range()
-                    == std::ops::Range {
-                        start: addr as usize,
-                        end: ( addr + len - 1 ) as usize
-                    }
+                    == desired
             );
     }
 

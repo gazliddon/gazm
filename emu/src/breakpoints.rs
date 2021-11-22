@@ -103,19 +103,17 @@ impl BreakPoints {
         }
     }
 
-    fn get_range(addr: u16, range: u16) -> Result<Region,RegionErr> {
+    fn get_range(addr: u16, range: usize) -> Result<Region,RegionErr> {
         Region::checked_new(addr, range)
     }
 
-    pub fn get_breakpoints<'a>(&'a self, addr: u16, range: u16) -> Vec<&'a BreakPoint> {
+    pub fn get_breakpoints<'a>(&'a self, addr: u16, range: usize) -> Vec<&'a BreakPoint> {
         if let Ok(r) = Self::get_range(addr, range) {
-            println!("Got a range! ");
             self.break_points
                 .values()
                 .filter(|bp| r.is_in_region(bp.addr))
                 .collect()
         } else {
-            println!("No range!");
             vec![]
         }
     }
@@ -123,7 +121,7 @@ impl BreakPoints {
     pub fn get_breakpoints_mut<'a>(
         &'a mut self,
         addr: u16,
-        range: u16,
+        range: usize,
     ) -> Vec<&'a mut BreakPoint> {
         if let Ok(r) = Self::get_range(addr, range) {
             self.break_points

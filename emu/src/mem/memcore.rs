@@ -74,7 +74,7 @@ pub trait MemoryIO {
 
     fn upload(&mut self, _addr: u16, _data: &[u8]) -> Result<(),MemErrorTypes>;
 
-    fn get_range(&self) -> std::ops::Range<usize>;
+    fn get_range(&self) -> std::ops::RangeInclusive<usize>;
 
     fn update_sha1(&self, _digest: &mut Sha1);
 

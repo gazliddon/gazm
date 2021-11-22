@@ -19,7 +19,7 @@ impl MemBlock {
     pub fn from_data(addr: u16, name: &str, data: &[u8], read_only: bool) -> MemBlock {
         let size = data.len();
 
-        let mr = Region::checked_new(addr, size as u16).unwrap();
+        let mr = Region::checked_new(addr, size ).unwrap();
 
         MemBlock {
             read_only,
@@ -62,7 +62,7 @@ impl MemoryIO for MemBlock {
         self.name.clone()
     }
 
-    fn get_range(&self) -> std::ops::Range<usize> {
+    fn get_range(&self) -> std::ops::RangeInclusive<usize> {
         self.region.as_range()
     }
 
