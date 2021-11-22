@@ -67,14 +67,14 @@ pub trait MemoryIO {
         panic!("TBD")
     }
 
-    fn is_valid_addr(&self, addr : u16) -> bool {
-        let (l,h) = self.get_range();
-        addr >=l && addr <= h
-    }
+    // fn is_valid_addr(&self, addr : u16) -> bool {
+    //     let (l,h) = self.get_range();
+    //     addr >=l && addr <= h
+    // }
 
     fn upload(&mut self, _addr: u16, _data: &[u8]) -> Result<(),MemErrorTypes>;
 
-    fn get_range(&self) -> (u16, u16);
+    fn get_range(&self) -> std::ops::Range<usize>;
 
     fn update_sha1(&self, _digest: &mut Sha1);
 
@@ -88,15 +88,18 @@ pub trait MemoryIO {
         "default".to_string()
     }
 
+    fn is_valid_addr(&self, addr : u16) -> bool {
+        self.is_in_range(addr)
+    }
+
     fn get_sha1_string(&self) -> String {
         let mut m = Sha1::new();
         self.update_sha1(&mut m);
         m.digest().to_string()
     }
 
-    fn is_in_range(&self, _val: u16) -> bool {
-        let (base, last) = self.get_range();
-        (_val >= base) && (_val <= last)
+    fn is_in_range(&self, addr : u16) -> bool {
+        self.get_range().contains(&( addr as usize ))
     }
 
     fn store_word(&mut self, addr: u16, val: u16) -> Result<(), MemErrorTypes>{

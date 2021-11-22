@@ -119,7 +119,7 @@ impl MemoryIO for LoggingMemMap {
         self.mem_map.get_name()
     }
 
-    fn get_range(&self) -> (u16, u16) {
+    fn get_range(&self) -> std::ops::Range<usize> {
         self.mem_map.get_range()
     }
 

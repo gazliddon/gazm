@@ -1,58 +1,42 @@
-use super::{MemMap, MemMapIO, MemoryIO, MemErrorTypes, Region};
+use super::{MemErrorTypes, MemMap, MemMapIO, MemoryIO, Region};
 use sha1::Sha1;
 use std::vec::Vec;
 
 pub struct MemBlock {
     pub read_only: bool,
     pub data: Vec<u8>,
-    pub base: u16,
-    pub size: usize,
-    pub last_mem: u16,
     pub name: String,
+    pub region : Region,
 }
 
 #[allow(dead_code)]
 impl MemBlock {
-    pub fn new(name: &str, read_only: bool, base: u16, size: usize) -> MemBlock {
-        let data = vec![0u8; size as usize]; let last_mem = base.wrapping_add(size as
-            u16).wrapping_sub(1);
-
-        if last_mem < base {
-            panic!("Trying to add memory > that 16 bit address space");
-        }
-
-        MemBlock {
-            size,
-            base,
-            read_only,
-            data,
-            name: name.to_string(),
-            last_mem,
-        }
+    pub fn new(name: &str, read_only: bool, base: u16, size: u16) -> MemBlock {
+        let data = vec![0u8;size as usize];
+        Self::from_data(base, name, &data , read_only)
     }
 
-    pub fn from_data(addr: u16, name: &str, data: &[u8], writeable: bool) -> MemBlock {
-        let len = data.len() as u32;
+    pub fn from_data(addr: u16, name: &str, data: &[u8], read_only: bool) -> MemBlock {
+        let size = data.len();
 
-        let last_byte = (u32::from(addr) + len) - 1;
+        let mr = Region::checked_new(addr, size as u16).unwrap();
 
-        if last_byte >= 0x1_0000 {
-            println!(
-                "len: {:04x} base: {:04x} last: {:04x}",
-                len, addr, last_byte
-            );
-            assert!(last_byte < 0x1_0000);
+        MemBlock {
+            read_only,
+            data : data.to_vec(),
+            name: name.to_string(),
+            region : mr
         }
-
-        let mut r = MemBlock::new(name, writeable, addr, data.len());
-        r.data = data.to_vec();
-        r
+    }
+    fn to_index(&self, addr : u16) -> usize {
+        assert!(self.region.is_in_region(addr));
+        addr as usize - self.region.addr as usize
     }
 }
 
 #[allow(dead_code)]
 impl MemMap {
-    pub fn add_mem_block(&mut self, name: &str, writable: bool, base: u16, size: usize) {
+    pub fn add_mem_block(&mut self, name: &str, writable: bool, base: u16, size: u16) {
         let mb = Box::new(MemBlock::new(name, writable, base, size));
         self.add_memory(mb);
     }
@@ -60,9 +44,9 @@ impl MemMap {
 
 #[allow(dead_code)]
 impl MemoryIO for MemBlock {
-    fn inspect_byte(&self, addr: u16) ->Result<u8, MemErrorTypes> {
-        assert!(addr >= self.base && addr <= self.last_mem);
-        let d = self.data[(addr - self.base) as usize];
+    fn inspect_byte(&self, addr: u16) -> Result<u8, MemErrorTypes> {
+        let i = self.to_index(addr);
+        let d = self.data[i];
         Ok(d)
     }
 
@@ -70,7 +54,7 @@ impl MemoryIO for MemBlock {
         digest.update(&self.data);
     }
 
-    fn upload(&mut self, _addr: u16, _data: &[u8]) -> Result<(), MemErrorTypes>{
+    fn upload(&mut self, _addr: u16, _data: &[u8]) -> Result<(), MemErrorTypes> {
         panic!("not done")
     }
 
@@ -78,19 +62,18 @@ impl MemoryIO for MemBlock {
         self.name.clone()
     }
 
-    fn get_range(&self) -> (u16, u16) {
-        (self.base, self.last_mem)
+    fn get_range(&self) -> std::ops::Range<usize> {
+        self.region.as_range()
     }
 
     fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
-        assert!(addr >= self.base && addr <= self.last_mem);
-        let v = self.data[(addr - self.base) as usize];
+        let i = self.to_index(addr);
+        let v = self.data[i];
         Ok(v)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(), MemErrorTypes>{
-        assert!(addr >= self.base && addr <= self.last_mem);
-        let idx = (addr - self.base) as usize;
+    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(), MemErrorTypes> {
+        let idx = self.to_index(addr);
         self.data[idx] = val;
         Ok(())
     }

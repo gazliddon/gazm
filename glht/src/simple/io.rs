@@ -85,8 +85,8 @@ impl MemoryIO for Io {
         panic!("TBD")
     }
 
-    fn get_range(&self) -> (u16, u16) {
-        (IO_BASE, IO_BASE.wrapping_add(0xff))
+    fn get_range(&self) -> std::ops::Range<usize> {
+        IO_BASE as usize .. IO_BASE.wrapping_add(0xff) as usize
     }
 
     fn update_sha1(&self, _digest: &mut Sha1) {

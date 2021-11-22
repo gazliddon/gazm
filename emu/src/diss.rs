@@ -108,7 +108,7 @@ impl<'a> Disassembler<'a> {
             // Now work out the address of the next instruction
             // None for adddresses that are invalid
 
-            let next_instruction_addr = if self.mem.is_valid_addr(ins.next_addr) {
+            let next_instruction_addr = if self.mem.is_in_range(ins.next_addr) {
                 Some(ins.next_addr)
             } else {
                 None

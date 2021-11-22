@@ -44,8 +44,8 @@ impl MemoryIO for MemMap {
         self.name.clone()
     }
 
-    fn get_range(&self) -> (u16, u16) {
-        (0, 0xffff)
+    fn get_range(&self) -> std::ops::Range<usize> {
+        0..0xffff
     }
 
     fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
