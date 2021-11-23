@@ -1,4 +1,4 @@
-use super::{MemMap, MemoryIO, MemErrorTypes};
+use super::{MemMap, MemoryIO, MemResult};
 use sha1::Sha1;
 use std::cell::RefCell;
 use std::fmt;
@@ -111,7 +111,7 @@ impl MemoryIO for LoggingMemMap {
         self.mem_map.update_sha1(digest)
     }
 
-    fn upload(&mut self, addr: u16, data: &[u8]) -> Result<(),MemErrorTypes> {
+    fn upload(&mut self, addr: u16, data: &[u8]) -> MemResult<()> {
         self.mem_map.upload(addr, data)
     }
 
@@ -123,28 +123,28 @@ impl MemoryIO for LoggingMemMap {
         self.mem_map.get_range()
     }
 
-    fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
+    fn load_byte(&mut self, addr: u16) -> MemResult<u8> {
         let val = self.mem_map.load_byte(addr)?;
         let msg = LogEntry::read_byte(addr, val);
         self.log(msg);
         Ok(val)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(),MemErrorTypes> {
+    fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()> {
         self.mem_map.store_byte(addr, val)?;
         let msg = LogEntry::write_byte(addr, val);
         self.log(msg);
         Ok(())
     }
 
-    fn store_word(&mut self, addr: u16, val: u16) -> Result<(), MemErrorTypes> {
+    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()> {
         self.mem_map.store_word(addr, val)?;
         let msg = LogEntry::write_word(addr, val);
         self.log(msg);
         Ok(())
     }
 
-    fn load_word(&mut self, addr: u16) -> Result<u16, MemErrorTypes> {
+    fn load_word(&mut self, addr: u16) -> MemResult<u16> {
         let val = self.mem_map.load_word(addr)?;
 
         let msg = LogEntry::read_word(addr, val);

@@ -16,7 +16,7 @@ IO
 
 use emu;
 
-use emu::mem::{ MemoryIO, MemErrorTypes };
+use emu::mem::{ MemoryIO, MemResult };
 use emu::sha1::Sha1;
 
 #[allow(dead_code)]
@@ -73,7 +73,7 @@ impl Io {
 }
 
 impl MemoryIO for Io {
-    fn inspect_byte(&self, addr: u16) -> Result<u8, MemErrorTypes> {
+    fn inspect_byte(&self, addr: u16) -> MemResult<u8> {
         let r = if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize]
         } else {
@@ -82,7 +82,7 @@ impl MemoryIO for Io {
         Ok(r)
     }
 
-    fn upload(&mut self, _addr: u16, _data: &[u8]) -> Result<(), MemErrorTypes>{
+    fn upload(&mut self, _addr: u16, _data: &[u8]) -> MemResult<()>{
         panic!("TBD")
     }
 
@@ -94,7 +94,7 @@ impl MemoryIO for Io {
         panic!("TBD")
     }
 
-    fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
+    fn load_byte(&mut self, addr: u16) -> MemResult<u8> {
         let r = if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize]
         } else if addr == IO_RASTER {
@@ -105,7 +105,7 @@ impl MemoryIO for Io {
         Ok(r)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(), MemErrorTypes>{
+    fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()>{
         if Io::is_palette(addr) {
             self.palette[addr.wrapping_sub(IO_BASE) as usize] = val
         } else if addr == IO_RASTER {

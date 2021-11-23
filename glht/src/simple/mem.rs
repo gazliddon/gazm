@@ -25,7 +25,7 @@ IO
 
 use super::io;
 // use super::{filewatcher, io, state, utils};
-use emu::mem::{ MemoryIO, MemErrorTypes };
+use emu::mem::{ MemoryIO, MemErrorTypes, MemResult };
 use io::*;
 
 
@@ -123,7 +123,7 @@ impl SimpleMem {
 }
 
 impl MemoryIO for SimpleMem {
-    fn upload(&mut self, addr: u16, data: &[u8]) -> Result<(), MemErrorTypes>{
+    fn upload(&mut self, addr: u16, data: &[u8]) -> MemResult<()>{
         let mut addr = addr;
 
         for i in data {
@@ -146,17 +146,17 @@ impl MemoryIO for SimpleMem {
         unimplemented!("TBD")
     }
 
-    fn inspect_byte(&self, addr: u16) -> Result<u8,MemErrorTypes> {
+    fn inspect_byte(&self, addr: u16) -> MemResult<u8> {
         let reg = self.get_region(addr);
         reg.inspect_byte(addr)
     }
 
-    fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
+    fn load_byte(&mut self, addr: u16) -> MemResult<u8> {
         let reg = self.get_region_mut(addr);
         reg.load_byte(addr)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(), MemErrorTypes> {
+    fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()> {
         let reg = self.get_region_mut(addr);
         reg.store_byte(addr, val)
     }

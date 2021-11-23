@@ -151,7 +151,7 @@ impl SourceWin {
     pub fn get_cursor_file_loc(&self) -> Option<Location> {
         self.source_file
             .as_ref()
-            .and_then(|sf| sf.line(self.cursor))
+            .and_then(|sf| sf.line(self.cursor + self.scroll_offset))
             .map(|sl| sl.loc.clone())
     }
 

@@ -1,4 +1,4 @@
-use super::{MemErrorTypes, MemMap, MemMapIO, MemoryIO, Region};
+use super::{MemMap, MemMapIO, MemoryIO, Region, MemResult};
 use sha1::Sha1;
 use std::vec::Vec;
 
@@ -44,7 +44,7 @@ impl MemMap {
 
 #[allow(dead_code)]
 impl MemoryIO for MemBlock {
-    fn inspect_byte(&self, addr: u16) -> Result<u8, MemErrorTypes> {
+    fn inspect_byte(&self, addr: u16) -> MemResult<u8> {
         let i = self.to_index(addr);
         let d = self.data[i];
         Ok(d)
@@ -54,7 +54,7 @@ impl MemoryIO for MemBlock {
         digest.update(&self.data);
     }
 
-    fn upload(&mut self, _addr: u16, _data: &[u8]) -> Result<(), MemErrorTypes> {
+    fn upload(&mut self, _addr: u16, _data: &[u8]) -> MemResult<()> {
         panic!("not done")
     }
 
@@ -66,13 +66,13 @@ impl MemoryIO for MemBlock {
         self.region.as_range()
     }
 
-    fn load_byte(&mut self, addr: u16) -> Result<u8, MemErrorTypes> {
+    fn load_byte(&mut self, addr: u16) -> MemResult<u8> {
         let i = self.to_index(addr);
         let v = self.data[i];
         Ok(v)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) -> Result<(), MemErrorTypes> {
+    fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()> {
         let idx = self.to_index(addr);
         self.data[idx] = val;
         Ok(())

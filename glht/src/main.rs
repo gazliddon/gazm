@@ -27,8 +27,8 @@ use mesh::Mesh;
 use v2::*;
 
 use simple::{Machine, SimpleMachine, SimpleMem};
+use emu::breakpoints::{BreakPoint, BreakPointTypes, BreakPoints};
 
-#[allow(dead_code)]
 struct MyApp {
     mesh: Box<dyn mesh::MeshTrait>,
     running: bool,
@@ -78,7 +78,6 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
     Box::new(Mesh::new(system, vertex_buffer, index_buffer))
 }
 
-use emu::breakpoints::{BreakPoint, BreakPointTypes, BreakPoints};
 
 impl MyApp {
     fn toggle_breakpoint_at_cursor(&mut self, bp_type: BreakPointTypes) {
@@ -112,12 +111,10 @@ impl MyApp {
     }
 
     fn break_point_fn_mut(&mut self, f: impl Fn(u16, &mut BreakPoints)) {
-
-        if let Some(addr) = self.get_source_line().and_then(|sl| sl.addr) {  
+        if let Some(addr) = self.get_source_line().and_then(|sl| sl.addr) {
             let bp = self.machine.get_breakpoints_mut();
             f(addr, bp);
         };
-
     }
 
     fn break_points_at_addr_fn_mut(&mut self, f: impl Fn(Vec<&mut BreakPoint>)) {
@@ -142,7 +139,6 @@ impl MyApp {
         let mut machine = simple::make_simple(sym_file);
 
         // FIX : Remove!
-        //
         let bps = machine.get_breakpoints_mut();
 
         bps.add(0x9904, BreakPointTypes::EXEC);
@@ -244,7 +240,6 @@ impl App<events::Events> for MyApp {
         } else {
             None
         }
-
     }
 
     fn close_requested(&mut self) {
