@@ -44,6 +44,12 @@ pub struct BreakPoints {
     id: usize,
 }
 
+impl Default for BreakPoints {
+     fn default() -> Self {
+         Self::new()
+     }
+}
+
 impl BreakPoints {
     pub fn new() -> BreakPoints {
         Self {
@@ -52,6 +58,11 @@ impl BreakPoints {
             id: 0,
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn len(&self) -> usize {
         self.break_points.len()
     }
@@ -74,7 +85,7 @@ impl BreakPoints {
         if !self.has_breakpoint(addr, bp_type) {
             let ret = self.id;
             let bp = BreakPoint::new(bp_type, addr, ret);
-            self.id = self.id + 1;
+            self.id += 1;
             self.break_points.insert(ret, bp);
             Some(ret)
         } else {
@@ -107,7 +118,7 @@ impl BreakPoints {
         Region::checked_new(addr, range)
     }
 
-    pub fn get_breakpoints<'a>(&'a self, addr: u16, range: usize) -> Vec<&'a BreakPoint> {
+    pub fn get_breakpoints(&self, addr: u16, range: usize) -> Vec<&BreakPoint> {
         if let Ok(r) = Self::get_range(addr, range) {
             self.break_points
                 .values()
@@ -118,11 +129,11 @@ impl BreakPoints {
         }
     }
 
-    pub fn get_breakpoints_mut<'a>(
-        &'a mut self,
+    pub fn get_breakpoints_mut(
+        &mut self,
         addr: u16,
         range: usize,
-    ) -> Vec<&'a mut BreakPoint> {
+    ) -> Vec<&mut BreakPoint> {
         if let Ok(r) = Self::get_range(addr, range) {
             self.break_points
                 .values_mut()

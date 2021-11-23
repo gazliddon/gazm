@@ -75,10 +75,10 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
         glium::IndexBuffer::new(&system.display, PrimitiveType::TrianglesList, &[0u16, 1, 2])
             .unwrap();
 
-    Box::new(Mesh::new(&system, vertex_buffer, index_buffer))
+    Box::new(Mesh::new(system, vertex_buffer, index_buffer))
 }
 
-use emu::breakpoints::{BreakPoint, BreakPoints, BreakPointTypes};
+use emu::breakpoints::{BreakPoint, BreakPointTypes, BreakPoints};
 
 impl MyApp {
     fn toggle_breakpoint_at_cursor(&mut self, bp_type: BreakPointTypes) {
@@ -112,9 +112,12 @@ impl MyApp {
     }
 
     fn break_point_fn_mut(&mut self, f: impl Fn(u16, &mut BreakPoints)) {
-        self.get_source_line()
-            .and_then(|sl| sl.addr)
-            .map(|addr| self.machine.get_breakpoints_mut().map(|bp| f(addr, bp)));
+
+        if let Some(addr) = self.get_source_line().and_then(|sl| sl.addr) {  
+            let bp = self.machine.get_breakpoints_mut();
+            f(addr, bp);
+        };
+
     }
 
     fn break_points_at_addr_fn_mut(&mut self, f: impl Fn(Vec<&mut BreakPoint>)) {
@@ -134,16 +137,17 @@ impl MyApp {
 
     pub fn new(system: &System) -> Self {
         use emu::breakpoints::{BreakPoint, BreakPointTypes};
+
         let sym_file = "./asm/out/demo.syms";
         let mut machine = simple::make_simple(sym_file);
 
         // FIX : Remove!
         //
-        machine
-            .get_breakpoints_mut()
-            .map(|bps| bps.add(0x9904, BreakPointTypes::EXEC));
+        let bps = machine.get_breakpoints_mut();
 
-        let mesh = make_mesh(&system);
+        bps.add(0x9904, BreakPointTypes::EXEC);
+
+        let mesh = make_mesh(system);
 
         Self {
             machine,
@@ -212,7 +216,7 @@ impl App<events::Events> for MyApp {
 
         let target = &mut self.sourcewin;
 
-        let ret_event = if mstate.ctrl() {
+        if mstate.ctrl() {
             match _code {
                 Vk::J => target.event(ScrollUp),
                 Vk::K => target.event(ScrollDown),
@@ -239,9 +243,8 @@ impl App<events::Events> for MyApp {
             }
         } else {
             None
-        };
+        }
 
-        ret_event
     }
 
     fn close_requested(&mut self) {
@@ -295,7 +298,7 @@ impl App<events::Events> for MyApp {
             .position([0.0, 0.0], Condition::Always)
             .movable(false)
             .build(ui, || {
-                let tc = text::ImgUiTextRender::new(&pos, &char_dims, grid_cell_dims, &ui);
+                let tc = text::ImgUiTextRender::new(&pos, &char_dims, grid_cell_dims, ui);
                 self.sourcewin.render(&tc, machine);
             });
     }

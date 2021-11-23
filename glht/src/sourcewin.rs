@@ -31,7 +31,7 @@ trait RenderDoc<'a> {
 
         for (win_ypos, doc_ypos) in range {
             self.render_line(cursor, win_ypos, doc_ypos);
-            lines_rendered = lines_rendered + 1;
+            lines_rendered +=  1;
         }
         lines_rendered
     }
@@ -70,7 +70,7 @@ impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
             let addr_str = sl
                 .addr
                 .map(|x| format!("{:04X}", x))
-                .unwrap_or(self.blank.clone());
+                .unwrap_or_else(|| self.blank.clone());
 
             let source_text = sl.line.as_ref().unwrap_or(&self.blank);
             let pc = self.machine.get_regs().pc;
@@ -85,14 +85,13 @@ impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
 
             let mut bp_str = " ";
 
-            if let Some(break_points) = self.machine.get_breakpoints() {
-                let has_bp = sl
-                    .addr
-                    .map(|addr| break_points.has_any_breakpoint(addr))
-                    .unwrap_or(false);
-                if has_bp {
-                    bp_str = "*";
-                }
+            let break_points = self.machine.get_breakpoints();
+            let has_bp = sl
+                .addr
+                .map(|addr| break_points.has_any_breakpoint(addr))
+                .unwrap_or(false);
+            if has_bp {
+                bp_str = "*";
             }
 
             self.lp.cols(&addr_col);
@@ -195,12 +194,12 @@ impl SourceWin {
 
             if self.cursor != cursor {
                 if st.in_bottom_zone(cursor) {
-                    scroll_offset = scroll_offset + 1;
+                    scroll_offset +=  1;
                     cursor = self.cursor;
                 }
 
                 if st.in_top_zone(cursor) {
-                    scroll_offset = scroll_offset - 1;
+                    scroll_offset -= 1;
                     cursor = self.cursor;
                     self.event(ScrollUp);
                 }
@@ -324,7 +323,7 @@ impl ScrollTriggers {
                 &norm
             };
 
-            tr.draw_box(&top.pos, &top.dims, &ccol);
+            tr.draw_box(&top.pos, &top.dims, ccol);
         }
 
         if let Some(bottom) = self.bottom_zone {
@@ -333,7 +332,7 @@ impl ScrollTriggers {
             } else {
                 &norm
             };
-            tr.draw_box(&bottom.pos, &bottom.dims, &ccol);
+            tr.draw_box(&bottom.pos, &bottom.dims, ccol);
         }
     }
 }
@@ -341,7 +340,7 @@ impl ScrollTriggers {
 struct RegWin {}
 
 pub fn boxer<TR: TextRenderer>(render: &TR) {
-    let cel_col = ColourCell::new(&YELLOW, &RED.mul_scalar(0.2));
+    let cel_col = ColourCell::new(YELLOW, &RED.mul_scalar(0.2));
     let h = 3;
     let w = 10;
 

@@ -34,7 +34,7 @@ impl<TR : TextRenderer > TextContext< TR> {
     }
 
     fn clip(&self, scr_box : &ScrBox) -> Option<ScrBox> {
-        ScrBox::clip_box(&self.dims, &scr_box)
+        ScrBox::clip_box(&self.dims, scr_box)
     }
 
     pub fn clear(&self, col : &Colour) {
@@ -111,8 +111,8 @@ impl<'a, TR : TextRenderer > LinePrinter<'a, TR> {
     }
 
     pub fn print(&mut self, text : &str)  -> &mut Self {
-        self.tc.draw_text_with_bg(&self.pos,&text, &self.cols);
-        self.pos = self.pos + V2::new(text.len(), 0).as_isizes();
+        self.tc.draw_text_with_bg(&self.pos,text, &self.cols);
+        self.pos += V2::new(text.len(), 0).as_isizes();
         self
     }
 

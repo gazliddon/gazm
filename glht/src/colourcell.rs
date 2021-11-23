@@ -9,12 +9,12 @@ pub struct ColourCell {
 
 impl ColourCell {
     pub fn new_bw() -> Self {
-        Self { fg : WHITE.clone(), 
-            bg : BLACK.clone() 
+        Self { fg : *WHITE,
+            bg : *BLACK
     }}
 
     pub fn new(fg : &Colour, bg : &Colour) -> Self {
-        Self { fg: fg.clone(), bg: bg.clone() }
+        Self { fg : *fg, bg: *bg }
     }
 
     fn fmap<F>(&self, func : F) -> Self  
@@ -76,8 +76,8 @@ impl ColourOps for ColourCell {
 impl Default for ColourCell {
     fn default()  -> Self {
         Self {
-            fg: WHITE.clone(),
-            bg: BLACK.clone(),
+            fg: *WHITE,
+            bg: *BLACK
         }
     }
 }

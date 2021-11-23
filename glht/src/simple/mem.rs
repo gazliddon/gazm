@@ -23,7 +23,7 @@ IO
 // use filewatcher::FileWatcher;
 //
 
-use super::{emu, io};
+use super::io;
 // use super::{filewatcher, io, state, utils};
 use emu::mem::{ MemoryIO, MemErrorTypes };
 use io::*;

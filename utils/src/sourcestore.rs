@@ -85,7 +85,7 @@ impl AnnotatedSourceFile {
         self.lines.get(line).map(|v| v.line.as_ref()).flatten()
     }
     pub fn text_line_string(&self, line : usize) -> String {
-        self.text_line(line).cloned().unwrap_or(String::new())
+        self.text_line(line).cloned().unwrap_or_default()
     }
 }
 

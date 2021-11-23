@@ -93,7 +93,8 @@ impl AddressLines for Direct {
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        mem.load_byte(ea).map_err(|e| CpuErr::Memory(e))
+        let b  = mem.load_byte(ea)?;
+        Ok(b)
     }
 
     fn fetch_word(
@@ -102,7 +103,8 @@ impl AddressLines for Direct {
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        map_err(mem.load_word(ea))
+        let w = mem.load_word(ea)?;
+        Ok(w)
     }
 
     fn store_byte(
@@ -136,9 +138,6 @@ impl AddressLines for Direct {
 ////////////////////////////////////////////////////////////////////////////////
 pub struct Extended {}
 
-fn map_err<I>( e : Result<I, MemErrorTypes>) -> Result<I, CpuErr > {
-    e.map_err(|e| CpuErr::Memory(e))
-}
 
 impl AddressLines for Extended {
     fn ea(
@@ -159,7 +158,8 @@ impl AddressLines for Extended {
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
         let addr = Self::ea(mem, regs, ins)?;
-        map_err(mem.load_byte(addr))
+        let b = mem.load_byte(addr)?;
+        Ok(b)
     }
 
     fn fetch_word(
@@ -168,7 +168,8 @@ impl AddressLines for Extended {
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
         let addr = Self::ea(mem, regs, ins)?;
-        map_err(mem.load_word(addr))
+        let b = mem.load_word(addr)?;
+        Ok(b)
     }
 
     fn store_byte(
@@ -445,8 +446,8 @@ impl AddressLines for Indexed {
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        map_err(mem.load_byte(ea))
-        // Ok(mem.load_byte(ea))
+        let b = mem.load_byte(ea)?;
+        Ok(b)
     }
 
     fn fetch_word(

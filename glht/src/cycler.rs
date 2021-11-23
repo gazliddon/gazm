@@ -20,7 +20,7 @@ impl Cycler {
         let t = t * self.t_mul;
         let c1 = self.select(t);
         let c2 = self.select(t + 1.0);
-        c1.blend(&c2, t.fract())
+        c1.blend(c2, t.fract())
     }
 }
 

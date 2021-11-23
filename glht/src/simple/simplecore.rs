@@ -23,21 +23,33 @@ IO
 // use filewatcher::FileWatcher;
 //
 
-use super::emu;
-use emu::{cpu, diss};
 use emu::mem::MemoryIO;
+use emu::{cpu, diss};
 
 use emu::breakpoints::BreakPoints;
 
 use log::info;
 
-use super::{state, filewatcher};
+use super::{filewatcher, state};
 
 use super::mem::SimpleMem;
-use cpu::{Regs, StandardClock,CpuErr};
+use cpu::{CpuErr, Regs, StandardClock};
 
 use std::cell::RefCell;
 use std::rc::Rc;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MachineErr {
+    Cpu(CpuErr),
+    BreakPoint(u16),
+    Halted,
+}
+
+impl From<CpuErr> for MachineErr {
+    fn from(c: CpuErr) -> Self {
+        MachineErr::Cpu(c)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(dead_code)]
@@ -65,7 +77,6 @@ pub enum SimEvent {
 // Extend breakpoint to be initialisable from gdb bp descriptions
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -97,20 +108,30 @@ fn to_rgb(mem: &[u8], palette: &[u8]) -> [u8; SCR_BYTES] {
 
     ret
 }
+    fn check_breakpoints(machine : &( impl Machine + ?Sized ))  -> Result<(), MachineErr> {
+        let bp = machine.get_breakpoints();
+        let pc = machine.get_regs().pc;
+
+        if bp.has_any_breakpoint(pc) {
+            Err(MachineErr::BreakPoint(pc))
+        } else {
+            Ok(())
+        }
+    }
 
 pub trait Machine {
-    fn get_breakpoints(&self) ->Option<&BreakPoints>;
-    fn get_breakpoints_mut(&mut self) ->Option<&mut BreakPoints>;
+    fn get_breakpoints(&self) -> &BreakPoints;
+    fn get_breakpoints_mut(&mut self) -> &mut BreakPoints;
 
     fn get_state(&self) -> SimState;
-    fn set_state(&mut self, state : SimState) -> Option<SimState>;
-
+    fn set_state(&mut self, state: SimState) -> Option<SimState>;
 
     fn get_rom(&self) -> &romloader::Rom;
     fn get_mem(&self) -> &dyn MemoryIO;
     fn get_mem_mut(&mut self) -> &mut dyn MemoryIO;
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
     fn get_context_mut(&mut self) -> cpu::Context<StandardClock>;
+    fn update(&mut self) -> SimState;
 
     fn get_regs(&self) -> &cpu::Regs;
 
@@ -119,11 +140,39 @@ pub trait Machine {
         // diss::Disassembler::new(self.get_mem())
     }
 
-    fn update(&mut self) -> SimState;
-
-    fn step(&mut self) -> Result<(), CpuErr> {
+    fn run_while(
+        &mut self,
+        f: &mut dyn FnMut(&cpu::Context<StandardClock>) -> Result<(), MachineErr>,
+    ) -> Result<(), MachineErr> {
         let mut ctx = self.get_context_mut();
-        ctx.step()
+        f(&ctx)?;
+        ctx.step()?;
+        Ok(())
+    }
+
+    fn run_instructions(&mut self, n: usize) -> Result<(), MachineErr> {
+        let mut i = 0;
+        let mut first = false;
+
+        let mut func = |_ctx: &cpu::Context<StandardClock>| -> Result<(), MachineErr> {
+            first = false;
+
+            i += 1;
+            if 1 == n {
+                Err(MachineErr::Halted)
+            } else {
+                Ok(())
+            }
+        };
+
+        self.run_while(&mut func)?;
+
+        Ok(())
+    }
+
+    fn step(&mut self) -> Result<u16, MachineErr> {
+        self.get_context_mut().step()?;
+        Ok(self.get_regs().pc)
     }
 
     fn reset(&mut self) {
@@ -151,20 +200,19 @@ pub struct SimpleMachine<M: MemoryIO> {
     dirty: bool,
     verbose: bool,
     state: state::State<SimState>,
-    rom : romloader::Rom,
-    breakpoints : emu::breakpoints::BreakPoints,
+    rom: romloader::Rom,
+    breakpoints: emu::breakpoints::BreakPoints,
 }
 
-impl<M: MemoryIO> Machine for SimpleMachine<M>  {
-
-    fn get_breakpoints(&self) -> Option<&BreakPoints>{
-        Some( &self.breakpoints )
+impl<M: MemoryIO> Machine for SimpleMachine<M> {
+    fn get_breakpoints(&self) -> &BreakPoints {
+        &self.breakpoints
     }
 
-    fn get_breakpoints_mut(&mut self) ->Option<&mut BreakPoints> {
-        Some( &mut self.breakpoints )
+    fn get_breakpoints_mut(&mut self) -> &mut BreakPoints {
+        &mut self.breakpoints
     }
-    
+
     fn get_regs(&self) -> &cpu::Regs {
         &self.regs
     }
@@ -227,14 +275,14 @@ impl<M: MemoryIO> Machine for SimpleMachine<M>  {
         self.state.get()
     }
 
-    fn set_state(&mut self, state : SimState) -> Option<SimState> {
+    fn set_state(&mut self, state: SimState) -> Option<SimState> {
         self.state.set(state);
         self.state.get_previous()
     }
 }
 
 #[allow(dead_code)]
-impl<M : MemoryIO>  SimpleMachine<M>{
+impl<M: MemoryIO> SimpleMachine<M> {
     fn add_event(&mut self, event: SimEvent) {
         self.events.push(event)
     }
@@ -244,8 +292,7 @@ impl<M : MemoryIO>  SimpleMachine<M>{
         self.verbose = !v;
     }
 
-    pub fn new (mem : M, rom : romloader::Rom) -> Self {
-
+    pub fn new(mem: M, rom: romloader::Rom) -> Self {
         let path = std::env::current_dir().expect("getting dir");
         info!("Creatning Simple 6809 machine");
         info!("cd = {}", path.display());
@@ -256,19 +303,22 @@ impl<M : MemoryIO>  SimpleMachine<M>{
         let verbose = false;
 
         Self {
-            rom, mem, regs, rc_clock,
+            rom,
+            mem,
+            regs,
+            rc_clock,
 
             verbose,
             watcher: None,
             events: vec![],
             dirty: false,
             state: state::State::new(SimState::Paused),
-            breakpoints : emu::breakpoints::BreakPoints::new(),
+            breakpoints: emu::breakpoints::BreakPoints::new(),
         }
     }
 }
 
-fn load_rom_to_mem<M : MemoryIO>(file : &str, mem : M, addr : u16, size : usize) -> SimpleMachine<M> {
+fn load_rom_to_mem<M: MemoryIO>(file: &str, mem: M, addr: u16, size: usize) -> SimpleMachine<M> {
     let mut mem = mem;
     let rom = romloader::Rom::from_sym_file(file).expect("Load syms");
     info!("loaded symbol file {} as ROM", file);
@@ -279,9 +329,7 @@ fn load_rom_to_mem<M : MemoryIO>(file : &str, mem : M, addr : u16, size : usize)
     ret
 }
 
-pub fn make_simple(file : &str) -> SimpleMachine<SimpleMem> {
+pub fn make_simple(file: &str) -> SimpleMachine<SimpleMem> {
     let mem = SimpleMem::default();
-    load_rom_to_mem(file, mem, 0x9900, 0x10_000 - 0x9900)
+    load_rom_to_mem(file, mem, 0x9900, 0x1_0000 - 0x9900)
 }
-
-

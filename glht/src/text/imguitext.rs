@@ -86,7 +86,7 @@ impl<'a> TextRenderer for ImgUiTextRender<'a> {
         F: FnOnce(),
     {
         let whole_grid = ScrBox::new(&V2::new(0, 0), &self.grid_dims);
-        if let Some(new_box) = ScrBox::clip_box(&whole_grid, &scr_box) {
+        if let Some(new_box) = ScrBox::clip_box(&whole_grid, scr_box) {
             let [min, max] = self.xform_box(&new_box.pos, &new_box.dims);
             self.dl.with_clip_rect_intersect(min, max, f);
         }

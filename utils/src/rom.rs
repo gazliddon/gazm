@@ -12,7 +12,7 @@ pub struct Symbol {
     value : u16,
 }
 
-pub type RomData = [u8;0x10_000];
+pub type RomData = [u8;0x1_0000];
 
 use std::collections::{ HashMap};
 
@@ -39,7 +39,7 @@ impl Rom {
     pub fn get_source_line(&self, _addr : u16) -> Option<&String> {
         self
             .get_source_location(_addr)
-            .and_then(|loc| self.sources.get_line(&loc))
+            .and_then(|loc| self.sources.get_line(loc))
     }
 
     pub fn add_symbol(&mut self, name : &str, value : u16) {
@@ -62,7 +62,7 @@ impl Rom {
     pub fn get_slice(&self, addr : u16, size : usize) -> &[u8]  {
         let addr = addr as usize;
 
-        if addr + (size -1 ) > 0x10_000 {
+        if addr + (size -1 ) > 0x1_0000 {
             panic!("FUCKED")
         }
 
@@ -71,8 +71,8 @@ impl Rom {
 
     pub fn from_chunks( chunks : Vec<Chunk> ) -> error::Result<Self> {
 
-        let mut used : Vec<Option<&Chunk>> = vec![None;0x10_000];
-        let mut data : RomData = [0;0x10_000];
+        let mut used : Vec<Option<&Chunk>> = vec![None;0x1_0000];
+        let mut data : RomData = [0;0x1_0000];
 
         let mut location_to_addr_range = HashMap::new();
 

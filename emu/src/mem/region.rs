@@ -25,6 +25,11 @@ impl Region {
         Ok(Self::new(addr as u16, size))
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+
     pub fn len(&self) -> usize {
         let (addr, last_addr) = self.to_usize();
         (last_addr - addr) + 1

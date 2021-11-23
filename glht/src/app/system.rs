@@ -64,7 +64,7 @@ impl Default for System {
         {
             let gl_window = display.gl_window();
             let window = gl_window.window();
-            platform.attach_window(imgui.io_mut(), &window, HiDpiMode::Default);
+            platform.attach_window(imgui.io_mut(), window, HiDpiMode::Default);
         }
 
         let scale = platform.hidpi_factor();
@@ -170,7 +170,7 @@ impl System {
                     let pos = gl_window
                         .window()
                         .inner_position()
-                        .unwrap_or(glutin::dpi::PhysicalPosition::<i32>::new(0, 0))
+                        .unwrap_or_else(|_| glutin::dpi::PhysicalPosition::<i32>::new(0, 0))
                         .to_logical::<f64>(scale);
 
                     let dims = V2::new(dims.width, dims.height).as_usizes();

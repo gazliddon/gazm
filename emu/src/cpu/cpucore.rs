@@ -59,7 +59,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
         self.ins.next_addr = v;
     }
 
-    fn get_pc(&self) -> u16 {
+    pub fn get_pc(&self) -> u16 {
         self.ins.next_addr
     }
 
@@ -1352,6 +1352,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
     }
 
     pub fn step(&mut self) -> Result<(), CpuErr> {
+
         self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc, self.mem);
 
         macro_rules! handle_op {

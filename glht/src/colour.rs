@@ -6,7 +6,7 @@ pub struct Colour {
 
 impl Default for Colour {
     fn default() -> Self {
-        WHITE.clone()
+        *WHITE
     }
 }
 
@@ -53,8 +53,7 @@ pub trait ColourOps  : Sized {
     fn blend(&self, rhs : &Self, frac : f64) -> Self {
         let t_frac = frac.fract();
         let diff = rhs.sub(self).mul_scalar(t_frac as f32);
-        let col = self.add(&diff);
-        col
+        self.add(&diff)
     }
 }
 
@@ -137,12 +136,12 @@ impl Colour {
 
 }
 
-pub static WHITE :&'static Colour  = &col!(1.0,1.0,1.0,1.0);
-pub static BLACK :&'static Colour = &col!(0.0,0.0,0.0,1.0);
-pub static RED :&'static Colour = &col!(1.0,0.0,0.0,1.0);
-pub static GREEN :&'static Colour = &col!(0.0,1.0,0.0,1.0);
-pub static BLUE :&'static Colour = &col!(0.0,0.0,1.0,1.0);
-pub static YELLOW :&'static Colour = &col!(1.0,1.0,0.0,1.0);
-pub static PURPLE :&'static Colour = &col!(1.0,0.0,1.0,1.0);
+pub static WHITE :& Colour  = &col!(1.0,1.0,1.0,1.0);
+pub static BLACK :& Colour = &col!(0.0,0.0,0.0,1.0);
+pub static RED :&Colour = &col!(1.0,0.0,0.0,1.0);
+pub static GREEN :&Colour = &col!(0.0,1.0,0.0,1.0);
+pub static BLUE :&Colour = &col!(0.0,0.0,1.0,1.0);
+pub static YELLOW :&Colour = &col!(1.0,1.0,0.0,1.0);
+pub static PURPLE :&Colour = &col!(1.0,0.0,1.0,1.0);
 
 

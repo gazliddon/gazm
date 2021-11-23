@@ -32,8 +32,8 @@ impl std::default::Default for StylesDatabase {
         let addr_pc = pc.blend(&addr, 0.1);
         let addr_cursor = addr.add_scalar_sat(0.2);
 
-        let bp = ColourCell::new(&WHITE, &RED).mul_scalar(0.7);
-        let bp_pc = bp.clone();
+        let bp = ColourCell::new(WHITE, RED).mul_scalar(0.7);
+        let bp_pc = bp;
         let bp_cursor = bp.blend(&cursor, 0.25);
 
         ret.add("bp",&bp  );
@@ -58,14 +58,14 @@ impl std::default::Default for StylesDatabase {
 impl StylesDatabase {
 
     pub fn add(&mut self, name : &str, cell : &ColourCell) {
-        let mut cell = cell.clone();
+        let mut cell = *cell;
         cell.set_alpha(( 1.0, 1.0 ));
         self.styles.insert(name.to_string(), cell);
     }
 
     pub fn get(&self, name : &str) -> ColourCell {
         if let Some(col_cell) = self.styles.get(name) {
-            col_cell.clone()
+            *col_cell
         } else {
             ColourCell::new(BLACK, WHITE)
         }

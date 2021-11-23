@@ -7,8 +7,8 @@ use super::v2::*;
 
 pub trait Doc {
     fn num_of_lines(&self) -> usize;
-    fn get_line_chars<'a>(&'a self, line : usize) -> Option<&'a str>;
-    fn get_line<'a>(&'a self, line : usize) -> Option<Box<dyn Iterator<Item = Glyph> + 'a>>;
+    fn get_line_chars(&self, line : usize) -> Option<&str>;
+    fn get_line(&self, line : usize) -> Option<Box<dyn Iterator<Item = Glyph>>>;
 }
 
 pub struct DocWin {

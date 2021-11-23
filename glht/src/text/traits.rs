@@ -37,7 +37,7 @@ pub trait TextRenderer : Dimensions<usize> {
     fn draw_char(&self, pos : &V2<isize>, ch : char, col : &Colour) {
         let mut s = String::new();
         s.push(ch);
-        self.draw_text( &pos, &s, col);
+        self.draw_text( pos, &s, col);
     }
 
     fn draw_char_with_bg(&self, pos : &V2<isize>, ch : char, cols : &ColourCell) {

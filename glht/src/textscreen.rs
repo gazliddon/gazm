@@ -14,7 +14,7 @@ pub struct Glyph {
 impl Glyph {
     pub fn new(glyph : char, cols : &ColourCell) -> Self {
         Self {
-            glyph, cols: cols.clone()
+            glyph, cols: *cols
         }
     }
     pub fn new_bw(glyph : char) -> Self {
@@ -90,7 +90,7 @@ impl<'a> CursorTrait for Cursor<'a> {
 
 
     fn set_col(&mut self, c : &ColourCell) -> &mut Self{
-        self.current_color = c.clone();
+        self.current_color = *c;
         self
     }
 
@@ -164,7 +164,7 @@ impl TextScreen {
 
     pub fn write_colour(&mut self, pos : &V2<isize>, col : &ColourCell) {
         if let Some(idx) = self.coords_to_index(pos) {
-            self.colours[idx] = col.clone()
+            self.colours[idx] = *col;
         }
     }
 
@@ -174,7 +174,7 @@ impl TextScreen {
     }
 
     pub fn fill_colour_box(&mut self, scr_box : &ScrBox, col : &ColourCell) -> Option<ScrBox> {
-        let clipped_box = Self::get_cliped_box(&self.dim_box, &scr_box);
+        let clipped_box = Self::get_cliped_box(&self.dim_box, scr_box);
 
         if let Some((scr_box,_)) = clipped_box {
             let tl = &scr_box.pos;
@@ -183,7 +183,7 @@ impl TextScreen {
             for y in tl.y..=br.y {
                 for x in tl.x..=br.x {
                     if let Some(idx) = self.coords_to_index(&V2{x,y}) {
-                        self.colours[idx] = col.clone();
+                        self.colours[idx] = *col;
                     }
                 }
             }
@@ -195,7 +195,7 @@ impl TextScreen {
 
     fn get_cliped_box(dim_box : &ScrBox, scr_box : &ScrBox) -> Option<(ScrBox, ScrBox)> {
         ScrBox::clip_box(dim_box, scr_box).map(|write_box| {
-            let mut clipped_box = write_box.clone();
+            let mut clipped_box = write_box;
             clipped_box.pos = write_box.pos - clipped_box.pos;
             (write_box, clipped_box)
         })
@@ -230,7 +230,7 @@ impl TextScreen {
             self.text[y].replace_range(scr_r, &txt[txt_r]);
         };
 
-        Self::write_clipped(&db, pos, txt.len(), func )
+        Self::write_clipped(db, pos, txt.len(), func )
     }
 
     pub fn write_cells(&mut self, _pos : &V2<isize>, _txt : &[Glyph]) -> V2<isize> {
@@ -247,11 +247,11 @@ impl TextScreen {
             self.text[y].replace_range(scr_r, &txt[txt_r.clone()]);
             let ix = self.coords_to_index(&V2{x , y}.as_isizes()).unwrap();
             for i in txt_r {
-                self.colours[ix+i] = _col.clone()
+                self.colours[ix+i] = *_col;
             }
         };
 
-        Self::write_clipped(&db, pos, txt.len(), func )
+        Self::write_clipped(db, pos, txt.len(), func )
     }
 
     pub fn get_cell(&self, _pos : V2<isize>) -> Option<&Glyph> {
@@ -289,7 +289,7 @@ impl TextScreen {
         let blank = vec![c;w].into_iter().collect();
         self.text = vec![blank;h];
 
-        let colours = vec![col.clone();w*h];
+        let colours = vec![*col;w*h];
         self.colours = colours;
     }
 }
