@@ -130,7 +130,7 @@ impl<'a> DocContext<'a> {
         let mut tokens: Vec<Item<'a>> = vec![];
 
         for input in &self.lines {
-            let line = input.clone();
+            // let line = input.clone();
 
             let report = |x: &str| {
                 // if !x.is_empty() {

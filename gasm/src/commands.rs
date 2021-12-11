@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 
 use crate::{
-    item::Item,
+    item::{Item, Command},
     util::{get_token, match_escaped_str},
 };
 
@@ -17,17 +17,12 @@ use nom::{
     IResult,
 };
 
-pub enum Command<'a> {
-    Include(&'a str),
-    Generic(&'a str, Option<&'a str>)
-}
-
 fn parse_command_arg<'a>(command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
     let (rest, matched) = recognize(many1(anychar))(input)?;
     Ok((rest, Command::Generic(command, Some(matched))))
 }
 
-fn parse_include_arg<'a>(command: &'a str, input : &'a str) -> IResult<&'a str, Command<'a>> {
+fn parse_include_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command<'a>> {
     let (rest, matched) = match_escaped_str(input)?;
     Ok((rest, Command::Include(matched)))
 }
@@ -64,7 +59,7 @@ pub fn parse_command<'a>(input: &'a str) -> IResult<&'a str,Item> {
 
     let (rest, (command, func)) = map_res(alpha1,mapper)(input)?;
     let (rest, matched) = preceded(multispace1, |input| func(command, input))(rest)?;
-    let i = Item::CommandWithArg(command.to_string(), Box::new(matched));
+    let i = Item::CommandWithArg(matched);
     Ok((rest, i))
 }
 

@@ -37,8 +37,14 @@ pub enum Item<'a> {
     ArgList(Vec<Item<'a>>),
     OpCode(&'a str, Option<Box<Item<'a>>>),
     OpCodeWithArg(&'a str, &'a str),
-    CommandWithArg(String, Box<Item<'a>>),
+    CommandWithArg(Command<'a>),
     Eof,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Command<'a> {
+    Include(&'a str),
+    Generic(&'a str, Option<&'a str>)
 }
 
 pub fn is_empty_comment<'a>(item : &'a Item<'a>) -> bool {
