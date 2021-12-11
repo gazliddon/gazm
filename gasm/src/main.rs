@@ -8,9 +8,6 @@ mod commands;
 mod util;
 mod opcodes;
 
-use romloader::Dbase;
-
-
 use comments::{strip_comments, strip_comments_and_ws};
 use item::{Item, TextItem};
 
@@ -34,7 +31,6 @@ use std::collections::HashSet;
 
 use crate::item::is_empty_comment;
 
-static LIST_SEP: &'static str = ",";
 static LOCAL_LABEL_PREFIX: &'static str = "@!";
 static OK_LABEL_CHARS: &'static str = "_?";
 
@@ -49,24 +45,6 @@ where
     delimited(multispace0, inner, multispace0)
 }
 
-lazy_static! {
-    static ref OPCODES: HashSet<&'static str> = vec![
-        "abx", "adca", "adcb", "adda", "addb", "addd", "anda", "andb", "andcc", "asl", "asla",
-        "aslb", "asr", "asra", "asrb", "bcc", "bcs", "beq", "bge", "bgt", "bhi", "bhs", "bita",
-        "bitb", "ble", "blo", "bls", "blt", "bmi", "bne", "bpl", "bra", "brn", "bsr", "bvc", "bvs",
-        "clr", "clra", "clrb", "cmpa", "cmpb", "cmpd", "cmps", "cmpu", "cmpx", "cmpy", "com",
-        "coma", "comb", "cwai", "daa", "dec", "deca", "decb", "eora", "eorb", "exg", "inc", "inca",
-        "incb", "jmp", "jsr", "lbcc", "lbcs", "lbeq", "lbge", "lbgt", "lbhi", "lbhs", "lble",
-        "lblo", "lbls", "lblt", "lbmi", "lbne", "lbpl", "lbra", "lbrn", "lbsr", "lbvc", "lbvs",
-        "lda", "ldb", "ldd", "lds", "ldu", "ldx", "ldy", "leas", "leau", "leax", "leay", "lsl",
-        "lsla", "lslb", "lsr", "lsra", "lsrb", "mul", "neg", "nega", "negb", "nop", "ora", "orb",
-        "orcc", "pshs", "pshu", "puls", "pulu", "rol", "rola", "rolb", "ror", "rora", "rorb",
-        "rti", "rts", "sbca", "sbcb", "sex", "sta", "stb", "std", "sts", "stu", "stx", "sty",
-        "suba", "subb", "subd", "swi", "swi2", "swi3", "sync", "tfr", "tst", "tsta",
-    ]
-    .into_iter()
-    .collect();
-}
 
 pub fn get_offset(master: &str, text: &str) -> usize {
     text.as_ptr() as usize - master.as_ptr() as usize
@@ -143,7 +121,7 @@ impl<'a> DocContext<'a> {
         for input in &self.lines {
             // let line = input.clone();
 
-            let report = |x: &str| {
+            let report = |_x: &str| {
                 // if !x.is_empty() {
                 //     println!("{} unmatched {:?}", line, x);
                 // }
@@ -160,7 +138,7 @@ impl<'a> DocContext<'a> {
             }
 
             let mut body = terminated(
-                alt((parse_opcode, parse_command, parse_asignment)),
+                alt((opcodes::parse_opcode, parse_command, parse_asignment)),
                 multispace0,
             );
 
@@ -268,24 +246,8 @@ fn is_char_end_line(chr: char) -> bool {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Args
-
-pub fn generic_arg(input: &str) -> IResult<&str, &str> {
-    let term = alt((eof, line_ending, tag(LIST_SEP)));
-    recognize(nom::combinator::not(term))(input)
-}
-
-pub fn parse_not_sure(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = generic_arg(input)?;
-    Ok((rest, Item::NotSure(matched)))
-}
-
-pub fn generic_arg_list(input: &str) -> IResult<&str, Vec<&str>> {
-    let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
-    separated_list0(sep, generic_arg)(input)
-}
-
 pub fn parse_arg_list(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = generic_arg_list(input)?;
+    let (rest, matched) = util::generic_arg_list(input)?;
 
     let mut ret = vec![];
 
@@ -298,35 +260,10 @@ pub fn parse_arg_list(input: &str) -> IResult<&str, Item> {
 }
 
 pub fn parse_arg(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = alt((util::parse_escaped_str, parse_label, parse_not_sure))(input)?;
+    let (rest, matched) = alt((util::parse_escaped_str, parse_label, util::parse_not_sure))(input)?;
     Ok((rest, matched))
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// opcodes
-pub fn opcode_token<'a>(input: &'a str) -> IResult<&str, &str> {
-    util::get_token(input, &OPCODES)
-}
-
-pub fn parse_opcode_arg(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = parse_not_sure(input)?;
-    Ok((rest, matched))
-}
-
-pub fn opcode_with_arg(input: &str) -> IResult<&str, Item> {
-    let (rest, (op, arg)) = separated_pair(opcode_token, multispace1, not_line_ending)(input)?;
-    Ok((rest, Item::OpCodeWithArg(op, arg)))
-}
-
-fn opcode_no_arg(input: &str) -> IResult<&str, Item> {
-    let (rest, text) = opcode_token(input)?;
-    Ok((rest, Item::OpCode(text, None)))
-}
-
-pub fn parse_opcode(input: &str) -> IResult<&str, Item> {
-    let (rest, item) = alt((opcode_with_arg, opcode_no_arg))(input)?;
-    Ok((rest, item))
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
