@@ -104,11 +104,11 @@ impl Dbase {
         }
     }
 
-    // pub fn new() -> Self {
-    //     let json_str = include_str!("src/cpu/resources/opcodes.json");
-    //     let loaded: Dbase = serde_json::from_str(json_str).unwrap();
-    //     Self::from_data(loaded.instructions, loaded.unknown)
-    // }
+    pub fn new() -> Self {
+        let json_str = include_str!("../../emu/src/cpu/resources/opcodes.json");
+        let loaded: Dbase = serde_json::from_str(json_str).unwrap();
+        Self::from_data(loaded.instructions, loaded.unknown)
+    }
 
     pub fn get(&self, opcode: u16) -> &Instruction {
         &self.lookup[opcode as usize]

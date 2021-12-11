@@ -1,17 +1,17 @@
 use super::{
-    rom::{Rom},
+    rom::Rom,
     error,
     chunk::*,
     location::*,
 
 };
 
-use error::{ResultExt};
+use error::ResultExt;
 
 use regex::Regex;
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{BufReader};
+use std::io::BufReader;
 // use std::path::PathBuf;
 
 // Convert a string of hex into an array of bytes

@@ -6,6 +6,10 @@ mod item;
 mod numbers;
 mod commands;
 mod util;
+mod opcodes;
+
+use romloader::Dbase;
+
 
 use comments::{strip_comments, strip_comments_and_ws};
 use item::{Item, TextItem};
@@ -124,6 +128,13 @@ impl<'a> DocContext<'a> {
 
 impl<'a> DocContext<'a> {
     pub fn parse(&self) -> IResult<&str, Vec<Item<'a>>> {
+
+        // options are
+        // label (not opcode)
+        // opcode
+        // or 
+        // label, no opcode
+        // probs need to define a label as an identifier that ISN'T an opcode
 
         use commands::parse_command;
 
