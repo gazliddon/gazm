@@ -20,8 +20,6 @@ pub enum Item<'a> {
     Label(&'a str),
     LocalLabel(&'a str),
     Comment(&'a str),
-    Command(&'a str, &'a str),
-
     Assignment(Box<Item<'a>>, &'a str),
     String(&'a str),
     BinOp(&'a str),
@@ -37,8 +35,14 @@ pub enum Item<'a> {
     ArgList(Vec<Item<'a>>),
     OpCode(&'a str, Option<Box<Item<'a>>>),
     OpCodeWithArg(&'a str, &'a str),
-    CommandWithArg(Command<'a>),
+    Command(Command<'a>),
     Eof,
+}
+
+enum OpCode<'a> {
+    NoArg(&'a str),
+    WithArg(&'a str),
+    RegisterList(&'a str, Vec<&'a str>)
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -59,7 +59,7 @@ pub fn parse_command<'a>(input: &'a str) -> IResult<&'a str,Item> {
 
     let (rest, (command, func)) = map_res(alpha1,mapper)(input)?;
     let (rest, matched) = preceded(multispace1, |input| func(command, input))(rest)?;
-    let i = Item::CommandWithArg(matched);
+    let i = Item::Command(matched);
     Ok((rest, i))
 }
 

@@ -20,6 +20,7 @@ pub struct OpCodes {
     dbase: Dbase,
 }
 
+
 // Some opcodes have an aliase delimited by underscores
 fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
     let split: Vec<&str> = _input.split("_").collect();
