@@ -15,18 +15,18 @@ start
          ;; copy the palette over
 
          lda #255
-         sta PALETTE+3
+         sta palette+3
          lda #127
-         sta PALETTE+4
+         sta palette+4
          lda #0
-         sta PALETTE+5
+         sta palette+5
                   ;;  akjakjak
-loop1    inc PALETTE+15*3
-         inc PALETTE+15*3
-         inc PALETTE+15*3
-         lda PALETTE+15
+loop1    inc palette+15*3
+         inc palette+15*3
+         inc palette+15*3
+         lda palette+15
          lsra
-         sta PALETTE+15*3+1
+         sta palette+15*3+1
          ldx #0
          bsr draw_box
          jsr print_a
@@ -36,11 +36,11 @@ loop1    inc PALETTE+15*3
          bra loop1
 
 clear_screen
-         ldy #SCREEN
+         ldy #screen
          ldd #0
 loop2
          std ,y++
-         cmpy #SCREEN+SCREEN_SIZE_BYTES
+         cmpy #screen+screen_size_bytes
          bne loop2
          rts
 font
@@ -79,7 +79,7 @@ small_c
          fdb $0000
 
 
-;; Draw a block
+;; draw a block
 ;; a = col
 ;; x = addr
 
@@ -90,19 +90,19 @@ draw_box
          ldx small_a_2+2
          ldd small_a_2+4
 
-         ldu #SCREEN+6
+         ldu #screen+6
          pshu a,b,x,y
 
          ldy small_a_2+0+6
          ldx small_a_2+2+6
          ldd small_a_2+4+6
-         ldu #SCREEN+6+0x100
+         ldu #screen+6+0x100
          pshu a,b,x,y
          
          ldy small_a_2+0+12
          ldx small_a_2+2+12
          ldd small_a_2+4+12
-         ldu #SCREEN+6+0x200
+         ldu #screen+6+0x200
          pshu a,b,x,y
 
          puls u
@@ -146,12 +146,12 @@ alloc_with_init
         rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; X -> palette to read from
+;; x -> palette to read from
 
 copy_pal
          lda #61*3-1
          pshu a
-         ldy #PALETTE
+         ldy #palette
 
 loop4
          ldd ,x++
@@ -164,7 +164,7 @@ loop4
 ;; x -> screen
 print_a
          sts save_s
-         ldx #SCREEN+0x800+6*3
+         ldx #screen+0x800+6*3
          ldu #lett_a
          lds save_s
          rts
@@ -226,11 +226,11 @@ lett_a
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; clear_scren
-;; Clear the screen to pixel pair in A
+;; clear the screen to pixel pair in a
 screen_clear
          pshs u
 
-         ldu #SCREEN
+         ldu #screen
          ;; fill registers with clear colour
          tfr a,b ;; d = a a
          tfr a,dp
@@ -277,7 +277,7 @@ loopclear
          pshu a,b,d,x,y
          pshu x,y
          ;;
-         cmpu #SCREEN + SCREEN_SIZE_BYTES
+         cmpu #screen + screen_size_bytes
          bne loopclear
 
          puls u

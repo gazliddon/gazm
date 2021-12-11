@@ -22,17 +22,16 @@ IO
 
 // use filewatcher::FileWatcher;
 //
-
-use emu::mem::MemoryIO;
-use emu::{cpu, diss};
+use emu::{cpu, diss, mem};
 
 use emu::breakpoints::BreakPoints;
+use mem::MemoryIO;
 
 use log::info;
 
+use super::mem::SimpleMem;
 use super::{filewatcher, state};
 
-use super::mem::SimpleMem;
 use cpu::{CpuErr, Regs, StandardClock};
 
 use std::cell::RefCell;
@@ -76,10 +75,6 @@ pub enum SimEvent {
 ////////////////////////////////////////////////////////////////////////////////
 // Extend breakpoint to be initialisable from gdb bp descriptions
 
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-
 const W: usize = 304;
 const H: usize = 256;
 const SCR_BYTES: usize = W * H * 3;
@@ -108,16 +103,17 @@ fn to_rgb(mem: &[u8], palette: &[u8]) -> [u8; SCR_BYTES] {
 
     ret
 }
-    fn check_breakpoints(machine : &( impl Machine + ?Sized ))  -> Result<(), MachineErr> {
-        let bp = machine.get_breakpoints();
-        let pc = machine.get_regs().pc;
 
-        if bp.has_any_breakpoint(pc) {
-            Err(MachineErr::BreakPoint(pc))
-        } else {
-            Ok(())
-        }
+fn check_breakpoints(machine: &(impl Machine + ?Sized)) -> Result<(), MachineErr> {
+    let bp = machine.get_breakpoints();
+    let pc = machine.get_regs().pc;
+
+    if bp.has_any_breakpoint(pc) {
+        Err(MachineErr::BreakPoint(pc))
+    } else {
+        Ok(())
     }
+}
 
 pub trait Machine {
     fn get_breakpoints(&self) -> &BreakPoints;
@@ -131,41 +127,24 @@ pub trait Machine {
     fn get_mem_mut(&mut self) -> &mut dyn MemoryIO;
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
     fn get_context_mut(&mut self) -> cpu::Context<StandardClock>;
-    fn update(&mut self) -> SimState;
+    fn update(&mut self) -> Result<(), MachineErr>;
 
     fn get_regs(&self) -> &cpu::Regs;
 
     fn get_dissambler(&self) -> diss::Disassembler {
         panic!("")
-        // diss::Disassembler::new(self.get_mem())
-    }
-
-    fn run_while(
-        &mut self,
-        f: &mut dyn FnMut(&cpu::Context<StandardClock>) -> Result<(), MachineErr>,
-    ) -> Result<(), MachineErr> {
-        let mut ctx = self.get_context_mut();
-        f(&ctx)?;
-        ctx.step()?;
-        Ok(())
     }
 
     fn run_instructions(&mut self, n: usize) -> Result<(), MachineErr> {
-        let mut i = 0;
-        let mut first = false;
-
-        let mut func = |_ctx: &cpu::Context<StandardClock>| -> Result<(), MachineErr> {
-            first = false;
-
-            i += 1;
-            if 1 == n {
-                Err(MachineErr::Halted)
-            } else {
-                Ok(())
+        for _ in 0..n {
+            let mut ctx = self.get_context_mut();
+            ctx.step()?;
+            let pc = ctx.get_pc();
+            let bp = self.get_breakpoints();
+            if bp.has_any_breakpoint(pc) {
+                return Err(MachineErr::BreakPoint(pc));
             }
-        };
-
-        self.run_while(&mut func)?;
+        }
 
         Ok(())
     }
@@ -178,15 +157,6 @@ pub trait Machine {
     fn reset(&mut self) {
         let mut ctx = self.get_context_mut();
         ctx.reset();
-    }
-
-    fn run_to_sync(&mut self, max_instructions: usize) -> Option<SimEvent> {
-        let mut ctx = self.get_context_mut();
-
-        for _ in 0..max_instructions {
-            ctx.step().expect("Can't step");
-        }
-        None
     }
 }
 
@@ -236,10 +206,8 @@ impl<M: MemoryIO> Machine for SimpleMachine<M> {
         emu::cpu::Context::new(&mut self.mem, &mut self.regs, &self.rc_clock)
     }
 
-    fn update(&mut self) -> SimState {
+    fn update(&mut self) -> Result<(), MachineErr> {
         use self::SimEvent::*;
-
-        // self.handle_file_watcher();
 
         while let Some(event) = self.events.pop() {
             if self.state.get() == SimState::Quitting {
@@ -247,7 +215,6 @@ impl<M: MemoryIO> Machine for SimpleMachine<M> {
             }
 
             match event {
-                // RomChanged => self.rom_changed(),
                 ToggleVerbose => self.toggle_verbose(),
                 Pause => self.state.set(SimState::Paused),
                 Quit => self.state.set(SimState::Quitting),
@@ -261,14 +228,18 @@ impl<M: MemoryIO> Machine for SimpleMachine<M> {
             SimState::Quitting => {}
 
             SimState::Running => {
-                self.run_to_sync(2_000_000 / 60);
+                if let Err(err) = self.run_instructions(1000) {
+                    self.set_state(SimState::Paused);
+                    return Err(err);
+                }
+
                 // self.update_texture();
             }
 
             SimState::Paused => {}
         };
 
-        self.state.get()
+        Ok(())
     }
 
     fn get_state(&self) -> SimState {
@@ -293,6 +264,7 @@ impl<M: MemoryIO> SimpleMachine<M> {
     }
 
     pub fn new(mem: M, rom: romloader::Rom) -> Self {
+
         let path = std::env::current_dir().expect("getting dir");
         info!("Creatning Simple 6809 machine");
         info!("cd = {}", path.display());

@@ -63,6 +63,7 @@ impl<'a> ImgUiTextRender<'a> {
     }
 }
 
+
 impl<'a> Dimensions<usize> for ImgUiTextRender<'a> {
     fn dims(&self) -> V2<usize> {
         self.grid_dims

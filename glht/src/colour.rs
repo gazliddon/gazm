@@ -27,6 +27,7 @@ pub trait ColourOps  : Sized {
     fn mul(&self, rhs : &Self) -> Self;
     fn sub(&self, rhs : &Self) -> Self;
 
+
     fn add_saturate(&self, rhs : &Self) -> Self {
         self.add(rhs).saturate()
     }

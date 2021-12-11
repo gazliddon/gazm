@@ -83,20 +83,11 @@ impl MyApp {
     fn toggle_breakpoint_at_cursor(&mut self, bp_type: BreakPointTypes) {
         use emu::breakpoints::BreakPointTypes::*;
         self.break_point_fn_mut(|addr, break_points| {
-            info!(
-                "trying to set / unset breakpoint at {:04X} (bps: {})",
-                addr,
-                break_points.len()
-            );
-
             if let Some(bp) = break_points.find_breakpoint_id(addr, bp_type) {
-                info!("Removing bp {} {:04X}", bp, addr);
                 break_points.remove_by_id(bp);
             } else {
-                info!("Adding {:04X}", addr);
                 break_points.add(addr, bp_type);
             }
-            info!("Done: (bps: {})", break_points.len());
         });
     }
 
@@ -220,10 +211,16 @@ impl App<events::Events> for MyApp {
             }
         } else if mstate.is_empty() {
             match _code {
+                Vk::R => {
+                    self.machine.set_state(simple::SimState::Running);
+                    None
+                },
+
                 Vk::Q => {
                     self.close_requested();
                     None
                 }
+
                 Vk::J => target.event(CursorDown),
                 Vk::K => target.event(CursorUp),
                 Vk::Space => target.event(Space),
@@ -248,6 +245,7 @@ impl App<events::Events> for MyApp {
 
     fn update(&mut self, frame_time: &FrameTime) {
         self.frame_time = *frame_time;
+        let _ = self.machine.update();
     }
 
     fn is_running(&self) -> bool {
