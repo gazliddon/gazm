@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
+mod expr;
 mod comments;
 mod item;
 mod numbers;
@@ -33,8 +34,7 @@ use std::collections::HashSet;
 
 use crate::item::is_empty_comment;
 
-static LOCAL_LABEL_PREFIX: &'static str = "@!";
-static OK_LABEL_CHARS: &'static str = "_?";
+use util::{parse_arg, parse_label, parse_arg_list};
 
 /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
 /// trailing whitespace, returning the output of `inner`.
@@ -202,40 +202,7 @@ pub fn parse_operand(_input: &str) -> IResult<&str, &str> {
 ////////////////////////////////////////////////////////////////////////////////
 // Number
 
-pub fn parse_number(input: &str) -> IResult<&str, Item> {
-    let (rest, (num, text)) = numbers::parse_number(input)?;
-    Ok((rest, Item::Number(num, text)))
-}
 
-////////////////////////////////////////////////////////////////////////////////
-// Labels
-
-fn get_label(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = recognize(pair(
-            alt((alpha1, is_a(OK_LABEL_CHARS))),
-            many0(alt((alphanumeric1, is_a(OK_LABEL_CHARS)))),
-            ))(input)?;
-
-    Ok((rest, Item::Label(matched)))
-}
-
-fn get_local_label(input: &str) -> IResult<&str, Item> {
-    let loc_tabs = is_a(LOCAL_LABEL_PREFIX);
-    let (rest, matched) = recognize(pair(loc_tabs, get_label))(input)?;
-    Ok((rest, Item::LocalLabel(matched)))
-}
-
-// pub fn alt<I: Clone, O, E: ParseError<I>, List: Alt<I, O, E>>(
-//   mut l: List,
-// ) -> impl FnMut(I) -> IResult<I, O, E> {
-//   move |i: I| l.choice(i)
-// }
-
-pub fn parse_label(input: &str) -> IResult<&str, Item> {
-    not(opcode_token)(input)?;
-    not(command_token)(input)?;
-    alt((get_local_label, get_label))(input)
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Misc
@@ -257,23 +224,6 @@ fn is_char_end_line(chr: char) -> bool {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Args
-pub fn parse_arg_list(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = util::generic_arg_list(input)?;
-
-    let mut ret = vec![];
-
-    for i in matched {
-        let (_, matched) = parse_arg(i)?;
-        ret.push(matched);
-    }
-
-    Ok((rest, Item::ArgList(ret)))
-}
-
-pub fn parse_arg(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = alt((util::parse_escaped_str, parse_label, util::parse_not_sure))(input)?;
-    Ok((rest, matched))
-}
 
 
 ////////////////////////////////////////////////////////////////////////////////

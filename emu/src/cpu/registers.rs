@@ -1,6 +1,6 @@
 use super::Flags;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RegEnum {
     A,
     B,

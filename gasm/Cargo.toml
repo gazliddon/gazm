@@ -10,6 +10,7 @@ nom = "*"
 lazy_static = "1.4.0"
 pretty_assertions="*"
 romloader = { path = "../utils" }
+emu = {path = "../emu"}
 
 [dev-dependencies]
 

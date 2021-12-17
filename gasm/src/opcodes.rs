@@ -1,11 +1,14 @@
 use super::item::Item;
 use super::util;
-use lazy_static::lazy_static;
+use super::numbers;
 use romloader::{Dbase, Instruction};
 
 use nom::branch::alt;
 use nom::IResult;
 use std::collections::{HashMap, HashSet};
+use std::num::IntErrorKind;
+use nom::error::ErrorKind::NoneOf;
+use nom::error::{Error, ParseError};
 
 use nom::character::complete::{
     alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
@@ -13,13 +16,13 @@ use nom::character::complete::{
 };
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // opcode parsing
 pub struct OpCodes {
     name_to_ins: HashMap<String, Vec<Instruction>>,
     dbase: Dbase,
 }
-
 
 // Some opcodes have an aliase delimited by underscores
 fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
@@ -72,14 +75,11 @@ impl OpCodes {
 
 ////////////////////////////////////////////////////////////////////////////////
 // opcode parsing
-lazy_static! {
+lazy_static::lazy_static! {
     static ref OPCODES_REC: OpCodes = OpCodes::new();
 }
 
 pub fn opcode_token(input: &str) -> IResult<&str, &str> {
-    use nom::error::ErrorKind::NoneOf;
-    use nom::error::{Error, ParseError};
-
     let (rest, matched) = alpha1(input)?;
     let opcode = String::from(matched).to_lowercase();
 

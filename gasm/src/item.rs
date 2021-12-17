@@ -1,3 +1,4 @@
+use emu::cpu::RegEnum;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextItem<'a> {
@@ -23,6 +24,7 @@ pub enum Item<'a> {
     Assignment(Box<Item<'a>>, &'a str),
     String(&'a str),
     BinOp(&'a str),
+    Op(&'a str),
     OpenBracket,
     CloseBracket,
     OpenSqBracket,
@@ -37,6 +39,8 @@ pub enum Item<'a> {
     OpCodeWithArg(&'a str, &'a str),
     Command(Command<'a>),
     Eof,
+    Register(RegEnum),
+    Expr(Vec<Item<'a>>)
 }
 
 enum OpCode<'a> {

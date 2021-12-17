@@ -43,7 +43,7 @@ fn parse_dec(input: &str) -> IResult<&str, (u64, &str)> {
     Ok((rest, (num, text_str)))
 }
 
-pub fn parse_number(input: &str) -> IResult<&str, (u64, &str)> {
+pub fn number_token(input: &str) -> IResult<&str, (u64, &str)> {
     alt((parse_hex, parse_binary, parse_dec))(input)
 }
 
@@ -113,6 +113,6 @@ mod test {
 
     #[test]
     fn test_all() {
-        test_nums(&TEST_ALL, parse_number);
+        test_nums(&TEST_ALL, number_token);
     }
 }

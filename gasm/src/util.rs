@@ -1,4 +1,6 @@
 use crate::item::Item;
+use crate::numbers;
+
 use nom::IResult;
 use nom::branch::alt;
 use std::collections::HashSet;
@@ -12,9 +14,20 @@ use nom::character::complete::{
     not_line_ending, one_of, satisfy, space1,
 };
 use nom::multi::{many0, many0_count, many1, separated_list0};
-use nom::sequence::{ terminated,preceded, tuple };
+use nom::sequence::{ terminated,preceded, tuple, pair };
 use nom::combinator::{ cut, eof, not, recognize };
-// use nom::bytes::complete::{ escaped, take_while };
+
+use crate::{ opcode_token, command_token };
+
+
+pub fn parse_register(_input : &str) -> IResult<&str, Item> {
+    todo!()
+}
+
+pub fn parse_number(input: &str) -> IResult<&str, Item> {
+    let (rest, (num, text)) = numbers::number_token(input)?;
+    Ok((rest, Item::Number(num, text)))
+}
 
 static LIST_SEP: &'static str = ",";
 pub fn generic_arg_list(input: &str) -> IResult<&str, Vec<&str>> {
@@ -42,6 +55,59 @@ pub fn get_token<'a>(input: &'a str, hs: &HashSet<&'static str>) -> IResult<&'a 
     } else {
         Err(nom::Err::Error(Error::new(input, NoneOf)))
     }
+}
+////////////////////////////////////////////////////////////////////////////////
+// Labels
+static LOCAL_LABEL_PREFIX: &'static str = "@!";
+static OK_LABEL_CHARS: &'static str = "_?";
+
+fn get_label(input: &str) -> IResult<&str, Item> {
+    let (rest, matched) = recognize(pair(
+            alt((alpha1, is_a(OK_LABEL_CHARS))),
+            many0(alt((alphanumeric1, is_a(OK_LABEL_CHARS)))),
+            ))(input)?;
+
+    Ok((rest, Item::Label(matched)))
+}
+
+fn get_local_label(input: &str) -> IResult<&str, Item> {
+    let loc_tabs = is_a(LOCAL_LABEL_PREFIX);
+    let (rest, matched) = recognize(pair(loc_tabs, get_label))(input)?;
+    Ok((rest, Item::LocalLabel(matched)))
+}
+
+// pub fn alt<I: Clone, O, E: ParseError<I>, List: Alt<I, O, E>>(
+//   mut l: List,
+// ) -> impl FnMut(I) -> IResult<I, O, E> {
+//   move |i: I| l.choice(i)
+// }
+
+
+pub fn parse_label(input: &str) -> IResult<&str, Item> {
+    not(opcode_token)(input)?;
+    not(command_token)(input)?;
+    alt((get_local_label, get_label))(input)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Args
+
+pub fn parse_arg_list(input: &str) -> IResult<&str, Item> {
+    let (rest, matched) = generic_arg_list(input)?;
+
+    let mut ret = vec![];
+
+    for i in matched {
+        let (_, matched) = parse_arg(i)?;
+        ret.push(matched);
+    }
+
+    Ok((rest, Item::ArgList(ret)))
+}
+
+pub fn parse_arg(input: &str) -> IResult<&str, Item> {
+    let (rest, matched) = alt((parse_escaped_str, parse_label, parse_not_sure))(input)?;
+    Ok((rest, matched))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
