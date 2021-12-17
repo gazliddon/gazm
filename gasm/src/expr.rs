@@ -26,7 +26,6 @@ use super::util;
 //
 //
 /*
-
     Indexed,
 
     Direct,
@@ -70,7 +69,6 @@ pub fn expr_item(input : &str) -> IResult<&str, Item> {
 }
 
 pub fn get_expr(input: &str) -> IResult<&str, Item> {
-
     let mut items = vec![];
 
     let mut input = input;
