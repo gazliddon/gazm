@@ -8,25 +8,27 @@ mod commands;
 mod util;
 mod opcodes;
 
+use commands::command_token;
 use comments::{strip_comments, strip_comments_and_ws};
 use item::{Item, TextItem};
 
 use nom::branch::alt;
 use nom::bytes::complete::{
-    escaped, is_a, is_not, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
+    escaped, is_a, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
 };
 use nom::character::complete::{
     alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
     not_line_ending, one_of, satisfy, space1,
 };
 use nom::character::{is_alphabetic, is_space};
-use nom::combinator::{cut, eof, map_res, opt, recognize, value};
+use nom::combinator::{cut, eof, map_res, opt, recognize, value, not};
 use nom::error::{Error, ParseError};
 use nom::multi::{many0, many0_count, many1, separated_list0};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use nom::IResult;
 
 use lazy_static::lazy_static;
+use opcodes::{parse_opcode, opcode_token};
 use std::collections::HashSet;
 
 use crate::item::is_empty_comment;
@@ -103,73 +105,71 @@ impl<'a> DocContext<'a> {
         TextItem { text, offset }
     }
 }
+pub fn parse<'a>(lines : &'a Vec<&'a str>) -> IResult<&'a str, Vec<Item<'a>>> {
 
-impl<'a> DocContext<'a> {
-    pub fn parse(&self) -> IResult<&str, Vec<Item<'a>>> {
+    use commands::parse_command;
 
-        // options are
-        // label (not opcode)
-        // opcode
-        // or 
-        // label, no opcode
-        // probs need to define a label as an identifier that ISN'T an opcode
+    let mut items : Vec<Item<'a>> = vec![];
 
-        use commands::parse_command;
+    let mut push_some = |x : &Option<Item<'a>> | {
+        if let Some(x) = x {
+            items.push(x.clone())
+        }
+    };
 
-        let mut tokens: Vec<Item<'a>> = vec![];
+    for input in lines {
+        let (input, comment) = strip_comments_and_ws(input)?;
 
-        for input in &self.lines {
-            // let line = input.clone();
+        push_some(&comment);
 
-            let report = |_x: &str| {
-                // if !x.is_empty() {
-                //     println!("{} unmatched {:?}", line, x);
-                // }
-            };
 
-            let (input, comment) = strip_comments_and_ws(input)?;
-
-            if let Some(i) = comment {
-                tokens.push(i)
-            }
-
-            if input.is_empty() {
-                continue;
-            }
-
-            let mut body = terminated(
-                alt((opcodes::parse_opcode, parse_command, parse_asignment)),
-                multispace0,
-            );
-
-            if let Ok((input, matched)) = body(input) {
-                tokens.push(matched);
-                report(input);
-            } else {
-                let (input, matched) = terminated(parse_label, multispace0)(input)?;
-                tokens.push(matched);
-                if let Ok((input, matched)) = body(input) {
-                    tokens.push(matched);
-                    report(input);
-                } else {
-                    report(input);
-                }
-            }
+        if input.is_empty() {
+            continue;
         }
 
-        // filter out empty comments
-        let tokens = tokens
-            .into_iter()
-            .filter(|c| !is_empty_comment(c))
-            .collect();
+        let body = terminated(
+            alt((parse_opcode, parse_command, parse_asignment)),
+            multispace0,
+            );
 
-        Ok(("", tokens))
+        let (_input, (label,body))= tuple(
+            ( opt(parse_label),
+                opt(body)
+            ))(input)?;
+
+        push_some(&label);
+        push_some(&body);
     }
+
+    // filter out empty comments
+    let items = items
+        .into_iter()
+        .filter(|c| !is_empty_comment(c))
+        .collect();
+
+    Ok(("", items))
+}
+
+impl<'a> DocContext<'a> {
+    pub fn push_some(&mut self, item : &Option<Item<'a>>) {
+        if let Some(item) = item {
+            self.tokens.push(item.clone())
+        }
+    }
+
+    pub fn parse(&'a mut self) -> IResult<&'a str,&Vec<Item<'a>>> {
+
+        let (rest, matched) = parse(&self.lines)?;
+
+        self.tokens = matched.clone();
+        Ok((rest, &self.tokens))
+    }
+
 }
 
 fn main() {
     let source = include_str!("../all.68");
-    let dc = DocContext::new(source);
+    let mut dc = DocContext::new(source);
 
     let (_rest, _matched) = dc.parse().unwrap();
 
@@ -180,12 +180,12 @@ fn main() {
 
 pub fn parse_asignment(input: &str) -> IResult<&str, Item> {
     let (rest, (label, _, _, _, arg)) = tuple((
-        parse_label,
-        multispace1,
-        tag_no_case("equ"),
-        multispace1,
-        recognize(many1(anychar))
-    ))(input)?;
+            parse_label,
+            multispace1,
+            tag_no_case("equ"),
+            multispace1,
+            recognize(many1(anychar))
+            ))(input)?;
     Ok((rest, Item::Assignment(Box::new(label), arg)))
 }
 
@@ -194,7 +194,10 @@ pub fn parse_eof(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::Eof))
 }
 
-
+pub fn parse_operand(_input: &str) -> IResult<&str, &str> {
+    let _special = "[],+#";
+    todo!()
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Number
@@ -204,15 +207,14 @@ pub fn parse_number(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::Number(num, text)))
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
 
 fn get_label(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = recognize(pair(
-        alt((alpha1, is_a(OK_LABEL_CHARS))),
-        many0(alt((alphanumeric1, is_a(OK_LABEL_CHARS)))),
-    ))(input)?;
+            alt((alpha1, is_a(OK_LABEL_CHARS))),
+            many0(alt((alphanumeric1, is_a(OK_LABEL_CHARS)))),
+            ))(input)?;
 
     Ok((rest, Item::Label(matched)))
 }
@@ -223,9 +225,18 @@ fn get_local_label(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::LocalLabel(matched)))
 }
 
+// pub fn alt<I: Clone, O, E: ParseError<I>, List: Alt<I, O, E>>(
+//   mut l: List,
+// ) -> impl FnMut(I) -> IResult<I, O, E> {
+//   move |i: I| l.choice(i)
+// }
+
 pub fn parse_label(input: &str) -> IResult<&str, Item> {
+    not(opcode_token)(input)?;
+    not(command_token)(input)?;
     alt((get_local_label, get_label))(input)
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 // Misc
 

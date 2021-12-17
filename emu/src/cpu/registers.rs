@@ -13,6 +13,7 @@ pub enum RegEnum {
     CC,
     PC,
 }
+use serde_derive::{ Deserialize, Serialize };
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Regs {

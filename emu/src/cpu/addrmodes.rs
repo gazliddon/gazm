@@ -1,10 +1,20 @@
 use super::{mem, CpuErr, IndexModes, IndexedFlags, InstructionDecoder, Regs};
 use mem::{ MemoryIO, MemErrorTypes };
 
+use crate::isa::AddrMode;
+
+use log::warn;
+
 pub trait AddressLines {
     // fn diss<M: MemoryIO>(_mem: &M, _ins: &mut InstructionDecoder) -> String {
     //     panic!("NOT IMP {:?}", Self::name())
     // }
+
+    fn get_addr_mode() -> AddrMode;
+
+    fn name() -> String {
+        Self::get_addr_mode().to_string()
+    }
 
     fn diss(_mem: &dyn MemoryIO, _ins: &mut InstructionDecoder) -> String;
 
@@ -59,8 +69,6 @@ pub trait AddressLines {
         let byte = Self::fetch_byte(mem, regs, ins)? as i8;
         Ok(i16::from(byte))
     }
-
-    fn name() -> String;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -72,8 +80,12 @@ impl From<MemErrorTypes> for CpuErr {
     }
 }
 
-
 impl AddressLines for Direct {
+    
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Direct
+    }
+
     fn ea(
         mem: &mut dyn MemoryIO,
         regs: &mut Regs,
@@ -83,9 +95,6 @@ impl AddressLines for Direct {
         Ok(regs.get_dp_ptr().wrapping_add(index))
     }
 
-    fn name() -> String {
-        "Direct".to_string()
-    }
 
     fn fetch_byte(
         mem: &mut dyn MemoryIO,
@@ -140,6 +149,9 @@ pub struct Extended {}
 
 
 impl AddressLines for Extended {
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Extended
+    }
     fn ea(
         mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
@@ -148,9 +160,6 @@ impl AddressLines for Extended {
         ins.fetch_word(mem)
     }
 
-    fn name() -> String {
-        "Extended".to_string()
-    }
 
     fn fetch_byte(
         mem: &mut dyn MemoryIO,
@@ -205,8 +214,8 @@ impl AddressLines for Extended {
 pub struct Immediate8 {}
 
 impl AddressLines for Immediate8 {
-    fn name() -> String {
-        "Immediate8".to_string()
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Immediate8
     }
 
     fn fetch_byte(
@@ -226,8 +235,8 @@ impl AddressLines for Immediate8 {
 pub struct Immediate16 {}
 
 impl AddressLines for Immediate16 {
-    fn name() -> String {
-        "Immediate16".to_string()
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Immediate16
     }
 
     fn fetch_word(
@@ -248,9 +257,10 @@ impl AddressLines for Immediate16 {
 pub struct Inherent {}
 
 impl AddressLines for Inherent {
-    fn name() -> String {
-        "Inherent".to_string()
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Inherent
     }
+
     fn fetch_byte(
         mem: &mut dyn MemoryIO,
         _regs: &mut Regs,
@@ -392,6 +402,9 @@ impl Indexed {
 }
 
 impl AddressLines for Indexed {
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Indexed
+    }
 
     fn diss(mem: &dyn MemoryIO, ins: &mut InstructionDecoder) -> String {
         // FIXIT
@@ -434,10 +447,6 @@ impl AddressLines for Indexed {
         };
 
         Ok(ea)
-    }
-
-    fn name() -> String {
-        "Indexed".to_string()
     }
 
     fn fetch_byte(
@@ -487,8 +496,8 @@ impl AddressLines for Indexed {
 pub struct Relative {}
 
 impl AddressLines for Relative {
-    fn name() -> String {
-        "Relative".to_string()
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Relative
     }
 
     fn fetch_byte(
@@ -508,8 +517,8 @@ impl AddressLines for Relative {
 pub struct Relative16 {}
 
 impl AddressLines for Relative16 {
-    fn name() -> String {
-        "Relative16".to_string()
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Relative16
     }
 
     fn fetch_byte(

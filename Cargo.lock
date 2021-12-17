@@ -434,7 +434,6 @@ dependencies = [
  "lru-cache",
  "notify",
  "num",
- "romloader",
  "serde",
  "serde_derive",
  "serde_json",

@@ -10,6 +10,7 @@ impl Default for Colour {
     }
 }
 
+
 macro_rules! col {
     ($r:expr,$g:expr,$b:expr,$a:expr) => {
         Colour {
@@ -51,6 +52,7 @@ pub trait ColourOps  : Sized {
     fn mul_scalar_sat(& self, n : f32 ) -> Self {
         self.mul_scalar(n).saturate()
     }
+
     fn blend(&self, rhs : &Self, frac : f64) -> Self {
         let t_frac = frac.fract();
         let diff = rhs.sub(self).mul_scalar(t_frac as f32);

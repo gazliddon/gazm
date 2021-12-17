@@ -4,7 +4,7 @@ use nom::multi::{many0, many0_count, many1, separated_list0};
 use nom::IResult;
 
 use nom::bytes::complete::{
-    escaped, is_a, is_not, take_until, take_until1, take_while, take_while1,
+    escaped, is_a, take_until, take_until1, take_while, take_while1,
 };
 use nom::combinator::{cut, eof, map_res, opt, recognize, value};
 

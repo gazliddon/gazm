@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 mod app;
+mod dap;
 mod colour;
 mod colourcell;
 mod cycler;

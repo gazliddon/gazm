@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+
 bitflags! {
     pub struct StackFlags: u8 {
 
@@ -1333,7 +1334,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
 
     pub fn reset(&mut self) {
         let pc = self.mem.load_word(0xfffe).unwrap();
-        info!("PC IS {:04x}", pc);
+        log::info!("PC IS {:04x}", pc);
         *self.regs = Regs {
             pc,
             flags: Flags::I | Flags::F,

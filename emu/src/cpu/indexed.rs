@@ -3,7 +3,6 @@ use super::RegEnum;
 #[derive(Debug)]
 pub enum IndexModes {
     ROff(RegEnum, u16),
-
     RPlus(RegEnum),     //               ,R+              2 0 |
     RPlusPlus(RegEnum), //               ,R++             3 0 |
     RSub(RegEnum),      //               ,-R              2 0 |
@@ -20,7 +19,7 @@ pub enum IndexModes {
     Ea,
 }
 
-bitflags! {
+bitflags::bitflags! {
     pub struct IndexedFlags: u8 {
         const NOT_IMM     = 0b_1000_0000;
         const R           = 0b_0110_0000;

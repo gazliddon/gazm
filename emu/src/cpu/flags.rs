@@ -1,4 +1,6 @@
-bitflags! {
+use serde_derive::{ Deserialize, Serialize };
+
+bitflags::bitflags! {
 
 #[derive( Default, Serialize, Deserialize)]
     pub struct Flags: u8 {
@@ -55,6 +57,7 @@ impl Flags {
     pub fn gt(self) -> bool {
         !self.le()
     }
+
     pub fn lt(self) -> bool {
         !self.ge()
     }

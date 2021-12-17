@@ -76,7 +76,7 @@ lazy_static! {
     static ref OPCODES_REC: OpCodes = OpCodes::new();
 }
 
-fn opcode_token(input: &str) -> IResult<&str, &str> {
+pub fn opcode_token(input: &str) -> IResult<&str, &str> {
     use nom::error::ErrorKind::NoneOf;
     use nom::error::{Error, ParseError};
 

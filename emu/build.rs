@@ -3,11 +3,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-
-extern crate romloader;
+#[path = "src/isa/mod.rs"] mod isa;
 
 fn main() {
-    let dbase = romloader::Dbase::from_filename("src/cpu/resources/opcodes.json");
+    let dbase = isa::Dbase::from_filename("src/cpu/resources/opcodes.json");
     let source = format!("{}", dbase);
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("isa_macros.rs");

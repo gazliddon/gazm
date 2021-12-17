@@ -1,5 +1,6 @@
+use super::mem::MemoryIO;
 
-use super::mem::{MemoryIO};
+use op_table;
 
 use super::cpu::{
     AddressLines, Direct, Extended, Immediate16, Immediate8, Indexed, Inherent,
@@ -10,7 +11,7 @@ use lru_cache::LruCache;
 
 use std::sync::Mutex;
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref CACHE : Mutex<LruCache<u16,Dissembly>> = {
         let ret = LruCache::new(10000);
         Mutex::new(ret)

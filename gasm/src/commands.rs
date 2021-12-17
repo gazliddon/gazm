@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
 
+type CommandParseFn = for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command<'x>>;
 
 use crate::{
     item::{Item, Command},
@@ -34,8 +35,8 @@ fn parse_generic_arg<'a>(command: &'a str, input : &'a str) -> IResult<&'a str, 
 
 lazy_static! {
 
-    static ref PARSE_ARG: HashMap<&'static str, for <'a> fn(&'a str, &'a str) -> IResult<&'a str, Command<'a>>> = {
-        let mut hs = HashMap::<&'static str, for <'a> fn(&'a str, &'a str) -> IResult<&'a str, Command<'a>>>::new();
+    static ref PARSE_ARG: HashMap<&'static str, CommandParseFn>= {
+        let mut hs = HashMap::<&'static str, CommandParseFn>::new();
 
         hs.insert("fdb", parse_command_arg);
         hs.insert("org", parse_command_arg);
@@ -45,20 +46,22 @@ lazy_static! {
 }
 
 // pub type IResult<I, O, E = error::Error<I>> = Result<(I, O), Err<E>>;
+pub fn command_token<'a>(input: &'a str) -> IResult<&'a str,(&'a str, CommandParseFn )> {
+    use nom::error::{Error, ParseError};
+
+    let (rest, matched) = alpha1(input)?;
+    let opcode = String::from(matched).to_lowercase();
+
+    if let Some(func) = PARSE_ARG.get(opcode.as_str()) {
+        Ok((rest, (matched, *func )))
+    } else {
+        Err(nom::Err::Error(Error::new(input, NoneOf)))
+    }
+}
 
 pub fn parse_command<'a>(input: &'a str) -> IResult<&'a str,Item> {
-
-    let mapper = |matched : &'a str| -> IResult<&'a str, for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command<'x>>> {
-        let e = nom::error::Error{input, code: nom::error::ErrorKind::IsNot};
-        if let Some(func) = PARSE_ARG.get(matched) {
-            Ok(( matched,*func ))
-        } else {
-            Err(nom::Err::Error(e))
-        }
-    };
-
-    let (rest, (command, func)) = map_res(alpha1,mapper)(input)?;
-    let (rest, matched) = preceded(multispace1, |input| func(command, input))(rest)?;
+    let (rest, (command_text, func )) = command_token(input)?;
+    let (rest, matched) = preceded(multispace1, |input| func(command_text, input))(rest)?;
     let i = Item::Command(matched);
     Ok((rest, i))
 }

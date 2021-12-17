@@ -4,7 +4,7 @@ use nom::branch::alt;
 use std::collections::HashSet;
 use nom::error::{Error, ParseError};
 use nom::bytes::complete::{
-    escaped, is_a, is_not, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
+    escaped, is_a, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
 };
 
 use nom::character::complete::{

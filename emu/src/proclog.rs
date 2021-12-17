@@ -1,5 +1,5 @@
 use super::cpu::{ Regs, Flags };
-use super::mem::{MemoryIO};
+use super::mem::MemoryIO;
 use super::diss::Disassembler;
 
 use std::io::BufReader;
