@@ -249,7 +249,7 @@ mod test {
     fn test_number() {
         let input = "0x1000";
         let desired = Item::Number(0x1000, "1000");
-        let (_, matched) = parse_number(input).unwrap();
+        let (_, matched) = util::parse_number(input).unwrap();
         assert_eq!(matched, desired);
     }
 
@@ -348,7 +348,6 @@ mod test {
         assert_eq!(desired, matched);
         assert_eq!(rest, "");
     }
-
 
     #[test]
     fn test_id_fail() {

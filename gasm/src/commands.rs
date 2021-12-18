@@ -50,9 +50,9 @@ pub fn command_token<'a>(input: &'a str) -> IResult<&'a str,(&'a str, CommandPar
     use nom::error::{Error, ParseError};
 
     let (rest, matched) = alpha1(input)?;
-    let opcode = String::from(matched).to_lowercase();
+    let token = String::from(matched).to_lowercase();
 
-    if let Some(func) = PARSE_ARG.get(opcode.as_str()) {
+    if let Some(func) = PARSE_ARG.get(token.as_str()) {
         Ok((rest, (matched, *func )))
     } else {
         Err(nom::Err::Error(Error::new(input, NoneOf)))

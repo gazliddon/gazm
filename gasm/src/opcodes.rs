@@ -38,11 +38,13 @@ fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
 impl OpCodes {
     pub fn new() -> Self {
         let dbase = Dbase::new();
+
         let mut name_to_ins: HashMap<String, Vec<Instruction>> = HashMap::new();
 
         let mut add = |name: &str, i: &Instruction| {
             let i = i.clone();
-            if let Some(rec) = name_to_ins.get_mut(name) {
+            let name = String::from(name).to_ascii_lowercase();
+            if let Some(rec) = name_to_ins.get_mut(&name) {
                 rec.push(i);
             } else {
                 name_to_ins.insert(name.to_string(), vec![i]);
@@ -81,9 +83,8 @@ lazy_static::lazy_static! {
 
 pub fn opcode_token(input: &str) -> IResult<&str, &str> {
     let (rest, matched) = alpha1(input)?;
-    let opcode = String::from(matched).to_lowercase();
 
-    if OPCODES_REC.is_opcode(&opcode.as_str()) {
+    if OPCODES_REC.is_opcode(matched) {
         Ok((rest, matched))
     } else {
         Err(nom::Err::Error(Error::new(input, NoneOf)))

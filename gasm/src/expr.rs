@@ -15,6 +15,8 @@ use nom::bytes::complete::{
     escaped, is_a, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
 };
 
+use nom::sequence::terminated;
+
 use nom::branch::alt;
 
 use super::util;
@@ -74,7 +76,7 @@ pub fn get_expr(input: &str) -> IResult<&str, Item> {
     let mut input = input;
 
     loop {
-        if let Ok((rest, matched)) = expr_item(input) {
+        if let Ok((rest, matched)) = terminated(expr_item, multispace0)(input) {
             items.push(matched);
             input = rest;
         } else {
@@ -86,5 +88,82 @@ pub fn get_expr(input: &str) -> IResult<&str, Item> {
         Err(nom::Err::Error(Error::new(input, NoneOf)))
     } else {
         Ok((input, Item::Expr(items)))
+    }
+}
+
+mod test {
+    use super::*;
+    use pretty_assertions::{assert_eq, assert_ne};
+
+    fn mk_res_op(input : &str) -> IResult<&str, Item> {
+        Ok(("", Item::Op(input)))
+    }
+
+    #[test]
+    fn test_op() {
+        let res = parse_op("++");
+        assert_eq!(res, mk_res_op("++"));
+
+        let res = parse_op("--");
+        assert_eq!(res, mk_res_op("--"));
+
+        let res = parse_op("+");
+        assert_eq!(res, mk_res_op("+"));
+
+        let res = parse_op("-");
+        assert_eq!(res, mk_res_op("-"));
+
+        let res = parse_op("!");
+        assert!( res.is_err() );
+    }
+
+    #[test]
+    fn test_expr_item() {
+        let res = expr_item("hello");
+        assert_eq!(res, Ok(("", Item::Label("hello"))));
+
+        let res = expr_item("!hello");
+        assert_eq!(res, Ok(("", Item::LocalLabel("hello"))));
+
+        let res = expr_item("0xffff");
+        assert_eq!(res, Ok(("", Item::Number(65535, "ffff"))));
+
+        let res = expr_item("()");
+        assert_eq!(res, Ok((")", Item::OpenBracket)));
+        let res = expr_item(")");
+        assert_eq!(res, Ok(("", Item::CloseBracket)));
+
+        let res = expr_item("-");
+        assert_eq!(res, mk_res_op("-"));
+    }
+
+    #[test]
+    fn test_get_expr() {
+
+        let desired =Item::Expr(vec![
+                           Item::Label("hello"), 
+                           Item::Op("+"),
+                           Item::Number(4096,"1000"),
+        ]);
+
+        let res = get_expr("hello + $1000");
+        assert_eq!(res,Ok(("", desired.clone())));
+
+        let res = get_expr("hello+ $1000");
+        assert_eq!(res,Ok(("", desired.clone())));
+
+        let res = get_expr("hello+ $1000!!!!");
+        assert_eq!(res,Ok(("!!!!", desired.clone())));
+
+        let desired =Item::Expr(vec![
+                           Item::LocalLabel("hello"), 
+                           Item::Op("+"),
+                           Item::Number(4096,"1000"),
+        ]);
+
+        let res = get_expr("!hello+ $1000!!!!");
+        assert_eq!(res,Ok(("!!!!", desired.clone())));
+        let res = get_expr("!hello+ $1000!!!!");
+        assert_eq!(res,Ok(("!!!!", desired.clone())));
     }
 }

@@ -19,7 +19,6 @@ use nom::combinator::{ cut, eof, not, recognize };
 
 use crate::{ opcode_token, command_token };
 
-
 pub fn parse_register(_input : &str) -> IResult<&str, Item> {
     todo!()
 }
@@ -61,18 +60,26 @@ pub fn get_token<'a>(input: &'a str, hs: &HashSet<&'static str>) -> IResult<&'a 
 static LOCAL_LABEL_PREFIX: &'static str = "@!";
 static OK_LABEL_CHARS: &'static str = "_?";
 
-fn get_label(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = recognize(pair(
+fn get_label_identifier(input: &str) -> IResult<&str, &str> {
+    let (rest,matched) = recognize(pair(
             alt((alpha1, is_a(OK_LABEL_CHARS))),
             many0(alt((alphanumeric1, is_a(OK_LABEL_CHARS)))),
             ))(input)?;
 
+    not(opcode_token)(matched)?;
+    not(command_token)(matched)?;
+
+    Ok((rest, matched))
+}
+
+fn get_label(input: &str) -> IResult<&str, Item> {
+    let (rest, matched) = get_label_identifier(input)?;
     Ok((rest, Item::Label(matched)))
 }
 
 fn get_local_label(input: &str) -> IResult<&str, Item> {
     let loc_tabs = is_a(LOCAL_LABEL_PREFIX);
-    let (rest, matched) = recognize(pair(loc_tabs, get_label))(input)?;
+    let (rest, (_,matched)) = pair(loc_tabs, get_label_identifier)(input)?;
     Ok((rest, Item::LocalLabel(matched)))
 }
 
@@ -84,10 +91,11 @@ fn get_local_label(input: &str) -> IResult<&str, Item> {
 
 
 pub fn parse_label(input: &str) -> IResult<&str, Item> {
-    not(opcode_token)(input)?;
-    not(command_token)(input)?;
+    // not(opcode_token)(input)?;
+    // not(command_token)(input)?;
     alt((get_local_label, get_label))(input)
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Args
@@ -129,7 +137,10 @@ pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
 }
 
 mod test {
+    use crate::commands::parse_command;
+
     use super::*;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn test_parse_str() {
@@ -137,6 +148,55 @@ mod test {
         println!("res : {:?}", res);
         assert!(res.is_ok())
     }
+
+    #[test]
+    fn test_parse_label() {
+        let res = parse_label("non_local");
+        assert_eq!(res, Ok(("", Item::Label("non_local"))));
+        let res = parse_label("adc");
+        assert_eq!(res, Ok(("", Item::Label("adc"))));
+    }
+
+    #[test]
+    fn test_parse_local_label() {
+        let res = parse_label("@_local");
+        assert_eq!(res, Ok(("", Item::LocalLabel("_local"))));
+        let res = parse_label("!local_6502");
+        assert_eq!(res, Ok(("", Item::LocalLabel("local_6502"))));
+    }
+
+    #[test]
+    fn test_label_no_opcodes() {
+        let res = parse_label("NEG");
+        assert_ne!(res, Ok(("",  Item::Label("NEG") )) );
+        assert!(res.is_err());
+
+        let res = parse_label("neg");
+        assert_ne!(res, Ok(("",  Item::Label("neg") )) );
+        assert!(res.is_err());
+
+        let res = parse_label("negative");
+        assert_eq!(res, Ok(("",  Item::Label("negative") )) );
+    }
+
+    #[test]
+    fn test_label_no_commands() {
+        let res = parse_label("fdb");
+        assert_ne!(res, Ok(("",  Item::Label("fdb") )) );
+        assert!(res.is_err());
+
+        let res = parse_label("org");
+        assert_ne!(res, Ok(("",  Item::Label("org") )) );
+        assert!(res.is_err());
+
+        let res = parse_label("!org");
+        assert_ne!(res, Ok(("",  Item::LocalLabel("org") )) );
+        assert!(res.is_err());
+
+        let res = parse_label("equation");
+        assert_eq!(res, Ok(("",  Item::Label("equation") )) );
+    }
+
 
 }
 
