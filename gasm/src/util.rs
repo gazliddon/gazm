@@ -44,30 +44,21 @@ pub fn parse_not_sure(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::NotSure(matched)))
 }
 
-pub fn get_token<'a>(input: &'a str, hs: &HashSet<&'static str>) -> IResult<&'a str, &'a str> {
-    use nom::error::ErrorKind::NoneOf;
-    let (rest, matched) = alpha1(input)?;
-    let opcode = String::from(matched).to_lowercase();
-
-    if hs.contains(&opcode.as_str()) {
-        Ok((rest, matched))
-    } else {
-        Err(nom::Err::Error(Error::new(input, NoneOf)))
-    }
-}
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
 static LOCAL_LABEL_PREFIX: &'static str = "@!";
 static OK_LABEL_CHARS: &'static str = "_?";
 
 fn get_label_identifier(input: &str) -> IResult<&str, &str> {
+    // match a label identifier
     let (rest,matched) = recognize(pair(
             alt((alpha1, is_a(OK_LABEL_CHARS))),
             many0(alt((alphanumeric1, is_a(OK_LABEL_CHARS)))),
             ))(input)?;
 
-    not(opcode_token)(matched)?;
-    not(command_token)(matched)?;
+    // opcodes and commands are reserved
+    not( alt((opcode_token, command_token))
+        )(matched)?;
 
     Ok((rest, matched))
 }
@@ -196,8 +187,6 @@ mod test {
         let res = parse_label("equation");
         assert_eq!(res, Ok(("",  Item::Label("equation") )) );
     }
-
-
 }
 
 

@@ -5,7 +5,7 @@ type CommandParseFn = for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command<'
 
 use crate::{
     item::{Item, Command},
-    util::{get_token, match_escaped_str},
+    util::match_escaped_str,
 };
 
 use nom::{
@@ -45,8 +45,7 @@ lazy_static! {
     };
 }
 
-// pub type IResult<I, O, E = error::Error<I>> = Result<(I, O), Err<E>>;
-pub fn command_token<'a>(input: &'a str) -> IResult<&'a str,(&'a str, CommandParseFn )> {
+fn command_token_function<'a>(input: &'a str) -> IResult<&'a str,(&'a str, CommandParseFn )> {
     use nom::error::{Error, ParseError};
 
     let (rest, matched) = alpha1(input)?;
@@ -59,8 +58,13 @@ pub fn command_token<'a>(input: &'a str) -> IResult<&'a str,(&'a str, CommandPar
     }
 }
 
+pub fn command_token(input: &str) -> IResult<&str, &str> {
+    let (rest, (matched, _)) = command_token_function(input)?;
+    Ok((rest, matched))
+}
+
 pub fn parse_command<'a>(input: &'a str) -> IResult<&'a str,Item> {
-    let (rest, (command_text, func )) = command_token(input)?;
+    let (rest, (command_text, func )) = command_token_function(input)?;
     let (rest, matched) = preceded(multispace1, |input| func(command_text, input))(rest)?;
     let i = Item::Command(matched);
     Ok((rest, i))
