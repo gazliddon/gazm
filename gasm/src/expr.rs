@@ -70,7 +70,7 @@ pub fn expr_item(input : &str) -> IResult<&str, Item> {
     Ok((rest, matched))
 }
 
-pub fn get_expr(input: &str) -> IResult<&str, Item> {
+pub fn parse_expr(input: &str) -> IResult<&str, Item> {
     let mut items = vec![];
 
     let mut input = input;
@@ -146,13 +146,13 @@ mod test {
                            Item::Number(4096,"1000"),
         ]);
 
-        let res = get_expr("hello + $1000");
+        let res = parse_expr("hello + $1000");
         assert_eq!(res,Ok(("", desired.clone())));
 
-        let res = get_expr("hello+ $1000");
+        let res = parse_expr("hello+ $1000");
         assert_eq!(res,Ok(("", desired.clone())));
 
-        let res = get_expr("hello+ $1000!!!!");
+        let res = parse_expr("hello+ $1000!!!!");
         assert_eq!(res,Ok(("!!!!", desired.clone())));
 
         let desired =Item::Expr(vec![
@@ -161,9 +161,9 @@ mod test {
                            Item::Number(4096,"1000"),
         ]);
 
-        let res = get_expr("!hello+ $1000!!!!");
+        let res = parse_expr("!hello+ $1000!!!!");
         assert_eq!(res,Ok(("!!!!", desired.clone())));
-        let res = get_expr("!hello+ $1000!!!!");
+        let res = parse_expr("!hello+ $1000!!!!");
         assert_eq!(res,Ok(("!!!!", desired.clone())));
     }
 }

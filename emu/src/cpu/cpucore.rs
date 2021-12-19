@@ -14,7 +14,6 @@ bitflags! {
     }
 }
 
-
 // Handles CPU emulation
 
 use super::{

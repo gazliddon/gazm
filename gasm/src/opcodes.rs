@@ -1,10 +1,16 @@
+use crate::expr;
+use crate::expr::parse_expr;
+use crate::util::parse_not_sure;
+
 use super::item::Item;
 use super::util;
 use super::numbers;
+use nom::bytes::complete::tag_no_case;
 use romloader::{Dbase, Instruction};
 
 use nom::branch::alt;
 use nom::IResult;
+// use std::ascii::AsciiExt;
 use std::collections::{HashMap, HashSet};
 use std::num::IntErrorKind;
 use nom::error::ErrorKind::NoneOf;
@@ -14,7 +20,11 @@ use nom::character::complete::{
     alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
     not_line_ending, one_of, satisfy, space1,
 };
+
+use nom::bytes::complete::tag;
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
+use nom::multi::{ many1, separated_list1,separated_list0,  };
+use nom::combinator::{ recognize, opt };
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,14 +101,30 @@ pub fn opcode_token(input: &str) -> IResult<&str, &str> {
     }
 }
 
+fn parse_immediate(input: &str) -> IResult<&str, Item> {
+    let (rest, matched) = preceded(tag("#"), expr::parse_expr)(input)?;
+    Ok((rest, Item::Immediate(Box::new(matched))))
+}
+
+
 fn parse_opcode_arg(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = util::parse_not_sure(input)?;
+    let (rest, matched) = 
+        alt( (
+                parse_immediate,
+                expr::parse_expr,
+                util::parse_not_sure,
+               ))(input)?;
+
     Ok((rest, matched))
 }
 
 fn opcode_with_arg(input: &str) -> IResult<&str, Item> {
-    let (rest, (op, arg)) = separated_pair(opcode_token, multispace1, not_line_ending)(input)?;
-    Ok((rest, Item::OpCodeWithArg(op, arg)))
+
+    let (rest, (op, arg)) = separated_pair(opcode_token,
+                                 multispace1, parse_opcode_arg)(input)?;
+    let arg = Box::new(arg);
+
+    Ok((rest, Item::OpCode(op, Some(arg))))
 }
 
 fn opcode_no_arg(input: &str) -> IResult<&str, Item> {
@@ -109,4 +135,64 @@ fn opcode_no_arg(input: &str) -> IResult<&str, Item> {
 pub fn parse_opcode(input: &str) -> IResult<&str, Item> {
     let (rest, item) = alt((opcode_with_arg, opcode_no_arg))(input)?;
     Ok((rest, item))
+}
+
+mod test {
+
+    use pretty_assertions::{assert_eq, assert_ne};
+    use super::*;
+
+    #[test]
+    fn test_opcode_immediate() {
+        let res = opcode_with_arg("lda #100");
+
+        let des_arg = Item::Expr(vec![
+            Item::Number(100, "100"),
+        ]);
+
+        let desired = Item::OpCode("lda", Some(Box::new(Item::Immediate(Box::new( des_arg )))));
+        assert_eq!(res, Ok(("", desired)));
+    }
+
+    #[test]
+    fn test_parse_immediate() {
+
+        let res = parse_immediate("#$100+10");
+
+        let des_arg = Item::Expr(vec![
+            Item::Number(256, "100"),
+            Item::Op("+"),
+            Item::Number(10, "10"),
+        ]);
+
+        let desired = Item::Immediate(Box::new(des_arg));
+        assert_eq!(res, Ok(("", desired)));
+
+    }
+
+    #[test]
+    fn test_opcode_with_expr() {
+
+        let res = opcode_with_arg("lda $100");
+
+        let des_arg = Item::Expr(vec![
+            Item::Number(256, "100")
+        ]);
+
+        let desired = Item::OpCode("lda", Some(Box::new(des_arg)));
+        assert_eq!(res, Ok(("", desired)));
+
+        let res = opcode_with_arg("lda $100+256*10");
+
+        let des_arg = Item::Expr(vec![
+            Item::Number(256, "100"),
+            Item::Op("+"),
+            Item::Number(256, "256"),
+            Item::Op("*"),
+            Item::Number(10, "10"),
+        ]);
+
+        let desired = Item::OpCode("lda", Some(Box::new(des_arg)));
+        assert_eq!(res, Ok(("", desired)));
+    }
 }

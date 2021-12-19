@@ -16,14 +16,12 @@ impl<'a> TextItem<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item<'a> {
     NotSure(&'a str),
-    NotSure2(TextItem<'a>),
-    Arg(&'a str),
     Label(&'a str),
     LocalLabel(&'a str),
     Comment(&'a str),
     Assignment(Box<Item<'a>>, &'a str),
     String(&'a str),
-    BinOp(&'a str),
+    BinOp(&'a str, Box<Token<'a>>, Box<Token<'a>> ),
     Op(&'a str),
     OpenBracket,
     CloseBracket,
@@ -36,17 +34,32 @@ pub enum Item<'a> {
     Number(u64, &'a str),
     ArgList(Vec<Item<'a>>),
     OpCode(&'a str, Option<Box<Item<'a>>>),
-    OpCodeWithArg(&'a str, &'a str),
     Command(Command<'a>),
     Eof,
     Register(RegEnum),
-    Expr(Vec<Item<'a>>)
+    RegisterList(Vec<RegEnum>),
+    Expr(Vec<Item<'a>>),
+    Immediate(Box<Item<'a>>),
 }
 
-enum OpCode<'a> {
+#[derive(Debug, PartialEq, Clone)]
+pub enum OpCode<'a> {
     NoArg(&'a str),
     WithArg(&'a str),
     RegisterList(&'a str, Vec<&'a str>)
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Location<'a> {
+    line : usize,
+    column : usize,
+    text : &'a str,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Token<'a> {
+    item : Item<'a>,
+    location: Location<'a>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

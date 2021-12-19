@@ -28,7 +28,7 @@ pub fn parse_number(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::Number(num, text)))
 }
 
-static LIST_SEP: &'static str = ",";
+pub static LIST_SEP: &'static str = ",";
 pub fn generic_arg_list(input: &str) -> IResult<&str, Vec<&str>> {
     let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
     separated_list0(sep, generic_arg)(input)
@@ -40,7 +40,7 @@ pub fn generic_arg(input: &str) -> IResult<&str, &str> {
 }
 
 pub fn parse_not_sure(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = generic_arg(input)?;
+    let (rest, matched) = recognize(many1(anychar))(input)?;
     Ok((rest, Item::NotSure(matched)))
 }
 
@@ -74,16 +74,7 @@ fn get_local_label(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::LocalLabel(matched)))
 }
 
-// pub fn alt<I: Clone, O, E: ParseError<I>, List: Alt<I, O, E>>(
-//   mut l: List,
-// ) -> impl FnMut(I) -> IResult<I, O, E> {
-//   move |i: I| l.choice(i)
-// }
-
-
 pub fn parse_label(input: &str) -> IResult<&str, Item> {
-    // not(opcode_token)(input)?;
-    // not(command_token)(input)?;
     alt((get_local_label, get_label))(input)
 }
 
@@ -186,6 +177,12 @@ mod test {
 
         let res = parse_label("equation");
         assert_eq!(res, Ok(("",  Item::Label("equation") )) );
+    }
+
+    #[test]
+    fn test_not_sure() {
+        let res = parse_not_sure("#10");
+        assert_eq!(res, Ok(("",Item::NotSure("#10") )) );
     }
 }
 
