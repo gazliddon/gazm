@@ -75,13 +75,9 @@ pub fn parse_expr(input: &str) -> IResult<&str, Item> {
 
     let mut input = input;
 
-    loop {
-        if let Ok((rest, matched)) = terminated(expr_item, multispace0)(input) {
+    while let Ok((rest, matched)) = terminated(expr_item, multispace0)(input) {
             items.push(matched);
             input = rest;
-        } else {
-            break;
-        }
     }
 
     if items.is_empty() {

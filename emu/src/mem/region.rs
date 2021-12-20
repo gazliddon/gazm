@@ -107,9 +107,7 @@ mod tests {
     fn contains() {
         let mr = Region::checked_new(0, 0x1_0000);
         assert!(mr.is_ok());
-        let mr = mr.unwrap();
     }
-
 
     #[test]
     fn len() {

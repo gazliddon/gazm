@@ -5,25 +5,18 @@ use super::{ expr, util };
 
 type CommandParseFn = for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command<'x>>;
 
-use crate::{
-    item::{Item, Command},
-    util::match_escaped_str,
-};
+use crate::{item::{Item, Command}, parse, util::match_escaped_str};
 
 use nom::{
     error::{Error, ErrorKind::NoneOf, },
     character::complete::{anychar, multispace0,multispace1, alpha1},
-    combinator::{cut, recognize, map_res},
+    combinator::{opt,cut, recognize, map_res},
     multi::{separated_list1, many1 },
-    sequence::{ separated_pair, preceded, tuple, },
+    sequence::{ pair, separated_pair, preceded, tuple, },
     bytes::complete::tag,
     IResult,
 };
 
-fn parse_command_arg<'a>(command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
-    let (rest, matched) = recognize(many1(anychar))(input)?;
-    Ok((rest, Command::Generic(command, Some(matched))))
-}
 
 fn parse_org_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
     let (rest, matched) = expr::parse_expr(input)?;
@@ -46,23 +39,34 @@ fn parse_generic_arg<'a>(command: &'a str, input : &'a str) -> IResult<&'a str, 
 
 fn parse_fill_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-    let (rest, (amount, value)) = separated_pair(expr::parse_expr, sep, expr::parse_expr)(input)?;
-    Ok((rest, Command::Fill(
-                Box::new( amount ),
-                Box::new( value )
-                )))
+    let (rest, (value, count)) = separated_pair(expr::parse_expr, sep, expr::parse_expr)(input)?;
+    Ok((rest, mk_fill(value, count)))
 }
 
-fn parse_fill_zero_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command<'a>> {
-    let (rest, matched) = expr::parse_expr(input)?;
-    Ok((rest, Command::FillZero(Box::new(matched))))
+fn mk_fill<'a>(count: Item<'a>, value : Item<'a>) -> Command<'a> {
+    Command::Fill(Box::new(value), Box::new(count))
+}
+
+fn parse_bsz_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command<'a>> {
+    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
+
+    use expr::parse_expr;
+
+    let mut two_args = separated_pair(parse_expr, sep, parse_expr);
+
+    if let Ok(( rest, (count,value) )) = two_args(input) {
+        Ok((rest, mk_fill(count, value)))
+    } else {
+        let (rest,count) = parse_expr(input)?;
+        Ok((rest, mk_fill(count, Item::Number(0))))
+    }
 }
 
 lazy_static! {
     static ref PARSE_ARG: HashMap<&'static str, CommandParseFn>= {
         let mut hs = HashMap::<&'static str, CommandParseFn>::new();
 
-        hs.insert("bsz", parse_fill_zero_arg);
+        hs.insert("bsz", parse_bsz_arg);
         hs.insert("fill", parse_fill_arg);
         hs.insert("fdb", parse_fdb_arg);
         hs.insert("rmb", parse_fdb_arg);
@@ -73,7 +77,7 @@ lazy_static! {
     };
 }
 
-fn command_token_function<'a>(input: &'a str) -> IResult<&'a str,(&'a str, CommandParseFn )> {
+fn command_token_function(input: &str) -> IResult<&str,(&str, CommandParseFn )> {
     use nom::error::{Error, ParseError};
 
     let (rest, matched) = alpha1(input)?;

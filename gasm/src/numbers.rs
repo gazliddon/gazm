@@ -40,7 +40,7 @@ fn parse_dec(input: &str) -> IResult<&str, (i64, &str)> {
     use nom::character::complete::char;
     let (rest, text_str) =
         recognize(many1(terminated(one_of("0123456789"), many0(char('_')))))(input)?;
-    let num = i64::from_str_radix(&str::replace(text_str, "_", ""), 10).unwrap();
+    let num = str::replace(text_str, "_", "").parse::<i64>().unwrap();
     Ok((rest, (num, text_str)))
 }
 
@@ -88,7 +88,7 @@ mod test {
             ("8723872", 8723872),
             ("4096", 4096),
             ("12", 12),
-            ("0___0_112210", 0___0_112210),
+            ("0___0_112210", 112210),
         ];
         static ref TEST_ALL: Vec<(&'static str, i64)> = {
             let mut all = vec![];
@@ -105,7 +105,7 @@ mod test {
         ];
     }
 
-    fn test_nums<F>(input: &Vec<(&'static str, i64)>, func: F)
+    fn test_nums<F>(input: &[ (&'static str, i64) ], func: F)
     where
         F: Fn(&str) -> IResult<&str, ( i64, &str )>,
     {

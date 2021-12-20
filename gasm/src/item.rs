@@ -73,7 +73,6 @@ pub enum Command<'a> {
     Org(Box<Item<'a>>),
     Fdb(Vec<Item<'a>>),
     Fill(Box<Item<'a>>,Box<Item<'a>>),
-    FillZero(Box<Item<'a>>),
 }
 
 pub fn is_empty_comment<'a>(item : &'a Item<'a>) -> bool {

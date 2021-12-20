@@ -18,7 +18,7 @@ use nom::sequence::{ delimited, terminated,preceded, tuple, pair };
 use nom::combinator::{ cut, eof, not, recognize };
 
 use crate::{ opcode_token, command_token };
-pub static LIST_SEP: &'static str = ",";
+pub static LIST_SEP: & str = ",";
 
 
 /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
@@ -64,8 +64,8 @@ pub fn parse_not_sure(input: &str) -> IResult<&str, Item> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
-static LOCAL_LABEL_PREFIX: &'static str = "@!";
-static OK_LABEL_CHARS: &'static str = "_?.";
+static LOCAL_LABEL_PREFIX: &str = "@!";
+static OK_LABEL_CHARS: &str = "_?.";
 
 fn get_label_identifier(input: &str) -> IResult<&str, &str> {
     // match a label identifier

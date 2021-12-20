@@ -95,9 +95,10 @@ impl Dbase {
     }
 
     pub fn new() -> Self {
-        let json_str = include_str!("../cpu/resources/opcodes.json");
-        let loaded: Dbase = serde_json::from_str(json_str).unwrap();
-        Self::from_data(loaded.instructions, loaded.unknown)
+        Self::default()
+       // let json_str = include_str!("../cpu/resources/opcodes.json");
+        // let loaded: Dbase = serde_json::from_str(json_str).unwrap();
+        // Self::from_data(loaded.instructions, loaded.unknown)
     }
 
     pub fn get(&self, opcode: u16) -> &Instruction {
@@ -109,13 +110,22 @@ impl Dbase {
     }
 }
 
+impl Default for Dbase {
+    fn default() -> Self {
+        let json_str = include_str!("../cpu/resources/opcodes.json");
+        let loaded: Dbase = serde_json::from_str(json_str).unwrap();
+        Self::from_data(loaded.instructions, loaded.unknown)
+    }
+
+}
+
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "0x{:04x} => handle_op!({:?}, {}, 0x{:04x}, {}, {}),",
             self.opcode, self.addr_mode, self.action, self.opcode, self.cycles, self.size
-        )
+            )
     }
 }
 
@@ -128,17 +138,17 @@ macro_rules! op_table {
         match $op {"#;
 
             let footer = 
-            r#"
+                r#"
             _ => $fail
         }
     }
 }"#;
 
-        writeln!( f, "{}", header )?;
+writeln!( f, "{}", header )?;
 
-        for i in self.instructions.iter() {
-            writeln!(f, "\t\t{}", i)?
-        }
-        writeln!( f, "{}",footer)
-    }
+for i in self.instructions.iter() {
+    writeln!(f, "\t\t{}", i)?
+}
+writeln!( f, "{}",footer)
+}
 }

@@ -105,9 +105,7 @@ impl Dbase {
     }
 
     pub fn new() -> Self {
-        let json_str = include_str!("../../emu/src/cpu/resources/opcodes.json");
-        let loaded: Dbase = serde_json::from_str(json_str).unwrap();
-        Self::from_data(loaded.instructions, loaded.unknown)
+        Self::default()
     }
 
     pub fn get(&self, opcode: u16) -> &Instruction {
@@ -117,6 +115,15 @@ impl Dbase {
     pub fn all_instructions(&self) -> &Vec<Instruction> {
         &self.instructions
     }
+}
+
+impl Default for Dbase {
+    fn default() -> Self {
+        let json_str = include_str!("../../emu/src/cpu/resources/opcodes.json");
+        let loaded: Dbase = serde_json::from_str(json_str).unwrap();
+        Self::from_data(loaded.instructions, loaded.unknown)
+    }
+
 }
 
 impl fmt::Display for Instruction {

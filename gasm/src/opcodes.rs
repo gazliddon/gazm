@@ -38,7 +38,7 @@ pub struct OpCodes {
 
 // Some opcodes have an aliase delimited by underscores
 fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
-    let split: Vec<&str> = _input.split("_").collect();
+    let split: Vec<&str> = _input.split('_').collect();
 
     if split.len() != 2 {
         None
@@ -65,8 +65,8 @@ impl OpCodes {
 
         for i in dbase.all_instructions() {
             if let Some((a, b)) = split_opcodes(&i.action) {
-                add(&a, i);
-                add(&b, i);
+                add(a, i);
+                add(b, i);
             } else {
                 add(&i.action, i);
             }
@@ -75,7 +75,7 @@ impl OpCodes {
     }
 
     pub fn is_opcode(&self, input: &str) -> bool {
-        self.get_opcode(&input).is_some()
+        self.get_opcode(input).is_some()
     }
 
     pub fn get_opcode(&self, input: &str) -> Option<&Vec<Instruction>> {

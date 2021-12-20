@@ -11,7 +11,7 @@ use nom::combinator::{cut, eof, map_res, opt, recognize, value};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
     use nom::bytes::complete::tag;
 
-pub static COMMENT: &'static str = ";";
+pub static COMMENT: & str = ";";
 
 use nom::{
   Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake,
@@ -68,8 +68,7 @@ mod test {
         F: Fn(&'a str) -> IResult<&'a str, Option<Item<'a>>>,
     {
         let (rest, com) = f(line)?;
-        println!("");
-        println!("line:    {:?}", line);
+        println!("\nline:    {:?}", line);
         println!("rest:    {:?}", rest);
         println!("comment: {:?}", com);
         Ok((rest, com))

@@ -97,7 +97,7 @@ impl<'a> DocContext<'a> {
     }
 }
 
-pub fn parse<'a>(lines : &'a Vec<&'a str>) -> IResult<&'a str, Vec<Item<'a>>> {
+pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item<'a>>> {
 
     use commands::parse_command;
 
@@ -163,8 +163,7 @@ impl<'a> DocContext<'a> {
     pub fn parse(&'a mut self) -> IResult<&'a str,&Vec<Item<'a>>> {
 
         let (rest, matched) = parse(&self.lines)?;
-
-        self.tokens = matched.clone();
+       self.tokens = matched.clone();
         Ok((rest, &self.tokens))
     }
 
@@ -374,7 +373,7 @@ mod test {
     #[test]
     fn test_assignment() {
         let input = "hello equ $1000";
-        let res = parse_asignment(input);
+        let res = parse_equate(input);
         assert!(res.is_ok());
 
         let (rest, matched) = res.unwrap();
