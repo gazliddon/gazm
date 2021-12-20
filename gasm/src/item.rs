@@ -31,7 +31,7 @@ pub enum Item<'a> {
     Hash,
     Plus,
     PlusPlus,
-    Number(u64, &'a str),
+    Number(u64),
     ArgList(Vec<Item<'a>>),
     OpCode(&'a str, Option<Box<Item<'a>>>),
     Command(Command<'a>),

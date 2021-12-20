@@ -147,7 +147,7 @@ mod test {
         let res = opcode_with_arg("lda #100");
 
         let des_arg = Item::Expr(vec![
-            Item::Number(100, "100"),
+            Item::Number(100),
         ]);
 
         let desired = Item::OpCode("lda", Some(Box::new(Item::Immediate(Box::new( des_arg )))));
@@ -160,9 +160,9 @@ mod test {
         let res = parse_immediate("#$100+10");
 
         let des_arg = Item::Expr(vec![
-            Item::Number(256, "100"),
+            Item::Number(256),
             Item::Op("+"),
-            Item::Number(10, "10"),
+            Item::Number(10),
         ]);
 
         let desired = Item::Immediate(Box::new(des_arg));
@@ -176,7 +176,7 @@ mod test {
         let res = opcode_with_arg("lda $100");
 
         let des_arg = Item::Expr(vec![
-            Item::Number(256, "100")
+            Item::Number(256)
         ]);
 
         let desired = Item::OpCode("lda", Some(Box::new(des_arg)));
@@ -185,11 +185,11 @@ mod test {
         let res = opcode_with_arg("lda $100+256*10");
 
         let des_arg = Item::Expr(vec![
-            Item::Number(256, "100"),
+            Item::Number(256),
             Item::Op("+"),
-            Item::Number(256, "256"),
+            Item::Number(256),
             Item::Op("*"),
-            Item::Number(10, "10"),
+            Item::Number(10),
         ]);
 
         let desired = Item::OpCode("lda", Some(Box::new(des_arg)));

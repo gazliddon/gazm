@@ -250,7 +250,7 @@ mod test {
     #[test]
     fn test_number() {
         let input = "0x1000";
-        let desired = Item::Number(0x1000, "1000");
+        let desired = Item::Number(0x1000);
         let (_, matched) = util::parse_number(input).unwrap();
         assert_eq!(matched, desired);
     }
@@ -261,9 +261,9 @@ mod test {
         let (_rest, matched) = parse_arg_list(txt).unwrap();
 
         let desired = vec![
-            Item::Number(1020, "1020"),
+            Item::Number(1020),
             Item::Label("hello"),
-            Item::Number(0xffff, "ffff"),
+            Item::Number(0xffff),
             Item::NotSure("!!!"),
         ];
 
@@ -343,9 +343,9 @@ mod test {
 
         let (rest, matched) = res.unwrap();
 
-        let label = Item::Label("hello");
-        let arg = "$1000";
-        let desired = Item::Assignment(Box::new(label), arg);
+        let label = Box::new(Item::Label("hello"));
+        let arg = Box::new(Item::Expr(vec![Item::Number(4096)]));
+        let desired = Item::Assignment(label, arg);
 
         assert_eq!(desired, matched);
         assert_eq!(rest, "");

@@ -126,7 +126,7 @@ mod test {
         assert_eq!(res, Ok(("", Item::LocalLabel("hello"))));
 
         let res = expr_item("0xffff");
-        assert_eq!(res, Ok(("", Item::Number(65535, "ffff"))));
+        assert_eq!(res, Ok(("", Item::Number(65535))));
 
         let res = expr_item("()");
         assert_eq!(res, Ok((")", Item::OpenBracket)));
@@ -143,7 +143,7 @@ mod test {
         let desired =Item::Expr(vec![
                            Item::Label("hello"), 
                            Item::Op("+"),
-                           Item::Number(4096,"1000"),
+                           Item::Number(4096),
         ]);
 
         let res = parse_expr("hello + $1000");
@@ -158,7 +158,7 @@ mod test {
         let desired =Item::Expr(vec![
                            Item::LocalLabel("hello"), 
                            Item::Op("+"),
-                           Item::Number(4096,"1000"),
+                           Item::Number(4096),
         ]);
 
         let res = parse_expr("!hello+ $1000!!!!");

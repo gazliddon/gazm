@@ -24,8 +24,8 @@ pub fn parse_register(_input : &str) -> IResult<&str, Item> {
 }
 
 pub fn parse_number(input: &str) -> IResult<&str, Item> {
-    let (rest, (num, text)) = numbers::number_token(input)?;
-    Ok((rest, Item::Number(num, text)))
+    let (rest, (num, _text)) = numbers::number_token(input)?;
+    Ok((rest, Item::Number(num)))
 }
 
 pub static LIST_SEP: &'static str = ",";
