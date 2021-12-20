@@ -31,7 +31,7 @@ pub enum Item<'a> {
     Hash,
     Plus,
     PlusPlus,
-    Number(u64),
+    Number(i64),
     ArgList(Vec<Item<'a>>),
     OpCode(&'a str, Option<Box<Item<'a>>>),
     Command(Command<'a>),
@@ -40,6 +40,9 @@ pub enum Item<'a> {
     RegisterList(Vec<RegEnum>),
     Expr(Vec<Item<'a>>),
     Immediate(Box<Item<'a>>),
+    Indirect(Box<Item<'a>>),
+    DirectPage(Box<Item<'a>>),
+    IndexedSimple(Box<Item<'a>>, Box<Item<'a>>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -60,6 +63,7 @@ pub struct Location<'a> {
 pub struct Token<'a> {
     item : Item<'a>,
     location: Location<'a>,
+    children: Vec<Token<'a>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -67,7 +71,9 @@ pub enum Command<'a> {
     Include(&'a str),
     Generic(&'a str, Option<&'a str>),
     Org(Box<Item<'a>>),
-    Fdb(Vec<Item<'a>>)
+    Fdb(Vec<Item<'a>>),
+    Fill(Box<Item<'a>>,Box<Item<'a>>),
+    FillZero(Box<Item<'a>>),
 }
 
 pub fn is_empty_comment<'a>(item : &'a Item<'a>) -> bool {

@@ -123,7 +123,7 @@ mod test {
         assert_eq!(res, Ok(("", Item::Label("hello"))));
 
         let res = expr_item("!hello");
-        assert_eq!(res, Ok(("", Item::LocalLabel("hello"))));
+        assert_eq!(res, Ok(("", Item::LocalLabel("!hello"))));
 
         let res = expr_item("0xffff");
         assert_eq!(res, Ok(("", Item::Number(65535))));
@@ -156,7 +156,7 @@ mod test {
         assert_eq!(res,Ok(("!!!!", desired.clone())));
 
         let desired =Item::Expr(vec![
-                           Item::LocalLabel("hello"), 
+                           Item::LocalLabel("!hello"), 
                            Item::Op("+"),
                            Item::Number(4096),
         ]);

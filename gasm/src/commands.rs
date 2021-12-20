@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, os::unix::prelude::CommandExt};
 
 use super::{ expr, util };
 
@@ -20,12 +20,6 @@ use nom::{
     IResult,
 };
 
-fn get_expr_list(input: &str) -> IResult<&str, Vec<Item>> {
-    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-    let (rest, matched) = separated_list1(sep, expr::parse_expr)(input)?;
-    Ok((rest, matched))
-}
-
 fn parse_command_arg<'a>(command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
     let (rest, matched) = recognize(many1(anychar))(input)?;
     Ok((rest, Command::Generic(command, Some(matched))))
@@ -36,7 +30,7 @@ fn parse_org_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Com
     Ok((rest, Command::Org(Box::new(matched))))
 }
 fn parse_fdb_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
-    let (rest, matched) = get_expr_list(input)?;
+    let (rest, matched) = util::sep_list1(expr::parse_expr)(input)?;
     Ok((rest, Command::Fdb(matched)))
 }
 
@@ -50,14 +44,31 @@ fn parse_generic_arg<'a>(command: &'a str, input : &'a str) -> IResult<&'a str, 
     Ok((rest, Command::Generic(command,Some(matched))))
 }
 
-lazy_static! {
+fn parse_fill_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
+    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
+    let (rest, (amount, value)) = separated_pair(expr::parse_expr, sep, expr::parse_expr)(input)?;
+    Ok((rest, Command::Fill(
+                Box::new( amount ),
+                Box::new( value )
+                )))
+}
 
+fn parse_fill_zero_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command<'a>> {
+    let (rest, matched) = expr::parse_expr(input)?;
+    Ok((rest, Command::FillZero(Box::new(matched))))
+}
+
+lazy_static! {
     static ref PARSE_ARG: HashMap<&'static str, CommandParseFn>= {
         let mut hs = HashMap::<&'static str, CommandParseFn>::new();
 
+        hs.insert("bsz", parse_fill_zero_arg);
+        hs.insert("fill", parse_fill_arg);
         hs.insert("fdb", parse_fdb_arg);
+        hs.insert("rmb", parse_fdb_arg);
         hs.insert("org", parse_org_arg);
         hs.insert("include", parse_include_arg);
+        hs.insert("setdp", parse_generic_arg);
         hs
     };
 }

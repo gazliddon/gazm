@@ -1,11 +1,13 @@
 use crate::expr;
 use crate::expr::parse_expr;
+use crate::register;
 use crate::util::parse_not_sure;
 
 use super::item::Item;
 use super::util;
 use super::numbers;
 use nom::bytes::complete::tag_no_case;
+use nom::character::complete::{ digit0, digit1 };
 use romloader::{Dbase, Instruction};
 
 use nom::branch::alt;
@@ -92,7 +94,10 @@ lazy_static::lazy_static! {
 }
 
 pub fn opcode_token(input: &str) -> IResult<&str, &str> {
-    let (rest, matched) = alpha1(input)?;
+
+    // Some opcodes have a number
+    let (rest,matched) = recognize(pair(
+            alpha1,digit0))(input)?;
 
     if OPCODES_REC.is_opcode(matched) {
         Ok((rest, matched))
@@ -106,11 +111,44 @@ fn parse_immediate(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::Immediate(Box::new(matched))))
 }
 
+fn parse_dp(input: &str) -> IResult<&str, Item> {
+    let (rest, matched) = preceded(tag("<"), expr::parse_expr)(input)?;
+    Ok((rest, Item::DirectPage(Box::new(matched))))
+}
+
+fn parse_simple_indexed(input : &str) -> IResult<&str, Item> {
+
+    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
+
+    let (rest, (expr,reg)) = separated_pair(
+        expr::parse_expr,
+        sep,
+        register::parse_reg)(input)?;
+
+    Ok((rest, Item::IndexedSimple(
+                Box::new(expr),
+                Box::new(reg))))
+
+}
+
+fn parse_indirect(input: &str) -> IResult<&str, Item> {
+    let (input, _) = nom_char('[')(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, matched) = expr::parse_expr(input)?;
+    let (input, _) = multispace0(input)?;
+    let (rest, _) = nom_char(']')(input)?;
+
+    Ok((rest, Item::Indirect(Box::new(matched))))
+}
 
 fn parse_opcode_arg(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = 
         alt( (
+                register::parse_reg_list_2_or_more,
                 parse_immediate,
+                parse_indirect,
+                parse_dp,
+                parse_simple_indexed,
                 expr::parse_expr,
                 util::parse_not_sure,
                ))(input)?;

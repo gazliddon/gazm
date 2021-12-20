@@ -13,14 +13,33 @@ use nom::character::complete::{
     alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
     not_line_ending, one_of, satisfy, space1,
 };
-use nom::multi::{many0, many0_count, many1, separated_list0};
-use nom::sequence::{ terminated,preceded, tuple, pair };
+use nom::multi::{many0, many0_count, many1, separated_list1,separated_list0};
+use nom::sequence::{ delimited, terminated,preceded, tuple, pair };
 use nom::combinator::{ cut, eof, not, recognize };
 
 use crate::{ opcode_token, command_token };
+pub static LIST_SEP: &'static str = ",";
 
-pub fn parse_register(_input : &str) -> IResult<&str, Item> {
-    todo!()
+
+/// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
+/// trailing whitespace, returning the output of `inner`.
+pub fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
+    inner: F,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    delimited(multispace0, inner, multispace0)
+}
+
+pub fn sep_list1<'a, F: 'a, O, E: ParseError<&'a str>>(
+    inner: F,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Vec<O>, E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
+    separated_list1(sep, inner)
 }
 
 pub fn parse_number(input: &str) -> IResult<&str, Item> {
@@ -28,7 +47,6 @@ pub fn parse_number(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::Number(num)))
 }
 
-pub static LIST_SEP: &'static str = ",";
 pub fn generic_arg_list(input: &str) -> IResult<&str, Vec<&str>> {
     let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
     separated_list0(sep, generic_arg)(input)
@@ -47,7 +65,7 @@ pub fn parse_not_sure(input: &str) -> IResult<&str, Item> {
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
 static LOCAL_LABEL_PREFIX: &'static str = "@!";
-static OK_LABEL_CHARS: &'static str = "_?";
+static OK_LABEL_CHARS: &'static str = "_?.";
 
 fn get_label_identifier(input: &str) -> IResult<&str, &str> {
     // match a label identifier
@@ -69,8 +87,13 @@ fn get_label(input: &str) -> IResult<&str, Item> {
 }
 
 fn get_local_label(input: &str) -> IResult<&str, Item> {
-    let loc_tabs = is_a(LOCAL_LABEL_PREFIX);
-    let (rest, (_,matched)) = pair(loc_tabs, get_label_identifier)(input)?;
+    let loc_tags = is_a(LOCAL_LABEL_PREFIX);
+    let prefix_parse = recognize(pair(loc_tags, get_label_identifier));
+
+    let loc_tags = is_a(LOCAL_LABEL_PREFIX);
+    let postfix_parse = recognize(pair( get_label_identifier, loc_tags));
+
+    let (rest, matched) = alt((postfix_parse, prefix_parse))(input)?;
     Ok((rest, Item::LocalLabel(matched)))
 }
 
@@ -142,9 +165,16 @@ mod test {
     #[test]
     fn test_parse_local_label() {
         let res = parse_label("@_local");
-        assert_eq!(res, Ok(("", Item::LocalLabel("_local"))));
+        assert_eq!(res, Ok(("", Item::LocalLabel("@_local"))));
+
+        let res = parse_label("local@");
+        assert_eq!(res, Ok(("", Item::LocalLabel("local@"))));
+
+        let res = parse_label("local!");
+        assert_eq!(res, Ok(("", Item::LocalLabel("local!"))));
+
         let res = parse_label("!local_6502");
-        assert_eq!(res, Ok(("", Item::LocalLabel("local_6502"))));
+        assert_eq!(res, Ok(("", Item::LocalLabel("!local_6502"))));
     }
 
     #[test]

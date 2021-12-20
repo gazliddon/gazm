@@ -1,60 +1,60 @@
-; $100-$106		basic hooks
-; $1000-$2000	code
-; $2000-$20ff	direct page
-; $2100-$2eff	data
-; $2f00-$2fff	stack
-; $feee-$fefc	ROM interrupt redirects
+; $100-$106        basic hooks
+; $1000-$2000    code
+; $2000-$20ff    direct page
+; $2100-$2eff    data
+; $2f00-$2fff    stack
+; $feee-$fefc    ROM interrupt redirects
 
-		org    $1000
-START	equ    *
+        org    $1000
+START
 
-		orcc	#$50
+        orcc    #$50
 
 ;; init 6809 vectors
 
-		ldx		#$fefa
-		stx		$fffa		swi
+        ldx        #$fefa
+        stx        $fffa        ;; swi
 
-		ldx		#$fef1
-		stx		$fff4		swi2
+        ldx        #$fef1
+        stx        $fff4        ;; swi2
 
-		ldx		#$feee
-		stx		$fff2		swi3
+        ldx        #$feee
+        stx        $fff2        ;; swi3
 
-		lda		#$16		
-		sta		$fefa
-		sta		$fef1
-		sta		$fefe
-		ldx		#$0209		fefa->	LBRA	$106
-		stx		$fefb		
-		ldx		#$020f		fef1->	LBRA	$103
-		stx		$fef2
-		stx		$feef		fefe->	LBRA	$100
+        lda        #$16        
+        sta        $fefa
+        sta        $fef1
+        sta        $fefe
+        ldx        #$0209        ;; fefa->    LBRA    $106
+        stx        $fefb        
+        ldx        #$020f        ;; fef1->    LBRA    $103
+        stx        $fef2
+        stx        $feef        ;; fefe->    LBRA    $100
 
-		lda		#$3b		rti
-		sta		$100
-		sta		$103
-		sta		$106
+        lda        #$3b        ;; rti
+        sta        $100
+        sta        $103
+        sta        $106
 
 ;; setup registers for test
 
-		lda		#DIRECT/256
-		tfr		a,dp
-;;		setdp	DIRECT/256
-		setdp	$20
+        lda        #DIRECT/256
+        tfr        a,dp
+;;        setdp    DIRECT/256
+        setdp    $20
 
-		ldu		#SCRATCH+96
-		tfr		u,x
-		tfr		u,y
+        ldu        #SCRATCH+96
+        tfr        u,x
+        tfr        u,y
 
-		sts		save_s
-		lds		#STACK
-			
-*------------------------------------------------------------------------------
-* 6809 instruction tests
-*------------------------------------------------------------------------------
+        sts        save_s
+        lds        #STACK
+            
+;------------------------------------------------------------------------------
+; 6809 instruction tests
+;------------------------------------------------------------------------------
                    ABX
-*
+;
                    ADCA   #IMM
                    ADCA   <DIR
                    ADCA   EXT
@@ -69,7 +69,7 @@ START	equ    *
                    ADCB   ,X
                    ADCB   ,Y++
                    ADCB   [,--U]
-*
+;
                    ADDA   #IMM
                    ADDA   <DIR
                    ADDA   EXT
@@ -91,7 +91,7 @@ START	equ    *
                    ADDD   ,X
                    ADDD   ,Y++
                    ADDD   [,--U]
-*
+;
                    ANDA   #IMM
                    ANDA   <DIR
                    ANDA   EXT
@@ -107,7 +107,7 @@ START	equ    *
                    ANDB   ,Y++
                    ANDB   [,--U]
                    ANDCC  #$FF
-*
+;
                    ASLA
                    ASLB
                    ASL    <DIR
@@ -116,7 +116,7 @@ START	equ    *
                    ASL    ,X
                    ASL    ,Y++
                    ASL    [,--U]
-*
+;
                    ASRA
                    ASRB
                    ASR    <DIR
@@ -125,7 +125,7 @@ START	equ    *
                    ASR    ,X
                    ASR    ,Y++
                    ASR    [,--U]
-*
+;
                    BCC    *+2
                    BCS    *+2
                    BEQ    *+2
@@ -145,8 +145,8 @@ START	equ    *
                    BVC    *+2
                    BVS    *+2
                    BSR    a@
-				   BRA    b@
-a@				   RTS
+                   BRA    b@
+a@                   RTS
 b@
 
                    BITA   #IMM
@@ -163,7 +163,7 @@ b@
                    BITB   ,X
                    BITB   ,Y++
                    BITB   [,--U]
-*
+;
                    CLRA
                    CLRB
                    CLR    <DIR
@@ -172,7 +172,7 @@ b@
                    CLR    ,X
                    CLR    ,Y++
                    CLR    [,--U]
-*
+;
                    CMPA   #IMM
                    CMPA   <DIR
                    CMPA   EXT
@@ -215,7 +215,7 @@ b@
                    CMPU   ,X
                    CMPU   ,Y++
                    CMPU   [,--U]
-*
+;
                    COMA
                    COMB
                    COM    <DIR
@@ -224,10 +224,10 @@ b@
                    COM    ,X
                    COM    ,Y++
                    COM    [,--U]
-*
+;
 ;;                   CWAI   #IMM
                    DAA
-*
+;
                    DECA
                    DECB
                    DEC    <DIR
@@ -236,7 +236,7 @@ b@
                    DEC    ,X
                    DEC    ,Y++
                    DEC    [,--U]
-*
+;
                    EORA   #IMM
                    EORA   <DIR
                    EORA   EXT
@@ -251,10 +251,10 @@ b@
                    EORB   ,X
                    EORB   ,Y++
                    EORB   [,--U]
-*
+;
                    EXG    A,B
                    EXG    X,Y
-*
+;
                    INCA
                    INCB
                    INC    <DIR
@@ -263,7 +263,7 @@ b@
                    INC    ,X
                    INC    ,Y++
                    INC    [,--U]
-*
+;
 ;;                   JMP    <DIR
 ;;                   JMP    EXT
 ;;                   JMP    [IND]
@@ -276,7 +276,7 @@ b@
 ;;                   JSR    ,X
 ;;                   JSR    ,X++
 ;;                   JSR    [,--Y]
-*
+;
                    LBCC   *+4
                    LBCS   *+4
                    LBEQ   *+4
@@ -296,10 +296,10 @@ b@
                    LBVC   *+4
                    LBVS   *+4
                    LBSR   a@
-				   bra    b@
-a@				   rts
+                   bra    b@
+a@                   rts
 b@
-*
+;
                    LDA    #IMM
                    LDA    <DIR
                    LDA    EXT
@@ -321,9 +321,9 @@ b@
                    LDD    ,X
                    LDD    ,Y++
                    LDD    [,--U]
-*
-		pshs x,y,u
-		sts save
+;
+        pshs x,y,u
+        sts save
                    LEAX   5,X
                    LEAX   ,Y++
                    LEAX   ,--U
@@ -343,26 +343,26 @@ b@
 
 ; check Z flag on index registers
 
-		ldx		#2
-		leax	-1,x
-		leax	-1,x
+        ldx        #2
+        leax    -1,x
+        leax    -1,x
 
-		ldy		#2
-		leay	-1,y
-		leay	-1,y
+        ldy        #2
+        leay    -1,y
+        leay    -1,y
 
-		lds		#2
-		leas	-1,s
-		leas	-1,s
+        lds        #2
+        leas    -1,s
+        leas    -1,s
 
-		ldu		#2
-		leau	-1,u
-		leau	-1,u
+        ldu        #2
+        leau    -1,u
+        leau    -1,u
 
-		lds		save
-		puls	x,y,u
+        lds        save
+        puls    x,y,u
 
-*
+;
                    LSLA
                    LSLB
                    LSL    <DIR
@@ -371,7 +371,7 @@ b@
                    LSL    ,X
                    LSL    ,Y++
                    LSL    [,--U]
-*
+;
                    LSRA
                    LSRB
                    LSR    <DIR
@@ -380,9 +380,9 @@ b@
                    LSR    ,X
                    LSR    ,Y++
                    LSR    [,--U]
-*
+;
                    MUL
-*
+;
                    NEGA
                    NEGB
                    NEG    <DIR
@@ -391,9 +391,9 @@ b@
                    NEG    ,X
                    NEG    ,Y++
                    NEG    [,--U]
-*
+;
                    NOP
-*
+;
                    ORA    #IMM
                    ORA    <DIR
                    ORA    EXT
@@ -409,18 +409,18 @@ b@
                    ORB    ,Y++
                    ORB    [,--U]
                    ORCC   #0
-*
+;
 
-	pshs	a,b,cc,dp,x,y,u,pc
-	puls	a,b,cc,dp,x,y,u
-	puls	x
+    pshs    a,b,cc,dp,x,y,u,pc
+    puls    a,b,cc,dp,x,y,u
+    puls    x
 
-	pshu	a,b,cc,dp,x,y,s,pc
-	pulu	a,b,cc,dp,x,y,s
-	pulu	x
-	tfr		y,x
+    pshu    a,b,cc,dp,x,y,s,pc
+    pulu    a,b,cc,dp,x,y,s
+    pulu    x
+    tfr        y,x
 
-*
+;
                    ROLA
                    ROLB
                    ROL    <DIR
@@ -429,7 +429,7 @@ b@
                    ROL    ,X
                    ROL    ,Y++
                    ROL    [,--U]
-*
+;
                    RORA
                    RORB
                    ROR    <DIR
@@ -438,10 +438,10 @@ b@
                    ROR    ,X
                    ROR    ,Y++
                    ROR    [,--U]
-*
+;
 ;;                   RTI
 ;;                   RTS
-*
+;
                    SBCA   #IMM
                    SBCA   <DIR
                    SBCA   EXT
@@ -456,9 +456,9 @@ b@
                    SBCB   ,X
                    SBCB   ,Y++
                    SBCB   [,--U]
-*
+;
                    SEX
-*
+;
                    STA    <DIR
                    STA    EXT
                    STA    [IND]
@@ -477,7 +477,7 @@ b@
                    STD    ,X
                    STD    ,Y++
                    STD    [,--U]
-*
+;
                    SUBA   #IMM
                    SUBA   <DIR
                    SUBA   EXT
@@ -499,15 +499,15 @@ b@
                    SUBD   ,X
                    SUBD   ,Y++
                    SUBD   [,--U]
-*
+;
                    SWI
                    SWI2
                    SWI3
 ;;                   SYNC
-*
+;
                    TFR    A,B
                    TFR    X,Y
-*
+;
                    TSTA
                    TSTB
                    TST    <DIR
@@ -517,30 +517,30 @@ b@
                    TST    ,Y++
                    TST    [,--U]
 
-*------------------------------------------------------------------------------
-* indexed memory access
-*------------------------------------------------------------------------------
-                   lda    ,-x     automatic decrement before read
-                   lda    ,x+     automatic increment after read
-                   lda    1,x     constant offset from x
-                   lda    -1,x    negative constant offset from x
+;------------------------------------------------------------------------------
+; indexed memory access
+;------------------------------------------------------------------------------
+                   lda    ,-x     ;; automatic decrement before read
+                   lda    ,x+     ;; automatic increment after read
+                   lda    1,x     ;; constant offset from x
+                   lda    -1,x    ;; negative constant offset from x
                    lda    16,x
                    lda    -16,x
                    lda    15,x
                    lda    -15,x
-	ldx #SCRATCH-127
+    ldx #SCRATCH-127
                    lda    127,x
                    lda    128,x
-	ldx #SCRATCH+128
+    ldx #SCRATCH+128
                    lda    -127,x
                    lda    -128,x
-	ldx #SCRATCH-256
+    ldx #SCRATCH-256
                    lda    256,x
                    lda    *+2
                    lda    *-2
-	ldx #SCRATCH+256
+    ldx #SCRATCH+256
                    lda    -256,x
-	ldx #SCRATCH-32767
+    ldx #SCRATCH-32767
                    lda    32767,x
                    LEAX   -$4000,X
                    leax   $8000,x
@@ -551,100 +551,99 @@ b@
                    LEAU   32,U
                    leay   32,Y
                    LEAS   2,S
-				   LEAS   -2,S
+                   LEAS   -2,S
                    LEAU   D,U
                    leax   -1,X
                    leay   B,Y
                    leax   -350,X
 
-*------------------------------------------------------------------------------
-* in<DIRect addressing, indexing, pointers
-*------------------------------------------------------------------------------
-	ldx		#SCRATCH+64
+;------------------------------------------------------------------------------
+; in<DIRect addressing, indexing, pointers
+;------------------------------------------------------------------------------
+    ldx        #SCRATCH+64
 
-                   lda    [,--x]  auto-decrement 16-bit pointer before reading byte
-                   lda    [,x++]  auto-increment 16-bit pointer after reading byte
-                   jsr    [IND_RTS] call 16-bit address
-;;                   lda    [,x+]   possible on 6809, but probably useless [,r+]
-;;                   lda    [,-x]   possible on 6809, but probably useless [,-r]
+                   lda    [,--x]  ;; auto-decrement 16-bit pointer before reading byte
+                   lda    [,x++]  ;; auto-increment 16-bit pointer after reading byte
+                   jsr    [IND_RTS] ;; call 16-bit address
+;;                   lda    [,x+]   ;; possible on 6809, but probably useless [,r+]
+;;                   lda    [,-x]   ;; possible on 6809, but probably useless [,-r]
 
-*------------------------------------------------------------------------------
-* relative addressing, position-independent memory access
-*------------------------------------------------------------------------------
-                   leax   *,pcr       point X to the address of symbol "start"
-                   leax   *,pcr       load into register X the address of "apple"
-                   ldx    *,pcr       load X with the contents of the address of symbol "start"
-                   ldx    *,pcr       load into register X the contents of address "apple"
-                   leax   *+1,pcr     point X to the address of symbol "start" + 1
-                   lda    *,pcr   load the first opcode of the instruction "lda *,pcr"
-                   lda    *+2,pc  "pc" can be used for "pcr"
-
-
-		clra
-		tfr		a,dp
-		lds		save_s
-		andcc	#$af
-
-A_RTS	rts
-
-A_RTI	rti
+;------------------------------------------------------------------------------
+; relative addressing, position-independent memory access
+;------------------------------------------------------------------------------
+                   leax   *,pcr       ;; point X to the address of symbol "start"
+                   leax   *,pcr       ;; load into register X the address of "apple"
+                   ldx    *,pcr       ;; load X with the contents of the address of symbol "start"
+                   ldx    *,pcr       ;; load into register X the contents of address "apple"
+                   leax   *+1,pcr     ;; point X to the address of symbol "start" + 1
+                   lda    *,pcr   ;; load the first opcode of the instruction "lda *,pcr"
+                   lda    *+2,pc  ;; "pc" can be used for "pcr"
 
 
-;;		org		$2000
+        clra
+        tfr        a,dp
+        lds        save_s
+        andcc    #$af
 
-		bsz		$2000-*
+A_RTS    rts
 
-DIRECT	equ		*
+A_RTI    rti
 
-;;		org		$2100
 
-		bsz		$2100-*
+;;        org        $2000
 
-save_s	rmb		2
-save	rmb		2			  
-IMM		equ		$12
-DIR		equ		$34
-EXT		rmb		2
-indval	rmb		2
-IND		fdb		indval
-IND_RTS	fdb		A_RTS
+        bsz        $2000-*
 
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-SCRATCH fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
-		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+DIRECT    equ        *
 
-;;		org		$2f80
-		bsz		$2f80-*
+;;        org        $2100
 
-STACK	equ		*
+        bsz        $2100-*
 
-		if		0
+save_s    rmb        2
+save    rmb        2              
+IMM        equ        $12
+DIR        equ        $34
+EXT        rmb        2
+indval    rmb        2
+IND        fdb        indval
+IND_RTS    fdb        A_RTS
 
-		org		$100
-		rti				; swi3
-		org		$103
-		rti				; swi2
-		org		$106
-		rti				; swi
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+SCRATCH fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+        fdb        $2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
 
-		org		$fefa
-		lbra	$106
-		org		$fef1
-		lbra	$103
-		org		$feee
-		lbra	$100
+;;        org        $2f80
+        bsz        $2f80-*
 
-		endc
+STACK    equ        *
 
-		end		START
+;;        if        0
+;;
+;;        org        $100
+;;        rti                ; swi3
+;;        org        $103
+;;        rti                ; swi2
+;;        org        $106
+;;        rti                ; swi
+;;
+;;        org        $fefa
+;;        lbra    $106
+;;        org        $fef1
+;;        lbra    $103
+;;        org        $feee
+;;        lbra    $100
+;;
+;;        endc
+
 
 

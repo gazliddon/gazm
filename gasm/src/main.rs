@@ -23,8 +23,8 @@ use nom::character::complete::{
     not_line_ending, one_of, satisfy, space1,
 };
 use nom::character::{is_alphabetic, is_space};
-use nom::combinator::{cut, eof, map_res, opt, recognize, value, not};
-use nom::error::{Error, ParseError};
+use nom::combinator::{cut, eof, map_res, opt, recognize, value, not, all_consuming};
+use nom::error::{ContextError, Error, ParseError};
 use nom::multi::{many0, many0_count, many1, separated_list0};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use nom::IResult;
@@ -32,21 +32,11 @@ use nom::IResult;
 use lazy_static::lazy_static;
 use opcodes::{parse_opcode, opcode_token};
 use std::collections::HashSet;
+use std::fs;
 
 use crate::item::is_empty_comment;
 
 use util::{parse_arg, parse_label, parse_arg_list};
-
-/// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
-/// trailing whitespace, returning the output of `inner`.
-fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
-    inner: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
-where
-    F: Fn(&'a str) -> IResult<&'a str, O, E>,
-{
-    delimited(multispace0, inner, multispace0)
-}
 
 
 pub fn get_offset(master: &str, text: &str) -> usize {
@@ -106,6 +96,7 @@ impl<'a> DocContext<'a> {
         TextItem { text, offset }
     }
 }
+
 pub fn parse<'a>(lines : &'a Vec<&'a str>) -> IResult<&'a str, Vec<Item<'a>>> {
 
     use commands::parse_command;
@@ -117,29 +108,40 @@ pub fn parse<'a>(lines : &'a Vec<&'a str>) -> IResult<&'a str, Vec<Item<'a>>> {
             items.push(x.clone())
         }
     };
+    use util::ws;
 
-    for input in lines {
-        let (input, comment) = strip_comments_and_ws(input)?;
+    for line in lines {
+        let (input, comment) = strip_comments_and_ws(line)?;
 
         push_some(&comment);
-
 
         if input.is_empty() {
             continue;
         }
 
-        let body = terminated(
-            alt((parse_opcode, parse_command, parse_asignment)),
-            multispace0,
-            );
+        // Just a label
+        if let Ok((_,label)) = all_consuming(ws(parse_label))(input) {
+            push_some(&Some(label));
+            continue;
+        }
 
-        let (_input, (label,body))= tuple(
-            ( opt(parse_label),
-                opt(body)
-            ))(input)?;
+        // Assignment
+        if let Ok(( _,equate )) = all_consuming(ws(parse_equate))(input) {
+            push_some(&Some(equate));
+            continue;
+        }
 
-        push_some(&label);
-        push_some(&body);
+        let body =alt(( ws( parse_opcode ),ws( parse_command ) ));
+
+        let res = all_consuming(pair(opt(parse_label),body))(input);
+
+        if let Ok((_, (label,body)))= res {
+            push_some(&label);
+            push_some(&Some(body));
+        } else {
+            println!("{:?}", res);
+            println!("Input: {:?}", input);
+        }
     }
 
     // filter out empty comments
@@ -168,18 +170,52 @@ impl<'a> DocContext<'a> {
 
 }
 
-fn main() {
-    let source = include_str!("../all.68");
-    let mut dc = DocContext::new(source);
+use clap::Parser;
 
+#[derive(Parser, Debug)]
+#[clap(about, version, author)]
+struct Context {
+#[clap(long)]
+   verbose: bool,
+#[clap(short, long)]
+    file : String,
+#[clap(short, long)]
+    out: Option<String>
+}
+
+fn assemble( ctx : &Context ) -> Result<(), Box<dyn std::error::Error>> {
+    let source = fs::read_to_string(&ctx.file)?;
+
+    let mut dc = DocContext::new(&source);
     let (_rest, _matched) = dc.parse().unwrap();
 
-    for t in _matched {
-        println!("{:?}", t);
+    // for t in _matched {
+    //     match t {
+    //         Item::NotSure(txt) => {
+    //             // let (num, line) = dc.to_line(txt) {
+    //             // }
+    //             // println!("Not sure! {:?}", txt)
+    //         },
+    //         _ => println!("{:?}", t)
+    //     }
+    // }
+
+    Ok(())
+}
+
+
+fn main() {
+    let ctx = Context::parse();
+    let res = assemble(&ctx);
+
+    match res {
+        Ok(()) => {println!("Compiled!")},
+        Err(e) => {println!("Error: {} {}", ctx.file, e)}
     }
 }
 
-pub fn parse_asignment(input: &str) -> IResult<&str, Item> {
+
+pub fn parse_equate(input: &str) -> IResult<&str, Item> {
     let (rest, (label, _, _, _, arg)) = tuple((
             parse_label,
             multispace1,

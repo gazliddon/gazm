@@ -17,6 +17,7 @@ use nom::bytes::complete::tag;
 
 fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
     let (rest, matched) = alt((
+            tag_no_case("pcr"),
             tag_no_case("dp"),
             tag_no_case("cc"),
             tag_no_case("pc"),
@@ -33,6 +34,7 @@ fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
     let matched_lower = String::from(matched).to_ascii_lowercase();
 
     let reg = match matched_lower.as_str() {
+            "pcr" => PC,
             "dp" => DP,
             "cc" => CC,
             "pc" => PC,
@@ -49,7 +51,7 @@ fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
     Ok((rest, reg))
 }
 
-fn parse_reg(input: &str) -> IResult<&str, Item> {
+pub fn parse_reg(input: &str) -> IResult<&str, Item> {
     let (rest,matched) = get_reg(input)?;
     Ok((rest, Item::Register(matched)))
 }
@@ -60,9 +62,17 @@ fn get_reg_list(input: &str) -> IResult<&str, Vec<emu::cpu::RegEnum>> {
     Ok((rest, matched))
 }
 
-fn parse_reg_list(input: &str) -> IResult<&str, Item> {
+pub fn parse_reg_list(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = get_reg_list(input)?;
     Ok((rest, Item::RegisterList(matched)))
+}
+
+pub fn parse_reg_list_2_or_more(input: &str) -> IResult<&str, Item> {
+    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
+    let (rest, (x,xs)) = separated_pair(get_reg, sep, get_reg_list)(input)?;
+    let mut xs = xs;
+    xs.push(x);
+    Ok((rest, Item::RegisterList(xs)))
 }
 
 fn parse_reg_set(_input: &str) -> IResult<&str, Item> {
@@ -102,6 +112,10 @@ mod test {
 
         let res = parse_reg_list("A, x, y, u, S, DP, cc, D, dp");
         let des = vec![A, X, Y, U, S, DP, CC, D, DP];
+        assert_eq!(res, Ok(("", Item::RegisterList(des))));
+
+        let res = parse_reg_list("x,y,u");
+        let des = vec![X,Y,U];
         assert_eq!(res, Ok(("", Item::RegisterList(des))));
     }
 
