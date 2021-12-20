@@ -185,9 +185,10 @@ pub fn parse_asignment(input: &str) -> IResult<&str, Item> {
             multispace1,
             tag_no_case("equ"),
             multispace1,
-            recognize(many1(anychar))
+            expr::parse_expr
             ))(input)?;
-    Ok((rest, Item::Assignment(Box::new(label), arg)))
+    Ok((rest, Item::Assignment(Box::new(label), Box::new(arg))))
+
 }
 
 pub fn parse_eof(input: &str) -> IResult<&str, Item> {

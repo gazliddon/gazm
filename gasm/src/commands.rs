@@ -1,6 +1,8 @@
 use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
 
+use super::{ expr, util };
+
 type CommandParseFn = for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command<'x>>;
 
 use crate::{
@@ -9,18 +11,33 @@ use crate::{
 };
 
 use nom::{
-    error::ErrorKind::NoneOf,
-    error::Error,
-    character::complete::{anychar, multispace1, alpha1},
+    error::{Error, ErrorKind::NoneOf, },
+    character::complete::{anychar, multispace0,multispace1, alpha1},
     combinator::{cut, recognize, map_res},
-    multi::many1,
-    sequence::{ separated_pair, preceded },
+    multi::{separated_list1, many1 },
+    sequence::{ separated_pair, preceded, tuple, },
+    bytes::complete::tag,
     IResult,
 };
+
+fn get_expr_list(input: &str) -> IResult<&str, Vec<Item>> {
+    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
+    let (rest, matched) = separated_list1(sep, expr::parse_expr)(input)?;
+    Ok((rest, matched))
+}
 
 fn parse_command_arg<'a>(command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
     let (rest, matched) = recognize(many1(anychar))(input)?;
     Ok((rest, Command::Generic(command, Some(matched))))
+}
+
+fn parse_org_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
+    let (rest, matched) = expr::parse_expr(input)?;
+    Ok((rest, Command::Org(Box::new(matched))))
+}
+fn parse_fdb_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
+    let (rest, matched) = get_expr_list(input)?;
+    Ok((rest, Command::Fdb(matched)))
 }
 
 fn parse_include_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command<'a>> {
@@ -38,8 +55,8 @@ lazy_static! {
     static ref PARSE_ARG: HashMap<&'static str, CommandParseFn>= {
         let mut hs = HashMap::<&'static str, CommandParseFn>::new();
 
-        hs.insert("fdb", parse_command_arg);
-        hs.insert("org", parse_command_arg);
+        hs.insert("fdb", parse_fdb_arg);
+        hs.insert("org", parse_org_arg);
         hs.insert("include", parse_include_arg);
         hs
     };

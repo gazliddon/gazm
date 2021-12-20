@@ -19,7 +19,7 @@ pub enum Item<'a> {
     Label(&'a str),
     LocalLabel(&'a str),
     Comment(&'a str),
-    Assignment(Box<Item<'a>>, &'a str),
+    Assignment(Box<Item<'a>>, Box<Item<'a>>),
     String(&'a str),
     BinOp(&'a str, Box<Token<'a>>, Box<Token<'a>> ),
     Op(&'a str),
@@ -65,7 +65,9 @@ pub struct Token<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Command<'a> {
     Include(&'a str),
-    Generic(&'a str, Option<&'a str>)
+    Generic(&'a str, Option<&'a str>),
+    Org(Box<Item<'a>>),
+    Fdb(Vec<Item<'a>>)
 }
 
 pub fn is_empty_comment<'a>(item : &'a Item<'a>) -> bool {
