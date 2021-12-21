@@ -34,6 +34,7 @@ pub enum Item<'a> {
     Number(i64),
     ArgList(Vec<Item<'a>>),
     OpCode(&'a str, Option<Box<Item<'a>>>),
+    OpCodeWithArg(&'a str, Box<Item<'a>>),
     Command(Command<'a>),
     Eof,
     Register(RegEnum),
@@ -43,6 +44,14 @@ pub enum Item<'a> {
     Indirect(Box<Item<'a>>),
     DirectPage(Box<Item<'a>>),
     IndexedSimple(Box<Item<'a>>, Box<Item<'a>>),
+    PreDecrement(RegEnum),
+    PreIncrement(RegEnum),
+    DoublePreDecrement(RegEnum),
+    DoublePreIncrement(RegEnum),
+    PostDecrement(RegEnum),
+    PostIncrement(RegEnum),
+    DoublePostDecrement(RegEnum),
+    DoublePostIncrement(RegEnum),
 }
 
 #[derive(Debug, PartialEq, Clone)]

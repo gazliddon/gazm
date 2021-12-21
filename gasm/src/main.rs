@@ -188,16 +188,9 @@ fn assemble( ctx : &Context ) -> Result<(), Box<dyn std::error::Error>> {
     let mut dc = DocContext::new(&source);
     let (_rest, _matched) = dc.parse().unwrap();
 
-    // for t in _matched {
-    //     match t {
-    //         Item::NotSure(txt) => {
-    //             // let (num, line) = dc.to_line(txt) {
-    //             // }
-    //             // println!("Not sure! {:?}", txt)
-    //         },
-    //         _ => println!("{:?}", t)
-    //     }
-    // }
+    for t in _matched {
+        println!("{:?}", t)
+    }
 
     Ok(())
 }

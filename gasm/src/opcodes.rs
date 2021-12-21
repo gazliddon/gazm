@@ -1,11 +1,14 @@
 use crate::expr;
 use crate::expr::parse_expr;
 use crate::register;
+use crate::register::get_reg;
+use crate::register::parse_reg;
 use crate::util::parse_not_sure;
 
 use super::item::Item;
 use super::util;
 use super::numbers;
+use emu::cpu::RegEnum;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::{ digit0, digit1 };
 use romloader::{Dbase, Instruction};
@@ -116,27 +119,81 @@ fn parse_dp(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::DirectPage(Box::new(matched))))
 }
 
-fn parse_simple_indexed(input : &str) -> IResult<&str, Item> {
 
+// Post inc / dec
+fn parse_post_inc(input: &str) -> IResult<&str,Item> {
+    let (rest, matched) = terminated( get_reg , tag("+"))(input)?;
+    Ok((rest, Item::PostIncrement(matched)))
+}
+fn parse_post_inc_inc(input: &str) -> IResult<&str,Item> {
+    let (rest, matched) = terminated( get_reg , tag("++"))(input)?;
+    Ok((rest, Item::DoublePostIncrement(matched)))
+}
+fn parse_post_dec(input: &str) -> IResult<&str,Item> {
+    let (rest, matched) = terminated( get_reg , tag("-"))(input)?;
+    Ok((rest, Item::PostDecrement(matched)))
+}
+fn parse_post_dec_dec(input: &str) -> IResult<&str,Item> {
+    let (rest, matched) = terminated( get_reg , tag("--"))(input)?;
+    Ok((rest, Item::DoublePostDecrement(matched)))
+}
+
+
+// Pre inc / dec
+fn parse_pre_dec(input: &str) -> IResult<&str,Item> {
+    let (rest, matched) = preceded(tag("-"), get_reg )(input)?;
+    Ok((rest, Item::PreDecrement(matched)))
+}
+
+fn parse_pre_inc(input: &str) -> IResult<&str,Item> {
+    let (rest, matched) = preceded(tag("+"), get_reg )(input)?;
+    Ok((rest, Item::PreIncrement(matched)))
+}
+
+fn parse_pre_inc_inc(input: &str) -> IResult<&str,Item> {
+    let (rest, matched) = preceded(tag("++"), get_reg )(input)?;
+    Ok((rest, Item::DoublePreIncrement(matched)))
+}
+
+fn parse_pre_dec_dec(input: &str) -> IResult<&str,Item> {
+    let (rest, matched) = preceded(tag("--"), get_reg )(input)?;
+    Ok((rest, Item::DoublePreDecrement(matched)))
+}
+
+// Simple index
+
+fn parse_simple_indexed(input : &str) -> IResult<&str, Item> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
 
     let (rest, (expr,reg)) = separated_pair(
-        expr::parse_expr,
+        opt(parse_expr),
         sep,
-        register::parse_reg)(input)?;
+        alt((
+                parse_pre_dec_dec,
+                parse_pre_inc_inc,
+                parse_pre_dec,
+                parse_pre_inc,
+                parse_post_dec_dec,
+                parse_post_inc_inc,
+                parse_post_dec,
+                parse_post_inc,
+
+                parse_reg  ))
+        )(input)?;
+
+    let expr = expr.unwrap_or(Item::Expr(vec![Item::Number(0)]));
 
     Ok((rest, Item::IndexedSimple(
                 Box::new(expr),
                 Box::new(reg))))
-
 }
 
 fn parse_indirect(input: &str) -> IResult<&str, Item> {
-    let (input, _) = nom_char('[')(input)?;
-    let (input, _) = multispace0(input)?;
-    let (input, matched) = expr::parse_expr(input)?;
-    let (input, _) = multispace0(input)?;
-    let (rest, _) = nom_char(']')(input)?;
+    use util::wrapped_chars;
+
+    let (rest, matched) = wrapped_chars('[',
+        alt((parse_simple_indexed,parse_expr))
+    , ']')(input)?;
 
     Ok((rest, Item::Indirect(Box::new(matched))))
 }
@@ -207,6 +264,67 @@ mod test {
         assert_eq!(res, Ok(("", desired)));
 
     }
+    #[test]
+    fn test_simple_indexed() {
+        use emu::cpu::RegEnum::*;
+        use Item::*;
+
+        let res = parse_simple_indexed("0,X");
+
+        let des = IndexedSimple(Box::new(
+                           Expr(
+                               vec![Number(0)])),
+                               Box::new(Register(X)));
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_simple_indexed(",X");
+        let des = IndexedSimple(Box::new(
+                           Expr(
+                               vec![Number(0)])),
+                               Box::new(Register(X)));
+        assert_eq!(res, Ok(("", des)));
+
+    }
+
+    #[test]
+    fn test_pre_post_dec() {
+
+        use emu::cpu::RegEnum::*;
+        use Item::*;
+
+        let res = parse_pre_dec_dec("--X");
+        let des = DoublePreDecrement(X);
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_pre_dec("-X");
+        let des = PreDecrement(X);
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_pre_inc("+X");
+        let des = PreIncrement(X);
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_pre_inc_inc("++X");
+        let des = DoublePreIncrement(X);
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_post_dec_dec("X--");
+        let des = DoublePostDecrement(X);
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_post_dec("X-");
+        let des = PostDecrement(X);
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_post_inc("X+");
+        let des = PostIncrement(X);
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_post_inc_inc("X++");
+        let des = DoublePostIncrement(X);
+        assert_eq!(res, Ok(("", des)));
+    }
+
 
     #[test]
     fn test_opcode_with_expr() {

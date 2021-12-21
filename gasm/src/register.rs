@@ -15,7 +15,7 @@ use nom::bytes::complete::tag;
 
 // Register parsing
 
-fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
+pub fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
     let (rest, matched) = alt((
             tag_no_case("pcr"),
             tag_no_case("dp"),

@@ -4,26 +4,21 @@ use std::{collections::{HashMap, HashSet}, os::unix::prelude::CommandExt};
 use super::{ expr, util };
 
 type CommandParseFn = for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command<'x>>;
+type PairParseFn = for <'x> fn( &'x str)-> IResult<&'x str, (Item<'x>, Item<'x>)>;
 
 use crate::{item::{Item, Command}, parse, util::match_escaped_str};
 
-use nom::{
-    error::{Error, ErrorKind::NoneOf, },
-    character::complete::{anychar, multispace0,multispace1, alpha1},
-    combinator::{opt,cut, recognize, map_res},
-    multi::{separated_list1, many1 },
-    sequence::{ pair, separated_pair, preceded, tuple, },
-    bytes::complete::tag,
-    IResult,
-};
+use nom::{IResult, Parser, branch::alt, bytes::complete::tag, character::complete::{anychar, multispace0,multispace1, alpha1}, combinator::{opt,cut, recognize, map_res, map}, error::{Error, ErrorKind::NoneOf, }, multi::{separated_list1, many1 }, sequence::{ pair, separated_pair, preceded, tuple, }};
 
+use expr::parse_expr;
 
 fn parse_org_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
-    let (rest, matched) = expr::parse_expr(input)?;
+    let (rest, matched) = parse_expr(input)?;
     Ok((rest, Command::Org(Box::new(matched))))
 }
+
 fn parse_fdb_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
-    let (rest, matched) = util::sep_list1(expr::parse_expr)(input)?;
+    let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     Ok((rest, Command::Fdb(matched)))
 }
 
@@ -37,43 +32,40 @@ fn parse_generic_arg<'a>(command: &'a str, input : &'a str) -> IResult<&'a str, 
     Ok((rest, Command::Generic(command,Some(matched))))
 }
 
+
 fn parse_fill_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command<'a>> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-    let (rest, (value, count)) = separated_pair(expr::parse_expr, sep, expr::parse_expr)(input)?;
-    Ok((rest, mk_fill(value, count)))
+    map(separated_pair(parse_expr, sep, parse_expr), mk_fill)(input)
 }
 
-fn mk_fill<'a>(count: Item<'a>, value : Item<'a>) -> Command<'a> {
+fn mk_fill<'a>(cv: ( Item<'a>, Item<'a>) ) -> Command<'a> {
+    let (count, value) = cv;
     Command::Fill(Box::new(value), Box::new(count))
 }
 
 fn parse_bsz_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command<'a>> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
 
-    use expr::parse_expr;
+    let two_args = separated_pair(parse_expr, sep, parse_expr);
+    let one_arg = map(parse_expr, |x : Item| (x,Item::Number(0)));
 
-    let mut two_args = separated_pair(parse_expr, sep, parse_expr);
-
-    if let Ok(( rest, (count,value) )) = two_args(input) {
-        Ok((rest, mk_fill(count, value)))
-    } else {
-        let (rest,count) = parse_expr(input)?;
-        Ok((rest, mk_fill(count, Item::Number(0))))
-    }
+    map(alt(( two_args, one_arg)), mk_fill)(input)
 }
 
 lazy_static! {
     static ref PARSE_ARG: HashMap<&'static str, CommandParseFn>= {
-        let mut hs = HashMap::<&'static str, CommandParseFn>::new();
 
-        hs.insert("bsz", parse_bsz_arg);
-        hs.insert("fill", parse_fill_arg);
-        hs.insert("fdb", parse_fdb_arg);
-        hs.insert("rmb", parse_fdb_arg);
-        hs.insert("org", parse_org_arg);
-        hs.insert("include", parse_include_arg);
-        hs.insert("setdp", parse_generic_arg);
-        hs
+        let v : Vec<(_, CommandParseFn)>= vec![
+            ("bsz", parse_bsz_arg),
+            ("fill", parse_fill_arg),
+            ("fdb", parse_fdb_arg),
+            ("rmb", parse_fdb_arg),
+            ("org", parse_org_arg),
+            ("include", parse_include_arg),
+            ("setdp", parse_generic_arg),
+        ];
+
+        v.into_iter().collect()
     };
 }
 

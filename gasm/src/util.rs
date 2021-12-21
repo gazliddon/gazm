@@ -21,32 +21,68 @@ use crate::{ opcode_token, command_token };
 pub static LIST_SEP: & str = ",";
 
 
-/// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
-/// trailing whitespace, returning the output of `inner`.
-pub fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
-    inner: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+pub fn ws<'a, F, O, E>( mut inner: F,) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
-    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+  F: nom::Parser<&'a str, O, E> + 'a,
+  E: ParseError<& 'a str>,
 {
-    delimited(multispace0, inner, multispace0)
+  move |input: &'a str| {
+    let (input, _) = multispace0(input)?;
+    let (input, out) = inner.parse(input)?;
+    let (input, _) = multispace0(input)?;
+    Ok((input,out))
+  }
 }
 
-pub fn sep_list1<'a, F: 'a, O, E: ParseError<&'a str>>(
-    inner: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, Vec<O>, E>
+pub fn wrapped<'a, O1, OUT, O3, E, F, INNER, S>(
+  mut first: F,
+  mut inner: INNER,
+  mut second: S,
+) -> impl FnMut(&'a str) -> IResult<&'a str, OUT, E>
 where
-    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+  E: ParseError<& 'a str>,
+  F: nom::Parser<&'a str, O1, E> + 'a,
+  INNER: nom::Parser<&'a str, OUT, E> + 'a,
+  S: nom::Parser<&'a str, O3, E> + 'a,
 {
-    let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
-    separated_list1(sep, inner)
+  move |input: &'a str| {
+    let (input, _) = first.parse(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, out) = inner.parse(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, _) = second.parse(input)?;
+    Ok((input,out))
+  }
 }
 
+pub fn wrapped_chars<'a, O2,  E: ParseError<&'a str> + 'a, G>(
+    first : char, yes_please: G, last: char)
+-> impl FnMut(&'a str) -> IResult<&'a str, O2, E>
+where
+G: nom::Parser<&'a str, O2, E> + 'a {
+    wrapped(nom_char(first),yes_please, nom_char(last))
+}
+
+pub fn sep_list1<'a, F, O, E: ParseError<&'a str>>(
+    inner: F
+    ) -> impl FnMut(&'a str) -> IResult<&'a str, Vec<O>, E>
+where
+F: nom::Parser<&'a str, O,E>  + Copy {
+    move |input: &'a str| {
+        let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
+        separated_list1(sep, inner)(input)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Number
 pub fn parse_number(input: &str) -> IResult<&str, Item> {
     let (rest, (num, _text)) = numbers::number_token(input)?;
     Ok((rest, Item::Number(num)))
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Args
 pub fn generic_arg_list(input: &str) -> IResult<&str, Vec<&str>> {
     let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
     separated_list0(sep, generic_arg)(input)
@@ -76,7 +112,7 @@ fn get_label_identifier(input: &str) -> IResult<&str, &str> {
 
     // opcodes and commands are reserved
     not( alt((opcode_token, command_token))
-        )(matched)?;
+       )(matched)?;
 
     Ok((rest, matched))
 }
@@ -141,6 +177,9 @@ pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::String(matched)))
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+// Tests
 mod test {
     use crate::commands::parse_command;
 
