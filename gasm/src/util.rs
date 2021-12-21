@@ -95,7 +95,7 @@ pub fn generic_arg(input: &str) -> IResult<&str, &str> {
 
 pub fn parse_not_sure(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = recognize(many1(anychar))(input)?;
-    Ok((rest, Item::NotSure(matched)))
+    Ok((rest, Item::NotSure(matched.to_string())))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -267,7 +267,7 @@ mod test {
     #[test]
     fn test_not_sure() {
         let res = parse_not_sure("#10");
-        assert_eq!(res, Ok(("",Item::NotSure("#10") )) );
+        assert_eq!(res, Ok(("",Item::NotSure("#10".to_string()) )) );
     }
 }
 

@@ -293,7 +293,7 @@ mod test {
             Item::Number(1020),
             Item::Label(String::from("hello")),
             Item::Number(0xffff),
-            Item::NotSure("!!!"),
+            Item::NotSure("!!!".to_string()),
         ];
 
         let desired = Item::ArgList(desired);

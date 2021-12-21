@@ -15,7 +15,7 @@ impl<'a> TextItem<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item<'a> {
-    NotSure(&'a str),
+    NotSure(String),
     Label(String),
     LocalLabel(String),
     Comment(&'a str),
