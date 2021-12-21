@@ -21,6 +21,8 @@ use nom::branch::alt;
 
 use super::util;
 
+use super::labels::parse_label;
+
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
 // so 
@@ -62,7 +64,7 @@ pub fn parse_op(input: &str) -> IResult<&str, Item> {
 
 pub fn expr_item(input : &str) -> IResult<&str, Item> {
     let (rest, matched) = alt(
-        ( util::parse_label,
+        ( parse_label,
           util::parse_number,
           parse_bracket,
           parse_op)

@@ -9,7 +9,10 @@ mod commands;
 mod util;
 mod opcodes;
 mod register;
+mod labels;
 
+
+use labels::parse_label;
 use commands::command_token;
 use comments::{strip_comments, strip_comments_and_ws};
 use item::{Item, TextItem};
@@ -34,8 +37,6 @@ use opcodes::{parse_opcode, opcode_token};
 use std::collections::HashSet;
 use std::fs;
 
-
-use util::{parse_arg, parse_label, parse_arg_list};
 
 
 pub fn get_offset(master: &str, text: &str) -> usize {
