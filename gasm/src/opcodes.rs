@@ -162,12 +162,9 @@ fn parse_pre_dec_dec(input: &str) -> IResult<&str,Item> {
 }
 
 // Simple index
-fn parse_simple_indexed(input : &str) -> IResult<&str, Item> {
-    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
 
-    let (rest, (expr,reg)) = separated_pair(
-        opt(parse_expr),
-        sep,
+fn parse_index_type(input : &str) -> IResult<&str, Item> {
+    let (rest, reg) = 
         alt((
                 parse_pre_dec_dec,
                 parse_pre_inc_inc,
@@ -177,15 +174,26 @@ fn parse_simple_indexed(input : &str) -> IResult<&str, Item> {
                 parse_post_inc_inc,
                 parse_post_dec,
                 parse_post_inc,
+                parse_reg  )
+        )(input)?;
 
-                parse_reg  ))
+    Ok((rest, reg))
+}
+
+fn parse_indexed(input : &str) -> IResult<&str, Item> {
+    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
+
+    let (rest, (expr,reg)) = separated_pair(
+        opt(parse_expr),
+        sep,
+        parse_index_type
         )(input)?;
 
     let zero_expr =Item::Expr(vec![Item::Number(0)]);
  
     let expr = expr.unwrap_or(zero_expr);
 
-    Ok((rest, Item::IndexedSimple(
+    Ok((rest, Item::Indexed(
                 Box::new(expr),
                 Box::new(reg))))
 }
@@ -194,7 +202,7 @@ fn parse_indirect(input: &str) -> IResult<&str, Item> {
     use util::wrapped_chars;
 
     let (rest, matched) = wrapped_chars('[',
-        alt((parse_simple_indexed,parse_expr))
+        alt((parse_indexed,parse_expr))
     , ']')(input)?;
 
     Ok((rest, Item::Indirect(Box::new(matched))))
@@ -207,7 +215,7 @@ fn parse_opcode_arg(input: &str) -> IResult<&str, Item> {
                 parse_immediate,
                 parse_indirect,
                 parse_dp,
-                parse_simple_indexed,
+                parse_indexed,
                 expr::parse_expr,
                 util::parse_not_sure,
                ))(input)?;
@@ -271,21 +279,20 @@ mod test {
         use emu::cpu::RegEnum::*;
         use Item::*;
 
-        let res = parse_simple_indexed("0,X");
+        let res = parse_indexed("0,X");
 
-        let des = IndexedSimple(Box::new(
+        let des = Indexed(Box::new(
                            Expr(
                                vec![Number(0)])),
                                Box::new(Register(X)));
         assert_eq!(res, Ok(("", des)));
 
-        let res = parse_simple_indexed(",X");
-        let des = IndexedSimple(Box::new(
+        let res = parse_indexed(",X");
+        let des = Indexed(Box::new(
                            Expr(
                                vec![Number(0)])),
                                Box::new(Register(X)));
         assert_eq!(res, Ok(("", des)));
-
     }
 
     #[test]

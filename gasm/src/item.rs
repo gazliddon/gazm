@@ -36,7 +36,7 @@ pub enum Item {
     Immediate(Box<Item>),
     Indirect(Box<Item>),
     DirectPage(Box<Item>),
-    IndexedSimple(Box<Item>, Box<Item>),
+    Indexed(Box<Item>, Box<Item>),
     PreDecrement(RegEnum),
     PreIncrement(RegEnum),
     DoublePreDecrement(RegEnum),
