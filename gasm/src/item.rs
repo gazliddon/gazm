@@ -16,11 +16,11 @@ impl<'a> TextItem<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item<'a> {
     NotSure(&'a str),
-    Label(&'a str),
-    LocalLabel(&'a str),
+    Label(String),
+    LocalLabel(String),
     Comment(&'a str),
     Assignment(Box<Item<'a>>, Box<Item<'a>>),
-    String(&'a str),
+    String(String),
     BinOp(&'a str, Box<Token<'a>>, Box<Token<'a>> ),
     Op(&'a str),
     OpenBracket,

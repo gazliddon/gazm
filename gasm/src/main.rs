@@ -56,6 +56,7 @@ impl<'a> DocContext<'a> {
     }
 
     pub fn new(master: &'a str) -> Self {
+
         let mut offsets: Vec<_> = master.lines().map(|l| get_offset(master, l)).collect();
         offsets.push(master.len());
 
@@ -290,7 +291,7 @@ mod test {
 
         let desired = vec![
             Item::Number(1020),
-            Item::Label("hello"),
+            Item::Label(String::from("hello")),
             Item::Number(0xffff),
             Item::NotSure("!!!"),
         ];
@@ -346,6 +347,7 @@ mod test {
         let good_ids = &["ThisIsFine", "alphaNum019292", "_startsWithUscore"];
 
         let check_it = |id: &str, junk: &str| {
+            let id = String::from(id);
             let str1 = format!("{} {}", id, junk);
             let res = line_parse(&str1);
             println!("res:  {:?}", res);
@@ -371,7 +373,7 @@ mod test {
 
         let (rest, matched) = res.unwrap();
 
-        let label = Box::new(Item::Label("hello"));
+        let label = Box::new(Item::Label("hello".to_string()));
         let arg = Box::new(Item::Expr(vec![Item::Number(4096)]));
         let desired = Item::Assignment(label, arg);
 
@@ -395,7 +397,7 @@ mod test {
 
             if res.is_ok() {
                 let (_, matched) = res.unwrap();
-                assert_ne!(matched, Item::Label(id));
+                assert_ne!(matched, Item::Label(id.to_string()));
             }
         }
     }

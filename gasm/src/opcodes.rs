@@ -85,6 +85,7 @@ impl OpCodes {
         let op = String::from(input).to_lowercase();
         self.name_to_ins.get(&op)
     }
+
     pub fn get_db(&self) -> &Dbase {
         &self.dbase
     }
@@ -161,7 +162,6 @@ fn parse_pre_dec_dec(input: &str) -> IResult<&str,Item> {
 }
 
 // Simple index
-
 fn parse_simple_indexed(input : &str) -> IResult<&str, Item> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
 

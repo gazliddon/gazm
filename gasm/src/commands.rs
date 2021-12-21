@@ -45,7 +45,6 @@ fn mk_fill<'a>(cv: ( Item<'a>, Item<'a>) ) -> Command<'a> {
 
 fn parse_bsz_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command<'a>> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-
     let two_args = separated_pair(parse_expr, sep, parse_expr);
     let one_arg = map(parse_expr, |x : Item| (x,Item::Number(0)));
 

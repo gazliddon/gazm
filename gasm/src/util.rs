@@ -119,7 +119,7 @@ fn get_label_identifier(input: &str) -> IResult<&str, &str> {
 
 fn get_label(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = get_label_identifier(input)?;
-    Ok((rest, Item::Label(matched)))
+    Ok((rest, Item::Label(matched.to_string())))
 }
 
 fn get_local_label(input: &str) -> IResult<&str, Item> {
@@ -130,7 +130,7 @@ fn get_local_label(input: &str) -> IResult<&str, Item> {
     let postfix_parse = recognize(pair( get_label_identifier, loc_tags));
 
     let (rest, matched) = alt((postfix_parse, prefix_parse))(input)?;
-    Ok((rest, Item::LocalLabel(matched)))
+    Ok((rest, Item::LocalLabel(matched.to_string())))
 }
 
 pub fn parse_label(input: &str) -> IResult<&str, Item> {
@@ -174,7 +174,7 @@ pub fn match_escaped_str(input: &str) -> IResult<&str, &str> {
 
 pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = match_escaped_str(input)?;
-    Ok((rest, Item::String(matched)))
+    Ok((rest, Item::String(matched.to_string())))
 }
 
 
@@ -195,57 +195,73 @@ mod test {
 
     #[test]
     fn test_parse_label() {
-        let res = parse_label("non_local");
-        assert_eq!(res, Ok(("", Item::Label("non_local"))));
+        let nl = "non_local".to_string();
+        let res = parse_label(&nl);
+        assert_eq!(res, Ok(("", Item::Label(nl.clone()))));
         let res = parse_label("adc");
-        assert_eq!(res, Ok(("", Item::Label("adc"))));
+        assert_eq!(res, Ok(("", Item::Label("adc".to_string()))));
+    }
+    fn mk_label(a : &str) -> Item {
+        Item::Label(a.to_string())
+    }
+    fn mk_loc_label(a : &str) -> Item {
+        Item::LocalLabel(a.to_string())
     }
 
     #[test]
     fn test_parse_local_label() {
-        let res = parse_label("@_local");
-        assert_eq!(res, Ok(("", Item::LocalLabel("@_local"))));
+        let lab_str = "@_local";
+        let res = parse_label(lab_str);
+        let des = mk_loc_label(lab_str);
+        assert_eq!(res, Ok(("", des)));
 
-        let res = parse_label("local@");
-        assert_eq!(res, Ok(("", Item::LocalLabel("local@"))));
 
-        let res = parse_label("local!");
-        assert_eq!(res, Ok(("", Item::LocalLabel("local!"))));
+        let lab_str = "local@";
+        let res = parse_label(lab_str);
+        let des = mk_loc_label(lab_str);
+        assert_eq!(res, Ok(("", des)));
 
-        let res = parse_label("!local_6502");
-        assert_eq!(res, Ok(("", Item::LocalLabel("!local_6502"))));
+        let lab_str = "local!";
+        let res = parse_label(lab_str);
+        let des = mk_loc_label(lab_str);
+        assert_eq!(res, Ok(("", des)));
+
+        let lab_str = "!local_6502";
+        let res = parse_label(lab_str);
+        let des = mk_loc_label(lab_str);
+        assert_eq!(res, Ok(("", des)));
     }
 
     #[test]
     fn test_label_no_opcodes() {
         let res = parse_label("NEG");
-        assert_ne!(res, Ok(("",  Item::Label("NEG") )) );
+        assert_ne!(res, Ok(("",  Item::Label("NEG".to_string()) )) );
         assert!(res.is_err());
 
         let res = parse_label("neg");
-        assert_ne!(res, Ok(("",  Item::Label("neg") )) );
+        assert_ne!(res, Ok(("",  Item::Label("neg".to_string()) )) );
         assert!(res.is_err());
 
         let res = parse_label("negative");
-        assert_eq!(res, Ok(("",  Item::Label("negative") )) );
+        assert_eq!(res, Ok(("",  Item::Label("negative".to_string()) )) );
     }
 
     #[test]
     fn test_label_no_commands() {
         let res = parse_label("fdb");
-        assert_ne!(res, Ok(("",  Item::Label("fdb") )) );
+        assert_ne!(res, Ok(("",  Item::Label("fdb".to_string()) )) );
         assert!(res.is_err());
 
         let res = parse_label("org");
-        assert_ne!(res, Ok(("",  Item::Label("org") )) );
+        assert_ne!(res, Ok(("",  Item::Label("org".to_string()) )) );
         assert!(res.is_err());
 
         let res = parse_label("!org");
-        assert_ne!(res, Ok(("",  Item::LocalLabel("org") )) );
+        assert_ne!(res, Ok(("",  Item::LocalLabel("org".to_string()) )) );
         assert!(res.is_err());
 
         let res = parse_label("equation");
-        assert_eq!(res, Ok(("",  Item::Label("equation") )) );
+        assert_eq!(res, Ok(("",  Item::Label("equation".to_string()) )) );
     }
 
     #[test]

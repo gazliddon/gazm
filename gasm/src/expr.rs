@@ -116,10 +116,10 @@ mod test {
     #[test]
     fn test_expr_item() {
         let res = expr_item("hello");
-        assert_eq!(res, Ok(("", Item::Label("hello"))));
+        assert_eq!(res, Ok(("", Item::Label("hello".to_string()))));
 
         let res = expr_item("!hello");
-        assert_eq!(res, Ok(("", Item::LocalLabel("!hello"))));
+        assert_eq!(res, Ok(("", Item::LocalLabel("!hello".to_string()))));
 
         let res = expr_item("0xffff");
         assert_eq!(res, Ok(("", Item::Number(65535))));
@@ -137,7 +137,7 @@ mod test {
     fn test_get_expr() {
 
         let desired =Item::Expr(vec![
-                           Item::Label("hello"), 
+                           Item::Label("hello".to_string()), 
                            Item::Op("+"),
                            Item::Number(4096),
         ]);
@@ -152,7 +152,7 @@ mod test {
         assert_eq!(res,Ok(("!!!!", desired.clone())));
 
         let desired =Item::Expr(vec![
-                           Item::LocalLabel("!hello"), 
+                           Item::LocalLabel("!hello".to_string()), 
                            Item::Op("+"),
                            Item::Number(4096),
         ]);
