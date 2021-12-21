@@ -174,7 +174,7 @@ pub fn match_escaped_str(input: &str) -> IResult<&str, &str> {
 
 pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = match_escaped_str(input)?;
-    Ok((rest, Item::String(matched.to_string())))
+    Ok((rest, Item::QuotedString(matched.to_string())))
 }
 
 

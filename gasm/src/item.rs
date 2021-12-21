@@ -20,16 +20,10 @@ pub enum Item {
     LocalLabel(String),
     Comment(String),
     Assignment(Box<Item>, Box<Item>),
-    String(String),
+    QuotedString(String),
     Op(String),
     OpenBracket,
     CloseBracket,
-    OpenSqBracket,
-    CloseSqBracket,
-    Comma,
-    Hash,
-    Plus,
-    PlusPlus,
     Number(i64),
     ArgList(Vec<Item>),
     OpCode(String),
@@ -53,12 +47,6 @@ pub enum Item {
     DoublePostIncrement(RegEnum),
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum OpCode<'a> {
-    NoArg(&'a str),
-    WithArg(&'a str),
-    RegisterList(&'a str, Vec<&'a str>)
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Location<'a> {
@@ -83,11 +71,14 @@ pub enum Command {
     Fill(Box<Item>,Box<Item>),
 }
 
-pub fn is_empty_comment<'a>(item : &'a Item) -> bool {
-    if let Item::Comment(com) = item {
-        com.is_empty()
-    } else {
-        false
+impl Item {
+    pub fn is_empty_comment(&self) -> bool {
+        if let Item::Comment(com) = &*self {
+            com.is_empty()
+        } else {
+            false
+        }
     }
 }
+
 

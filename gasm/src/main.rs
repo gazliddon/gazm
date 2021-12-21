@@ -34,7 +34,6 @@ use opcodes::{parse_opcode, opcode_token};
 use std::collections::HashSet;
 use std::fs;
 
-use crate::item::is_empty_comment;
 
 use util::{parse_arg, parse_label, parse_arg_list};
 
@@ -109,34 +108,33 @@ pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item>> {
             items.push(x.clone())
         }
     };
+
     use util::ws;
 
     for line in lines {
         let (input, comment) = strip_comments_and_ws(line)?;
-
         push_some(&comment);
 
         if input.is_empty() {
             continue;
         }
 
-        // Just a label
+        // Assignment
+        if let Ok((_,equate )) = all_consuming(ws(parse_equate))(input) {
+            push_some(&Some(equate));
+            continue;
+        }
+
         if let Ok((_,label)) = all_consuming(ws(parse_label))(input) {
             push_some(&Some(label));
             continue;
         }
 
-        // Assignment
-        if let Ok(( _,equate )) = all_consuming(ws(parse_equate))(input) {
-            push_some(&Some(equate));
-            continue;
-        }
+        let body = alt(( ws( parse_opcode ),ws( parse_command ) ));
 
-        let body =alt(( ws( parse_opcode ),ws( parse_command ) ));
+        let res = all_consuming( pair(opt(parse_label),body))(input);
 
-        let res = all_consuming(pair(opt(parse_label),body))(input);
-
-        if let Ok((_, (label,body)))= res {
+        if let Ok((_, (label,body))) = res {
             push_some(&label);
             push_some(&Some(body));
         } else {
@@ -148,7 +146,7 @@ pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item>> {
     // filter out empty comments
     let items = items
         .into_iter()
-        .filter(|c| !is_empty_comment(c))
+        .filter(|c| !c.is_empty_comment())
         .collect();
 
     Ok(("", items))
@@ -164,7 +162,7 @@ impl<'a> DocContext<'a> {
     pub fn parse(&'a mut self) -> IResult<&'a str,&Vec<Item>> {
 
         let (rest, matched) = parse(&self.lines)?;
-       self.tokens = matched.clone();
+        self.tokens = matched.clone();
         Ok((rest, &self.tokens))
     }
 
@@ -176,10 +174,10 @@ use clap::Parser;
 #[clap(about, version, author)]
 struct Context {
 #[clap(long)]
-   verbose: bool,
-#[clap(short, long)]
+    verbose: bool,
+    #[clap(short, long)]
     file : String,
-#[clap(short, long)]
+    #[clap(short, long)]
     out: Option<String>
 }
 
