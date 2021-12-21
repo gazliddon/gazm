@@ -33,7 +33,7 @@ pub enum Item<'a> {
     PlusPlus,
     Number(i64),
     ArgList(Vec<Item<'a>>),
-    OpCode(&'a str, Option<Box<Item<'a>>>),
+    OpCode(&'a str),
     OpCodeWithArg(&'a str, Box<Item<'a>>),
     Command(Command<'a>),
     Eof,

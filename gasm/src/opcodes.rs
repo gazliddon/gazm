@@ -219,12 +219,12 @@ fn opcode_with_arg(input: &str) -> IResult<&str, Item> {
                                  multispace1, parse_opcode_arg)(input)?;
     let arg = Box::new(arg);
 
-    Ok((rest, Item::OpCode(op, Some(arg))))
+    Ok((rest, Item::OpCodeWithArg(op, arg)))
 }
 
 fn opcode_no_arg(input: &str) -> IResult<&str, Item> {
     let (rest, text) = opcode_token(input)?;
-    Ok((rest, Item::OpCode(text, None)))
+    Ok((rest, Item::OpCode(text)))
 }
 
 pub fn parse_opcode(input: &str) -> IResult<&str, Item> {
@@ -245,7 +245,7 @@ mod test {
             Item::Number(100),
         ]);
 
-        let desired = Item::OpCode("lda", Some(Box::new(Item::Immediate(Box::new( des_arg )))));
+        let desired = Item::OpCodeWithArg("lda", Box::new(Item::Immediate(Box::new( des_arg ))));
         assert_eq!(res, Ok(("", desired)));
     }
 
@@ -335,7 +335,7 @@ mod test {
             Item::Number(256)
         ]);
 
-        let desired = Item::OpCode("lda", Some(Box::new(des_arg)));
+        let desired = Item::OpCodeWithArg("lda", Box::new(des_arg));
         assert_eq!(res, Ok(("", desired)));
 
         let res = opcode_with_arg("lda $100+256*10");
@@ -348,7 +348,7 @@ mod test {
             Item::Number(10),
         ]);
 
-        let desired = Item::OpCode("lda", Some(Box::new(des_arg)));
+        let desired = Item::OpCodeWithArg("lda", Box::new(des_arg));
         assert_eq!(res, Ok(("", desired)));
     }
 }
