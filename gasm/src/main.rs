@@ -282,23 +282,6 @@ mod test {
     }
 
     // #[test]
-    fn test_arg_list() {
-        let txt = "1020,hello,0xffff,!!!";
-        let (_rest, matched) = parse_arg_list(txt).unwrap();
-
-        let desired = vec![
-            Item::Number(1020),
-            Item::Label(String::from("hello")),
-            Item::Number(0xffff),
-            Item::NotSure("!!!".to_string()),
-        ];
-
-        let desired = Item::ArgList(desired);
-
-        assert_eq!(matched, desired);
-    }
-
-    // #[test]
     // fn test_op_code_2() {
     //     let check_op = |op: &str, arg: &str| {
     //         let input = format!("{} {}\n", op, arg);

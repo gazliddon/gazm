@@ -3,7 +3,6 @@ use crate::expr::parse_expr;
 use crate::register;
 use crate::register::get_reg;
 use crate::register::parse_reg;
-use crate::util::parse_not_sure;
 
 use super::item::Item;
 use super::util;
@@ -189,9 +188,8 @@ fn parse_indexed(input : &str) -> IResult<&str, Item> {
         parse_index_type
         )(input)?;
 
-    let zero_expr =Item::Expr(vec![Item::Number(0)]);
  
-    let expr = expr.unwrap_or(zero_expr);
+    let expr = expr.unwrap_or(Item::zero_expr());
 
     Ok((rest, Item::Indexed(
                 Box::new(expr),
@@ -217,7 +215,6 @@ fn parse_opcode_arg(input: &str) -> IResult<&str, Item> {
                 parse_dp,
                 parse_indexed,
                 expr::parse_expr,
-                util::parse_not_sure,
                ))(input)?;
 
     Ok((rest, matched))
@@ -281,16 +278,13 @@ mod test {
 
         let res = parse_indexed("0,X");
 
-        let des = Indexed(Box::new(
-                           Expr(
-                               vec![Number(0)])),
+        let des = Indexed(Box::new(Item::zero_expr()),
                                Box::new(Register(X)));
         assert_eq!(res, Ok(("", des)));
 
         let res = parse_indexed(",X");
         let des = Indexed(Box::new(
-                           Expr(
-                               vec![Number(0)])),
+                Item::zero_expr()),
                                Box::new(Register(X)));
         assert_eq!(res, Ok(("", des)));
     }

@@ -15,7 +15,6 @@ impl<'a> TextItem<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
-    NotSure(String),
     Label(String),
     LocalLabel(String),
     Comment(String),
@@ -78,6 +77,17 @@ impl Item {
         } else {
             false
         }
+    }
+    pub fn zero() -> Self {
+        Self::number(0)
+    }
+
+    pub fn zero_expr() -> Self {
+        Self::Expr(vec![Self::zero()])
+    }
+
+    pub fn number(n : i64) -> Self {
+        Item::Number(n)
     }
 }
 

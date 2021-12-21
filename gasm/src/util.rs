@@ -93,11 +93,6 @@ pub fn generic_arg(input: &str) -> IResult<&str, &str> {
     recognize(not(term))(input)
 }
 
-pub fn parse_not_sure(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = recognize(many1(anychar))(input)?;
-    Ok((rest, Item::NotSure(matched.to_string())))
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
 static LOCAL_LABEL_PREFIX: &str = "@!";
@@ -155,7 +150,7 @@ pub fn parse_arg_list(input: &str) -> IResult<&str, Item> {
 }
 
 pub fn parse_arg(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = alt((parse_escaped_str, parse_label, parse_not_sure))(input)?;
+    let (rest, matched) = alt((parse_escaped_str, parse_label))(input)?;
     Ok((rest, matched))
 }
 
@@ -261,12 +256,6 @@ mod test {
 
         let res = parse_label("equation");
         assert_eq!(res, Ok(("",  Item::Label("equation".to_string()) )) );
-    }
-
-    #[test]
-    fn test_not_sure() {
-        let res = parse_not_sure("#10");
-        assert_eq!(res, Ok(("",Item::NotSure("#10".to_string()) )) );
     }
 }
 
