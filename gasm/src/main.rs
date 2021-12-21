@@ -47,11 +47,11 @@ struct DocContext<'a> {
     master: &'a str,
     ranges: Vec<std::ops::Range<usize>>,
     lines: Vec<&'a str>,
-    tokens: Vec<Item<'a>>,
+    tokens: Vec<Item>,
 }
 
 impl<'a> DocContext<'a> {
-    pub fn token(&mut self, tok: Item<'a>) {
+    pub fn token(&mut self, tok: Item) {
         self.tokens.push(tok)
     }
 
@@ -98,13 +98,13 @@ impl<'a> DocContext<'a> {
     }
 }
 
-pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item<'a>>> {
+pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item>> {
 
     use commands::parse_command;
 
-    let mut items : Vec<Item<'a>> = vec![];
+    let mut items : Vec<Item> = vec![];
 
-    let mut push_some = |x : &Option<Item<'a>> | {
+    let mut push_some = |x : &Option<Item> | {
         if let Some(x) = x {
             items.push(x.clone())
         }
@@ -155,13 +155,13 @@ pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item<'a>>> {
 }
 
 impl<'a> DocContext<'a> {
-    pub fn push_some(&mut self, item : &Option<Item<'a>>) {
+    pub fn push_some(&mut self, item : &Option<Item>) {
         if let Some(item) = item {
             self.tokens.push(item.clone())
         }
     }
 
-    pub fn parse(&'a mut self) -> IResult<&'a str,&Vec<Item<'a>>> {
+    pub fn parse(&'a mut self) -> IResult<&'a str,&Vec<Item>> {
 
         let (rest, matched) = parse(&self.lines)?;
        self.tokens = matched.clone();
@@ -264,7 +264,7 @@ mod test {
 
     struct Line<'a> {
         label: Option<&'a String>,
-        opcode: Option<Item<'a>>,
+        opcode: Option<Item>,
     }
 
     use super::*;

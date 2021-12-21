@@ -14,12 +14,12 @@ impl<'a> TextItem<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Item<'a> {
+pub enum Item {
     NotSure(String),
     Label(String),
     LocalLabel(String),
-    Comment(&'a str),
-    Assignment(Box<Item<'a>>, Box<Item<'a>>),
+    Comment(String),
+    Assignment(Box<Item>, Box<Item>),
     String(String),
     Op(String),
     OpenBracket,
@@ -31,18 +31,18 @@ pub enum Item<'a> {
     Plus,
     PlusPlus,
     Number(i64),
-    ArgList(Vec<Item<'a>>),
+    ArgList(Vec<Item>),
     OpCode(String),
-    OpCodeWithArg(String, Box<Item<'a>>),
-    Command(Command<'a>),
+    OpCodeWithArg(String, Box<Item>),
+    Command(Command),
     Eof,
     Register(RegEnum),
     RegisterList(Vec<RegEnum>),
-    Expr(Vec<Item<'a>>),
-    Immediate(Box<Item<'a>>),
-    Indirect(Box<Item<'a>>),
-    DirectPage(Box<Item<'a>>),
-    IndexedSimple(Box<Item<'a>>, Box<Item<'a>>),
+    Expr(Vec<Item>),
+    Immediate(Box<Item>),
+    Indirect(Box<Item>),
+    DirectPage(Box<Item>),
+    IndexedSimple(Box<Item>, Box<Item>),
     PreDecrement(RegEnum),
     PreIncrement(RegEnum),
     DoublePreDecrement(RegEnum),
@@ -69,22 +69,22 @@ pub struct Location<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token<'a> {
-    item : Item<'a>,
+    item : Item,
     location: Location<'a>,
     children: Vec<Token<'a>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Command<'a> {
-    Include(&'a str),
-    Generic(&'a str, Option<&'a str>),
-    Org(Box<Item<'a>>),
-    Fdb(Vec<Item<'a>>),
-    Fill(Box<Item<'a>>,Box<Item<'a>>),
+pub enum Command {
+    Include(String),
+    Generic(String, Option<String>),
+    Org(Box<Item>),
+    Fdb(Vec<Item>),
+    Fill(Box<Item>,Box<Item>),
 }
 
-pub fn is_empty_comment<'a>(item : &'a Item<'a>) -> bool {
-    if let Item::Comment(com) = *item {
+pub fn is_empty_comment<'a>(item : &'a Item) -> bool {
+    if let Item::Comment(com) = item {
         com.is_empty()
     } else {
         false
