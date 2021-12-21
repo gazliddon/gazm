@@ -22,7 +22,7 @@ pub enum Item<'a> {
     Assignment(Box<Item<'a>>, Box<Item<'a>>),
     String(String),
     BinOp(&'a str, Box<Token<'a>>, Box<Token<'a>> ),
-    Op(&'a str),
+    Op(String),
     OpenBracket,
     CloseBracket,
     OpenSqBracket,

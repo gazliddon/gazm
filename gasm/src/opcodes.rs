@@ -256,7 +256,7 @@ mod test {
 
         let des_arg = Item::Expr(vec![
             Item::Number(256),
-            Item::Op("+"),
+            Item::Op("+".to_string()),
             Item::Number(10),
         ]);
 
@@ -342,9 +342,9 @@ mod test {
 
         let des_arg = Item::Expr(vec![
             Item::Number(256),
-            Item::Op("+"),
+            Item::Op("+".to_string()),
             Item::Number(256),
-            Item::Op("*"),
+            Item::Op("*".to_string()),
             Item::Number(10),
         ]);
 

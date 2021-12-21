@@ -57,7 +57,7 @@ pub fn parse_op(input: &str) -> IResult<&str, Item> {
 
     let (rest, matched)= alt((double_ops, single_ops))(input)?;
 
-    Ok((rest, Item::Op(matched)))
+    Ok((rest, Item::Op(matched.to_string())))
 }
 
 pub fn expr_item(input : &str) -> IResult<&str, Item> {
@@ -92,7 +92,7 @@ mod test {
     use pretty_assertions::{assert_eq, assert_ne};
 
     fn mk_res_op(input : &str) -> IResult<&str, Item> {
-        Ok(("", Item::Op(input)))
+        Ok(("", Item::Op(input.to_string())))
     }
 
     #[test]
@@ -138,7 +138,7 @@ mod test {
 
         let desired =Item::Expr(vec![
                            Item::Label("hello".to_string()), 
-                           Item::Op("+"),
+                           Item::Op("+".to_string()),
                            Item::Number(4096),
         ]);
 
@@ -153,7 +153,7 @@ mod test {
 
         let desired =Item::Expr(vec![
                            Item::LocalLabel("!hello".to_string()), 
-                           Item::Op("+"),
+                           Item::Op("+".to_string()),
                            Item::Number(4096),
         ]);
 
