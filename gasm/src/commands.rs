@@ -86,7 +86,7 @@ pub fn command_token(input: &str) -> IResult<&str, &str> {
     Ok((rest, matched))
 }
 
-pub fn parse_command<'a>(input: &'a str) -> IResult<&'a str,Item> {
+pub fn parse_command(input: &str) -> IResult<&str,Item> {
     let (rest, (command_text, func )) = command_token_function(input)?;
     let (rest, matched) = preceded(multispace1, |input| func(command_text, input))(rest)?;
     let i = Item::Command(matched);

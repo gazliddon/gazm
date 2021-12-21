@@ -177,7 +177,6 @@ pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::QuotedString(matched.to_string())))
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 mod test {

@@ -181,7 +181,9 @@ fn parse_simple_indexed(input : &str) -> IResult<&str, Item> {
                 parse_reg  ))
         )(input)?;
 
-    let expr = expr.unwrap_or(Item::Expr(vec![Item::Number(0)]));
+    let zero_expr =Item::Expr(vec![Item::Number(0)]);
+ 
+    let expr = expr.unwrap_or(zero_expr);
 
     Ok((rest, Item::IndexedSimple(
                 Box::new(expr),

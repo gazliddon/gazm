@@ -18,7 +18,7 @@ use nom::{
   InputTakeAtPosition, Slice, ToUsize,
 };
 
-pub fn parse_comment<'a>(input: &'a str) -> IResult<&'a str, Item> {
+pub fn parse_comment(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = preceded(many1(tag(COMMENT)), not_line_ending)(input)?;
     Ok((rest, Item::Comment(matched.to_string())))
 }

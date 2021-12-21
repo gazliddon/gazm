@@ -160,9 +160,8 @@ impl<'a> DocContext<'a> {
     }
 
     pub fn parse(&'a mut self) -> IResult<&'a str,&Vec<Item>> {
-
         let (rest, matched) = parse(&self.lines)?;
-        self.tokens = matched.clone();
+        self.tokens = matched;
         Ok((rest, &self.tokens))
     }
 
