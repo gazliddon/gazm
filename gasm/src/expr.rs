@@ -1,18 +1,13 @@
 // Parse expressions
 //
 use nom::IResult;
-use crate::{ opcode_token, command_token };
-use super::numbers;
 use super::item::Item;
-use nom::error::{Error, ParseError};
-    use nom::error::ErrorKind::NoneOf;
-use nom::character::complete::{
-    alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
-    not_line_ending, one_of, satisfy, space1,
-};
+use nom::error::Error;
+use nom::error::ErrorKind::NoneOf;
+use nom::character::complete::{multispace0, char as nom_char };
 
 use nom::bytes::complete::{
-    escaped, is_a, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
+    is_a, tag, 
 };
 
 use nom::sequence::terminated;
@@ -89,9 +84,10 @@ pub fn parse_expr(input: &str) -> IResult<&str, Item> {
     }
 }
 
+#[allow(unused_imports)]
 mod test {
     use super::*;
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     fn mk_res_op(input : &str) -> IResult<&str, Item> {
         Ok(("", Item::Op(input.to_string())))

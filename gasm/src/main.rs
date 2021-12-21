@@ -11,33 +11,25 @@ mod opcodes;
 mod register;
 mod labels;
 
-
 use labels::parse_label;
+
 use commands::command_token;
-use comments::{strip_comments, strip_comments_and_ws};
+use comments::strip_comments_and_ws;
 use item::{Item, TextItem};
 
 use nom::branch::alt;
-use nom::bytes::complete::{
-    escaped, is_a, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
-};
+use nom::bytes::complete::tag_no_case;
+
 use nom::character::complete::{
-    alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
-    not_line_ending, one_of, satisfy, space1,
+    line_ending, multispace0, multispace1
 };
 use nom::character::{is_alphabetic, is_space};
-use nom::combinator::{cut, eof, map_res, opt, recognize, value, not, all_consuming};
-use nom::error::{ContextError, Error, ParseError};
-use nom::multi::{many0, many0_count, many1, separated_list0};
-use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
+use nom::combinator::{eof, opt, all_consuming};
+use nom::sequence::{pair, tuple};
 use nom::IResult;
 
-use lazy_static::lazy_static;
 use opcodes::{parse_opcode, opcode_token};
-use std::collections::HashSet;
 use std::fs;
-
-
 
 pub fn get_offset(master: &str, text: &str) -> usize {
     text.as_ptr() as usize - master.as_ptr() as usize
@@ -257,6 +249,7 @@ fn is_char_end_line(chr: char) -> bool {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
+#[allow(unused_imports)]
 mod test {
     use pretty_assertions::{assert_eq, assert_ne};
 

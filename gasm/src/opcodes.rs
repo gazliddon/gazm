@@ -6,30 +6,23 @@ use crate::register::parse_reg;
 
 use super::item::Item;
 use super::util;
-use super::numbers;
-use emu::cpu::RegEnum;
-use nom::bytes::complete::tag_no_case;
-use nom::character::complete::{ digit0, digit1 };
+use nom::character::complete::digit0;
 use romloader::{Dbase, Instruction};
 
 use nom::branch::alt;
 use nom::IResult;
 // use std::ascii::AsciiExt;
-use std::collections::{HashMap, HashSet};
-use std::num::IntErrorKind;
+use std::collections::HashMap;
 use nom::error::ErrorKind::NoneOf;
-use nom::error::{Error, ParseError};
+use nom::error::Error;
 
 use nom::character::complete::{
-    alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
-    not_line_ending, one_of, satisfy, space1,
+    alpha1, multispace0, multispace1
 };
 
 use nom::bytes::complete::tag;
-use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
-use nom::multi::{ many1, separated_list1,separated_list0,  };
+use nom::sequence::{ pair, preceded, separated_pair, terminated, tuple};
 use nom::combinator::{ recognize, opt };
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // opcode parsing
@@ -239,6 +232,7 @@ pub fn parse_opcode(input: &str) -> IResult<&str, Item> {
     Ok((rest, item))
 }
 
+#[allow(unused_imports)]
 mod test {
 
     use pretty_assertions::{assert_eq, assert_ne};

@@ -1,10 +1,8 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::one_of;
-use nom::combinator::map_res;
 use nom::combinator::{ recognize, opt,  };
 use nom::multi::{many0, many1};
-use nom::number::complete::i64;
 use nom::sequence::{preceded, terminated, pair};
 use nom::IResult;
 
@@ -64,6 +62,7 @@ pub fn number_token(input: &str) -> IResult<&str, (i64, &str)> {
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 
+#[allow(unused_imports)]
 mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};

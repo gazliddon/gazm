@@ -1,17 +1,15 @@
 use crate::Item;
 use crate::{ command_token, opcode_token };
 use nom::IResult;
-use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
-use nom::combinator::{cut, eof, map_res, opt, recognize, value, not, all_consuming};
+use nom::sequence::pair;
+use nom::combinator::{ recognize, not};
 
 use nom::character::complete::{
-    alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
-    not_line_ending, one_of, satisfy, space1,
+    alpha1, alphanumeric1, 
 };
-use nom::multi::{many0, many0_count, many1, separated_list0};
-use nom::bytes::complete::{
-    escaped, is_a, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
-};
+
+use nom::multi::many0 ;
+use nom::bytes::complete::is_a;
 use nom::branch::alt;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -53,6 +51,7 @@ pub fn parse_label(input: &str) -> IResult<&str, Item> {
     alt((get_local_label, get_label))(input)
 }
 
+#[allow(unused_imports)]
 mod test {
     use crate::commands::parse_command;
 

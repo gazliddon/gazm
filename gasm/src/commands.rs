@@ -1,14 +1,26 @@
 use lazy_static::lazy_static;
-use std::{collections::{HashMap, HashSet}, os::unix::prelude::CommandExt};
+use std::collections::HashMap;
 
 use super::{ expr, util };
 
 type CommandParseFn = for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command>;
 type PairParseFn = for <'x> fn( &'x str)-> IResult<&'x str, (Item, Item)>;
 
-use crate::{item::{Item, Command}, parse, util::match_escaped_str};
+use crate::{
+    item::{Item, Command},
+    util::match_escaped_str
+};
 
-use nom::{IResult, Parser, branch::alt, bytes::complete::tag, character::complete::{anychar, multispace0,multispace1, alpha1}, combinator::{opt,cut, recognize, map_res, map}, error::{Error, ErrorKind::NoneOf, }, multi::{separated_list1, many1 }, sequence::{ pair, separated_pair, preceded, tuple, }};
+use nom::{
+    IResult, 
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{anychar, multispace0,multispace1, alpha1},
+    combinator::{recognize, map},
+    error::ErrorKind::NoneOf,
+    multi::many1,
+    sequence::{ separated_pair, preceded, tuple, }
+};
 
 use expr::parse_expr;
 
@@ -69,7 +81,7 @@ lazy_static! {
 }
 
 fn command_token_function(input: &str) -> IResult<&str,(&str, CommandParseFn )> {
-    use nom::error::{Error, ParseError};
+    use nom::error::Error;
 
     let (rest, matched) = alpha1(input)?;
     let token = String::from(matched).to_lowercase();
@@ -93,6 +105,7 @@ pub fn parse_command(input: &str) -> IResult<&str,Item> {
     Ok((rest, i))
 }
 
+#[allow(unused_imports)]
 mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};

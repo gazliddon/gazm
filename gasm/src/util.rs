@@ -2,24 +2,23 @@ use crate::item::Item;
 use crate::numbers;
 
 use nom::IResult;
-use nom::branch::alt;
-use std::collections::HashSet;
-use nom::error::{Error, ParseError};
+use nom::error::ParseError;
 use nom::bytes::complete::{
-    escaped, is_a, tag, tag_no_case, take_until, take_until1, take_while, take_while1,
+    escaped,
+    tag,
+    take_while,
 };
 
 use nom::character::complete::{
-    alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
-    not_line_ending, one_of, satisfy, space1,
+    char as nom_char, multispace0,
+    one_of, 
 };
-use nom::multi::{many0, many0_count, many1, separated_list1,separated_list0};
-use nom::sequence::{ delimited, terminated,preceded, tuple, pair };
-use nom::combinator::{ cut, eof, not, recognize };
+use nom::multi::separated_list1;
+use nom::sequence::{ terminated,preceded, tuple, };
 
-use crate::{ opcode_token, command_token };
+use nom::combinator::cut;
+
 pub static LIST_SEP: & str = ",";
-
 
 pub fn ws<'a, F, O, E>( mut inner: F,) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
@@ -81,9 +80,6 @@ pub fn parse_number(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::Number(num)))
 }
 
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 // Escaped string
 
@@ -104,8 +100,8 @@ pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
+#[allow(unused_imports)]
 mod test {
-    use crate::commands::parse_command;
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};

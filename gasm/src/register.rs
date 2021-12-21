@@ -4,12 +4,9 @@ use super::item::Item;
 use nom::branch::alt;
 use nom::IResult;
 use nom::bytes::complete::tag_no_case;
-use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
-use nom::multi::{ many1, separated_list1,separated_list0,  };
-use nom::character::complete::{
-    alpha1, alphanumeric1, anychar, char as nom_char, line_ending, multispace0, multispace1,
-    not_line_ending, one_of, satisfy, space1,
-};
+use nom::sequence::{separated_pair, tuple};
+use nom::multi::separated_list1;
+use nom::character::complete::multispace0;
 
 use nom::bytes::complete::tag;
 
@@ -79,6 +76,7 @@ fn parse_reg_set(_input: &str) -> IResult<&str, Item> {
     todo!()
 }
 
+#[allow(unused_imports)]
 mod test {
 
     use pretty_assertions::{assert_eq, assert_ne};

@@ -1,22 +1,16 @@
 use crate::item::Item;
-use nom::character::complete::{anychar, multispace0, not_line_ending, satisfy};
-use nom::multi::{many0, many0_count, many1, separated_list0};
+use nom::character::complete::{anychar, multispace0, not_line_ending};
+use nom::multi::{many0, many1, };
 use nom::IResult;
 
-use nom::bytes::complete::{
-    escaped, is_a, take_until, take_until1, take_while, take_while1,
-};
-use nom::combinator::{cut, eof, map_res, opt, recognize, value};
+use nom::bytes::complete::take_until ;
 
-use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
-    use nom::bytes::complete::tag;
+use nom::combinator::recognize;
+
+use nom::sequence::{preceded, tuple};
+use nom::bytes::complete::tag;
 
 pub static COMMENT: & str = ";";
-
-use nom::{
-  Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake,
-  InputTakeAtPosition, Slice, ToUsize,
-};
 
 pub fn parse_comment(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = preceded(many1(tag(COMMENT)), not_line_ending)(input)?;
@@ -48,9 +42,10 @@ pub fn strip_comments_and_ws(input: &str) -> IResult<&str,Option<Item>> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // tests
+#[allow(unused_imports)]
 mod test {
     use super::*;
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn comments() {
