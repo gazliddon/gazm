@@ -44,8 +44,6 @@ struct Ctx
 impl Ctx {
 }
 
-
-
 pub fn get_offset(master: &str, text: &str) -> usize {
     text.as_ptr() as usize - master.as_ptr() as usize
 }

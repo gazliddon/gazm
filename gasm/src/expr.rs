@@ -85,24 +85,9 @@ pub fn parse_expr(input: &str) -> IResult<&str, Item> {
         Ok((input, Item::Expr(items)))
     }
 }
+
 use super::item::NodeResult;
 use super::item::Node;
-
-pub fn parse_expr_2(input: &str) -> NodeResult{
-    let mut items  = vec![];
-    let mut input = input;
-
-    while let Ok((rest, matched)) = terminated(expr_item, multispace0)(input) {
-        items.push(Box::new(matched.into()));
-        input = rest;
-    }
-
-    if items.is_empty() {
-        Err(nom::Err::Error(Error::new(input, NoneOf)))
-    } else {
-        Ok((input, Node::new(Item::Expr2, items)))
-    }
-}
 
 #[allow(unused_imports)]
 mod test {
