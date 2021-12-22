@@ -42,7 +42,6 @@ struct Ctx
 }
 
 impl Ctx {
-
 }
 
 
@@ -128,7 +127,7 @@ pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Item>> {
             continue;
         }
 
-        if let Ok((_,equate )) = all_consuming(ws(parse_equate))(input) {
+        if let Ok((_,equate )) = all_consuming(ws(parse_assignment))(input) {
             push_some(&Some(equate));
             continue;
         }
@@ -236,7 +235,7 @@ fn main() {
 }
 
 
-pub fn parse_equate(input: &str) -> IResult<&str, Item> {
+pub fn parse_assignment(input: &str) -> IResult<&str, Item> {
     let (rest, (label, _, _, _, arg)) = tuple((
             parse_label,
             multispace1,
@@ -247,43 +246,6 @@ pub fn parse_equate(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::Assignment(Box::new(label), Box::new(arg))))
 
 }
-
-pub fn parse_eof(input: &str) -> IResult<&str, Item> {
-    let (rest, _) = eof(input)?;
-    Ok((rest, Item::Eof))
-}
-
-pub fn parse_operand(_input: &str) -> IResult<&str, &str> {
-    let _special = "[],+#";
-    todo!()
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Number
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Misc
-
-pub fn line_ending_or_eof(input: &str) -> IResult<&str, &str> {
-    alt((eof, line_ending))(input)
-}
-
-fn is_char_space(chr: char) -> bool {
-    is_space(chr as u8)
-}
-fn is_char_alphabetic(chr: char) -> bool {
-    is_alphabetic(chr as u8)
-}
-
-fn is_char_end_line(chr: char) -> bool {
-    chr == '\n' || chr == '\r'
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Args
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
@@ -340,7 +302,7 @@ mod test {
     #[test]
     fn test_assignment() {
         let input = "hello equ $1000";
-        let res = parse_equate(input);
+        let res = parse_assignment(input);
         assert!(res.is_ok());
 
         let (rest, matched) = res.unwrap();

@@ -1,6 +1,11 @@
 use std::path::PathBuf;
 
 use emu::cpu::RegEnum;
+use nom::IResult;
+
+use crate::fileloader::FileLoader;
+
+pub type NodeResult<'a> = IResult<&'a str, Node>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextItem<'a> {
@@ -17,27 +22,28 @@ impl<'a> TextItem<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
+    Assignment(Box<Item>, Box<Item>),
+    OpCodeWithArg(String, Box<Item>),
+    Indexed(Box<Item>, Box<Item>),
+    Immediate(Box<Item>),
+    Indirect(Box<Item>),
+    DirectPage(Box<Item>),
+    Expr(Vec<Item>),
+    Expr2,
+
+    RegisterList(Vec<RegEnum>),
     Label(String),
     LocalLabel(String),
     Comment(String),
-    Assignment(Box<Item>, Box<Item>),
     QuotedString(String),
     Op(String),
     OpenBracket,
     CloseBracket,
     Number(i64),
-    ArgList(Vec<Item>),
     OpCode(String),
-    OpCodeWithArg(String, Box<Item>),
     Command(Command),
     Eof,
     Register(RegEnum),
-    RegisterList(Vec<RegEnum>),
-    Expr(Vec<Item>),
-    Immediate(Box<Item>),
-    Indirect(Box<Item>),
-    DirectPage(Box<Item>),
-    Indexed(Box<Item>, Box<Item>),
     PreDecrement(RegEnum),
     PreIncrement(RegEnum),
     DoublePreDecrement(RegEnum),
@@ -48,21 +54,6 @@ pub enum Item {
     DoublePostIncrement(RegEnum),
 }
 
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Location<'a> {
-    line : usize,
-    column : usize,
-    text : &'a str,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Token<'a> {
-    item : Item,
-    location: Location<'a>,
-    children: Vec<Token<'a>>,
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Command {
     Include(PathBuf),
@@ -71,6 +62,24 @@ pub enum Command {
     Fdb(Vec<Item>),
     Fill(Box<Item>,Box<Item>),
     Zmb(Box<Item>)
+}
+
+pub struct Node {
+    item: Item,
+    children: Vec<Box<Node>>
+}
+
+impl Node {
+    pub fn new(item : Item, children: Vec<Box<Node>>) -> Self {
+        Self {item, children}
+    }
+
+}
+
+impl From<Item> for Node {
+    fn from(item : Item) -> Node {
+        Node::new(item, vec![])
+    }
 }
 
 impl Item {
@@ -91,6 +100,33 @@ impl Item {
 
     pub fn number(n : i64) -> Self {
         Item::Number(n)
+    }
+}
+
+
+pub struct Parser {
+    text : String,
+    offset: usize,
+}
+
+fn get_offset(master: &str, text: &str) -> usize {
+    text.as_ptr() as usize - master.as_ptr() as usize
+}
+
+impl Parser {
+    pub fn parse<'a, P, E>(&'a mut self, mut p : P) -> IResult<&'a str, Item, E>
+        where 
+        P: nom::Parser<&'a str, Item, E>,
+        E: nom::error::ParseError<&'a str>,
+    {
+            let input = &self.text[self.offset..];
+
+            let (rest, matched) = p.parse(input)?;
+
+            let offset = get_offset(input,rest);
+            self.offset = offset;
+
+            Ok((rest,  matched ))
     }
 }
 

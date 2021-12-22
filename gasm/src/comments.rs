@@ -13,8 +13,7 @@ use nom::bytes::complete::tag;
 pub static COMMENT: & str = ";";
 
 pub fn get_comment(input: &str) -> IResult<&str, &str> {
-    let (rest, matched) = recognize(pair(many1(tag(COMMENT)), not_line_ending))(input)?;
-    Ok((rest, matched))
+    recognize(pair(many1(tag(COMMENT)), not_line_ending))(input)
 }
 
 pub fn parse_comment(input: &str) -> IResult<&str, Item> {
@@ -23,7 +22,7 @@ pub fn parse_comment(input: &str) -> IResult<&str, Item> {
 }
 
 // Strips comments and preceding white space
-pub fn strip_comments(input: &str) -> IResult<&str, Option<Item>> {
+fn strip_comments(input: &str) -> IResult<&str, Option<Item>> {
     let not_comment = take_until(COMMENT);
 
     let res = tuple((not_comment, parse_comment))(input);
@@ -35,7 +34,7 @@ pub fn strip_comments(input: &str) -> IResult<&str, Option<Item>> {
     }
 }
 
-pub fn parse_any_thing(input: &str) -> IResult<&str, &str> {
+fn parse_any_thing(input: &str) -> IResult<&str, &str> {
     recognize(many0(anychar))(input)
 }
 

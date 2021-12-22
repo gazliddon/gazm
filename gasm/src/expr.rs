@@ -58,9 +58,11 @@ pub fn parse_op(input: &str) -> IResult<&str, Item> {
 }
 
 pub fn expr_item(input : &str) -> IResult<&str, Item> {
+    use util::parse_number;
+
     let (rest, matched) = alt(
         ( parse_label,
-          util::parse_number,
+          parse_number,
           parse_bracket,
           parse_op)
         )(input)?;
@@ -73,14 +75,32 @@ pub fn parse_expr(input: &str) -> IResult<&str, Item> {
     let mut input = input;
 
     while let Ok((rest, matched)) = terminated(expr_item, multispace0)(input) {
-            items.push(matched);
-            input = rest;
+        items.push(matched);
+        input = rest;
     }
 
     if items.is_empty() {
         Err(nom::Err::Error(Error::new(input, NoneOf)))
     } else {
         Ok((input, Item::Expr(items)))
+    }
+}
+use super::item::NodeResult;
+use super::item::Node;
+
+pub fn parse_expr_2(input: &str) -> NodeResult{
+    let mut items  = vec![];
+    let mut input = input;
+
+    while let Ok((rest, matched)) = terminated(expr_item, multispace0)(input) {
+        items.push(Box::new(matched.into()));
+        input = rest;
+    }
+
+    if items.is_empty() {
+        Err(nom::Err::Error(Error::new(input, NoneOf)))
+    } else {
+        Ok((input, Node::new(Item::Expr2, items)))
     }
 }
 

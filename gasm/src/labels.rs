@@ -17,7 +17,7 @@ use nom::branch::alt;
 static LOCAL_LABEL_PREFIX: &str = "@!";
 static OK_LABEL_CHARS: &str = "_?.";
 
-fn get_label_identifier(input: &str) -> IResult<&str, &str> {
+fn get_just_label(input: &str) -> IResult<&str, &str> {
     // match a label identifier
     let (rest,matched) = recognize(pair(
             alt((alpha1, is_a(OK_LABEL_CHARS))),
@@ -31,24 +31,61 @@ fn get_label_identifier(input: &str) -> IResult<&str, &str> {
     Ok((rest, matched))
 }
 
-fn get_label(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = get_label_identifier(input)?;
+fn get_local_label(input: &str) -> IResult<&str, &str> {
+    let loc_tags = is_a(LOCAL_LABEL_PREFIX);
+    let prefix_parse = recognize(pair(loc_tags, get_just_label));
+
+    let loc_tags = is_a(LOCAL_LABEL_PREFIX);
+    let postfix_parse = recognize(pair( get_just_label, loc_tags));
+    alt((postfix_parse, prefix_parse))(input)
+}
+
+fn parse_just_label(input: &str) -> IResult<&str, Item> {
+    let (rest, matched) = get_just_label(input)?;
     Ok((rest, Item::Label(matched.to_string())))
 }
 
-fn get_local_label(input: &str) -> IResult<&str, Item> {
-    let loc_tags = is_a(LOCAL_LABEL_PREFIX);
-    let prefix_parse = recognize(pair(loc_tags, get_label_identifier));
-
-    let loc_tags = is_a(LOCAL_LABEL_PREFIX);
-    let postfix_parse = recognize(pair( get_label_identifier, loc_tags));
-
-    let (rest, matched) = alt((postfix_parse, prefix_parse))(input)?;
+fn parse_local_label(input: &str) -> IResult<&str, Item> {
+    let (rest, matched) = get_local_label(input)?;
     Ok((rest, Item::LocalLabel(matched.to_string())))
 }
 
 pub fn parse_label(input: &str) -> IResult<&str, Item> {
-    alt((get_local_label, get_label))(input)
+    alt((parse_local_label, parse_just_label))(input)
+}
+
+type PResult<T> = std::result::Result<T, ParseError>;
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParseError {
+    msg : String
+}
+
+impl std::error::Error for ParseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        panic!()
+    }
+    fn description(&self) -> &str { &self.msg }
+    fn cause(&self) -> Option<&dyn std::error::Error> { panic!() }
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> { todo!() }
+}
+
+impl From<nom::Err<nom::error::Error<&str>>> for ParseError {
+    fn from(e : nom::Err<nom::error::Error<&str>>) -> Self {
+        Self {
+            msg : e.to_string()
+        }
+    }
+}
+
+impl super::item::Parser {
+    pub fn label(&mut self) -> IResult<&str, Item> {
+        let (rest, matched) = self.parse(parse_label)?;
+        Ok((rest,matched))
+    }
 }
 
 #[allow(unused_imports)]
