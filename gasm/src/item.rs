@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use emu::cpu::RegEnum;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -63,11 +65,12 @@ pub struct Token<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Command {
-    Include(String),
+    Include(PathBuf),
     Generic(String, Option<String>),
     Org(Box<Item>),
     Fdb(Vec<Item>),
     Fill(Box<Item>,Box<Item>),
+    Zmb(Box<Item>)
 }
 
 impl Item {

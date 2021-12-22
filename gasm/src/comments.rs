@@ -7,13 +7,18 @@ use nom::bytes::complete::take_until ;
 
 use nom::combinator::recognize;
 
-use nom::sequence::{preceded, tuple};
+use nom::sequence::{preceded, tuple, pair};
 use nom::bytes::complete::tag;
 
 pub static COMMENT: & str = ";";
 
+pub fn get_comment(input: &str) -> IResult<&str, &str> {
+    let (rest, matched) = recognize(pair(many1(tag(COMMENT)), not_line_ending))(input)?;
+    Ok((rest, matched))
+}
+
 pub fn parse_comment(input: &str) -> IResult<&str, Item> {
-    let (rest, matched) = preceded(many1(tag(COMMENT)), not_line_ending)(input)?;
+    let (rest, matched) = get_comment(input)?;
     Ok((rest, Item::Comment(matched.to_string())))
 }
 
@@ -49,8 +54,8 @@ mod test {
 
     #[test]
     fn comments() {
-        let com_text = " sdkjkdsjkdsj   ".to_string();
-        let input = format!(";{}\n", com_text);
+        let com_text = "; sdkjkdsjkdsj   ".to_string();
+        let input = format!("{}\n", com_text);
 
         println!("Input: {}", input);
         let (rest, matched) = parse_comment(&input).unwrap();
@@ -71,10 +76,10 @@ mod test {
 
     #[test]
     fn test_strip_comments_3() {
-        let comment = "lda kskjkja".to_string();
+        let comment = ";lda kskjkja".to_string();
         let spaces = "   ";
         let pre_amble = "skljk  kds lk ";
-        let line = &format!("{}{};{}", spaces, pre_amble, comment);
+        let line = &format!("{}{}{}", spaces, pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments_and_ws).unwrap();
         assert_eq!(rest, pre_amble);
         assert_eq!(com, Some(Item::Comment(comment)));
@@ -82,16 +87,16 @@ mod test {
 
     #[test]
     fn test_strip_comments_2() {
-        let comment = "lda kskjkja".to_string();
+        let comment = "; lda kskjkja".to_string();
         let pre_amble = " skljk  kds lk ";
-        let line = &format!("{};{}", pre_amble, comment);
+        let line = &format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments).unwrap();
         assert_eq!(rest, pre_amble);
         assert_eq!(com, Some(Item::Comment(comment)));
 
-        let comment = "lda kskjkja".to_string();
+        let comment = ";;;; lda kskjkja".to_string();
         let pre_amble = "skljk  kds lk ";
-        let line = &format!("{};{}", pre_amble, comment);
+        let line = &format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments_and_ws).unwrap();
         assert_eq!(rest, pre_amble);
         assert_eq!(com, Some(Item::Comment(comment)));
@@ -99,16 +104,16 @@ mod test {
 
     #[test]
     fn test_strip_comments() {
-        let comment = "kljlkaslksa".to_string();
+        let comment = ";;; kljlkaslksa".to_string();
         let pre_amble = "    ";
-        let line = &format!("{};{}", pre_amble, comment);
+        let line = &format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments).unwrap();
         assert_eq!(rest, pre_amble);
         assert_eq!(com, Some(Item::Comment(comment)));
 
-        let comment = "".to_string();
+        let comment = ";".to_string();
         let pre_amble = "    ";
-        let line = &format!("{};{}", pre_amble, comment);
+        let line = &format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments).unwrap();
         assert_eq!(rest, pre_amble);
         assert_eq!(com, Some(Item::Comment(comment)));

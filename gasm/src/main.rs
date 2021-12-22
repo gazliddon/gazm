@@ -10,12 +10,13 @@ mod util;
 mod opcodes;
 mod register;
 mod labels;
+mod fileloader;
 
 use labels::parse_label;
 
 use commands::command_token;
 use comments::strip_comments_and_ws;
-use item::{Item, TextItem};
+use item::{Item, TextItem, Command};
 
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
@@ -29,7 +30,22 @@ use nom::sequence::{pair, tuple};
 use nom::IResult;
 
 use opcodes::{parse_opcode, opcode_token};
+use std::collections::HashMap;
 use std::fs;
+
+use std::hash::Hash;
+use std::path::{Path, PathBuf,};
+
+struct Ctx
+{
+
+}
+
+impl Ctx {
+
+}
+
+
 
 pub fn get_offset(master: &str, text: &str) -> usize {
     text.as_ptr() as usize - master.as_ptr() as usize
@@ -90,7 +106,7 @@ impl<'a> DocContext<'a> {
     }
 }
 
-pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item>> {
+pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Item>> {
 
     use commands::parse_command;
 
@@ -104,7 +120,7 @@ pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item>> {
 
     use util::ws;
 
-    for line in lines {
+    for line in source.lines() {
         let (input, comment) = strip_comments_and_ws(line)?;
         push_some(&comment);
 
@@ -112,7 +128,6 @@ pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item>> {
             continue;
         }
 
-        // Assignment
         if let Ok((_,equate )) = all_consuming(ws(parse_equate))(input) {
             push_some(&Some(equate));
             continue;
@@ -145,20 +160,6 @@ pub fn parse<'a>(lines : &'a [ &'a str ]) -> IResult<&'a str, Vec<Item>> {
     Ok(("", items))
 }
 
-impl<'a> DocContext<'a> {
-    pub fn push_some(&mut self, item : &Option<Item>) {
-        if let Some(item) = item {
-            self.tokens.push(item.clone())
-        }
-    }
-
-    pub fn parse(&'a mut self) -> IResult<&'a str,&Vec<Item>> {
-        let (rest, matched) = parse(&self.lines)?;
-        self.tokens = matched;
-        Ok((rest, &self.tokens))
-    }
-
-}
 
 use clap::Parser;
 
@@ -168,32 +169,69 @@ struct Context {
 #[clap(long)]
     verbose: bool,
     #[clap(short, long)]
-    file : String,
+    file : PathBuf,
     #[clap(short, long)]
     out: Option<String>
 }
 
-fn assemble( ctx : &Context ) -> Result<(), Box<dyn std::error::Error>> {
-    let source = fs::read_to_string(&ctx.file)?;
-
-    let mut dc = DocContext::new(&source);
-    let (_rest, _matched) = dc.parse().unwrap();
-
-    for t in _matched {
-        println!("{:?}", t)
-    }
-
-    Ok(())
+struct SourceFile {
+    name : PathBuf,
+    tokens: Vec<Item>,
+    children: HashMap<PathBuf, SourceFile>
 }
 
+impl SourceFile {
+    pub fn from_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P) -> Result<Self, Box<dyn std::error::Error>> {
+        let file_name = file_name.as_ref().to_path_buf();
+
+        let mut children = HashMap::new();
+
+        println!("Compiling {}", file_name.to_str().unwrap());
+
+        let source = fl.read_to_string(&file_name)?;
+
+        let (_rest, matched) = parse(&source).unwrap();
+
+        for tok in &matched {
+            if let Item::Command(Command::Include(file)) = tok {
+                let inc_source = Self::from_file(fl, file)?;
+                children.insert(file.clone(), inc_source);
+            }
+        }
+
+        let ret = SourceFile {
+            name : file_name,
+            tokens: matched,
+            children 
+        };
+
+        Ok(ret)
+    }
+}
+
+fn assemble( ctx : &Context ) -> Result<SourceFile, Box<dyn std::error::Error>> {
+    use fileloader::FileLoader;
+
+    let file = ctx.file.clone();
+
+    let mut paths = vec![];
+
+    if let Some(dir) = file.parent() {
+        paths.push(dir);
+        println!("Dir is {:?}", dir);
+    }
+
+    let fl = FileLoader::from_search_paths(&paths);
+    SourceFile::from_file(&fl, file)
+}
 
 fn main() {
     let ctx = Context::parse();
     let res = assemble(&ctx);
 
     match res {
-        Ok(()) => {println!("Compiled!")},
-        Err(e) => {println!("Error: {} {}", ctx.file, e)}
+        Ok(_) => {println!("Compiled!")},
+        Err(e) => {println!("Error: {:?} {}", ctx.file, e)}
     }
 }
 

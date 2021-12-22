@@ -13,12 +13,14 @@ pub fn parse_hex(input: &str) -> IResult<&str, (i64, &str)> {
     let valid_chars = "0123456789abcdefABCDEF";
     let conv = |matched| i64::from_str_radix(&str::replace(matched, "_", ""), 16).unwrap();
 
-    let (rest, matched) = preceded(
+    let (rest, (id, matched )) = pair(
         alt(num_tags),
         recognize(many1(terminated(one_of(valid_chars), many0(nom_char('_'))))),
     )(input)?;
 
-    Ok((rest, (conv(matched) as i64, matched)))
+    let matched_str = &input[..id.len() + matched.len()];
+
+    Ok((rest, (conv(matched) as i64, matched_str)))
 }
 
 fn parse_binary(input: &str) -> IResult<&str, (i64, &str)> {
@@ -26,12 +28,13 @@ fn parse_binary(input: &str) -> IResult<&str, (i64, &str)> {
     let valid_chars = "01";
     let conv = |matched| i64::from_str_radix(&str::replace(matched, "_", ""), 2).unwrap();
 
-    let (rest, matched) = preceded(
+    let (rest, (id, matched )) = pair(
         alt(num_tags),
         recognize(many1(terminated(one_of(valid_chars), many0(nom_char('_'))))),
     )(input)?;
+    let matched_str = &input[..id.len() + matched.len()];
 
-    Ok((rest, (conv(matched), matched)))
+    Ok((rest, (conv(matched), matched_str)))
 }
 
 fn parse_dec(input: &str) -> IResult<&str, (i64, &str)> {
@@ -55,6 +58,9 @@ pub fn number_token(input: &str) -> IResult<&str, (i64, &str)> {
     if min.is_some() {
         num = -num;
     }
+
+    let min_len = min.map(|m| m.len()).unwrap_or(0);
+    let num_str = &input[0..num_str.len() + min_len];
 
     Ok((rest, (num, num_str)))
 }
@@ -109,9 +115,10 @@ mod test {
         F: Fn(&str) -> IResult<&str, ( i64, &str )>,
     {
         for (input, desired) in input.iter() {
-            let (_, ( number, _text )) = func(input).unwrap();
+            let (_, ( number, text )) = func(input).unwrap();
             println!("Desired: {:x} ", desired);
             println!("Matched: {:x} ", number);
+            assert_eq!(&text, input);
             assert_eq!(number, *desired);
         }
     }

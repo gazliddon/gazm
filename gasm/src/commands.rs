@@ -1,10 +1,9 @@
 use lazy_static::lazy_static;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use super::{ expr, util };
 
 type CommandParseFn = for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command>;
-type PairParseFn = for <'x> fn( &'x str)-> IResult<&'x str, (Item, Item)>;
 
 use crate::{
     item::{Item, Command},
@@ -36,7 +35,7 @@ fn parse_fdb_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Com
 
 fn parse_include_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command> {
     let (rest, matched) = match_escaped_str(input)?;
-    Ok((rest, Command::Include(matched.to_string())))
+    Ok((rest, Command::Include(PathBuf::from(matched))))
 }
 
 fn parse_generic_arg<'a>(command: &'a str, input : &'a str) -> IResult<&'a str, Command> {
@@ -44,10 +43,25 @@ fn parse_generic_arg<'a>(command: &'a str, input : &'a str) -> IResult<&'a str, 
     Ok((rest, Command::Generic(command.to_string(),Some(matched.to_string()))))
 }
 
-
 fn parse_fill_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     map(separated_pair(parse_expr, sep, parse_expr), mk_fill)(input)
+}
+
+fn get_box_expr<'a>(input: &'a str) -> IResult<&'a str, Box<Item>> {
+    let (rest, matched) = parse_expr(input).map(|(r, m )| (r, Box::new(m)))?;
+    Ok((rest, matched))
+}
+
+
+fn parse_zmb_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command> {
+    let (rest, matched) = get_box_expr(input)?;
+    Ok((rest,Command::Zmb(matched)))
+}
+
+fn parse_zmd_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command> {
+    let (rest, matched) = get_box_expr(input)?;
+    Ok((rest,Command::Zmb(matched)))
 }
 
 fn mk_fill(cv: ( Item, Item) ) -> Command {
@@ -65,11 +79,12 @@ fn parse_bsz_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Com
 
 lazy_static! {
     static ref PARSE_ARG: HashMap<&'static str, CommandParseFn>= {
-
         let v : Vec<(_, CommandParseFn)>= vec![
             ("bsz", parse_bsz_arg),
             ("fill", parse_fill_arg),
             ("fdb", parse_fdb_arg),
+            ("zmb", parse_zmb_arg),
+            ("zmd", parse_zmd_arg),
             ("rmb", parse_fdb_arg),
             ("org", parse_org_arg),
             ("include", parse_include_arg),

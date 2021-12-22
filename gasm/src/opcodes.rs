@@ -213,7 +213,7 @@ fn parse_opcode_arg(input: &str) -> IResult<&str, Item> {
     Ok((rest, matched))
 }
 
-fn opcode_with_arg(input: &str) -> IResult<&str, Item> {
+fn parse_opcode_with_arg(input: &str) -> IResult<&str, Item> {
 
     let (rest, (op, arg)) = separated_pair(opcode_token,
                                  multispace1, parse_opcode_arg)(input)?;
@@ -222,13 +222,13 @@ fn opcode_with_arg(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::OpCodeWithArg(op.to_string(), arg)))
 }
 
-fn opcode_no_arg(input: &str) -> IResult<&str, Item> {
+fn parse_opcode_no_arg(input: &str) -> IResult<&str, Item> {
     let (rest, text) = opcode_token(input)?;
     Ok((rest, Item::OpCode(text.to_string())))
 }
 
 pub fn parse_opcode(input: &str) -> IResult<&str, Item> {
-    let (rest, item) = alt((opcode_with_arg, opcode_no_arg))(input)?;
+    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;
     Ok((rest, item))
 }
 
@@ -240,7 +240,7 @@ mod test {
 
     #[test]
     fn test_opcode_immediate() {
-        let res = opcode_with_arg("lda #100");
+        let res = parse_opcode_with_arg("lda #100");
 
         let des_arg = Item::Expr(vec![
             Item::Number(100),
@@ -326,7 +326,7 @@ mod test {
     #[test]
     fn test_opcode_with_expr() {
 
-        let res = opcode_with_arg("lda $100");
+        let res = parse_opcode_with_arg("lda $100");
 
         let des_arg = Item::Expr(vec![
             Item::Number(256)
@@ -335,7 +335,7 @@ mod test {
         let desired = Item::OpCodeWithArg("lda".to_string(), Box::new(des_arg));
         assert_eq!(res, Ok(("", desired)));
 
-        let res = opcode_with_arg("lda $100+256*10");
+        let res = parse_opcode_with_arg("lda $100+256*10");
 
         let des_arg = Item::Expr(vec![
             Item::Number(256),

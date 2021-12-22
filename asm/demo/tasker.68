@@ -1,19 +1,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-task    STRUCT
-next        rmd 1
-func        rmd 1
-tick        rmb 1
-sleep       rmb 1
-d           rmd 1   
-y           rmd 1
-x           rmd 1
-temp0       rmd 1
-temp1       rmd 1 
+task    
+next        equ 0
+func        equ 2
+tick        equ 4
+sleep       equ 6
+d           equ 8
+y           equ 10
+x           equ 12
+temp0       equ 14
+temp1       equ 16
 
-        ENDSTRUCT
 
-tsk_size        equ sizeof{task}
+tsk_size        equ 18
 
 num_of_tasks    equ 100
 

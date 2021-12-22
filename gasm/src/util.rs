@@ -15,7 +15,6 @@ use nom::character::complete::{
 };
 use nom::multi::separated_list1;
 use nom::sequence::{ terminated,preceded, tuple, };
-
 use nom::combinator::cut;
 
 pub static LIST_SEP: & str = ",";
@@ -73,12 +72,6 @@ F: nom::Parser<&'a str, O,E>  + Copy {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Number
-pub fn parse_number(input: &str) -> IResult<&str, Item> {
-    let (rest, (num, _text)) = numbers::number_token(input)?;
-    Ok((rest, Item::Number(num)))
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Escaped string
@@ -93,9 +86,16 @@ pub fn match_escaped_str(input: &str) -> IResult<&str, &str> {
     preceded(nom_char('\"'), cut(terminated(match_str, nom_char('\"'))))(input)
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Number
+
 pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
     let (rest, matched) = match_escaped_str(input)?;
     Ok((rest, Item::QuotedString(matched.to_string())))
+}
+pub fn parse_number(input: &str) -> IResult<&str, Item> {
+    let (rest, (num, _text)) = numbers::number_token(input)?;
+    Ok((rest, Item::Number(num)))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
