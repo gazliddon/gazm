@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use super::{ expr, util };
 
-type CommandParseFn = for <'x> fn( &'x str)-> IResult<&'x str, Node>;
+type CommandParseFn = fn( &str)-> IResult<&str, Node>;
 
 use crate::{
     item::{Item, Node},
@@ -23,44 +23,42 @@ use nom::{
 
 use expr::parse_expr;
 
-fn parse_org_arg<'a>(input: &'a str) -> IResult<&'a str, Node> {
+fn parse_org_arg(input: & str) -> IResult<& str, Node> {
     let (rest, matched) = parse_expr(input)?;
     let ret = Node::from_item(Item::Org).with_child(matched);
     Ok((rest, ret))
 }
 
-fn parse_fdb_arg<'a>(input: &'a str) -> IResult<&'a str, Node> {
+fn parse_fdb_arg(input: &str) -> IResult<&str, Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     let ret = Node::from_item(Item::Fdb).with_children(matched);
     Ok((rest, ret))
 }
 
-fn parse_include_arg<'a>(input : &'a str) -> IResult<&'a str, Node> {
+fn parse_include_arg(input : & str) -> IResult<&str, Node> {
     let (rest, matched) = match_escaped_str(input)?;
     let ret = Node::from_item(Item::Include(PathBuf::from(matched)));
     Ok((rest, ret))
 }
 
-fn parse_set_dp<'a>(input : &'a str) -> IResult<&'a str, Node> {
+fn parse_set_dp(input : &str) -> IResult<&str, Node> {
     let (rest, matched) = parse_expr(input)?;
-
     let ret = Node::from_item(Item::SetDp).with_child(matched);
-
-    Ok((rest,ret.into())) 
+    Ok((rest,ret)) 
 }
 
-fn parse_fill_arg<'a>( input: &'a str) -> IResult<&'a str, Node> {
+fn parse_fill_arg( input: &str) -> IResult<&str, Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     map(separated_pair(parse_expr, sep, parse_expr), mk_fill)(input)
 }
 
-fn parse_zmb_arg<'a>( input: &'a str) -> IResult<&'a str, Node> {
+fn parse_zmb_arg( input: &str) -> IResult<&str, Node> {
     let (rest, matched) = parse_expr(input)?;
     let ret = Node::from_item(Item::Zmb).with_child(matched);
     Ok((rest, ret))
 }
 
-fn parse_zmd_arg<'a>( input: &'a str) -> IResult<&'a str, Node> {
+fn parse_zmd_arg( input: &str) -> IResult<&str, Node> {
     let (rest, matched) = parse_expr(input)?;
     let ret = Node::from_item(Item::Zmd).with_child(matched);
     Ok((rest,ret))
@@ -71,7 +69,7 @@ fn mk_fill(cv: ( Node, Node) ) -> Node {
     Node::from_item(Item::Fill).with_children(vec![count,value])
 }
 
-fn parse_bsz_arg<'a>( input : &'a str) -> IResult<&'a str, Node> {
+fn parse_bsz_arg( input : &str) -> IResult<&str, Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let two_args = separated_pair(parse_expr, sep, parse_expr);
     let one_arg = map(parse_expr, |x : Node| (x,Node::from_number(0)));
@@ -115,7 +113,7 @@ pub fn command_token(input: &str) -> IResult<&str, &str> {
 
 pub fn parse_command(input: &str) -> IResult<&str,Node> {
     let (rest, (_command_text, func )) = command_token_function(input)?;
-    let (rest, matched) = preceded(multispace1, |input| func(input))(rest)?;
+    let (rest, matched) = preceded(multispace1,  func)(rest)?;
     Ok((rest, matched))
 }
 

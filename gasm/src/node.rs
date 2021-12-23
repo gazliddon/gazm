@@ -18,7 +18,7 @@ impl<'a, I, CTX: Default > Iterator for NodeIt<'a, I, CTX> {
 
     fn next(&mut self) -> Option<&'a BaseNode<I,CTX>> {
         if let Some(ret) = self.node.children.get(self.index) {
-            self.index = self.index + 1;
+            self.index += 1;
             Some(ret)
         } else {
             None

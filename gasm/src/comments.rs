@@ -41,7 +41,7 @@ fn parse_any_thing(input: &str) -> IResult<&str, &str> {
 pub fn strip_comments_and_ws(input: &str) -> IResult<&str,Option<Node>> {
     let (rest, comment) = strip_comments(input)?;
     let (_, text_matched) = preceded(multispace0, parse_any_thing)(rest).unwrap();
-    Ok((text_matched,comment.map(|x|x.into())))
+    Ok((text_matched,comment))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

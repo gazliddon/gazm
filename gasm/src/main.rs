@@ -97,7 +97,7 @@ impl<'a> DocContext<'a> {
     }
 }
 
-pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Node>> {
+pub fn parse(source : &str) -> IResult<& str, Vec<Node>> {
     use commands::parse_command;
 
     let mut items : Vec<Node> = vec![];
@@ -125,7 +125,7 @@ pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Node>> {
         }
 
         if let Ok((_,label)) = all_consuming(ws(parse_label))(input) {
-            push_some(&Some(label.into()));
+            push_some(&Some(label));
             continue;
         }
 
@@ -237,9 +237,8 @@ fn main() {
     let ctx = Context::parse();
     let res = tokenize(&ctx);
 
-    match res {
-        Ok(n) => dump(&n),
-        _ => ()
+    if let Ok(n) = res {
+        dump(&n);
     }
 }
 

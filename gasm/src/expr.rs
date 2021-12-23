@@ -108,7 +108,7 @@ fn parse_op(input: &str) -> IResult<&str, Node> {
 
 fn parse_op_term(input: &str) -> IResult<&str, Node> {
     let (rest, (op, term)) = separated_pair(parse_op, multispace0, parse_term)(input)?;
-    let node = op.with_child(term.into());
+    let node = op.with_child(term);
     Ok((rest,node))
 }
 

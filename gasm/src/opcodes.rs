@@ -191,7 +191,9 @@ fn parse_indexed(input : &str) -> IResult<&str, Node> {
         parse_index_type
         )(input)?;
 
-    let expr = expr.unwrap_or(Node::from_number(0));
+    let zero = Node::from_number(0);
+
+    let expr = expr.unwrap_or(zero);
 
     let ret = Node::from_item(Item::Indexed);
     let ret = ret.with_children(vec![expr, reg]);
@@ -231,7 +233,7 @@ fn parse_opcode_with_arg(input: &str) -> IResult<&str, Node> {
 
     let item = Item::OpCodeWithArg(op.to_string());
 
-    let node = Node::from_item(item).with_children(vec![arg.into()]);
+    let node = Node::from_item(item).with_child(arg);
 
     Ok((rest, node))
 }
@@ -245,7 +247,7 @@ fn parse_opcode_no_arg(input: &str) -> IResult<&str, Node> {
 
 pub fn parse_opcode(input: &str) -> IResult<&str, Node> {
     let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;
-    Ok((rest, item.into()))
+    Ok((rest, item))
 }
 
 
