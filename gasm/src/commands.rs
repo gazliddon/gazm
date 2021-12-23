@@ -3,10 +3,10 @@ use std::{collections::HashMap, path::PathBuf};
 
 use super::{ expr, util };
 
-type CommandParseFn = for <'x> fn(&'x str, &'x str)-> IResult<&'x str, Command>;
+type CommandParseFn = for <'x> fn( &'x str)-> IResult<&'x str, Node>;
 
 use crate::{
-    item::{Item, Command},
+    item::{Item, Node},
     util::match_escaped_str
 };
 
@@ -23,57 +23,58 @@ use nom::{
 
 use expr::parse_expr;
 
-fn parse_org_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command> {
+fn parse_org_arg<'a>(input: &'a str) -> IResult<&'a str, Node> {
     let (rest, matched) = parse_expr(input)?;
-    Ok((rest, Command::Org(Box::new(matched))))
+    let ret = Node::from_item(Item::Org).with_child(matched);
+    Ok((rest, ret))
 }
 
-fn parse_fdb_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command> {
+fn parse_fdb_arg<'a>(input: &'a str) -> IResult<&'a str, Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
-    Ok((rest, Command::Fdb(matched)))
+    let ret = Node::from_item(Item::Fdb).with_children(matched);
+    Ok((rest, ret))
 }
 
-fn parse_include_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command> {
+fn parse_include_arg<'a>(input : &'a str) -> IResult<&'a str, Node> {
     let (rest, matched) = match_escaped_str(input)?;
-    Ok((rest, Command::Include(PathBuf::from(matched))))
+    let ret = Node::from_item(Item::Include(PathBuf::from(matched)));
+    Ok((rest, ret))
 }
 
-fn parse_generic_arg<'a>(command: &'a str, input : &'a str) -> IResult<&'a str, Command> {
-    let (rest, matched) = recognize(many1(anychar))(input)?;
-    Ok((rest, Command::Generic(command.to_string(),Some(matched.to_string()))))
+fn parse_set_dp<'a>(input : &'a str) -> IResult<&'a str, Node> {
+    let (rest, matched) = parse_expr(input)?;
+
+    let ret = Node::from_item(Item::SetDp).with_child(matched);
+
+    Ok((rest,ret.into())) 
 }
 
-fn parse_fill_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command> {
+fn parse_fill_arg<'a>( input: &'a str) -> IResult<&'a str, Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     map(separated_pair(parse_expr, sep, parse_expr), mk_fill)(input)
 }
 
-fn get_box_expr<'a>(input: &'a str) -> IResult<&'a str, Box<Item>> {
-    let (rest, matched) = parse_expr(input).map(|(r, m )| (r, Box::new(m)))?;
-    Ok((rest, matched))
+fn parse_zmb_arg<'a>( input: &'a str) -> IResult<&'a str, Node> {
+    let (rest, matched) = parse_expr(input)?;
+    let ret = Node::from_item(Item::Zmb).with_child(matched);
+    Ok((rest, ret))
 }
 
-
-fn parse_zmb_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command> {
-    let (rest, matched) = get_box_expr(input)?;
-    Ok((rest,Command::Zmb(matched)))
+fn parse_zmd_arg<'a>( input: &'a str) -> IResult<&'a str, Node> {
+    let (rest, matched) = parse_expr(input)?;
+    let ret = Node::from_item(Item::Zmd).with_child(matched);
+    Ok((rest,ret))
 }
 
-fn parse_zmd_arg<'a>(_command : &'a str, input: &'a str) -> IResult<&'a str, Command> {
-    let (rest, matched) = get_box_expr(input)?;
-    Ok((rest,Command::Zmb(matched)))
-}
-
-fn mk_fill(cv: ( Item, Item) ) -> Command {
+fn mk_fill(cv: ( Node, Node) ) -> Node {
     let (count, value) = cv;
-    Command::Fill(Box::new(value), Box::new(count))
+    Node::from_item(Item::Fill).with_children(vec![count,value])
 }
 
-fn parse_bsz_arg<'a>(_command: &'a str, input : &'a str) -> IResult<&'a str, Command> {
+fn parse_bsz_arg<'a>( input : &'a str) -> IResult<&'a str, Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let two_args = separated_pair(parse_expr, sep, parse_expr);
-    let one_arg = map(parse_expr, |x : Item| (x,Item::Number(0)));
-
+    let one_arg = map(parse_expr, |x : Node| (x,Node::from_number(0)));
     map(alt(( two_args, one_arg)), mk_fill)(input)
 }
 
@@ -88,9 +89,8 @@ lazy_static! {
             ("rmb", parse_fdb_arg),
             ("org", parse_org_arg),
             ("include", parse_include_arg),
-            ("setdp", parse_generic_arg),
+            ("setdp", parse_set_dp),
         ];
-
         v.into_iter().collect()
     };
 }
@@ -113,11 +113,10 @@ pub fn command_token(input: &str) -> IResult<&str, &str> {
     Ok((rest, matched))
 }
 
-pub fn parse_command(input: &str) -> IResult<&str,Item> {
-    let (rest, (command_text, func )) = command_token_function(input)?;
-    let (rest, matched) = preceded(multispace1, |input| func(command_text, input))(rest)?;
-    let i = Item::Command(matched);
-    Ok((rest, i))
+pub fn parse_command(input: &str) -> IResult<&str,Node> {
+    let (rest, (_command_text, func )) = command_token_function(input)?;
+    let (rest, matched) = preceded(multispace1, |input| func(input))(rest)?;
+    Ok((rest, matched))
 }
 
 #[allow(unused_imports)]

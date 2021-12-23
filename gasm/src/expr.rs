@@ -1,18 +1,21 @@
+
 // Parse expressions
 //
 use nom::IResult;
 use super::item::Item;
 use nom::error::Error;
 use nom::error::ErrorKind::NoneOf;
-use nom::character::complete::{multispace0, char as nom_char };
+use nom::character::complete::{multispace0, char as nom_char, one_of };
 
 use nom::bytes::complete::{
-    is_a, tag, 
+    is_a, tag,
 };
 
-use nom::sequence::terminated;
+use nom::sequence::{separated_pair, terminated};
 
 use nom::branch::alt;
+use nom::multi::many0;
+use nom::combinator::recognize;
 
 use super::util;
 
@@ -36,57 +39,99 @@ use super::labels::parse_label;
     Immediate16, -> #expr
  */
 
-pub fn parse_bracket(input: &str) -> IResult<&str, Item> {
-    let (rest, matched)= alt(( nom_char('('), nom_char(')') ))(input)?;
+////////////////////////////////////////////////////////////////////////////////
+// Expr Parsing
 
-    let ret = match matched {
-        '(' => Item::OpenBracket,
-        ')' => Item::CloseBracket,
-        _ => panic!("something has gone wrong")
+fn parse_bracketed_expr(input: &str) -> IResult<&str, Node> {
+    util::wrapped_chars('(', parse_expr, ')')(input)
+}
+
+fn parse_pc(input : &str) -> IResult<&str, Node> {
+    let (rest, _matched) = nom_char('*')(input)?;
+    Ok((rest, Node::from_item(Item::Pc)))
+}
+
+fn parse_non_unary_term(input: &str) -> IResult<&str, Node> {
+    use util::parse_number;
+
+    alt((parse_bracketed_expr,
+          parse_number,
+          parse_label,
+          parse_pc,
+          ))(input)
+}
+
+pub fn parse_term(input: &str) -> IResult<&str, Node> {
+    alt((parse_unary_term, parse_non_unary_term))(input)
+}
+
+fn parse_unary_term(input: &str) -> IResult<&str, Node> {
+    use util::parse_number;
+    let (rest, (op, term)) = separated_pair(parse_unary_op,  multispace0, parse_term)(input)?;
+    let ret = Node::from_item(Item::UnaryTerm).with_children(vec![op,term]);
+    Ok((rest, ret))
+}
+
+fn parse_unary_op(input: &str) -> IResult<&str, Node> {
+    let ops = "+-";
+
+    let (rest, matched) = one_of(ops)(input)?;
+
+    let op = match matched {
+        '+' => Item::UnaryPlus,
+        '-' => Item::UnaryMinus,
+        _ => panic!("{:?}", matched),
     };
+
+    let ret = Node::from_item(op);
+    Ok((rest, ret))
+}
+
+fn parse_op(input: &str) -> IResult<&str, Node> {
+    let ops = "+-*/";
+
+    let (rest, matched) = one_of(ops)(input)?;
+
+    let op = match matched {
+        '+' => Item::Add,
+        '-' => Item::Sub,
+        '*' => Item::Mul,
+        '/' => Item::Div,
+        _ => panic!("{:?}", matched),
+    };
+    let ret = Node::from_item(op);
 
     Ok((rest, ret))
 }
 
-pub fn parse_op(input: &str) -> IResult<&str, Item> {
-    let double_ops = alt(( tag("++"), tag("--") ));
-    let single_ops = is_a("+-*/");
-
-    let (rest, matched)= alt((double_ops, single_ops))(input)?;
-
-    Ok((rest, Item::Op(matched.to_string())))
+fn parse_op_term(input: &str) -> IResult<&str, Node> {
+    let (rest, (op, term)) = separated_pair(parse_op, multispace0, parse_term)(input)?;
+    let node = Node::from_item(op.item).with_child(term.into());
+    Ok((rest,node))
 }
 
-pub fn expr_item(input : &str) -> IResult<&str, Item> {
-    use util::parse_number;
-
-    let (rest, matched) = alt(
-        ( parse_label,
-          parse_number,
-          parse_bracket,
-          parse_op)
-        )(input)?;
-    Ok((rest, matched))
+fn prepend(i : Node, is : Vec<Node>) -> Vec<Node> {
+    let mut ret = vec![i];
+    ret.extend(is);
+    ret
 }
 
-pub fn parse_expr(input: &str) -> IResult<&str, Item> {
-    let mut items = vec![];
+////////////////////////////////////////////////////////////////////////////////
+pub fn parse_expr(input: &str) -> IResult<&str, Node> {
+    let (rest, (v,vs)) = separated_pair(parse_term, multispace0, many0(parse_op_term))(input)?;
 
-    let mut input = input;
-
-    while let Ok((rest, matched)) = terminated(expr_item, multispace0)(input) {
-        items.push(matched);
-        input = rest;
-    }
-
-    if items.is_empty() {
-        Err(nom::Err::Error(Error::new(input, NoneOf)))
+    if vs.is_empty() {
+        Ok((rest,v))
     } else {
-        Ok((input, Item::Expr(items)))
+        let v = prepend(v,vs);
+        let node = Node::from_item(Item::Expr).with_children(v);
+        Ok((rest,node))
     }
+
 }
 
-use super::item::NodeResult;
+////////////////////////////////////////////////////////////////////////////////
+
 use super::item::Node;
 
 #[allow(unused_imports)]
@@ -140,9 +185,9 @@ mod test {
     fn test_get_expr() {
 
         let desired =Item::Expr(vec![
-                           Item::Label("hello".to_string()), 
-                           Item::Op("+".to_string()),
-                           Item::Number(4096),
+                                Item::Label("hello".to_string()), 
+                                Item::Op("+".to_string()),
+                                Item::Number(4096),
         ]);
 
         let res = parse_expr("hello + $1000");
@@ -155,9 +200,9 @@ mod test {
         assert_eq!(res,Ok(("!!!!", desired.clone())));
 
         let desired =Item::Expr(vec![
-                           Item::LocalLabel("!hello".to_string()), 
-                           Item::Op("+".to_string()),
-                           Item::Number(4096),
+                                Item::LocalLabel("!hello".to_string()), 
+                                Item::Op("+".to_string()),
+                                Item::Number(4096),
         ]);
 
         let res = parse_expr("!hello+ $1000!!!!");

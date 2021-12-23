@@ -1,5 +1,5 @@
 use super::util;
-use super::item::Item;
+use super::item::{ Item,Node };
 
 use nom::branch::alt;
 use nom::IResult;
@@ -48,9 +48,9 @@ pub fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
     Ok((rest, reg))
 }
 
-pub fn parse_reg(input: &str) -> IResult<&str, Item> {
+pub fn parse_reg(input: &str) -> IResult<&str, Node> {
     let (rest,matched) = get_reg(input)?;
-    Ok((rest, Item::Register(matched)))
+    Ok((rest, Item::Register(matched).into()))
 }
 
 fn get_reg_list(input: &str) -> IResult<&str, Vec<emu::cpu::RegEnum>> {
@@ -64,12 +64,12 @@ pub fn parse_reg_list(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::RegisterList(matched)))
 }
 
-pub fn parse_reg_list_2_or_more(input: &str) -> IResult<&str, Item> {
+pub fn parse_reg_list_2_or_more(input: &str) -> IResult<&str, Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let (rest, (x,xs)) = separated_pair(get_reg, sep, get_reg_list)(input)?;
     let mut xs = xs;
     xs.push(x);
-    Ok((rest, Item::RegisterList(xs)))
+    Ok((rest, Item::RegisterList(xs).into()))
 }
 
 fn parse_reg_set(_input: &str) -> IResult<&str, Item> {

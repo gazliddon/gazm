@@ -24,9 +24,12 @@ impl FileLoader {
         }
     }
 
-    pub fn read_to_string <P: AsRef<Path>>(&self, path : P) -> std::io::Result<String> {
+    pub fn read_to_string <P: AsRef<Path>>(&self, path : P) -> std::io::Result<(PathBuf, String )> {
         if let Some(path) = self.get_file_name(path.as_ref()) {
-            fs::read_to_string(path)
+            let ret = fs::read_to_string(path.clone())?;
+            let path_buff = path.to_path_buf();
+            Ok((path_buff,ret))
+
         } else {
             Err(std::io::Error::from(std::io::ErrorKind::NotFound))
         }

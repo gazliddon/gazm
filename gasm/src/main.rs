@@ -16,7 +16,7 @@ use labels::parse_label;
 
 use commands::command_token;
 use comments::strip_comments_and_ws;
-use item::{Item, TextItem, Command};
+use item::{Item, Node};
 
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
@@ -96,20 +96,15 @@ impl<'a> DocContext<'a> {
         let line = self.to_line_number(text);
         (line, self.lines.get(line).unwrap())
     }
-
-    pub fn to_text_item(&self, text: &'a str) -> TextItem<'a> {
-        let offset = text.as_ptr() as usize - self.master.as_ptr() as usize;
-        TextItem { text, offset }
-    }
 }
 
-pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Item>> {
+pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Node>> {
 
     use commands::parse_command;
 
-    let mut items : Vec<Item> = vec![];
+    let mut items : Vec<Node> = vec![];
 
-    let mut push_some = |x : &Option<Item> | {
+    let mut push_some = |x : &Option<Node> | {
         if let Some(x) = x {
             items.push(x.clone())
         }
@@ -118,6 +113,7 @@ pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Item>> {
     use util::ws;
 
     for line in source.lines() {
+
         let (input, comment) = strip_comments_and_ws(line)?;
         push_some(&comment);
 
@@ -131,7 +127,7 @@ pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Item>> {
         }
 
         if let Ok((_,label)) = all_consuming(ws(parse_label))(input) {
-            push_some(&Some(label));
+            push_some(&Some(label.into()));
             continue;
         }
 
@@ -151,7 +147,7 @@ pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Item>> {
     // filter out empty comments
     let items = items
         .into_iter()
-        .filter(|c| !c.is_empty_comment())
+        .filter(|n| !n.is_empty_comment())
         .collect();
 
     Ok(("", items))
@@ -173,40 +169,37 @@ struct Context {
 
 struct SourceFile {
     name : PathBuf,
+    loaded_name: PathBuf,
     tokens: Vec<Item>,
     children: HashMap<PathBuf, SourceFile>
 }
+use std::env;
+use std::io;
 
-impl SourceFile {
-    pub fn from_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P) -> Result<Self, Box<dyn std::error::Error>> {
-        let file_name = file_name.as_ref().to_path_buf();
+pub fn tokenize_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P) -> Result<Node, Box<dyn std::error::Error>> {
+    let file_name = file_name.as_ref().to_path_buf();
 
-        let mut children = HashMap::new();
+    println!("abnout to tokenize {:?}", file_name.as_path());
 
-        println!("Compiling {}", file_name.to_str().unwrap());
+    let (loaded_name,source) = fl.read_to_string(&file_name)?;
 
-        let source = fl.read_to_string(&file_name)?;
+    let (_rest, mut matched) = parse(&source).unwrap();
 
-        let (_rest, matched) = parse(&source).unwrap();
+    println!("tokenized {:?}", loaded_name);
 
-        for tok in &matched {
-            if let Item::Command(Command::Include(file)) = tok {
-                let inc_source = Self::from_file(fl, file)?;
-                children.insert(file.clone(), inc_source);
-            }
+    for tok in &mut matched {
+        if let Item::Include(file) = &tok.item {
+            let inc_source = tokenize_file(fl, file.clone())?;
+            *tok = inc_source;
         }
-
-        let ret = SourceFile {
-            name : file_name,
-            tokens: matched,
-            children 
-        };
-
-        Ok(ret)
     }
+
+    let ret = Node::from_item(Item::File(loaded_name)).with_children(matched);
+
+    Ok(ret)
 }
 
-fn assemble( ctx : &Context ) -> Result<SourceFile, Box<dyn std::error::Error>> {
+fn tokenize( ctx : &Context ) -> Result<Node, Box<dyn std::error::Error>> {
     use fileloader::FileLoader;
 
     let file = ctx.file.clone();
@@ -215,25 +208,45 @@ fn assemble( ctx : &Context ) -> Result<SourceFile, Box<dyn std::error::Error>> 
 
     if let Some(dir) = file.parent() {
         paths.push(dir);
-        println!("Dir is {:?}", dir);
     }
 
     let fl = FileLoader::from_search_paths(&paths);
-    SourceFile::from_file(&fl, file)
+    tokenize_file(&fl, file)
+}
+
+fn truncate(s: &str, max_chars: usize) -> &str {
+    match s.char_indices().nth(max_chars) {
+        None => s,
+        Some((idx, _)) => &s[..idx],
+    }
+}
+
+fn dump_with_depth(depth: usize, node : &Node) {
+    let prefix = " ".repeat(depth* 4);
+    let x = format!("{:?}", node);
+    println!("{}{}", prefix, truncate(&x,100));
+
+    for i in node.iter() {
+        dump_with_depth(depth+1, i);
+    }
+}
+
+fn dump(item : &Node) {
+    dump_with_depth(0, item)
 }
 
 fn main() {
     let ctx = Context::parse();
-    let res = assemble(&ctx);
+    let res = tokenize(&ctx);
 
     match res {
-        Ok(_) => {println!("Compiled!")},
-        Err(e) => {println!("Error: {:?} {}", ctx.file, e)}
+        Ok(n) => dump(&n),
+        _ => ()
     }
 }
 
 
-pub fn parse_assignment(input: &str) -> IResult<&str, Item> {
+pub fn parse_assignment(input: &str) -> IResult<&str, Node> {
     let (rest, (label, _, _, _, arg)) = tuple((
             parse_label,
             multispace1,
@@ -241,15 +254,21 @@ pub fn parse_assignment(input: &str) -> IResult<&str, Item> {
             multispace1,
             expr::parse_expr
             ))(input)?;
-    Ok((rest, Item::Assignment(Box::new(label), Box::new(arg))))
 
+    let ret = Node::from_item(Item::Assignment).with_children(vec![label, arg]);
+
+    Ok((rest, ret))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 #[allow(unused_imports)]
 mod test {
+
+#[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
+    use crate::util::old::parse_number;
+    use crate::labels::old::parse_label;
 
     struct Line<'a> {
         label: Option<&'a String>,
@@ -259,6 +278,7 @@ mod test {
     use super::*;
 
     fn line_parse(input: &str) -> IResult<&str, Item> {
+
         // get rid of preceding ws
         // let (_,rest) = strip_ws(input)?;
         let (rest, (_, matched, _)) = tuple((multispace0, parse_label, multispace0))(input)?;
@@ -267,9 +287,10 @@ mod test {
 
     #[test]
     fn test_number() {
+        let pnum = parse_number;
         let input = "0x1000";
         let desired = Item::Number(0x1000);
-        let (_, matched) = util::parse_number(input).unwrap();
+        let (_, matched) = pnum(input).unwrap();
         assert_eq!(matched, desired);
     }
 
@@ -305,9 +326,12 @@ mod test {
 
         let (rest, matched) = res.unwrap();
 
-        let label = Box::new(Item::Label("hello".to_string()));
-        let arg = Box::new(Item::Expr(vec![Item::Number(4096)]));
-        let desired = Item::Assignment(label, arg);
+        let args : Vec<_> = vec![
+            Item::Label("hello".to_string()).into(),
+            Node::from_item(Item::Expr).with_child(Item::Number(100).into())
+        ];
+
+        let desired = Node::from_item(Item::Expr).with_children(args);
 
         assert_eq!(desired, matched);
         assert_eq!(rest, "");

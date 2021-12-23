@@ -5,31 +5,19 @@ use nom::IResult;
 
 use crate::fileloader::FileLoader;
 
-pub type NodeResult<'a> = IResult<&'a str, Node>;
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct TextItem<'a> {
-    pub offset: usize,
-    pub text: &'a str,
-}
-
-impl<'a> TextItem<'a> {
-    pub fn from_slice(master: &'a str, text: &'a str) -> Self {
-        let offset = text.as_ptr() as usize - master.as_ptr() as usize;
-        TextItem { text, offset }
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
-    Items(Vec<Item>),
-    Assignment(Box<Item>, Box<Item>),
-    OpCodeWithArg(String, Box<Item>),
-    Indexed(Box<Item>, Box<Item>),
-    Immediate(Box<Item>),
-    Indirect(Box<Item>),
-    DirectPage(Box<Item>),
-    Expr(Vec<Item>),
+    File(PathBuf),
+    Assignment,
+    OpCodeWithArg(String),
+    Indexed,
+    Immediate,
+    Indirect,
+    DirectPage,
+    Expr,
+    Pc,
+
+    UnaryTerm,
 
     RegisterList(Vec<RegEnum>),
     Label(String),
@@ -41,8 +29,6 @@ pub enum Item {
     CloseBracket,
     Number(i64),
     OpCode(String),
-    Command(Command),
-    Eof,
     Register(RegEnum),
     PreDecrement(RegEnum),
     PreIncrement(RegEnum),
@@ -52,93 +38,125 @@ pub enum Item {
     PostIncrement(RegEnum),
     DoublePostDecrement(RegEnum),
     DoublePostIncrement(RegEnum),
+
+    Include(PathBuf),
+    Generic(String, Option<String>),
+
+    Org,
+    Fdb,
+    Fill,
+    Zmb,
+    Zmd,
+    SetDp,
+
+    Mul,
+    Div,
+    Add,
+    Sub,
+    UnaryPlus,
+    UnaryMinus,
 }
 
-pub struct EnumIt<'a> {
+
+pub struct NodeIt<'a, CTX : Default> {
     index : usize,
-    item : &'a Item
+    node : &'a BaseNode<CTX>
 }
 
-impl<'a> EnumIt<'a> {
-    pub fn new(item : &'a Item) -> Self {
-        Self { index: 0, item }
-    }
-
-    fn ret(&mut self, i : Option<&'a Box<Item>>) -> Option<&'a Item> {
-        if let Some(v) = i {
-            self.index = self.index + 1;
-            Some(v.as_ref())
-        } else {
-            None
-        }
-    }
-    fn ret_vec(&mut self, i : &[&'a Box<Item>]) -> Option<&'a Item> {
-        if let Some(i) = i.get(self.index) {
-            self.index = self.index + 1;
-            Some(i)
-        } else {
-            None
-        }
-    }
-
-    fn ret_from_vec(&mut self, i : &'a Vec<Item>) -> Option<&'a Item> {
-        if let Some(i) = i.get(self.index) {
-            self.index = self.index + 1;
-            Some(i)
-        } else {
-            None
-        }
+impl<'a, CTX : Default> NodeIt<'a, CTX > {
+    pub fn new(node : &'a BaseNode<CTX>) -> Self {
+        Self { index: 0, node }
     }
 }
 
-impl Item {
-    fn iter<'a>(&'a self) -> EnumIt<'a> {
-        EnumIt::new(self)
-    }
-}
+impl<'a, CTX: Default> Iterator for NodeIt<'a, CTX> {
+    type Item = &'a BaseNode<CTX>;
 
-impl<'a> Iterator for EnumIt<'a> {
-    type Item = &'a Item;
-    fn next(&mut self) -> Option<&'a Item> {
-
-        match self.item {
-            Item::Expr(a) => { self.ret_from_vec(a) },
-            Item::Items(a) => { self.ret_from_vec(a) },
-            Item::Assignment(a, b) => { self.ret_vec(&[a,b]) },
-            Item::OpCodeWithArg(_, a) => { self.ret_vec(&[a]) },
-            Item::Indexed(a,b) =>{ self.ret_vec(&[a,b]) } ,
-            Item::Immediate(a) => { self.ret_vec(&[a]) },
-            Item::Indirect(a) =>{ self.ret_vec(&[a]) } ,
-            Item::DirectPage(a) => { self.ret_vec(&[a]) },
-            _ => None
+    fn next(&mut self) -> Option<&'a BaseNode<CTX>> {
+        if let Some(ret) = self.node.children.get(self.index) {
+            self.index = self.index + 1;
+            Some(ret)
+        } else {
+            None
         }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Command {
-    Generic(String, Option<String>),
-    Include(PathBuf),
-    Org(Box<Item>),
-    Fdb(Vec<Item>),
-    Fill(Box<Item>,Box<Item>),
-    Zmb(Box<Item>)
+}
+#[derive(PartialEq, Clone)]
+pub struct BaseNode<CTX : Default> {
+    pub item: Item,
+    pub children: Vec<Box<BaseNode<CTX>>>,
+    pub ctx: CTX,
 }
 
-pub struct Node {
-    item: Item,
-    children: Vec<Box<Node>>
+impl<CTX : Default> BaseNode<CTX> {
+
+    pub fn iter(&self) -> NodeIt<CTX> {
+        NodeIt::new(self)
+    }
+
+    pub fn from_item(item: Item) -> Self {
+        Self::new(item, vec![], CTX::default())
+    }
+
+    pub fn new(item : Item, children: Vec<Box<Self>>, ctx : CTX) -> Self {
+        Self {item, children, ctx
+    }
+    }
+    pub fn with_items(self, _children : Vec<Item>) -> Self {
+        panic!()
+    }
+
+    pub fn with_children(self, children : Vec<BaseNode<CTX>>) -> Self {
+        let mut ret = self;
+        ret.children = children.into_iter().map(Box::new).collect();
+        ret
+    }
+    pub fn with_child(self, child : Self) -> Self {
+        let mut ret = self;
+        ret.children = vec![child.into()];
+        ret
+    }
+
+    pub fn with_ctx(self, ctx : CTX) -> Self {
+        let mut ret = self;
+        ret.ctx = ctx;
+        ret
+    }
+
+    pub fn is_empty_comment(&self) -> bool {
+        match &self.item {
+            Item::Comment(s) => s.is_empty(),
+            _ => false
+        }
+    }
+
+    pub fn from_number(num : i64 ) -> Self {
+        Self::from_item(Item::Number(num))
+    }
 }
 
-impl Node {
-    pub fn new(item : Item, children: Vec<Box<Node>>) -> Self {
-        Self {item, children}
+////////////////////////////////////////////////////////////////////////////////
+impl<CTX: Default> std::fmt::Debug for BaseNode<CTX> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.item)
+    }
+}
+
+pub type Node = BaseNode<()>;
+
+impl From<Node> for Item {
+    fn from(node : Node) -> Self {
+        node.item
     }
 }
 
 impl From<Item> for Node {
     fn from(item : Item) -> Node {
-        Node::new(item, vec![])
+        Node::from_item(item)
     }
 }
 
@@ -154,14 +172,17 @@ impl Item {
         Self::number(0)
     }
 
-    pub fn zero_expr() -> Self {
-        Self::Expr(vec![Self::zero()])
-    }
 
     pub fn number(n : i64) -> Self {
         Item::Number(n)
     }
 
+}
+
+impl Into<Box<Item>> for Node {
+    fn into(self) -> Box<Item> {
+        Box::new(self.item)
+    }
 }
 
 
@@ -175,9 +196,9 @@ fn get_offset(master: &str, text: &str) -> usize {
 }
 
 impl Parser {
-    pub fn parse<'a, P, E>(&'a mut self, mut p : P) -> IResult<&'a str, Item, E>
+    pub fn parse<'a, P, E>(&'a mut self, mut p : P) -> IResult<&'a str, Node, E>
         where 
-        P: nom::Parser<&'a str, Item, E>,
+        P: nom::Parser<&'a str, Node, E>,
         E: nom::error::ParseError<&'a str>,
         {
             let input = &self.text[self.offset..];
