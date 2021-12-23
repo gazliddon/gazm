@@ -118,41 +118,49 @@ fn parse_dp(input: &str) -> IResult<&str, Node> {
 // Post inc / dec
 fn parse_post_inc(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = terminated( get_reg , tag("+"))(input)?;
-    Ok((rest, Item::PostIncrement(matched).into()))
+    Ok((rest, Node::from_item(Item::PostIncrement(matched))))
 }
 fn parse_post_inc_inc(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = terminated( get_reg , tag("++"))(input)?;
-    Ok((rest, Item::DoublePostIncrement(matched).into()))
+    Ok((rest, Node::from_item(
+        Item::DoublePostIncrement(matched))))
 }
 fn parse_post_dec(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = terminated( get_reg , tag("-"))(input)?;
-    Ok((rest, Item::PostDecrement(matched).into()))
+    Ok((rest,Node::from_item(
+        Item::PostDecrement(matched))))
 }
 fn parse_post_dec_dec(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = terminated( get_reg , tag("--"))(input)?;
-    Ok((rest, Item::DoublePostDecrement(matched).into()))
+    Ok((rest,Node::from_item(
+        Item::DoublePostDecrement(matched))))
 }
 
 
 // Pre inc / dec
 fn parse_pre_dec(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = preceded(tag("-"), get_reg )(input)?;
-    Ok((rest, Item::PreDecrement(matched).into()))
+    Ok((rest, Node::from_item(
+        Item::PreDecrement(matched))))
 }
 
 fn parse_pre_inc(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = preceded(tag("+"), get_reg )(input)?;
-    Ok((rest, Item::PreIncrement(matched).into()))
+    Ok((rest, Node::from_item(
+        Item::PreIncrement(matched))))
 }
 
 fn parse_pre_inc_inc(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = preceded(tag("++"), get_reg )(input)?;
-    Ok((rest, Item::DoublePreIncrement(matched).into()))
+    Ok((rest, Node::from_item(
+        Item::DoublePreIncrement(matched))))
 }
 
 fn parse_pre_dec_dec(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = preceded(tag("--"), get_reg )(input)?;
-    Ok((rest, Item::DoublePreDecrement(matched).into()))
+    Ok((rest,
+        Node::from_item(
+        Item::DoublePreDecrement(matched))))
 }
 
 // Simple index
@@ -233,7 +241,9 @@ fn parse_opcode_with_arg(input: &str) -> IResult<&str, Node> {
 
 fn parse_opcode_no_arg(input: &str) -> IResult<&str, Node> {
     let (rest, text) = opcode_token(input)?;
-    Ok((rest, Item::OpCode(text.to_string()).into()))
+    Ok((rest, 
+        Node::from_item(
+        Item::OpCode(text.to_string()))))
 }
 
 pub fn parse_opcode(input: &str) -> IResult<&str, Node> {
@@ -241,14 +251,6 @@ pub fn parse_opcode(input: &str) -> IResult<&str, Node> {
     Ok((rest, item.into()))
 }
 
-pub mod old {
-    use crate::item::{ Node, Item };
-    use crate::IResult;
-    use super::util::denode;
-    pub fn parse_opcode(input: &str) -> IResult<&str, Item> {
-        denode(super::parse_opcode)(input)
-    }
-}
 
 #[allow(unused_imports)]
 mod test {

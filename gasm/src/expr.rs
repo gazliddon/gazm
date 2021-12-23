@@ -2,7 +2,7 @@
 // Parse expressions
 //
 use nom::IResult;
-use super::item::Item;
+use super::item::{ Item,Node };
 use nom::error::Error;
 use nom::error::ErrorKind::NoneOf;
 use nom::character::complete::{multispace0, char as nom_char, one_of };
@@ -20,6 +20,8 @@ use nom::combinator::recognize;
 use super::util;
 
 use super::labels::parse_label;
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
@@ -106,7 +108,7 @@ fn parse_op(input: &str) -> IResult<&str, Node> {
 
 fn parse_op_term(input: &str) -> IResult<&str, Node> {
     let (rest, (op, term)) = separated_pair(parse_op, multispace0, parse_term)(input)?;
-    let node = Node::from_item(op.item).with_child(term.into());
+    let node = op.with_child(term.into());
     Ok((rest,node))
 }
 
@@ -131,8 +133,6 @@ pub fn parse_expr(input: &str) -> IResult<&str, Node> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-use super::item::Node;
 
 #[allow(unused_imports)]
 mod test {

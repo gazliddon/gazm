@@ -42,27 +42,20 @@ fn get_local_label(input: &str) -> IResult<&str, &str> {
 
 fn parse_just_label(input: &str) -> IResult<&str, Node> {
     let (rest, matched) = get_just_label(input)?;
-    Ok((rest, Item::Label(matched.to_string()).into()))
+    Ok((rest, 
+        Node::from_item(
+        Item::Label(matched.to_string()))))
 }
 
 fn parse_local_label(input: &str) -> IResult<&str, Node> {
     let (rest, matched) = get_local_label(input)?;
-    Ok((rest, Item::LocalLabel(matched.to_string()).into()))
+    Ok((rest,
+        Node::from_item(
+        Item::LocalLabel(matched.to_string()))))
 }
 
 pub fn parse_label(input: &str) -> IResult<&str, Node> {
     alt((parse_local_label, parse_just_label))(input)
-}
-
-pub mod old {
-    use nom::IResult;
-    use crate::util::denode;
-    use crate::item::{ Item, Node };
-
-    pub fn parse_label(input: &str) -> IResult<&str, Item> {
-        denode(super::parse_label)(input)
-    }
-
 }
 
 type PResult<T> = std::result::Result<T, ParseError>;
@@ -92,18 +85,10 @@ impl From<nom::Err<nom::error::Error<&str>>> for ParseError {
     }
 }
 
-impl super::item::Parser {
-    pub fn label(&mut self) -> IResult<&str, Node> {
-        let (rest, matched) = self.parse(parse_label)?;
-        Ok((rest,matched))
-    }
-}
-
 #[allow(unused_imports)]
 mod test {
     use crate::commands::parse_command;
 
-    use super::old::parse_label;
     use super::Item;
 
     use pretty_assertions::{assert_eq, assert_ne};

@@ -32,16 +32,16 @@ where
   }
 }
 
-pub fn denode<'a, F, E>( mut inner: F,) -> impl FnMut(&'a str) -> IResult<&'a str, Item, E>
-where
-  F: nom::Parser<&'a str, Node, E> + 'a,
-  E: ParseError<& 'a str>,
-{
-  move |input: &'a str| {
-    let (input, out) = inner.parse(input)?;
-    Ok((input,out.into()))
-  }
-}
+// pub fn denode<'a, F, E>( mut inner: F,) -> impl FnMut(&'a str) -> IResult<&'a str, Item, E>
+// where
+//   F: nom::Parser<&'a str, Node, E> + 'a,
+//   E: ParseError<& 'a str>,
+// {
+//   move |input: &'a str| {
+//     let (input, out) = inner.parse(input)?;
+//     Ok((input,out.into()))
+//   }
+// }
 
 
 pub fn wrapped<'a, O1, OUT, O3, E, F, INNER, S>(
@@ -107,18 +107,9 @@ pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
 }
 pub fn parse_number(input: &str) -> IResult<&str, Node> {
     let (rest, (num, _text)) = numbers::number_token(input)?;
-    Ok((rest, Item::Number(num).into()))
+    Ok((rest, Node::from_number(num)))
 }
 
-pub mod old {
-    use nom::IResult;
-    use super::denode;
-    use crate::item::{ Item, Node };
-
-    pub fn parse_number(input: &str) -> IResult<&str, Item> {
-        denode(super::parse_number)(input)
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests

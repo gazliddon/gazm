@@ -50,7 +50,10 @@ pub fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
 
 pub fn parse_reg(input: &str) -> IResult<&str, Node> {
     let (rest,matched) = get_reg(input)?;
-    Ok((rest, Item::Register(matched).into()))
+    Ok((rest, 
+        Node::from_item(
+
+        Item::Register(matched))))
 }
 
 fn get_reg_list(input: &str) -> IResult<&str, Vec<emu::cpu::RegEnum>> {
@@ -69,7 +72,9 @@ pub fn parse_reg_list_2_or_more(input: &str) -> IResult<&str, Node> {
     let (rest, (x,xs)) = separated_pair(get_reg, sep, get_reg_list)(input)?;
     let mut xs = xs;
     xs.push(x);
-    Ok((rest, Item::RegisterList(xs).into()))
+    Ok((rest, 
+        Node::from_item(
+            Item::RegisterList(xs))))
 }
 
 fn parse_reg_set(_input: &str) -> IResult<&str, Item> {

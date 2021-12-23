@@ -11,6 +11,7 @@ mod opcodes;
 mod register;
 mod labels;
 mod fileloader;
+mod node;
 
 use labels::parse_label;
 
@@ -36,13 +37,6 @@ use std::fs;
 use std::hash::Hash;
 use std::path::{Path, PathBuf,};
 
-struct Ctx
-{
-
-}
-
-impl Ctx {
-}
 
 pub fn get_offset(master: &str, text: &str) -> usize {
     text.as_ptr() as usize - master.as_ptr() as usize
@@ -99,7 +93,6 @@ impl<'a> DocContext<'a> {
 }
 
 pub fn parse<'a>(source : &'a str) -> IResult<&'a str, Vec<Node>> {
-
     use commands::parse_command;
 
     let mut items : Vec<Node> = vec![];
@@ -188,7 +181,7 @@ pub fn tokenize_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P
     println!("tokenized {:?}", loaded_name);
 
     for tok in &mut matched {
-        if let Item::Include(file) = &tok.item {
+        if let Item::Include(file) = tok.item() {
             let inc_source = tokenize_file(fl, file.clone())?;
             *tok = inc_source;
         }
@@ -267,8 +260,6 @@ mod test {
 
 #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
-    use crate::util::old::parse_number;
-    use crate::labels::old::parse_label;
 
     struct Line<'a> {
         label: Option<&'a String>,
@@ -277,13 +268,13 @@ mod test {
 
     use super::*;
 
-    fn line_parse(input: &str) -> IResult<&str, Item> {
+    // fn line_parse(input: &str) -> IResult<&str, Item> {
 
-        // get rid of preceding ws
-        // let (_,rest) = strip_ws(input)?;
-        let (rest, (_, matched, _)) = tuple((multispace0, parse_label, multispace0))(input)?;
-        Ok((rest, matched))
-    }
+    //     // get rid of preceding ws
+    //     // let (_,rest) = strip_ws(input)?;
+    //     let (rest, (_, matched, _)) = tuple((multispace0, parse_label, multispace0))(input)?;
+    //     Ok((rest, matched))
+    // }
 
     #[test]
     fn test_number() {

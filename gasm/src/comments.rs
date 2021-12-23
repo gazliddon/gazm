@@ -22,13 +22,13 @@ pub fn parse_comment(input: &str) -> IResult<&str, Item> {
 }
 
 // Strips comments and preceding white space
-fn strip_comments(input: &str) -> IResult<&str, Option<Item>> {
+fn strip_comments(input: &str) -> IResult<&str, Option<Node>> {
     let not_comment = take_until(COMMENT);
 
     let res = tuple((not_comment, parse_comment))(input);
 
     if let Ok((_rest, (line, comment))) = res {
-        Ok((line, Some(comment)))
+        Ok((line, Some(Node::from_item(comment))))
     } else {
         Ok((input, None))
     }
