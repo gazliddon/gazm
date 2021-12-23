@@ -11,12 +11,13 @@ pub enum Item {
     File(PathBuf),
     Assignment,
     OpCodeWithArg(String),
+    Expr,
+    Pc,
+
     Indexed,
     Immediate,
     Indirect,
     DirectPage,
-    Expr,
-    Pc,
 
     UnaryTerm,
 
@@ -25,7 +26,7 @@ pub enum Item {
     LocalLabel(String),
     Comment(String),
     QuotedString(String),
-    Op(String),
+    // Op(String),
     OpenBracket,
     CloseBracket,
     Number(i64),
@@ -41,7 +42,6 @@ pub enum Item {
     DoublePostIncrement(RegEnum),
 
     Include(PathBuf),
-    Generic(String, Option<String>),
 
     Org,
     Fdb,
@@ -57,7 +57,6 @@ pub enum Item {
     UnaryPlus,
     UnaryMinus,
 }
-pub type Node = BaseNode<Item>;
 
 impl Item {
     pub fn is_empty_comment(&self) -> bool {
@@ -77,18 +76,6 @@ impl Item {
 
 }
 
-impl Into<Box<Item>> for Node {
-    fn into(self) -> Box<Item> {
-        Box::new(self.item().clone())
-    }
-}
-
-// impl From<BaseNode<Item>> for Item {
-//     fn from(node : BaseNode<Item>) -> Self {
-//         node.item
-//     }
-// }
-
 impl BaseNode<Item> {
     pub fn is_empty_comment(&self) -> bool {
         match self.item() {
@@ -99,8 +86,18 @@ impl BaseNode<Item> {
     pub fn from_number(n : i64) -> Self {
         Self::from_item(Item::Number(n))
     }
+
+    pub fn to_label(txt : &str) -> Self {
+        Self::from_item(Item::Label(txt.to_string()))
+    }
+    pub fn to_local_lable(txt : &str) -> Self {
+        Self::from_item(Item::LocalLabel(txt.to_string()))
+    }
 }
 
 fn get_offset(master: &str, text: &str) -> usize {
     text.as_ptr() as usize - master.as_ptr() as usize
 }
+
+pub type Node = BaseNode<Item>;
+

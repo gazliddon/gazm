@@ -122,6 +122,7 @@ mod test {
             assert_eq!(number, *desired);
         }
     }
+
     #[test]
     fn test_min() {
         test_nums(&TEST_MIN, number_token);

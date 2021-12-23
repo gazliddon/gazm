@@ -62,15 +62,19 @@ mod test {
         assert_eq!(rest, "\n");
     }
 
-    fn strip_single_comment<'a, F: 'a>(line: &'a str, f: F) -> IResult<&'a str, Option<Item>>
+    fn strip_single_comment<'a, F: 'a>(line: &'a str, f: F) -> IResult<&'a str, Option<Node>>
     where
-        F: Fn(&'a str) -> IResult<&'a str, Option<Item>>,
+        F: Fn(&'a str) -> IResult<&'a str, Option<Node>>,
     {
         let (rest, com) = f(line)?;
         println!("\nline:    {:?}", line);
         println!("rest:    {:?}", rest);
         println!("comment: {:?}", com);
         Ok((rest, com))
+    }
+
+    fn mk_some_comment(txt : &str) -> Option<Node> {
+        Some(Node::from_item(Item::Comment(txt.to_string())))
     }
 
     #[test]
@@ -81,7 +85,7 @@ mod test {
         let line = &format!("{}{}{}", spaces, pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments_and_ws).unwrap();
         assert_eq!(rest, pre_amble);
-        assert_eq!(com, Some(Item::Comment(comment)));
+        assert_eq!(com, mk_some_comment(&comment));
     }
 
     #[test]
@@ -91,14 +95,14 @@ mod test {
         let line = &format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments).unwrap();
         assert_eq!(rest, pre_amble);
-        assert_eq!(com, Some(Item::Comment(comment)));
+        assert_eq!(com, mk_some_comment(&comment));
 
         let comment = ";;;; lda kskjkja".to_string();
         let pre_amble = "skljk  kds lk ";
         let line = &format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments_and_ws).unwrap();
         assert_eq!(rest, pre_amble);
-        assert_eq!(com, Some(Item::Comment(comment)));
+        assert_eq!(com, mk_some_comment(&comment));
     }
 
     #[test]
@@ -108,13 +112,13 @@ mod test {
         let line = &format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments).unwrap();
         assert_eq!(rest, pre_amble);
-        assert_eq!(com, Some(Item::Comment(comment)));
+        assert_eq!(com, mk_some_comment(&comment));
 
         let comment = ";".to_string();
         let pre_amble = "    ";
         let line = &format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line, strip_comments).unwrap();
         assert_eq!(rest, pre_amble);
-        assert_eq!(com, Some(Item::Comment(comment)));
+        assert_eq!(com, mk_some_comment(&comment));
     }
 }

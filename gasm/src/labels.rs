@@ -87,19 +87,21 @@ impl From<nom::Err<nom::error::Error<&str>>> for ParseError {
 
 #[allow(unused_imports)]
 mod test {
-    use crate::commands::parse_command;
-
-    use super::Item;
+    use super::*;
 
     use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
     fn test_parse_label() {
-        let nl = "non_local".to_string();
+        let nl = "non_local";
         let res = parse_label(&nl);
-        assert_eq!(res, Ok(("", Item::Label(nl.clone()))));
-        let res = parse_label("adc");
-        assert_eq!(res, Ok(("", Item::Label("adc".to_string()))));
+        let des = Node::to_label(nl);
+        assert_eq!(res, Ok(("", des)));
+
+        let nl = "abc";
+        let res = parse_label(&nl);
+        let des = Node::to_label(nl);
+        assert_eq!(res, Ok(("", des)))
     }
     fn mk_label(a : &str) -> Item {
         Item::Label(a.to_string())
@@ -110,57 +112,77 @@ mod test {
 
     #[test]
     fn test_parse_local_label() {
-        let lab_str = "@_local";
-        let res = parse_label(lab_str);
-        let des = mk_loc_label(lab_str);
+        let nl = "@_local";
+        let res = parse_label(nl);
+        let des = Node::to_local_lable(nl);
+        assert_eq!(res, Ok(("", des)));
+
+        let nl = "local@";
+        let res = parse_label(nl);
+        let des = Node::to_local_lable(nl);
+        assert_eq!(res, Ok(("", des)));
+
+        let nl = "!_local";
+        let res = parse_label(nl);
+        let des = Node::to_local_lable(nl);
+        assert_eq!(res, Ok(("", des)));
+
+        let nl = "local!";
+        let res = parse_label(nl);
+        let des = Node::to_local_lable(nl);
         assert_eq!(res, Ok(("", des)));
 
 
-        let lab_str = "local@";
-        let res = parse_label(lab_str);
-        let des = mk_loc_label(lab_str);
-        assert_eq!(res, Ok(("", des)));
-
-        let lab_str = "local!";
-        let res = parse_label(lab_str);
-        let des = mk_loc_label(lab_str);
-        assert_eq!(res, Ok(("", des)));
-
-        let lab_str = "!local_6502";
-        let res = parse_label(lab_str);
-        let des = mk_loc_label(lab_str);
+        let nl = "!local_6502";
+        let res = parse_label(nl);
+        let des = Node::to_local_lable(nl);
         assert_eq!(res, Ok(("", des)));
     }
 
     #[test]
     fn test_label_no_opcodes() {
-        let res = parse_label("NEG");
-        assert_ne!(res, Ok(("",  Item::Label("NEG".to_string()) )) );
+        let nl = "NEG";
+        let res = parse_label(nl);
+        let des = Node::to_label(nl);
+        assert_ne!(res, Ok(("",  des)));
         assert!(res.is_err());
 
-        let res = parse_label("neg");
-        assert_ne!(res, Ok(("",  Item::Label("neg".to_string()) )) );
+        let nl = "neg";
+        let res = parse_label(nl);
+        let des = Node::to_label(nl);
+        assert_ne!(res, Ok(("",  des)));
         assert!(res.is_err());
 
-        let res = parse_label("negative");
-        assert_eq!(res, Ok(("",  Item::Label("negative".to_string()) )) );
+        let nl = "negative";
+        let res = parse_label(nl);
+        let des = Node::to_label(nl);
+        assert_eq!(res, Ok(("",  des)));
+
     }
 
     #[test]
     fn test_label_no_commands() {
-        let res = parse_label("fdb");
-        assert_ne!(res, Ok(("",  Item::Label("fdb".to_string()) )) );
+        let nl = "FDB";
+        let res = parse_label(nl);
+        let des = Node::to_label(nl);
+        assert_ne!(res, Ok(("",des)));
         assert!(res.is_err());
 
-        let res = parse_label("org");
-        assert_ne!(res, Ok(("",  Item::Label("org".to_string()) )) );
+        let nl = "fdb";
+        let res = parse_label(nl);
+        let des = Node::to_label(nl);
+        assert_ne!(res, Ok(("",  des)));
         assert!(res.is_err());
 
-        let res = parse_label("!org");
-        assert_ne!(res, Ok(("",  Item::LocalLabel("org".to_string()) )) );
+        let nl = "org";
+        let res = parse_label(nl);
+        let des = Node::to_label(nl);
+        assert_ne!(res, Ok(("",  des)));
         assert!(res.is_err());
 
-        let res = parse_label("equation");
-        assert_eq!(res, Ok(("",  Item::Label("equation".to_string()) )) );
+        let nl = "organize";
+        let res = parse_label(nl);
+        let des = Node::to_label(nl);
+        assert_eq!(res, Ok(("",  des)));
     }
 }

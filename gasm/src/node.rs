@@ -26,7 +26,7 @@ impl<'a, I, CTX: Default > Iterator for NodeIt<'a, I, CTX> {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Debug,PartialEq, Clone)]
 pub struct BaseNode<I,CTX : Default = Dummy> {
     item: I,
     pub children: Vec<Box<Self>>,
@@ -79,11 +79,11 @@ impl<I, CTX : Default > BaseNode<I, CTX> {
 
 }
 
-impl<I : std::fmt::Debug , CTX: Default > std::fmt::Debug for BaseNode<I,CTX> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.item)
-    }
-}
+// impl<I : std::fmt::Debug , CTX: Default > std::fmt::Debug for BaseNode<I,CTX> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         write!(f, "{:?}", self.item)
+//     }
+// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Dummy { }

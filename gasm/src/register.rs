@@ -91,11 +91,15 @@ mod test {
     fn test_register() {
         let res = parse_reg("A");
         let des = emu::cpu::RegEnum::A;
-        assert_eq!(res, Ok(("", Item::Register(des))));
 
-        let res = parse_reg("dp");
+        let des = Node::from_item(Item::Register(des));
+        assert_eq!(res, Ok(("", des)));
+
+        let res = parse_reg("DP");
         let des = emu::cpu::RegEnum::DP;
-        assert_eq!(res, Ok(("", Item::Register(des))));
+        let des = Node::from_item(Item::Register(des));
+        assert_eq!(res, Ok(("", des)));
+
     }
 
     #[test]

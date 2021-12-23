@@ -191,13 +191,10 @@ fn parse_indexed(input : &str) -> IResult<&str, Node> {
         parse_index_type
         )(input)?;
 
-    let zero = Node::from_item(Item::zero());
-    let zero_expr = Node::from_item(Item::Expr).with_child(zero);
- 
-    let expr = expr.unwrap_or(zero_expr);
+    let expr = expr.unwrap_or(Node::from_number(0));
 
     let ret = Node::from_item(Item::Indexed);
-    let ret = ret.with_children(vec![expr, reg.into()]);
+    let ret = ret.with_children(vec![expr, reg]);
 
     Ok((rest, ret))
 }
@@ -262,10 +259,12 @@ mod test {
     fn test_opcode_immediate() {
         let (_rest, matched) = parse_opcode_with_arg("lda #100").unwrap();
 
-        let des_expr = Item::Expr(vec![Item::Number(100)]);
-        let des_arg : Node = Item::Immediate(des_expr.into()).into();
-        let des_item = Item::OpCodeWithArg("lda".to_string());
-        let des_node = Node::from_item(des_item).with_child(des_arg);
+        let oc = "lda".to_string();
+        let num = 100;
+
+        let des_node = Node::from_item(Item::OpCodeWithArg(oc));
+        let des_arg = Node::from_item(Item::Immediate).with_child(Node::from_number(num));
+        let des_node = des_node.with_child(des_arg);
 
         assert_eq!(matched, des_node);
     }
@@ -275,14 +274,15 @@ mod test {
 
         let res = parse_immediate("#$100+10");
 
-        let des_arg = Item::Expr(vec![
-                                 Item::Number(256),
-                                 Item::Op("+".to_string()),
-                                 Item::Number(10),
-        ]);
+        let des_arg = vec![
+            Node::from_number(256),
+            Node::from_item(Item::Add).with_child(Node::from_number(10))
+        ];
 
-        let desired = Item::Immediate(Box::new(des_arg));
-        assert_eq!(res, Ok(("", desired)));
+        let des_expr = Node::from_item(Item::Expr).with_children(des_arg);
+        let desired = Node::from_item(Item::Immediate).with_child(des_expr);
+
+        assert_eq!(Ok(("", desired)), res);
 
     }
     #[test]
@@ -292,15 +292,15 @@ mod test {
 
         let res = parse_indexed("0,X");
 
-        let des = Indexed(Box::new(Item::zero_expr()),
-        Box::new(Register(X)));
-        assert_eq!(res, Ok(("", des)));
+        let des_args = vec![
+            Node::from_number(0),
+            Node::from_item(Item::Register(X)),
+        ];
 
+        let desired = Ok(( "", Node::from_item(Item::Indexed).with_children(des_args) ));
+        assert_eq!(res,desired);
         let res = parse_indexed(",X");
-        let des = Indexed(Box::new(
-                Item::zero_expr()),
-                Box::new(Register(X)));
-        assert_eq!(res, Ok(("", des)));
+        assert_eq!(res,desired);
     }
 
     #[test]
@@ -310,62 +310,42 @@ mod test {
         use Item::*;
 
         let res = parse_pre_dec_dec("--X");
-        let des = DoublePreDecrement(X);
+        let des = Node::from_item(DoublePreDecrement(X));
         assert_eq!(res, Ok(("", des)));
 
         let res = parse_pre_dec("-X");
         let des = PreDecrement(X);
+        let des = Node::from_item(des);
         assert_eq!(res, Ok(("", des)));
 
         let res = parse_pre_inc("+X");
         let des = PreIncrement(X);
+        let des = Node::from_item(des);
         assert_eq!(res, Ok(("", des)));
 
         let res = parse_pre_inc_inc("++X");
         let des = DoublePreIncrement(X);
+        let des = Node::from_item(des);
         assert_eq!(res, Ok(("", des)));
 
         let res = parse_post_dec_dec("X--");
         let des = DoublePostDecrement(X);
+        let des = Node::from_item(des);
         assert_eq!(res, Ok(("", des)));
 
         let res = parse_post_dec("X-");
         let des = PostDecrement(X);
+        let des = Node::from_item(des);
         assert_eq!(res, Ok(("", des)));
 
         let res = parse_post_inc("X+");
         let des = PostIncrement(X);
+        let des = Node::from_item(des);
         assert_eq!(res, Ok(("", des)));
 
         let res = parse_post_inc_inc("X++");
         let des = DoublePostIncrement(X);
+        let des = Node::from_item(des);
         assert_eq!(res, Ok(("", des)));
     }
-
-
-    // #[test]
-    // fn test_opcode_with_expr() {
-
-    //     let res = parse_opcode_with_arg("lda $100");
-
-    //     let des_arg = Item::Expr(vec![
-    //                              Item::Number(256)
-    //     ]);
-
-    //     let desired = Item::OpCodeWithArg("lda".to_string(), Box::new(des_arg));
-    //     assert_eq!(res, Ok(("", desired)));
-
-    //     let res = parse_opcode_with_arg("lda $100+256*10");
-
-    //     let des_arg = Item::Expr(vec![
-    //                              Item::Number(256),
-    //                              Item::Op("+".to_string()),
-    //                              Item::Number(256),
-    //                              Item::Op("*".to_string()),
-    //                              Item::Number(10),
-    //     ]);
-
-    //     let desired = Item::OpCodeWithArg("lda".to_string(), Box::new(des_arg));
-    //     assert_eq!(res, Ok(("", desired)));
-    // }
 }

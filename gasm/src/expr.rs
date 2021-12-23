@@ -129,7 +129,6 @@ pub fn parse_expr(input: &str) -> IResult<&str, Node> {
         let node = Node::from_item(Item::Expr).with_children(v);
         Ok((rest,node))
     }
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -139,56 +138,17 @@ mod test {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    fn mk_res_op(input : &str) -> IResult<&str, Item> {
-        Ok(("", Item::Op(input.to_string())))
-    }
-
-    #[test]
-    fn test_op() {
-        let res = parse_op("++");
-        assert_eq!(res, mk_res_op("++"));
-
-        let res = parse_op("--");
-        assert_eq!(res, mk_res_op("--"));
-
-        let res = parse_op("+");
-        assert_eq!(res, mk_res_op("+"));
-
-        let res = parse_op("-");
-        assert_eq!(res, mk_res_op("-"));
-
-        let res = parse_op("!");
-        assert!( res.is_err() );
-    }
-
-    #[test]
-    fn test_expr_item() {
-        let res = expr_item("hello");
-        assert_eq!(res, Ok(("", Item::Label("hello".to_string()))));
-
-        let res = expr_item("!hello");
-        assert_eq!(res, Ok(("", Item::LocalLabel("!hello".to_string()))));
-
-        let res = expr_item("0xffff");
-        assert_eq!(res, Ok(("", Item::Number(65535))));
-
-        let res = expr_item("()");
-        assert_eq!(res, Ok((")", Item::OpenBracket)));
-        let res = expr_item(")");
-        assert_eq!(res, Ok(("", Item::CloseBracket)));
-
-        let res = expr_item("-");
-        assert_eq!(res, mk_res_op("-"));
-    }
-
     #[test]
     fn test_get_expr() {
 
-        let desired =Item::Expr(vec![
-                                Item::Label("hello".to_string()), 
-                                Item::Op("+".to_string()),
-                                Item::Number(4096),
-        ]);
+        let desired_node = Node::from_item(Item::Expr);
+
+        let args_desired = vec![
+            Node::to_label("hello"),
+            Node::from_item(Item::Add).with_child(Node::from_number(4096))
+        ];
+
+        let desired = desired_node.clone().with_children(args_desired.clone());
 
         let res = parse_expr("hello + $1000");
         assert_eq!(res,Ok(("", desired.clone())));
@@ -199,11 +159,12 @@ mod test {
         let res = parse_expr("hello+ $1000!!!!");
         assert_eq!(res,Ok(("!!!!", desired.clone())));
 
-        let desired =Item::Expr(vec![
-                                Item::LocalLabel("!hello".to_string()), 
-                                Item::Op("+".to_string()),
-                                Item::Number(4096),
-        ]);
+        let args_desired = vec![
+            Node::to_local_lable("!hello"),
+            Node::from_item(Item::Add).with_child(Node::from_number(4096))
+        ];
+
+        let desired = desired_node.with_children(args_desired);
 
         let res = parse_expr("!hello+ $1000!!!!");
         assert_eq!(res,Ok(("!!!!", desired.clone())));

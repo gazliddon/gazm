@@ -36,7 +36,7 @@ use std::fs;
 
 use std::hash::Hash;
 use std::path::{Path, PathBuf,};
-
+use std::rc::Rc;
 
 pub fn get_offset(master: &str, text: &str) -> usize {
     text.as_ptr() as usize - master.as_ptr() as usize
@@ -48,6 +48,11 @@ struct DocContext<'a> {
     lines: Vec<&'a str>,
     tokens: Vec<Item>,
 }
+
+struct MasterCtx {
+}
+
+type MasterCtxRef = Rc<Box<MasterCtx>>;
 
 impl<'a> DocContext<'a> {
     pub fn token(&mut self, tok: Item) {
@@ -260,54 +265,7 @@ mod test {
 
 #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
-
-    struct Line<'a> {
-        label: Option<&'a String>,
-        opcode: Option<Item>,
-    }
-
     use super::*;
-
-    // fn line_parse(input: &str) -> IResult<&str, Item> {
-
-    //     // get rid of preceding ws
-    //     // let (_,rest) = strip_ws(input)?;
-    //     let (rest, (_, matched, _)) = tuple((multispace0, parse_label, multispace0))(input)?;
-    //     Ok((rest, matched))
-    // }
-
-    #[test]
-    fn test_number() {
-        let pnum = parse_number;
-        let input = "0x1000";
-        let desired = Item::Number(0x1000);
-        let (_, matched) = pnum(input).unwrap();
-        assert_eq!(matched, desired);
-    }
-
-    #[test]
-    fn test_id_ok() {
-        let junk = &"ksjakljksjakjsakjskaj ";
-        let good_ids = &["ThisIsFine", "alphaNum019292", "_startsWithUscore"];
-
-        let check_it = |id: &str, junk: &str| {
-            let id = String::from(id);
-            let str1 = format!("{} {}", id, junk);
-            let res = line_parse(&str1);
-            println!("res:  {:?}", res);
-            let (rest, matched) = res.unwrap();
-
-            println!("matched: {:?}", matched);
-            println!("rest: {:?}", rest);
-
-            assert_eq!(matched, Item::Label(id));
-            assert_eq!(rest, junk);
-        };
-
-        for id in good_ids {
-            check_it(id, junk);
-        }
-    }
 
     #[test]
     fn test_assignment() {
@@ -318,34 +276,13 @@ mod test {
         let (rest, matched) = res.unwrap();
 
         let args : Vec<_> = vec![
-            Item::Label("hello".to_string()).into(),
-            Node::from_item(Item::Expr).with_child(Item::Number(100).into())
+            Node::from_item(Item::Label("hello".to_string())),
+            Node::from_number(4096)
         ];
 
-        let desired = Node::from_item(Item::Expr).with_children(args);
+        let desired = Node::from_item(Item::Assignment).with_children(args);
 
         assert_eq!(desired, matched);
         assert_eq!(rest, "");
-    }
-
-    #[test]
-    fn test_id_fail() {
-        let junk = &"ksjakljksjakj s akjs kaj ";
-
-        let bad_ids = &[
-            "0canstartwithanumber",
-            "manyillegal-chars-!;:",
-            "has spaces in",
-        ];
-
-        for id in bad_ids {
-            let str1 = format!("{} {}", id, junk);
-            let res = line_parse(&str1);
-
-            if res.is_ok() {
-                let (_, matched) = res.unwrap();
-                assert_ne!(matched, Item::Label(id.to_string()));
-            }
-        }
     }
 }
