@@ -7,7 +7,8 @@ use serde::Deserialize;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AddrMode {
+
+pub enum AddrModeEnum {
     Indexed,
     Direct,
     Extended,
@@ -16,6 +17,7 @@ pub enum AddrMode {
     Inherent,
     Immediate8,
     Immediate16,
+    Stack,
 }
 
 // Custome deserializers
@@ -41,7 +43,7 @@ where
 #[serde(deny_unknown_fields)]
 pub struct Instruction {
     // pub display : Option<String>,
-    pub addr_mode: AddrMode,
+    pub addr_mode: AddrModeEnum,
     #[serde(deserialize_with = "u16::deserialize")]
     pub cycles: u16,
     #[serde(deserialize_with = "fixup_action")]

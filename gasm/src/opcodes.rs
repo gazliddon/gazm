@@ -7,7 +7,7 @@ use crate::register::parse_reg;
 use super::item::{ Item,Node };
 use super::util;
 use nom::character::complete::digit0;
-use romloader::{Dbase, Instruction};
+use emu::isa::{Dbase, Instruction};
 
 use nom::branch::alt;
 use nom::IResult;

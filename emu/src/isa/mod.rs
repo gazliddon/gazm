@@ -2,7 +2,7 @@ use serde_derive::Deserialize;
 use std::fmt;
 
 #[derive(Debug, Clone, Deserialize)]
-pub enum AddrMode {
+pub enum AddrModeEnum {
     Indexed,
     Direct,
     Extended,
@@ -13,7 +13,7 @@ pub enum AddrMode {
     Immediate16,
     Stack,
 }
-impl fmt::Display for AddrMode {
+impl fmt::Display for AddrModeEnum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }

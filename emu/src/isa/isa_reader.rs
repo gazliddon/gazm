@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::AddrMode;
+use super::AddrModeEnum;
 
 use std::fmt;
 
@@ -31,7 +31,7 @@ where
 #[serde(deny_unknown_fields)]
 pub struct Instruction {
     // pub display : Option<String>,
-    pub addr_mode: AddrMode,
+    pub addr_mode: AddrModeEnum,
     #[serde(deserialize_with = "u16::deserialize")]
     pub cycles: u16,
     #[serde(deserialize_with = "fixup_action")]

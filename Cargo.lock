@@ -1465,10 +1465,6 @@ dependencies = [
  "log",
  "quick-error",
  "regex",
- "serde",
- "serde_derive",
- "serde_json",
- "serde_yaml",
 ]
 
 [[package]]
