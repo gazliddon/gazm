@@ -19,12 +19,14 @@ use nom::combinator::cut;
 
 pub static LIST_SEP: & str = ",";
 
-pub fn ws<'a, F, O, E>( mut inner: F,) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+pub fn ws<'a, F, O, E,T>( mut inner: F,) -> impl FnMut(T) -> IResult<T, O, E>
 where
-  F: nom::Parser<&'a str, O, E> + 'a,
-  E: ParseError<& 'a str>,
+  F: nom::Parser<T, O, E> + 'a,
+  T: nom::InputTakeAtPosition,
+  <T as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
+  E: ParseError<T>,
 {
-  move |input: &'a str| {
+  move |input: T| {
     let (input, _) = multispace0(input)?;
     let (input, out) = inner.parse(input)?;
     let (input, _) = multispace0(input)?;
@@ -44,18 +46,21 @@ where
 // }
 
 
-pub fn wrapped<'a, O1, OUT, O3, E, F, INNER, S>(
+pub fn wrapped<I, O1, OUT, O3, E, F, INNER, S>(
+
   mut first: F,
   mut inner: INNER,
   mut second: S,
-) -> impl FnMut(&'a str) -> IResult<&'a str, OUT, E>
+) -> impl FnMut(I) -> IResult<I, OUT, E>
 where
-  E: ParseError<& 'a str>,
-  F: nom::Parser<&'a str, O1, E> + 'a,
-  INNER: nom::Parser<&'a str, OUT, E> + 'a,
-  S: nom::Parser<&'a str, O3, E> + 'a,
+  E: ParseError<I>,
+  F: nom::Parser<I, O1, E> ,
+  INNER: nom::Parser<I, OUT, E> ,
+  S: nom::Parser<I, O3, E> ,
+  I: nom::InputTakeAtPosition,
+  <I as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
 {
-  move |input: &'a str| {
+  move |input: I| {
     let (input, _) = first.parse(input)?;
     let (input, _) = multispace0(input)?;
     let (input, out) = inner.parse(input)?;
@@ -65,12 +70,15 @@ where
   }
 }
 
-pub fn wrapped_chars<'a, O2,  E: ParseError<&'a str> + 'a, G>(
-    first : char, yes_please: G, last: char)
--> impl FnMut(&'a str) -> IResult<&'a str, O2, E>
+pub fn wrapped_chars<I,  O2,  E: ParseError<I> , G>(
+    open : char, yes_please: G, close: char)
+-> impl FnMut(I) -> IResult<I, O2, E>
 where
-G: nom::Parser<&'a str, O2, E> + 'a {
-    wrapped(nom_char(first),yes_please, nom_char(last))
+  I: nom::InputTakeAtPosition + nom::InputIter + nom::Slice<std::ops::RangeFrom<usize>>,
+  <I as nom::InputIter>::Item: nom::AsChar + Clone,
+  <I as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
+G: nom::Parser<I, O2, E>  {
+    wrapped(nom_char(open),yes_please, nom_char(close))
 }
 
 pub fn sep_list1<'a, F, O, E: ParseError<&'a str>>(
@@ -83,7 +91,6 @@ F: nom::Parser<&'a str, O,E>  + Copy {
         separated_list1(sep, inner)(input)
     }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Escaped string

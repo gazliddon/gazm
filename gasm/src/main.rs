@@ -12,6 +12,9 @@ mod register;
 mod labels;
 mod fileloader;
 mod node;
+mod ctx;
+mod error;
+mod locate;
 
 use labels::parse_label;
 

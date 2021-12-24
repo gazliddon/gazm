@@ -1,16 +1,16 @@
-use std::{path::PathBuf, slice::Iter};
+use std::{path::PathBuf, slice::Iter, collections::HashSet};
 
 use emu::cpu::RegEnum;
 use nom::IResult;
 
 use crate::fileloader::FileLoader;
-use crate::node::{ BaseNode};
+use crate::node::BaseNode;
+use crate::ctx::Ctx;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
     File(PathBuf),
     Assignment,
-    OpCodeWithArg(String),
     Expr,
     Pc,
 
@@ -22,6 +22,7 @@ pub enum Item {
     UnaryTerm,
 
     RegisterList(Vec<RegEnum>),
+    RegisterSet(HashSet<RegEnum>),
     Label(String),
     LocalLabel(String),
     Comment(String),

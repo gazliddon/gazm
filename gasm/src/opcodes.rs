@@ -231,7 +231,7 @@ fn parse_opcode_with_arg(input: &str) -> IResult<&str, Node> {
     let (rest, (op, arg)) = separated_pair(opcode_token,
                                  multispace1, parse_opcode_arg)(input)?;
 
-    let item = Item::OpCodeWithArg(op.to_string());
+    let item = Item::OpCode(op.to_string());
 
     let node = Node::from_item(item).with_child(arg);
 
@@ -258,13 +258,25 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_opcode_reg_list() {
+        use Item::*;
+        let (_rest, matched) = parse_opcode_with_arg("pshu a,b,d,x,y").unwrap();
+        println!("{:#?}", matched);
+        println!("{:#?}", matched.children);
+
+        let des_node = Node::from_item(OpCode("pshu".to_owned()));
+        assert_eq!(matched, des_node);
+    }
+
+
+    #[test]
     fn test_opcode_immediate() {
         let (_rest, matched) = parse_opcode_with_arg("lda #100").unwrap();
 
         let oc = "lda".to_string();
         let num = 100;
 
-        let des_node = Node::from_item(Item::OpCodeWithArg(oc));
+        let des_node = Node::from_item(Item::OpCode(oc));
         let des_arg = Node::from_item(Item::Immediate).with_child(Node::from_number(num));
         let des_node = des_node.with_child(des_arg);
 
