@@ -120,6 +120,7 @@ fn parse_post_inc(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = terminated( get_reg , tag("+"))(input)?;
     Ok((rest, Node::from_item(Item::PostIncrement(matched))))
 }
+
 fn parse_post_inc_inc(input: &str) -> IResult<&str,Node> {
     let (rest, matched) = terminated( get_reg , tag("++"))(input)?;
     Ok((rest, Node::from_item(
@@ -135,7 +136,6 @@ fn parse_post_dec_dec(input: &str) -> IResult<&str,Node> {
     Ok((rest,Node::from_item(
         Item::DoublePostDecrement(matched))))
 }
-
 
 // Pre inc / dec
 fn parse_pre_dec(input: &str) -> IResult<&str,Node> {
@@ -216,7 +216,7 @@ fn parse_indirect(input: &str) -> IResult<&str, Node> {
 fn parse_opcode_arg(input: &str) -> IResult<&str, Node> {
     let (rest, matched) = 
         alt( (
-                register::parse_reg_list_2_or_more,
+                register::parse_reg_set,
                 parse_immediate,
                 parse_indirect,
                 parse_dp,
@@ -232,7 +232,6 @@ fn parse_opcode_with_arg(input: &str) -> IResult<&str, Node> {
                                  multispace1, parse_opcode_arg)(input)?;
 
     let item = Item::OpCode(op.to_string());
-
     let node = Node::from_item(item).with_child(arg);
 
     Ok((rest, node))
@@ -260,14 +259,25 @@ mod test {
     #[test]
     fn test_opcode_reg_list() {
         use Item::*;
+        use emu::cpu::RegEnum::*;
+
         let (_rest, matched) = parse_opcode_with_arg("pshu a,b,d,x,y").unwrap();
-        println!("{:#?}", matched);
-        println!("{:#?}", matched.children);
 
-        let des_node = Node::from_item(OpCode("pshu".to_owned()));
+        let set  = vec![A,B,D,X,Y].into_iter().collect();
+        let des_node = Node::from_item_item(OpCode("pshu".to_owned()),RegisterSet(set));
+
         assert_eq!(matched, des_node);
-    }
 
+        let res = parse_opcode_with_arg("pshu a,b,d,x,y,Y");
+
+        if let Ok(( _,matched )) = &res {
+            println!("{:#?}",matched);
+            println!("{:#?}",matched.children);
+        } else {
+            println!("{:?}", res);
+        }
+        assert!(res.is_err())
+    }
 
     #[test]
     fn test_opcode_immediate() {

@@ -56,6 +56,7 @@ fn get_reg_list(input: &str) -> IResult<&str, Vec<emu::cpu::RegEnum>> {
     let (rest, matched) = separated_list1(sep, get_reg)(input)?;
     Ok((rest, matched))
 }
+
 fn get_reg_set(input: &str) -> IResult<&str, HashSet<emu::cpu::RegEnum>> {
     let mut ret = HashSet::new();
 
@@ -94,8 +95,9 @@ pub fn parse_reg_list_2_or_more(input: & str) -> IResult<& str, Node> {
         Node::from_item(Item::RegisterList(xs))))
 }
 
-fn parse_reg_set(_input: &str) -> IResult<&str, Item> {
-    todo!()
+pub fn parse_reg_set(input: &str) -> IResult<&str, Node> {
+    let (rest, matched) = get_reg_set(input)?;
+    Ok((rest, Node::from_item(Item::RegisterSet(matched))))
 }
 
 #[allow(unused_imports)]

@@ -63,6 +63,9 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
     pub fn from_item(item: I) -> Self {
         Self::new(item, vec![], C::default())
     }
+    pub fn from_item_item(item: I, child: I) -> Self {
+        Self::from_item(item).with_child(Self::from_item(child))
+    }
 
     pub fn with_children(self, children : Vec<Self>) -> Self {
         let mut ret = self;
