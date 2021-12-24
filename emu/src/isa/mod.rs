@@ -11,13 +11,13 @@ pub enum AddrMode {
     Inherent,
     Immediate8,
     Immediate16,
+    Stack,
 }
 impl fmt::Display for AddrMode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
-
 
 mod isa_reader;
 pub use isa_reader::*;

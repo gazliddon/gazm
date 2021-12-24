@@ -274,6 +274,26 @@ impl AddressLines for Inherent {
     }
 }
 
+pub struct Stack {}
+
+impl AddressLines for Stack {
+    fn get_addr_mode() -> AddrMode {
+        AddrMode::Stack
+    }
+
+    fn fetch_byte(
+        mem: &mut dyn MemoryIO,
+        _regs: &mut Regs,
+        ins: &mut InstructionDecoder,
+    ) -> Result<u8, CpuErr> {
+        Ok(ins.fetch_byte(mem))
+    }
+
+    fn diss(_mem: &dyn MemoryIO,  _ins: &mut InstructionDecoder) -> String {
+        "".to_string()
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 pub struct Indexed {}
 
