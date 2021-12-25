@@ -3,6 +3,8 @@ use std::{collections::HashMap, path::PathBuf};
 
 use super::{ expr, util };
 
+use Item::*;
+
 type CommandParseFn = fn( &str)-> IResult<&str, Node>;
 
 use crate::{
@@ -25,25 +27,25 @@ use expr::parse_expr;
 
 fn parse_org_arg(input: & str) -> IResult<& str, Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Item::Org).with_child(matched);
+    let ret = Node::from_item(Org).with_child(matched);
     Ok((rest, ret))
 }
 
 fn parse_fdb_arg(input: &str) -> IResult<&str, Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
-    let ret = Node::from_item(Item::Fdb).with_children(matched);
+    let ret = Node::from_item(Fdb).with_children(matched);
     Ok((rest, ret))
 }
 
 fn parse_include_arg(input : & str) -> IResult<&str, Node> {
     let (rest, matched) = match_escaped_str(input)?;
-    let ret = Node::from_item(Item::Include(PathBuf::from(matched)));
+    let ret = Node::from_item(Include(PathBuf::from(matched)));
     Ok((rest, ret))
 }
 
 fn parse_set_dp(input : &str) -> IResult<&str, Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Item::SetDp).with_child(matched);
+    let ret = Node::from_item(SetDp).with_child(matched);
     Ok((rest,ret)) 
 }
 
@@ -54,19 +56,19 @@ fn parse_fill_arg( input: &str) -> IResult<&str, Node> {
 
 fn parse_zmb_arg( input: &str) -> IResult<&str, Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Item::Zmb).with_child(matched);
+    let ret = Node::from_item(Zmb).with_child(matched);
     Ok((rest, ret))
 }
 
 fn parse_zmd_arg( input: &str) -> IResult<&str, Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Item::Zmd).with_child(matched);
+    let ret = Node::from_item(Zmd).with_child(matched);
     Ok((rest,ret))
 }
 
 fn mk_fill(cv: ( Node, Node) ) -> Node {
     let (count, value) = cv;
-    Node::from_item(Item::Fill).with_children(vec![count,value])
+    Node::from_item(Fill).with_children(vec![count,value])
 }
 
 fn parse_bsz_arg( input : &str) -> IResult<&str, Node> {

@@ -86,18 +86,26 @@ pub fn parse_reg_list(input: &str) -> IResult<&str, Item> {
     Ok((rest, Item::RegisterList(matched)))
 }
 
-pub fn parse_reg_list_2_or_more(input: & str) -> IResult<& str, Node> {
-    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-    let (rest, (x,xs)) = separated_pair(get_reg, sep, get_reg_list)(input)?;
-    let mut xs = xs;
-    xs.push(x);
-    Ok((rest, 
-        Node::from_item(Item::RegisterList(xs))))
-}
-
 pub fn parse_reg_set(input: &str) -> IResult<&str, Node> {
     let (rest, matched) = get_reg_set(input)?;
     Ok((rest, Node::from_item(Item::RegisterSet(matched))))
+}
+
+pub fn parse_reg_set_2(input: &str) -> IResult<&str, Node> {
+
+    use nom::error::ErrorKind::NoneOf;
+    use nom::error::Error;
+
+    let (rest,matched) = parse_reg_set(input)?;
+
+    if let Item::RegisterSet(regs) = matched.item() {
+        if regs.len() < 2 {
+            return Err(nom::Err::Error(Error::new(input, NoneOf)));
+        }
+    } 
+
+    Ok((rest,matched))
+
 }
 
 #[allow(unused_imports)]
@@ -147,8 +155,6 @@ mod test {
         let res = parse_reg_list("a,b,d,x,y");
         let des = vec![A,B,D,X,Y];
         assert_eq!(res, Ok(("", Item::RegisterList(des))));
-
-
     }
 
 }

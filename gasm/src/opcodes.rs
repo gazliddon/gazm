@@ -216,7 +216,7 @@ fn parse_indirect(input: &str) -> IResult<&str, Node> {
 fn parse_opcode_arg(input: &str) -> IResult<&str, Node> {
     let (rest, matched) = 
         alt( (
-                register::parse_reg_set,
+                register::parse_reg_set_2,
                 parse_immediate,
                 parse_indirect,
                 parse_dp,

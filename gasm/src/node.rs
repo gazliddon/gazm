@@ -1,3 +1,5 @@
+use std::slice::Iter;
+
 use crate::ctx::Ctx;
 
 
@@ -7,10 +9,126 @@ use crate::ctx::Ctx;
 pub trait CtxTrait : Default {
 }
 
-pub struct NodeIt<'a, I, CTX : CtxTrait > {
+////////////////////////////////////////////////////////////////////////////////
+// Traverse the AST
+
+#[derive(PartialEq, Clone)]
+pub struct NodeTreeIt<'a, I, C : CtxTrait> {
+    parent : Option<&'a Self>,
+    node : &'a BaseNode<I,C>,
+
+    child_it : Option<Box<NodeTreeIt<'a, I, C>>>,
+
+    first : bool,
     index : usize,
-    node : &'a BaseNode<I,CTX>
+    depth : usize,
 }
+
+impl <'a, I, C : CtxTrait> NodeTreeIt<'a, I, C > { 
+    pub fn new(node : &'a BaseNode<I,C>) -> Self {
+        Self::new_with_depth(None,0, node)
+    }
+
+    pub fn new_with_depth(parent: Option<&'a Self>, depth: usize, node : &'a BaseNode<I,C>) -> Self {
+        Self {
+            node,
+            index: 0,
+            first : true,
+            child_it : None,
+            depth,
+            parent
+        }
+    }
+
+    pub fn parent(&self) -> Option<&'a Self> {
+        self.parent
+    }
+
+
+    fn next_child_it(&mut self) -> Option<Box<Self>> {
+        if self.index < self.node.children.len() {
+            let ret = Self::new_with_depth(
+                None, self.depth+1,
+                &self.node.children[self.index]).into();
+
+            self.index += 1;
+
+            Some(ret)
+        } else {
+            None
+        }
+    }
+
+    fn next_child(&mut self){
+        self.child_it = self.next_child_it();
+    }
+}
+
+
+impl<'a, I, C: CtxTrait > Iterator for NodeTreeIt<'a, I, C> {
+    type Item = &'a BaseNode<I,C>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        if self.first {
+            self.first = false;
+            self.next_child();
+            Some(self.node)
+        } else {
+            if let Some(it_box) = &mut self.child_it {
+
+                if let Some(n) = it_box.as_mut().next() {
+                    Some(n)
+                } else {
+                    self.next_child();
+                    self.next()
+                }
+            } else {
+                None
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+pub struct ItemIt<'a, I, C : CtxTrait> {
+    node : &'a BaseNode<I,C>,
+    child_it : Option<Box<Self>>,
+    first : bool,
+}
+
+impl<'a, I, C: CtxTrait > Iterator for ItemIt<'a, I, C> {
+    type Item = &'a I;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.first {
+            self.first = false;
+            Some(self.node.item())
+        } else {
+            if let Some(child_it) = &mut self.child_it {
+                child_it.next()
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl <'a,I,C:CtxTrait> ItemIt<'a, I,C> {
+    pub fn new(node: &'a BaseNode<I,C>) -> Self {
+        Self {
+            node,
+            child_it: None,
+            first : true
+        }
+    }
+}
+
+pub struct NodeIt<'a, I, C : CtxTrait > {
+    index : usize,
+    node : &'a BaseNode<I,C>
+}
+
 
 impl<'a, I, C : CtxTrait > NodeIt<'a, I, C > {
     pub fn new(node : &'a BaseNode<I,C>) -> Self {
@@ -51,8 +169,15 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
         &self.item
     }
 
+    pub fn has_children(&self) -> bool {
+        !self.children.is_empty()
+    }
+
     pub fn iter(&self) -> NodeIt<I,C> {
         NodeIt::new(self)
+    }
+    pub fn item_iter(&self) -> ItemIt<I,C> {
+        ItemIt::new(self)
     }
 
     pub fn new(item : I, children: Vec<Self>, ctx : C) -> Self {
