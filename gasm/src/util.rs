@@ -3,8 +3,9 @@ use crate::numbers;
 use crate::labels;
 use crate::expr;
 
-use nom::IResult;
-use nom::error::ParseError;
+use crate::error::{IResult, Span, ParseError};
+
+// use nom::error::ParseError;
 use nom::bytes::complete::{
     escaped,
     tag,
@@ -22,33 +23,46 @@ use nom::combinator::cut;
 
 pub static LIST_SEP: & str = ",";
 
-pub fn ws<'a, F, O, E,T>( mut inner: F,) -> impl FnMut(T) -> IResult<T, O, E>
+pub fn ws<'a,F,O,E>(mut inner : F) -> impl FnMut(Span<'a>) -> IResult<O>
 where
-  F: nom::Parser<T, O, E> + 'a,
-  T: nom::InputTakeAtPosition,
-  <T as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
-  E: ParseError<T>,
+  F: nom::Parser<Span<'a>, O,ParseError<'a>>
 {
-  move |input: T| {
-    let (input, _) = multispace0(input)?;
-    let (input, out) = inner.parse(input)?;
-    let (input, _) = multispace0(input)?;
-    Ok((input,out))
-  }
+    move |input : Span| -> IResult<O>{
+        let (input, _) = multispace0(input)?;
+        let (input, matched) = inner.parse(input)?;
+        let (input, _) = multispace0(input)?;
+        Ok((input, matched))
+    }
 }
 
-// pub fn denode<'a, F, E>( mut inner: F,) -> impl FnMut(&'a str) -> IResult<&'a str, Item, E>
-// where
-//   F: nom::Parser<&'a str, Node, E> + 'a,
-//   E: ParseError<& 'a str>,
-// {
-//   move |input: &'a str| {
-//     let (input, out) = inner.parse(input)?;
-//     Ok((input,out.into()))
-//   }
-// }
+pub fn wrapped_chars<'a, O, F>(
+    open: char,
+    mut inner: F,
+    close : char,
+    ) -> impl FnMut(Span<'a>) -> IResult<O>
+where
+F: nom::Parser<Span<'a>, O,ParseError<'a>>
+{
+    move |input: Span| {
+        let (input,_) = nom_char(open)(input)?;
+        let (input,matched) = inner.parse(input)?;
+        let (input,_) = nom_char(close)(input)?;
+        Ok((input, matched))
+    }
+}
 
-pub fn parse_assignment(input: &str) -> IResult<&str, Node> {
+pub fn sep_list1<'a, F, O>(
+    inner: F
+    ) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
+where
+F: nom::Parser<Span<'a>, O,ParseError<'a>> + Copy {
+    move |input: Span| {
+        let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
+        separated_list1(sep, inner)(input)
+    }
+}
+
+pub fn parse_assignment(input: Span) -> IResult< Node> {
     use labels::parse_label;
     let (rest, (label, _, _, _, arg)) = tuple((
             parse_label,
@@ -63,77 +77,63 @@ pub fn parse_assignment(input: &str) -> IResult<&str, Node> {
     Ok((rest, ret))
 }
 
-pub fn wrapped<I, O1, OUT, O3, E, F, INNER, S>(
 
-  mut first: F,
-  mut inner: INNER,
-  mut second: S,
-) -> impl FnMut(I) -> IResult<I, OUT, E>
+
+pub fn wrapped<'a, O1, O, O3, E, F, INNER, S>(
+    _first: F,
+    _inner: INNER,
+    _second: S,
+    ) -> impl FnMut(Span) -> IResult<O>
 where
-  E: ParseError<I>,
-  F: nom::Parser<I, O1, E> ,
-  INNER: nom::Parser<I, OUT, E> ,
-  S: nom::Parser<I, O3, E> ,
-  I: nom::InputTakeAtPosition,
-  <I as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
+F: nom::Parser<Span<'a>, O1, ParseError<'a>> ,
+INNER: nom::Parser<Span<'a>, O, ParseError<'a>> ,
+S: nom::Parser<Span<'a>, O3, ParseError<'a>> ,
 {
-  move |input: I| {
-    let (input, _) = first.parse(input)?;
-    let (input, _) = multispace0(input)?;
-    let (input, out) = inner.parse(input)?;
-    let (input, _) = multispace0(input)?;
-    let (input, _) = second.parse(input)?;
-    Ok((input,out))
-  }
-}
-
-pub fn wrapped_chars<I,  O2,  E: ParseError<I> , G>(
-    open : char, yes_please: G, close: char)
--> impl FnMut(I) -> IResult<I, O2, E>
-where
-  I: nom::InputTakeAtPosition + nom::InputIter + nom::Slice<std::ops::RangeFrom<usize>>,
-  <I as nom::InputIter>::Item: nom::AsChar + Clone,
-  <I as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
-G: nom::Parser<I, O2, E>  {
-    wrapped(nom_char(open),yes_please, nom_char(close))
-}
-
-pub fn sep_list1<'a, F, O, E: ParseError<&'a str>>(
-    inner: F
-    ) -> impl FnMut(&'a str) -> IResult<&'a str, Vec<O>, E>
-where
-F: nom::Parser<&'a str, O,E>  + Copy {
-    move |input: &'a str| {
-        let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
-        separated_list1(sep, inner)(input)
+    move |_input: Span| {
+        panic!()
     }
 }
+
+
+
+// pub fn sep_list1<'a, F, O, E: ParseError<Span<'a>>>(
+//     inner: F
+//     ) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
+// where
+// F: nom::Parser<Span<'a>, O,E>  {
+//     move |input: Span<'a>| {
+//         let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
+//         separated_list1(
+//             sep,
+//             inner)(input)
+//     }
+// }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Escaped string
 
-pub fn match_str(input: &str) -> IResult<&str, &str> {
+pub fn match_str(input: Span) -> IResult<Span> {
     let term = "\"n\\";
     let body = take_while(move |c| !term.contains(c));
     escaped(body, '\\', one_of(term))(input)
 }
 
-pub fn match_escaped_str(input: &str) -> IResult<&str, &str> {
+pub fn match_escaped_str(input: Span) -> IResult<Span> {
     preceded(nom_char('\"'), cut(terminated(match_str, nom_char('\"'))))(input)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Number
 
-pub fn parse_escaped_str(input: &str) -> IResult<&str, Item> {
+pub fn parse_escaped_str(input: Span) -> IResult< Item> {
     let (rest, matched) = match_escaped_str(input)?;
     Ok((rest, Item::QuotedString(matched.to_string())))
 }
-pub fn parse_number(input: &str) -> IResult<&str, Node> {
+pub fn parse_number(input: Span) -> IResult< Node> {
     let (rest, (num, _text)) = numbers::number_token(input)?;
     Ok((rest, Node::from_number(num)))
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests

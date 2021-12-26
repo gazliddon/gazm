@@ -1,6 +1,5 @@
 use crate::item::{ Item, Node };
 use crate::{ commands::command_token, opcodes::opcode_token };
-use nom::IResult;
 use nom::sequence::pair;
 use nom::combinator::{ recognize, not};
 
@@ -12,12 +11,14 @@ use nom::multi::many0 ;
 use nom::bytes::complete::is_a;
 use nom::branch::alt;
 
+use crate::error::{IResult, Span};
+
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
 static LOCAL_LABEL_PREFIX: &str = "@!";
 static OK_LABEL_CHARS: &str = "_?.";
 
-fn get_just_label(input: &str) -> IResult<&str, &str> {
+fn get_just_label(input: Span) -> IResult<Span> {
     // match a label identifier
     let (rest,matched) = recognize(pair(
             alt((alpha1, is_a(OK_LABEL_CHARS))),
@@ -31,7 +32,7 @@ fn get_just_label(input: &str) -> IResult<&str, &str> {
     Ok((rest, matched))
 }
 
-fn get_local_label(input: &str) -> IResult<&str, &str> {
+fn get_local_label(input: Span) -> IResult<Span> {
     let loc_tags = is_a(LOCAL_LABEL_PREFIX);
     let prefix_parse = recognize(pair(loc_tags, get_just_label));
 
@@ -40,21 +41,21 @@ fn get_local_label(input: &str) -> IResult<&str, &str> {
     alt((postfix_parse, prefix_parse))(input)
 }
 
-fn parse_just_label(input: &str) -> IResult<&str, Node> {
+fn parse_just_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
     Ok((rest, 
         Node::from_item(
         Item::Label(matched.to_string()))))
 }
 
-fn parse_local_label(input: &str) -> IResult<&str, Node> {
+fn parse_local_label(input: Span) -> IResult< Node> {
     let (rest, matched) = get_local_label(input)?;
     Ok((rest,
         Node::from_item(
         Item::LocalLabel(matched.to_string()))))
 }
 
-pub fn parse_label(input: &str) -> IResult<&str, Node> {
+pub fn parse_label(input: Span) -> IResult< Node> {
     alt((parse_local_label, parse_just_label))(input)
 }
 

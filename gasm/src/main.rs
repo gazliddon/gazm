@@ -18,16 +18,18 @@ mod locate;
 mod symbols;
 mod tokenize;
 mod cli;
+mod assemble;
 
 fn main() {
     use clap::Parser;
+    use item::Item::*;
 
     let ctx = cli::Context::parse();
 
     let res = tokenize::tokenize(&ctx);
 
     if let Ok(n) = res {
-        for i in n.tree_iter().filter(|x| x.item() == &item::Item::Assignment) {
+        for i in n.tree_iter().filter(|x| x.item() == &Assignment) {
             println!("{:?}",i)
         }
     }

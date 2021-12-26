@@ -1,16 +1,15 @@
 use crate::{ cli,item,commands, comments, labels, expr,  opcodes, fileloader, util };
 
 use nom::{
-    IResult,
     character::complete::multispace1,
     sequence::pair,
     combinator::{opt, all_consuming},
     branch::alt,
 };
 
+use crate::error::{IResult, Span, ParseError};
 
-
-pub fn tokenize_str(source : &str) -> IResult<& str, Vec<item::Node>> {
+pub fn tokenize_str(source : Span) -> IResult<Vec<item::Node>> {
     use item::{ Item::*, Node };
     use comments::strip_comments_and_ws;
     use commands::parse_command;
@@ -33,27 +32,28 @@ pub fn tokenize_str(source : &str) -> IResult<& str, Vec<item::Node>> {
         Node::from_item(Assignment).with_children(children)
     };
 
+
     for line in source.lines() {
 
-        let (input, comment) = strip_comments_and_ws(line)?;
+        let (input, comment) = strip_comments_and_ws(line.into())?;
         push_some(&comment);
 
         if input.is_empty() {
             continue;
         }
 
-        if let Ok((_,equate )) = all_consuming(ws(parse_assignment))(input) {
+        if let Ok((_,equate )) = all_consuming(ws::<_,_,ParseError>(parse_assignment))(input) {
             push_some(&Some(equate));
             continue;
         }
 
-        if let Ok((_,label)) = all_consuming(ws(labels::parse_label))(input) {
+        if let Ok((_,label)) = all_consuming(ws::<_,_,ParseError>(labels::parse_label))(input) {
             let node = mk_pc_equate(label);
             push_some(&Some(node));
             continue;
         }
 
-        let body = alt(( ws( parse_opcode ),ws( parse_command ) ));
+        let body = alt(( ws::<_,_,ParseError>( parse_opcode ),ws::<_,_,ParseError>( parse_command ) ));
 
         let res = all_consuming( pair(opt(parse_label),body))(input);
 
@@ -73,7 +73,7 @@ pub fn tokenize_str(source : &str) -> IResult<& str, Vec<item::Node>> {
         .filter(|n| !n.is_empty_comment())
         .collect();
 
-    Ok(("", items))
+    Ok((source, items))
 }
 use std::path::Path;
 
@@ -85,7 +85,9 @@ pub fn tokenize_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P
 
     let (loaded_name,source) = fl.read_to_string(&file_name)?;
 
-    let (_rest, mut matched) = tokenize_str(&source).unwrap();
+    let source = Span::new(&source);
+
+    let (_rest, mut matched) = tokenize_str(source).unwrap();
 
     for tok in &mut matched {
         if let Include(file) = tok.item() {

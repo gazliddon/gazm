@@ -3,9 +3,7 @@ use super::item::{ Item,Node };
 use super::ctx::Ctx;
 
 use nom::branch::alt;
-use nom::IResult;
 use nom::bytes::complete::tag_no_case;
-use nom::error::ParseError;
 use nom::sequence::{separated_pair, tuple};
 use nom::multi::separated_list1;
 use nom::character::complete::multispace0;
@@ -14,9 +12,11 @@ use nom::bytes::complete::tag;
 
 use std::collections::HashSet;
 
+use crate::error::{IResult, Span, ParseError};
+
 // Register parsing
 
-pub fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
+pub fn get_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
     let (rest, matched) = alt((
             tag_no_case("pcr"),
             tag_no_case("dp"),
@@ -32,7 +32,7 @@ pub fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
 
     use emu::cpu::RegEnum::*;
 
-    let matched_lower = String::from(matched).to_ascii_lowercase();
+    let matched_lower = matched.to_string().to_ascii_lowercase();
 
     let reg = match matched_lower.as_str() {
             "pcr" => PC,
@@ -51,13 +51,13 @@ pub fn get_reg(input: &str) -> IResult<&str, emu::cpu::RegEnum> {
 
     Ok((rest, reg))
 }
-fn get_reg_list(input: &str) -> IResult<&str, Vec<emu::cpu::RegEnum>> {
+fn get_reg_list(input: Span) -> IResult< Vec<emu::cpu::RegEnum>> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let (rest, matched) = separated_list1(sep, get_reg)(input)?;
     Ok((rest, matched))
 }
 
-fn get_reg_set(input: &str) -> IResult<&str, HashSet<emu::cpu::RegEnum>> {
+fn get_reg_set(input: Span) -> IResult< HashSet<emu::cpu::RegEnum>> {
     let mut ret = HashSet::new();
 
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
@@ -75,23 +75,23 @@ fn get_reg_set(input: &str) -> IResult<&str, HashSet<emu::cpu::RegEnum>> {
     Ok((rest, ret))
 }
 
-pub fn parse_reg(input: &str) -> IResult<&str, Node> {
+pub fn parse_reg(input: Span) -> IResult< Node> {
     let (rest,matched) = get_reg(input)?;
     Ok((rest, 
         Node::from_item(Item::Register(matched))))
 }
 
-pub fn parse_reg_list(input: &str) -> IResult<&str, Item> {
+pub fn parse_reg_list(input: Span) -> IResult< Item> {
     let (rest, matched) = get_reg_list(input)?;
     Ok((rest, Item::RegisterList(matched)))
 }
 
-pub fn parse_reg_set(input: &str) -> IResult<&str, Node> {
+pub fn parse_reg_set(input: Span) -> IResult< Node> {
     let (rest, matched) = get_reg_set(input)?;
     Ok((rest, Node::from_item(Item::RegisterSet(matched))))
 }
 
-pub fn parse_reg_set_2(input: &str) -> IResult<&str, Node> {
+pub fn parse_reg_set_2(input: Span) -> IResult< Node> {
 
     use nom::error::ErrorKind::NoneOf;
     use nom::error::Error;
@@ -100,7 +100,14 @@ pub fn parse_reg_set_2(input: &str) -> IResult<&str, Node> {
 
     if let Item::RegisterSet(regs) = matched.item() {
         if regs.len() < 2 {
-            return Err(nom::Err::Error(Error::new(input, NoneOf)));
+            return 
+
+        Err(nom::Err::Error(ParseError::new(
+            "Need at least 2 registers in list".to_owned(),
+            input,
+        )));
+
+
         }
     } 
 

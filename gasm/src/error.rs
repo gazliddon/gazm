@@ -1,10 +1,19 @@
+use nom;
+
 use nom_locate::LocatedSpan;
 use super::locate::*;
 
+pub type Span<'a> = LocatedSpan<&'a str>;
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct ParseError<'a> {
     span: Span<'a>,
     message: Option<String>,
 }
+
+pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError<'a>>;
+
+// the trait `From<nom::Err<E>>` is not implemented for `nom::Err<nom::error::Error<LocatedSpan<&str>>>`
 
 impl<'a> ParseError<'a> {
     pub fn new(message: String, span: Span<'a>) -> Self {

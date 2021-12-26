@@ -1,7 +1,6 @@
 use crate::item::{ Item, Node };
 use nom::character::complete::{anychar, multispace0, not_line_ending};
 use nom::multi::{many0, many1, };
-use nom::IResult;
 
 use nom::bytes::complete::take_until ;
 
@@ -10,19 +9,21 @@ use nom::combinator::recognize;
 use nom::sequence::{preceded, tuple, pair};
 use nom::bytes::complete::tag;
 
+use crate::error::{IResult, Span};
+
 pub static COMMENT: & str = ";";
 
-pub fn get_comment(input: &str) -> IResult<&str, &str> {
+pub fn get_comment(input: Span) -> IResult<Span> {
     recognize(pair(many1(tag(COMMENT)), not_line_ending))(input)
 }
 
-pub fn parse_comment(input: &str) -> IResult<&str, Item> {
+pub fn parse_comment(input: Span) -> IResult< Item> {
     let (rest, matched) = get_comment(input)?;
     Ok((rest, Item::Comment(matched.to_string())))
 }
 
 // Strips comments and preceding white space
-fn strip_comments(input: &str) -> IResult<&str, Option<Node>> {
+fn strip_comments(input: Span) -> IResult<Option<Node>> {
     let not_comment = take_until(COMMENT);
 
     let res = tuple((not_comment, parse_comment))(input);
@@ -34,13 +35,13 @@ fn strip_comments(input: &str) -> IResult<&str, Option<Node>> {
     }
 }
 
-fn parse_any_thing(input: &str) -> IResult<&str, &str> {
+fn parse_any_thing(input: Span) -> IResult<Span> {
     recognize(many0(anychar))(input)
 }
 
-pub fn strip_comments_and_ws(input: &str) -> IResult<&str,Option<Node>> {
+pub fn strip_comments_and_ws(input: Span) -> IResult<Option<Node>> {
     let (rest, comment) = strip_comments(input)?;
-    let (_, text_matched) = preceded(multispace0, parse_any_thing)(rest).unwrap();
+    let (_, text_matched) = preceded(multispace0, parse_any_thing)(rest)?;
     Ok((text_matched,comment))
 }
 
@@ -62,9 +63,9 @@ mod test {
         assert_eq!(rest, "\n");
     }
 
-    fn strip_single_comment<'a, F: 'a>(line: &'a str, f: F) -> IResult<&'a str, Option<Node>>
+    fn strip_single_comment<'a, F: 'a>(line: &'a str, f: F) -> IResult<Option<Node>>
     where
-        F: Fn(&'a str) -> IResult<&'a str, Option<Node>>,
+        F: Fn(&'a str) -> IResult<Option<Node>>,
     {
         let (rest, com) = f(line)?;
         println!("\nline:    {:?}", line);
