@@ -113,6 +113,11 @@ pub fn parse(source : &str) -> IResult<& str, Vec<Node>> {
 
     use util::ws;
 
+    let mk_pc_equate = |node : Node| {
+        let children = vec![node, Node::from_item(Item::Pc)];
+        Node::from_item(Item::Assignment).with_children(children)
+    };
+
     for line in source.lines() {
 
         let (input, comment) = strip_comments_and_ws(line)?;
@@ -128,7 +133,8 @@ pub fn parse(source : &str) -> IResult<& str, Vec<Node>> {
         }
 
         if let Ok((_,label)) = all_consuming(ws(parse_label))(input) {
-            push_some(&Some(label));
+            let node = mk_pc_equate(label);
+            push_some(&Some(node));
             continue;
         }
 
@@ -137,6 +143,7 @@ pub fn parse(source : &str) -> IResult<& str, Vec<Node>> {
         let res = all_consuming( pair(opt(parse_label),body))(input);
 
         if let Ok((_, (label,body))) = res {
+            let label = label.map(mk_pc_equate);
             push_some(&label);
             push_some(&Some(body));
         } else {
