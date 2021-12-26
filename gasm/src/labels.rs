@@ -1,5 +1,5 @@
 use crate::item::{ Item, Node };
-use crate::{ command_token, opcode_token };
+use crate::{ commands::command_token, opcodes::opcode_token };
 use nom::IResult;
 use nom::sequence::pair;
 use nom::combinator::{ recognize, not};

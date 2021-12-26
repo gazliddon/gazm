@@ -90,40 +90,6 @@ impl<'a, I, C: CtxTrait > Iterator for NodeTreeIt<'a, I, C> {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-pub struct ItemIt<'a, I, C : CtxTrait> {
-    node : &'a BaseNode<I,C>,
-    child_it : Option<Box<Self>>,
-    first : bool,
-}
-
-impl<'a, I, C: CtxTrait > Iterator for ItemIt<'a, I, C> {
-    type Item = &'a I;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.first {
-            self.first = false;
-            Some(self.node.item())
-        } else {
-            if let Some(child_it) = &mut self.child_it {
-                child_it.next()
-            } else {
-                None
-            }
-        }
-    }
-}
-
-impl <'a,I,C:CtxTrait> ItemIt<'a, I,C> {
-    pub fn new(node: &'a BaseNode<I,C>) -> Self {
-        Self {
-            node,
-            child_it: None,
-            first : true
-        }
-    }
-}
-
 pub struct NodeIt<'a, I, C : CtxTrait > {
     index : usize,
     node : &'a BaseNode<I,C>
@@ -165,8 +131,16 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
     pub fn ctx(&self) -> &C {
         &self.ctx
     }
+
     pub fn item(&self) -> &I {
         &self.item
+    }
+    pub fn get_child(&self, n : usize) -> Option<&BaseNode<I,C>> {
+        if let Some(box_node) = self.children.get(n) {
+            Some(&*box_node)
+        } else {
+            None
+        }
     }
 
     pub fn has_children(&self) -> bool {
@@ -176,8 +150,9 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
     pub fn iter(&self) -> NodeIt<I,C> {
         NodeIt::new(self)
     }
-    pub fn item_iter(&self) -> ItemIt<I,C> {
-        ItemIt::new(self)
+
+    pub fn tree_iter(&self) -> NodeTreeIt<I,C> {
+        NodeTreeIt::new(self)
     }
 
     pub fn new(item : I, children: Vec<Self>, ctx : C) -> Self {
@@ -214,7 +189,14 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
 
 impl<I : std::fmt::Debug , C: CtxTrait > std::fmt::Debug for BaseNode<I,C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.item)
+        let mut db = f.debug_struct("Node");
+         db.field("item", &self.item);
+
+         if self.has_children() {
+             db.field("children", &self.children);
+         }
+
+         db.finish()
     }
 }
 

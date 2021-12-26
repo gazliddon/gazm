@@ -94,6 +94,14 @@ impl BaseNode<Item> {
     pub fn to_local_lable(txt : &str) -> Self {
         Self::from_item(Item::LocalLabel(txt.to_string()))
     }
+
+    pub fn get_label_name(&self) -> Option<&String> {
+        if let Item::Label(name) = self.item() {
+            Some(&name)
+        } else {
+            None
+        }
+    }
 }
 
 fn get_offset(master: &str, text: &str) -> usize {
