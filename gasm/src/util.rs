@@ -1,16 +1,19 @@
 use crate::item::{ Item, Node };
 use crate::numbers;
+use crate::labels;
+use crate::expr;
 
 use nom::IResult;
 use nom::error::ParseError;
 use nom::bytes::complete::{
     escaped,
     tag,
+    tag_no_case,
     take_while,
 };
 
 use nom::character::complete::{
-    char as nom_char, multispace0,
+    char as nom_char, multispace0, multispace1,
     one_of, 
 };
 use nom::multi::separated_list1;
@@ -45,6 +48,20 @@ where
 //   }
 // }
 
+pub fn parse_assignment(input: &str) -> IResult<&str, Node> {
+    use labels::parse_label;
+    let (rest, (label, _, _, _, arg)) = tuple((
+            parse_label,
+            multispace1,
+            tag_no_case("equ"),
+            multispace1,
+            expr::parse_expr
+            ))(input)?;
+
+    let ret = Node::from_item(Item::Assignment).with_children(vec![label, arg]);
+
+    Ok((rest, ret))
+}
 
 pub fn wrapped<I, O1, OUT, O3, E, F, INNER, S>(
 
@@ -131,6 +148,24 @@ mod test {
         let res = parse_escaped_str("\"kjskjbb\"");
         println!("res : {:?}", res);
         assert!(res.is_ok())
+    }
+    #[test]
+    fn test_assignment() {
+        let input = "hello equ $1000";
+        let res = parse_assignment(input);
+        assert!(res.is_ok());
+
+        let (rest, matched) = res.unwrap();
+
+        let args : Vec<_> = vec![
+            Node::from_item(Item::Label("hello".to_string())),
+            Node::from_number(4096)
+        ];
+
+        let desired = Node::from_item(Item::Assignment).with_children(args);
+
+        assert_eq!(desired, matched);
+        assert_eq!(rest, "");
     }
 
 }
