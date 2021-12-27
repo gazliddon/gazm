@@ -38,9 +38,7 @@ fn parse_binary(input: Span) -> IResult<i64> {
 }
 
 fn parse_dec(input: Span) -> IResult<i64> {
-    println!("input : {:?}", input );
     let (rest, num_str) = num_get(input)?;
-    println!("output : {:?}", num_str );
 
     let num = i64::from_str_radix(&num_str.replace( "_", ""), 10)
         .map_err(|e| num_parse_err(num_str, "Decimal", e))?;

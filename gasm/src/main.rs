@@ -32,6 +32,8 @@ fn main() {
         for i in n.tree_iter().filter(|x| x.item() == &Assignment) {
             println!("{:?}",i)
         }
+    } else {
+        println!("{:?}", res)
     }
 }
 
