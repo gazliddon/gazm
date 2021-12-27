@@ -92,7 +92,7 @@ pub fn parse_reg_set(input: Span) -> IResult< Node> {
     Ok((rest, Node::from_item(Item::RegisterSet(matched))))
 }
 
-pub fn parse_reg_set_2(input: Span) -> IResult< Node> {
+pub fn parse_reg_set_2(input: Span) -> IResult<Node> {
 
     use nom::error::ErrorKind::NoneOf;
     use nom::error::Error;
@@ -107,8 +107,6 @@ pub fn parse_reg_set_2(input: Span) -> IResult< Node> {
             "Need at least 2 registers in list".to_owned(),
             input,
         )));
-
-
         }
     } 
 
@@ -118,50 +116,101 @@ pub fn parse_reg_set_2(input: Span) -> IResult< Node> {
 #[allow(unused_imports)]
 mod test {
 
+    use lazy_static::__Deref;
     use pretty_assertions::{assert_eq, assert_ne};
     use super::*;
 
     #[test]
     fn test_register() {
-        let res = parse_reg("A".into());
-        let des = emu::cpu::RegEnum::A;
+        use emu::cpu::RegEnum::*;
 
-        let des = Node::from_item(Item::Register(des));
-        assert_eq!(res, Ok(("".into(), des)));
+        let reg = "a";
+        let des = A;
 
-        let res = parse_reg("DP".into());
-        let des = emu::cpu::RegEnum::DP;
-        let des = Node::from_item(Item::Register(des));
-        assert_eq!(res, Ok(("".into(), des)));
+        let res = parse_reg(reg.into());
+        assert!(res.is_ok());
+        let (_,res) = res.unwrap();
+        assert_eq!(*res.item(),Item::Register(des));
 
+        let reg = "dp";
+        let des = DP;
+
+        let res = parse_reg(reg.into());
+        assert!(res.is_ok());
+        let (_,res) = res.unwrap();
+        assert_eq!(*res.item(),Item::Register(des));
+    }
+
+    fn test_reg_list(input : &str, des : Vec<emu::cpu::RegEnum>)  {
+        println!("Input: {}", input);
+        println!("Desired: {:?}", des);
+        let res = parse_reg_list(input.into());
+        assert!(res.is_ok());
+        let (rest, matched) = res.unwrap();
+        let rest : &str = rest.deref();
+        assert_eq!(matched, Item::RegisterList(des));
+        assert_eq!("", rest);
+    }
+
+    fn test_reg_set(input : &str, des : HashSet<emu::cpu::RegEnum>)  {
+        let des = Node::from_item(Item::RegisterSet(des));
+        println!("Input: {}", input);
+        println!("Desired: {:?}", des);
+        let res = parse_reg_set_2(input.into());
+        assert!(res.is_ok());
+        let (rest, matched) = res.unwrap();
+        let rest : &str = rest.deref();
+        assert_eq!(matched.item(), des.item());
+        assert_eq!("", rest);
+    }
+    #[test]
+    fn test_register_set() {
+        use emu::cpu::RegEnum::*;
+
+        let input = "A,X,Y";
+        let des = HashSet::from([A,X,Y]);
+        test_reg_set(input, des);
+
+        let input = "A,B";
+        let des = HashSet::from([B,A]);
+        test_reg_set(input, des);
+
+        let input = "A, x, y, u, S, DP, cc, D";
+        let des = HashSet::from([A, X, Y, U, S, DP, CC, D]);
+        test_reg_set(input, des);
+
+        let input = "x,y,u";
+        let des = HashSet::from([X,Y,U]);
+        test_reg_set(input, des);
+
+        let input = "a,b,d,x,y";
+        let des = HashSet::from([A,B,D,X,Y]);
+        test_reg_set(input, des);
     }
 
     #[test]
     fn test_register_list() {
         use emu::cpu::RegEnum::*;
 
-        let res = parse_reg_list("A,X,Y".into());
+        let input = "A,X,Y";
         let des = vec![A,X,Y];
-        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
+        test_reg_list(input, des);
 
-        let res = parse_reg_list("".into());
-        assert!(res.is_err());
-
-        let res = parse_reg_list("A".into());
+        let input = "A";
         let des = vec![A];
-        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
+        test_reg_list(input, des);
 
-        let res = parse_reg_list("A, x, y, u, S, DP, cc, D, dp".into());
+        let input = "A, x, y, u, S, DP, cc, D, dp";
         let des = vec![A, X, Y, U, S, DP, CC, D, DP];
-        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
+        test_reg_list(input, des);
 
-        let res = parse_reg_list("x,y,u".into());
+        let input = "x,y,u";
         let des = vec![X,Y,U];
-        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
+        test_reg_list(input, des);
 
-        let res = parse_reg_list("a,b,d,x,y".into());
+        let input = "a,b,d,x,y";
         let des = vec![A,B,D,X,Y];
-        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
+        test_reg_list(input, des);
     }
 
 }

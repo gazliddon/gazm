@@ -279,7 +279,7 @@ mod test {
 
         assert_eq!(matched, des_node);
 
-        let op_text = "pshu a,b,d,x,y";
+        let op_text = "pshu a,b,d,x,y,y";
         let res = parse_opcode_with_arg(op_text.into());
 
         if let Ok(( _,matched )) = &res {
@@ -288,6 +288,7 @@ mod test {
         } else {
             println!("{:?}", res);
         }
+
         assert!(res.is_err())
     }
 
@@ -311,6 +312,7 @@ mod test {
         let op_text = "#$100+10";
 
         let res = parse_immediate(op_text.into());
+        assert!(res.is_ok());
 
         let des_arg = vec![
             Node::from_number(256),
@@ -319,11 +321,11 @@ mod test {
 
         let des_expr = Node::from_item(Item::Expr).with_children(des_arg);
         let desired = Node::from_item(Item::Immediate).with_child(des_expr);
-        let end = "";
+        let (_, matched) = res.unwrap();
 
-        assert_eq!(Ok((end.into(), desired)), res);
-
+        assert_eq!(matched,desired);
     }
+
     #[test]
     fn test_simple_indexed() {
         use emu::cpu::RegEnum::*;
@@ -331,20 +333,35 @@ mod test {
 
         let op_text = "0,X";
         let res = parse_indexed(op_text.into());
+        assert!(res.is_ok());
 
         let des_args = vec![
             Node::from_number(0),
             Node::from_item(Item::Register(X)),
         ];
         
-        let end = "";
 
-        let desired = Ok(( end.into(), Node::from_item(Item::Indexed).with_children(des_args) ));
-        assert_eq!(res,desired);
+        let desired = Node::from_item(Item::Indexed).with_children(des_args) ;
+        let (_, matched) = res.unwrap();
+        assert_eq!(matched, desired);
 
         let op_text = ",X";
         let res = parse_indexed(op_text.into());
-        assert_eq!(res,desired);
+        assert!(res.is_ok());
+        let (_, matched) = res.unwrap();
+        assert_eq!(matched, desired);
+    }
+
+    fn test_item<'a, F>(mut parse : F, input : Span<'a>, des : &Item) -> Item
+        where
+            F : nom::Parser<Span<'a>,Node,ParseError<'a>>
+    {
+        let res = parse.parse(input);
+        assert!(res.is_ok());
+
+        let (_, res) = res.unwrap();
+        assert_eq!(*res.item(), *des);
+        res.item().clone()
     }
 
     #[test]
@@ -353,43 +370,48 @@ mod test {
         use emu::cpu::RegEnum::*;
         use Item::*;
 
-        let res = parse_pre_dec_dec("--X".into());
-        let des = Node::from_item(DoublePreDecrement(X));
-        assert_eq!(res, Ok(("".into(), des)));
+        let input = "--X";
+        let des = DoublePreDecrement(X);
+        let p = parse_pre_dec_dec;
+        test_item(p, input.into(), &des);
 
-        let res = parse_pre_dec("-X".into());
+        let input = "-X";
         let des = PreDecrement(X);
-        let des = Node::from_item(des);
-        assert_eq!(res, Ok(("".into(), des)));
+        let p = parse_pre_dec;
+        test_item(p, input.into(), &des);
 
-        let res = parse_pre_inc("+X".into());
+        let input = "+X";
         let des = PreIncrement(X);
-        let des = Node::from_item(des);
-        assert_eq!(res, Ok(("".into(), des)));
+        let p = parse_pre_inc;
+        test_item(p, input.into(), &des);
 
-        let res = parse_pre_inc_inc("++X".into());
+        let input = "++X";
         let des = DoublePreIncrement(X);
-        let des = Node::from_item(des);
-        assert_eq!(res, Ok(("".into(), des)));
+        let p = parse_pre_inc_inc;
+        test_item(p, input.into(), &des);
 
-        let res = parse_post_dec_dec("X--".into());
+
+
+        let input = "X--";
         let des = DoublePostDecrement(X);
-        let des = Node::from_item(des);
-        assert_eq!(res, Ok(("".into(), des)));
+        let p = parse_post_dec_dec;
+        test_item(p, input.into(), &des);
 
-        let res = parse_post_dec("X-".into());
+        let input = "X-";
         let des = PostDecrement(X);
-        let des = Node::from_item(des);
-        assert_eq!(res, Ok(("".into(), des)));
+        let p = parse_post_dec;
+        test_item(p, input.into(), &des);
 
-        let res = parse_post_inc("X+".into());
+        let input = "X+";
         let des = PostIncrement(X);
-        let des = Node::from_item(des);
-        assert_eq!(res, Ok(("".into(), des)));
+        let p = parse_post_inc;
+        test_item(p, input.into(), &des);
 
-        let res = parse_post_inc_inc("X++".into());
+        let input = "X++";
         let des = DoublePostIncrement(X);
-        let des = Node::from_item(des);
-        assert_eq!(res, Ok(("".into(), des)));
+        let p = parse_post_inc_inc;
+        test_item(p, input.into(), &des);
+
+
     }
 }

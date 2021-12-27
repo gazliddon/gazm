@@ -60,8 +60,10 @@ mod test {
 
         println!("Input: {}", input);
         let (rest, matched) = parse_comment(input.as_str().into()).unwrap();
+        let rest : &str= rest.as_ref();
+
         assert_eq!(matched, Item::Comment(com_text));
-        assert_eq!(rest, "\n".into());
+        assert_eq!(rest, "\n");
     }
 
     fn strip_single_comment<'a, F: 'a>(line: Span<'a>, f: F) -> IResult<Option<Node>>
@@ -87,7 +89,8 @@ mod test {
         let test =format!("{}{}{}", spaces, pre_amble, comment) ;
         let line : Span = test.as_str().into();
         let (rest, com) = strip_single_comment(line, strip_comments_and_ws).unwrap();
-        assert_eq!(rest, pre_amble.into());
+        let rest : &str = rest.as_ref();
+        assert_eq!(rest, pre_amble);
         assert_eq!(com, mk_some_comment(&comment));
     }
 
@@ -104,7 +107,8 @@ mod test {
         let pre_amble = "skljk  kds lk ";
         let line = format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line.as_str().into(), strip_comments_and_ws).unwrap();
-        assert_eq!(rest, pre_amble.into());
+        let rest : &str = rest.as_ref();
+        assert_eq!(rest, pre_amble);
         assert_eq!(com, mk_some_comment(&comment));
     }
 
@@ -115,13 +119,15 @@ mod test {
         let line = format!("{}{}", pre_amble, comment);
 
         let (rest, com) = strip_single_comment(line.as_str().into(), strip_comments).unwrap();
-        assert_eq!(rest, pre_amble.into());
+        let rest : &str = rest.as_ref();
+        assert_eq!(rest, pre_amble);
         assert_eq!(com, mk_some_comment(&comment));
 
         let comment = ";".to_string();
-        let pre_amble : Span  = "    ".into();
+        let pre_amble = "    ";
         let line = format!("{}{}", pre_amble, comment);
         let (rest, com) = strip_single_comment(line.as_str().into(), strip_comments).unwrap();
+        let rest : &str = rest.as_ref();
         assert_eq!(rest, pre_amble);
         assert_eq!(com, mk_some_comment(&comment));
     }

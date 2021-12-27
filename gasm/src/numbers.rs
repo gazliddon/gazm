@@ -18,7 +18,6 @@ fn num_parse_err<'a>(input : Span<'a>, radix : &str, e : std::num::ParseIntError
     nom::Err::Error(ParseError::new(e, input))
 }
 
-
 pub fn parse_hex(input: Span) -> IResult<i64> {
     let (rest,_) = alt(( tag("0x"), tag("0X"), tag("$") ))(input)?;
     let (rest,num_str) = num_get(rest)?;
