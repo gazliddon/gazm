@@ -24,7 +24,8 @@ use nom::bytes::complete::tag;
 use nom::sequence::{ pair, preceded, separated_pair, terminated, tuple};
 use nom::combinator::{ recognize, opt };
 
-use crate::error::{IResult, Span, ParseError};
+use crate::error::{IResult, ParseError};
+use crate::locate::Span;
 
 ////////////////////////////////////////////////////////////////////////////////
 // opcode parsing
@@ -269,17 +270,17 @@ mod test {
         use Item::*;
         use emu::cpu::RegEnum::*;
 
-        let op_text = Span::new("pshu a,b,d,x,y");
+        let op_text = "pshu a,b,d,x,y";
 
-        let (_rest, matched) = parse_opcode_with_arg(op_text).unwrap();
+        let (_rest, matched) = parse_opcode_with_arg(op_text.into()).unwrap();
 
         let set  = vec![A,B,D,X,Y].into_iter().collect();
         let des_node = Node::from_item_item(OpCode("pshu".to_owned()),RegisterSet(set));
 
         assert_eq!(matched, des_node);
 
-        let op_text = Span::new("pshu a,b,d,x,y");
-        let res = parse_opcode_with_arg(op_text);
+        let op_text = "pshu a,b,d,x,y";
+        let res = parse_opcode_with_arg(op_text.into());
 
         if let Ok(( _,matched )) = &res {
             println!("{:#?}",matched);
@@ -292,13 +293,13 @@ mod test {
 
     #[test]
     fn test_opcode_immediate() {
-        let op_text = Span::new("lda #100");
-        let (_rest, matched) = parse_opcode_with_arg(op_text).unwrap();
+        let op_text = "lda #100";
+        let (_rest, matched) = parse_opcode_with_arg(op_text.into()).unwrap();
 
-        let oc = "lda".to_string();
+        let oc = "lda";
         let num = 100;
 
-        let des_node = Node::from_item(Item::OpCode(oc));
+        let des_node = Node::from_item(Item::OpCode(oc.into()));
         let des_arg = Node::from_item(Item::Immediate).with_child(Node::from_number(num));
         let des_node = des_node.with_child(des_arg);
 
@@ -307,9 +308,9 @@ mod test {
 
     #[test]
     fn test_parse_immediate() {
-        let op_text = Span::new("#$100+10");
+        let op_text = "#$100+10";
 
-        let res = parse_immediate(op_text);
+        let res = parse_immediate(op_text.into());
 
         let des_arg = vec![
             Node::from_number(256),
@@ -318,9 +319,9 @@ mod test {
 
         let des_expr = Node::from_item(Item::Expr).with_children(des_arg);
         let desired = Node::from_item(Item::Immediate).with_child(des_expr);
-        let end = Span::new("");
+        let end = "";
 
-        assert_eq!(Ok((end, desired)), res);
+        assert_eq!(Ok((end.into(), desired)), res);
 
     }
     #[test]
@@ -328,21 +329,21 @@ mod test {
         use emu::cpu::RegEnum::*;
         use Item::*;
 
-        let op_text = Span::new("0,X");
-        let res = parse_indexed(op_text);
+        let op_text = "0,X";
+        let res = parse_indexed(op_text.into());
 
         let des_args = vec![
             Node::from_number(0),
             Node::from_item(Item::Register(X)),
         ];
         
-        let end = Span::new("");
+        let end = "";
 
-        let desired = Ok(( end, Node::from_item(Item::Indexed).with_children(des_args) ));
+        let desired = Ok(( end.into(), Node::from_item(Item::Indexed).with_children(des_args) ));
         assert_eq!(res,desired);
 
-        let op_text = Span::new(",X");
-        let res = parse_indexed(op_text);
+        let op_text = ",X";
+        let res = parse_indexed(op_text.into());
         assert_eq!(res,desired);
     }
 

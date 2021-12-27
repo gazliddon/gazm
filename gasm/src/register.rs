@@ -12,7 +12,8 @@ use nom::bytes::complete::tag;
 
 use std::collections::HashSet;
 
-use crate::error::{IResult, Span, ParseError};
+use crate::error::{IResult, ParseError};
+use crate::locate::Span;
 
 // Register parsing
 
@@ -122,16 +123,16 @@ mod test {
 
     #[test]
     fn test_register() {
-        let res = parse_reg("A");
+        let res = parse_reg("A".into());
         let des = emu::cpu::RegEnum::A;
 
         let des = Node::from_item(Item::Register(des));
-        assert_eq!(res, Ok(("", des)));
+        assert_eq!(res, Ok(("".into(), des)));
 
-        let res = parse_reg("DP");
+        let res = parse_reg("DP".into());
         let des = emu::cpu::RegEnum::DP;
         let des = Node::from_item(Item::Register(des));
-        assert_eq!(res, Ok(("", des)));
+        assert_eq!(res, Ok(("".into(), des)));
 
     }
 
@@ -139,28 +140,28 @@ mod test {
     fn test_register_list() {
         use emu::cpu::RegEnum::*;
 
-        let res = parse_reg_list("A,X,Y");
+        let res = parse_reg_list("A,X,Y".into());
         let des = vec![A,X,Y];
-        assert_eq!(res, Ok(("", Item::RegisterList(des))));
+        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
 
-        let res = parse_reg_list("");
+        let res = parse_reg_list("".into());
         assert!(res.is_err());
 
-        let res = parse_reg_list("A");
+        let res = parse_reg_list("A".into());
         let des = vec![A];
-        assert_eq!(res, Ok(("", Item::RegisterList(des))));
+        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
 
-        let res = parse_reg_list("A, x, y, u, S, DP, cc, D, dp");
+        let res = parse_reg_list("A, x, y, u, S, DP, cc, D, dp".into());
         let des = vec![A, X, Y, U, S, DP, CC, D, DP];
-        assert_eq!(res, Ok(("", Item::RegisterList(des))));
+        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
 
-        let res = parse_reg_list("x,y,u");
+        let res = parse_reg_list("x,y,u".into());
         let des = vec![X,Y,U];
-        assert_eq!(res, Ok(("", Item::RegisterList(des))));
+        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
 
-        let res = parse_reg_list("a,b,d,x,y");
+        let res = parse_reg_list("a,b,d,x,y".into());
         let des = vec![A,B,D,X,Y];
-        assert_eq!(res, Ok(("", Item::RegisterList(des))));
+        assert_eq!(res, Ok(("".into(), Item::RegisterList(des))));
     }
 
 }

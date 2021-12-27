@@ -1,71 +1,56 @@
 use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::character::complete::one_of;
+use nom::bytes::complete::{ tag, is_a };
 use nom::combinator::{ recognize, opt,  };
 use nom::multi::{many0, many1};
-use nom::sequence::{preceded, terminated, pair};
+use nom::sequence::{preceded, terminated, pair, tuple};
 
-use nom::character::complete::char as nom_char;
+use nom::character::complete::{alpha1, alphanumeric1, char as nom_char, one_of};
 
-use crate::error::{IResult, Span};
+use crate::error::{IResult, ParseError};
+use crate::locate::Span;
 
-pub fn parse_hex(input: Span) -> IResult< (i64, Span)> {
-    let num_tags = (tag("0x"), tag("0X"), tag("$"));
-    let valid_chars = "0123456789abcdefABCDEF";
-
-    let conv = |matched| i64::from_str_radix(&str::replace(matched, "_", ""), 16).unwrap();
-
-    let (rest, (id, matched )) = pair(
-        alt(num_tags),
-        recognize(many1(terminated(one_of(valid_chars), many0(nom_char('_'))))),
-    )(input)?;
-
-    let matched_str = &input[..id.len() + matched.len()];
-
-    Ok((rest, (conv(&matched) as i64, Span::new(matched_str))))
+fn num_get(input : Span) -> IResult<Span> {
+    recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
 }
 
-fn parse_binary(input: Span) -> IResult< (i64, Span)> {
-    let num_tags = (tag("0b"), tag("0B"));
-    let valid_chars = "01";
-    let conv = |matched| i64::from_str_radix(&str::replace(matched, "_", ""), 2).unwrap();
-
-    let (rest, (id, matched )) = pair(
-        alt(num_tags),
-        recognize(many1(terminated(one_of(valid_chars), many0(nom_char('_'))))),
-    )(input)?;
-    let matched_str = &input[..id.len() + matched.len()];
-
-    Ok((rest, (conv(&matched), matched_str.into())))
+fn num_parse_err<'a>(input : Span<'a>, radix : &str, e : std::num::ParseIntError ) -> nom::Err<ParseError<'a>> {
+    let e = format!("Parsing {}: {}",radix, e);
+    nom::Err::Error(ParseError::new(e, input))
 }
 
-fn parse_dec(input: Span) -> IResult< (i64, Span)> {
-    use nom::character::complete::char;
-    let (rest, text_str) =
-        recognize(many1(terminated(one_of("0123456789"), many0(char('_')))))(input)?;
-    let num = str::replace(&text_str, "_", "").parse::<i64>().unwrap();
-    Ok((rest, (num, text_str)))
+
+pub fn parse_hex(input: Span) -> IResult<i64> {
+    let (rest,_) = alt(( tag("0x"), tag("0X"), tag("$") ))(input)?;
+    let (rest,num_str) = num_get(rest)?;
+
+    let num = i64::from_str_radix(&num_str.replace("_", ""), 16)
+        .map_err(|e| num_parse_err(num_str, "hex", e))?;
+
+    Ok((rest, num))
 }
 
-pub fn number_token(input: Span) -> IResult< (i64, Span)> {
+fn parse_binary(input: Span) -> IResult<i64> {
+    let (rest,_) = alt(( tag("0b"), tag("0B") ))(input)?;
+    let (rest,num_str) = num_get(rest)?;
+    let num = i64::from_str_radix(&num_str.replace( "_", ""), 2)
+        .map_err(|e| num_parse_err(num_str, "binary", e))?;
 
-    let numbers = alt((parse_hex, parse_binary, parse_dec));
+    Ok((rest, num))
+}
 
-    let (rest, (min, (num, num_str))) = pair(
-        opt(tag("-")),
-        numbers)
-        (input)?;
+fn parse_dec(input: Span) -> IResult<i64> {
+    println!("input : {:?}", input );
+    let (rest, num_str) = num_get(input)?;
+    println!("output : {:?}", num_str );
 
-    let mut num = num as i64;
+    let num = i64::from_str_radix(&num_str.replace( "_", ""), 10)
+        .map_err(|e| num_parse_err(num_str, "Decimal", e))?;
 
-    if min.is_some() {
-        num = -num;
-    }
+    Ok((rest, num))
+}
 
-    let min_len = min.map(|m| m.len()).unwrap_or(0);
-    let num_str = &input[0..num_str.len() + min_len];
-
-    Ok((rest, (num, num_str.into())))
+pub fn number_token(input: Span) -> IResult<i64> {
+    alt((parse_hex, parse_binary, parse_dec))(input)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -105,33 +90,25 @@ mod test {
             all.extend(TEST_DEC.iter());
             all
         };
-        static ref TEST_MIN: Vec<(&'static str, i64)> = vec![
-            ("-1", -1),
-            ("-0x20", -32),
-            ("$abcd", 0xabcd),
-            ("-0X0", 0),
-        ];
     }
 
-    fn test_nums<F>(input: &[ (&'static str, i64) ], func: F)
-    where
-        F: Fn(Span) -> IResult< ( i64, Span)>,
-    {
-        for (input, desired) in input.iter() {
-            let input = Span::new(input);
+    fn test_nums<F>(arr: &[ (&'static str, i64) ], func: F)
+        where
+            F: Fn(Span) -> IResult<i64>,
+        {
+            for (input, desired) in arr.iter() {
+                let span = Span::new_extra(input,"hello");
+                let res = func(span);
 
-            // let (_, ( number, text )) = func(input).unwrap();
-            // println!("Desired: {:x} ", desired);
-            // println!("Matched: {:x} ", number);
-            // assert_eq!(text, input);
-            // assert_eq!(number, *desired);
+                if let Ok(( _, number )) = res {
+                    assert_eq!(number, *desired)
+                } else {
+                    println!("Could not parse {} {:?}", input, res);
+                    assert!(res.is_ok())
+                }
+            }
         }
-    }
 
-    #[test]
-    fn test_min() {
-        test_nums(&TEST_MIN, number_token);
-    }
 
     #[test]
     fn test_bin() {
@@ -144,6 +121,7 @@ mod test {
     }
     #[test]
     fn test_dec() {
+        println!("Testing decimal");
         test_nums(&TEST_DEC, parse_dec);
     }
 

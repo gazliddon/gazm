@@ -3,7 +3,8 @@ use crate::numbers;
 use crate::labels;
 use crate::expr;
 
-use crate::error::{IResult, Span, ParseError};
+use crate::error::{IResult, ParseError};
+use crate::locate::Span;
 
 // use nom::error::ParseError;
 use nom::bytes::complete::{
@@ -34,6 +35,16 @@ where
         Ok((input, matched))
     }
 }
+// pub fn parse_str<'a, O, F>(
+//     mut inner: F
+//     ) -> impl FnMut(&str) -> IResult<O>
+// where
+// F: nom::Parser<Span<'a>, O,ParseError<'a>>
+// {
+//     move |input: &'a str| {
+//         inner.parse(input.into())
+//     }
+// }
 
 pub fn wrapped_chars<'a, O, F>(
     open: char,
@@ -131,7 +142,7 @@ pub fn parse_escaped_str(input: Span) -> IResult< Item> {
     Ok((rest, Item::QuotedString(matched.to_string())))
 }
 pub fn parse_number(input: Span) -> IResult< Node> {
-    let (rest, (num, _text)) = numbers::number_token(input)?;
+    let (rest, num) = numbers::number_token(input)?;
     Ok((rest, Node::from_number(num)))
 }
 
@@ -145,17 +156,17 @@ mod test {
 
     #[test]
     fn test_parse_str() {
-        let res = parse_escaped_str("\"kjskjbb\"");
+        let res = parse_escaped_str("\"kjskjbb\"".into());
         println!("res : {:?}", res);
         assert!(res.is_ok())
     }
     #[test]
     fn test_assignment() {
         let input = "hello equ $1000";
-        let res = parse_assignment(input);
+        let res = parse_assignment(input.into());
         assert!(res.is_ok());
 
-        let (rest, matched) = res.unwrap();
+        let (_rest, matched) = res.unwrap();
 
         let args : Vec<_> = vec![
             Node::from_item(Item::Label("hello".to_string())),
@@ -165,7 +176,6 @@ mod test {
         let desired = Node::from_item(Item::Assignment).with_children(args);
 
         assert_eq!(desired, matched);
-        assert_eq!(rest, "");
     }
 
 }

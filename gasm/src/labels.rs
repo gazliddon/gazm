@@ -11,7 +11,8 @@ use nom::multi::many0 ;
 use nom::bytes::complete::is_a;
 use nom::branch::alt;
 
-use crate::error::{IResult, Span};
+use crate::error::{IResult};
+use crate::locate::Span;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
@@ -95,95 +96,88 @@ mod test {
     #[test]
     fn test_parse_label() {
         let nl = "non_local";
-        let res = parse_label(&nl);
-        let des = Node::to_label(nl);
-        assert_eq!(res, Ok(("", des)));
+        let (_,( res,des ))= prep_label(nl).unwrap();
+        assert_eq!(res, des);
 
         let nl = "abc";
-        let res = parse_label(&nl);
-        let des = Node::to_label(nl);
-        assert_eq!(res, Ok(("", des)))
-    }
-    fn mk_label(a : &str) -> Item {
-        Item::Label(a.to_string())
-    }
-    fn mk_loc_label(a : &str) -> Item {
-        Item::LocalLabel(a.to_string())
+        let (_,( res,des ))= prep_label(nl).unwrap();
+        assert_eq!(res, des);
     }
 
     #[test]
     fn test_parse_local_label() {
         let nl = "@_local";
-        let res = parse_label(nl);
-        let des = Node::to_local_lable(nl);
-        assert_eq!(res, Ok(("", des)));
+        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        assert_eq!(res,des);
 
         let nl = "local@";
-        let res = parse_label(nl);
-        let des = Node::to_local_lable(nl);
-        assert_eq!(res, Ok(("", des)));
+        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        assert_eq!(res,des);
 
         let nl = "!_local";
-        let res = parse_label(nl);
-        let des = Node::to_local_lable(nl);
-        assert_eq!(res, Ok(("", des)));
+        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        assert_eq!(res,des);
 
         let nl = "local!";
-        let res = parse_label(nl);
-        let des = Node::to_local_lable(nl);
-        assert_eq!(res, Ok(("", des)));
+        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        assert_eq!(res,des);
 
 
         let nl = "!local_6502";
-        let res = parse_label(nl);
-        let des = Node::to_local_lable(nl);
-        assert_eq!(res, Ok(("", des)));
+        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        assert_eq!(res,des);
+    }
+
+    fn prep_loc_label<'a>(nl : &'a str) -> IResult<(Node, Node)> {
+        let nl : Span = nl.into();
+        let (rest, matched) = parse_label(nl)?;
+        let des = Node::to_local_lable(&nl);
+        Ok((rest, (matched, des)))
+    }
+
+    fn prep_label<'a>(nl : &'a str) -> IResult<(Node, Node)> {
+        let nl : Span = nl.into();
+        let (rest, matched) = parse_label(nl)?;
+        let des = Node::to_label(&nl);
+        Ok((rest, (matched, des)))
     }
 
     #[test]
     fn test_label_no_opcodes() {
-        let nl = "NEG";
-        let res = parse_label(nl);
-        let des = Node::to_label(nl);
-        assert_ne!(res, Ok(("",  des)));
+        let nl  = "lda";
+        let res = prep_label(nl);
         assert!(res.is_err());
 
-        let nl = "neg";
-        let res = parse_label(nl);
-        let des = Node::to_label(nl);
-        assert_ne!(res, Ok(("",  des)));
+        let nl  = "LDA";
+        let res = prep_label(nl);
         assert!(res.is_err());
 
-        let nl = "negative";
-        let res = parse_label(nl);
-        let des = Node::to_label(nl);
-        assert_eq!(res, Ok(("",  des)));
+        let nl  = "STA";
+        let res = prep_label(nl);
+        assert!(res.is_err());
 
+        let nl  = "STAmina";
+        let (_, (res,des)) = prep_label(nl).unwrap();
+        assert_eq!(res,des)
     }
 
     #[test]
     fn test_label_no_commands() {
-        let nl = "FDB";
-        let res = parse_label(nl);
-        let des = Node::to_label(nl);
-        assert_ne!(res, Ok(("",des)));
+        let nl  = "FDB";
+        let res = prep_label(nl);
         assert!(res.is_err());
 
-        let nl = "fdb";
-        let res = parse_label(nl);
-        let des = Node::to_label(nl);
-        assert_ne!(res, Ok(("",  des)));
+        let nl  = "fdb";
+
+        let res = prep_label(nl);
         assert!(res.is_err());
 
-        let nl = "org";
-        let res = parse_label(nl);
-        let des = Node::to_label(nl);
-        assert_ne!(res, Ok(("",  des)));
+        let nl  = "org";
+        let res = prep_label(nl);
         assert!(res.is_err());
 
-        let nl = "organize";
-        let res = parse_label(nl);
-        let des = Node::to_label(nl);
-        assert_eq!(res, Ok(("",  des)));
+        let nl  = "organize";
+        let (_, (res,des)) = prep_label(nl).unwrap();
+        assert_eq!(res,des)
     }
 }

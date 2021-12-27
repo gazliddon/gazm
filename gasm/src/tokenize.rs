@@ -7,7 +7,8 @@ use nom::{
     branch::alt,
 };
 
-use crate::error::{IResult, Span, ParseError};
+use crate::error::{IResult, ParseError};
+use crate::locate::Span;
 
 pub fn tokenize_str(source : Span) -> IResult<Vec<item::Node>> {
     use item::{ Item::*, Node };
@@ -85,7 +86,7 @@ pub fn tokenize_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P
 
     let (loaded_name,source) = fl.read_to_string(&file_name)?;
 
-    let source = Span::new(&source);
+    let source = Span::new_extra(&source, loaded_name.to_str().unwrap());
 
     let (_rest, mut matched) = tokenize_str(source).unwrap();
 

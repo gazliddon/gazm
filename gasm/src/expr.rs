@@ -20,7 +20,8 @@ use super::util;
 
 use super::labels::parse_label;
 
-use crate::error::{IResult, Span, ParseError};
+use crate::error::{IResult, ParseError};
+use crate::locate::Span;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
@@ -140,34 +141,5 @@ mod test {
     #[test]
     fn test_get_expr() {
 
-        let desired_node = Node::from_item(Item::Expr);
-
-        let args_desired = vec![
-            Node::to_label("hello"),
-            Node::from_item(Item::Add).with_child(Node::from_number(4096))
-        ];
-
-        let desired = desired_node.clone().with_children(args_desired.clone());
-
-        let res = parse_expr("hello + $1000");
-        assert_eq!(res,Ok(("", desired.clone())));
-
-        let res = parse_expr("hello+ $1000");
-        assert_eq!(res,Ok(("", desired.clone())));
-
-        let res = parse_expr("hello+ $1000!!!!");
-        assert_eq!(res,Ok(("!!!!", desired.clone())));
-
-        let args_desired = vec![
-            Node::to_local_lable("!hello"),
-            Node::from_item(Item::Add).with_child(Node::from_number(4096))
-        ];
-
-        let desired = desired_node.with_children(args_desired);
-
-        let res = parse_expr("!hello+ $1000!!!!");
-        assert_eq!(res,Ok(("!!!!", desired.clone())));
-        let res = parse_expr("!hello+ $1000!!!!");
-        assert_eq!(res,Ok(("!!!!", desired.clone())));
     }
 }

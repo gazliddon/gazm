@@ -1,9 +1,9 @@
+use std::path::PathBuf;
+
 use nom;
 
-use nom_locate::LocatedSpan;
-use super::locate::*;
-
-pub type Span<'a> = LocatedSpan<&'a str>;
+use nom::AsBytes;
+use crate::locate::Span;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError<'a> {
@@ -12,7 +12,6 @@ pub struct ParseError<'a> {
 }
 
 pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError<'a>>;
-
 // the trait `From<nom::Err<E>>` is not implemented for `nom::Err<nom::error::Error<LocatedSpan<&str>>>`
 
 impl<'a> ParseError<'a> {

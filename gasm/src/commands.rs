@@ -24,7 +24,8 @@ use nom::{
 
 use expr::parse_expr;
 
-use crate::error::{IResult, Span, ParseError};
+use crate::error::{IResult, ParseError};
+use crate::locate::Span;
 
 fn parse_org_arg(input: Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;

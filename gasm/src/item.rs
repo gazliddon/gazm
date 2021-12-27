@@ -6,6 +6,7 @@ use nom::IResult;
 use crate::fileloader::FileLoader;
 use crate::node::BaseNode;
 use crate::ctx::Ctx;
+use crate::locate::Span;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
