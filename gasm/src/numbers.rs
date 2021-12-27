@@ -94,7 +94,7 @@ mod test {
             F: Fn(Span) -> IResult<i64>,
         {
             for (input, desired) in arr.iter() {
-                let span = Span::new_extra(input,"hello");
+                let span = Span::new_extra(input, "");
                 let res = func(span);
 
                 if let Ok(( _, number )) = res {

@@ -2,6 +2,7 @@ use super::util;
 use super::item::{ Item,Node };
 use super::ctx::Ctx;
 
+use nom::{ExtendInto, Offset};
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::sequence::{separated_pair, tuple};
@@ -9,49 +10,36 @@ use nom::multi::separated_list1;
 use nom::character::complete::multispace0;
 
 use nom::bytes::complete::tag;
+use nom::combinator::value;
 
 use std::collections::HashSet;
 
 use crate::error::{IResult, ParseError};
 use crate::locate::Span;
 
+use nom_locate::position;
+
 // Register parsing
 
 pub fn get_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
-    let (rest, matched) = alt((
-            tag_no_case("pcr"),
-            tag_no_case("dp"),
-            tag_no_case("cc"),
-            tag_no_case("pc"),
-            tag_no_case("a"),
-            tag_no_case("b"),
-            tag_no_case("x"),
-            tag_no_case("y"),
-            tag_no_case("u"),
-            tag_no_case("s"),
-            tag_no_case("d")))(input)?;
-
     use emu::cpu::RegEnum::*;
 
-    let matched_lower = matched.to_string().to_ascii_lowercase();
-
-    let reg = match matched_lower.as_str() {
-            "pcr" => PC,
-            "dp" => DP,
-            "cc" => CC,
-            "pc" => PC,
-            "a" => A,
-            "b" => B,
-            "x" => X,
-            "y" => Y,
-            "u" => U,
-            "s" => S,
-            "d" => D,
-        _ => panic!("Should not happen"),
-    };
+    let (rest, reg) = alt((
+            value(PC,tag_no_case("pcr")),
+            value(PC,tag_no_case("pc")),
+            value(DP,tag_no_case("dp")),
+            value(CC,tag_no_case("cc")),
+            value(A,tag_no_case("a")),
+            value(B,tag_no_case("b")),
+            value(X,tag_no_case("x")),
+            value(Y,tag_no_case("y")),
+            value(U,tag_no_case("u")),
+            value(S,tag_no_case("s")),
+            value(D,tag_no_case("d"))))(input)?;
 
     Ok((rest, reg))
 }
+
 fn get_reg_list(input: Span) -> IResult< Vec<emu::cpu::RegEnum>> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let (rest, matched) = separated_list1(sep, get_reg)(input)?;
@@ -78,8 +66,8 @@ fn get_reg_set(input: Span) -> IResult< HashSet<emu::cpu::RegEnum>> {
 
 pub fn parse_reg(input: Span) -> IResult< Node> {
     let (rest,matched) = get_reg(input)?;
-    Ok((rest, 
-        Node::from_item(Item::Register(matched))))
+    let ret = Node::from_item(Item::Register(matched)).with_pos(input, rest);
+    Ok((rest,ret))
 }
 
 pub fn parse_reg_list(input: Span) -> IResult< Item> {
@@ -89,7 +77,8 @@ pub fn parse_reg_list(input: Span) -> IResult< Item> {
 
 pub fn parse_reg_set(input: Span) -> IResult< Node> {
     let (rest, matched) = get_reg_set(input)?;
-    Ok((rest, Node::from_item(Item::RegisterSet(matched))))
+    let ret = Node::from_item(Item::RegisterSet(matched)).with_pos(input, rest);
+    Ok((rest, ret))
 }
 
 pub fn parse_reg_set_2(input: Span) -> IResult<Node> {
@@ -109,6 +98,8 @@ pub fn parse_reg_set_2(input: Span) -> IResult<Node> {
         )));
         }
     } 
+
+    let matched = matched.with_pos(input, rest);
 
     Ok((rest,matched))
 }

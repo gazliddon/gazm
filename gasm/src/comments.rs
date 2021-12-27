@@ -12,13 +12,13 @@ use nom::bytes::complete::tag;
 use crate::error::{IResult};
 use crate::locate::Span;
 
-pub static COMMENT: & str = ";";
+static COMMENT: & str = ";";
 
-pub fn get_comment(input: Span) -> IResult<Span> {
+fn get_comment(input: Span) -> IResult<Span> {
     recognize(pair(many1(tag(COMMENT)), not_line_ending))(input)
 }
 
-pub fn parse_comment(input: Span) -> IResult< Item> {
+fn parse_comment(input: Span) -> IResult< Item> {
     let (rest, matched) = get_comment(input)?;
     Ok((rest, Item::Comment(matched.to_string())))
 }
@@ -30,7 +30,9 @@ fn strip_comments(input: Span) -> IResult<Option<Node>> {
     let res = tuple((not_comment, parse_comment))(input);
 
     if let Ok((_rest, (line, comment))) = res {
-        Ok((line, Some(Node::from_item(comment))))
+        let node = Node::from_item(comment);
+        let node = node.with_pos(input,_rest);
+        Ok((line, Some(node)))
     } else {
         Ok((input, None))
     }
@@ -43,6 +45,7 @@ fn parse_any_thing(input: Span) -> IResult<Span> {
 pub fn strip_comments_and_ws(input: Span) -> IResult<Option<Node>> {
     let (rest, comment) = strip_comments(input)?;
     let (_, text_matched) = preceded(multispace0, parse_any_thing)(rest)?;
+
     Ok((text_matched,comment))
 }
 

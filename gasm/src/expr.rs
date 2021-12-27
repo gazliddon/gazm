@@ -45,12 +45,13 @@ use crate::locate::Span;
 // Expr Parsing
 
 fn parse_bracketed_expr(input: Span) -> IResult< Node> {
-    util::wrapped_chars('(', parse_expr, ')')(input)
+    let (rest, matched) = util::wrapped_chars('(', parse_expr, ')')(input)?;
+    Ok(( rest, matched.with_pos(input, rest) ))
 }
 
 fn parse_pc(input : Span) -> IResult< Node> {
     let (rest, _matched) = nom_char('*')(input)?;
-    Ok((rest, Node::from_item(Item::Pc)))
+    Ok((rest, Node::from_item(Item::Pc).with_pos(input, rest)))
 }
 
 fn parse_non_unary_term(input: Span) -> IResult< Node> {
@@ -70,7 +71,9 @@ pub fn parse_term(input: Span) -> IResult< Node> {
 fn parse_unary_term(input: Span) -> IResult< Node> {
     use util::parse_number;
     let (rest, (op, term)) = separated_pair(parse_unary_op,  multispace0, parse_term)(input)?;
-    let ret = Node::from_item(Item::UnaryTerm).with_children(vec![op,term]);
+    let ret = Node::from_item(Item::UnaryTerm)
+        .with_children(vec![op,term])
+        .with_pos(input, rest);
     Ok((rest, ret))
 }
 
@@ -85,7 +88,7 @@ fn parse_unary_op(input: Span) -> IResult< Node> {
         _ => panic!("{:?}", matched),
     };
 
-    let ret = Node::from_item(op);
+    let ret = Node::from_item(op).with_pos(input, rest);
     Ok((rest, ret))
 }
 
@@ -101,14 +104,13 @@ fn parse_op(input: Span) -> IResult< Node> {
         '/' => Item::Div,
         _ => panic!("{:?}", matched),
     };
-    let ret = Node::from_item(op);
-
+    let ret = Node::from_item(op).with_pos(input, rest);
     Ok((rest, ret))
 }
 
 fn parse_op_term(input: Span) -> IResult< Node> {
     let (rest, (op, term)) = separated_pair(parse_op, multispace0, parse_term)(input)?;
-    let node = op.with_child(term);
+    let node = op.with_child(term).with_pos(input,rest);
     Ok((rest,node))
 }
 
@@ -122,13 +124,16 @@ fn prepend(i : Node, is : Vec<Node>) -> Vec<Node> {
 pub fn parse_expr(input: Span) -> IResult<Node> {
     let (rest, (v,vs)) = separated_pair(parse_term, multispace0, many0(parse_op_term))(input)?;
 
-    if vs.is_empty() {
-        Ok((rest,v))
+    let node = if vs.is_empty() {
+        v
     } else {
         let v = prepend(v,vs);
-        let node = Node::from_item(Item::Expr).with_children(v);
-        Ok((rest,node))
-    }
+        Node::from_item(Item::Expr).with_children(v)
+    };
+
+    let node = node.with_pos(input,rest);
+
+    Ok(( rest,node ))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

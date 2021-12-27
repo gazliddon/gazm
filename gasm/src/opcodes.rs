@@ -93,7 +93,6 @@ lazy_static::lazy_static! {
 }
 
 pub fn opcode_token(input: Span) -> IResult<Span> {
-
     // Some opcodes have a number
     let (rest,matched) = recognize(pair(
             alpha1,digit0))(input)?;
@@ -111,63 +110,70 @@ pub fn opcode_token(input: Span) -> IResult<Span> {
 
 fn parse_immediate(input: Span) -> IResult<Node> {
     let (rest, matched) = preceded(tag("#"), expr::parse_expr)(input)?;
-    let ret = Node::from_item(Item::Immediate).with_child(matched);
+    let ret = Node::from_item(Item::Immediate).with_child(matched).with_pos(input,rest);
     Ok((rest, ret))
 }
 
 fn parse_dp(input: Span) -> IResult<Node> {
     let (rest, matched) = preceded(tag("<"), expr::parse_expr)(input)?;
-    let ret = Node::from_item(Item::DirectPage).with_child(matched);
+    let ret = Node::from_item(Item::DirectPage).with_child(matched).with_pos(input,rest);
     Ok((rest, ret))
 }
 
 // Post inc / dec
 fn parse_post_inc(input: Span) -> IResult<Node> {
     let (rest, matched) = terminated( get_reg , tag("+"))(input)?;
-
-    Ok((rest, Node::from_item(Item::PostIncrement(matched))))
+    let ret = Node::from_item(Item::PostIncrement(matched)).with_pos(input, rest);
+    Ok((rest,ret))
 }
 
 fn parse_post_inc_inc(input: Span) -> IResult<Node> {
     let (rest, matched) = terminated( get_reg , tag("++"))(input)?;
-    Ok((rest, Node::from_item(
-        Item::DoublePostIncrement(matched))))
+    let ret =  Node::from_item(Item::DoublePostIncrement(matched)).with_pos(input, rest);
+
+    Ok((rest,ret))
 }
 fn parse_post_dec(input: Span) -> IResult<Node> {
     let (rest, matched) = terminated( get_reg , tag("-"))(input)?;
-    Ok((rest,Node::from_item(
-        Item::PostDecrement(matched))))
+    let ret = Node::from_item( Item::PostDecrement(matched)).with_pos(input, rest);
+    Ok((rest,ret))
 }
 fn parse_post_dec_dec(input: Span) -> IResult<Node> {
     let (rest, matched) = terminated( get_reg , tag("--"))(input)?;
-    Ok((rest,Node::from_item(
-        Item::DoublePostDecrement(matched))))
+    let ret = Node::from_item(
+        Item::DoublePostDecrement(matched)).with_pos(input, rest);
+    Ok((rest,ret))
 }
 
 // Pre inc / dec
 fn parse_pre_dec(input: Span) -> IResult<Node> {
     let (rest, matched) = preceded(tag("-"), get_reg )(input)?;
-    Ok((rest, Node::from_item(
-        Item::PreDecrement(matched))))
+    let ret = Node::from_item(
+        Item::PreDecrement(matched)).with_pos(input, rest);
+    Ok((rest, ret))
 }
 
 fn parse_pre_inc(input: Span) -> IResult<Node> {
     let (rest, matched) = preceded(tag("+"), get_reg )(input)?;
-    Ok((rest, Node::from_item(
-        Item::PreIncrement(matched))))
+    let ret = Node::from_item(
+        Item::PreIncrement(matched)).
+        with_pos(input, rest);
+    Ok((rest, ret))
 }
 
 fn parse_pre_inc_inc(input: Span) -> IResult<Node> {
     let (rest, matched) = preceded(tag("++"), get_reg )(input)?;
-    Ok((rest, Node::from_item(
-        Item::DoublePreIncrement(matched))))
+    let ret = Node::from_item(
+        Item::DoublePreIncrement(matched))
+        .with_pos(input,rest);
+    Ok((rest, ret))
 }
+
 
 fn parse_pre_dec_dec(input: Span) -> IResult<Node> {
     let (rest, matched) = preceded(tag("--"), get_reg )(input)?;
-    Ok((rest,
-        Node::from_item(
-        Item::DoublePreDecrement(matched))))
+    let ret = Node::from_item(Item::DoublePreDecrement(matched)).with_pos(input,rest);
+    Ok((rest, ret))
 }
 
 // Simple index
@@ -186,7 +192,7 @@ fn parse_index_type(input : Span) -> IResult< Node> {
                 parse_reg  )
         )(input)?;
 
-    Ok((rest, reg))
+    Ok((rest, reg.with_pos(input, rest)))
 }
 
 fn parse_indexed(input : Span) -> IResult< Node> {
@@ -198,12 +204,13 @@ fn parse_indexed(input : Span) -> IResult< Node> {
         parse_index_type
         )(input)?;
 
-    let zero = Node::from_number(0);
+    let zero = Node::from_number(0).with_pos(input,rest);
 
     let expr = expr.unwrap_or(zero);
 
     let ret = Node::from_item(Item::Indexed);
-    let ret = ret.with_children(vec![expr, reg]);
+
+    let ret = ret.with_children(vec![expr, reg]).with_pos(input, rest);
 
     Ok((rest, ret))
 }
@@ -215,7 +222,7 @@ fn parse_indirect(input: Span) -> IResult< Node> {
         alt((parse_indexed,parse_expr))
     , ']')(input)?;
 
-    let ret = Node::from_item(Item::Indirect).with_child(matched);
+    let ret = Node::from_item(Item::Indirect).with_child(matched).with_pos(input, rest);
 
     Ok((rest, ret))
 }
@@ -239,21 +246,23 @@ fn parse_opcode_with_arg(input: Span) -> IResult< Node> {
                                  multispace1, parse_opcode_arg)(input)?;
 
     let item = Item::OpCode(op.to_string());
-    let node = Node::from_item(item).with_child(arg);
+    let node = Node::from_item(item)
+        .with_child(arg)
+        .with_pos(input, rest);
 
     Ok((rest, node))
 }
 
 fn parse_opcode_no_arg(input: Span) -> IResult< Node> {
+    use Item::*;
     let (rest, text) = opcode_token(input)?;
-    Ok((rest, 
-        Node::from_item(
-        Item::OpCode(text.to_string()))))
+    let ret = Node::from_item(OpCode(text.to_string())).with_pos(input, rest);
+    Ok((rest,ret))
 }
 
 pub fn parse_opcode(input: Span) -> IResult< Node> {
     let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;
-    Ok((rest, item))
+    Ok((rest, item.with_pos(input, rest)))
 }
 
 

@@ -83,7 +83,9 @@ pub fn parse_assignment(input: Span) -> IResult< Node> {
             expr::parse_expr
             ))(input)?;
 
-    let ret = Node::from_item(Item::Assignment).with_children(vec![label, arg]);
+    let ret = Node::from_item(Item::Assignment)
+        .with_children(vec![label, arg])
+        .with_pos(input, rest);
 
     Ok((rest, ret))
 }
@@ -143,7 +145,8 @@ pub fn parse_escaped_str(input: Span) -> IResult< Item> {
 }
 pub fn parse_number(input: Span) -> IResult< Node> {
     let (rest, num) = numbers::number_token(input)?;
-    Ok((rest, Node::from_number(num)))
+    let ret = Node::from_number(num).with_pos(input,rest);
+    Ok((rest, ret))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

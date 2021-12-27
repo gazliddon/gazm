@@ -120,9 +120,9 @@ pub fn command_token(input: Span) -> IResult< Span> {
 }
 
 pub fn parse_command(input: Span) -> IResult<Node> {
-    let (rest, (_command_text, func )) = command_token_function(input)?;
-    let (rest, matched) = preceded(multispace1,  func)(rest)?;
-    Ok((rest, matched))
+    let (rest, (command_text, func)) = command_token_function(input)?;
+    let (rest, matched) = preceded(multispace1, func)(rest)?;
+    Ok((rest, matched.with_pos(command_text,rest)))
 }
 
 #[allow(unused_imports)]

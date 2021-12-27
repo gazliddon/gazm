@@ -11,8 +11,10 @@ use nom::multi::many0 ;
 use nom::bytes::complete::is_a;
 use nom::branch::alt;
 
-use crate::error::{IResult};
+use crate::error::IResult;
 use crate::locate::Span;
+
+use nom_locate::position;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
@@ -56,35 +58,11 @@ fn parse_local_label(input: Span) -> IResult< Node> {
         Item::LocalLabel(matched.to_string()))))
 }
 
-pub fn parse_label(input: Span) -> IResult< Node> {
-    alt((parse_local_label, parse_just_label))(input)
-}
-
-type PResult<T> = std::result::Result<T, ParseError>;
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ParseError {
-    msg : String
-}
-
-impl std::error::Error for ParseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        panic!()
-    }
-    fn description(&self) -> &str { &self.msg }
-    fn cause(&self) -> Option<&dyn std::error::Error> { panic!() }
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> { todo!() }
-}
-
-impl From<nom::Err<nom::error::Error<&str>>> for ParseError {
-    fn from(e : nom::Err<nom::error::Error<&str>>) -> Self {
-        Self {
-            msg : e.to_string()
-        }
-    }
+pub fn parse_label(input: Span) -> IResult<Node> {
+    use super::locate::Position;
+    let (rest, matched) = alt((parse_local_label, parse_just_label))(input)?;
+    let matched = matched.with_pos(input, rest);
+    Ok((rest,matched))
 }
 
 #[allow(unused_imports)]

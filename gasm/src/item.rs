@@ -4,9 +4,13 @@ use emu::cpu::RegEnum;
 use nom::IResult;
 
 use crate::fileloader::FileLoader;
-use crate::node::BaseNode;
+use crate::node::{BaseNode, CtxTrait};
 use crate::ctx::Ctx;
 use crate::locate::Span;
+
+use crate::locate::Position;
+
+pub type Node = BaseNode<Item, Position>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
@@ -78,7 +82,7 @@ impl Item {
 
 }
 
-impl BaseNode<Item> {
+impl<E : CtxTrait> BaseNode<Item, E> {
     pub fn is_empty_comment(&self) -> bool {
         match self.item() {
             Item::Comment(text) => text.is_empty(),
@@ -105,9 +109,16 @@ impl BaseNode<Item> {
     }
 }
 
+impl BaseNode<Item, Position> {
+    pub fn with_pos(self, start : Span, end : Span) -> Self {
+        use super::locate::Position;
+        let ctx = Position::new(start, end);
+        self.with_ctx(ctx)
+    }
+}
+
 fn get_offset(master: &str, text: &str) -> usize {
     text.as_ptr() as usize - master.as_ptr() as usize
 }
 
-pub type Node = BaseNode<Item>;
 

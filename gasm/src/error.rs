@@ -7,8 +7,8 @@ use crate::locate::Span;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError<'a> {
-    span: Span<'a>,
-    message: Option<String>,
+    pub span: Span<'a>,
+    pub message: Option<String>,
 }
 
 pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError<'a>>;

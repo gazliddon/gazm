@@ -6,7 +6,7 @@ use crate::ctx::Ctx;
 ////////////////////////////////////////////////////////////////////////////////
 // Node
 
-pub trait CtxTrait : Default {
+pub trait CtxTrait : Default + Clone + std::fmt::Debug {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -185,6 +185,7 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
         ret
     }
 
+
 }
 
 impl<I : std::fmt::Debug , C: CtxTrait > std::fmt::Debug for BaseNode<I,C> {
@@ -195,6 +196,8 @@ impl<I : std::fmt::Debug , C: CtxTrait > std::fmt::Debug for BaseNode<I,C> {
          if self.has_children() {
              db.field("children", &self.children);
          }
+
+         db.field("ctx",&self.ctx());
 
          db.finish()
     }

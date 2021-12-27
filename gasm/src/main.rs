@@ -28,12 +28,20 @@ fn main() {
 
     let res = tokenize::tokenize(&ctx);
 
-    if let Ok(n) = res {
-        for i in n.tree_iter().filter(|x| x.item() == &Assignment) {
-            println!("{:?}",i)
-        }
-    } else {
-        println!("{:?}", res)
+    match res {
+        Ok(n) => {
+            println!("Succeded!");
+
+            for n in n.tree_iter() {
+                let p = n.ctx();
+
+                if p.start == 0 && p.end == 0 {
+                    println!("{:?}", n.item())
+                }
+
+            }
+        },
+        Err(e) => println!(":( {:?} ", e)
     }
 }
 
