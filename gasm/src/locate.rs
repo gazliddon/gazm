@@ -1,6 +1,11 @@
 use nom::Offset;
 use nom_locate::LocatedSpan;
 
+struct SourceFileInfo<'a> {
+    file: &'a str,
+    master: &'a str,
+}
+
 pub type Span<'a> = LocatedSpan<&'a str, &'a str>;
 
 pub trait AsSpan<'a> {
@@ -18,26 +23,6 @@ impl<'a> AsSpan<'a> for String {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Span2<'a> {
-    span : Span<'a>
-}
-
-use std::ops::Deref;
-
-impl<'a> Span2<'a> {
-
-    pub fn new(_a: &'a str) -> Self {
-        panic!()
-    }
-}
-impl<'a> Deref for Span2<'a> {
-    type Target = LocatedSpan<&'a str, &'a str>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.span
-    }
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Position {

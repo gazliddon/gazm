@@ -41,7 +41,10 @@ fn main() {
 
             }
         },
-        Err(e) => println!(":( {:?} ", e)
+
+        Err(e) => {
+            println!("{:?}", e)
+        }
     }
 }
 

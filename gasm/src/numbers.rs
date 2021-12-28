@@ -13,7 +13,7 @@ fn num_get(input : Span) -> IResult<Span> {
     recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
 }
 
-fn num_parse_err<'a>(input : Span<'a>, radix : &str, e : std::num::ParseIntError ) -> nom::Err<ParseError<'a>> {
+fn num_parse_err<'a>(input : Span<'a>, radix : &str, e : std::num::ParseIntError ) -> nom::Err<ParseError> {
     let e = format!("Parsing {}: {}",radix, e);
     nom::Err::Error(ParseError::new(e, input))
 }

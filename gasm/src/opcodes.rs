@@ -414,7 +414,7 @@ mod test {
 
     fn test_item<'a, F>(mut parse : F, input : &'a str, des : &Item) -> Item
         where
-            F : nom::Parser<Span<'a>,Node,ParseError<'a>>
+            F : nom::Parser<Span<'a>,Node,ParseError>
     {
         let input = input.as_span();
         let res = parse.parse(input);

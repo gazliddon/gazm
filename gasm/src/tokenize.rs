@@ -1,28 +1,32 @@
-use crate::{ cli,item,commands, comments, labels, expr,  opcodes, fileloader, util };
+use crate::{cli, commands, comments, expr, fileloader, item, labels, locate::Position, opcodes, util};
 
 use nom::{
-    character::complete::{ multispace1, multispace0, line_ending, },
-    bytes::complete::{ take_until, is_not },
-    sequence::{ pair, terminated, preceded },
-    combinator::{opt, all_consuming, eof, not, recognize},
     branch::alt,
-    multi::{ many0, many1 }
-};
+    bytes::complete::{ take_until, is_not },
+    character::complete::{ multispace1, multispace0, line_ending, }, combinator::{opt, all_consuming, eof, not, recognize},  multi::{ many0, many1 }, sequence::{ pair, terminated, preceded }};
 
 use crate::error::{IResult, ParseError};
 use crate::locate::{ Span, AsSpan };
+use crate::item::Node;
 
-pub fn tokenize_str(source : Span) -> IResult<Vec<item::Node>> {
+fn get_line(input : Span)-> IResult<Span> {
+        let (rest, line) =
+            preceded(multispace0, 
+                     terminated(recognize(many0(is_not("\n"))), opt(line_ending)))(input)?;
+
+        Ok((rest,line))
+}
+
+pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Vec<item::Node>, ParseError> {
+
     use item::{ Item::*, Node };
     use commands::parse_command;
     use labels::parse_label;
     use opcodes::parse_opcode;
     use util::parse_assignment;
-
-
     use util::ws;
 
-    let mut source = source;
+    let mut source = input.clone();
 
     let mut items : Vec<Node> = vec![];
 
@@ -38,18 +42,15 @@ pub fn tokenize_str(source : Span) -> IResult<Vec<item::Node>> {
         Node::from_item(Assignment).with_children(children).with_ctx(pos)
     };
 
-    while !source.is_empty() {
 
-        let (rest, line) =
-            preceded(multispace0, 
-            terminated(recognize(many0(is_not("\n"))), opt(line_ending))
-                                    )(source)?;
+    while !source.is_empty() {
+        let (rest, line) = get_line(source)?;
 
         source = rest;
 
         if !line.is_empty() {
 
-            let (input, comment) = comments::strip_comments(line.into())?;
+            let (input, comment) = comments::strip_comments(line)?;
             push_some(&comment);
 
             if input.is_empty() {
@@ -69,67 +70,55 @@ pub fn tokenize_str(source : Span) -> IResult<Vec<item::Node>> {
 
             let body = alt(( ws::<_,_,ParseError>( parse_opcode ),ws::<_,_,ParseError>( parse_command ) ));
 
-            let res = all_consuming(pair(opt(parse_label),body))(input);
-
-            if let Ok((_, (label,body))) = res {
-                let label = label.map(mk_pc_equate);
-                push_some(&label);
-                push_some(&Some(body));
-            } else {
-                println!("{:?}", res);
-                println!("Input: {:?}", input);
-                panic!()
-            }
+            let (_, (label,body)) = all_consuming(pair(opt(parse_label),body))(input)?;
+            let label = label.map(mk_pc_equate);
+            push_some(&label);
+            push_some(&Some(body));
         }
-
     }
 
-    Ok((source, items))
+    Ok(items)
 }
 
 use std::path::Path;
 
-pub fn tokenize_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P) -> Result<item::Node, Box<dyn std::error::Error>> {
+struct SoureFile {
+    text : String,
+}
+
+pub fn tokenize_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P) -> Result<Node, ParseError> {
     use item::Item::*;
+
     let file_name = file_name.as_ref().to_path_buf();
+
 
     println!("Tokenizing: {:?}", file_name.as_path());
 
-    let (loaded_name,source) = fl.read_to_string(&file_name)?;
+    let (loaded_name,source) = fl.read_to_string(&file_name)
+        .map_err(|e| ParseError::from_text(&e.to_string()))?;
 
-    let source = source.as_span();
+    let pos = Position::from_usize((0,source.len()));
 
-    let res = tokenize_str(source);
+    let input = source.as_span();
 
-    match res {
-        Ok((rest,mut matched)) => {
+    let mut matched = tokenize_str(input)?;
 
-            for tok in &mut matched {
-                if let Include(file) = tok.item() {
-                    let inc_source = tokenize_file(fl, file.clone())?;
-                    *tok = inc_source;
-                }
-            }
-            use item::Node;
-
-            let ret = Node::from_item(File(loaded_name))
-                .with_children(matched)
-                .with_pos(source,rest);
-
-            Ok(ret)
-        },
-
-        Err(e) => {
-            if let nom::Err::Error(pe) = e {
-                println!("{:?}", pe.message);
-            }
-            panic!()
-        },
+    for tok in &mut matched {
+        if let Include(file) = tok.item() {
+            let inc_source = tokenize_file(fl, file.clone())?;
+            *tok = inc_source;
+        }
     }
+
+    let ret = Node::from_item(File(loaded_name))
+        .with_children(matched)
+        .with_ctx(pos);
+
+    Ok(ret)
 }
 
 
-pub fn tokenize( ctx : &cli::Context ) -> Result<item::Node, Box<dyn std::error::Error>> {
+pub fn tokenize( ctx : &cli::Context ) -> Result<Node, ParseError> {
     use fileloader::FileLoader;
 
     let file = ctx.file.clone();
