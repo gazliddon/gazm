@@ -279,17 +279,30 @@ mod test {
 
     use super::*;
 
+
+
     #[test]
     fn test_opcode_reg_list() {
         use Item::*;
         use emu::cpu::RegEnum::*;
 
         let op_text = "pshu a,b,d,x,y";
+        let op_pos = 0;
+        let set_pos = op_pos+5;
+        let end_pos = op_text.len();
 
         let (_rest, matched) = parse_opcode_with_arg(op_text.as_span()).unwrap();
 
         let set  = vec![A,B,D,X,Y].into_iter().collect();
-        let des_node = Node::from_item_item(OpCode("pshu".to_owned()),RegisterSet(set));
+        println!("{:?}", set);
+        let rset = RegisterSet(set);
+        println!("{:?}", rset);
+
+        let des_child =  Node::from_item(rset).with_upos(set_pos, end_pos);
+
+        let des_node = Node::from_item(OpCode("pshu".to_owned()))
+            .with_child(des_child)
+            .with_upos(op_pos, end_pos);
 
         assert_eq!(matched, des_node);
 
@@ -310,12 +323,18 @@ mod test {
     fn test_opcode_immediate() {
         let op_text = "lda #100";
         let (_rest, matched) = parse_opcode_with_arg(op_text.as_span()).unwrap();
+        let op_end = op_text.len();
+        let arg_pos = 4;
+        let num_pos = arg_pos + 1;
 
         let oc = "lda";
         let num = 100;
 
-        let des_node = Node::from_item(Item::OpCode(oc.to_string()));
-        let des_arg = Node::from_item(Item::Immediate).with_child(Node::from_number(num));
+        let des_node = Node::from_item(Item::OpCode(oc.to_string())).with_upos(0, op_end);
+        let des_arg = Node::from_item(Item::Immediate)
+            .with_child(
+                Node::from_number(num).with_upos(num_pos, op_end))
+            .with_upos(arg_pos, op_end);
         let des_node = des_node.with_child(des_arg);
 
         assert_eq!(matched, des_node);

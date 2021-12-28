@@ -11,7 +11,7 @@ pub enum AddrModeEnum {
     Inherent,
     Immediate8,
     Immediate16,
-    Stack,
+    RegisterSet,
 }
 impl fmt::Display for AddrModeEnum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

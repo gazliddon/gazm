@@ -4,7 +4,7 @@ use crate::labels;
 use crate::expr;
 
 use crate::error::{IResult, ParseError};
-use crate::locate::Span;
+use crate::locate::{ Span, AsSpan };
 
 // use nom::error::ParseError;
 use nom::bytes::complete::{
@@ -166,21 +166,28 @@ mod test {
     #[test]
     fn test_assignment() {
         let input = "hello equ $1000";
-        let res = parse_assignment(input.into());
+        let res = parse_assignment(input.as_span());
+
+        let op_start = 0;
+        let op_end = input.len();
+        let equ_pos = op_start + 6;
+        let num_start = equ_pos + 4;
+
         assert!(res.is_ok());
 
         let (_rest, matched) = res.unwrap();
 
         let args : Vec<_> = vec![
-            Node::from_item(Item::Label("hello".to_string())),
-            Node::from_number(4096)
+            Node::from_item(Item::Label("hello".to_string())).with_upos(op_start, op_start + 5),
+            Node::from_number(4096).with_upos(num_start, op_end)
         ];
 
-        let desired = Node::from_item(Item::Assignment).with_children(args);
+        let desired = Node::from_item(Item::Assignment)
+            .with_children(args)
+            .with_upos(op_start, op_end);
 
         assert_eq!(desired, matched);
     }
-
 }
 
 

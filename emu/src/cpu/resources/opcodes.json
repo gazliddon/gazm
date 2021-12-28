@@ -312,28 +312,28 @@
             "size": 2
         },
         {
-            "addr_mode": "Stack",
+            "addr_mode": "RegisterSet",
             "cycles": 5,
             "opcode": "34",
             "action": "PSHS",
             "size": 2
         },
         {
-            "addr_mode": "Stack",
+            "addr_mode": "RegisterSet",
             "cycles": 5,
             "opcode": "35",
             "action": "PULS",
             "size": 2
         },
         {
-            "addr_mode": "Stack",
+            "addr_mode": "RegisterSet",
             "cycles": 5,
             "opcode": "36",
             "action": "PSHU",
             "size": 2
         },
         {
-            "addr_mode": "Stack",
+            "addr_mode": "RegisterSet",
             "cycles": 5,
             "opcode": "37",
             "action": "PULU",

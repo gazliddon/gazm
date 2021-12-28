@@ -274,11 +274,11 @@ impl AddressLines for Inherent {
     }
 }
 
-pub struct Stack {}
+pub struct RegisterSet {}
 
-impl AddressLines for Stack {
+impl AddressLines for RegisterSet {
     fn get_addr_mode() -> AddrModeEnum {
-        AddrModeEnum::Stack
+        AddrModeEnum::RegisterSet
     }
 
     fn fetch_byte(

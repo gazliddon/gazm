@@ -19,7 +19,7 @@ bitflags! {
 use super::{
     alu,
     mem::{MemErrorTypes, MemoryIO},
-    AddressLines, Clock, Direct, Extended, Flags, Immediate16, Immediate8, Indexed, Inherent, Stack,
+    AddressLines, Clock, Direct, Extended, Flags, Immediate16, Immediate8, Indexed, Inherent, RegisterSet,
     InstructionDecoder, RegEnum, Regs, Relative, Relative16,
 };
 
