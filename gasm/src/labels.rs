@@ -46,30 +46,46 @@ fn get_local_label(input: Span) -> IResult<Span> {
 
 fn parse_just_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
+    let ret = Node::from_item(Item::Label(matched.to_string())).
+        with_pos(input, rest);
     Ok((rest, 
-        Node::from_item(
-        Item::Label(matched.to_string()))))
+        ret))
 }
 
 fn parse_local_label(input: Span) -> IResult< Node> {
     let (rest, matched) = get_local_label(input)?;
-    Ok((rest,
-        Node::from_item(
-        Item::LocalLabel(matched.to_string()))))
+    let ret = Node::from_item(Item::LocalLabel(matched.to_string())).with_pos(input, rest);
+    Ok((rest,ret))
 }
 
 pub fn parse_label(input: Span) -> IResult<Node> {
-    use super::locate::Position;
     let (rest, matched) = alt((parse_local_label, parse_just_label))(input)?;
-    let matched = matched.with_pos(input, rest);
     Ok((rest,matched))
 }
 
 #[allow(unused_imports)]
 mod test {
+    use crate::locate::{AsSpan, Position};
+
     use super::*;
 
     use pretty_assertions::{assert_eq, assert_ne};
+
+    fn prep_label<'a>(nl : &'a str) -> IResult<(Node, Node)> {
+        let des_pos = Position::from_usize(( 0,nl.len() ));
+        let nl = nl.as_span();
+        let (rest, matched) = parse_label(nl)?;
+        let des = Node::to_label(&nl.to_string()).with_ctx(des_pos);
+        Ok((rest, (matched, des)))
+    }
+
+    fn prep_loc_label<'a>(nl : &'a str) -> IResult<(Node, Node)> {
+        let des_pos = Position::from_usize(( 0,nl.len() ));
+        let nl = nl.as_span();
+        let (rest, matched) = parse_label(nl)?;
+        let des = Node::to_local_lable(&nl.to_string()).with_ctx(des_pos);
+        Ok((rest, (matched, des)))
+    }
 
     #[test]
     fn test_parse_label() {
@@ -78,47 +94,45 @@ mod test {
         assert_eq!(res, des);
 
         let nl = "abc";
-        let (_,( res,des ))= prep_label(nl).unwrap();
+        let (_,( res,des ))= prep_label(nl.into()).unwrap();
         assert_eq!(res, des);
     }
 
     #[test]
     fn test_parse_local_label() {
+
         let nl = "@_local";
-        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        let res = prep_loc_label(nl);
+        assert!(res.is_ok());
+        let (_,(res,des)) = res.unwrap();
         assert_eq!(res,des);
 
         let nl = "local@";
-        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        let res = prep_loc_label(nl);
+        assert!(res.is_ok());
+        let (_,(res,des)) = res.unwrap();
         assert_eq!(res,des);
 
         let nl = "!_local";
-        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        let res = prep_loc_label(nl);
+        assert!(res.is_ok());
+        let (_,(res,des)) = res.unwrap();
         assert_eq!(res,des);
 
         let nl = "local!";
-        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        let res = prep_loc_label(nl);
+        assert!(res.is_ok());
+        let (_,(res,des)) = res.unwrap();
         assert_eq!(res,des);
-
 
         let nl = "!local_6502";
-        let (_,(res,des)) = prep_loc_label(nl).unwrap();
+        let res = prep_loc_label(nl);
+        assert!(res.is_ok());
+        let (_,(res,des)) = res.unwrap();
         assert_eq!(res,des);
     }
 
-    fn prep_loc_label<'a>(nl : &'a str) -> IResult<(Node, Node)> {
-        let nl : Span = nl.into();
-        let (rest, matched) = parse_label(nl)?;
-        let des = Node::to_local_lable(&nl);
-        Ok((rest, (matched, des)))
-    }
 
-    fn prep_label<'a>(nl : &'a str) -> IResult<(Node, Node)> {
-        let nl : Span = nl.into();
-        let (rest, matched) = parse_label(nl)?;
-        let des = Node::to_label(&nl);
-        Ok((rest, (matched, des)))
-    }
 
     #[test]
     fn test_label_no_opcodes() {

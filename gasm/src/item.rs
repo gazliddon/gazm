@@ -115,6 +115,12 @@ impl BaseNode<Item, Position> {
         let ctx = Position::new(start, end);
         self.with_ctx(ctx)
     }
+
+    pub fn with_upos(self, start: usize, end: usize) -> Self {
+        use super::locate::Position;
+        let ctx = Position::from_usize((start,end));
+        self.with_ctx(ctx)
+    }
 }
 
 fn get_offset(master: &str, text: &str) -> usize {

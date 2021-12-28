@@ -14,6 +14,17 @@ pub enum RegEnum {
     PC,
 }
 
+impl RegEnum {
+    pub fn is_valid_for_index(&self) -> bool {
+        use RegEnum::*;
+        match self {
+            X | Y | S | U | PC => true,
+            _ => false,
+        }
+    }
+}
+
+
 use serde_derive::{ Deserialize, Serialize };
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]

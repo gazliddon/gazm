@@ -40,6 +40,20 @@ pub fn get_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
     Ok((rest, reg))
 }
 
+pub fn get_index_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
+    let (rest, reg) = get_reg(input)?;
+
+    if reg.is_valid_for_index() {
+        Ok((rest, reg))
+    } else {
+        let msg = format!("Illegal index register {:?}, must be either: X, Y, S, U or PC", reg);
+        let err = ParseError::new(msg, input);
+        return Err( nom::Err::Failure(err))
+    }
+}
+
+
+
 fn get_reg_list(input: Span) -> IResult< Vec<emu::cpu::RegEnum>> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let (rest, matched) = separated_list1(sep, get_reg)(input)?;
@@ -66,6 +80,11 @@ fn get_reg_set(input: Span) -> IResult< HashSet<emu::cpu::RegEnum>> {
 
 pub fn parse_reg(input: Span) -> IResult< Node> {
     let (rest,matched) = get_reg(input)?;
+    let ret = Node::from_item(Item::Register(matched)).with_pos(input, rest);
+    Ok((rest,ret))
+}
+pub fn parse_index_reg(input: Span) -> IResult< Node> {
+    let (rest,matched) = get_index_reg(input)?;
     let ret = Node::from_item(Item::Register(matched)).with_pos(input, rest);
     Ok((rest,ret))
 }
@@ -103,6 +122,7 @@ pub fn parse_reg_set_2(input: Span) -> IResult<Node> {
 
     Ok((rest,matched))
 }
+
 
 #[allow(unused_imports)]
 mod test {

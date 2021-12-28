@@ -10,11 +10,10 @@ use nom::{
 };
 
 use crate::error::{IResult, ParseError};
-use crate::locate::Span;
+use crate::locate::{ Span, AsSpan };
 
 pub fn tokenize_str(source : Span) -> IResult<Vec<item::Node>> {
     use item::{ Item::*, Node };
-    use comments::strip_comments_and_ws;
     use commands::parse_command;
     use labels::parse_label;
     use opcodes::parse_opcode;
@@ -50,8 +49,7 @@ pub fn tokenize_str(source : Span) -> IResult<Vec<item::Node>> {
 
         if !line.is_empty() {
 
-            let (input, comment) = strip_comments_and_ws(line.into())?;
-
+            let (input, comment) = comments::strip_comments(line.into())?;
             push_some(&comment);
 
             if input.is_empty() {
@@ -99,7 +97,7 @@ pub fn tokenize_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P
 
     let (loaded_name,source) = fl.read_to_string(&file_name)?;
 
-    let source = Span::new_extra(&source, &source);
+    let source = source.as_span();
 
     let res = tokenize_str(source);
 

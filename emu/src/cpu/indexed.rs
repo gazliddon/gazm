@@ -85,14 +85,11 @@ impl IndexedFlags {
                 0b0100 => IndexModes::RZero(r), //               ,R               0 0 |
                 0b0101 => IndexModes::RAddB(r), //             (+/- B),R          1 0 |
                 0b0110 => IndexModes::RAddA(r), //             (+/- A),R          1 0 |
-                // 0b0111 => IndexModes::Illegal,      //              Illegal           u u |
                 0b1000 => IndexModes::RAddi8(r), //    (+/- 7 b  it offset),R      1 1 |
                 0b1001 => IndexModes::RAddi16(r), //      (+/- 15 bit offset),R     4 2 |
-                // 0b1010 => IndexModes::Illegal,      //              Illegal           u u |
                 0b1011 => IndexModes::RAddD(r), //             (+/- D),R          4 0 |
                 0b1100 => IndexModes::PCAddi8,  //      (+/- 7 bit offset),PC     1 1 |
                 0b1101 => IndexModes::PCAddi16, //      (+/- 15 bit offset),PC    5 2 |
-                // 0b1110 => IndexModes::Illegal,      //              Illegal           u u |
                 _ => IndexModes::Illegal,
             };
         }

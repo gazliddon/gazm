@@ -2,10 +2,11 @@ use crate::expr;
 use crate::expr::parse_expr;
 use crate::register;
 use crate::register::get_reg;
-use crate::register::parse_reg;
+use crate::register::parse_index_reg;
 
 use super::item::{ Item,Node };
 use super::util;
+use emu::cpu::RegEnum;
 use nom::character::complete::digit0;
 use emu::isa::{Dbase, Instruction};
 
@@ -25,7 +26,7 @@ use nom::sequence::{ pair, preceded, separated_pair, terminated, tuple};
 use nom::combinator::{ recognize, opt };
 
 use crate::error::{IResult, ParseError};
-use crate::locate::Span;
+use crate::locate::{ Span, AsSpan };
 
 ////////////////////////////////////////////////////////////////////////////////
 // opcode parsing
@@ -178,6 +179,7 @@ fn parse_pre_dec_dec(input: Span) -> IResult<Node> {
 
 // Simple index
 
+
 fn parse_index_type(input : Span) -> IResult< Node> {
     let (rest, reg) = 
         alt((
@@ -189,7 +191,7 @@ fn parse_index_type(input : Span) -> IResult< Node> {
                 parse_post_inc_inc,
                 parse_post_dec,
                 parse_post_inc,
-                parse_reg  )
+                parse_index_reg  )
         )(input)?;
 
     Ok((rest, reg.with_pos(input, rest)))
@@ -204,7 +206,7 @@ fn parse_indexed(input : Span) -> IResult< Node> {
         parse_index_type
         )(input)?;
 
-    let zero = Node::from_number(0).with_pos(input,rest);
+    let zero = Node::from_number(0).with_pos(input,input);
 
     let expr = expr.unwrap_or(zero);
 
@@ -271,7 +273,10 @@ mod test {
 
     use std::os::unix::prelude::JoinHandleExt;
 
+    use emu::cpu::RegEnum;
     use pretty_assertions::{assert_eq, assert_ne};
+    use crate::locate::Position;
+
     use super::*;
 
     #[test]
@@ -281,7 +286,7 @@ mod test {
 
         let op_text = "pshu a,b,d,x,y";
 
-        let (_rest, matched) = parse_opcode_with_arg(op_text.into()).unwrap();
+        let (_rest, matched) = parse_opcode_with_arg(op_text.as_span()).unwrap();
 
         let set  = vec![A,B,D,X,Y].into_iter().collect();
         let des_node = Node::from_item_item(OpCode("pshu".to_owned()),RegisterSet(set));
@@ -289,7 +294,7 @@ mod test {
         assert_eq!(matched, des_node);
 
         let op_text = "pshu a,b,d,x,y,y";
-        let res = parse_opcode_with_arg(op_text.into());
+        let res = parse_opcode_with_arg(op_text.as_span());
 
         if let Ok(( _,matched )) = &res {
             println!("{:#?}",matched);
@@ -304,12 +309,12 @@ mod test {
     #[test]
     fn test_opcode_immediate() {
         let op_text = "lda #100";
-        let (_rest, matched) = parse_opcode_with_arg(op_text.into()).unwrap();
+        let (_rest, matched) = parse_opcode_with_arg(op_text.as_span()).unwrap();
 
         let oc = "lda";
         let num = 100;
 
-        let des_node = Node::from_item(Item::OpCode(oc.into()));
+        let des_node = Node::from_item(Item::OpCode(oc.to_string()));
         let des_arg = Node::from_item(Item::Immediate).with_child(Node::from_number(num));
         let des_node = des_node.with_child(des_arg);
 
@@ -319,20 +324,52 @@ mod test {
     #[test]
     fn test_parse_immediate() {
         let op_text = "#$100+10";
+        let op_text = op_text.as_span();
 
-        let res = parse_immediate(op_text.into());
+        let num_p = 1;
+        let plus_p = num_p+4;
+        let ten_p = plus_p+1;
+        let last_p = op_text.len();
+
+        let res = parse_immediate(op_text);
         assert!(res.is_ok());
 
         let des_arg = vec![
-            Node::from_number(256),
-            Node::from_item(Item::Add).with_child(Node::from_number(10))
+            Node::from_number(256).with_upos(num_p,plus_p),
+            Node::from_item(Item::Add).with_child(Node::from_number(10).with_upos(ten_p,last_p)).with_upos(5, last_p)
         ];
 
-        let des_expr = Node::from_item(Item::Expr).with_children(des_arg);
-        let desired = Node::from_item(Item::Immediate).with_child(des_expr);
+        let des_expr = Node::from_item(Item::Expr).with_children(des_arg).with_upos(num_p,last_p);
+        let desired = Node::from_item(Item::Immediate).with_child(des_expr).with_upos(0,last_p);
         let (_, matched) = res.unwrap();
 
         assert_eq!(matched,desired);
+    }
+    fn simple_indexed(op : &str, middle : &str, index: &str, reg : RegEnum) {
+        use emu::cpu::RegEnum::*;
+        use Item::*;
+        let op_text = format!("{}{}{}",op,middle, index);
+        let op_text = op_text.as_span();
+        let res = parse_indexed(op_text);
+        assert!(res.is_ok());
+        println!("line: {:?}", op_text.to_string());
+
+        let op_start = 0;
+        let middle_start = op.len();
+        let index_start = middle_start + middle.len();
+        let end = index_start + index.len();
+
+        let des_args = vec![
+            Node::from_number(0).with_ctx(Position::from_usize((op_start,middle_start))),
+            Node::from_item(Item::Register(reg)).with_ctx(Position::from_usize((index_start,end))),
+        ];
+
+        let desired = Node::from_item(Item::Indexed)
+            .with_children(des_args)
+            .with_ctx(Position::from_usize(( 0,end))) ;
+
+        let (_, matched) = res.unwrap();
+        assert_eq!(matched, desired);
     }
 
     #[test]
@@ -340,31 +377,27 @@ mod test {
         use emu::cpu::RegEnum::*;
         use Item::*;
 
-        let op_text = "0,X";
-        let res = parse_indexed(op_text.into());
-        assert!(res.is_ok());
+        let op = "0";
+        let middle = ",";
+        let index = "X";
+        simple_indexed(op, middle, index, X);
 
-        let des_args = vec![
-            Node::from_number(0),
-            Node::from_item(Item::Register(X)),
-        ];
-        
+        let op = "";
+        let middle = ",";
+        let index = "X";
+        simple_indexed(op, middle, index,X);
 
-        let desired = Node::from_item(Item::Indexed).with_children(des_args) ;
-        let (_, matched) = res.unwrap();
-        assert_eq!(matched, desired);
-
-        let op_text = ",X";
-        let res = parse_indexed(op_text.into());
-        assert!(res.is_ok());
-        let (_, matched) = res.unwrap();
-        assert_eq!(matched, desired);
+        let op = "";
+        let middle = ",";
+        let index = "Y";
+        simple_indexed(op, middle, index,Y);
     }
 
-    fn test_item<'a, F>(mut parse : F, input : Span<'a>, des : &Item) -> Item
+    fn test_item<'a, F>(mut parse : F, input : &'a str, des : &Item) -> Item
         where
             F : nom::Parser<Span<'a>,Node,ParseError<'a>>
     {
+        let input = input.as_span();
         let res = parse.parse(input);
         assert!(res.is_ok());
 
@@ -382,45 +415,41 @@ mod test {
         let input = "--X";
         let des = DoublePreDecrement(X);
         let p = parse_pre_dec_dec;
-        test_item(p, input.into(), &des);
+        test_item(p, input, &des);
 
         let input = "-X";
         let des = PreDecrement(X);
         let p = parse_pre_dec;
-        test_item(p, input.into(), &des);
+        test_item(p, input, &des);
 
         let input = "+X";
         let des = PreIncrement(X);
         let p = parse_pre_inc;
-        test_item(p, input.into(), &des);
+        test_item(p, input, &des);
 
         let input = "++X";
         let des = DoublePreIncrement(X);
         let p = parse_pre_inc_inc;
-        test_item(p, input.into(), &des);
-
-
+        test_item(p, input, &des);
 
         let input = "X--";
         let des = DoublePostDecrement(X);
         let p = parse_post_dec_dec;
-        test_item(p, input.into(), &des);
+        test_item(p, input, &des);
 
         let input = "X-";
         let des = PostDecrement(X);
         let p = parse_post_dec;
-        test_item(p, input.into(), &des);
+        test_item(p, input, &des);
 
         let input = "X+";
         let des = PostIncrement(X);
         let p = parse_post_inc;
-        test_item(p, input.into(), &des);
+        test_item(p, input, &des);
 
         let input = "X++";
         let des = DoublePostIncrement(X);
         let p = parse_post_inc_inc;
-        test_item(p, input.into(), &des);
-
-
+        test_item(p, input, &des);
     }
 }
