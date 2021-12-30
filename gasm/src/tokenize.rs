@@ -1,12 +1,9 @@
 use crate::{cli, commands, comments, expr, fileloader, item, labels, locate::Position, opcodes, util};
 
-use nom::{
-    branch::alt,
-    bytes::complete::{ take_until, is_not },
-    character::complete::{ multispace1, multispace0, line_ending, }, combinator::{opt, all_consuming, eof, not, recognize},  multi::{ many0, many1 }, sequence::{ pair, terminated, preceded }};
+use nom::{AsBytes, branch::alt, bytes::complete::{ take_until, is_not }, character::complete::{ multispace1, multispace0, line_ending, }, combinator::{opt, all_consuming, eof, not, recognize}, multi::{ many0, many1 }, sequence::{ pair, terminated, preceded }};
 
-use crate::error::{IResult, ParseError};
-use crate::locate::{ Span, AsSpan };
+use crate::error::{IResult, ParseError, UserError};
+use crate::locate::{ Span, mk_span };
 use crate::item::Node;
 
 fn get_line(input : Span)-> IResult<Span> {
@@ -17,7 +14,12 @@ fn get_line(input : Span)-> IResult<Span> {
         Ok((rest,line))
 }
 
-pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Vec<item::Node>, ParseError> {
+struct Tokens {
+    text : String,
+    tokens: Vec<item::Node>
+}
+
+pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Node, ParseError<'a>> {
 
     use item::{ Item::*, Node };
     use commands::parse_command;
@@ -25,6 +27,8 @@ pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Vec<item::Node>, ParseError>
     use opcodes::parse_opcode;
     use util::parse_assignment;
     use util::ws;
+
+    let ret = Node::from_item(Block,input);
 
     let mut source = input.clone();
 
@@ -38,10 +42,9 @@ pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Vec<item::Node>, ParseError>
 
     let mk_pc_equate = |node : Node| {
         let pos = node.ctx().clone();
-        let children = vec![node, Node::from_item(Pc).with_ctx(pos.clone())];
-        Node::from_item(Assignment).with_children(children).with_ctx(pos)
+        let children = vec![node, Node::from_item(Pc, pos.clone())];
+        Node::from_item(Assignment, pos).with_children(children)
     };
-
 
     while !source.is_empty() {
         let (rest, line) = get_line(source)?;
@@ -77,48 +80,52 @@ pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Vec<item::Node>, ParseError>
         }
     }
 
-    Ok(items)
+    Ok(ret.with_children(items))
 }
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-struct SoureFile {
-    text : String,
-}
 
-pub fn tokenize_file<P: AsRef<Path>>(fl : &fileloader::FileLoader, file_name : P) -> Result<Node, ParseError> {
+
+extern crate colored;
+use colored::*;
+
+pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileLoader, file : &std::path::PathBuf, parent : &std::path::PathBuf ) -> Result<Node, UserError> {
     use item::Item::*;
 
-    let file_name = file_name.as_ref().to_path_buf();
+    let (file_name, source) = fl.read_to_string(file.clone()).unwrap();
 
+    let action = if depth == 0 {
+        "Tokenizing"
+    } else {
+        "Tokenizing including"
+    };
 
-    println!("Tokenizing: {:?}", file_name.as_path());
+    let mapper = |e| UserError::from_parse_error(e, &file_name);
 
-    let (loaded_name,source) = fl.read_to_string(&file_name)
-        .map_err(|e| ParseError::from_text(&e.to_string()))?;
+    let comp_msg = format!("{} {}", action, file_name.to_string_lossy()).green().bold();
+    println!("{}{}"," ".repeat(2 + depth*2), comp_msg);
 
-    let pos = Position::from_usize((0,source.len()));
+    let input = Span::new(&source);
+    let mut matched = tokenize_str(input).map_err(mapper)?;
+    matched.item = TokenizedFile(file.clone(),parent.clone());
 
-    let input = source.as_span();
-
-    let mut matched = tokenize_str(input)?;
-
-    for tok in &mut matched {
-        if let Include(file) = tok.item() {
-            let inc_source = tokenize_file(fl, file.clone())?;
-            *tok = inc_source;
+    // Tokenize includes
+    for n in matched.children.iter_mut() {
+        if let Some(inc_file) = n.get_include_file() {
+            *n = tokenize_file(depth+1, _ctx, fl, &inc_file.to_path_buf(), file)?.into();
         }
     }
 
-    let ret = Node::from_item(File(loaded_name))
-        .with_children(matched)
-        .with_ctx(pos);
+    if depth == 0 {
+        println!("{}", "  Tokenizing complete".green().bold());
+    }
 
-    Ok(ret)
+    Ok(matched)
+
 }
 
-
-pub fn tokenize( ctx : &cli::Context ) -> Result<Node, ParseError> {
+pub fn tokenize( ctx : &cli::Context ) -> Result<Node, UserError> {
     use fileloader::FileLoader;
 
     let file = ctx.file.clone();
@@ -130,10 +137,10 @@ pub fn tokenize( ctx : &cli::Context ) -> Result<Node, ParseError> {
     }
 
     let fl = FileLoader::from_search_paths(&paths);
+    let parent = PathBuf::new();
 
-    tokenize_file(&fl, file)
+    tokenize_file(0, ctx, &fl,&ctx.file, &parent)
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests

@@ -1,7 +1,7 @@
 use serde_derive::Deserialize;
 use std::fmt;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Hash, Eq)]
 pub enum AddrModeEnum {
     Indexed,
     Direct,

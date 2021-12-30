@@ -1,12 +1,15 @@
 #![allow(dead_code)]
 
-use super::AddrModeEnum;
+use std::collections::HashMap;
 
+use super::AddrModeEnum;
 use std::fmt;
 
 use serde::de::Deserializer;
 use serde::Deserialize;
 use serde_derive::Deserialize;
+
+// use std::collections::HashMap;
 
 // Custome deserializers
 fn hex_str_to_num<'de, D>(deserializer: D) -> Result<u16, D::Error>
@@ -27,7 +30,7 @@ where
     Ok(action.to_lowercase().replace("/", "_"))
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Instruction {
     // pub display : Option<String>,
@@ -54,12 +57,70 @@ impl Instruction {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct InstructionInfo {
+    pub ops: Vec<Instruction>,
+    pub addressing_modes : std::collections::HashMap<AddrModeEnum, Instruction>,
+}
+
+impl InstructionInfo {
+    pub fn new(i : Instruction) -> Self {
+        let mut ret = Self {
+            ops: vec![],
+            addressing_modes: Default::default(),
+        };
+        ret.add(&i);
+        ret
+    }
+
+    pub fn supports_addr_mode(&self, m : AddrModeEnum) -> bool {
+        self.get_instruction(&m).is_some()
+    }
+
+    pub fn get_immediate_mode_supported(&self) -> Option<AddrModeEnum> {
+        if self.supports_addr_mode(AddrModeEnum::Immediate8) {
+            return Some( AddrModeEnum::Immediate8 )
+        }
+
+        if self.supports_addr_mode(AddrModeEnum::Immediate16) {
+            return Some( AddrModeEnum::Immediate16 )
+        }
+
+        return None
+    }
+
+    pub fn get_instruction(&self, amode : &AddrModeEnum) -> Option<&Instruction> {
+        self.addressing_modes.get(amode)
+    }
+
+    pub fn add(&mut self, ins: &Instruction) {
+        if self.addressing_modes.contains_key(&ins.addr_mode) {
+            panic!("can't contain same addressing mode twice")
+        }
+
+        self.addressing_modes.insert(ins.addr_mode, ins.clone());
+        self.ops.push(ins.clone());
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Dbase {
     unknown: Instruction,
     instructions: Vec<Instruction>,
     #[serde(skip)]
     lookup: Vec<Instruction>,
+    #[serde(skip)]
+    name_to_ins : HashMap<String, InstructionInfo>
+}
+
+fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
+    let split: Vec<&str> = _input.split('_').collect();
+
+    if split.len() != 2 {
+        None
+    } else {
+        Some((split[0], split[1]))
+    }
 }
 
 impl Dbase {
@@ -87,11 +148,43 @@ impl Dbase {
             o.opcode = i as u16;
         }
 
+        let mut name_to_ins: HashMap<String, InstructionInfo> = HashMap::new();
+
+        let mut add = |name: &str, i: &Instruction| {
+            let i = i.clone();
+            let name = String::from(name).to_ascii_lowercase();
+            if let Some(rec) = name_to_ins.get_mut(&name) {
+                rec.add(&i);
+            } else {
+                let info = InstructionInfo::new(i);
+                name_to_ins.insert(name.to_string(), info);
+            }
+        };
+
+        for i in &instructions {
+            if let Some((a, b)) = split_opcodes(&i.action) {
+                add(a, i);
+                add(b, i);
+            } else {
+                add(&i.action, i);
+            }
+        }
+
         Self {
             lookup,
             instructions,
             unknown,
+            name_to_ins,
         }
+    }
+
+    pub fn is_opcode(&self, input: &str) -> bool {
+        self.get_opcode(input).is_some()
+    }
+
+    pub fn get_opcode(&self, input: &str) -> Option<&InstructionInfo> {
+        let op = input.to_string().to_lowercase();
+        self.name_to_ins.get(&op)
     }
 
     pub fn new() -> Self {
@@ -108,6 +201,7 @@ impl Dbase {
     pub fn all_instructions(&self) -> &Vec<Instruction> {
         &self.instructions
     }
+
 }
 
 impl Default for Dbase {

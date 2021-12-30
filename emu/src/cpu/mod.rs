@@ -8,7 +8,6 @@ mod decoder;
 mod flags;
 mod formatters;
 mod indexed;
-pub mod isa_dbase;
 mod registers;
 
 pub use addrmodes::*;

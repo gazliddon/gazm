@@ -1,4 +1,8 @@
 ;;
 
-    lda 10,CC
+    lda 10,x
+
+    lda 20,x
+
+    pshu a.x
 

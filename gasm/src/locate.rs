@@ -1,62 +1,60 @@
-use nom::Offset;
+use std::fmt::{Debug, DebugMap, Display};
+
 use nom_locate::LocatedSpan;
+use nom::{InputTake, Offset};
 
-struct SourceFileInfo<'a> {
-    file: &'a str,
-    master: &'a str,
+
+pub type Span<'a> = LocatedSpan<&'a str>;
+
+pub fn mk_span<'a>(_file : &'a str, text : &'a str) ->Span<'a> {
+    // let sf = SourceInfo::new(file,text);
+    Span::new(text)
 }
 
-pub type Span<'a> = LocatedSpan<&'a str, &'a str>;
-
-pub trait AsSpan<'a> {
-    fn as_span(&'a self) -> Span<'a>;
+pub fn matched_span<'a>(input: Span<'a>, rest: Span<'a>) -> (Span<'a>, Span<'a> ) {
+    let to_take = rest.location_offset() - input.location_offset();
+    input.take_split(to_take)
 }
 
-impl<'a> AsSpan<'a> for str {
-    fn as_span(&'a self) -> Span<'a> {
-        Span::new_extra(self,self)
-    }
-}
-impl<'a> AsSpan<'a> for String {
-    fn as_span(&'a self) -> Span<'a> {
-        Span::new_extra(self.as_str(),self.as_str())
-    }
-}
-
-
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Position {
-    pub start: usize,
-    pub end: usize,
+    start: usize,
+    end: usize,
+    pub line : usize,
+    pub col: usize,
 }
 
-impl Default for Position {
+impl Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}:{})", self.line, self.col)
+    }
+}
+
+impl Debug for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}",self)
+    }
+}
+
+impl<'a> Default for Position {
     fn default() -> Self {
-        Self { start: 0, end: 0 }
+        todo!()
+    }
+}
+
+impl <'a> From<Span<'a>> for Position {
+    fn from(i : Span<'a>) -> Self {
+        let start = i.location_offset();
+        let end = start+i.len();
+        Position::new(i.location_line() as usize, i.get_column() as usize, start, end)
     }
 }
 
 impl crate::node::CtxTrait for Position { }
 
 impl Position {
-    pub fn from_usize(pos :(usize, usize)) -> Self {
-        let (start,end) = pos;
-        Self {
-            start,end
-        }
-    }
-
-    pub fn new(start : Span, end : Span) -> Self {
-        use nom_locate::position;
-        use super::error::ParseError;
-
-        let start = start.extra.offset(&start);
-        let end = end.extra.offset(&end);
-
-        Self {
-            start,
-            end
-        }
+    pub fn new(line : usize, col: usize, start : usize, end : usize) -> Self {
+        Self {line,col, start,end}
     }
 }
 

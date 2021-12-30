@@ -6,7 +6,7 @@ use crate::ctx::Ctx;
 ////////////////////////////////////////////////////////////////////////////////
 // Node
 
-pub trait CtxTrait : Default + Clone + std::fmt::Debug {
+pub trait CtxTrait : Clone + std::fmt::Debug {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -117,9 +117,9 @@ impl<'a, I, C: CtxTrait > Iterator for NodeIt<'a, I, C> {
 
 #[derive(PartialEq, Clone)]
 pub struct BaseNode<I,C : CtxTrait = Dummy> {
-    item: I,
+    pub item: I,
     pub children: Vec<Box<Self>>,
-    ctx: C,
+    pub ctx: C,
 }
 
 fn box_it<I>(v : Vec<I>) -> Vec<Box<I>> {
@@ -155,21 +155,32 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
         NodeTreeIt::new(self)
     }
 
-    pub fn new(item : I, children: Vec<Self>, ctx : C) -> Self {
-        let children = box_it(children);
-        Self {item, children, ctx }
+    pub fn tree_iter_mut(&self) -> NodeTreeIt<I,C> {
+        NodeTreeIt::new(self)
     }
 
-    pub fn from_item(item: I) -> Self {
-        Self::new(item, vec![], C::default())
+    pub fn new<X>(item : I, children: Vec<Self>, ctx : X) -> Self
+        where X: Into<C>
+    {
+        let children = box_it(children);
+        Self {item, children, ctx: ctx.into() }
     }
-    pub fn from_item_item(item: I, child: I) -> Self {
-        Self::from_item(item).with_child(Self::from_item(child))
+
+    pub fn from_item<X>(item: I, ctx: X) -> Self
+        where X : Into<C>
+    {
+        Self::new(item, vec![], ctx)
     }
 
     pub fn with_children(self, children : Vec<Self>) -> Self {
         let mut ret = self;
         ret.children = box_it(children);
+        ret
+    }
+
+    pub fn take_children(self, other : Self) -> Self {
+        let mut ret = self;
+        ret.children = other.children;
         ret
     }
 
@@ -179,9 +190,11 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
         ret
     }
 
-    pub fn with_ctx(self, ctx : C) -> Self {
+    pub fn with_ctx<X>(self, ctx : X) -> Self
+        where X : Into<C>
+    {
         let mut ret = self;
-        ret.ctx = ctx;
+        ret.ctx = ctx.into();
         ret
     }
 

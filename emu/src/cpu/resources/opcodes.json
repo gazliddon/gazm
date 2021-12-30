@@ -165,7 +165,7 @@
             "size": 2
         },
         {
-            "addr_mode": "Inherent",
+            "addr_mode": "RegisterSet",
             "cycles": 6,
             "opcode": "1F",
             "action": "TFR",

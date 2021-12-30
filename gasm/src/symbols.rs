@@ -22,9 +22,10 @@ fn get_name_and_arg(node : &Node) -> SymbolResult<(&String,&Node)> {
     Ok((name, child))
 }
 
-type SymbolResult<T> = Result<T, SymbolError>;
+type SymbolResult<'a, T> = Result<T, SymbolError>;
 
-impl Default for Symbols {
+
+impl<'a> Default for Symbols {
     fn default() -> Self {
         Self {
             symbols: Default::default()
@@ -37,30 +38,33 @@ impl Symbols {
         Default::default()
     }
 
-    pub fn set_or_replace(&mut self, node: &Node) -> SymbolResult<Node> {
-        let (name,_) = get_name_and_arg(node)?;
-        self.symbols.insert(name.clone(), node.clone()).ok_or(SymbolError::InsertionError)
+    pub fn set_or_replace(&mut self, _node: &Node) -> SymbolResult<Node> {
+        todo!()
+        // let (name,_) = get_name_and_arg(node)?;
+        // self.symbols.insert(name.clone(), node.clone()).ok_or(SymbolError::InsertionError)
     }
 
-    pub fn set<'a>(&'a mut self, node : &Node) -> SymbolResult<()> {
-        let (name,_) = get_name_and_arg(node)?;
-        let previous_def = self.get(name);
+    pub fn set(&mut self, _node : &Node) -> SymbolResult<()> {
+        todo!()
+        // let (name,_) = get_name_and_arg(node)?;
+        // let previous_def = self.get(name);
 
-        if let Ok(previous_def) = previous_def {
-            Err(SymbolError::AlreadyDefined(previous_def.clone()))
-        } else {
-            self.symbols.insert(name.clone(), node.clone());
-            Ok(())
-        }
+        // if let Ok(previous_def) = previous_def {
+        //     Err(SymbolError::AlreadyDefined(previous_def.clone()))
+        // } else {
+        //     self.symbols.insert(name.clone(), node.clone());
+        //     Ok(())
+        // }
     }
 
-    pub fn get<'a>(&'a self, name: &str) -> SymbolResult<&Node> {
+    pub fn get(&self, name: &str) -> SymbolResult<&Node> {
         self.symbols.get(&name.to_string()).ok_or(SymbolError::Unknown)
     }
 
-    pub fn get_value(&self, name: &str) -> SymbolResult<&Node> {
-        let node = self.get(name)?;
-        let (_,arg) = get_name_and_arg(node)?;
-        Ok(arg)
+    pub fn get_value(&self, _name: &str) -> SymbolResult<&Node> {
+        todo!()
+        // let node = self.get(name)?;
+        // let (_,arg) = get_name_and_arg(node)?;
+        // Ok(arg)
     }
 }

@@ -13,9 +13,9 @@ fn num_get(input : Span) -> IResult<Span> {
     recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
 }
 
-fn num_parse_err<'a>(input : Span<'a>, radix : &str, e : std::num::ParseIntError ) -> nom::Err<ParseError> {
+fn num_parse_err<'a>(input : Span<'a>, radix : &str, e : std::num::ParseIntError ) -> nom::Err<ParseError<'a>> {
     let e = format!("Parsing {}: {}",radix, e);
-    nom::Err::Error(ParseError::new(e, input))
+    nom::Err::Error(ParseError::new(e, &input))
 }
 
 pub fn parse_hex(input: Span) -> IResult<i64> {
@@ -55,6 +55,8 @@ pub fn number_token(input: Span) -> IResult<i64> {
 
 #[allow(unused_imports)]
 mod test {
+    use crate::locate::mk_span;
+
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
 
@@ -94,7 +96,7 @@ mod test {
             F: Fn(Span) -> IResult<i64>,
         {
             for (input, desired) in arr.iter() {
-                let span = Span::new_extra(input, "");
+                let span = mk_span("Test", input);
                 let res = func(span);
 
                 if let Ok(( _, number )) = res {

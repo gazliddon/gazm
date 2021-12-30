@@ -6,6 +6,8 @@ use nom::error::Error;
 use nom::error::ErrorKind::NoneOf;
 use nom::character::complete::{multispace0, char as nom_char, one_of };
 
+use nom::InputTake;
+
 use nom::bytes::complete::{
     is_a, tag,
 };
@@ -46,12 +48,12 @@ use crate::locate::Span;
 
 fn parse_bracketed_expr(input: Span) -> IResult< Node> {
     let (rest, matched) = util::wrapped_chars('(', parse_expr, ')')(input)?;
-    Ok(( rest, matched.with_pos(input, rest) ))
+    Ok(( rest, matched ))
 }
 
 fn parse_pc(input : Span) -> IResult< Node> {
     let (rest, _matched) = nom_char('*')(input)?;
-    Ok((rest, Node::from_item(Item::Pc).with_pos(input, rest)))
+    Ok((rest, Node::from_item(Item::Pc, input)))
 }
 
 fn parse_non_unary_term(input: Span) -> IResult< Node> {
@@ -71,9 +73,9 @@ pub fn parse_term(input: Span) -> IResult< Node> {
 fn parse_unary_term(input: Span) -> IResult< Node> {
     use util::parse_number;
     let (rest, (op, term)) = separated_pair(parse_unary_op,  multispace0, parse_term)(input)?;
-    let ret = Node::from_item(Item::UnaryTerm)
+    let ret = Node::from_item(Item::UnaryTerm, input)
         .with_children(vec![op,term])
-        .with_pos(input, rest);
+        ;
     Ok((rest, ret))
 }
 
@@ -88,12 +90,12 @@ fn parse_unary_op(input: Span) -> IResult< Node> {
         _ => panic!("{:?}", matched),
     };
 
-    let ret = Node::from_item(op).with_pos(input, rest);
+    let ret = Node::from_item(op, input);
     Ok((rest, ret))
 }
 
 fn parse_op(input: Span) -> IResult< Node> {
-    let ops = "+-*/";
+    let ops = "+-*/|&^";
 
     let (rest, matched) = one_of(ops)(input)?;
 
@@ -102,19 +104,24 @@ fn parse_op(input: Span) -> IResult< Node> {
         '-' => Item::Sub,
         '*' => Item::Mul,
         '/' => Item::Div,
+        '|' => Item::Or,
+        '&' => Item::And,
+        '^' => Item::Xor,
         _ => panic!("{:?}", matched),
     };
-    let ret = Node::from_item(op).with_pos(input, rest);
+
+    let ret = Node::from_item(op, input.take(1));
+
     Ok((rest, ret))
 }
 
 fn parse_op_term(input: Span) -> IResult< Node> {
     let (rest, (op, term)) = separated_pair(parse_op, multispace0, parse_term)(input)?;
-    let node = op.with_child(term).with_pos(input,rest);
+    let node = op.with_child(term);
     Ok((rest,node))
 }
 
-fn prepend(i : Node, is : Vec<Node>) -> Vec<Node> {
+fn prepend<'a>(i : Node, is : Vec<Node>) -> Vec<Node> {
     let mut ret = vec![i];
     ret.extend(is);
     ret
@@ -128,10 +135,8 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
         v
     } else {
         let v = prepend(v,vs);
-        Node::from_item(Item::Expr).with_children(v)
+        Node::from_item(Item::Expr,input).with_children(v)
     };
-
-    let node = node.with_pos(input,rest);
 
     Ok(( rest,node ))
 }

@@ -7,10 +7,7 @@ use Item::*;
 
 type CommandParseFn = fn( Span)-> IResult<Node>;
 
-use crate::{
-    item::{Item, Node},
-    util::match_escaped_str
-};
+use crate::{item::{Item, Node}, locate::matched_span, util::match_escaped_str};
 
 use nom::{
     branch::alt,
@@ -29,56 +26,60 @@ use crate::locate::Span;
 
 fn parse_org_arg(input: Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Org).with_child(matched);
+    let ret = Node::from_item(Org,input).with_child(matched);
     Ok((rest, ret))
 }
 
 fn parse_fdb_arg(input: Span) -> IResult< Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
-    let ret = Node::from_item(Fdb).with_children(matched);
+    let ret = Node::from_item(Fdb, input).with_children(matched);
     Ok((rest, ret))
 }
 
 fn parse_include_arg(input : Span) -> IResult< Node> {
     let (rest, matched) = match_escaped_str(input)?;
     let matched = matched.to_string();
-    let ret = Node::from_item(Include(PathBuf::from(&matched)));
+    let ret = Node::from_item(Include(PathBuf::from(&matched)), input);
     Ok((rest, ret))
 }
 
 fn parse_set_dp(input : Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(SetDp).with_child(matched);
+    let ret = Node::from_item(SetDp, input).with_child(matched);
     Ok((rest,ret)) 
 }
 
 fn parse_fill_arg( input: Span) -> IResult< Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-    map(separated_pair(parse_expr, sep, parse_expr), mk_fill)(input)
+    let (rest, matched) = separated_pair(parse_expr, sep, parse_expr)(input)?;
+    let ret = mk_fill(input, matched);
+    Ok((rest, ret))
 }
 
 fn parse_zmb_arg( input: Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Zmb).with_child(matched);
+    let ret = Node::from_item(Zmb, input).with_child(matched);
     Ok((rest, ret))
 }
 
 fn parse_zmd_arg( input: Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Zmd).with_child(matched);
+    let ret = Node::from_item(Zmd, input).with_child(matched);
     Ok((rest,ret))
 }
 
-fn mk_fill(cv: ( Node, Node) ) -> Node {
+fn mk_fill<'a>(input : Span<'a>, cv: ( Node, Node) ) -> Node {
     let (count, value) = cv;
-    Node::from_item(Fill).with_children(vec![count,value])
+    Node::from_item(Fill, input).with_children(vec![count,value])
 }
 
 fn parse_bsz_arg( input : Span) -> IResult< Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let two_args = separated_pair(parse_expr, sep, parse_expr);
-    let one_arg = map(parse_expr, |x : Node| (x,Node::from_number(0)));
-    map(alt(( two_args, one_arg)), mk_fill)(input)
+    let one_arg = map(parse_expr, |x : Node| (x,Node::from_number(0, input)));
+    let (rest, matched) = alt(( two_args, one_arg))(input)?;
+    let ret = mk_fill(input, matched);
+    Ok((rest, ret))
 }
 
 lazy_static! {
@@ -109,7 +110,7 @@ fn command_token_function(input: Span) -> IResult< (Span, CommandParseFn ) > {
     } else {
         Err(nom::Err::Error(ParseError::new(
             "This is not a command token".to_owned(),
-            input,
+            &input,
         )))
     }
 }
@@ -120,9 +121,11 @@ pub fn command_token(input: Span) -> IResult< Span> {
 }
 
 pub fn parse_command(input: Span) -> IResult<Node> {
-    let (rest, (command_text, func)) = command_token_function(input)?;
+    let (rest, (_command_text, func)) = command_token_function(input)?;
     let (rest, matched) = preceded(multispace1, func)(rest)?;
-    Ok((rest, matched.with_pos(command_text,rest)))
+    let (rest, span) = matched_span(input, rest);
+    let matched = matched.with_ctx(span);
+    Ok((rest, matched))
 }
 
 #[allow(unused_imports)]
