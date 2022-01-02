@@ -12,9 +12,10 @@ pub enum MemErrorTypes {
     IllegalRead(u16),
 }
 
+
+
 pub type MemResult<T> = std::result::Result<T,MemErrorTypes>;
 
-#[allow(dead_code)]
 pub fn build_addr_to_region<E: Copy>(illegal: E, mem_tab: &[(E, &dyn MemoryIO)]) -> [E; 0x1_0000] {
     let mut ret = [illegal; 0x1_0000];
 
@@ -29,24 +30,13 @@ pub fn build_addr_to_region<E: Copy>(illegal: E, mem_tab: &[(E, &dyn MemoryIO)])
     ret
 }
 
-#[allow(dead_code)]
 fn to_mem_range(address: u16, size: u16) -> Range<u32> {
     use std::cmp::min;
     let last_mem = u32::from(address) + u32::from(size);
     u32::from(address)..min(0x1_0000, last_mem)
 }
 
-#[allow(dead_code)]
-pub fn as_word(lo: u8, hi: u8) -> u16 {
-    u16::from(lo) | (u16::from(hi) << 8)
-}
 
-#[allow(dead_code)]
-pub fn as_bytes(val: u16) -> (u8, u8) {
-    ((val & 0xff) as u8, (val >> 8) as u8)
-}
-
-#[allow(dead_code)]
 pub trait CheckedMemoryIo {
     fn inspect_byte(&self, _addr: u16) -> MemResult<u16>;
     fn load_byte(&mut self, _addr: u16) -> MemResult<u8>;
@@ -55,11 +45,14 @@ pub trait CheckedMemoryIo {
 
 #[allow(dead_code)]
 
-pub trait MemoryIO {
-    fn inspect_word(&self, _addr: u16) -> MemResult<u16> {
-        let lo = self.inspect_byte(_addr.wrapping_add(1))?;
-        let hi = self.inspect_byte(_addr)?;
-        Ok(as_word(lo, hi))
+use byteorder::{ ByteOrder, LittleEndian};
+
+pub trait MemoryIO<E : ByteOrder = LittleEndian> {
+    fn inspect_word(&self, addr: u16) -> MemResult<u16> {
+        let a = self.inspect_byte(addr.wrapping_add(1))?;
+        let b = self.inspect_byte(addr)?;
+        let buf = [a,b];
+        Ok(E::read_u16(&buf))
     }
 
     // Min implementation
@@ -103,15 +96,17 @@ pub trait MemoryIO {
     }
 
     fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()>{
-        let (lo, hi) = as_bytes(val);
-        self.store_byte(addr, hi)?;
-        self.store_byte(addr.wrapping_add(1), lo)
+        let mut buf = [0; 2];
+        E::write_u16(&mut buf, val);
+        self.store_byte(addr, buf[0])?;
+        self.store_byte(addr.wrapping_add(1), buf[1])
     }
 
     fn load_word(&mut self, addr: u16) -> MemResult<u16> {
-        let lo = self.load_byte(addr.wrapping_add(1))?;
-        let hi = self.load_byte(addr)?;
-        Ok(as_word(lo, hi))
+        let a = self.load_byte(addr.wrapping_add(1))?;
+        let b = self.load_byte(addr)?;
+        let buf = [a,b];
+        Ok(E::read_u16(&buf))
     }
 
     fn get_mem_as_str(&self, addr: u16, size: u16) -> String {

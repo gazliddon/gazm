@@ -146,7 +146,6 @@ impl MemoryIO for LoggingMemMap {
 
     fn load_word(&mut self, addr: u16) -> MemResult<u16> {
         let val = self.mem_map.load_word(addr)?;
-
         let msg = LogEntry::read_word(addr, val);
         self.log(msg);
         Ok(val)

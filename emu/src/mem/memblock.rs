@@ -1,12 +1,13 @@
 use super::{MemoryIO, Region, MemResult};
 use sha1::Sha1;
-use std::vec::Vec;
+
 
 pub struct MemBlock {
     pub read_only: bool,
     pub data: Vec<u8>,
     pub name: String,
     pub region : Region,
+
 }
 
 #[allow(dead_code)]
@@ -25,7 +26,7 @@ impl MemBlock {
             read_only,
             data : data.to_vec(),
             name: name.to_string(),
-            region : mr
+            region : mr,
         }
     }
     fn to_index(&self, addr : u16) -> usize {
@@ -35,7 +36,7 @@ impl MemBlock {
 }
 
 #[allow(dead_code)]
-impl MemoryIO for MemBlock {
+impl MemoryIO for MemBlock<> {
     fn inspect_byte(&self, addr: u16) -> MemResult<u8> {
         let i = self.to_index(addr);
         let d = self.data[i];
