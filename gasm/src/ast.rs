@@ -1,8 +1,8 @@
 
-type AstTree = ego_tree::Tree<ItemWithPos>;
-type AstNodeRef<'a> = ego_tree::NodeRef<'a,ItemWithPos>;
-type AstNodeId = ego_tree::NodeId;
-type AstNodeMut<'a> = ego_tree::NodeMut<'a,ItemWithPos>;
+pub type AstTree = ego_tree::Tree<ItemWithPos>;
+pub type AstNodeRef<'a> = ego_tree::NodeRef<'a,ItemWithPos>;
+pub type AstNodeId = ego_tree::NodeId;
+pub type AstNodeMut<'a> = ego_tree::NodeMut<'a,ItemWithPos>;
 
 use std::collections::{HashMap, VecDeque};
 use std::error::Error;
@@ -90,7 +90,10 @@ pub fn add_node(tree : &mut AstNodeMut, node: &Node) {
 
 pub fn make_tree(node : &Node) -> AstTree {
     let mut ret  = AstTree::new(node.into());
-    add_node(&mut ret.root_mut(), node);
+
+    for c in &node.children {
+        add_node(&mut ret.root_mut(), &c);
+    }
     ret
 }
 
@@ -127,6 +130,7 @@ fn add_file_references(ast : &mut AstTree) -> HashMap<AstNodeId, SourceFile> {
     hm
 }
 
+#[derive(Debug, Clone)]
 struct NodeSourceInfo<'a> {
     fragment: &'a str,
     line: usize,
@@ -136,6 +140,7 @@ struct NodeSourceInfo<'a> {
     file: PathBuf,
 }
 
+#[derive(Debug)]
 pub struct Ast {
     tree : AstTree,
     id_to_source_file : HashMap<AstNodeId, SourceFile>,

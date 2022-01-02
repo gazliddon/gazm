@@ -133,17 +133,14 @@ fn prepend<'a>(i : Node, is : Vec<Node>) -> Vec<Node> {
 pub fn parse_expr(input: Span) -> IResult<Node> {
     let (rest, (v,vs)) = separated_pair(parse_term, multispace0, many0(parse_op_term))(input)?;
 
-    let node = if vs.is_empty() {
-        v
-    } else {
-        let mut vec_ret = vec![v];
-        for (o,t) in vs {
-            vec_ret.push(o);
-            vec_ret.push(t);
-        }
+    let mut vec_ret = vec![v];
 
-        Node::from_item(Item::Expr,input).with_children(vec_ret)
-    };
+    for (o,t) in vs {
+        vec_ret.push(o);
+        vec_ret.push(t);
+    }
+
+    let node = Node::from_item(Item::Expr,input).with_children(vec_ret);
 
     Ok(( rest,node ))
 }

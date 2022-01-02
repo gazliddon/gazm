@@ -1,8 +1,10 @@
-;;
 
-    lda 10,x
 
-    lda 20,x
+lda 3+4*6+1+hello
+lda <3+4*6+1+hello
+lda [3+4*6+1+hello,X]
+lda [,X]
 
-    pshu a.x
+
+lda #3+4*6+1+hello+(3 -2)
 

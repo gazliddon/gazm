@@ -192,9 +192,11 @@ fn parse_reg_set(input : Span) -> IResult<Node> {
 
 fn parse_extended(input : Span) -> IResult<Node> {
     use Item::*;
+    use AddrModeEnum::*;
     use nom::combinator::map;
-    let expr_map = |other| Node::from_item(Operand(AddrModeEnum::Extended), input).take_children(other);
-    map(expr::parse_expr,expr_map)(input)
+    let (rest,matched) = expr::parse_expr(input)?;
+    let  res = Node::from_item(Operand(Extended), input).with_child(matched);
+    Ok((rest, res))
 }
 
 fn parse_opcode_arg(input: Span) -> IResult< Node> {

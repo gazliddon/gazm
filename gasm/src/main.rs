@@ -52,8 +52,9 @@ use crate::item::{ Node, Item };
 use crate::messages::Messageize;
 
 pub struct Assembler {
+    pub tokens : Node,
     ctx: cli::Context,
-    ast : ast::Ast,
+    pub ast : ast::Ast,
 }
 
 impl Assembler {
@@ -65,7 +66,7 @@ impl Assembler {
         x.indent();
 
         let tokens = tokenize::tokenize(ctx)?;
-        let ast = ast::Ast::from_nodes(tokens);
+        let ast = ast::Ast::from_nodes(tokens.clone());
 
         x.deindent();
         x.success("Complete");
@@ -73,6 +74,7 @@ impl Assembler {
         let ret = Self {
             ast,
             ctx : ctx.clone(),
+            tokens
         };
 
         Ok(ret)
@@ -81,6 +83,17 @@ impl Assembler {
     pub fn get_ast(&self)-> &ast::Ast {
         &self.ast
     }
+}
+fn print_tree(tree: &ast::AstNodeRef, depth : usize) {
+
+    let dstr = " ".repeat(depth*4);
+
+    println!("{}{:?}",dstr,tree.value().item);
+
+    for n in tree.children() {
+        print_tree(&n, depth+1);
+    }
+    
 }
 
 fn main() {
@@ -102,8 +115,12 @@ fn main() {
     x.info("");
 
     match res {
-        Ok(_asm) => {
+        Ok(asm) => {
             x.success("Succeeded");
+
+            if ctx.dump_ast {
+                print_tree(&asm.ast.get_tree().root(), 0);
+            }
         },
 
         Err(e) => {

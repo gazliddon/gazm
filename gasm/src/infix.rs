@@ -135,3 +135,4 @@ impl<I : Clone+ PartialEq + Eq,OP: PartialEq + Eq + Clone + Hash> InFixer<I, OP>
         std::mem::replace(&mut self.ret, vec![])
     }
 }
+
