@@ -1,7 +1,12 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
+use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::collections::hash_map::DefaultHasher;
+use std::env::consts::OS;
+use std::hash::Hash;
+use std::os::unix::prelude::OsStrExt;
 use std::path::Path;
 
 mod expr;
@@ -24,9 +29,12 @@ mod cli;
 mod assemble;
 mod ast;
 mod messages;
+mod infix;
 
 use std::path::PathBuf;
+use std::time::Instant;
 
+use ast::ItemWithPos;
 use colored::*;
 use error::UserError;
 use locate::Position;
@@ -76,6 +84,7 @@ impl Assembler {
 }
 
 fn main() {
+
     use clap::Parser;
     use item::Item::*;
     use messages::*;

@@ -1,4 +1,5 @@
 
+
 // Parse expressions
 //
 use super::item::{ Item,Node };
@@ -24,6 +25,7 @@ use super::labels::parse_label;
 
 use crate::error::{IResult, ParseError};
 use crate::locate::Span;
+use crate::opcodes::parse_opcode;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -116,10 +118,9 @@ fn parse_op(input: Span) -> IResult< Node> {
     Ok((rest, ret))
 }
 
-fn parse_op_term(input: Span) -> IResult< Node> {
+fn parse_op_term(input: Span) -> IResult<(Node, Node )> {
     let (rest, (op, term)) = separated_pair(parse_op, multispace0, parse_term)(input)?;
-    let node = op.with_child(term);
-    Ok((rest,node))
+    Ok((rest,(op, term)))
 }
 
 fn prepend<'a>(i : Node, is : Vec<Node>) -> Vec<Node> {
@@ -135,8 +136,13 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
     let node = if vs.is_empty() {
         v
     } else {
-        let v = prepend(v,vs);
-        Node::from_item(Item::Expr,input).with_children(v)
+        let mut vec_ret = vec![v];
+        for (o,t) in vs {
+            vec_ret.push(o);
+            vec_ret.push(t);
+        }
+
+        Node::from_item(Item::Expr,input).with_children(vec_ret)
     };
 
     Ok(( rest,node ))
