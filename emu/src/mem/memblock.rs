@@ -4,7 +4,6 @@ use super::{MemoryIO, Region, MemResult};
 use byteorder::ByteOrder;
 use sha1::Sha1;
 
-
 pub struct MemBlock<E: ByteOrder> {
     pub read_only: bool,
     pub data: Vec<u8>,
@@ -90,3 +89,4 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
         Ok(E::read_u16(&buf))
     }
 }
+

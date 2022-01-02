@@ -19,14 +19,14 @@ bitflags! {
 use super::{
     alu,
     mem::{MemErrorTypes, MemoryIO},
-    AddressLines, Clock, Direct, Extended, Flags, Immediate16, Immediate8, Indexed, Inherent, RegisterSet,
+    AddressLines, Direct, Extended, Flags, Immediate16, Immediate8, Indexed, Inherent, RegisterSet,
     InstructionDecoder, RegEnum, Regs, Relative, Relative16,
 };
 
 use alu::GazAlu;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+// use std::cell::RefCell;
+// use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CpuErr {
@@ -63,17 +63,16 @@ fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
 }
 
 
-pub struct Context<'a, C: 'a + Clock> {
+pub struct Context<'a > {
     regs: &'a mut Regs,
     mem: &'a mut dyn MemoryIO,
-    ref_clock: &'a Rc<RefCell<C>>,
     cycles: usize,
     ins: InstructionDecoder,
 }
 
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
-impl<'a,  C: 'a + Clock> Context<'a,  C> {
+impl<'a> Context<'a> {
     fn set_pc(&mut self, v: u16) {
         self.ins.next_addr = v;
     }
@@ -280,7 +279,7 @@ impl<'a,  C: 'a + Clock> Context<'a,  C> {
 ////////////////////////////////////////////////////////////////////////////////
 // Stakc functions
 
-impl<'a,  C: 'a + Clock> Context<'a,  C> {
+impl<'a> Context<'a> {
     fn pushu_byte(&mut self, v: u8) -> CpuResult<()> {
         let u = self.regs.u.wrapping_sub(1);
         self.mem.store_byte(u, v)?;
@@ -336,7 +335,7 @@ impl<'a,  C: 'a + Clock> Context<'a,  C> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'a,  C: 'a + Clock> Context<'a,  C> {
+impl<'a> Context<'a> {
     fn orcc<A: AddressLines>(&mut self) -> CpuResult<()> {
         let v = self.fetch_byte::<A>()?;
         let cc = self.regs.flags.bits();
@@ -1293,17 +1292,15 @@ impl<'a,  C: 'a + Clock> Context<'a,  C> {
 }
 
 #[allow(unused_variables, unused_mut)]
-impl<'a,  C: 'a + Clock> Context<'a, C> {
+impl<'a> Context<'a> {
     pub fn new(
         mem: &'a mut dyn MemoryIO,
         regs: &'a mut Regs,
-        ref_clock: &'a Rc<RefCell<C>>,
-    ) -> Context<'a, C> {
+    ) -> Context<'a> {
         let ins = InstructionDecoder::new_from_read_mem(regs.pc, mem);
         Context {
             regs,
             mem,
-            ref_clock,
             cycles: 0,
             ins,
         }

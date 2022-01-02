@@ -127,7 +127,7 @@ pub trait Machine {
     fn get_mem(&self) -> &dyn MemoryIO;
     fn get_mem_mut(&mut self) -> &mut dyn MemoryIO;
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
-    fn get_context_mut(&mut self) -> cpu::Context<StandardClock>;
+    fn get_context_mut(&mut self) -> cpu::Context;
     fn update(&mut self) -> Result<(), MachineErr>;
 
     fn get_regs(&self) -> &cpu::Regs;
@@ -203,8 +203,8 @@ impl< M: MemoryIO> Machine for SimpleMachine<M> {
         &mut self.rc_clock
     }
 
-    fn get_context_mut(&mut self) -> cpu::Context<StandardClock> {
-        emu::cpu::Context::new(&mut self.mem, &mut self.regs, &self.rc_clock)
+    fn get_context_mut(&mut self) -> cpu::Context {
+        emu::cpu::Context::new(&mut self.mem, &mut self.regs)
     }
 
     fn update(&mut self) -> Result<(), MachineErr> {
