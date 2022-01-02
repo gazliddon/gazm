@@ -3,8 +3,9 @@ use sha1::Sha1;
 use std::cell::RefCell;
 use std::fmt;
 
-#[derive(Debug, Clone, Default)]
 
+
+#[derive(Debug, Clone, Default)]
 pub struct LogEntry {
     pub addr: u16,
     pub write: bool,

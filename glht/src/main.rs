@@ -18,6 +18,7 @@ mod textscreen;
 mod v2;
 
 use app::{frametime::FrameTime, system::System, App};
+use byteorder::{BigEndian, ByteOrder};
 use glium::index::PrimitiveType;
 use glium::Surface;
 use glium::{glutin, implement_vertex};
@@ -34,7 +35,7 @@ struct MyApp {
     mesh: Box<dyn mesh::MeshTrait>,
     running: bool,
     frame_time: FrameTime,
-    machine: SimpleMachine<SimpleMem>,
+    machine: SimpleMachine<SimpleMem<BigEndian>>,
     // dbgwin: dbgwin::DbgWin,
     sourcewin: sourcewin::SourceWin,
 }

@@ -1,3 +1,4 @@
+
 use super::{mem, CpuErr, IndexModes, IndexedFlags, InstructionDecoder, Regs};
 use mem::{ MemoryIO, MemErrorTypes };
 
@@ -295,7 +296,8 @@ impl AddressLines for RegisterSet {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-pub struct Indexed {}
+pub struct Indexed {
+}
 
 impl Indexed {
 

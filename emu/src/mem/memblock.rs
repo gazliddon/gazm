@@ -1,23 +1,26 @@
+use std::marker::PhantomData;
+
 use super::{MemoryIO, Region, MemResult};
+use byteorder::ByteOrder;
 use sha1::Sha1;
 
 
-pub struct MemBlock {
+pub struct MemBlock<E: ByteOrder> {
     pub read_only: bool,
     pub data: Vec<u8>,
     pub name: String,
     pub region : Region,
-
+    phanton: PhantomData<E>,
 }
 
 #[allow(dead_code)]
-impl MemBlock {
-    pub fn new(name: &str, read_only: bool, base: u16, size: u32) -> MemBlock {
+impl<E: ByteOrder> MemBlock<E> {
+    pub fn new(name: &str, read_only: bool, base: u16, size: u32) -> MemBlock<E> {
         let data = vec![0u8;size as usize];
         Self::from_data(base, name, &data , read_only)
     }
 
-    pub fn from_data(addr: u16, name: &str, data: &[u8], read_only: bool) -> MemBlock {
+    pub fn from_data(addr: u16, name: &str, data: &[u8], read_only: bool) -> MemBlock<E> {
         let size = data.len();
 
         let mr = Region::checked_new(addr, size ).unwrap();
@@ -27,6 +30,7 @@ impl MemBlock {
             data : data.to_vec(),
             name: name.to_string(),
             region : mr,
+            phanton: Default::default(),
         }
     }
     fn to_index(&self, addr : u16) -> usize {
@@ -36,7 +40,7 @@ impl MemBlock {
 }
 
 #[allow(dead_code)]
-impl MemoryIO for MemBlock<> {
+impl<E: ByteOrder> MemoryIO for MemBlock<E> {
     fn inspect_byte(&self, addr: u16) -> MemResult<u8> {
         let i = self.to_index(addr);
         let d = self.data[i];
@@ -69,5 +73,20 @@ impl MemoryIO for MemBlock<> {
         let idx = self.to_index(addr);
         self.data[idx] = val;
         Ok(())
+    }
+
+
+    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()> {
+        let mut buf = [0; 2];
+        E::write_u16(&mut buf, val);
+        self.store_byte(addr, buf[0])?;
+        self.store_byte(addr.wrapping_add(1), buf[1])
+    }
+
+    fn load_word(&mut self, addr: u16) -> MemResult<u16> {
+        let a = self.load_byte(addr.wrapping_add(1))?;
+        let b = self.load_byte(addr)?;
+        let buf = [a,b];
+        Ok(E::read_u16(&buf))
     }
 }

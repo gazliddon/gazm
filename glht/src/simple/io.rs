@@ -72,6 +72,8 @@ impl Io {
     }
 }
 
+use byteorder::ByteOrder;
+
 impl MemoryIO for Io {
     fn inspect_byte(&self, addr: u16) -> MemResult<u8> {
         let r = if Io::is_palette(addr) {
@@ -104,6 +106,10 @@ impl MemoryIO for Io {
         };
         Ok(r)
     }
+    
+    fn load_word(&mut self, _addr: u16) -> MemResult<u16> {
+        todo!()
+    }
 
     fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()>{
         if Io::is_palette(addr) {
@@ -113,6 +119,10 @@ impl MemoryIO for Io {
             self.halt = true
         }
         Ok(())
+    }
+
+    fn store_word(&mut self, _addr: u16, _val: u16) -> MemResult<()>{ 
+        todo!()
     }
 
     fn get_name(&self) -> String {

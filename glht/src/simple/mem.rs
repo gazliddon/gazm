@@ -24,6 +24,7 @@ IO
 //
 
 use super::io;
+use byteorder::ByteOrder;
 // use super::{filewatcher, io, state, utils};
 use emu::mem::{ MemoryIO, MemErrorTypes, MemResult };
 use io::*;
@@ -46,15 +47,15 @@ pub enum MemRegion {
     Screen,
 }
 
-pub struct SimpleMem {
-    ram: emu::mem::MemBlock,
-    screen: emu::mem::MemBlock,
+pub struct SimpleMem<E: ByteOrder> {
+    ram: emu::mem::MemBlock<E>,
+    screen: emu::mem::MemBlock<E>,
     pub io: Io,
     addr_to_region: [MemRegion; 0x1_0000],
     name: String,
 }
 
-impl Default for SimpleMem {
+impl<E: ByteOrder> Default for SimpleMem<E> {
 
     fn default() -> Self {
         use log::info;
@@ -86,9 +87,9 @@ impl Default for SimpleMem {
 }
 
 #[allow(dead_code)]
-impl SimpleMem {
+impl<E: ByteOrder> SimpleMem<E> {
 
-    pub fn get_screen(&self) -> &emu::mem::MemBlock {
+    pub fn get_screen(&self) -> &emu::mem::MemBlock<E> {
         &self.screen
     }
 
@@ -120,7 +121,7 @@ impl SimpleMem {
     }
 }
 
-impl MemoryIO for SimpleMem {
+impl<E: ByteOrder> MemoryIO for SimpleMem<E> {
     fn upload(&mut self, addr: u16, data: &[u8]) -> MemResult<()>{
         let mut addr = addr;
 
@@ -157,6 +158,16 @@ impl MemoryIO for SimpleMem {
     fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()> {
         let reg = self.get_region_mut(addr);
         reg.store_byte(addr, val)
+    }
+    
+    fn load_word(&mut self, addr: u16) -> MemResult<u16> {
+        let reg = self.get_region_mut(addr);
+        reg.load_word(addr)
+    }
+
+    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()> {
+        let reg = self.get_region_mut(addr);
+        reg.store_word(addr, val)
     }
 
     fn get_name(&self) -> String {

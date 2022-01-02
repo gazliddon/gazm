@@ -4,8 +4,6 @@ use std::ops::Range;
 use std::vec::Vec;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)]
-
 pub enum MemErrorTypes {
     IllegalAddress(u16),
     IllegalWrite(u16),
@@ -13,10 +11,9 @@ pub enum MemErrorTypes {
 }
 
 
-
 pub type MemResult<T> = std::result::Result<T,MemErrorTypes>;
 
-pub fn build_addr_to_region<E: Copy>(illegal: E, mem_tab: &[(E, &dyn MemoryIO)]) -> [E; 0x1_0000] {
+pub fn build_addr_to_region<X: Copy>(illegal: X, mem_tab: &[(X, &dyn MemoryIO)]) -> [X; 0x1_0000] {
     let mut ret = [illegal; 0x1_0000];
 
     for (i, id) in ret.iter_mut().enumerate() {
@@ -43,16 +40,9 @@ pub trait CheckedMemoryIo {
     fn store_byte(&mut self, _addr: u16, _val: u8) -> MemResult<()>;
 }
 
-#[allow(dead_code)]
-
-use byteorder::{ ByteOrder, LittleEndian};
-
-pub trait MemoryIO<E : ByteOrder = LittleEndian> {
-    fn inspect_word(&self, addr: u16) -> MemResult<u16> {
-        let a = self.inspect_byte(addr.wrapping_add(1))?;
-        let b = self.inspect_byte(addr)?;
-        let buf = [a,b];
-        Ok(E::read_u16(&buf))
+pub trait MemoryIO {
+    fn inspect_word(&self, _addr: u16) -> MemResult<u16> {
+        todo!()
     }
 
     // Min implementation
@@ -95,19 +85,10 @@ pub trait MemoryIO<E : ByteOrder = LittleEndian> {
         self.get_range().contains(&( addr as usize ))
     }
 
-    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()>{
-        let mut buf = [0; 2];
-        E::write_u16(&mut buf, val);
-        self.store_byte(addr, buf[0])?;
-        self.store_byte(addr.wrapping_add(1), buf[1])
-    }
+    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()>;
 
-    fn load_word(&mut self, addr: u16) -> MemResult<u16> {
-        let a = self.load_byte(addr.wrapping_add(1))?;
-        let b = self.load_byte(addr)?;
-        let buf = [a,b];
-        Ok(E::read_u16(&buf))
-    }
+
+    fn load_word(&mut self, addr: u16) -> MemResult<u16>;
 
     fn get_mem_as_str(&self, addr: u16, size: u16) -> String {
         let r = to_mem_range(addr, size);

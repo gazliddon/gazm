@@ -20,6 +20,7 @@ IO
 */
 // use emu::cpu;
 
+use byteorder::ByteOrder;
 // use filewatcher::FileWatcher;
 //
 use emu::{cpu, diss, mem};
@@ -174,7 +175,7 @@ pub struct SimpleMachine<M: MemoryIO> {
     breakpoints: emu::breakpoints::BreakPoints,
 }
 
-impl<M: MemoryIO> Machine for SimpleMachine<M> {
+impl< M: MemoryIO> Machine for SimpleMachine<M> {
     fn get_breakpoints(&self) -> &BreakPoints {
         &self.breakpoints
     }
@@ -190,7 +191,7 @@ impl<M: MemoryIO> Machine for SimpleMachine<M> {
     fn get_rom(&self) -> &romloader::Rom {
         &self.rom
     }
-    fn get_mem(&self) -> &dyn MemoryIO {
+    fn get_mem(&self) -> &dyn MemoryIO{
         &self.mem
     }
 
@@ -253,7 +254,7 @@ impl<M: MemoryIO> Machine for SimpleMachine<M> {
 }
 
 #[allow(dead_code)]
-impl<M: MemoryIO> SimpleMachine<M> {
+impl< M: MemoryIO> SimpleMachine<M> {
     fn add_event(&mut self, event: SimEvent) {
         self.events.push(event)
     }
@@ -301,7 +302,7 @@ fn load_rom_to_mem<M: MemoryIO>(file: &str, mem: M, addr: u16, size: usize) -> S
     ret
 }
 
-pub fn make_simple(file: &str) -> SimpleMachine<SimpleMem> {
+pub fn make_simple<E: ByteOrder>(file: &str) -> SimpleMachine<SimpleMem<E>> {
     let mem = SimpleMem::default();
     load_rom_to_mem(file, mem, 0x9900, 0x1_0000 - 0x9900)
 }

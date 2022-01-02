@@ -62,6 +62,7 @@ fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
     (get_tfr_reg(op >> 4), get_tfr_reg(op & 0xf))
 }
 
+
 pub struct Context<'a, C: 'a + Clock> {
     regs: &'a mut Regs,
     mem: &'a mut dyn MemoryIO,
@@ -72,7 +73,7 @@ pub struct Context<'a, C: 'a + Clock> {
 
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
-impl<'a, C: 'a + Clock> Context<'a, C> {
+impl<'a,  C: 'a + Clock> Context<'a,  C> {
     fn set_pc(&mut self, v: u16) {
         self.ins.next_addr = v;
     }
@@ -144,10 +145,10 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
         &mut self,
         write_mask: u8,
         func: fn(&mut Flags, u8, u32, u32) -> u16,
-    ) -> CpuResult<u16> {
+    ) -> CpuResult<()> {
         let r = self.opd_2::<A>(write_mask, func)?;
         self.regs.set_d(r);
-        Ok(r)
+        Ok(())
     }
 
     fn opa_2<A: AddressLines>(
@@ -184,20 +185,20 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
         &mut self,
         write_mask: u8,
         func: fn(&mut Flags, u8, u32, u32) -> u8,
-    ) -> CpuResult<u8> {
+    ) -> CpuResult<()> {
         let r = self.opa_2::<A>(write_mask, func)?;
         self.regs.a = r;
-        Ok(r)
+        Ok(())
     }
 
     fn modb_2<A: AddressLines>(
         &mut self,
         write_mask: u8,
         func: fn(&mut Flags, u8, u32, u32) -> u8,
-    ) -> CpuResult<u8> {
+    ) -> CpuResult<()> {
         let r = self.opb_2::<A>(write_mask, func)?;
         self.regs.b = r;
-        Ok(r)
+        Ok(())
     }
 
     fn opa(&mut self, write_mask: u8, func: fn(&mut Flags, u8, u32) -> u8) -> u8 {
@@ -279,7 +280,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
 ////////////////////////////////////////////////////////////////////////////////
 // Stakc functions
 
-impl<'a, C: 'a + Clock> Context<'a, C> {
+impl<'a,  C: 'a + Clock> Context<'a,  C> {
     fn pushu_byte(&mut self, v: u8) -> CpuResult<()> {
         let u = self.regs.u.wrapping_sub(1);
         self.mem.store_byte(u, v)?;
@@ -335,7 +336,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<'a, C: 'a + Clock> Context<'a, C> {
+impl<'a,  C: 'a + Clock> Context<'a,  C> {
     fn orcc<A: AddressLines>(&mut self) -> CpuResult<()> {
         let v = self.fetch_byte::<A>()?;
         let cc = self.regs.flags.bits();
@@ -526,28 +527,23 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
     ////////////////////////////////////////////////////////////////////////////////
 
     fn adda<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.moda_2::<A>(Flags::NZVCH.bits(), u8::add)?;
-        Ok(())
+        self.moda_2::<A>(Flags::NZVCH.bits(), u8::add)
     }
 
     fn adca<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.moda_2::<A>(Flags::NZVCH.bits(), u8::adc)?;
-        Ok(())
+        self.moda_2::<A>(Flags::NZVCH.bits(), u8::adc)
     }
 
     fn adcb<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.modb_2::<A>(Flags::NZVCH.bits(), u8::adc)?;
-        Ok(())
+        self.modb_2::<A>(Flags::NZVCH.bits(), u8::adc)
     }
 
     fn addb<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.modb_2::<A>(Flags::NZVCH.bits(), u8::add)?;
-        Ok(())
+        self.modb_2::<A>(Flags::NZVCH.bits(), u8::add)
     }
 
     fn addd<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.modd_2::<A>(Flags::NZVC.bits(), u16::add)?;
-        Ok(())
+        self.modd_2::<A>(Flags::NZVC.bits(), u16::add)
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -557,8 +553,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
     }
 
     fn andb<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.modb_2::<A>(Flags::NZV.bits(), u8::and)?;
-        Ok(())
+        self.modb_2::<A>(Flags::NZV.bits(), u8::and)
     }
 
     fn bita<A: AddressLines>(&mut self) -> CpuResult<()> {
@@ -1153,8 +1148,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
         Ok(())
     }
     fn subb<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.modb_2::<A>(Flags::NZVC.bits(), u8::sub)?;
-        Ok(())
+        self.modb_2::<A>(Flags::NZVC.bits(), u8::sub).map(|_|())
     }
 
     fn tsta<A: AddressLines>(&mut self) -> CpuResult<()> {
@@ -1299,7 +1293,7 @@ impl<'a, C: 'a + Clock> Context<'a, C> {
 }
 
 #[allow(unused_variables, unused_mut)]
-impl<'a, C: 'a + Clock> Context<'a, C> {
+impl<'a,  C: 'a + Clock> Context<'a, C> {
     pub fn new(
         mem: &'a mut dyn MemoryIO,
         regs: &'a mut Regs,

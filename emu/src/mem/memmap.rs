@@ -1,15 +1,13 @@
 // use mem::Memory;
-use super::{MemBlock, MemErrorTypes, MemResult, MemoryIO};
+use super::{MemErrorTypes, MemResult, MemoryIO};
 use sha1::Sha1;
 use std::fmt;
 
 pub trait MemMapIO {
     fn add_memory(&mut self, mem: Box<dyn MemoryIO>);
 
-    fn add_mem_block(&mut self, name : &str, read_only : bool, start : u16, size : u32 ) {
-        let mb = MemBlock::new(name, read_only, start, size);
-        let mb = Box::new(mb);
-        self.add_memory(mb);
+    fn add_mem_block(&mut self, _name : &str, _read_only : bool, _start : u16, _size : u32 ) {
+        todo!()
     }
 }
 
@@ -57,28 +55,39 @@ impl MemoryIO for MemMap {
     }
 
     fn load_byte(&mut self, addr: u16) -> MemResult<u8> {
-        for m in &mut self.all_memory {
-            if m.is_in_range(addr) {
-                return m.load_byte(addr);
-            }
-        }
-        Err(MemErrorTypes::IllegalAddress(addr))
+        let m = self.get_region(addr)?;
+        m.load_byte(addr)
+    }
+    fn load_word(&mut self, addr: u16) -> MemResult<u16> {
+        let m = self.get_region(addr)?;
+        m.load_word(addr)
     }
 
     fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()>{
-        for m in &mut self.all_memory {
-            if m.is_in_range(addr) {
-                return m.store_byte(addr, val)
-            }
-        }
-        Err(MemErrorTypes::IllegalAddress(addr))
+        let m = self.get_region(addr)?;
+        m.store_byte(addr, val)
+    }
+
+    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()>{
+        let m = self.get_region(addr)?;
+        m.store_word(addr,val)
     }
 }
 
 #[allow(dead_code)]
 impl MemMap {
-    pub fn new() -> MemMap {
-        MemMap {
+    fn get_region(&mut self, addr: u16 ) -> MemResult<& mut Box<dyn MemoryIO>> {
+        for m in &mut self.all_memory {
+            if m.is_in_range(addr) {
+                return Ok(m)
+            }
+        }
+
+        Err(MemErrorTypes::IllegalAddress(addr))
+    }
+
+    pub fn new() -> Self {
+        Self {
             all_memory: Vec::new(),
             name: "all memory".to_string(),
         }

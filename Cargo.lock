@@ -618,6 +618,7 @@ dependencies = [
 name = "glht"
 version = "0.1.0"
 dependencies = [
+ "byteorder",
  "cgmath",
  "clap 2.33.3",
  "emu",

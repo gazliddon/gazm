@@ -1,5 +1,6 @@
 use super::mem::MemoryIO;
 
+use byteorder::ByteOrder;
 use op_table;
 
 use super::cpu::{
@@ -45,7 +46,7 @@ impl AssemblyCache {
         }
     }
 
-    pub fn try_cache_or_create<F>(&mut self, addr : u16, create : F) -> Dissembly where
+    pub fn try_cache_or_create<E : ByteOrder, F>(&mut self, addr : u16, create : F) -> Dissembly where
         F : Fn() -> Dissembly {
             if let Some(cached) = self.cache.get_mut(&addr).cloned() {
                 cached 
@@ -76,11 +77,11 @@ impl Dissembly {
     }
 }
 
-pub struct Disassembler<'a> {
+pub struct Disassembler<'a, > {
     pub mem: &'a dyn MemoryIO,
 }
 
-impl<'a> Disassembler<'a> {
+impl<'a, > Disassembler<'a, > {
     pub fn new(mem : &'a dyn MemoryIO) -> Self {
         Self {
             mem

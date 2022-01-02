@@ -1,13 +1,13 @@
+
 use super::mem::MemoryIO;
 use super::CpuErr;
 use crate::isa::{ Dbase, Instruction };
-use std::str;
 
 const RBYTE : &[u8] = include_bytes!("resources/opcodes.json");
 
 lazy_static::lazy_static! {
     static ref DBASE: Dbase = {
-        let bytes_str = str::from_utf8(RBYTE).unwrap();
+        let bytes_str = std::str::from_utf8(RBYTE).unwrap();
         Dbase::from_text(bytes_str)
     };
 }
