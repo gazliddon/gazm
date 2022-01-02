@@ -14,6 +14,7 @@ romloader = { path = "../utils" }
 emu = {path = "../emu"}
 clap = { version = "3.0.0-rc.7", features = ["derive", "color"] }
 colored = "2"
+ego-tree="*"
 
 [dev-dependencies]
 

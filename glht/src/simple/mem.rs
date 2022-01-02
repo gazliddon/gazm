@@ -56,11 +56,9 @@ pub struct SimpleMem {
 
 impl Default for SimpleMem {
 
-
-
     fn default() -> Self {
         use log::info;
-        let ram = emu::mem::MemBlock::new("ram", false, 0x9900, ( 0x1_0000 - 0x9900 ) as u16);
+        let ram = emu::mem::MemBlock::new("ram", false, 0x9900, ( 0x1_0000 - 0x9900 ) as u32);
         info!("ram is {:04X?}", ram.region);
 
         let screen = emu::mem::MemBlock::new("screen", false, 0x0000, 0x9800);

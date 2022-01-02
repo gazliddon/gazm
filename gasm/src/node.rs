@@ -13,46 +13,29 @@ pub trait CtxTrait : Clone + std::fmt::Debug {
 // Traverse the AST
 
 #[derive(PartialEq, Clone)]
+
 pub struct NodeTreeIt<'a, I, C : CtxTrait> {
-    parent : Option<&'a Self>,
     node : &'a BaseNode<I,C>,
-
     child_it : Option<Box<NodeTreeIt<'a, I, C>>>,
-
     first : bool,
     index : usize,
-    depth : usize,
 }
+
 
 impl <'a, I, C : CtxTrait> NodeTreeIt<'a, I, C > { 
     pub fn new(node : &'a BaseNode<I,C>) -> Self {
-        Self::new_with_depth(None,0, node)
-    }
-
-    pub fn new_with_depth(parent: Option<&'a Self>, depth: usize, node : &'a BaseNode<I,C>) -> Self {
         Self {
             node,
             index: 0,
             first : true,
             child_it : None,
-            depth,
-            parent
         }
     }
 
-    pub fn parent(&self) -> Option<&'a Self> {
-        self.parent
-    }
-
-
     fn next_child_it(&mut self) -> Option<Box<Self>> {
         if self.index < self.node.children.len() {
-            let ret = Self::new_with_depth(
-                None, self.depth+1,
-                &self.node.children[self.index]).into();
-
+            let ret = Self::new(&self.node.children[self.index]).into();
             self.index += 1;
-
             Some(ret)
         } else {
             None
@@ -76,7 +59,6 @@ impl<'a, I, C: CtxTrait > Iterator for NodeTreeIt<'a, I, C> {
             Some(self.node)
         } else {
             if let Some(it_box) = &mut self.child_it {
-
                 if let Some(n) = it_box.as_mut().next() {
                     Some(n)
                 } else {
@@ -89,6 +71,67 @@ impl<'a, I, C: CtxTrait > Iterator for NodeTreeIt<'a, I, C> {
         }
     }
 }
+
+
+// pub struct MutNodeTreeIt<'a, I, C : CtxTrait> {
+//     node : &'a mut BaseNode<I,C>,
+//     child_it : Option<Box<MutNodeTreeIt<'a, I, C>>>,
+//     first : bool,
+//     index : usize,
+// }
+
+// impl <'a, I, C : CtxTrait> MutNodeTreeIt<'a, I, C > { 
+//     pub fn new(node : &'a mut BaseNode<I,C>) -> Self {
+//         Self {
+//             node,
+//             index: 0,
+//             first : true,
+//             child_it : None,
+//         }
+//     }
+
+//     fn next_child_it(&'a mut self) -> Option<Box<Self>> {
+//         if self.index < self.node.children.len() {
+//             let ret = Self::new(&mut self.node.children[self.index]).into();
+//             self.index += 1;
+//             Some(ret)
+//         } else {
+//             None
+//         }
+//     }
+
+//     fn next_child(&'a mut self){
+//         self.child_it = self.next_child_it();
+//     }
+// }
+
+
+// impl<'a, I, C: CtxTrait > Iterator for MutNodeTreeIt<'a, I, C> {
+//     type Item = &'a mut BaseNode<I,C>;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+
+//         if self.first {
+//             self.first = false;
+//             self.next_child();
+//             Some(self.node)
+//         } else {
+//             if let Some(it_box) = &mut self.child_it {
+
+//                 if let Some(n) = it_box.as_mut().next() {
+//                     Some(n)
+//                 } else {
+//                     self.next_child();
+//                     self.next()
+//                 }
+//             } else {
+//                 None
+//             }
+//         }
+//     }
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////
 
 pub struct NodeIt<'a, I, C : CtxTrait > {
     index : usize,

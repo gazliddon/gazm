@@ -11,15 +11,15 @@ pub fn mk_span<'a>(_file : &'a str, text : &'a str) ->Span<'a> {
     Span::new(text)
 }
 
-pub fn matched_span<'a>(input: Span<'a>, rest: Span<'a>) -> (Span<'a>, Span<'a> ) {
+pub fn matched_span<'a>(input: Span<'a>, rest: Span<'a>) -> Span<'a> {
     let to_take = rest.location_offset() - input.location_offset();
-    input.take_split(to_take)
+    input.take_split(to_take - 1).1
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Position {
-    start: usize,
-    end: usize,
+    pub start: usize,
+    pub end: usize,
     pub line : usize,
     pub col: usize,
 }
@@ -27,12 +27,6 @@ pub struct Position {
 impl Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}:{})", self.line, self.col)
-    }
-}
-
-impl Debug for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",self)
     }
 }
 

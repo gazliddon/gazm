@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf,};
 use clap::Parser;
 use clap::{App, Arg};
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Context {
     pub verbose: bool,
     pub file : PathBuf,

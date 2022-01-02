@@ -22,11 +22,14 @@ mod symbols;
 mod tokenize;
 mod cli;
 mod assemble;
+mod ast;
+mod messages;
 
 use std::path::PathBuf;
 
 use colored::*;
 use error::UserError;
+use locate::Position;
 use romloader::ResultExt;
 
 static BANNER : &str = r#"
@@ -37,48 +40,71 @@ static BANNER : &str = r#"
  \____|\__,_|___/_| |_| |_|  \___/ \___/ \___/   /_/
 "#;
 
-fn doit(ctx : &cli::Context) -> Result<(),UserError> {
-    
-    let tokens = tokenize::tokenize(&ctx)?;
-    println!();
-    let _bin = assemble::assemble(&ctx, tokens)?;
+use crate::item::{ Node, Item };
+use crate::messages::Messageize;
 
-    Ok(())
+pub struct Assembler {
+    ctx: cli::Context,
+    ast : ast::Ast,
+}
+
+impl Assembler {
+    pub fn new(ctx : &cli::Context) -> Result<Self,UserError> {
+        let x = messages::messages();
+
+        let msg = format!("Assembling {}", ctx.file.to_string_lossy());
+        x.success(&msg);
+        x.indent();
+
+        let tokens = tokenize::tokenize(ctx)?;
+        let ast = ast::Ast::from_nodes(tokens);
+
+        x.deindent();
+        x.success("Complete");
+
+        let ret = Self {
+            ast,
+            ctx : ctx.clone(),
+        };
+
+        Ok(ret)
+    }
+
+    pub fn get_ast(&self)-> &ast::Ast {
+        &self.ast
+    }
 }
 
 fn main() {
     use clap::Parser;
     use item::Item::*;
+    use messages::*;
 
     let ctx : cli::Context = cli::parse().into();
-    println!("{}", BANNER.bold().blue());
-    println!("{}", "GASM 6809 Assembler".purple().bold());
-    println!();
 
-    let res = doit(&ctx);
+    let x = messages::messages();
+
+    x.info(BANNER);
+    x.intertesting("GASM 6809 Assembler\n");
+
+    x.indent();
+    let res = Assembler::new(&ctx);
+    x.deindent();
+    x.info("");
 
     match res {
-        Ok(n) => {
-            let msg = "\nSucceded!".green().bold();
-            println!("{}", msg);
-
-            if ctx.pretty_dump_ast {
-                println!("{:#?}", n);
-            } else {
-                if ctx.dump_ast {
-                    println!("{:?}", n);
-                }
-            }
+        Ok(_asm) => {
+            x.success("Succeeded");
         },
 
         Err(e) => {
             let line_num = format!("{}", e.pos.line);
             let spaces = " ".repeat( 1+line_num.len() );
-            let bar = format!("{}|", spaces).blue().bold();
-            let bar_line = format!("{} |", line_num).blue().bold();
+            let bar = format!("{}|", spaces).info();
+            let bar_line = format!("{} |", line_num).info();
 
-            println!("{}: {}", "error".red().bold(), e.message.bold());
-            println!("   {} {}:{}:{}", "-->".blue(),e.file.to_string_lossy(), e.pos.line, e.pos.col);
+            println!("{}: {}", "error".error(), e.message.bold());
+            println!("   {} {}:{}:{}", "-->".info(),e.file.to_string_lossy(), e.pos.line, e.pos.col);
             println!("{}", bar);
             println!("{} {}", bar_line, e.line);
             println!("{}{}^", bar, " ".repeat(e.pos.col));

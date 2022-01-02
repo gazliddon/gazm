@@ -1,4 +1,4 @@
-use crate::{cli, commands, comments, expr, fileloader, item, labels, locate::Position, opcodes, util};
+use crate::{cli, commands, comments, expr, fileloader, item, labels, locate::Position, messages, opcodes, util};
 
 use nom::{AsBytes, branch::alt, bytes::complete::{ take_until, is_not }, character::complete::{ multispace1, multispace0, line_ending, }, combinator::{opt, all_consuming, eof, not, recognize}, multi::{ many0, many1 }, sequence::{ pair, terminated, preceded }};
 
@@ -42,8 +42,18 @@ pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Node, ParseError<'a>> {
 
     let mk_pc_equate = |node : Node| {
         let pos = node.ctx().clone();
-        let children = vec![node, Node::from_item(Pc, pos.clone())];
-        Node::from_item(Assignment, pos).with_children(children)
+    
+        match &node.item {
+            Label(name) => {
+                Node::from_item(AssignmentFromPc(name.clone()), pos)
+
+            },
+            LocalLabel(name) => {
+                Node::from_item(LocalAssignmentFromPc(name.clone()), pos)
+            }
+
+            _ => panic!("shouldn't happen")
+        }
     };
 
     while !source.is_empty() {
@@ -91,7 +101,9 @@ extern crate colored;
 use colored::*;
 
 pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileLoader, file : &std::path::PathBuf, parent : &std::path::PathBuf ) -> Result<Node, UserError> {
+    use super::messages::*;
     use item::Item::*;
+        let x = messages::messages();
 
     let (file_name, source) = fl.read_to_string(file.clone()).unwrap();
 
@@ -103,26 +115,24 @@ pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileL
 
     let mapper = |e| UserError::from_parse_error(e, &file_name);
 
-    let comp_msg = format!("{} {}", action, file_name.to_string_lossy()).green().bold();
-    println!("{}{}"," ".repeat(2 + depth*2), comp_msg);
+    let comp_msg = format!("{} {}", action, file_name.to_string_lossy());
+
+    x.info(&comp_msg);
 
     let input = Span::new(&source);
     let mut matched = tokenize_str(input).map_err(mapper)?;
-    matched.item = TokenizedFile(file.clone(),parent.clone());
+    matched.item = TokenizedFile(file.clone(),parent.clone(), source.clone());
 
     // Tokenize includes
     for n in matched.children.iter_mut() {
         if let Some(inc_file) = n.get_include_file() {
+            x.indent();
             *n = tokenize_file(depth+1, _ctx, fl, &inc_file.to_path_buf(), file)?.into();
+            x.deindent();
         }
     }
 
-    if depth == 0 {
-        println!("{}", "  Tokenizing complete".green().bold());
-    }
-
     Ok(matched)
-
 }
 
 pub fn tokenize( ctx : &cli::Context ) -> Result<Node, UserError> {

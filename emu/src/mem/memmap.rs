@@ -1,10 +1,16 @@
 // use mem::Memory;
-use super::{ MemoryIO, MemResult, MemErrorTypes };
+use super::{MemBlock, MemErrorTypes, MemResult, MemoryIO};
 use sha1::Sha1;
 use std::fmt;
 
 pub trait MemMapIO {
     fn add_memory(&mut self, mem: Box<dyn MemoryIO>);
+
+    fn add_mem_block(&mut self, name : &str, read_only : bool, start : u16, size : u32 ) {
+        let mb = MemBlock::new(name, read_only, start, size);
+        let mb = Box::new(mb);
+        self.add_memory(mb);
+    }
 }
 
 #[derive(Default)]
@@ -18,10 +24,12 @@ impl fmt::Debug for MemMap {
         let mut strs: Vec<String> = Vec::new();
 
         for m in &self.all_memory {
-            strs.push(m.get_name().clone())
+            let r = m.get_range();
+            let msg = format!("{} : ${:04x} ${:04x}", m.get_name(),r.start(), r.end());
+            strs.push(msg)
         }
 
-        write!(f, "{}", strs.join(" "))
+        write!(f, "{}", strs.join("\n"))
     }
 }
 

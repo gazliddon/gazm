@@ -1,5 +1,6 @@
 use crate::expr;
 use crate::expr::parse_expr;
+use crate::locate::matched_span;
 use crate::register;
 use crate::register::get_reg;
 use crate::register::parse_index_reg;
@@ -237,8 +238,9 @@ pub fn parse_opcode_with_arg(input: Span) -> IResult< Node> {
     }
 
     if let Some(instruction) = info.get_instruction(&amode) {
+        let matched = matched_span(input, rest );
         let item = Item::OpCode(text.to_string(), instruction.clone());
-        let node = Node::from_item(item, input)
+        let node = Node::from_item(item, matched)
             .take_children(arg);
         Ok((rest, node))
 
@@ -256,17 +258,14 @@ pub fn parse_opcode_no_arg(input: Span) -> IResult< Node> {
     let (rest, (info, text )) = opcode_token(input)?;
 
     if let Some(instruction) = info.get_instruction(&Inherent) {
-        let ret = Node::from_item(OpCode(text.to_string(), instruction.clone()), input);
+        let matched = matched_span(input, rest);
+        let ret = Node::from_item(OpCode(text.to_string(), instruction.clone()), matched);
         Ok((rest,ret))
 
     } else {
         let msg = format!("Missing operand for {}", text);
         Err(nom::Err::Failure(ParseError::new( msg, &input)))
-
     }
-    
-
-
 }
 
 pub fn parse_opcode(input: Span) -> IResult< Node> {

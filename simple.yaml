@@ -1,0 +1,11 @@
+
+- kind: Ram
+  name: Screen
+  start: 0
+  last: 0x97ff
+- kind: Ram
+  name: Ram
+  start: 0x9900
+  last: 0xffff
+
+

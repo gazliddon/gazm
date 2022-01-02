@@ -12,6 +12,7 @@ use romloader::ResultExt;
 pub struct Binary {
     write_address : usize,
     written: bool,
+    range : Option<(usize, usize)>,
 }
 
 impl Default for Binary {
@@ -19,6 +20,7 @@ impl Default for Binary {
         Self {
             write_address: 0,
             written: false,
+            range: None,
         }
     }
 }
@@ -48,8 +50,28 @@ impl Binary {
         self.write_address = pc;
     }
 
+    pub fn get_range(&self) -> Option<(usize,usize)> {
+        self.range
+    }
+
     pub fn write_byte(&mut self, _val : u8) {
-        self.dirty();
+        let pc = self.write_address;
+
+        if let Some((mut low, mut high)) = self.range {
+            if pc < low {
+                low = pc
+            }
+
+            if pc > high {
+                high = pc
+            }
+
+            self.range = Some(( low, high ))
+
+        } else {
+            self.range = Some((pc, pc))
+        }
+
         self.write_address += 1;
     }
     pub fn fill(&mut self, count : usize, byte : u8) {
@@ -92,42 +114,82 @@ fn get_indent(depth: usize) -> String {
 pub fn assemble_bin(file_name : &PathBuf,_ctx : &cli::Context, bin : &mut Binary, base_node : &Node, depth: usize) -> Result<(), UserError>{
     use Item::*;
 
-    let indent = get_indent(depth);
+    if let TokenizedFile(_path, _parent, _source) = base_node.item() {
 
-    let assemble_msg = format!("Assembling.. {:?}", file_name.to_string_lossy());
-    let succes_msg = format!("Assembly complete");
+        let indent = get_indent(depth);
 
-    println!("{}{}", indent,assemble_msg.green().bold());
+        let assemble_msg = format!("Assembling.. {:?}", file_name.to_string_lossy());
+        let succes_msg = format!("Assembly complete");
 
-    for n in &base_node.children {
-        let i = n.item();
+        println!("{}{}", indent,assemble_msg.green().bold());
 
-        match i {
-            Org => bin.set_write_addr(get_value_n(0,n)),
-            Assignment => (),
-            Fdb => bin.bump_write_address(n.children.len()),
-            OpCode(_,ins) => bin.bump_write_address(ins.size as usize),
-            Fill => bin.fill(get_value_n(0,n),get_value_n(1,n) as u8),
-            Comment(_) => (),
-            TokenizedFile(file,_) => assemble_bin(&file, _ctx, bin,n, depth+1)?,
-            _ => {
-                let msg = format!("error: unknown item {:?}", i).red().bold();
-                println!("{}{}",get_indent(depth+1), msg);
+        for n in &base_node.children {
+            let i = n.item();
+
+            match i {
+                Org => {
+                    let pc = get_value_n(0,n);
+                    bin.set_write_addr(pc)
+                }
+
+                Assignment => {
+                    // let label = &n.children[0];
+                    // let value = &n.children[1];
+                }
+
+                Fdb => {
+                    for i in n.children.iter() {
+                        bin.write_word(get_value(i) as u16)
+                    }
+                }
+
+                OpCode(_,ins) => {
+                    let next = bin.get_write_address()+ins.size as usize;
+                    if ins.opcode > 0xff {
+                        bin.write_word(ins.opcode);
+                    } else {
+                        bin.write_byte(ins.opcode as u8);
+                    }
+                    // TODO WRITE OPERAND
+                    bin.set_write_addr(next);
+                },
+
+                Fill => {
+                    let value = get_value_n(0,n) as u8;
+                    let count = get_value_n(1,n);
+                    bin.fill(count, value);
+                }
+
+                Zmb => bin.fill(get_value_n(0,n),0),
+                Zmd => bin.fill(get_value_n(0,n) * 2,0),
+
+                Comment(_) => (),
+
+                TokenizedFile(file,_, _) => assemble_bin(&file, _ctx, bin,n, depth+1)?,
+                _ => {
+                    let msg = format!("error: unknown item {:?}", i).red().bold();
+                    println!("{}{}",get_indent(depth+1), msg);
+                }
             }
         }
+
+        if depth == 0 {
+            println!("{}{}", indent, succes_msg.green().bold());
+        }
+
+        Ok(())
+    } else {
+        panic!()
     }
 
-    if depth == 0 {
-        println!("{}{}", indent, succes_msg.green().bold());
-    }
-
-    Ok(())
 }
 
-pub fn assemble(ctx : &cli::Context, base_node : Node) -> Result<Binary, UserError> {
+pub fn assemble(ctx : &cli::Context, base_node : &Node) -> Result<Binary, UserError> {
     let mut bin = Binary::new();
 
     assemble_bin(&ctx.file, ctx, &mut bin, &base_node, 0)?;
+
+    println!("range {:04x?}", bin.get_range());
 
     Ok(bin)
 }

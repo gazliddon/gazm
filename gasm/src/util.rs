@@ -147,7 +147,7 @@ pub fn parse_escaped_str(input: Span) -> IResult< Item> {
 
 pub fn parse_number<'a>(input: Span<'a>) -> IResult< Node> {
     let (rest, num) = numbers::number_token(input)?;
-    let (rest,matched) = super::locate::matched_span(input,rest);
+    let matched = super::locate::matched_span(input,rest);
     let ret = Node::from_number(num, matched);
     Ok((rest, ret))
 }

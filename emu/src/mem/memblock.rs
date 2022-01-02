@@ -1,4 +1,4 @@
-use super::{MemMap, MemMapIO, MemoryIO, Region, MemResult};
+use super::{MemoryIO, Region, MemResult};
 use sha1::Sha1;
 use std::vec::Vec;
 
@@ -11,7 +11,7 @@ pub struct MemBlock {
 
 #[allow(dead_code)]
 impl MemBlock {
-    pub fn new(name: &str, read_only: bool, base: u16, size: u16) -> MemBlock {
+    pub fn new(name: &str, read_only: bool, base: u16, size: u32) -> MemBlock {
         let data = vec![0u8;size as usize];
         Self::from_data(base, name, &data , read_only)
     }
@@ -31,14 +31,6 @@ impl MemBlock {
     fn to_index(&self, addr : u16) -> usize {
         assert!(self.region.is_in_region(addr));
         addr as usize - self.region.addr as usize
-    }
-}
-
-#[allow(dead_code)]
-impl MemMap {
-    pub fn add_mem_block(&mut self, name: &str, writable: bool, base: u16, size: u16) {
-        let mb = Box::new(MemBlock::new(name, writable, base, size));
-        self.add_memory(mb);
     }
 }
 

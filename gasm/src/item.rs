@@ -18,10 +18,12 @@ pub type Node = BaseNode<Item, Position>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
-    Block,
     Assignment,
+    AssignmentFromPc(String),
+    LocalAssignmentFromPc(String),
     Expr,
     Pc,
+    Block,
 
     UnaryTerm,
 
@@ -49,7 +51,7 @@ pub enum Item {
 
     Include(PathBuf),
 
-    TokenizedFile(PathBuf, PathBuf),
+    TokenizedFile(PathBuf, PathBuf, String),
 
     Org,
     Fdb,
@@ -85,7 +87,27 @@ impl Item {
         Item::Number(n)
     }
 
+    pub fn get_my_tokenized_file(&self) -> Option<(&PathBuf, &PathBuf, &String)> {
+        if let Item::TokenizedFile(file, parent, source) = self {
+            Some(( &file, &parent, &source ))
+        } else {
+            None
+        }
+    }
+
+    pub fn am_i_tokenized_file(&self) -> bool {
+        self.get_my_tokenized_file().is_some()
+    }
+
+    pub fn is_tokenized_file(i : &Item) -> bool {
+        i.am_i_tokenized_file()
+    }
+
+    pub fn get_tokenized_file(i: &Item) -> Option<(&PathBuf, &PathBuf, &String)> { 
+        i.get_my_tokenized_file()
+    }
 }
+
 
 impl<E : CtxTrait> BaseNode<Item, E> {
     pub fn is_empty_comment(&self) -> bool {
@@ -104,7 +126,7 @@ impl<E : CtxTrait> BaseNode<Item, E> {
     pub fn to_label(txt : &str, ctx : E) -> Self {
         Self::from_item(Item::Label(txt.to_string()), ctx)
     }
-    pub fn to_local_lable(txt : &str, ctx : E) -> Self {
+    pub fn to_local_label(txt : &str, ctx : E) -> Self {
         Self::from_item(Item::LocalLabel(txt.to_string()), ctx)
     }
 
@@ -115,6 +137,7 @@ impl<E : CtxTrait> BaseNode<Item, E> {
             None
         }
     }
+
     pub fn get_include_file(&self) -> Option<&PathBuf> {
         match self.item() {
             Item::Include(name) => Some(name),

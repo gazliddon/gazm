@@ -123,7 +123,7 @@ pub fn command_token(input: Span) -> IResult< Span> {
 pub fn parse_command(input: Span) -> IResult<Node> {
     let (rest, (_command_text, func)) = command_token_function(input)?;
     let (rest, matched) = preceded(multispace1, func)(rest)?;
-    let (rest, span) = matched_span(input, rest);
+    let span = matched_span(input, rest);
     let matched = matched.with_ctx(span);
     Ok((rest, matched))
 }
