@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::Flags;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -12,6 +14,24 @@ pub enum RegEnum {
     DP,
     CC,
     PC,
+}
+
+impl Display for RegEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::A => "A",
+            Self::B => "B",
+            Self::X => "X",
+            Self::Y => "Y",
+            Self::U => "U",
+            Self::S => "S",
+            Self::D => "D",
+            Self::DP => "DP",
+            Self::CC => "CC",
+            Self::PC => "PC",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 impl RegEnum {

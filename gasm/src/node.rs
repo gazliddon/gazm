@@ -171,6 +171,7 @@ fn box_it<I>(v : Vec<I>) -> Vec<Box<I>> {
 
 impl<I, C : CtxTrait > BaseNode<I, C> {
 
+
     pub fn ctx(&self) -> &C {
         &self.ctx
     }
@@ -240,8 +241,6 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
         ret.ctx = ctx.into();
         ret
     }
-
-
 }
 
 impl<I : std::fmt::Debug , C: CtxTrait > std::fmt::Debug for BaseNode<I,C> {

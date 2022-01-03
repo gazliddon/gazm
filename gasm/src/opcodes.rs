@@ -158,7 +158,7 @@ fn parse_indexed(input : Span) -> IResult< Node> {
         parse_index_type
         )(input)?;
 
-    let zero = Node::from_number(0, input);
+    let zero = Node::from_item(Expr, input).with_child(Node::from_number(0, input));
 
     let expr = expr.unwrap_or(zero);
 

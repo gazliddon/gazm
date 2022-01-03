@@ -1,5 +1,6 @@
 
 
+
 // Parse expressions
 //
 use super::item::{ Item,Node };
@@ -13,18 +14,18 @@ use nom::bytes::complete::{
     is_a, tag,
 };
 
-use nom::sequence::{separated_pair, terminated};
+use nom::sequence::{preceded, separated_pair, terminated};
 
 use nom::branch::alt;
 use nom::multi::many0;
-use nom::combinator::recognize;
+use nom::combinator::{map_parser, recognize};
 
 use super::util;
 
 use super::labels::parse_label;
 
 use crate::error::{IResult, ParseError};
-use crate::locate::Span;
+use crate::locate::{Span, matched_span};
 use crate::opcodes::parse_opcode;
 
 
@@ -50,16 +51,19 @@ use crate::opcodes::parse_opcode;
 // Expr Parsing
 
 fn parse_bracketed_expr(input: Span) -> IResult< Node> {
-    let (rest, matched) = util::wrapped_chars('(', parse_expr, ')')(input)?;
-    Ok(( rest, matched ))
+    let (rest, mut matched) = util::wrapped_chars('(', parse_expr, ')')(input)?;
+    let matched_span = matched_span(input, rest);
+    matched.item = Item::BracketedExpr;
+    Ok(( rest, matched.with_ctx(matched_span) ))
 }
 
-fn parse_pc(input : Span) -> IResult< Node> {
+pub fn parse_pc(input : Span) -> IResult< Node> {
     let (rest, _matched) = nom_char('*')(input)?;
-    Ok((rest, Node::from_item(Item::Pc, input)))
+    let matched_span = matched_span(input, rest);
+    Ok((rest, Node::from_item(Item::Pc, matched_span)))
 }
 
-fn parse_non_unary_term(input: Span) -> IResult< Node> {
+pub fn parse_non_unary_term(input: Span) -> IResult< Node> {
     use util::parse_number;
 
     alt((parse_bracketed_expr,
@@ -75,74 +79,71 @@ pub fn parse_term(input: Span) -> IResult< Node> {
 
 fn parse_unary_term(input: Span) -> IResult< Node> {
     use util::parse_number;
-    let (rest, (op, term)) = separated_pair(parse_unary_op,  multispace0, parse_term)(input)?;
-    let ret = Node::from_item(Item::UnaryTerm, input)
-        .with_children(vec![op,term])
-        ;
+    let (rest, (op, term)) = separated_pair(parse_unary_op,  multispace0, parse_non_unary_term)(input)?;
+
+    let matched_span = matched_span(input, rest);
+    let ret = Node::from_item(Item::UnaryTerm, matched_span)
+        .with_children(vec![op,term]) ;
+    Ok((rest, ret))
+}
+
+fn parse_op_allowed<'a>(input: Span<'a>,ops : &str) -> IResult<'a, Node> {
+    let (rest, matched) = one_of(ops)(input)?;
+
+    let op=to_op(matched).unwrap();
+
+    let matched_span = matched_span(input, rest);
+    let ret = Node::from_item(op, matched_span);
+
     Ok((rest, ret))
 }
 
 fn parse_unary_op(input: Span) -> IResult< Node> {
-    let ops = "+-";
+    let ops = "-";
+    parse_op_allowed(input, ops)
+}
 
-    let (rest, matched) = one_of(ops)(input)?;
-
-    let op = match matched {
-        '+' => Item::UnaryPlus,
-        '-' => Item::UnaryMinus,
-        _ => panic!("{:?}", matched),
-    };
-
-    let ret = Node::from_item(op, input);
-    Ok((rest, ret))
+fn to_op(c : char) -> Result<Item, ()> {
+    match c {
+        '+' => Ok(Item::Add),
+        '-' => Ok(Item::Sub),
+        '*' => Ok(Item::Mul),
+        '/' => Ok(Item::Div),
+        '|' => Ok(Item::Or),
+        '&' => Ok(Item::And),
+        '^' => Ok(Item::Xor),
+        _ => Err(())
+    }
 }
 
 fn parse_op(input: Span) -> IResult< Node> {
     let ops = "+-*/|&^";
-
-    let (rest, matched) = one_of(ops)(input)?;
-
-    let op = match matched {
-        '+' => Item::Add,
-        '-' => Item::Sub,
-        '*' => Item::Mul,
-        '/' => Item::Div,
-        '|' => Item::Or,
-        '&' => Item::And,
-        '^' => Item::Xor,
-        _ => panic!("{:?}", matched),
-    };
-
-    let ret = Node::from_item(op, input.take(1));
-
-    Ok((rest, ret))
+    parse_op_allowed(input, ops)
 }
 
-fn parse_op_term(input: Span) -> IResult<(Node, Node )> {
+fn parse_op_term(input: Span) -> IResult<(Node,Node)> {
     let (rest, (op, term)) = separated_pair(parse_op, multispace0, parse_term)(input)?;
     Ok((rest,(op, term)))
 }
 
-fn prepend<'a>(i : Node, is : Vec<Node>) -> Vec<Node> {
-    let mut ret = vec![i];
-    ret.extend(is);
-    ret
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 pub fn parse_expr(input: Span) -> IResult<Node> {
-    let (rest, (v,vs)) = separated_pair(parse_term, multispace0, many0(parse_op_term))(input)?;
-
-    let mut vec_ret = vec![v];
+    let (rest,term) = parse_term(input)?;
+    let mut vec_ret = vec![term];
+    let (rest, vs) = many0(preceded(multispace0,
+                                    parse_op_term
+                                   ))(rest)?;
 
     for (o,t) in vs {
         vec_ret.push(o);
         vec_ret.push(t);
     }
 
-    let node = Node::from_item(Item::Expr,input).with_children(vec_ret);
+    let matched_span = matched_span(input, rest);
 
-    Ok(( rest,node ))
+    let node = Node::from_item(Item::Expr,matched_span).with_children(vec_ret);
+
+    Ok(( rest, node ))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,8 +153,45 @@ mod test {
     use super::*;
     use pretty_assertions::assert_eq;
 
+
+    #[test]
+    fn test_brackets() {
+        let input = "(10 + 4) + 20";
+        let (rest,matched) = parse_bracketed_expr(Span::new(input)).unwrap();
+        println!("{:#?}", matched);
+        let matched = matched.to_string();
+        assert_eq!(*rest, " + 20");
+        assert_eq!("(10+4)", matched);
+    }
+
     #[test]
     fn test_get_expr() {
+        let input = "3 * 4 + %101 + -10";
+        let (rest,matched) = parse_expr(Span::new(input)).unwrap();
+        println!("{:#?}", matched);
+        let matched = matched.to_string();
 
+        assert_eq!(*rest, "");
+        assert_eq!(matched, "3*4+5+-10");
+
+        let input = "3 * 4 + 5 - (5 * 4)";
+        let (rest,matched) = parse_expr(Span::new(input)).unwrap();
+        let matched = matched.to_string();
+
+        assert_eq!(*rest, "");
+        assert_eq!(matched, "3*4+5-(5*4)");
+    }
+    fn test_expr_pc() {
+        let input = Span::new("* ;; ");
+        let (rest,matched) = parse_expr(input).unwrap();
+        assert_eq!(*rest, " ;; ");
+        assert_eq!(&matched.to_string(), "*");
+    }
+    
+    fn test_parse_pc() {
+        let input = Span::new("* ;; ");
+        let (rest,matched) = parse_pc(input).unwrap();
+        assert_eq!(*rest, " ;; ");
+        assert_eq!(&matched.to_string(), "*");
     }
 }

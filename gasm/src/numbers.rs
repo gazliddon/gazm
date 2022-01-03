@@ -29,7 +29,7 @@ pub fn parse_hex(input: Span) -> IResult<i64> {
 }
 
 fn parse_binary(input: Span) -> IResult<i64> {
-    let (rest,_) = alt(( tag("0b"), tag("0B") ))(input)?;
+    let (rest,_) = alt(( tag("%"),tag("0b"), tag("0B") ))(input)?;
     let (rest,num_str) = num_get(rest)?;
     let num = i64::from_str_radix(&num_str.replace( "_", ""), 2)
         .map_err(|e| num_parse_err(num_str, "binary", e))?;

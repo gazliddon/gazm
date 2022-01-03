@@ -67,10 +67,17 @@ pub fn parse_label(input: Span) -> IResult<Node> {
 #[allow(unused_imports)]
 mod test {
     use crate::locate::{mk_span, Position};
+    use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
 
-    use pretty_assertions::{assert_eq, assert_ne};
+    #[test]
+    fn test_parse_label() {
+        let input = Span::new("hello ;;");
+        let (rest,matched) = parse_label(input).unwrap();
+        assert_eq!(" ;;", *rest);
+        assert_eq!("hello",&matched.to_string());
+    }
 
     // fn prep_label<'a>(nl : &'a str) -> IResult<(Node, Node)> {
     //     let des_pos = Position::new(0,nl.len());

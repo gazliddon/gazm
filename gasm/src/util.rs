@@ -1,10 +1,10 @@
 use crate::item::{ Item, Node };
 use crate::numbers;
 use crate::labels;
-use crate::expr;
+use crate::expr::{self, parse_expr};
 
 use crate::error::{IResult, ParseError};
-use crate::locate::{ Span, mk_span};
+use crate::locate::{Span, matched_span, mk_span};
 
 use nom::{InputTake, Offset};
 // use nom::error::ParseError;
@@ -20,8 +20,9 @@ use nom::character::complete::{
     one_of, 
 };
 use nom::multi::separated_list1;
-use nom::sequence::{ terminated,preceded, tuple, };
+use nom::sequence::{preceded, separated_pair, terminated, tuple};
 use nom::combinator::cut;
+use nom_locate::position;
 
 pub static LIST_SEP: & str = ",";
 
@@ -76,52 +77,18 @@ F: nom::Parser<Span<'a>, O,ParseError<'a>> + Copy {
 
 pub fn parse_assignment(input: Span) -> IResult< Node> {
     use labels::parse_label;
-    let (rest, (label, _, _, _, arg)) = tuple((
-            parse_label,
-            multispace1,
-            tag_no_case("equ"),
-            multispace1,
-            expr::parse_expr
-            ))(input)?;
 
-    let ret = Node::from_item(Item::Assignment, input)
+    let sep = tuple((multispace1,tag_no_case("equ"), multispace1));
+
+    let (rest, (label,arg)) = separated_pair(parse_label, sep, cut(parse_expr))(input)?;
+
+    let matched_span = matched_span(input, rest);
+
+    let ret = Node::from_item(Item::Assignment, matched_span)
         .with_children(vec![label, arg]);
 
     Ok((rest, ret))
 }
-
-
-
-pub fn wrapped<'a, O1, O, O3, E, F, INNER, S>(
-    _first: F,
-    _inner: INNER,
-    _second: S,
-    ) -> impl FnMut(Span) -> IResult<O>
-where
-F: nom::Parser<Span<'a>, O1, ParseError<'a>> ,
-INNER: nom::Parser<Span<'a>, O, ParseError<'a>> ,
-S: nom::Parser<Span<'a>, O3, ParseError<'a>> ,
-{
-    move |_input: Span| {
-        panic!()
-    }
-}
-
-
-
-// pub fn sep_list1<'a, F, O, E: ParseError<Span<'a>>>(
-//     inner: F
-//     ) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
-// where
-// F: nom::Parser<Span<'a>, O,E>  {
-//     move |input: Span<'a>| {
-//         let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
-//         separated_list1(
-//             sep,
-//             inner)(input)
-//     }
-// }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Escaped string
@@ -161,36 +128,27 @@ mod test {
     use pretty_assertions::{assert_eq, assert_ne};
 
     #[test]
-    fn test_parse_str() {
-        let res = parse_escaped_str("\"kjskjbb\"".into());
-        println!("res : {:?}", res);
-        assert!(res.is_ok())
+    fn test_parse_number() {
+        let input = Span::new("1000 ;; ");
+        let (rest,matched) = parse_number(input).unwrap();
+        assert_eq!(*rest, " ;; ");
+        assert_eq!(&matched.to_string(), "1000");
     }
-    // #[test]
-    // fn test_assignment() {
-    //     let input = "hello equ $1000";
-    //     let res = parse_assignment(input.as_span());
 
-    //     let op_start = 0;
-    //     let op_end = input.len();
-    //     let equ_pos = op_start + 6;
-    //     let num_start = equ_pos + 4;
+    #[test]
+    fn test_assignment() {
+        let input = Span::new("hello equ $1000");
+        let (_,matched) = parse_assignment(input).unwrap();
+        assert_eq!(&matched.to_string(), "hello equ 4096");
 
-    //     assert!(res.is_ok());
-
-    //     let (_rest, matched) = res.unwrap();
-
-    //     let args : Vec<_> = vec![
-    //         Node::from_item(Item::Label("hello".to_string())).with_upos(op_start, op_start + 5),
-    //         Node::from_number(4096).with_upos(num_start, op_end)
-    //     ];
-
-    //     let desired = Node::from_item(Item::Assignment)
-    //         .with_children(args)
-    //         .with_upos(op_start, op_end);
-
-    //     assert_eq!(desired, matched);
-    // }
+        let input = Span::new("hello equ * ;;");
+        let (rest,matched) = parse_assignment(input).unwrap();
+        println!("original: {:?}", *input);
+        println!("Rest: {:?}", rest);
+        println!("Po: {:?}", matched.ctx);
+        assert_eq!(*rest, " ;;");
+        assert_eq!(&matched.to_string(),"hello equ *");
+    }
 }
 
 

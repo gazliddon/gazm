@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::path::Path;
 use std::{path::PathBuf, slice::Iter, collections::HashSet};
 
@@ -8,7 +9,7 @@ use nom::{IResult, Offset};
 use crate::fileloader::FileLoader;
 use crate::node::{BaseNode, CtxTrait};
 use crate::ctx::Ctx;
-use crate::locate::Span;
+use crate::locate::{Span, matched_span};
 
 use crate::locate::Position;
 
@@ -22,9 +23,11 @@ pub enum Item {
     AssignmentFromPc(String),
     LocalAssignmentFromPc(String),
     Expr,
+    BracketedExpr,
     Pc,
     Block,
 
+    UnaryOp,
     UnaryTerm,
 
     RegisterList(Vec<RegEnum>),
@@ -34,8 +37,6 @@ pub enum Item {
     Comment(String),
     QuotedString(String),
     // Op(String),
-    OpenBracket,
-    CloseBracket,
     Number(i64),
     OpCode(String, Instruction),
     Operand(AddrModeEnum),
@@ -108,7 +109,6 @@ impl Item {
     }
 }
 
-
 impl<E : CtxTrait> BaseNode<Item, E> {
     pub fn is_empty_comment(&self) -> bool {
         match self.item() {
@@ -150,7 +150,80 @@ impl<E : CtxTrait> BaseNode<Item, E> {
     }
 }
 
-impl<'a> BaseNode<Item, Span<'a>> {
+pub fn join_vec<I : Display>(v : &Vec<I>, sep : &str) -> String {
+    let ret : Vec<_> = v.iter().map(|x| x.to_string()).collect();
+    ret.join(sep)
+
+}
+
+impl<'a> Display for BaseNode<Item,Position> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Item::*;
+
+        let item = self.item();
+
+        let join_children = |sep| join_vec(&self.children, sep) ;
+
+        let ret : String = match item {
+            LocalAssignmentFromPc(name) | AssignmentFromPc(name) => {
+                format!("{} equ {}", name, self.children[0])
+            },
+            Pc => "*".to_string(),
+
+            Label(name) | LocalLabel(name) => name.clone(),
+
+            Comment(comment) => comment.clone(),
+            QuotedString(test) => format!("\"{}\"", test),
+            Register(r) => r.to_string(),
+
+            RegisterList(vec) => {
+                join_vec(vec, ",")
+            },
+
+            Assignment => {
+                format!("{} equ {}", self.children[0], self.children[1])
+            },
+
+            Expr => {
+                join_children("")
+            }
+
+            Include(file) => format!("include \"{}\"",file.to_string_lossy()),
+
+            Number(n) => {
+                n.to_string()
+            }
+            UnaryMinus => "-".to_string(),
+            UnaryTerm => {
+                join_children("")
+            }
+
+            Mul => "*".to_string(),
+            Div => "/".to_string(),
+            Add => "+".to_string(),
+            Sub => "-".to_string(),
+            And => "&".to_string(),
+            Or => "|".to_string(),
+            Xor => "^".to_string(),
+            Org => {
+                format!("org {}", self.children[0] )
+            },
+
+            BracketedExpr => {
+                format!("({})", join_children(""))
+            }
+
+            TokenizedFile(file, _, _) => {
+                let header = format!("; included file {}", file.to_string_lossy());
+                let children : Vec<String> = self.children.iter().map(|n| format!("{}", &*n)).collect();
+                format!("{}\n{}", header, children.join("\n"))
+            }
+
+            _ => format!("{:?} not implemented", item)
+        };
+
+        write!(f, "{}", ret)
+    }
 }
 
 
