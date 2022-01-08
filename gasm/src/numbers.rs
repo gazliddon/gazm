@@ -55,7 +55,6 @@ pub fn number_token(input: Span) -> IResult<i64> {
 
 #[allow(unused_imports)]
 mod test {
-    use crate::locate::mk_span;
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
@@ -96,7 +95,7 @@ mod test {
             F: Fn(Span) -> IResult<i64>,
         {
             for (input, desired) in arr.iter() {
-                let span = mk_span("Test", input);
+                let span = Span::new("Test");
                 let res = func(span);
 
                 if let Ok(( _, number )) = res {

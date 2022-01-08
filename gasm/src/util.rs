@@ -1,10 +1,12 @@
+use std::panic::PanicInfo;
+
 use crate::item::{ Item, Node };
 use crate::numbers;
 use crate::labels;
 use crate::expr::{self, parse_expr};
 
 use crate::error::{IResult, ParseError};
-use crate::locate::{Span, matched_span, mk_span};
+use crate::locate::{Span, matched_span, };
 
 use nom::{InputTake, Offset};
 // use nom::error::ParseError;
@@ -84,8 +86,14 @@ pub fn parse_assignment(input: Span) -> IResult< Node> {
 
     let matched_span = matched_span(input, rest);
 
-    let ret = Node::from_item(Item::Assignment, matched_span)
-        .with_children(vec![label, arg]);
+    let item = match label.item {
+        Item::Label(name) => Item::Assignment(name),
+        Item::LocalLabel(name ) => Item::LocalAssignment(name),
+        _ => panic!()
+    };
+
+    let ret = Node::from_item(item, matched_span)
+        .with_child(arg);
 
     Ok((rest, ret))
 }

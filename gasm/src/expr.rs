@@ -28,7 +28,6 @@ use crate::error::{IResult, ParseError};
 use crate::locate::{Span, matched_span};
 use crate::opcodes::parse_opcode;
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
 // so 
@@ -152,7 +151,6 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
-
 
     #[test]
     fn test_brackets() {

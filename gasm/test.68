@@ -1,10 +1,3 @@
-
-
-lda 3+4*6+1+hello
-lda <3+4*6+1+hello
-lda [3+4*6+1+hello,X]
-lda [,X]
-
-
-lda #3+4*6+1+hello+(3 -2)
+x equ 50-3+4*6-1
+y equ x + 1
 

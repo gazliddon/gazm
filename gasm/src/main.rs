@@ -29,7 +29,10 @@ mod cli;
 mod assemble;
 mod ast;
 mod messages;
-mod infix;
+mod postfix;
+mod sourcefile;
+mod eval;
+mod indexed;
 
 use std::path::PathBuf;
 use std::time::Instant;

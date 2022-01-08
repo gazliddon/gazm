@@ -12,6 +12,8 @@ use crate::ctx::Ctx;
 use crate::locate::{Span, matched_span};
 
 use crate::locate::Position;
+use crate::postfix::GetPriotity;
+use crate::indexed::IndexMode;
 
 impl<'a> CtxTrait for Span<'a> { }
 
@@ -19,10 +21,12 @@ pub type Node = BaseNode<Item, Position>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
-    Assignment,
+    LocalAssignment(String),
+    Assignment(String),
     AssignmentFromPc(String),
     LocalAssignmentFromPc(String),
     Expr,
+    PostFixExpr,
     BracketedExpr,
     Pc,
     Block,
@@ -30,16 +34,19 @@ pub enum Item {
     UnaryOp,
     UnaryTerm,
 
+    Indexed(Instruction, IndexMode),
+
     RegisterList(Vec<RegEnum>),
     RegisterSet(HashSet<RegEnum>),
     Label(String),
     LocalLabel(String),
     Comment(String),
     QuotedString(String),
-    // Op(String),
     Number(i64),
-    OpCode(String, Instruction),
+
+    OpCode(Instruction),
     Operand(AddrModeEnum),
+
     Register(RegEnum),
     PreDecrement(RegEnum),
     PreIncrement(RegEnum),
@@ -72,6 +79,18 @@ pub enum Item {
     UnaryMinus,
 }
 
+impl GetPriotity for Item {
+    fn priority(&self) -> Option<usize> {
+        match self {
+            Item::Mul => Some(5),
+            Item::Div => Some(5),
+            Item::Add => Some(4),
+            Item::Sub => Some(4),
+            _=> None,
+        }
+    }
+}
+
 impl Item {
     pub fn is_empty_comment(&self) -> bool {
         if let Item::Comment(com) = &*self {
@@ -80,6 +99,7 @@ impl Item {
             false
         }
     }
+
     pub fn zero() -> Self {
         Self::number(0)
     }
@@ -107,6 +127,21 @@ impl Item {
     pub fn get_tokenized_file(i: &Item) -> Option<(&PathBuf, &PathBuf, &String)> { 
         i.get_my_tokenized_file()
     }
+
+    pub fn get_number(&self) -> Option<i64> {
+        if let Item::Number(n) = self {
+            Some(*n)
+        } else {
+            None
+        }
+    }
+    pub fn label_name(&self) -> Option<&String> {
+        if let Item::Label(n) = self {
+            Some(n)
+        } else {
+            None
+        }
+    }
 }
 
 impl<E : CtxTrait> BaseNode<Item, E> {
@@ -119,9 +154,9 @@ impl<E : CtxTrait> BaseNode<Item, E> {
 
     pub fn from_number<X>(n : i64, ctx : X) -> Self
         where X : Into<E>
-    {
-        Self::from_item(Item::Number(n),ctx.into())
-    }
+        {
+            Self::from_item(Item::Number(n),ctx.into())
+        }
 
     pub fn to_label(txt : &str, ctx : E) -> Self {
         Self::from_item(Item::Label(txt.to_string()), ctx)
@@ -180,8 +215,9 @@ impl<'a> Display for BaseNode<Item,Position> {
                 join_vec(vec, ",")
             },
 
-            Assignment => {
-                format!("{} equ {}", self.children[0], self.children[1])
+            LocalAssignment(name) |
+            Assignment(name) => {
+                format!("{} equ {}", name, self.children[0])
             },
 
             Expr => {

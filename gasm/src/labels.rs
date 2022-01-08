@@ -13,7 +13,7 @@ use nom::bytes::complete::is_a;
 use nom::branch::alt;
 
 use crate::error::IResult;
-use crate::locate::{ Span,mk_span };
+use crate::locate::{ Span,};
 
 use nom_locate::position;
 
@@ -66,7 +66,7 @@ pub fn parse_label(input: Span) -> IResult<Node> {
 
 #[allow(unused_imports)]
 mod test {
-    use crate::locate::{mk_span, Position};
+    use crate::locate::{Position};
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
@@ -77,6 +77,14 @@ mod test {
         let (rest,matched) = parse_label(input).unwrap();
         assert_eq!(" ;;", *rest);
         assert_eq!("hello",&matched.to_string());
+    }
+
+    #[test]
+    fn test_parse_local_abel() {
+        let input = Span::new("@hello\n");
+        let (rest,matched) = parse_label(input).unwrap();
+        assert_eq!("\n", *rest);
+        assert_eq!("@hello",&matched.to_string());
     }
 
     // fn prep_label<'a>(nl : &'a str) -> IResult<(Node, Node)> {

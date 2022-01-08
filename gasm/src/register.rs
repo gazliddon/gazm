@@ -15,7 +15,7 @@ use nom::combinator::value;
 use std::collections::HashSet;
 
 use crate::error::{IResult, ParseError};
-use crate::locate::{ Span, mk_span };
+use crate::locate::{ Span, };
 
 use nom_locate::position;
 

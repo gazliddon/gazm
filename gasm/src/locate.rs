@@ -1,27 +1,29 @@
-use std::fmt::{Debug, DebugMap, Display};
+use std::{fmt::{Debug, DebugMap, Display}, usize};
 
 use nom_locate::LocatedSpan;
 use nom::{InputTake, Offset};
 
+use crate::commands::parse_command;
+
 
 pub type Span<'a> = LocatedSpan<&'a str>;
 
-pub fn mk_span<'a>(_file : &'a str, text : &'a str) ->Span<'a> {
-    // let sf = SourceInfo::new(file,text);
-    Span::new(text)
+pub fn to_range(input: Span, rest: Span) -> std::ops::Range<usize> {
+    let start = input.location_offset() ;
+    let end = rest.location_offset() ;
+    start..end
 }
 
 pub fn matched_span<'a>(input: Span<'a>, rest: Span<'a>) -> Span<'a> {
-    let to_take = rest.location_offset() - input.location_offset();
-    input.take_split(to_take - 1).1
+    let r = to_range(input, rest);
+    input.take(r.len())
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Position {
-    pub start: usize,
-    pub end: usize,
     pub line : usize,
     pub col: usize,
+    pub range: std::ops::Range<usize>,
 }
 
 impl Display for Position {
@@ -39,16 +41,16 @@ impl<'a> Default for Position {
 impl <'a> From<Span<'a>> for Position {
     fn from(i : Span<'a>) -> Self {
         let start = i.location_offset();
-        let end = start+i.len();
-        Position::new(i.location_line() as usize, i.get_column() as usize, start, end)
+        let range = start .. (start + i.len());
+        Position::new(i.location_line() as usize, i.get_column() as usize, range)
     }
 }
 
 impl crate::node::CtxTrait for Position { }
 
 impl Position {
-    pub fn new(line : usize, col: usize, start : usize, end : usize) -> Self {
-        Self {line,col, start,end}
+    pub fn new(line : usize, col: usize, range: std::ops::Range<usize>) -> Self {
+        Self {line,col, range}
     }
 }
 

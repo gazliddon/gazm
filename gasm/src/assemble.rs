@@ -132,7 +132,12 @@ pub fn assemble_bin(file_name : &PathBuf,_ctx : &cli::Context, bin : &mut Binary
                     bin.set_write_addr(pc)
                 }
 
-                Assignment => {
+                LocalAssignment(_name) => {
+                    // let label = &n.children[0];
+                    // let value = &n.children[1];
+                }
+
+                Assignment(_name) => {
                     // let label = &n.children[0];
                     // let value = &n.children[1];
                 }
@@ -143,7 +148,7 @@ pub fn assemble_bin(file_name : &PathBuf,_ctx : &cli::Context, bin : &mut Binary
                     }
                 }
 
-                OpCode(_,ins) => {
+                OpCode(ins) => {
                     let next = bin.get_write_address()+ins.size as usize;
                     if ins.opcode > 0xff {
                         bin.write_word(ins.opcode);
@@ -194,3 +199,17 @@ pub fn assemble(ctx : &cli::Context, base_node : &Node) -> Result<Binary, UserEr
     Ok(bin)
 }
 
+
+pub struct Assembler<'a> {
+    ast : &'a ast::Ast,
+}
+
+use crate::ast;
+
+impl<'a> Assembler<'a> {
+    pub fn new(ast: &'a ast::Ast) -> Self {
+        Self {
+            ast
+        }
+    }
+}

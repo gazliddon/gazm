@@ -2,7 +2,7 @@ use super::RegEnum;
 
 #[derive(Debug)]
 pub enum IndexModes {
-    ROff(RegEnum, u16),
+    ROff(RegEnum, u16), //               
     RPlus(RegEnum),     //               ,R+              2 0 |
     RPlusPlus(RegEnum), //               ,R++             3 0 |
     RSub(RegEnum),      //               ,-R              2 0 |

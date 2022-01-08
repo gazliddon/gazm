@@ -10,7 +10,7 @@ use nom::sequence::{preceded, tuple, pair};
 use nom::bytes::complete::tag;
 
 use crate::error::IResult;
-use crate::locate::{ Span, mk_span};
+use crate::locate::{ Span};
 
 static COMMENT: & str = ";";
 

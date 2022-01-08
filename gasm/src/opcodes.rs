@@ -1,3 +1,4 @@
+use crate::indexed::parse_indexed;
 use crate::expr;
 use crate::expr::parse_expr;
 use crate::locate::matched_span;
@@ -28,7 +29,7 @@ use nom::sequence::{ pair, preceded, separated_pair, terminated, tuple};
 use nom::combinator::{ recognize, opt };
 
 use crate::error::{IResult, ParseError};
-use crate::locate::{ Span, mk_span };
+use crate::locate::Span;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,100 +75,6 @@ fn parse_dp(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
-// Post inc / dec
-fn parse_post_inc(input: Span) -> IResult<Node> {
-    let (rest, matched) = terminated( get_reg , tag("+"))(input)?;
-    let ret = Node::from_item(Item::PostIncrement(matched), input);
-    Ok((rest,ret))
-}
-
-fn parse_post_inc_inc(input: Span) -> IResult<Node> {
-    let (rest, matched) = terminated( get_reg , tag("++"))(input)?;
-    let ret =  Node::from_item(Item::DoublePostIncrement(matched), input);
-
-    Ok((rest,ret))
-}
-fn parse_post_dec(input: Span) -> IResult<Node> {
-    let (rest, matched) = terminated( get_reg , tag("-"))(input)?;
-    let ret = Node::from_item( Item::PostDecrement(matched), input);
-    Ok((rest,ret))
-}
-fn parse_post_dec_dec(input: Span) -> IResult<Node> {
-    let (rest, matched) = terminated( get_reg , tag("--"))(input)?;
-    let ret = Node::from_item(
-        Item::DoublePostDecrement(matched), input);
-    Ok((rest,ret))
-}
-
-// Pre inc / dec
-fn parse_pre_dec(input: Span) -> IResult<Node> {
-    let (rest, matched) = preceded(tag("-"), get_reg )(input)?;
-    let ret = Node::from_item(
-        Item::PreDecrement(matched), input);
-    Ok((rest, ret))
-}
-
-fn parse_pre_inc(input: Span) -> IResult<Node> {
-    let (rest, matched) = preceded(tag("+"), get_reg )(input)?;
-    let ret = Node::from_item(Item::PreIncrement(matched), input);
-    Ok((rest, ret))
-}
-
-fn parse_pre_inc_inc(input: Span) -> IResult<Node> {
-    let (rest, matched) = preceded(tag("++"), get_reg )(input)?;
-    let ret = Node::from_item(
-        Item::DoublePreIncrement(matched), input) ;
-    Ok((rest, ret))
-}
-
-
-fn parse_pre_dec_dec(input: Span) -> IResult<Node> {
-    let (rest, matched) = preceded(tag("--"), get_reg )(input)?;
-    let ret = Node::from_item(Item::DoublePreDecrement(matched), input);
-    Ok((rest, ret))
-}
-
-// Simple index
-
-
-fn parse_index_type(input : Span) -> IResult< Node> {
-    let (rest, reg) = 
-        alt((
-                parse_pre_dec_dec,
-                parse_pre_inc_inc,
-                parse_pre_dec,
-                parse_pre_inc,
-                parse_post_dec_dec,
-                parse_post_inc_inc,
-                parse_post_dec,
-                parse_post_inc,
-                parse_index_reg  )
-        )(input)?;
-
-    Ok((rest, reg))
-}
-
-fn parse_indexed(input : Span) -> IResult< Node> {
-    use AddrModeEnum::*;
-    use Item::*;
-    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-
-    let (rest, (expr,reg)) = separated_pair(
-        opt(parse_expr),
-        sep,
-        parse_index_type
-        )(input)?;
-
-    let zero = Node::from_item(Expr, input).with_child(Node::from_number(0, input));
-
-    let expr = expr.unwrap_or(zero);
-
-    let ret = Node::from_item(Operand(Indexed), input);
-
-    let ret = ret.with_children(vec![expr, reg]);
-
-    Ok((rest, ret))
-}
 
 fn parse_indirect(input: Span) -> IResult< Node> {
     use AddrModeEnum::*;
@@ -178,7 +85,7 @@ fn parse_indirect(input: Span) -> IResult< Node> {
         alt((parse_indexed,parse_expr))
     , ']')(input)?;
 
-    let ret = Node::from_item(Operand(Indexed), input).with_child(matched);
+    let ret = Node::from_item(Operand(AddrModeEnum::Indexed), input).with_child(matched);
 
     Ok((rest, ret))
 }
@@ -203,6 +110,7 @@ fn parse_opcode_arg(input: Span) -> IResult< Node> {
 
     use Item::*;
     use nom::combinator::map;
+    use super::indexed::parse_indexed;
 
     let (rest, matched) = 
         alt((parse_reg_set,
@@ -241,7 +149,7 @@ pub fn parse_opcode_with_arg(input: Span) -> IResult< Node> {
 
     if let Some(instruction) = info.get_instruction(&amode) {
         let matched = matched_span(input, rest );
-        let item = Item::OpCode(text.to_string(), instruction.clone());
+        let item = Item::OpCode(instruction.clone());
         let node = Node::from_item(item, matched)
             .take_children(arg);
         Ok((rest, node))
@@ -261,7 +169,7 @@ pub fn parse_opcode_no_arg(input: Span) -> IResult< Node> {
 
     if let Some(instruction) = info.get_instruction(&Inherent) {
         let matched = matched_span(input, rest);
-        let ret = Node::from_item(OpCode(text.to_string(), instruction.clone()), matched);
+        let ret = Node::from_item(OpCode(instruction.clone()), matched);
         Ok((rest,ret))
 
     } else {
@@ -345,33 +253,36 @@ mod test {
 
     //     assert_eq!(matched, des_node);
     // }
+    //
+    fn test_asm(code: &str) -> Result<String, String> {
+        use crate::tokenize::tokenize_file_from_str;
+        use crate::ast::Ast;
+
+        let node = tokenize_file_from_str("no file", code).map_err(|_e| "!!!!".to_string())?;
+        let ast = Ast::from_nodes(node);
+        let ast_text = ast.to_string();
+
+        Ok(ast_text)
+    }
 
     #[test]
     fn test_parse_immediate() {
-        // use Item::*;
-        // use AddrModeEnum::*;
-        // let op_text = "#$100+10";
-        // let op_text = mk_span("test", &op_text);
+        let code = "lda #$100";
+        let desired = "lda #256";
+        let ast_text = test_asm(code).unwrap();
+        assert_eq!(desired, &ast_text);
 
-        // let num_p = 1;
-        // let plus_p = num_p+4;
-        // let ten_p = plus_p+1;
-        // let last_p = op_text.len();
+        let code = "lda <$100";
+        let desired = "lda <256";
+        let ast_text = test_asm(code).unwrap();
+        assert_eq!(desired, &ast_text);
 
-        // let res = parse_immediate(op_text);
-        // assert!(res.is_ok());
-
-        // let des_arg = vec![
-        //     Node::from_number(256).with_upos(num_p,plus_p),
-        //     Node::from_item(Item::Add).with_child(Node::from_number(10).with_upos(ten_p,last_p)).with_upos(5, last_p)
-        // ];
-
-        // let des_expr = Node::from_item(Expr).with_children(des_arg).with_upos(num_p,last_p);
-        // let desired = Node::from_item(Operand(Immediate16)).with_child(des_expr).with_upos(0,last_p);
-        // let (_, matched) = res.unwrap();
-
-        // assert_eq!(matched,desired);
+        let code = "lda $100,x";
+        let desired = "lda 256,X";
+        let ast_text = test_asm(code).unwrap();
+        assert_eq!(desired, &ast_text);
     }
+
     // fn simple_indexed(op : &str, middle : &str, index: &str, reg : RegEnum) {
     //     use emu::cpu::RegEnum::*;
     //     use Item::*;

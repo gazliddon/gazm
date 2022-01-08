@@ -3,8 +3,8 @@ use crate::{cli, commands, comments, expr, fileloader, item, labels, locate::Pos
 use nom::{AsBytes, branch::alt, bytes::complete::{ take_until, is_not }, character::complete::{ multispace1, multispace0, line_ending, }, combinator::{opt, all_consuming, eof, not, recognize}, multi::{ many0, many1 }, sequence::{ pair, terminated, preceded }};
 
 use crate::error::{IResult, ParseError, UserError};
-use crate::locate::{ Span, mk_span };
-use crate::item::Node;
+use crate::locate::Span;
+use crate::item::{ Node, Item };
 
 fn get_line(input : Span)-> IResult<Span> {
         let (rest, line) =
@@ -17,6 +17,14 @@ fn get_line(input : Span)-> IResult<Span> {
 struct Tokens {
     text : String,
     tokens: Vec<item::Node>
+}
+
+pub fn tokenize_file_from_str<'a>(file : &str,input : &'a str) -> Result<Node, ParseError<'a>> { 
+    let input = Span::new(input);
+    let source = input.to_string();
+    let mut matched = tokenize_str(input)?;
+    matched.item = Item::TokenizedFile(file.into(), file.into(), source);
+    Ok(matched)
 }
 
 pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Node, ParseError<'a>> {
@@ -46,8 +54,8 @@ pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Node, ParseError<'a>> {
         match &node.item {
             Label(name) => {
                 Node::from_item(AssignmentFromPc(name.clone()), pos)
-
             },
+
             LocalLabel(name) => {
                 Node::from_item(LocalAssignmentFromPc(name.clone()), pos)
             }
@@ -109,7 +117,7 @@ pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileL
     let action = if depth == 0 {
         "Tokenizing"
     } else {
-        "Tokenizing including"
+        "Including"
     };
 
     let mapper = |e| UserError::from_parse_error(e, &file_name);
