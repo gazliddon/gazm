@@ -95,8 +95,8 @@ mod test {
             F: Fn(Span) -> IResult<i64>,
         {
             for (input, desired) in arr.iter() {
-                let span = Span::new("Test");
-                let res = func(span);
+                let res = func(( *input ).into());
+                println!("Testing: {:?}", input);
 
                 if let Ok(( _, number )) = res {
                     assert_eq!(number, *desired)
