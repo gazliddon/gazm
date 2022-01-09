@@ -1,25 +1,22 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 task    
-next        equ 0
-func        equ 2
-tick        equ 4
-sleep       equ 6
-d           equ 8
-y           equ 10
-x           equ 12
-temp0       equ 14
-temp1       equ 16
-
-
-tsk_size        equ 18
+task.next        equ 0
+task.func        equ 2
+task.tick        equ 4
+task.sleep       equ 6
+task.d           equ 8
+task.y           equ 10
+task.x           equ 12
+task.temp0       equ 14
+task.temp1       equ 16
+task.size       equ 18
 
 num_of_tasks    equ 100
 
-task_buffer_size equ tsk_size*num_of_tasks
+task_buffer_size equ task_size*num_of_tasks
 
 tasks           zmb task_buffer_size
-
 tasks_end
 
 active_tasks    zmd 1
@@ -37,7 +34,7 @@ task_init_system
     stu free_tasks
 loop_init
     ;; get ptr to next task
-    leay tsk_size,u
+    leay task.size,u
     cmpy #tasks_end
     bne no_task
     tfr y,x
@@ -77,11 +74,9 @@ task_exec
 task_run_tasks
     ;; u -> active task list
     ldu  #active_tasks
-run_loop
-    ;; u -> next task, if zero end of list
+run_loop ;; u -> next task, if zero end of list
     ldu ,u
-    beq run_done
-    ;; set this as the current task
+    beq run_done ;; set this as the current task
     stu current_task
     ;; run the task
     bsr task_exec

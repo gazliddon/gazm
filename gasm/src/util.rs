@@ -61,7 +61,7 @@ F: nom::Parser<Span<'a>, O,ParseError<'a>>
     move |input: Span| {
         let (input,_) = nom_char(open)(input)?;
         let (input,matched) = inner.parse(input)?;
-        let (input,_) = cut(nom_char(close))(input)?;
+        let (input,_) = nom_char(close)(input)?;
         Ok((input, matched))
     }
 }
@@ -120,7 +120,7 @@ pub fn parse_escaped_str(input: Span) -> IResult< Item> {
 }
 
 
-pub fn parse_number<'a>(input: Span<'a>) -> IResult< Node> {
+pub fn parse_number(input: Span) -> IResult< Node> {
     let (rest, num) = numbers::number_token(input)?;
     let matched = super::locate::matched_span(input,rest);
     let ret = Node::from_number(num, matched);
@@ -133,7 +133,7 @@ pub fn compile_text(code: &str) -> Result<String, String> {
     use crate::tokenize::tokenize_file_from_str;
     use crate::ast::Ast;
 
-    let node = tokenize_file_from_str("no file", code).map_err(|_e| "!!!!".to_string())?;
+    let node = tokenize_file_from_str("no file", code).map_err(|e| format!("{:?}", e))?;
     let ast = Ast::from_nodes(node);
     let ast_text = ast.to_string();
 

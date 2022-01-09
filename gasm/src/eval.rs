@@ -41,13 +41,13 @@ impl<'a> Evaluator<'a> {
             PostFixExpr => self.eval_postfix(n)?,
 
             Label(name) => {
-                let v = *self.syms.get(name).ok_or(format!("Undefined label"))?;
+                let v = *self.syms.get(name).ok_or_else(|| "Undefined label".to_string())?;
                 Number(v)
             }
 
             Number(_) => i.clone(),
 
-            _ => {return Err(format!("Unable to eval!"))}
+            _ => {return Err("Unable to eval!".to_string())}
         };
 
         Ok(rez)
@@ -105,16 +105,16 @@ impl<'a> Evaluator<'a> {
             })
     }
 
-    fn take_pair(&mut self) -> Option<( Item, i64 )> { 
-        let op = self.take_op();
-        let num = self.take_num();
+    // fn take_pair(&mut self) -> Option<( Item, i64 )> { 
+    //     let op = self.take_op();
+    //     let num = self.take_num();
 
-        if op.is_some() && num.is_some() {
-            Some((op.unwrap(), num.unwrap()))
-        } else {
-            None
-        }
-    }
+    //     if op.is_some() && num.is_some() {
+    //         Some((op.unwrap(), num.unwrap()))
+    //     } else {
+    //         None
+    //     }
+    // }
 
     fn take_item(&mut self) -> Option<Item> {
         let children = self.children.as_mut().unwrap();

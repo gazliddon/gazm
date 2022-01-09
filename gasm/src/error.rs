@@ -14,7 +14,7 @@ pub struct ParseError<'a> {
 
 impl<'a> ParseError<'a> {
     pub fn message(&self) -> String {
-        self.message.clone().unwrap_or("".to_string())
+        self.message.clone().unwrap_or_else(||"".to_string())
     }
 }
 
@@ -88,14 +88,14 @@ pub struct UserError {
 }
 
 impl UserError {
-    pub fn from_parse_error(err : ParseError, file : &std::path::PathBuf) -> Self {
+    pub fn from_parse_error(err : ParseError, file : &std::path::Path) -> Self {
         let line = err.span.get_line_beginning();
         let line = String::from_utf8_lossy(line).to_string();
         Self {
             message: err.message(),
             pos: err.span.into(),
             fragment: err.span.to_string(),
-            line, file: file.clone()
+            line, file: file.to_path_buf()
         }
     }
 }

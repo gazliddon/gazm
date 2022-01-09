@@ -107,11 +107,10 @@ fn get_value_n(n : usize, node : &Node ) -> usize {
 
 fn get_indent(depth: usize) -> String {
     let indent = 2 + depth * 2;
-    let indent = " ".repeat(indent);
-    indent
+    " ".repeat(indent)
 }
 
-pub fn assemble_bin(file_name : &PathBuf,_ctx : &cli::Context, bin : &mut Binary, base_node : &Node, depth: usize) -> Result<(), UserError>{
+pub fn assemble_bin(file_name : &std::path::Path,_ctx : &cli::Context, bin : &mut Binary, base_node : &Node, depth: usize) -> Result<(), UserError>{
     use Item::*;
 
     if let TokenizedFile(_path, _parent, _source) = base_node.item() {
@@ -119,7 +118,7 @@ pub fn assemble_bin(file_name : &PathBuf,_ctx : &cli::Context, bin : &mut Binary
         let indent = get_indent(depth);
 
         let assemble_msg = format!("Assembling.. {:?}", file_name.to_string_lossy());
-        let succes_msg = format!("Assembly complete");
+        let succes_msg = "Assembly complete";
 
         println!("{}{}", indent,assemble_msg.green().bold());
 
@@ -148,7 +147,7 @@ pub fn assemble_bin(file_name : &PathBuf,_ctx : &cli::Context, bin : &mut Binary
                     }
                 }
 
-                OpCode(ins) => {
+                OpCode(ins,_) => {
                     let next = bin.get_write_address()+ins.size as usize;
                     if ins.opcode > 0xff {
                         bin.write_word(ins.opcode);
@@ -170,7 +169,7 @@ pub fn assemble_bin(file_name : &PathBuf,_ctx : &cli::Context, bin : &mut Binary
 
                 Comment(_) => (),
 
-                TokenizedFile(file,_, _) => assemble_bin(&file, _ctx, bin,n, depth+1)?,
+                TokenizedFile(file,_, _) => assemble_bin(&file.to_path_buf(), _ctx, bin,n, depth+1)?,
                 _ => {
                     let msg = format!("error: unknown item {:?}", i).red().bold();
                     println!("{}{}",get_indent(depth+1), msg);
@@ -192,7 +191,7 @@ pub fn assemble_bin(file_name : &PathBuf,_ctx : &cli::Context, bin : &mut Binary
 pub fn assemble(ctx : &cli::Context, base_node : &Node) -> Result<Binary, UserError> {
     let mut bin = Binary::new();
 
-    assemble_bin(&ctx.file, ctx, &mut bin, &base_node, 0)?;
+    assemble_bin(&ctx.file, ctx, &mut bin, base_node, 0)?;
 
     println!("range {:04x?}", bin.get_range());
 

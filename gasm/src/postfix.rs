@@ -34,7 +34,7 @@ impl<OP: Clone > Stack<OP> {
 pub trait GetPriotity {
     fn priority(&self) -> Option<usize>;
     fn is_op(&self) -> bool {
-        return self.priority().is_some()
+        self.priority().is_some()
     }
 }
 
@@ -76,7 +76,7 @@ impl<I : Clone + GetPriotity > PostFixer<I> {
         }
     }
 
-    pub fn to_postfix(&mut self, ops : Vec<I>) ->Vec<I> {
+    pub fn get_postfix(&mut self, ops : Vec<I>) ->Vec<I> {
 
         let mut it = ops.iter();
 
@@ -88,29 +88,29 @@ impl<I : Clone + GetPriotity > PostFixer<I> {
 
             while let Some([ op,rhs ]) = cit.next() {
                 if first {
-                    self.emit(&rhs);
-                    self.push(&op);
+                    self.emit(rhs);
+                    self.push(op);
                     first = false;
 
                 } else {
                     first = false;
-                    self.emit(&rhs);
+                    self.emit(rhs);
 
                     let top_pri = self.top_pri();
                     let this_pri = op.priority().unwrap();
 
                     if this_pri > top_pri {
-                        self.emit(&op);
+                        self.emit(op);
                         self.flush()
                     } else {
-                        self.push(&op);
+                        self.push(op);
                     }
                 }
             }
 
             self.flush();
 
-            std::mem::replace(&mut self.ret, vec![])
+            std::mem::take(&mut self.ret)
         } else {
             ops
         }
@@ -123,7 +123,7 @@ mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
 
-    fn to_string(vs : &Vec<char>)-> String {
+    fn to_string(vs : &[char])-> String {
         String::from_iter(vs.iter())
     }
 
@@ -152,7 +152,7 @@ mod test {
         (first, rest)
     }
 
-    pub fn eval(e : &Vec<char>) -> i64 {
+    pub fn eval(e : &[ char ]) -> i64 {
         let mut s : Stack<i64> = Stack::new();
 
         let to_i64 = |c : char| {

@@ -55,9 +55,9 @@ pub fn get_index_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
     if reg.is_valid_for_index() {
         Ok((rest, reg))
     } else {
-        let msg = format!("Illegal index register {:?}, must be either: X, Y, S, U or PC", reg);
+        let msg = format!("Illegal index register {:?}, must be either: X, Y, S, U", reg);
         let err = ParseError::new(msg, &input);
-        return Err( nom::Err::Failure(err))
+        Err( nom::Err::Failure(err))
     }
 }
 
@@ -68,7 +68,7 @@ pub fn get_pc_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
         Ok((rest, reg))
     } else {
         let err = ParseError::new("expected PC".to_string(), &input);
-        return Err( nom::Err::Error(err))
+        Err( nom::Err::Error(err))
     }
 
 }

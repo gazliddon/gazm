@@ -34,8 +34,7 @@ impl<T> StackTree<T> {
     pub fn add(&mut self, name : T) -> ego_tree::NodeId {
         let mut node = self.tree.get_mut(self.current_node).unwrap();
         let ret = node.append(name);
-        let id = ret.id();
-        id
+        ret.id()
     }
 
     pub fn push(&mut self, name : T) -> ego_tree::NodeId {
@@ -56,10 +55,6 @@ impl<T> StackTree<T> {
 
     pub fn get_tree(&self) -> &ego_tree::Tree<T> {
         &self.tree
-    }
-
-    pub fn to_tree(self) -> ego_tree::Tree<T> {
-        self.tree
     }
 }
 

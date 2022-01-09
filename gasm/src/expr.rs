@@ -1,6 +1,3 @@
-
-
-
 // Parse expressions
 //
 use super::item::{ Item,Node };
@@ -17,7 +14,7 @@ use nom::bytes::complete::{
 use nom::sequence::{preceded, separated_pair, terminated};
 
 use nom::branch::alt;
-use nom::multi::many0;
+use nom::multi::{many0, many0_count};
 use nom::combinator::{map_parser, recognize};
 
 use super::util;
@@ -48,9 +45,11 @@ use crate::opcodes::parse_opcode;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Expr Parsing
-
+/// Parse a bracketed expression. Whitespace allowed before and after the
+/// bracket
 fn parse_bracketed_expr(input: Span) -> IResult< Node> {
-    let (rest, mut matched) = util::wrapped_chars('(', parse_expr, ')')(input)?;
+    use util::{ wrapped_chars, ws };
+    let (rest, mut matched) = wrapped_chars('(', ws(parse_expr), ')')(input)?;
     let matched_span = matched_span(input, rest);
     matched.item = Item::BracketedExpr;
     Ok(( rest, matched.with_ctx(matched_span) ))

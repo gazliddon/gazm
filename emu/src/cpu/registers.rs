@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use super::Flags;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum RegEnum {
     A,
     B,
@@ -35,12 +35,10 @@ impl Display for RegEnum {
 }
 
 impl RegEnum {
+    /// Is this register okay to use as an index?
     pub fn is_valid_for_index(&self) -> bool {
         use RegEnum::*;
-        match self {
-            X | Y | S | U  => true,
-            _ => false,
-        }
+        matches!(self, X | Y | S | U)
     }
 }
 

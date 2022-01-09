@@ -158,7 +158,7 @@
             "size": 1
         },
         {
-            "addr_mode": "Inherent",
+            "addr_mode": "RegisterSet",
             "cycles": 8,
             "opcode": "1E",
             "action": "EXG",

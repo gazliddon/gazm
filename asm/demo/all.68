@@ -1,5 +1,5 @@
     org $9900
-        include	"equates.68"
+    include	"equates.68"
 
 
 start      lda #$55
@@ -314,7 +314,7 @@ stack_top
 
 org $fff0
           fdb  $0000 
-v0        fdb  sw3vec
+swi_3_v        fdb  sw3vec
 v1        fdb  sw2vec
 v2        fdb  frqvec
 v3        fdb  irqvec

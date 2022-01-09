@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::ops::Add;
 use std::path::Path;
 use std::{path::PathBuf, slice::Iter, collections::HashSet};
 
@@ -13,11 +14,72 @@ use crate::locate::{Span, matched_span};
 
 use crate::locate::Position;
 use crate::postfix::GetPriotity;
-use crate::indexed::IndexParseType;
 
 impl<'a> CtxTrait for Span<'a> { }
 
 pub type Node = BaseNode<Item, Position>;
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum IndexParseType {
+    ConstantOffset(RegEnum),    //               arg,R
+    Plus(RegEnum),     //               ,R+              2 0 |
+    PlusPlus(RegEnum), //               ,R++             3 0 |
+    Sub(RegEnum),      //               ,-R              2 0 |
+    SubSub(RegEnum),   //               ,--R             3 0 |
+    Zero(RegEnum),     //               ,R               0 0 |
+    AddB(RegEnum),     //             (+/- B),R          1 0 |
+    AddA(RegEnum),     //             (+/- A),R          1 0 |
+    AddD(RegEnum),     //             (+/- D),R          4 0 |
+    PCOffset,          //      (+/- 7 bit offset),PC     1 1 |
+    Indirect,          //  [expr]
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum AddrModeParseType {
+    Indexed(IndexParseType),
+    Direct,
+    Extended,
+    Relative,
+    Inherent,
+    Immediate,
+    RegisterSet,
+}
+
+impl AddrModeParseType {
+    pub fn get_instruction<'a>(&self, info: &'a InstructionInfo) -> Option<&'a Instruction>{
+        use AddrModeEnum::*;
+        let get = |amode| info.get_instruction(&amode);
+
+        match self {
+            Self::Indexed(_)=>{get(Indexed)},
+
+            Self::Direct=>{get(Direct)},
+
+            Self::Extended=>{
+                get(Extended)
+                    .or_else(|| get(Relative))
+                    .or_else(||get(Relative16))
+            },
+
+            Self::Relative=>{
+                get(Relative)
+                    .or_else(|| get(Relative16))
+            },
+
+            Self::Inherent=>{get(Inherent)},
+
+            Self::Immediate=>{
+                get(Immediate8)
+                    .or_else(|| get(Immediate16))
+            },
+
+            Self::RegisterSet=>{get(RegisterSet)},
+        }
+    }
+}
+
+
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
@@ -25,6 +87,7 @@ pub enum Item {
     Assignment(String),
     AssignmentFromPc(String),
     LocalAssignmentFromPc(String),
+
     Expr,
     PostFixExpr,
     BracketedExpr,
@@ -34,29 +97,19 @@ pub enum Item {
     UnaryOp,
     UnaryTerm,
 
-    Indexed(Instruction, IndexParseType),
-    IndexMode(IndexParseType),
-
     RegisterList(Vec<RegEnum>),
     RegisterSet(HashSet<RegEnum>),
+
     Label(String),
     LocalLabel(String),
     Comment(String),
     QuotedString(String),
     Number(i64),
 
-    OpCode(Instruction),
-    Operand(AddrModeEnum),
+    OpCode(Instruction, AddrModeParseType),
+    Operand(AddrModeParseType),
 
     Register(RegEnum),
-    PreDecrement(RegEnum),
-    PreIncrement(RegEnum),
-    DoublePreDecrement(RegEnum),
-    DoublePreIncrement(RegEnum),
-    PostDecrement(RegEnum),
-    PostIncrement(RegEnum),
-    DoublePostDecrement(RegEnum),
-    DoublePostIncrement(RegEnum),
 
     Include(PathBuf),
 
@@ -93,6 +146,10 @@ impl GetPriotity for Item {
 }
 
 impl Item {
+    pub fn operand_from_index_mode(imode : IndexParseType) -> Self {
+        Self::Operand(AddrModeParseType::Indexed(imode))
+    }
+
     pub fn is_empty_comment(&self) -> bool {
         if let Item::Comment(com) = &*self {
             com.is_empty()
@@ -111,7 +168,7 @@ impl Item {
 
     pub fn get_my_tokenized_file(&self) -> Option<(&PathBuf, &PathBuf, &String)> {
         if let Item::TokenizedFile(file, parent, source) = self {
-            Some(( &file, &parent, &source ))
+            Some(( file, parent, source ))
         } else {
             None
         }
@@ -168,7 +225,7 @@ impl<E : CtxTrait> BaseNode<Item, E> {
 
     pub fn get_label_name(&self) -> Option<&String> {
         if let Item::Label(name) = self.item() {
-            Some(&name)
+            Some(name)
         } else {
             None
         }
@@ -186,7 +243,7 @@ impl<E : CtxTrait> BaseNode<Item, E> {
     }
 }
 
-pub fn join_vec<I : Display>(v : &Vec<I>, sep : &str) -> String {
+pub fn join_vec<I : Display>(v : &[I], sep : &str) -> String {
     let ret : Vec<_> = v.iter().map(|x| x.to_string()).collect();
     ret.join(sep)
 
@@ -217,9 +274,9 @@ impl<'a> Display for BaseNode<Item,Position> {
             },
 
             LocalAssignment(name) |
-            Assignment(name) => {
-                format!("{} equ {}", name, self.children[0])
-            },
+                Assignment(name) => {
+                    format!("{} equ {}", name, self.children[0])
+                },
 
             Expr => {
                 join_children("")

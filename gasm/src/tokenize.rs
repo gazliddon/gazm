@@ -27,7 +27,7 @@ pub fn tokenize_file_from_str<'a>(file : &str,input : &'a str) -> Result<Node, P
     Ok(matched)
 }
 
-pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Node, ParseError<'a>> {
+pub fn tokenize_str(input : Span<'_>) -> Result<Node, ParseError> {
 
     use item::{ Item::*, Node };
     use commands::parse_command;
@@ -38,7 +38,7 @@ pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Node, ParseError<'a>> {
 
     let ret = Node::from_item(Block,input);
 
-    let mut source = input.clone();
+    let mut source = input;
 
     let mut items : Vec<Node> = vec![];
 
@@ -107,12 +107,12 @@ use std::path::{Path, PathBuf};
 extern crate colored;
 use colored::*;
 
-pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileLoader, file : &std::path::PathBuf, parent : &std::path::PathBuf ) -> Result<Node, UserError> {
+pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileLoader, file : &std::path::Path, parent : &std::path::Path ) -> Result<Node, UserError> {
     use super::messages::*;
     use item::Item::*;
         let x = messages::messages();
 
-    let (file_name, source) = fl.read_to_string(file.clone()).unwrap();
+    let (file_name, source) = fl.read_to_string(file).unwrap();
 
     let action = if depth == 0 {
         "Tokenizing"
@@ -128,7 +128,7 @@ pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileL
 
     let input = Span::new(&source);
     let mut matched = tokenize_str(input).map_err(mapper)?;
-    matched.item = TokenizedFile(file.clone(),parent.clone(), source.clone());
+    matched.item = TokenizedFile(file.to_path_buf(),parent.to_path_buf(), source.clone());
 
     // Tokenize includes
     for n in matched.children.iter_mut() {

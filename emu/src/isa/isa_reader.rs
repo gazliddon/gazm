@@ -59,6 +59,7 @@ impl Instruction {
 
 #[derive(Debug, Clone)]
 pub struct InstructionInfo {
+    pub mnemomic : String,
     pub ops: Vec<Instruction>,
     pub addressing_modes : std::collections::HashMap<AddrModeEnum, Instruction>,
 }
@@ -66,6 +67,7 @@ pub struct InstructionInfo {
 impl InstructionInfo {
     pub fn new(i : Instruction) -> Self {
         let mut ret = Self {
+            mnemomic: i.action.clone(),
             ops: vec![],
             addressing_modes: Default::default(),
         };
@@ -79,14 +81,12 @@ impl InstructionInfo {
 
     pub fn get_immediate_mode_supported(&self) -> Option<AddrModeEnum> {
         if self.supports_addr_mode(AddrModeEnum::Immediate8) {
-            return Some( AddrModeEnum::Immediate8 )
+            Some( AddrModeEnum::Immediate8 )
+        } else if self.supports_addr_mode(AddrModeEnum::Immediate16) {
+            Some( AddrModeEnum::Immediate16 )
+        } else {
+            None
         }
-
-        if self.supports_addr_mode(AddrModeEnum::Immediate16) {
-            return Some( AddrModeEnum::Immediate16 )
-        }
-
-        return None
     }
 
     pub fn get_instruction(&self, amode : &AddrModeEnum) -> Option<&Instruction> {
@@ -189,9 +189,9 @@ impl Dbase {
 
     pub fn new() -> Self {
         Self::default()
-       // let json_str = include_str!("../cpu/resources/opcodes.json");
-        // let loaded: Dbase = serde_json::from_str(json_str).unwrap();
-        // Self::from_data(loaded.instructions, loaded.unknown)
+            // let json_str = include_str!("../cpu/resources/opcodes.json");
+            // let loaded: Dbase = serde_json::from_str(json_str).unwrap();
+            // Self::from_data(loaded.instructions, loaded.unknown)
     }
 
     pub fn get(&self, opcode: u16) -> &Instruction {

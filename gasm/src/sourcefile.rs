@@ -1,5 +1,5 @@
 use super::locate::Position;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf };
 
 ////////////////////////////////////////////////////////////////////////////////
 pub struct SourceFile {
@@ -9,18 +9,18 @@ pub struct SourceFile {
 }
 
 impl SourceFile {
-    pub fn new(file : &PathBuf, source: &String) -> Self {
+    pub fn new(file : &Path, source: &str) -> Self {
         let lines = source.lines().map(|x| x.to_string()).collect();
-        Self {lines, file : file.clone(), source: source.clone()}
+        Self {lines, file : file.to_path_buf(), source: source.to_string()}
     }
 
     pub fn get_line(&self,p : &Position) -> Result<&str, String> {
-        self.lines.get(p.line - 1).map(|x| x.as_str()).ok_or("Out of range".to_string())
+        self.lines.get(p.line - 1).map(|x| x.as_str()).ok_or_else(|| "Out of range".to_string())
     }
 
     pub fn get_span(&self,p : &Position) -> Result<&str, String> {
         // If the span is zero in length then return the single char at that position
-        if p.range.len() == 0 {
+        if p.range.is_empty() {
             Ok(&self.source[p.range.start..p.range.start+1])
         } else {
 

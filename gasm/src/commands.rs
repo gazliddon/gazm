@@ -68,7 +68,7 @@ fn parse_zmd_arg( input: Span) -> IResult< Node> {
     Ok((rest,ret))
 }
 
-fn mk_fill<'a>(input : Span<'a>, cv: ( Node, Node) ) -> Node {
+fn mk_fill(input : Span, cv: ( Node, Node) ) -> Node {
     let (count, value) = cv;
     Node::from_item(Fill, input).with_children(vec![count,value])
 }

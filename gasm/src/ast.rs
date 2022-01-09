@@ -66,7 +66,7 @@ pub fn add_node(parent : &mut AstNodeMut, node: &Node) {
     this_node.value().id = Some(this_node.id());
 
     for n in &node.children {
-        add_node(&mut this_node,&n);
+        add_node(&mut this_node,n);
     }
 }
 
@@ -79,7 +79,7 @@ pub fn make_tree(node : &Node) -> AstTree {
     this_node.value().id = Some(this_node.id());
 
     for c in &node.children {
-        add_node(&mut ret.root_mut(), &c);
+        add_node(&mut ret.root_mut(), c);
     }
     ret
 }
@@ -97,7 +97,7 @@ fn get_tokenize_file(t : &AstTree, node_id : AstNodeId) -> Option<SourceFile> {
 fn set_file_ids(t : &mut AstTree, node_id : AstNodeId, file_node_id : AstNodeId, mapper : &mut HashMap<AstNodeId, SourceFile>) {
     let mut file_node_id = file_node_id;
 
-    if let Some(source) = get_tokenize_file(&t, node_id) {
+    if let Some(source) = get_tokenize_file(t, node_id) {
         file_node_id = node_id;
         mapper.insert(node_id, source);
     }
@@ -212,7 +212,7 @@ impl Ast {
 
     fn get_source_info_from_value<'a>(&'a self, v : &ItemWithPos)-> Result<NodeSourceInfo<'a>, String> {
         let pos = &v.pos;
-        let file_id = v.file_id.ok_or("No file id!".to_string())?;
+        let file_id = v.file_id.ok_or_else(|| "No file id!".to_string())?;
 
         let source_file = self.id_to_source_file.get(&file_id).ok_or(format!("Can't find file id {:?} {:?}", file_id, self.id_to_source_file))?;
         let fragment = source_file.get_span(pos)?;
@@ -291,7 +291,7 @@ impl Ast {
         let args = node.children().map(|n| Term::new(&n)).collect();
 
         let mut pfix : PostFixer<Term> = postfix::PostFixer::new();
-        let ret = pfix.to_postfix(args);
+        let ret = pfix.get_postfix(args);
 
         let ret = ret.iter().map(|t| t.node).collect();
 
@@ -448,7 +448,7 @@ impl Term {
 
 ////////////////////////////////////////////////////////////////////////////////
 use std::fmt::Display;
-pub fn join_vec<I : Display>(v : &Vec<I>, sep : &str) -> String {
+pub fn join_vec<I : Display>(v : &[ I ], sep : &str) -> String {
     let ret : Vec<_> = v.iter().map(|x| x.to_string()).collect();
     ret.join(sep)
 
@@ -458,12 +458,13 @@ struct DisplayWrapper<'a> {
     node : AstNodeRef<'a>
 }
 
-impl<'a> Into<DisplayWrapper<'a>> for AstNodeRef<'a> {
-    fn into(self) -> DisplayWrapper<'a> {
-        DisplayWrapper {
-            node: self
+impl<'a> From<AstNodeRef<'a>> for DisplayWrapper<'a> {
+    fn from(ast: AstNodeRef<'a>) -> Self {
+        Self {
+            node : ast
         }
     }
+
 }
 
 impl<'a> std::fmt::Display for DisplayWrapper<'a> {
@@ -500,7 +501,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Comment(comment) => comment.clone(),
             QuotedString(test) => format!("\"{}\"", test),
-            Register(r) => r.to_string(),
+            // Register(r) => r.to_string(),
 
             RegisterList(vec) => {
                 let vec : Vec<_> = vec.iter().map(|r| r.to_string()).collect();
@@ -547,15 +548,34 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             TokenizedFile(_, _, _) => {
                 join_kids("\n")
-            }
+            },
 
-            OpCode(ins) => {
-                use emu::isa::AddrModeEnum::*;
+            OpCode(ins, item::AddrModeParseType::Inherent) => {
+                ins.action.clone()
+            },
 
-                let operand = match ins.addr_mode {
-                    Immediate8 | Immediate16 => format!("#{}", child(0)),
+            OpCode(ins, amode) => {
+                use item::AddrModeParseType::*;
+
+                let operand = match amode {
+                    Immediate => format!("#{}", child(0)),
                     Direct => format!("<{}", child(0)),
-                    Inherent => "".to_string(),
+                    Indexed(imode) => {
+                        use item::IndexParseType::*;
+                        match imode {
+                            ConstantOffset(r) => format!("{},{}", child(0), r),
+                            Zero(r) => format!(",{}",r),
+                            SubSub(r) => format!(",--{}",r),
+                            Sub(r) => format!(",-{}",r),
+                            PlusPlus(r) => format!(",{}++",r),
+                            Plus(r) => format!(",{}+",r),
+                            AddA(r) => format!("A,{}",r),
+                            AddB(r) => format!("B,{}",r),
+                            AddD(r) => format!("D,{}",r),
+                            PCOffset => format!("{},PC",child(0)),
+                            Indirect => format!("[{}]",child(0)),
+                        }
+                    },
                     _ => format!("{:?} NOT IMPLEMENTED", ins.addr_mode)
                 };
 

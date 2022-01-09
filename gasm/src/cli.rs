@@ -29,15 +29,13 @@ impl From<clap::ArgMatches> for Context {
         let file : PathBuf = m.value_of("file").unwrap().to_string().into();
         let out = m.value_of("out").map(|f| f.to_string());
 
-        let ret = Self {
+        Self {
             verbose : m.is_present("verbose"),
             out,
             file,
             pretty_dump_ast : m.is_present("pretty-dump-ast"),
             dump_ast : m.is_present("dump-ast"),
-        };
-
-        ret
+        }
     }
 }
 

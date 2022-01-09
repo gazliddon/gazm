@@ -1,6 +1,5 @@
-use crate::register::parse_index_reg;
 use crate::locate::{ Span, matched_span };
-use super::item::{ Item,Node };
+use super::item::{ Item,Node, IndexParseType, AddrModeParseType };
 use super::error::{IResult, ParseError};
 use super::register::get_reg;
 use super::expr::parse_expr;
@@ -28,19 +27,6 @@ use nom::character::complete::{
 // n,PC     PCOffset                parse_pc_offset
 // n,R      ConstantOffset(RegEnum) parse_offset
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum IndexParseType {
-    ConstantOffset(RegEnum),    //               arg,R
-    Plus(RegEnum),     //               ,R+              2 0 |
-    PlusPlus(RegEnum), //               ,R++             3 0 |
-    Sub(RegEnum),      //               ,-R              2 0 |
-    SubSub(RegEnum),   //               ,--R             3 0 |
-    Zero(RegEnum),     //               ,R               0 0 |
-    AddB(RegEnum),     //             (+/- B),R          1 0 |
-    AddA(RegEnum),     //             (+/- A),R          1 0 |
-    AddD(RegEnum),     //             (+/- D),R          4 0 |
-    PCOffset,            //      (+/- 7 bit offset),PC     1 1 |
-}
 
 // Post inc / dec
 fn get_post_inc(input: Span) -> IResult<IndexParseType> {
@@ -114,7 +100,7 @@ fn get_add_d(input : Span) -> IResult<IndexParseType> {
     Ok((rest, ret))
 }
 
-fn get_no_arg_indexed(input : Span) -> IResult<IndexParseType> {
+fn get_no_arg_indexed(input : Span) -> IResult<AddrModeParseType> {
     let (rest, matched) = alt((
             get_pre_dec_dec,
             get_post_inc_inc,
@@ -125,9 +111,9 @@ fn get_no_arg_indexed(input : Span) -> IResult<IndexParseType> {
             get_add_b,
             get_add_d,
             ))(input)?;
-    Ok((rest,matched))
+    Ok((rest,AddrModeParseType::Indexed(matched)))
 }
-fn get_no_arg_indexed_allowed_indirect(input : Span) -> IResult<IndexParseType> {
+fn get_no_arg_indexed_allowed_indirect(input : Span) -> IResult<AddrModeParseType> {
     let (rest, matched) = alt((
             get_pre_dec_dec,
             get_post_inc_inc,
@@ -136,7 +122,7 @@ fn get_no_arg_indexed_allowed_indirect(input : Span) -> IResult<IndexParseType> 
             get_add_b,
             get_add_d,
             ))(input)?;
-    Ok((rest,matched))
+    Ok((rest,AddrModeParseType::Indexed(matched)))
 }
 
 fn parse_offset(input: Span) -> IResult<Node> {
@@ -145,8 +131,9 @@ fn parse_offset(input: Span) -> IResult<Node> {
 
     let offset = IndexParseType::ConstantOffset(reg);
     let ctx = matched_span(input, rest);
+    let item = Item::operand_from_index_mode(offset);
 
-    let matched = Node::from_item(Item::IndexMode(offset), ctx).with_child(expr);
+    let matched = Node::from_item(item, ctx).with_child(expr);
     Ok((rest,matched))
 }
 
@@ -158,35 +145,45 @@ fn parse_pc_offset(input: Span) -> IResult<Node> {
 
     let offset = IndexParseType::PCOffset;
     let ctx = matched_span(input, rest);
+    let item = Item::operand_from_index_mode(offset);
 
-    let matched = Node::from_item(Item::IndexMode(offset), ctx).with_child(expr);
+    let matched = Node::from_item(item, ctx).with_child(expr);
     Ok((rest,matched))
+}
+
+
+fn parse_indirect(input: Span) -> IResult<Node> {
+    use crate::util::{ wrapped_chars,ws };
+    let (rest, matched) = wrapped_chars('[', ws(parse_expr),']')(input)?;
+    let item = Item::operand_from_index_mode(IndexParseType::Indirect);
+    let ctx = matched_span(input, rest);
+    let matched = Node::from_item(item, ctx).with_child(matched);
+    Ok((rest, matched))
 }
 
 fn parse_no_arg_indexed(input: Span) -> IResult<Node> {
     let (rest, matched) = get_no_arg_indexed(input)?;
     let ctx = matched_span(input, rest);
-    let matched = Node::from_item(Item::IndexMode(matched), ctx);
+    let matched = Node::from_item(Item::Operand(matched), ctx);
     Ok((rest,matched))
 }
 
 fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
-    use crate::error::{error, failure};
+    use crate::error::failure;
     let (rest, matched) = get_no_arg_indexed(input)?;
     let ctx = matched_span(input, rest);
-    use crate::error::ParseError;
 
     match matched {
-        IndexParseType::Plus(_) => {
-            let err = format!("Post-increment indexing not valid indirectly");
-            Err(failure(&err, ctx))
+        AddrModeParseType::Indexed(IndexParseType::Plus(_)) => {
+            let err = "Post-increment indexing not valid indirectly";
+            Err(failure(err, ctx))
         },
-        IndexParseType::Sub(_) => {
-            let err = format!("Pre-decrement indexing not valid indirectly");
-            Err(failure(&err, ctx))
+        AddrModeParseType::Indexed(IndexParseType::Sub(_)) => {
+            let err = "Pre-decrement indexing not valid indirectly";
+            Err(failure(err, ctx))
         },
         _=> {
-            let matched = Node::from_item(Item::IndexMode(matched), ctx);
+            let matched = Node::from_item(Item::Operand(matched), ctx);
             Ok((rest,matched))
         },
     }
@@ -205,7 +202,7 @@ fn parse_indexed_direct(input: Span) -> IResult<Node> {
 
 pub fn parse_indexed(input: Span) -> IResult<Node> {
     use crate::util::{ wrapped_chars,ws };
-    alt((parse_indexed_indirect,parse_indexed_direct))(input)
+    alt((parse_indirect,parse_indexed_indirect,parse_indexed_direct))(input)
 }
 
 
@@ -214,7 +211,6 @@ pub fn parse_indexed(input: Span) -> IResult<Node> {
 // Tests
 #[allow(unused_imports)]
 mod test {
-    use super::IndexParseType;
     use super::*;
     use nom::multi::many0_count;
     use pretty_assertions::{assert_eq, assert_ne};
@@ -238,7 +234,7 @@ mod test {
         for (input, desired) in to_try {
             println!("Testing {} -> {:?}", input, desired);
             let (_, matched) = get_no_arg_indexed(input.into()).unwrap();
-            assert_eq!(matched, desired);
+            assert_eq!(matched, AddrModeParseType::Indexed(desired));
         }
     }
 
@@ -273,6 +269,7 @@ mod test {
             (",S+", IndexParseType::Plus(S)),
             ("100,PC", IndexParseType::PCOffset),
             ("100,U", IndexParseType::ConstantOffset(U)),
+            ("[100,U]", IndexParseType::ConstantOffset(U)),
 
 
             ("[,--Y]", IndexParseType::SubSub(Y)),
@@ -287,14 +284,12 @@ mod test {
         ];
 
         for (input, desired) in to_try {
-            use crate::item::Item;
+            let desired = Item::operand_from_index_mode(desired);
             println!("Testing {} -> {:?}", input, desired);
-            let (_, matched) = parse_indexed(input.into()).unwrap();
-            if let Item::IndexMode(index_type) = matched.item {
-                assert_eq!(index_type, desired);
-            } else {
-                assert!(false);
-            }
+            let res =  parse_indexed(input.into());
+            println!("{:#?}", res);
+            let (_,matched) = res.unwrap();
+            assert_eq!(matched.item,desired);
         }
     }
 
@@ -368,101 +363,3 @@ mod test {
 }
 
 
-mod old {
-    use super::*;
-
-    // Post inc / dec
-    fn parse_post_inc(input: Span) -> IResult<Node> {
-        let (rest, matched) = terminated( get_reg , tag("+"))(input)?;
-        let ret = Node::from_item(Item::PostIncrement(matched), input);
-        Ok((rest,ret))
-    }
-
-    fn parse_post_inc_inc(input: Span) -> IResult<Node> {
-        let (rest, matched) = terminated( get_reg , tag("++"))(input)?;
-        let ret =  Node::from_item(Item::DoublePostIncrement(matched), input);
-
-        Ok((rest,ret))
-    }
-    fn parse_post_dec(input: Span) -> IResult<Node> {
-        let (rest, matched) = terminated( get_reg , tag("-"))(input)?;
-        let ret = Node::from_item( Item::PostDecrement(matched), input);
-        Ok((rest,ret))
-    }
-    fn parse_post_dec_dec(input: Span) -> IResult<Node> {
-        let (rest, matched) = terminated( get_reg , tag("--"))(input)?;
-        let ret = Node::from_item(
-            Item::DoublePostDecrement(matched), input);
-        Ok((rest,ret))
-    }
-
-    // Pre inc / dec
-    fn parse_pre_dec(input: Span) -> IResult<Node> {
-        let (rest, matched) = preceded(tag("-"), get_reg )(input)?;
-        let ret = Node::from_item(
-            Item::PreDecrement(matched), input);
-        Ok((rest, ret))
-    }
-
-    fn parse_pre_inc(input: Span) -> IResult<Node> {
-        let (rest, matched) = preceded(tag("+"), get_reg )(input)?;
-        let ret = Node::from_item(Item::PreIncrement(matched), input);
-        Ok((rest, ret))
-    }
-
-    fn parse_pre_inc_inc(input: Span) -> IResult<Node> {
-        let (rest, matched) = preceded(tag("++"), get_reg )(input)?;
-        let ret = Node::from_item(
-            Item::DoublePreIncrement(matched), input) ;
-        Ok((rest, ret))
-    }
-
-
-    fn parse_pre_dec_dec(input: Span) -> IResult<Node> {
-        let (rest, matched) = preceded(tag("--"), get_reg )(input)?;
-        let ret = Node::from_item(Item::DoublePreDecrement(matched), input);
-        Ok((rest, ret))
-    }
-    // Simple index
-
-    fn parse_index_type(input : Span) -> IResult< Node> {
-        let (rest, reg) = 
-            alt((
-                    parse_pre_dec_dec,
-                    parse_pre_inc_inc,
-                    parse_pre_dec,
-                    parse_pre_inc,
-                    parse_post_dec_dec,
-                    parse_post_inc_inc,
-                    parse_post_dec,
-                    parse_post_inc,
-                    parse_index_reg  )
-               )(input)?;
-
-        Ok((rest, reg))
-    }
-
-    pub fn parse_indexed(input : Span) -> IResult< Node> {
-        use emu::isa::AddrModeEnum;
-        use Item::*;
-        use crate::util;
-        let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-
-        let (rest, (expr,reg)) = separated_pair(
-            opt(parse_expr),
-            sep,
-            parse_index_type
-            )(input)?;
-
-        let matched_span = matched_span(input, input);
-        let zero = Node::from_item(Expr, matched_span).with_child(Node::from_number(0, input));
-
-        let expr = expr.unwrap_or(zero);
-
-        let ret = Node::from_item(Operand(AddrModeEnum::Indexed), input);
-
-        let ret = ret.with_children(vec![expr, reg]);
-        Ok((rest, ret))
-    }
-
-}

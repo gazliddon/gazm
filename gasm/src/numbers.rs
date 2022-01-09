@@ -40,7 +40,7 @@ fn parse_binary(input: Span) -> IResult<i64> {
 fn parse_dec(input: Span) -> IResult<i64> {
     let (rest, num_str) = num_get(input)?;
 
-    let num = i64::from_str_radix(&num_str.replace( "_", ""), 10)
+    let num = num_str.replace( "_", "").parse::<i64>()
         .map_err(|e| num_parse_err(num_str, "Decimal", e))?;
 
     Ok((rest, num))
