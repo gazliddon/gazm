@@ -38,7 +38,7 @@ impl RegEnum {
     pub fn is_valid_for_index(&self) -> bool {
         use RegEnum::*;
         match self {
-            X | Y | S | U | PC => true,
+            X | Y | S | U  => true,
             _ => false,
         }
     }

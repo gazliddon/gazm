@@ -107,7 +107,6 @@ mod test {
             }
         }
 
-
     #[test]
     fn test_bin() {
         test_nums(&TEST_BIN, parse_binary);

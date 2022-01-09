@@ -13,7 +13,7 @@ use crate::locate::{Span, matched_span};
 
 use crate::locate::Position;
 use crate::postfix::GetPriotity;
-use crate::indexed::IndexMode;
+use crate::indexed::IndexParseType;
 
 impl<'a> CtxTrait for Span<'a> { }
 
@@ -34,7 +34,8 @@ pub enum Item {
     UnaryOp,
     UnaryTerm,
 
-    Indexed(Instruction, IndexMode),
+    Indexed(Instruction, IndexParseType),
+    IndexMode(IndexParseType),
 
     RegisterList(Vec<RegEnum>),
     RegisterSet(HashSet<RegEnum>),

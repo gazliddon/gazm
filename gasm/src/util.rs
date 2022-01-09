@@ -28,7 +28,7 @@ use nom_locate::position;
 
 pub static LIST_SEP: & str = ",";
 
-pub fn ws<'a,F,O,E>(mut inner : F) -> impl FnMut(Span<'a>) -> IResult<O>
+pub fn ws<'a,F,O>(mut inner : F) -> impl FnMut(Span<'a>) -> IResult<O>
 where
   F: nom::Parser<Span<'a>, O,ParseError<'a>>
 {
@@ -61,7 +61,7 @@ F: nom::Parser<Span<'a>, O,ParseError<'a>>
     move |input: Span| {
         let (input,_) = nom_char(open)(input)?;
         let (input,matched) = inner.parse(input)?;
-        let (input,_) = nom_char(close)(input)?;
+        let (input,_) = cut(nom_char(close))(input)?;
         Ok((input, matched))
     }
 }
@@ -125,6 +125,19 @@ pub fn parse_number<'a>(input: Span<'a>) -> IResult< Node> {
     let matched = super::locate::matched_span(input,rest);
     let ret = Node::from_number(num, matched);
     Ok((rest, ret))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Compile a string as a fake file
+pub fn compile_text(code: &str) -> Result<String, String> {
+    use crate::tokenize::tokenize_file_from_str;
+    use crate::ast::Ast;
+
+    let node = tokenize_file_from_str("no file", code).map_err(|_e| "!!!!".to_string())?;
+    let ast = Ast::from_nodes(node);
+    let ast_text = ast.to_string();
+
+    Ok(ast_text)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -2,6 +2,7 @@ use super::util;
 use super::item::{ Item,Node };
 use super::ctx::Ctx;
 
+use emu::cpu::RegEnum;
 use nom::{ExtendInto, Offset};
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
@@ -59,6 +60,19 @@ pub fn get_index_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
         return Err( nom::Err::Failure(err))
     }
 }
+
+
+pub fn get_pc_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
+    let (rest, reg) = get_reg(input)?;
+    if reg == RegEnum::PC {
+        Ok((rest, reg))
+    } else {
+        let err = ParseError::new("expected PC".to_string(), &input);
+        return Err( nom::Err::Error(err))
+    }
+
+}
+
 
 fn get_reg_list(input: Span) -> IResult< Vec<emu::cpu::RegEnum>> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));

@@ -78,18 +78,18 @@ pub fn tokenize_str<'a>(input : Span<'a>) -> Result<Node, ParseError<'a>> {
                 continue;
             }
 
-            if let Ok((_,equate )) = all_consuming(ws::<_,_,ParseError>(parse_assignment))(input) {
+            if let Ok((_,equate )) = all_consuming(ws(parse_assignment))(input) {
                 push_some(&Some(equate));
                 continue;
             }
 
-            if let Ok((_,label)) = all_consuming(ws::<_,_,ParseError>(labels::parse_label))(input) {
+            if let Ok((_,label)) = all_consuming(ws(labels::parse_label))(input) {
                 let node = mk_pc_equate(label);
                 push_some(&Some(node));
                 continue;
             }
 
-            let body = alt(( ws::<_,_,ParseError>( parse_opcode ),ws::<_,_,ParseError>( parse_command ) ));
+            let body = alt(( ws( parse_opcode ),ws( parse_command ) ));
 
             let (_, (label,body)) = all_consuming(pair(opt(parse_label),body))(input)?;
             let label = label.map(mk_pc_equate);

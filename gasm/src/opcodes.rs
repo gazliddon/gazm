@@ -194,8 +194,8 @@ mod test {
     use crate::locate::Position;
 
     use super::*;
-
-    // #[test]
+    use crate::util::compile_text;
+    #[test]
     // fn test_opcode_reg_list() {
     //     use Item::*;
     //     use emu::cpu::RegEnum::*;
@@ -254,33 +254,24 @@ mod test {
     //     assert_eq!(matched, des_node);
     // }
     //
-    fn test_asm(code: &str) -> Result<String, String> {
-        use crate::tokenize::tokenize_file_from_str;
-        use crate::ast::Ast;
-
-        let node = tokenize_file_from_str("no file", code).map_err(|_e| "!!!!".to_string())?;
-        let ast = Ast::from_nodes(node);
-        let ast_text = ast.to_string();
-
-        Ok(ast_text)
-    }
 
     #[test]
+
     fn test_parse_immediate() {
         let code = "lda #$100";
         let desired = "lda #256";
-        let ast_text = test_asm(code).unwrap();
+        let ast_text = compile_text(code).unwrap();
         assert_eq!(desired, &ast_text);
 
         let code = "lda <$100";
         let desired = "lda <256";
-        let ast_text = test_asm(code).unwrap();
+        let ast_text = compile_text(code).unwrap();
         assert_eq!(desired, &ast_text);
 
-        let code = "lda $100,x";
-        let desired = "lda 256,X";
-        let ast_text = test_asm(code).unwrap();
-        assert_eq!(desired, &ast_text);
+        // let code = "lda $100,x";
+        // let desired = "lda 256,X";
+        // let ast_text = compile_text(code).unwrap();
+        // assert_eq!(desired, &ast_text);
     }
 
     // fn simple_indexed(op : &str, middle : &str, index: &str, reg : RegEnum) {

@@ -18,6 +18,13 @@ impl<'a> ParseError<'a> {
     }
 }
 
+pub fn error<'a>(err : &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
+    nom::Err::Error(ParseError::new( err.to_string(), &ctx))
+}
+
+pub fn failure<'a>(err : &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
+    nom::Err::Failure(ParseError::new( err.to_string(), &ctx))
+}
 
 pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError<'a>>;
 
