@@ -5,6 +5,8 @@ use nom::{self, Offset};
 
 use nom::AsBytes;
 use crate::locate::{ Span, Position };
+use crate::ast::AstNodeRef;
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError<'a> {
@@ -20,6 +22,9 @@ impl<'a> ParseError<'a> {
 
 pub fn error<'a>(err : &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
     nom::Err::Error(ParseError::new( err.to_string(), &ctx))
+}
+pub fn user_error(_err : &str, _ctx: Span) -> UserError {
+    panic!()
 }
 
 pub fn failure<'a>(err : &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
@@ -79,6 +84,28 @@ impl<'a> nom::error::ParseError<Span<'a>> for ParseError<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct AstError {
+    pub pos : Position,
+    pub message: Option<String>,
+}
+
+impl AstError {
+    pub fn new(msg: &str, pos : &Position) -> Self {
+        Self {
+            pos : pos.clone(),
+            message :  Some(msg.to_string()),
+        }
+    }
+
+    pub fn from_node(msg: &str, n : AstNodeRef) -> Self {
+        Self {
+            pos : n.value().pos.clone(),
+            message :  Some(msg.to_string()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct UserError {
     pub message: String,
     pub pos: Position,
@@ -88,6 +115,10 @@ pub struct UserError {
 }
 
 impl UserError {
+    pub fn from_ast_error(_err : AstError, _file : &std::path::Path) -> Self {
+        panic!()
+    }
+
     pub fn from_parse_error(err : ParseError, file : &std::path::Path) -> Self {
         let line = err.span.get_line_beginning();
         let line = String::from_utf8_lossy(line).to_string();

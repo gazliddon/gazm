@@ -10,11 +10,11 @@ task.y           equ 10
 task.x           equ 12
 task.temp0       equ 14
 task.temp1       equ 16
-task.size       equ 18
+task.size        equ 18
 
 num_of_tasks    equ 100
 
-task_buffer_size equ task_size*num_of_tasks
+task_buffer_size equ task.size*num_of_tasks
 
 tasks           zmb task_buffer_size
 tasks_end

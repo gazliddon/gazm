@@ -1,4 +1,8 @@
 # 6809 Assembler
+* Change eval so that it will only evaluate InFixEpr, Labels and Numbers
+* Split the symbol table out from the evaluators
+* Change evaluator to a simplifier
+    * Returns an new infix expr or number only
 
 * Functionality
     * Resolve labels
@@ -6,14 +10,6 @@
     * Evaluate expresions
         * In order
         * Convert to infix
-
-
-
-
-
-
-
-
 
 # Todo
 * Chang Loc to have a non zero usize

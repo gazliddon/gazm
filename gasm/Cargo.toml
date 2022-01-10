@@ -17,6 +17,4 @@ colored = "2"
 ego-tree="*"
 petgraph="*"
 
-[dev-dependencies]
-
 

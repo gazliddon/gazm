@@ -134,10 +134,10 @@ pub fn compile_text(code: &str) -> Result<String, String> {
     use crate::ast::Ast;
 
     let node = tokenize_file_from_str("no file", code).map_err(|e| format!("{:?}", e))?;
-    let ast = Ast::from_nodes(node);
-    let ast_text = ast.to_string();
 
-    Ok(ast_text)
+    let ast = Ast::from_nodes(node).map_err(|e| format!("error: {:?}", e.message))?;
+
+    Ok(ast.to_string())
 }
 
 ////////////////////////////////////////////////////////////////////////////////

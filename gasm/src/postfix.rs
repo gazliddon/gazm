@@ -189,7 +189,7 @@ mod test {
 
         let args : Vec<_> = test.chars().collect();
 
-        let ret = x.to_postfix(args);
+        let ret = x.get_postfix(args);
         let result = eval(&ret);
         let ret_str = to_string(&ret);
 

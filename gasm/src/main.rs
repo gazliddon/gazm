@@ -69,7 +69,7 @@ impl Assembler {
         x.indent();
 
         let tokens = tokenize::tokenize(ctx)?;
-        let ast = ast::Ast::from_nodes(tokens.clone());
+        let ast = ast::Ast::from_nodes(tokens.clone()).unwrap();
 
         x.deindent();
         x.success("Complete");
