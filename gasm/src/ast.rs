@@ -13,7 +13,7 @@ use nom::bytes::complete::take_till;
 use nom::InputIter;
 use romloader::ResultExt;
 
-use crate::error::{ AstError, UserError};
+use crate::error::{AstError, UserError};
 use crate::item;
 use crate::scopes::ScopeBuilder;
 
@@ -248,10 +248,7 @@ impl Ast {
     ) -> Result<NodeSourceInfo<'a>, String> {
         self.get_source_info_from_value(node.value())
     }
-    fn get_source_info_from_node_id<'a>(
-        &'a self,
-        id: AstNodeId,
-    ) -> Result<NodeSourceInfo<'a>, String> {
+    fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<NodeSourceInfo, String> {
         let n = self.tree.get(id).unwrap();
         self.get_source_info_from_value(n.value())
     }
@@ -357,45 +354,37 @@ impl Ast {
         })
     }
 
-    fn convert_error(& self, e : AstError) -> UserError {
+    fn convert_error(&self, e: AstError) -> UserError {
         let si = self.get_source_info_from_node_id(e.node_id).unwrap();
         UserError::from_ast_error(e, &si)
     }
 
-    fn user_error(&self, msg: &String, n : AstNodeRef) -> UserError {
-        let e= AstError::from_node(&msg, n);
+    fn user_error(&self, msg: &str, n: AstNodeRef) -> UserError {
+        let e = AstError::from_node(msg, n);
         self.convert_error(e)
     }
 
-    fn evaluate<'a>(&'a mut self) -> Result<(), UserError> {
+    fn evaluate(&mut self) -> Result<(), UserError> {
         info("Evaluating expressions", |x| {
             use super::eval::eval;
             use Item::*;
 
             for n in self.tree.nodes() {
+                if let Assignment(name) = &n.value().item {
+                    let value = eval(&self.symbols, n.first_child().unwrap())
+                        .map_err(|e| self.convert_error(e))?;
 
-                match &n.value().item {
-                    Assignment(_name) => {
-                        let value = eval(&self.symbols, n.first_child().unwrap()).map_err(|e| {
-                            self.convert_error(e)
+                    let msg = format!("{} = {}", name, value);
+                    x.debug(&msg);
+
+                    self.symbols
+                        .add_symbol_with_value(name, value, n.id())
+                        .map_err(|e| {
+                            let msg = format!("Symbol error {:?}", e);
+                            self.user_error(&msg, n)
                         })?;
-
-                        let msg = format!("{} = {}", _name, value);
-
-                        x.debug(&msg);
-
-                        self.symbols
-                            .add_symbol_with_value(_name, value, n.id())
-                            .map_err(|e| {
-                                let msg = format!("Symbol error {:?}", e);
-                                self.user_error(&msg, n)
-                            })?;
-                        ()
-                    }
-                    _ => (),
                 }
             }
-
             Ok(())
         })
     }

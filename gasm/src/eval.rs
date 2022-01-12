@@ -11,7 +11,7 @@ use crate::symbols::{SymbolError, SymbolTable};
 
 fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
     if let Item::Number(_) = i {
-        Ok(i.clone())
+        Ok(i)
     } else {
         Err(AstError::from_node("Expected a number", n))
     }
@@ -33,7 +33,7 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
 
         Label(name) => symbols
             .get_value(name)
-            .map(|n| Item::number(n))
+            .map(Item::number)
             .map_err(|_| {
                 println!("{:#?}", symbols);
                 let msg = format!("Couldn't find symbol {}", name);

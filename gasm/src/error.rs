@@ -110,9 +110,9 @@ pub struct UserError {
 }
 
 impl UserError {
-    pub fn from_ast_error<'a>(_err : AstError, info : &crate::ast::NodeSourceInfo<'a>) -> Self {
+    pub fn from_ast_error(_err : AstError, info : &crate::ast::NodeSourceInfo) -> Self {
         Self {
-            message: _err.message.unwrap_or("Error".to_string()),
+            message: _err.message.unwrap_or_else(||"Error".to_string()),
             pos: _err.pos,
             fragment: info.fragment.to_string(),
             line: info.line_str.to_string(),
