@@ -20,6 +20,12 @@ impl<OP: Clone > Stack<OP> {
         self.stack.pop_front().unwrap()
     }
 
+    pub fn pop_pair(&mut self) -> (OP,OP) {
+        let a = self.pop();
+        let b = self.pop();
+        (a,b)
+    }
+
     pub fn flush(&mut self) -> Vec<OP> {
         let ret = self.stack.iter().cloned().collect();
         self.stack = VecDeque::new();
@@ -161,8 +167,7 @@ mod test {
 
         for i in e.iter(){
             if i.is_op() {
-                let lhs = s.pop();
-                let rhs = s.pop();
+                let (lhs, rhs) = s.pop_pair();
                 let res = match i {
                     '*' => {println!("{} * {}", rhs, lhs); rhs * lhs },
                     '/' => {println!("{} / {}", rhs, lhs); rhs / lhs },

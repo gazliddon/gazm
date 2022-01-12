@@ -13,9 +13,9 @@ use nom::bytes::complete::take_till;
 use nom::InputIter;
 use romloader::ResultExt;
 
+use crate::error::{ AstError, UserError};
 use crate::item;
-use crate::error::AstError;
-use crate::symbols::ScopeBuilder;
+use crate::scopes::ScopeBuilder;
 
 use super::item::{Item, Node};
 use super::locate::Position;
@@ -123,19 +123,20 @@ fn add_file_references(ast: &mut AstTree) -> HashMap<AstNodeId, SourceFile> {
 }
 
 #[derive(Debug, Clone)]
-struct NodeSourceInfo<'a> {
-    fragment: &'a str,
-    line_str: &'a str,
-    line: usize,
-    col: usize,
-    source_file: &'a SourceFile,
-    file: PathBuf,
+pub struct NodeSourceInfo<'a> {
+    pub fragment: &'a str,
+    pub line_str: &'a str,
+    pub line: usize,
+    pub col: usize,
+    pub source_file: &'a SourceFile,
+    pub file: PathBuf,
 }
 
 #[derive(Debug)]
 pub struct Ast {
     tree: AstTree,
     id_to_source_file: HashMap<AstNodeId, SourceFile>,
+    symbols: crate::symbols::SymbolTable,
 }
 
 enum LabelValues {
@@ -178,7 +179,7 @@ impl std::fmt::Display for Ast {
 }
 
 impl Ast {
-    pub fn from_nodes(n: Node) -> Result<Self, AstError> {
+    pub fn from_nodes(n: Node) -> Result<Self, UserError> {
         let (t, id) = info("Building Ast from nodes", |_| {
             let mut tree = info("Building AST", |_| make_tree(&n));
 
@@ -192,10 +193,14 @@ impl Ast {
         Self::new(t, id)
     }
 
-    pub fn new(tree: AstTree, id_to_source_file: HashMap<AstNodeId, SourceFile>) -> Result<Self, AstError> {
+    pub fn new(
+        tree: AstTree,
+        id_to_source_file: HashMap<AstNodeId, SourceFile>,
+    ) -> Result<Self, UserError> {
         let mut ret = Self {
             tree,
             id_to_source_file,
+            symbols: Default::default(),
         };
 
         ret.rename_locals();
@@ -242,6 +247,13 @@ impl Ast {
         node: &'a AstNodeRef,
     ) -> Result<NodeSourceInfo<'a>, String> {
         self.get_source_info_from_value(node.value())
+    }
+    fn get_source_info_from_node_id<'a>(
+        &'a self,
+        id: AstNodeId,
+    ) -> Result<NodeSourceInfo<'a>, String> {
+        let n = self.tree.get(id).unwrap();
+        self.get_source_info_from_value(n.value())
     }
 
     fn rename_locals(&mut self) {
@@ -345,21 +357,45 @@ impl Ast {
         })
     }
 
-    fn evaluate(&mut self) -> Result<(),AstError> {
-        info("Evaluating expressions", |_| {
-            use super::eval::Evaluator;
+    fn convert_error(& self, e : AstError) -> UserError {
+        let si = self.get_source_info_from_node_id(e.node_id).unwrap();
+        UserError::from_ast_error(e, &si)
+    }
+
+    fn user_error(&self, msg: &String, n : AstNodeRef) -> UserError {
+        let e= AstError::from_node(&msg, n);
+        self.convert_error(e)
+    }
+
+    fn evaluate<'a>(&'a mut self) -> Result<(), UserError> {
+        info("Evaluating expressions", |x| {
+            use super::eval::eval;
             use Item::*;
 
-            let mut eval = Evaluator::new();
-
             for n in self.tree.nodes() {
+
                 match &n.value().item {
                     Assignment(_name) => {
-                        eval.eval(n)?;
-                    },
-                    _ => ()
+                        let value = eval(&self.symbols, n.first_child().unwrap()).map_err(|e| {
+                            self.convert_error(e)
+                        })?;
+
+                        let msg = format!("{} = {}", _name, value);
+
+                        x.debug(&msg);
+
+                        self.symbols
+                            .add_symbol_with_value(_name, value, n.id())
+                            .map_err(|e| {
+                                let msg = format!("Symbol error {:?}", e);
+                                self.user_error(&msg, n)
+                            })?;
+                        ()
+                    }
+                    _ => (),
                 }
             }
+
             Ok(())
         })
     }
@@ -442,7 +478,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
         };
 
         let ret: String = match item {
-
             LocalAssignmentFromPc(name) | AssignmentFromPc(name) => {
                 format!("{} equ {}", name, child(0))
             }

@@ -1,145 +1,103 @@
 use romloader::ResultExt;
 
-use crate::postfix::{ Stack, GetPriotity };
+use crate::ast::{to_priority, Ast, AstNodeMut, AstNodeRef, ItemWithPos};
 use crate::item::Item;
-use crate::ast::{ AstNodeMut, AstNodeRef,Ast, ItemWithPos, to_priority };
+use crate::postfix::{GetPriotity, Stack};
 
 use std::{collections::HashMap, hash::Hash};
 
 use crate::error::AstError;
+use crate::symbols::{SymbolError, SymbolTable};
 
-
-#[derive(Debug, Clone)]
-pub struct Evaluator<'a> {
-    children: Option<ego_tree::iter::Children<'a, ItemWithPos>>,
-    syms: HashMap<String, i64>,
+fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
+    if let Item::Number(_) = i {
+        Ok(i.clone())
+    } else {
+        Err(AstError::from_node("Expected a number", n))
+    }
 }
 
-impl<'a> Evaluator<'a> {
-    pub fn new() -> Self {
-        Self {children : None, syms : Default::default()}
-    }
+/// Evaluates a node and returns an item
+/// Node can only contain
+///  - Labels that can resolve to a value
+///  - Numbers
+///  - PostFixExpr containing only labels and numbers
+///  - Must eval to a number
+pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> {
+    use Item::*;
 
-    pub fn add_sym(&mut self, name : &str, val : i64) {
-        self.syms.insert(name.into(),val);
-    }
+    let i = &n.value().item;
 
-    /// Evaluates a node in the AST tree the best it can
-    /// Mutates the tree
-    pub fn eval_node(&mut self, tree : &mut crate::ast::AstTree, id : crate::ast::AstNodeId) -> Result<(), AstError> {
-        let node = tree.get(id).unwrap();
+    let rez = match i {
+        PostFixExpr => eval_postfix(symbols, n)?,
 
-        let to_process : Vec<_> = node.descendants().map(|n| n.id()).collect();
+        Label(name) => symbols
+            .get_value(name)
+            .map(|n| Item::number(n))
+            .map_err(|_| {
+                println!("{:#?}", symbols);
+                let msg = format!("Couldn't find symbol {}", name);
+                AstError::from_node(&msg, n)
+            })?,
 
-        Ok(())
-    }
+        Number(_) => i.clone(),
 
-    pub fn eval(&mut self, n : AstNodeRef) -> Result<Item, AstError> {
-        use Item::*;
+        _ => return Err(AstError::from_node("Unable to evaluate ", n)),
+    };
 
-        let i = &n.value().item;
-
-        let rez = match i {
-            Assignment(name) => {
-                let mut c  = n.children();
-
-                let expr = c.next().ok_or_else(||
-                    AstError::from_node("Bit weird",n)
-                )?;
-
-                let v = self.eval(expr)?;
-
-                let num = v.get_number()
-                    .ok_or_else(|| AstError::from_node("Didn't evaluate to a number", expr))?;
-
-                self.syms.insert(name.clone(),num);
-                v
-            }
-
-            PostFixExpr => self.eval_postfix(n)?,
-
-            Label(name) => {
-                let v = *self.syms.get(name)
-                    .ok_or_else(|| 
-                        AstError::from_node("Udefined symbol", n))?;
-                Number(v)
-            }
-
-            Number(_) => i.clone(),
-
-            _ => {
-                return Err(AstError::from_node("Unable to evaluate ", n))
-            }
-        };
-
+    // If this isn't a number return an error
+    if let Item::Number(_) = rez {
         Ok(rez)
+    } else {
+        Err(AstError::from_node("Expected a number", n))
     }
+}
+pub fn eval(symbols: &SymbolTable, n: AstNodeRef) -> Result<i64, AstError> {
+    let ret = eval_internal(symbols, n)?;
+    Ok(ret.get_number().unwrap())
+}
 
-    pub fn eval_postfix(&mut self, n : AstNodeRef) -> Result<Item, AstError> {
-        use Item::*;
+/// Evaluates a postfix expression
+fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> {
+    use Item::*;
+    let mut s: Stack<Item> = Stack::new();
 
+    let mut items: Vec<(AstNodeRef, Item)> = vec![];
 
-        let mut items = vec![];
-
+    {
         for c in n.children() {
             let i = &c.value().item;
+
             let item = if i.is_op() {
                 i.clone()
             } else {
-                self.eval(c)?
+                eval_internal(symbols, c)?.clone()
             };
 
-            items.push((c.clone(),item))
+            items.push((c, item));
         }
-
-        let mut s : Stack<Item> = Stack::new();
-
-        for (cn,i) in items {
-            if i.is_op() {
-                let lhs = s.pop().get_number().unwrap();
-                let rhs = s.pop().get_number().unwrap();
-                let res = match i {
-                    Mul => rhs * lhs,
-                    Div => rhs / lhs,
-                    Add => rhs + lhs,
-                    Sub => rhs - lhs,
-                    _ => return Err(AstError::from_node("Unexpected op ", cn)),
-                };
-                s.push(Number(res))
-            } else {
-                s.push(i);
-            }
-        }
-
-        Ok(s.pop())
     }
 
-    fn take_num(&mut self) -> Option<i64> { 
-        self.take_item()
-            .and_then(|i| {
-                match i {
-                    Item::Number(n) => Some(n),
-                    Item::Label(name) => self.syms.get(&name).cloned(),
-                    _ => Some(0),
-                }
-            })
-    }
+    for (cn, i) in &items {
+        if i.is_op() {
+            let (lhs, rhs) = s.pop_pair();
 
-    fn take_item(&mut self) -> Option<Item> {
-        let children = self.children.as_mut().unwrap();
-        children.next().map(|n| n.value().item.clone())
-    }
+            let lhs = lhs.get_number().unwrap();
+            let rhs = rhs.get_number().unwrap();
 
-    fn take_op(&mut self) -> Option<Item> {
-        let to_op = |i| if to_priority(&i).is_some() {
-            Some(i)
+            let res = match i {
+                Mul => rhs * lhs,
+                Div => rhs / lhs,
+                Add => rhs + lhs,
+                Sub => rhs - lhs,
+                _ => return Err(AstError::from_node("Unexpected op ", *cn)),
+            };
+
+            s.push(Number(res))
         } else {
-            None
-        };
-
-        self.take_item().and_then(to_op)
+            s.push(i.clone());
+        }
     }
+
+    Ok(s.pop())
 }
-
-
-

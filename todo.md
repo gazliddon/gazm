@@ -4,21 +4,7 @@
 * Change evaluator to a simplifier
     * Returns an new infix expr or number only
 
-* Functionality
-    * Resolve labels
-        * Add a symbol table -> Label -> expr
-    * Evaluate expresions
-        * In order
-        * Convert to infix
-
-# Todo
-* Chang Loc to have a non zero usize
-    * https://doc.rust-lang.org/std/num/struct.NonZeroUsize.html
-
-
-
 # 6809 Debugger
-
 * Scroll Window States
     * Cursor in bottom scroll zone -> try Scroll Up
     * Cursor in top scrollzone -> try Scroll down
@@ -69,6 +55,14 @@ impl EdgeDistances {
 } 
 
 ```
+
+Wordle 205 5/6
+
+⬛🟨🟩⬛⬛
+⬛⬛🟩🟩⬛
+⬛⬛⬛⬛⬛
+⬛🟩⬛⬛🟩
+🟩🟩🟩🟩🟩
 
 
 

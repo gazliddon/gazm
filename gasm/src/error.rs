@@ -5,7 +5,7 @@ use nom::{self, Offset};
 
 use nom::AsBytes;
 use crate::locate::{ Span, Position };
-use crate::ast::AstNodeRef;
+use crate::ast::{ AstNodeRef, AstNodeId };
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -87,20 +87,15 @@ impl<'a> nom::error::ParseError<Span<'a>> for ParseError<'a> {
 pub struct AstError {
     pub pos : Position,
     pub message: Option<String>,
+    pub node_id: AstNodeId,
 }
 
 impl AstError {
-    pub fn new(msg: &str, pos : &Position) -> Self {
-        Self {
-            pos : pos.clone(),
-            message :  Some(msg.to_string()),
-        }
-    }
-
     pub fn from_node(msg: &str, n : AstNodeRef) -> Self {
         Self {
             pos : n.value().pos.clone(),
             message :  Some(msg.to_string()),
+            node_id: n.id(),
         }
     }
 }
@@ -115,8 +110,14 @@ pub struct UserError {
 }
 
 impl UserError {
-    pub fn from_ast_error(_err : AstError, _file : &std::path::Path) -> Self {
-        panic!()
+    pub fn from_ast_error<'a>(_err : AstError, info : &crate::ast::NodeSourceInfo<'a>) -> Self {
+        Self {
+            message: _err.message.unwrap_or("Error".to_string()),
+            pos: _err.pos,
+            fragment: info.fragment.to_string(),
+            line: info.line_str.to_string(),
+            file : info.source_file.file.clone(),
+        }
     }
 
     pub fn from_parse_error(err : ParseError, file : &std::path::Path) -> Self {

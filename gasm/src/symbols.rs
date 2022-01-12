@@ -1,144 +1,110 @@
 // symtab
 use std::collections::{HashMap, VecDeque};
 
-pub type SymbolId = u64;
-pub type ScopeId = u64;
+use crate::ast::AstNodeId;
 
-pub struct ScopeEntry {
+pub type SymbolId = usize;
+/// Holds information about a symbol
+#[derive(Debug, PartialEq, Clone)]
+pub struct SymbolInfo {
+    /// Symbol Name
     pub name : String,
-    pub predecessors: VecDeque<ScopeId>,
-    pub scope_id: ScopeId,
-    pub fqn: String,
+    /// Unique Symbol Id
+    pub id: SymbolId,
+    /// Id of Ast Node that symbol was defined in
+    pub node_id: AstNodeId,
+    /// Value, if any
+    pub value : Option<i64>,
 }
 
-pub struct StackTree<T> {
-    tree : ego_tree::Tree<T>,
-    current_node : ego_tree::NodeId,
+#[derive(Debug, PartialEq, Clone)]
+pub enum SymbolError {
+    AlreadyDefined(SymbolId),
+    NotFound,
+    NoValue,
 }
 
-impl<T> StackTree<T> {
-    pub fn new(root : T) -> Self {
-        let tree = ego_tree::Tree::new(root);
-        let id = tree.root().id();
+/// Holds information about symbols
+#[derive(Debug, PartialEq, Clone)]
+pub struct SymbolTable {
+    info : Vec<SymbolInfo>,
+    name_to_id: HashMap<String, SymbolId>,
+}
 
-        Self {
-            tree,
-            current_node: id,
-        }
-    }
-
-    pub fn get_current_node(&self) -> ego_tree::NodeId {
-        self.current_node
-    }
-
-    pub fn add(&mut self, name : T) -> ego_tree::NodeId {
-        let mut node = self.tree.get_mut(self.current_node).unwrap();
-        let ret = node.append(name);
-        ret.id()
-    }
-
-    pub fn push(&mut self, name : T) -> ego_tree::NodeId {
-        let id = self.add(name);
-        self.current_node = id;
-        id
-    }
-
-    pub fn pop(&mut self) -> ego_tree::NodeId {
-        let mut top = self.tree.get_mut(self.current_node).unwrap();
-
-        if let Some(p) = top.parent() {
-            self.current_node = p.id();
-        } 
-
-        self.get_current_node()
-    }
-
-    pub fn get_tree(&self) -> &ego_tree::Tree<T> {
-        &self.tree
+impl Default for SymbolTable {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-pub struct ScopeStore {
-    scope_id : ScopeId,
-    scopes: Vec<ScopeEntry>,
-}
-
-impl ScopeStore {
+impl SymbolTable {
     pub fn new() -> Self {
         Self {
-            scope_id: 0,
-            scopes: Default::default()
+            info : Default::default(),
+            name_to_id : Default::default(),
         }
     }
+    pub fn get_value(&self, name : &String) -> Result<i64, SymbolError> {
+        let info = self.get_from_name(name)?;
 
-    pub fn get(&self, id : ScopeId) -> Option<&ScopeEntry> {
-        self.scopes.get(id as usize)
+        info.value.ok_or(
+            SymbolError::NoValue
+        )
     }
 
-    fn get_predecessors_fqn(&self, predecessors: &VecDeque<ScopeId>) -> String {
-        predecessors.iter()
-            .map(|id| self.get(*id).unwrap().name.clone()).collect::<Vec<_>>().join("/")
+    pub fn get(&self, id : SymbolId) -> Result<&SymbolInfo, SymbolError> {
+        self.info.get(id).ok_or(SymbolError::NotFound)
     }
 
-    pub fn add_new_scope(&mut self, name : &str, predecessors: &VecDeque<ScopeId>) -> &ScopeEntry {
-        let scope_id = self.scopes.len() as ScopeId;
-
-        let scope_entry = ScopeEntry {
-            name: name.to_string(),
-            scope_id,
-            predecessors: predecessors.clone(),
-            fqn: self.get_predecessors_fqn(predecessors)
-        };
-        self.scopes.push(scope_entry);
-        self.get(scope_id).unwrap()
+    pub fn get_mut(&mut self, id : SymbolId) -> Result<&mut SymbolInfo, SymbolError> {
+        self.info.get_mut(id).ok_or(SymbolError::NotFound)
     }
-}
-pub struct ScopeBuilder {
-    scope_tree : StackTree<String>,
-}
 
-impl ScopeBuilder {
-    pub fn new() -> Self {
-        let scope_tree = StackTree::new("".to_string());
-        Self {
-            scope_tree
+    pub fn get_from_name<'a>(&'a self, name : &String) -> Result<&'a SymbolInfo, SymbolError> {
+        let id = self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
+        self.get(*id)
+    }
+
+    pub fn symbol_exists(&self, id: SymbolId) -> bool {
+        self.get(id).is_ok()
+    }
+
+    pub fn symbol_exists_from_name(&self, name: &String) -> bool {
+        self.get_from_name(name).is_ok()
+    }
+
+    fn set_value(&mut self, id : SymbolId, value : i64) -> Result<(),SymbolError> {
+        let i = self.get_mut(id)?;
+        i.value = Some(value);
+        Ok(())
+    }
+
+    pub fn add_symbol_with_value(&mut self, name : &String, value : i64,node_id : AstNodeId ) -> Result<SymbolId, SymbolError> {
+        let id = self.add_symbol(name, node_id)?;
+        self.set_value(id, value)?;
+        Ok(id)
+    }
+
+    pub fn add_symbol<'a>(&mut self, name : &String, node_id : AstNodeId ) -> Result<SymbolId, SymbolError> {
+        if self.symbol_exists_from_name(name) {
+            let x = self.get_from_name(&name.to_string()).unwrap();
+            Err(SymbolError::AlreadyDefined(x.id))
+
+        } else {
+            let id = self.info.len();
+
+            let info = SymbolInfo {
+                name : name.clone(),
+                id,
+                node_id,
+                value: None,
+            };
+            self.info.push(info);
+
+            self.name_to_id.insert(name.clone(), id);
+
+            Ok(id)
         }
-    }
-
-    pub fn get_current_scope(&self) -> ego_tree::NodeId {
-        self.scope_tree.get_current_node()
-    }
-
-    pub fn push_new(&mut self, name : &str) -> ego_tree::NodeId {
-        self.scope_tree.push(name.to_string())
-    }
-
-    pub fn pop(&mut self) -> ego_tree::NodeId {
-        self.scope_tree.pop()
-    }
-
-    pub fn get_current_fqn(&self) -> String {
-        self.get_fqn(self.get_current_scope())
-    }
-
-    pub fn get_fqn(&self, id : ego_tree::NodeId) -> String {
-        let t = self.scope_tree.get_tree();
-
-        let mut node = t.get(id).unwrap();
-
-        let mut string = node.value().clone();
-
-        while node.parent().is_some() {
-            let parent = node.parent().unwrap();
-
-            string = format!("{}/{}", parent.value(), string);
-            node = parent;
-        }
-        string
-    }
-
-    fn build(self) -> StackTree<String> {
-        self.scope_tree
     }
 }
 

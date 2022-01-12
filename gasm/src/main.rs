@@ -33,6 +33,7 @@ mod postfix;
 mod sourcefile;
 mod eval;
 mod indexed;
+mod scopes;
 
 use std::path::PathBuf;
 use std::time::Instant;
@@ -69,7 +70,7 @@ impl Assembler {
         x.indent();
 
         let tokens = tokenize::tokenize(ctx)?;
-        let ast = ast::Ast::from_nodes(tokens.clone()).unwrap();
+        let ast = ast::Ast::from_nodes(tokens.clone())?;
 
         x.deindent();
         x.success("Complete");
