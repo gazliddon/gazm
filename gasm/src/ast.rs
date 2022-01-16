@@ -16,12 +16,15 @@ use romloader::ResultExt;
 use crate::error::{AstError, UserError};
 use crate::item;
 use crate::scopes::ScopeBuilder;
+use crate::symbols::SymbolId;
 
-use super::item::{Item, Node};
-use super::locate::Position;
+use crate::item::{Item, Node};
+use crate::locate::Position;
 
-use super::postfix;
-use super::sourcefile::SourceFile;
+use crate::postfix;
+use crate::sourcefile::{NodeSourceInfo, SourceFile, Sources};
+use crate::symbols::SymbolTable;
+use crate::util::{debug, info};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -44,21 +47,9 @@ impl ItemWithPos {
     }
 }
 
-impl From<&Box<Node>> for ItemWithPos {
-    fn from(n: &Box<Node>) -> Self {
-        Self::new(n.as_ref())
-    }
-}
-
-impl From<&Node> for ItemWithPos {
-    fn from(n: &Node) -> Self {
-        Self::new(n)
-    }
-}
-
 pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
     use super::item::Item::*;
-    let ipos = node.into();
+    let ipos = ItemWithPos::new(node);
     let mut this_node = parent.append(ipos);
 
     this_node.value().id = Some(this_node.id());
@@ -69,7 +60,7 @@ pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
 }
 
 pub fn make_tree(node: &Node) -> AstTree {
-    let mut ret = AstTree::new(node.into());
+    let mut ret = AstTree::new(ItemWithPos::new(node));
 
     let mut this_node = ret.root_mut();
 
@@ -81,125 +72,30 @@ pub fn make_tree(node: &Node) -> AstTree {
     ret
 }
 
-// Add a source file to the hash if this is a source node
-// return true if it did
-fn get_tokenize_file(t: &AstTree, node_id: AstNodeId) -> Option<SourceFile> {
-    t.get(node_id)
-        .unwrap()
-        .value()
-        .item
-        .get_my_tokenized_file()
-        .map(|(f, _, s)| SourceFile::new(f, s))
-}
-
-fn set_file_ids(
-    t: &mut AstTree,
-    node_id: AstNodeId,
-    file_node_id: AstNodeId,
-    mapper: &mut HashMap<AstNodeId, SourceFile>,
-) {
-    let mut file_node_id = file_node_id;
-
-    if let Some(source) = get_tokenize_file(t, node_id) {
-        file_node_id = node_id;
-        mapper.insert(node_id, source);
-    }
-
-    let mut node = t.get_mut(node_id).unwrap();
-    node.value().file_id = Some(file_node_id);
-
-    let children: Vec<_> = t.get(node_id).unwrap().children().map(|n| n.id()).collect();
-
-    for c in children {
-        set_file_ids(t, c, file_node_id, mapper)
-    }
-}
-
-fn add_file_references(ast: &mut AstTree) -> HashMap<AstNodeId, SourceFile> {
-    let root_id = ast.root().id();
-    let mut hm = HashMap::new();
-    set_file_ids(ast, root_id, root_id, &mut hm);
-    hm
-}
-
-#[derive(Debug, Clone)]
-pub struct NodeSourceInfo<'a> {
-    pub fragment: &'a str,
-    pub line_str: &'a str,
-    pub line: usize,
-    pub col: usize,
-    pub source_file: &'a SourceFile,
-    pub file: PathBuf,
-}
-
 #[derive(Debug)]
 pub struct Ast {
-    tree: AstTree,
-    id_to_source_file: HashMap<AstNodeId, SourceFile>,
-    symbols: crate::symbols::SymbolTable,
-}
-
-enum LabelValues {
-    Value(i64),
-    Expr(AstNodeId),
-    Pc,
-}
-
-pub fn debug<F, Y>(text: &str, mut f: F) -> Y
-where
-    F: FnMut(&mut super::messages::Messages) -> Y,
-{
-    let x = super::messages::messages();
-    x.debug(text);
-    x.indent();
-    let r = f(x);
-    x.deindent();
-    r
-}
-
-pub fn info<F, Y>(text: &str, mut f: F) -> Y
-where
-    F: FnMut(&mut super::messages::Messages) -> Y,
-{
-    let mut x = super::messages::messages();
-    x.info(text);
-    x.indent();
-    let r = f(&mut x);
-    x.deindent();
-    r
-}
-
-impl std::fmt::Display for Ast {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let wrapped = DisplayWrapper {
-            node: self.tree.root(),
-        };
-        write!(f, "{}", wrapped)
-    }
+    pub tree: AstTree,
+    pub sources: Sources,
+    pub symbols: SymbolTable,
 }
 
 impl Ast {
     pub fn from_nodes(n: Node) -> Result<Self, UserError> {
-        let (t, id) = info("Building Ast from nodes", |_| {
+        let (t, sources) = info("Building Ast from nodes", |_| {
             let mut tree = info("Building AST", |_| make_tree(&n));
 
-            let id_to_source_file = info("Resolving file references", |_| {
-                add_file_references(&mut tree)
-            });
+            let sources = info("Resolving file references", |_| Sources::new(&mut tree));
 
-            (tree, id_to_source_file)
+            (tree, sources)
         });
 
-        Self::new(t, id)
+        Self::new(t, sources)
     }
 
-    pub fn new(
-        tree: AstTree,
-        id_to_source_file: HashMap<AstNodeId, SourceFile>,
-    ) -> Result<Self, UserError> {
+    pub fn new(tree: AstTree, sources: Sources) -> Result<Self, UserError> {
         let mut ret = Self {
             tree,
-            id_to_source_file,
+            sources,
             symbols: Default::default(),
         };
 
@@ -215,42 +111,20 @@ impl Ast {
     pub fn get_tree(&self) -> &AstTree {
         &self.tree
     }
-
-    fn get_source_info_from_value<'a>(
-        &'a self,
-        v: &ItemWithPos,
-    ) -> Result<NodeSourceInfo<'a>, String> {
-        let pos = &v.pos;
-        let file_id = v.file_id.ok_or_else(|| "No file id!".to_string())?;
-
-        let source_file = self.id_to_source_file.get(&file_id).ok_or(format!(
-            "Can't find file id {:?} {:?}",
-            file_id, self.id_to_source_file
-        ))?;
-        let fragment = source_file.get_span(pos)?;
-        let line_str = source_file.get_line(pos)?;
-
-        let ret = NodeSourceInfo {
-            line_str,
-            col: pos.col,
-            line: pos.line,
-            fragment,
-            source_file,
-            file: source_file.file.clone(),
-        };
-
-        Ok(ret)
+    pub fn get_tree_mut(&mut self) -> &AstTree {
+        &mut self.tree
     }
 
     fn get_source_info_from_node<'a>(
         &'a self,
         node: &'a AstNodeRef,
     ) -> Result<NodeSourceInfo<'a>, String> {
-        self.get_source_info_from_value(node.value())
+        self.sources.get_source_info_from_value(node.value())
     }
+
     fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<NodeSourceInfo, String> {
         let n = self.tree.get(id).unwrap();
-        self.get_source_info_from_value(n.value())
+        self.sources.get_source_info_from_value(n.value())
     }
 
     fn rename_locals(&mut self) {
@@ -298,10 +172,6 @@ impl Ast {
                 };
             }
         });
-    }
-
-    fn infix_to_postfix(&self, _nodes: Vec<AstNodeId>) -> Result<Vec<AstNodeId>, String> {
-        todo!()
     }
 
     fn node_to_postfix(&self, node: AstNodeRef) -> Result<Vec<AstNodeId>, String> {
@@ -359,32 +229,60 @@ impl Ast {
         UserError::from_ast_error(e, &si)
     }
 
-    fn user_error(&self, msg: &str, n: AstNodeRef) -> UserError {
+    pub fn user_error<S>(&self, msg: S, id: AstNodeId) -> UserError
+    where
+        S: Into<String>,
+    {
+        let n = self.tree.get(id).unwrap();
         let e = AstError::from_node(msg, n);
         self.convert_error(e)
     }
 
+    pub fn eval(&self, symbols: &SymbolTable, id: AstNodeId) -> Result<i64, UserError> {
+        use super::eval::eval;
+        let node = self.tree.get(id).unwrap();
+        eval(symbols, node.first_child().unwrap()).map_err(|e| self.convert_error(e))
+    }
+
+    pub fn add_symbol<S>(
+        &self,
+        symbols: &mut SymbolTable,
+        value: i64,
+        name: S,
+        id: AstNodeId,
+    ) -> Result<SymbolId, UserError>
+    where
+        S: Into<String>,
+    {
+        symbols
+            .add_symbol_with_value(&name.into(), value, id)
+            .map_err(|e| {
+                let msg = format!("Symbol error {:?}", e);
+                self.user_error(&msg, id)
+            })
+    }
+
     fn evaluate(&mut self) -> Result<(), UserError> {
-        info("Evaluating expressions", |x| {
+        info("Evaluating assignments", |x| {
             use super::eval::eval;
             use Item::*;
 
+            let mut symbols = self.symbols.clone();
+
             for n in self.tree.nodes() {
                 if let Assignment(name) = &n.value().item {
-                    let value = eval(&self.symbols, n.first_child().unwrap())
-                        .map_err(|e| self.convert_error(e))?;
+                    let id = n.id();
 
-                    let msg = format!("{} = {}", name, value);
+                    let value = self.eval(&symbols, id)?;
+                    self.add_symbol(&mut symbols, value, name, id)?;
+
+                    let msg = format!("{} = {}", name.clone(), value);
                     x.debug(&msg);
-
-                    self.symbols
-                        .add_symbol_with_value(name, value, n.id())
-                        .map_err(|e| {
-                            let msg = format!("Symbol error {:?}", e);
-                            self.user_error(&msg, n)
-                        })?;
                 }
             }
+
+            self.symbols = symbols;
+
             Ok(())
         })
     }
@@ -424,132 +322,5 @@ impl Term {
             node: node.id(),
             priority: to_priority(&node.value().item),
         }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-use std::fmt::Display;
-pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {
-    let ret: Vec<_> = v.iter().map(|x| x.to_string()).collect();
-    ret.join(sep)
-}
-
-struct DisplayWrapper<'a> {
-    node: AstNodeRef<'a>,
-}
-
-impl<'a> From<AstNodeRef<'a>> for DisplayWrapper<'a> {
-    fn from(ast: AstNodeRef<'a>) -> Self {
-        Self { node: ast }
-    }
-}
-
-impl<'a> std::fmt::Display for DisplayWrapper<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Item::*;
-
-        let node = self.node;
-        let item = &node.value().item;
-
-        let to_string = |n: AstNodeRef| -> String {
-            let x: DisplayWrapper = n.into();
-            x.to_string()
-        };
-
-        let child = |n: usize| {
-            let v = node.children().nth(n).unwrap();
-            to_string(v)
-        };
-
-        let join_kids = |sep| {
-            let v: Vec<_> = node.children().map(to_string).collect();
-            v.join(sep)
-        };
-
-        let ret: String = match item {
-            LocalAssignmentFromPc(name) | AssignmentFromPc(name) => {
-                format!("{} equ {}", name, child(0))
-            }
-
-            Pc => "*".to_string(),
-
-            Label(name) | LocalLabel(name) => name.clone(),
-
-            Comment(comment) => comment.clone(),
-
-            QuotedString(test) => format!("\"{}\"", test),
-            // Register(r) => r.to_string(),
-            RegisterList(vec) => {
-                let vec: Vec<_> = vec.iter().map(|r| r.to_string()).collect();
-                vec.join(",")
-            }
-
-            LocalAssignment(name) | Assignment(name) => {
-                format!("{} equ {}", name, child(0))
-            }
-
-            Expr => join_kids(""),
-
-            PostFixExpr => join_kids(" "),
-
-            Include(file) => format!("include \"{}\"", file.to_string_lossy()),
-
-            Number(n) => n.to_string(),
-            UnaryMinus => "-".to_string(),
-            UnaryTerm => {
-                panic!()
-            }
-
-            Mul => "*".to_string(),
-            Div => "/".to_string(),
-            Add => "+".to_string(),
-            Sub => "-".to_string(),
-            And => "&".to_string(),
-            Or => "|".to_string(),
-            Xor => "^".to_string(),
-
-            Org => {
-                format!("org {}", child(0))
-            }
-
-            BracketedExpr => {
-                format!("({})", join_kids(""))
-            }
-
-            TokenizedFile(_, _, _) => join_kids("\n"),
-
-            OpCode(ins, item::AddrModeParseType::Inherent) => ins.action.clone(),
-
-            OpCode(ins, amode) => {
-                use item::AddrModeParseType::*;
-
-                let operand = match amode {
-                    Immediate => format!("#{}", child(0)),
-                    Direct => format!("<{}", child(0)),
-                    Indexed(imode) => {
-                        use item::IndexParseType::*;
-                        match imode {
-                            ConstantOffset(r) => format!("{},{}", child(0), r),
-                            Zero(r) => format!(",{}", r),
-                            SubSub(r) => format!(",--{}", r),
-                            Sub(r) => format!(",-{}", r),
-                            PlusPlus(r) => format!(",{}++", r),
-                            Plus(r) => format!(",{}+", r),
-                            AddA(r) => format!("A,{}", r),
-                            AddB(r) => format!("B,{}", r),
-                            AddD(r) => format!("D,{}", r),
-                            PCOffset => format!("{},PC", child(0)),
-                            Indirect => format!("[{}]", child(0)),
-                        }
-                    }
-                    _ => format!("{:?} NOT IMPLEMENTED", ins.addr_mode),
-                };
-
-                format!("{} {}", ins.action, operand)
-            }
-            _ => format!("{:?} not implemented", item),
-        };
-
-        write!(f, "{}", ret)
     }
 }

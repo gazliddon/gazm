@@ -52,28 +52,28 @@ impl Messages {
         " ".repeat(self.get_indent())
     }
 
-    pub fn info(&self,  m : &str) {
-        println!("{}{}", self.get_indent_str(), m.blue());
+    pub fn info<S>(&self,  m : S) where S : Into<String> {
+        println!("{}{}", self.get_indent_str(), m.into().blue());
     }
 
-    pub fn error(&self,  m : &str) {
-        println!("{}{}", self.get_indent_str(), m.red().bold());
+    pub fn error<S>(&self,  m : S) where S : Into<String>{
+        println!("{}{}", self.get_indent_str(), m.into().red().bold());
     }
 
     
-    pub fn warning(&self,  m : &str) {
-        println!("{}{}", self.get_indent_str(), m.yellow().bold());
+    pub fn warning<S>(&self,  m : S) where S : Into<String>{
+        println!("{}{}", self.get_indent_str(), m.into().yellow().bold());
     }
 
-    pub fn success(&self,  m : &str) {
-        println!("{}{}", self.get_indent_str(), m.bold().green());
+    pub fn success<S>(&self,  m : S) where S : Into<String>{
+        println!("{}{}", self.get_indent_str(), m.into().bold().green());
     }
 
-    pub fn intertesting(&self, m : &str) {
-        println!("{}{}", self.get_indent_str(), m.italic().bold().purple());
+    pub fn intertesting<S>(&self, m : S) where S : Into<String>{
+        println!("{}{}", self.get_indent_str(), m.into().italic().bold().purple());
     }
-    pub fn debug(&self, m : &str) {
-        println!("{}{}", self.get_indent_str(), m.italic().yellow());
+    pub fn debug<S>(&self, m : S) where S : Into<String>{
+        println!("{}{}", self.get_indent_str(), m.into().italic().yellow());
     }
 }
 

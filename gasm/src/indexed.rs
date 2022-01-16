@@ -46,7 +46,7 @@ fn get_post_inc_inc(input: Span) -> IResult<IndexParseType> {
             multispace0,
             get_index_reg ,
             tag("++")))(input)?;
-    let ret = IndexParseType::PlusPlus(matched);
+    let ret = IndexParseType::PlusPlus(matched, false);
     Ok((rest,ret))
 }
 
@@ -57,7 +57,7 @@ fn get_pre_dec_dec(input: Span) -> IResult<IndexParseType> {
             tag("--"),
             get_index_reg ,
             ))(input)?;
-    let ret = IndexParseType::SubSub(matched);
+    let ret = IndexParseType::SubSub(matched, false);
     Ok((rest, ret))
 }
 
@@ -75,28 +75,28 @@ fn get_pre_dec(input: Span) -> IResult<IndexParseType> {
 fn get_zero(input: Span) -> IResult<IndexParseType> {
     let sep = pair(tag(","), multispace0);
     let (rest, matched) = preceded(sep, get_reg )(input)?;
-    let ret = IndexParseType::Zero(matched);
+    let ret = IndexParseType::Zero(matched, false);
     Ok((rest, ret))
 }
 
 fn get_add_a(input : Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
     let (rest, (_,matched)) = separated_pair(tag_no_case("a"), sep, get_index_reg)(input)?;
-    let ret = IndexParseType::AddA(matched);
+    let ret = IndexParseType::AddA(matched, false);
     Ok((rest, ret))
 }
 
 fn get_add_b(input : Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
     let (rest, (_,matched)) = separated_pair(tag_no_case("b"), sep, get_index_reg)(input)?;
-    let ret = IndexParseType::AddB(matched);
+    let ret = IndexParseType::AddB(matched, false);
     Ok((rest, ret))
 }
 
 fn get_add_d(input : Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
     let (rest, (_,matched)) = separated_pair(tag_no_case("d"), sep, get_index_reg)(input)?;
-    let ret = IndexParseType::AddD(matched);
+    let ret = IndexParseType::AddD(matched, false);
     Ok((rest, ret))
 }
 
@@ -129,7 +129,7 @@ fn parse_offset(input: Span) -> IResult<Node> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
     let (rest,(expr,reg)) = separated_pair(parse_expr, sep, get_index_reg)(input)?;
 
-    let offset = IndexParseType::ConstantOffset(reg);
+    let offset = IndexParseType::ConstantOffset(reg, false);
     let ctx = matched_span(input, rest);
     let item = Item::operand_from_index_mode(offset);
 
@@ -143,7 +143,7 @@ fn parse_pc_offset(input: Span) -> IResult<Node> {
     let sep = ws(tag(","));
     let (rest,(expr,_)) = separated_pair(parse_expr, sep, get_pc_reg)(input)?;
 
-    let offset = IndexParseType::PCOffset;
+    let offset = IndexParseType::PCOffset(false);
     let ctx = matched_span(input, rest);
     let item = Item::operand_from_index_mode(offset);
 
@@ -152,10 +152,10 @@ fn parse_pc_offset(input: Span) -> IResult<Node> {
 }
 
 
-fn parse_indirect(input: Span) -> IResult<Node> {
+fn parse_extended_indirect(input: Span) -> IResult<Node> {
     use crate::util::{ wrapped_chars,ws };
     let (rest, matched) = wrapped_chars('[', ws(parse_expr),']')(input)?;
-    let item = Item::operand_from_index_mode(IndexParseType::Indirect);
+    let item = Item::operand_from_index_mode(IndexParseType::ExtendedIndirect);
     let ctx = matched_span(input, rest);
     let matched = Node::from_item(item, ctx).with_child(matched);
     Ok((rest, matched))
@@ -202,7 +202,7 @@ fn parse_indexed_direct(input: Span) -> IResult<Node> {
 
 pub fn parse_indexed(input: Span) -> IResult<Node> {
     use crate::util::{ wrapped_chars,ws };
-    alt((parse_indirect,parse_indexed_indirect,parse_indexed_direct))(input)
+    alt((parse_extended_indirect,parse_indexed_indirect,parse_indexed_direct))(input)
 }
 
 
@@ -220,14 +220,14 @@ mod test {
     #[test]
     fn test_get_no_arg_indexed() {
         let to_try = vec![
-            (",--Y", IndexParseType::SubSub(Y)),
+            (",--Y", IndexParseType::SubSub(Y, false)),
             (",-U", IndexParseType::Sub(U)),
-            (",Y", IndexParseType::Zero(Y)),
-            ("A,X", IndexParseType::AddA(X)),
-            ("B,U", IndexParseType::AddB(U)),
-            ("D,U", IndexParseType::AddD(U)),
-            (",--X", IndexParseType::SubSub(X)),
-            (",S++", IndexParseType::PlusPlus(S)),
+            (",Y", IndexParseType::Zero(Y, false)),
+            ("A,X", IndexParseType::AddA(X, false)),
+            ("B,U", IndexParseType::AddB(U, false)),
+            ("D,U", IndexParseType::AddD(U, false)),
+            (",--X", IndexParseType::SubSub(X, false)),
+            (",S++", IndexParseType::PlusPlus(S, false)),
             (",S+", IndexParseType::Plus(S)),
         ];
 
@@ -258,29 +258,29 @@ mod test {
     #[test]
     fn test_parse_indexed() {
         let to_try = vec![
-            (",--Y", IndexParseType::SubSub(Y)),
+            (",--Y", IndexParseType::SubSub(Y, false)),
             (",-U", IndexParseType::Sub(U)),
-            (",Y", IndexParseType::Zero(Y)),
-            ("A,X", IndexParseType::AddA(X)),
-            ("B,U", IndexParseType::AddB(U)),
-            ("D,U", IndexParseType::AddD(U)),
-            (",--X", IndexParseType::SubSub(X)),
-            (",S++", IndexParseType::PlusPlus(S)),
+            (",Y", IndexParseType::Zero(Y, false)),
+            ("A,X", IndexParseType::AddA(X, false)),
+            ("B,U", IndexParseType::AddB(U, false)),
+            ("D,U", IndexParseType::AddD(U, false)),
+            (",--X", IndexParseType::SubSub(X, false)),
+            (",S++", IndexParseType::PlusPlus(S, false)),
             (",S+", IndexParseType::Plus(S)),
-            ("100,PC", IndexParseType::PCOffset),
-            ("100,U", IndexParseType::ConstantOffset(U)),
-            ("[100,U]", IndexParseType::ConstantOffset(U)),
+            ("100,PC", IndexParseType::PCOffset(false)),
+            ("100,U", IndexParseType::ConstantOffset(U, false)),
+            ("[100,U]", IndexParseType::ConstantOffset(U, false)),
 
 
-            ("[,--Y]", IndexParseType::SubSub(Y)),
-            ("[ ,Y ]", IndexParseType::Zero(Y)),
-            ("[ A,X ]", IndexParseType::AddA(X)),
-            ("[ B,U ]", IndexParseType::AddB(U)),
-            ("[ D,U ]", IndexParseType::AddD(U)),
-            ("[ ,--X ]", IndexParseType::SubSub(X)),
-            ("[ ,S++ ]", IndexParseType::PlusPlus(S)),
-            ("[ 100,PC ]", IndexParseType::PCOffset),
-            ("[ 100,U ]", IndexParseType::ConstantOffset(U)),
+            ("[,--Y]", IndexParseType::SubSub(Y, true)),
+            ("[ ,Y ]", IndexParseType::Zero(Y, true)),
+            ("[ A,X ]", IndexParseType::AddA(X, true)),
+            ("[ B,U ]", IndexParseType::AddB(U, true)),
+            ("[ D,U ]", IndexParseType::AddD(U, true)),
+            ("[ ,--X ]", IndexParseType::SubSub(X, true)),
+            ("[ ,S++ ]", IndexParseType::PlusPlus(S, true)),
+            ("[ 100,PC ]", IndexParseType::PCOffset(true)),
+            ("[ 100,U ]", IndexParseType::ConstantOffset(U, true)),
         ];
 
         for (input, desired) in to_try {
@@ -296,7 +296,7 @@ mod test {
     #[test]
     fn test_zero() {
         let test = ",U";
-        let desired = IndexParseType::Zero(U);
+        let desired = IndexParseType::Zero(U, false);
         let (_, matched) = get_zero(test.into()).unwrap();
         assert_eq!(matched, desired);
     }
@@ -304,7 +304,7 @@ mod test {
     #[test]
     fn test_get_pre_dec_dec() {
         let test = ",--Y";
-        let desired = IndexParseType::SubSub(Y);
+        let desired = IndexParseType::SubSub(Y, false);
         let (_, matched) = get_pre_dec_dec(test.into()).unwrap();
         assert_eq!(matched, desired);
     }
@@ -328,35 +328,35 @@ mod test {
     #[test]
     fn test_get_post_inc_inc() {
         let test = ",S++";
-        let desired = IndexParseType::PlusPlus(S);
+        let desired = IndexParseType::PlusPlus(S, false);
         let (_, matched) = get_post_inc_inc(test.into()).unwrap();
         assert_eq!(matched, desired);
     }
     #[test]
     fn test_get_zero() {
         let test = ",S";
-        let desired = IndexParseType::Zero(S);
+        let desired = IndexParseType::Zero(S, false);
         let (_, matched) = get_zero(test.into()).unwrap();
         assert_eq!(matched, desired);
     }
     #[test]
     fn test_get_add_a() {
         let test = "A,S";
-        let desired = IndexParseType::AddA(S);
+        let desired = IndexParseType::AddA(S, false);
         let (_, matched) = get_add_a(test.into()).unwrap();
         assert_eq!(matched, desired);
     }
     #[test]
     fn test_get_add_b() {
         let test = "B,S";
-        let desired = IndexParseType::AddB(S);
+        let desired = IndexParseType::AddB(S, false);
         let (_, matched) = get_add_b(test.into()).unwrap();
         assert_eq!(matched, desired);
     }
     #[test]
     fn test_get_add_d() {
         let test = "D,Y";
-        let desired = IndexParseType::AddD(Y);
+        let desired = IndexParseType::AddD(Y, false);
         let (_, matched) = get_add_d(test.into()).unwrap();
         assert_eq!(matched, desired);
     }

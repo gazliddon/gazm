@@ -32,7 +32,8 @@ fn parse_org_arg(input: Span) -> IResult< Node> {
 
 fn parse_fdb_arg(input: Span) -> IResult< Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
-    let ret = Node::from_item(Fdb, input).with_children(matched);
+    let num_of_bytes = matched.len();
+    let ret = Node::from_item(Fdb(num_of_bytes), input).with_children(matched);
     Ok((rest, ret))
 }
 

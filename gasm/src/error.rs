@@ -3,10 +3,10 @@ use std::path::PathBuf;
 
 use nom::{self, Offset};
 
+use crate::ast::{AstNodeId, AstNodeRef};
+use crate::locate::{Position, Span};
+use crate::sourcefile::NodeSourceInfo;
 use nom::AsBytes;
-use crate::locate::{ Span, Position };
-use crate::ast::{ AstNodeRef, AstNodeId };
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError<'a> {
@@ -16,31 +16,34 @@ pub struct ParseError<'a> {
 
 impl<'a> ParseError<'a> {
     pub fn message(&self) -> String {
-        self.message.clone().unwrap_or_else(||"".to_string())
+        self.message.clone().unwrap_or_else(|| "".to_string())
     }
 }
 
-pub fn error<'a>(err : &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
-    nom::Err::Error(ParseError::new( err.to_string(), &ctx))
+pub fn error<'a>(err: &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
+    nom::Err::Error(ParseError::new(err.to_string(), &ctx))
 }
-pub fn user_error(_err : &str, _ctx: Span) -> UserError {
+pub fn user_error(_err: &str, _ctx: Span) -> UserError {
     panic!()
 }
 
-pub fn failure<'a>(err : &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
-    nom::Err::Failure(ParseError::new( err.to_string(), &ctx))
+pub fn failure<'a>(err: &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
+    nom::Err::Failure(ParseError::new(err.to_string(), &ctx))
 }
 
 pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError<'a>>;
 
 impl<'a> ParseError<'a> {
     pub fn new(message: String, span: &Span<'a>) -> ParseError<'a> {
-        Self { span: *span, message: Some(message), }
+        Self {
+            span: *span,
+            message: Some(message),
+        }
     }
 
     // pub fn span(&self) -> &Span { &self.span }
 
-    pub fn line(&self) -> usize { 
+    pub fn line(&self) -> usize {
         panic!()
     }
 
@@ -50,7 +53,7 @@ impl<'a> ParseError<'a> {
 
     pub fn fragment(&self) -> &'a str {
         &self.span
-    } 
+    }
 
     // pub fn from_text(message : &str) -> Self {
     //     Self {message: Some(message.to_string()),
@@ -82,25 +85,40 @@ impl<'a> nom::error::ParseError<Span<'a>> for ParseError<'a> {
         Self::new(format!("unexpected character '{}'", c), &input)
     }
 }
-
+////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstError {
-    pub pos : Position,
+    pub pos: Position,
     pub message: Option<String>,
     pub node_id: AstNodeId,
 }
 
 impl AstError {
-    pub fn from_node(msg: &str, n : AstNodeRef) -> Self {
+    pub fn from_node<S>(msg: S, n: AstNodeRef) -> Self
+    where
+        S: Into<String>,
+    {
         Self {
-            pos : n.value().pos.clone(),
-            message :  Some(msg.to_string()),
+            pos: n.value().pos.clone(),
+            message: Some(msg.into()),
             node_id: n.id(),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+impl std::fmt::Display for AstError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let err_string = self.message.clone().unwrap_or("NO ERROR".to_string());
+        write!(f, "{} : ({}:{})", err_string, self.pos.line, self.pos.col)
+    }
+}
+
+impl std::error::Error for AstError {}
+
+////////////////////////////////////////////////////////////////////////////////
+impl std::error::Error for UserError { }
+
+#[derive(PartialEq, Clone)]
 pub struct UserError {
     pub message: String,
     pub pos: Position,
@@ -109,27 +127,80 @@ pub struct UserError {
     pub file: std::path::PathBuf,
 }
 
+impl std::fmt::Display for UserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self.pretty().unwrap();
+        write!( f, "{}",s)
+    }
+}
+
+impl std::fmt::Debug for UserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self,f)
+    }
+}
+
+use crate::messages::Messageize;
+use colored::*;
+
 impl UserError {
-    pub fn from_ast_error(_err : AstError, info : &crate::ast::NodeSourceInfo) -> Self {
+    pub fn from_ast_error(_err: AstError, info: &NodeSourceInfo) -> Self {
+        let message = _err.message.unwrap_or_else(|| "Error".to_string());
+        Self::from_text(message, info, &_err.pos)
+    }
+
+    pub fn from_text<S>(msg: S, info: &NodeSourceInfo, pos: &Position) -> Self
+    where
+        S: Into<String>,
+    {
         Self {
-            message: _err.message.unwrap_or_else(||"Error".to_string()),
-            pos: _err.pos,
+            message: msg.into(),
+            pos: pos.clone(),
             fragment: info.fragment.to_string(),
             line: info.line_str.to_string(),
-            file : info.source_file.file.clone(),
+            file: info.source_file.file.clone(),
         }
     }
 
-    pub fn from_parse_error(err : ParseError, file : &std::path::Path) -> Self {
+    pub fn pretty(&self) -> Result<String, Box<dyn std::error::Error>> {
+        use std::fmt::Write as FmtWrite;
+        use std::io::Write as IoWrite;
+
+        let mut s = String::new();
+
+        let pos = &self.pos;
+        let line = pos.line;
+        let col = pos.col;
+
+        let line_num = format!("{}", line);
+        let spaces = " ".repeat(1 + line_num.len());
+        let bar = format!("{}|", spaces).info();
+        let bar_line = format!("{} |", line_num).info();
+
+        writeln!(&mut s, "{}: {}", "error".error(), self.message.bold())?;
+        writeln!(
+            &mut s,
+            "   {} {}:{}:{}",
+            "-->".info(),
+            self.file.to_string_lossy(),
+            line,
+            col
+        )?;
+        writeln!(s, "{}", bar)?;
+        writeln!(s, "{} {}", bar_line, self.line)?;
+        writeln!(s, "{}{}^", bar, " ".repeat(self.pos.col))?;
+        Ok(s)
+    }
+
+    pub fn from_parse_error(err: ParseError, file: &std::path::Path) -> Self {
         let line = err.span.get_line_beginning();
         let line = String::from_utf8_lossy(line).to_string();
         Self {
             message: err.message(),
             pos: err.span.into(),
             fragment: err.span.to_string(),
-            line, file: file.to_path_buf()
+            line,
+            file: file.to_path_buf(),
         }
     }
 }
-
-

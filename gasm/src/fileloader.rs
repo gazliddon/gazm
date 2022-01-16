@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf,};
 use std::fs;
 
+use anyhow::{anyhow, Context, Result};
+
 pub struct FileLoader {
     search_paths : Vec<PathBuf>
 }
@@ -24,30 +26,39 @@ impl FileLoader {
         }
     }
 
-    pub fn read_to_string <P: AsRef<Path>>(&self, path : P) -> std::io::Result<(PathBuf, String )> {
-        if let Some(path) = self.get_file_name(path.as_ref()) {
-            let ret = fs::read_to_string(path.clone())?;
-            Ok((path,ret))
-        } else {
-            Err(std::io::Error::from(std::io::ErrorKind::NotFound))
-        }
+    pub fn read_to_string <P: AsRef<Path>>(&self, path : P) -> Result<(PathBuf, String )> {
+        let str_path = path.as_ref().to_string_lossy();
+
+        let path = self.get_file_name(path.as_ref()).map_err(|e|
+            anyhow!("File {} doesn't exist in any seach paths\nTried:\n{}", str_path, e)
+        )?;
+
+        let ret = fs::read_to_string(path.clone())?;
+
+        Ok((path, ret))
     }
 
-    fn get_file_name<P: AsRef<Path>>(&self, file_name : P) -> Option<PathBuf> {
+    fn get_file_name<P: AsRef<Path>>(&self, file_name : P) -> Result<PathBuf> {
+
         let file_name = file_name.as_ref();
 
+        let mut tried : Vec<String> = vec![file_name.to_string_lossy().into()];
+
         if file_name.exists() {
-            Some(file_name.to_path_buf())
+            Ok(file_name.to_path_buf())
         } else {
             if !file_name.has_root() {
                 for i in &self.search_paths {
                     let x = i.join(file_name);
                     if x.exists() {
-                        return Some(x)
+                        return Ok(x)
+                    } else {
+                        tried.push(x.to_string_lossy().into());
                     }
                 }
             }
-            None
+
+            Err(anyhow!(format!("{}", tried.join("\n"))))
         }
     }
 }

@@ -21,17 +21,22 @@ pub type Node = BaseNode<Item, Position>;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {
-    ConstantOffset(RegEnum),    //               arg,R
+    ConstantOffset(RegEnum,bool),    //               arg,R
     Plus(RegEnum),     //               ,R+              2 0 |
-    PlusPlus(RegEnum), //               ,R++             3 0 |
+    PlusPlus(RegEnum,bool), //               ,R++             3 0 |
     Sub(RegEnum),      //               ,-R              2 0 |
-    SubSub(RegEnum),   //               ,--R             3 0 |
-    Zero(RegEnum),     //               ,R               0 0 |
-    AddB(RegEnum),     //             (+/- B),R          1 0 |
-    AddA(RegEnum),     //             (+/- A),R          1 0 |
-    AddD(RegEnum),     //             (+/- D),R          4 0 |
-    PCOffset,          //      (+/- 7 bit offset),PC     1 1 |
-    Indirect,          //  [expr]
+    SubSub(RegEnum,bool),   //               ,--R             3 0 |
+    Zero(RegEnum,bool),     //               ,R               0 0 |
+    AddB(RegEnum, bool),     //             (+/- B),R          1 0 |
+    AddA(RegEnum, bool),     //             (+/- A),R          1 0 |
+    AddD(RegEnum, bool),     //             (+/- D),R          4 0 |
+    PCOffset(bool),          //      (+/- 7 bit offset),PC     1 1 |
+    ExtendedIndirect,          //  [expr]
+    ConstantNybbleOffset(RegEnum,i8, bool),
+    ConstantByteOffset(RegEnum,i8, bool),
+    ConstantWordOffset(RegEnum,i16, bool),
+    PcOffsetWord(i16, bool),
+    PcOffsetByte(i8, bool),
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -88,6 +93,8 @@ pub enum Item {
     AssignmentFromPc(String),
     LocalAssignmentFromPc(String),
 
+    SetPc(u16),
+
     Expr,
     PostFixExpr,
     BracketedExpr,
@@ -116,7 +123,8 @@ pub enum Item {
     TokenizedFile(PathBuf, PathBuf, String),
 
     Org,
-    Fdb,
+    Fdb(usize),
+    Fcb(usize),
     Fill,
     Zmb,
     Zmd,

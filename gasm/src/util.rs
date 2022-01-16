@@ -139,6 +139,66 @@ pub fn compile_text(code: &str) -> Result<String, String> {
 
     Ok(ast.to_string())
 }
+////////////////////////////////////////////////////////////////////////////////
+pub fn debug<F, Y>(text: &str, mut f: F) -> Y
+where
+    F: FnMut(&mut super::messages::Messages) -> Y,
+{
+    let x = super::messages::messages();
+    x.debug(text);
+    x.indent();
+    let r = f(x);
+    x.deindent();
+    r
+}
+
+pub fn info<F, Y, S>(text: S, mut f: F) -> Y
+where
+    F: FnMut(&mut super::messages::Messages) -> Y,
+    S: Into<String>
+{
+    let mut x = super::messages::messages();
+    x.info(text.into());
+    x.indent();
+    let r = f(&mut x);
+    x.deindent();
+    r
+}
+
+////////////////////////////////////////////////////////////////////////////////
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum ByteSizes {
+    Nybble(i8),
+    Byte(i8),
+    Word(i16),
+}
+
+impl ByteSizes {
+    pub fn promote(&mut self) {
+        *self = match self {
+            Self::Nybble(v) => Self::Byte(*v),
+            Self::Byte(v) => Self::Word(*v as i16),
+            Self::Word(v) => Self::Word(*v as i16),
+        };
+    }
+}
+
+pub trait ByteSize {
+    fn byte_size(&self) -> ByteSizes;
+}
+
+impl ByteSize for i64 {
+    fn byte_size(&self) -> ByteSizes {
+        let v = *self;
+        if v > -8 && v < 8 {
+            ByteSizes::Nybble(v as i8)
+        } else if v > -128 && v < 128 {
+            ByteSizes::Byte(v as i8)
+        } else {
+            ByteSizes::Word(v as i16)
+        }
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
@@ -147,6 +207,12 @@ mod test {
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
+    #[test]
+    fn test_byte_sizes() {
+        let x : i64 = 7;
+        let y = x.byte_size();
+        assert_eq!(y, ByteSizes::Nybble(7))
+    }
 
     #[test]
     fn test_parse_number() {

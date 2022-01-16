@@ -10,7 +10,6 @@ pub enum MemErrorTypes {
     IllegalRead(u16),
 }
 
-
 pub type MemResult<T> = std::result::Result<T,MemErrorTypes>;
 
 pub fn build_addr_to_region<X: Copy>(illegal: X, mem_tab: &[(X, &dyn MemoryIO)]) -> [X; 0x1_0000] {
@@ -23,7 +22,6 @@ pub fn build_addr_to_region<X: Copy>(illegal: X, mem_tab: &[(X, &dyn MemoryIO)])
             }
         }
     }
-
     ret
 }
 
@@ -49,11 +47,6 @@ pub trait MemoryIO {
     fn inspect_byte(&self, _addr: u16) -> MemResult<u8> {
         panic!("TBD")
     }
-
-    // fn is_valid_addr(&self, addr : u16) -> bool {
-    //     let (l,h) = self.get_range();
-    //     addr >=l && addr <= h
-    // }
 
     fn upload(&mut self, _addr: u16, _data: &[u8]) -> MemResult<()>;
 
@@ -86,7 +79,6 @@ pub trait MemoryIO {
     }
 
     fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()>;
-
 
     fn load_word(&mut self, addr: u16) -> MemResult<u16>;
 

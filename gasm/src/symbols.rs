@@ -19,7 +19,7 @@ pub struct SymbolInfo {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SymbolError {
-    AlreadyDefined(SymbolId),
+    AlreadyDefined(String),
     NotFound,
     NoValue,
 }
@@ -49,15 +49,14 @@ impl SymbolTable {
         S: Into<String>,
     {
         let info = self.get_from_name(&name.into())?;
-
         info.value.ok_or(SymbolError::NoValue)
     }
 
-    pub fn get(&self, id: SymbolId) -> Result<&SymbolInfo, SymbolError> {
+    fn get(&self, id: SymbolId) -> Result<&SymbolInfo, SymbolError> {
         self.info.get(id).ok_or(SymbolError::NotFound)
     }
 
-    pub fn get_mut(&mut self, id: SymbolId) -> Result<&mut SymbolInfo, SymbolError> {
+    fn get_mut(&mut self, id: SymbolId) -> Result<&mut SymbolInfo, SymbolError> {
         self.info.get_mut(id).ok_or(SymbolError::NotFound)
     }
 
@@ -86,42 +85,41 @@ impl SymbolTable {
         Ok(())
     }
 
-    pub fn add_symbol_with_value(
-        &mut self,
-        name: &str,
-        value: i64,
-        node_id: AstNodeId
-    ) -> Result<SymbolId, SymbolError> {
-        let id = self.add_symbol(name, node_id)?;
-        self.set_value(id, value)?;
-        Ok(id)
-    }
-
-    pub fn add_symbol<S>(
+    pub fn add_symbol_with_value<S>(
         &mut self,
         name: S,
+        value: i64,
         node_id: AstNodeId,
     ) -> Result<SymbolId, SymbolError>
     where
         S: Into<String>,
     {
+        let id = self.add_symbol(name, node_id)?;
+        self.set_value(id, value)?;
+        Ok(id)
+    }
+
+    pub fn add_symbol<S>(&mut self, name: S, node_id: AstNodeId) -> Result<SymbolId, SymbolError>
+    where
+        S: Into<String>,
+    {
         let name: String = name.into();
-        if self.symbol_exists_from_name(&name) {
-            let x = self.get_from_name(&name).unwrap();
-            Err(SymbolError::AlreadyDefined(x.id))
+
+        if let Ok(sym_info) = self.get_from_name(&name) {
+            Err(SymbolError::AlreadyDefined(sym_info.name.clone()))
         } else {
             let id = self.info.len();
 
+            self.name_to_id.insert(name.clone(), id);
+
             let info = SymbolInfo {
-                name: name.clone(),
+                name,
                 id,
                 node_id,
                 value: None,
             };
+
             self.info.push(info);
-
-            self.name_to_id.insert(name, id);
-
             Ok(id)
         }
     }

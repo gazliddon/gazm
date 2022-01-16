@@ -65,9 +65,9 @@ task_exec
     
     jsr [task.func,u]
 
-    leau tsk_size,u 
+    leau task.size,u 
     pshu d,x,y
-    leau -tsk_size+6,y
+    leau task.size+6,y
 
     rts
 

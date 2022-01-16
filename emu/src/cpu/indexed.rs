@@ -2,7 +2,7 @@ use super::RegEnum;
 
 #[derive(Debug)]
 pub enum IndexModes {
-    ROff(RegEnum, u16), //               
+    ROff(RegEnum, u16), //
     RPlus(RegEnum),     //               ,R+              2 0 |
     RPlusPlus(RegEnum), //               ,R++             3 0 |
     RSub(RegEnum),      //               ,-R              2 0 |
@@ -17,6 +17,32 @@ pub enum IndexModes {
     PCAddi16,           //      (+/- 15 bit offset),PC    5 2 |
     Illegal,            //              Illegal           u u |
     Ea,
+}
+
+impl IndexModes {
+    pub fn to_index_byte() -> u8 {
+        panic!()
+    }
+
+    pub fn get_size(&self) -> usize {
+        match self {
+            Self::ROff(_, _) => 2,
+            Self::RPlus(_) => 0,
+            Self::RPlusPlus(_) => 0,
+            Self::RSub(_) => 0,
+            Self::RSubSub(_) => 0,
+            Self::RZero(_) => 0,
+            Self::RAddB(_) => 0,
+            Self::RAddA(_) => 0,
+            Self::RAddi8(_) => 0,
+            Self::RAddi16(_) => 0,
+            Self::RAddD(_) => 0,
+            Self::PCAddi8 => 1,
+            Self::PCAddi16 => 2,
+            Self::Illegal => 0,
+            Self::Ea => 0,
+        }
+    }
 }
 
 bitflags::bitflags! {
@@ -77,7 +103,7 @@ impl IndexedFlags {
         if self.not_imm() {
             let index_type = self.bits & IndexedFlags::TYPE.bits();
 
-            return match index_type {
+            match index_type {
                 0b0000 => IndexModes::RPlus(r), //               ,R+              2 0 |
                 0b0001 => IndexModes::RPlusPlus(r), //               ,R++             3 0 |
                 0b0010 => IndexModes::RSub(r),  //               ,-R              2 0 |
@@ -91,9 +117,9 @@ impl IndexedFlags {
                 0b1100 => IndexModes::PCAddi8,  //      (+/- 7 bit offset),PC     1 1 |
                 0b1101 => IndexModes::PCAddi16, //      (+/- 15 bit offset),PC    5 2 |
                 _ => IndexModes::Illegal,
-            };
+            }
+        } else {
+            IndexModes::ROff(r, self.get_offset())
         }
-
-        IndexModes::ROff(r, self.get_offset())
     }
 }

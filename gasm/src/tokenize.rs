@@ -1,6 +1,7 @@
 use crate::{cli, commands, comments, expr, fileloader, item, labels, locate::Position, messages, opcodes, util};
 
 use nom::{AsBytes, branch::alt, bytes::complete::{ take_until, is_not }, character::complete::{ multispace1, multispace0, line_ending, }, combinator::{opt, all_consuming, eof, not, recognize}, multi::{ many0, many1 }, sequence::{ pair, terminated, preceded }};
+use romloader::ResultExt;
 
 use crate::error::{IResult, ParseError, UserError};
 use crate::locate::Span;
@@ -107,12 +108,15 @@ use std::path::{Path, PathBuf};
 extern crate colored;
 use colored::*;
 
-pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileLoader, file : &std::path::Path, parent : &std::path::Path ) -> Result<Node, UserError> {
+pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileLoader, file : &std::path::Path, parent : &std::path::Path ) -> anyhow::Result<Node> {
+    use anyhow::Context;
+
     use super::messages::*;
     use item::Item::*;
         let x = messages::messages();
 
-    let (file_name, source) = fl.read_to_string(file).unwrap();
+    let (file_name, source) = fl.read_to_string(file).with_context(|| 
+        format!("Failed to load file: {}", file.to_string_lossy()))?;
 
     let action = if depth == 0 {
         "Tokenizing"
@@ -142,7 +146,7 @@ pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileL
     Ok(matched)
 }
 
-pub fn tokenize( ctx : &cli::Context ) -> Result<Node, UserError> {
+pub fn tokenize( ctx : &cli::Context ) -> anyhow::Result<Node> {
     use fileloader::FileLoader;
 
     let file = ctx.file.clone();
@@ -156,7 +160,8 @@ pub fn tokenize( ctx : &cli::Context ) -> Result<Node, UserError> {
     let fl = FileLoader::from_search_paths(&paths);
     let parent = PathBuf::new();
 
-    tokenize_file(0, ctx, &fl,&ctx.file, &parent)
+    let res = tokenize_file(0, ctx, &fl,&ctx.file, &parent)?;
+    Ok(res)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
