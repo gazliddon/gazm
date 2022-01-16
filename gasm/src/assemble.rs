@@ -10,6 +10,7 @@ use crate::eval;
 use crate::eval::eval;
 use crate::item;
 use crate::item::AddrModeParseType;
+use crate::item::IndexParseType;
 use crate::symbols::SymbolTable;
 use crate::util;
 use crate::util::info;
@@ -168,18 +169,20 @@ impl Assembler {
     }
 
     fn write_byte_check_size(&mut self, n: AstNodeId, val: i64) -> Result<(), UserError> {
-        let n = self.tree.get(n).unwrap();
         self.bin.write_byte_check_size(val).map_err(|_| {
+            let n = self.tree.get(n).unwrap();
             let info = &self.sources.get_source_info_from_value(n.value()).unwrap();
-            UserError::from_text("Out of range", info, &n.value().pos)
+            let msg = format!("{:4X} does not fit in a byte", val);
+            UserError::from_text(msg, info, &n.value().pos)
         })
     }
 
     fn write_word_check_size(&mut self, n: AstNodeId, val: i64) -> Result<(), UserError> {
-        let n = self.tree.get(n).unwrap();
         self.bin.write_word_check_size(val).map_err(|_| {
+            let n = self.tree.get(n).unwrap();
             let info = &self.sources.get_source_info_from_value(n.value()).unwrap();
-            UserError::from_text("Out of range", info, &n.value().pos)
+            let msg = format!("{:4X} does not fit in a word", val);
+            UserError::from_text(msg, info, &n.value().pos)
         })
     }
 
@@ -214,11 +217,12 @@ impl Assembler {
         })
     }
 
-    fn eval_first_arg(&self, node: AstNodeRef) -> Result<i64, UserError> {
+    fn eval_first_arg(&self, node: AstNodeRef) -> Result<(i64, AstNodeId), UserError> {
         let c = node
             .first_child()
             .ok_or(self.user_error("Missing argument", node))?;
-        self.eval_node(c)
+        let v = self.eval_node(c)?;
+        Ok((v, c.id()))
     }
 
     fn eval_two_args(&self, node: AstNodeRef) -> Result<(i64, i64), UserError> {
@@ -240,33 +244,64 @@ impl Assembler {
         Ok(ret)
     }
 
-    fn eval_children(&self, node: AstNodeRef) -> Result<Vec<i64>, UserError> {
-        let mut ret = vec![];
 
-        for node in node.children() {
-            let v = self.eval_node(node)?;
-            ret.push(v)
-        }
-
-        Ok(ret)
+    pub fn assemble(&mut self) -> Result<(), UserError> {
+        info("Assembling...", |_| {
+            self.assemble_node(self.tree.root().id())
+        })
     }
 
+    fn assemble_indexed(&mut self, id: AstNodeId, imode: IndexParseType) -> Result<(), UserError> {
+        let idx_byte = 0;
+        self.bin.write_byte(idx_byte);
+        use item::IndexParseType::*;
+        let node = self.tree.get(id).unwrap();
+
+        match imode {
+            PCOffset(..) | ConstantOffset(..) => {
+                panic!("Should not happen")
+            }
+
+            ExtendedIndirect => {
+                let (val, _) = self.eval_first_arg(node)?;
+                self.write_word_check_size(id, val)?
+            }
+
+            ConstantWordOffset(_, val, _) | PcOffsetWord(val, _) => {
+                self.write_word_check_size(id, val as i64)?;
+            }
+
+            ConstantByteOffset(_, val, _) | PcOffsetByte(val, _) => {
+                self.write_byte_check_size(id, val as i64)?;
+            }
+
+            _ => (),
+        }
+
+        Ok(())
+    }
 
     fn assemble_node(&mut self, id: AstNodeId) -> Result<(), UserError> {
+        let x = super::messages::messages();
+
         use item::Item::*;
 
         let node = self.tree.get(id).unwrap();
-        let id = node.id();
+        // let id = node.id();
+        let i = &node.value().item.clone();
 
-        let i = &node.value().item;
+        let pc = self.bin.get_write_address() as i64;
 
         match i {
-            SetPc(pc) => self.bin.set_write_addr(*pc as usize),
+            SetPc(pc) => {
+                self.bin.set_write_addr(*pc as usize);
+                x.debug(format!("Set PC to {:02X}", *pc));
+            }
 
             OpCode(ins, amode) => {
                 use emu::isa::AddrModeEnum::*;
                 let ins_amode = ins.addr_mode;
-                let write_addr = self.bin.get_write_address() as i64;
+
                 if ins.opcode > 0xff {
                     self.bin.write_word(ins.opcode);
                 } else {
@@ -276,51 +311,32 @@ impl Assembler {
                 match ins_amode {
                     Indexed => {
                         if let AddrModeParseType::Indexed(imode) = amode {
-                            let idx_byte = 0;
-                            self.bin.write_byte(idx_byte);
-                            use item::IndexParseType::*;
-
-                            match imode {
-                                PCOffset(..) | ConstantOffset(..) => { panic!("Should not happen") }
-                                Plus(..) => {}
-                                PlusPlus(..) => {}
-                                Sub(..) => {}
-                                SubSub(..) => {}
-                                Zero(..) => {}
-                                AddB(..) => {}
-                                AddA(..) => {}
-                                AddD(..) => {}
-                                ExtendedIndirect => {}
-                                ConstantNybbleOffset(..) => {}
-                                ConstantByteOffset(..) => {}
-                                ConstantWordOffset(..) => {}
-                                PcOffsetWord(..) => {}
-                                PcOffsetByte(..) => {}
-                            }
+                            self.assemble_indexed(id, imode.clone())?;
                         }
                     }
 
                     Immediate8 | Direct => {
-                        let arg = self.eval_first_arg(node)?;
+                        let (arg, id) = self.eval_first_arg(node)?;
                         self.write_byte_check_size(id, arg)?;
                     }
 
                     Immediate16 | Extended => {
-                        let arg = self.eval_first_arg(node)?;
-                        self.write_byte_check_size(id, arg)?;
+                        let (arg, id) = self.eval_first_arg(node)?;
+                        self.write_word_check_size(id, arg)?;
                     }
 
                     Relative => {
-                        let arg = self.eval_first_arg(node)?;
-                        self.write_byte_check_size(id, arg - write_addr)?;
+                        let (arg, id) = self.eval_first_arg(node)?;
+                        self.write_byte_check_size(id, arg - pc)?;
                     }
 
                     Relative16 => {
-                        let arg = self.eval_first_arg(node)?;
-                        self.write_byte_check_size(id, arg - write_addr)?;
+                        let (arg, id) = self.eval_first_arg(node)?;
+                        self.write_word_check_size(id, arg - pc)?;
                     }
 
                     Inherent => {}
+
                     RegisterSet => {
                         let registers = 0;
                         self.write_byte_check_size(id, registers)?;
@@ -341,7 +357,7 @@ impl Assembler {
                     self.bin
                         .write_word_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
-                }
+                    }
             }
 
             Fcb(_) => {
@@ -350,20 +366,18 @@ impl Assembler {
                     self.bin
                         .write_byte_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
-                }
+                    }
             }
 
             Zmb => {
-                let bytes = self.eval_first_arg(node)?;
+                let (bytes, _) = self.eval_first_arg(node)?;
                 for _ in 0..bytes {
                     self.bin.write_byte(0)
                 }
-
-                todo!()
             }
 
             Zmd => {
-                let words = self.eval_first_arg(node)?;
+                let (words, _) = self.eval_first_arg(node)?;
                 for _ in 0..words {
                     self.bin.write_word(0)
                 }
@@ -375,7 +389,7 @@ impl Assembler {
                     self.bin
                         .write_byte_check_size(byte)
                         .map_err(|_| self.user_error("Does not fit in a word", node))?;
-                }
+                    }
             }
 
             Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) => (),
@@ -397,14 +411,14 @@ impl Assembler {
         use item::Item::*;
 
         let node = self.tree.get(id).unwrap();
+        let id = node.id();
 
         let i = &node.value().item;
 
         match i {
             Org => {
-                let node_id = node.first_child().unwrap().id();
-                let value = self.eval_first_arg(node)? as u64;
-                self.set_item(node_id, Item::SetPc(value as u16));
+                let (value, _) = self.eval_first_arg(node)?;
+                self.set_item(id, Item::SetPc(value as u16));
                 pc = value as u64;
             }
 
@@ -418,15 +432,15 @@ impl Assembler {
 
                     match pmode {
                         ConstantByteOffset(..)
-                        | PcOffsetByte(..)
-                        | PcOffsetWord(..)
-                        | ConstantWordOffset(..)
-                        | ConstantNybbleOffset(..) => {
-                            panic!()
-                        }
+                            | PcOffsetByte(..)
+                            | PcOffsetWord(..)
+                            | ConstantWordOffset(..)
+                            | ConstantNybbleOffset(..) => {
+                                panic!()
+                            }
 
                         ConstantOffset(r, indirect) => {
-                            let v = self.eval_first_arg(node)?;
+                            let (v, _) = self.eval_first_arg(node)?;
 
                             let mut bs = v.byte_size();
 
@@ -453,7 +467,7 @@ impl Assembler {
                         }
 
                         PCOffset(indirect) => {
-                            let v = self.eval_first_arg(node)?;
+                            let (v, id) = self.eval_first_arg(node)?;
 
                             let new_amode = match v.byte_size() {
                                 ByteSizes::Nybble(v) | ByteSizes::Byte(v) => {
@@ -482,7 +496,7 @@ impl Assembler {
                 self.symbols
                     .add_symbol_with_value(name, pc as i64, node.id())
                     .unwrap();
-            }
+                }
 
             TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
@@ -499,13 +513,13 @@ impl Assembler {
             }
 
             Zmb => {
-                let v = self.eval_first_arg(node)?;
+                let (v, _) = self.eval_first_arg(node)?;
                 assert!(v >= 0);
                 pc = pc + v as u64;
             }
 
             Zmd => {
-                let v = self.eval_first_arg(node)?;
+                let (v, _) = self.eval_first_arg(node)?;
                 assert!(v >= 0);
                 pc = pc + (v * 2) as u64;
             }

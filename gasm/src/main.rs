@@ -76,6 +76,7 @@ fn assemble(ctx: &cli::Context) -> Result<(), Box<dyn std::error::Error>> {
         let mut asm : Assembler = ast.into();
 
         asm.size()?;
+        asm.assemble()?;
 
         x.success("Complete");
 
