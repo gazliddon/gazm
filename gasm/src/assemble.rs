@@ -252,7 +252,7 @@ impl Assembler {
     }
 
     fn assemble_indexed(&mut self, id: AstNodeId, imode: IndexParseType) -> Result<(), UserError> {
-        let idx_byte = 0;
+        let idx_byte = imode.get_index_byte();
         self.bin.write_byte(idx_byte);
         use item::IndexParseType::*;
         let node = self.tree.get(id).unwrap();
@@ -287,9 +287,7 @@ impl Assembler {
         use item::Item::*;
 
         let node = self.tree.get(id).unwrap();
-        // let id = node.id();
         let i = &node.value().item.clone();
-
         let pc = self.bin.get_write_address() as i64;
 
         match i {
@@ -404,15 +402,11 @@ impl Assembler {
 
     fn size_node(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {
         use crate::util::{ByteSize, ByteSizes};
+        use item::Item::*;
 
         use crate::astformat;
         let x = super::messages::messages();
-
-        use item::Item::*;
-
         let node = self.tree.get(id).unwrap();
-        let id = node.id();
-
         let i = &node.value().item;
 
         match i {
@@ -508,6 +502,7 @@ impl Assembler {
             Fdb(num_of_words) => {
                 pc += (*num_of_words * 2) as u64;
             }
+
             Fcb(num_of_bytes) => {
                 pc += *num_of_bytes as u64;
             }
