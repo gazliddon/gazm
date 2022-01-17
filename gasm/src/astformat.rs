@@ -125,7 +125,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                         use item::IndexParseType::*;
                         match imode {
                             ConstantByteOffset(r, v, indirect)
-                            | ConstantNybbleOffset(r, v, indirect) => {
+                            | Constant5BitOffset(r, v, indirect) => {
                                 ind(format!("{},{}", v, r), indirect)
                             }
 

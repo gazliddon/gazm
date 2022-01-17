@@ -244,7 +244,6 @@ impl Assembler {
         Ok(ret)
     }
 
-
     pub fn assemble(&mut self) -> Result<(), UserError> {
         info("Assembling...", |_| {
             self.assemble_node(self.tree.root().id())
@@ -285,6 +284,14 @@ impl Assembler {
         let x = super::messages::messages();
 
         use item::Item::*;
+
+        let node = self.tree.get(id).unwrap();
+        let frag = self
+            .sources
+            .get_source_info_from_value(&node.value())
+            .unwrap()
+            .fragment
+            .to_string();
 
         let node = self.tree.get(id).unwrap();
         let i = &node.value().item.clone();
@@ -340,6 +347,23 @@ impl Assembler {
                         self.write_byte_check_size(id, registers)?;
                     }
                 };
+
+                let pc = pc as usize;
+                let written = self.bin.get_write_address() - pc;
+                let bytes = self.bin.get_bytes(pc as usize, written);
+                let bytes_str: Vec<_> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
+                let bytes_str = bytes_str.join("");
+                let msg = format!("{:04X}  {:20} {}", pc, bytes_str, frag);
+                if ins_amode == RegisterSet {
+                    x.error(msg);
+                } else if ins_amode == Indexed {
+                    if let AddrModeParseType::Indexed(imode) = amode {
+                        let msg = format!("{:50} {:?}", msg, imode);
+                        x.info(msg);
+                    }
+                } else {
+                    x.success(msg);
+                }
             }
 
             TokenizedFile(..) => {
@@ -355,7 +379,7 @@ impl Assembler {
                     self.bin
                         .write_word_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
-                    }
+                }
             }
 
             Fcb(_) => {
@@ -364,7 +388,7 @@ impl Assembler {
                     self.bin
                         .write_byte_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
-                    }
+                }
             }
 
             Zmb => {
@@ -387,7 +411,7 @@ impl Assembler {
                     self.bin
                         .write_byte_check_size(byte)
                         .map_err(|_| self.user_error("Does not fit in a word", node))?;
-                    }
+                }
             }
 
             Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) => (),
@@ -426,26 +450,26 @@ impl Assembler {
 
                     match pmode {
                         ConstantByteOffset(..)
-                            | PcOffsetByte(..)
-                            | PcOffsetWord(..)
-                            | ConstantWordOffset(..)
-                            | ConstantNybbleOffset(..) => {
-                                panic!()
-                            }
+                        | PcOffsetByte(..)
+                        | PcOffsetWord(..)
+                        | ConstantWordOffset(..)
+                        | Constant5BitOffset(..) => {
+                            panic!()
+                        }
 
                         ConstantOffset(r, indirect) => {
                             let (v, _) = self.eval_first_arg(node)?;
 
                             let mut bs = v.byte_size();
 
-                            if let ByteSizes::Nybble(..) = bs {
+                            if let ByteSizes::Bits5(..) = bs {
                                 if *indirect {
                                     bs.promote();
                                 }
                             }
 
                             let new_amode = match bs {
-                                ByteSizes::Nybble(v) => ConstantNybbleOffset(*r, v, *indirect),
+                                ByteSizes::Bits5(v) => Constant5BitOffset(*r, v, *indirect),
                                 ByteSizes::Word(v) => {
                                     pc += 2;
                                     ConstantWordOffset(*r, v, *indirect)
@@ -464,7 +488,7 @@ impl Assembler {
                             let (v, id) = self.eval_first_arg(node)?;
 
                             let new_amode = match v.byte_size() {
-                                ByteSizes::Nybble(v) | ByteSizes::Byte(v) => {
+                                ByteSizes::Bits5(v) | ByteSizes::Byte(v) => {
                                     pc = pc + 1;
                                     PcOffsetByte(v, *indirect)
                                 }
@@ -490,7 +514,7 @@ impl Assembler {
                 self.symbols
                     .add_symbol_with_value(name, pc as i64, node.id())
                     .unwrap();
-                }
+            }
 
             TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();

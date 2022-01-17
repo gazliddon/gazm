@@ -33,7 +33,7 @@ pub enum IndexParseType {
     AddD(RegEnum, bool),     //             (+/- D),R          4 0 |
     PCOffset(bool),          //      (+/- 7 bit offset),PC     1 1 |
     ExtendedIndirect,        //  [expr]
-    ConstantNybbleOffset(RegEnum, i8, bool),
+    Constant5BitOffset(RegEnum, i8, bool),
     ConstantByteOffset(RegEnum, i8, bool),
     ConstantWordOffset(RegEnum, i16, bool),
     PcOffsetWord(i16, bool),
@@ -55,14 +55,14 @@ fn rbits(r: RegEnum) -> u8 {
 }
 
 fn add_reg(bits: u8, r: RegEnum) -> u8 {
-    (bits & (3 << 5)) | rbits(r)
+    (bits & !(3 << 5)) | rbits(r)
 }
 
 fn add_ind(bits: u8, ind: bool) -> u8 {
     let ind_bit = IndexedFlags::IND.bits();
     let ind_val = if ind { ind_bit } else { 0u8 };
 
-    (bits & ind_bit) | ind_val
+    (bits & !ind_bit) | ind_val
 }
 
 impl IndexParseType {
@@ -140,7 +140,7 @@ impl IndexParseType {
                 0b1001_1111
             },
 
-            ConstantNybbleOffset(r, off, indirect) => {
+            Constant5BitOffset(r, off, indirect) => {
                 let mut bits = 0b0000_0000;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);

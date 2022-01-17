@@ -168,7 +168,7 @@ where
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ByteSizes {
-    Nybble(i8),
+    Bits5(i8),
     Byte(i8),
     Word(i16),
 }
@@ -176,7 +176,7 @@ pub enum ByteSizes {
 impl ByteSizes {
     pub fn promote(&mut self) {
         *self = match self {
-            Self::Nybble(v) => Self::Byte(*v),
+            Self::Bits5(v) => Self::Byte(*v),
             Self::Byte(v) => Self::Word(*v as i16),
             Self::Word(v) => Self::Word(*v as i16),
         };
@@ -190,8 +190,8 @@ pub trait ByteSize {
 impl ByteSize for i64 {
     fn byte_size(&self) -> ByteSizes {
         let v = *self;
-        if v > -8 && v < 8 {
-            ByteSizes::Nybble(v as i8)
+        if v > -16 && v < 16 {
+            ByteSizes::Bits5(v as i8)
         } else if v > -128 && v < 128 {
             ByteSizes::Byte(v as i8)
         } else {
