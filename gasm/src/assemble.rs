@@ -1,4 +1,6 @@
 use colored::*;
+use emu::cpu::RegEnum;
+use nom::combinator::recognize;
 
 use crate::ast::AstNodeRef;
 use crate::ast::AstTree;
@@ -17,8 +19,69 @@ use crate::util::info;
 use crate::util::ByteSize;
 use item::{Item, Node};
 use romloader::ResultExt;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::vec;
+
+fn reg_to_reg_num(a: RegEnum) -> u8 {
+    use emu::cpu::RegEnum::*;
+
+    match a {
+        D => 0b0000,
+        X => 0b0001,
+        Y => 0b0010,
+        U => 0b0011,
+        S => 0b0100,
+        PC => 0b0101,
+        A => 0b1000,
+        B => 0b1001,
+        CC => 0b1010,
+        DP => 0b1011,
+    }
+}
+
+fn reg_pair_to_flags(source: RegEnum, dest: RegEnum) -> u8 {
+    let a = reg_to_reg_num(source);
+    let b = reg_to_reg_num(dest);
+    (a << 4) | b
+}
+
+fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
+    use emu::cpu::RegEnum::*;
+    let mut registers = 0;
+
+    if regs.contains(&CC) {
+        registers = registers | 0x01;
+    }
+
+    if regs.contains(&A) {
+        registers = registers | 0x02;
+    }
+    if regs.contains(&B) {
+        registers = registers | 0x04;
+    }
+
+    if regs.contains(&DP) {
+        registers = registers | 0x08;
+    }
+
+    if regs.contains(&X) {
+        registers = registers | 0x10;
+    }
+
+    if regs.contains(&Y) {
+        registers = registers | 0x20;
+    }
+
+    if regs.contains(&U) || regs.contains(&S) {
+        registers = registers | 0x40;
+    }
+
+    if regs.contains(&PC) {
+        registers = registers | 0x80;
+    }
+    registers
+}
 
 pub struct Binary {
     write_address: usize,
@@ -293,7 +356,7 @@ impl Assembler {
             .fragment
             .to_string();
 
-        let node = self.tree.get(id).unwrap();
+        // let node = self.tree.get(id).unwrap();
         let i = &node.value().item.clone();
         let pc = self.bin.get_write_address() as i64;
 
@@ -332,19 +395,35 @@ impl Assembler {
 
                     Relative => {
                         let (arg, id) = self.eval_first_arg(node)?;
-                        self.write_byte_check_size(id, arg - pc)?;
+                        // offset is from PC after Instruction and operand has been fetched
+                        self.write_byte_check_size(id, arg - ( pc + ins.size as i64 ))?;
                     }
 
                     Relative16 => {
                         let (arg, id) = self.eval_first_arg(node)?;
-                        self.write_word_check_size(id, arg - pc)?;
+                        // offset is from PC after Instruction and operand has been fetched
+                        self.write_word_check_size(id,  arg - ( pc  + ins.size as i64 ))?;
                     }
 
                     Inherent => {}
 
+                    RegisterPair => {
+                        if let AddrModeParseType::RegisterPair(a, b) = amode {
+                            self.bin.write_byte(reg_pair_to_flags(*a, *b));
+                        } else {
+                            panic!("Whut!")
+                        }
+                    }
+
                     RegisterSet => {
-                        let registers = 0;
-                        self.write_byte_check_size(id, registers)?;
+                        // println!("{:#?}", node);
+                        
+                        let rset = &node.first_child().unwrap().value().item;
+                        if let Item::RegisterSet(regs) = rset {
+                            self.bin.write_byte(registers_to_flags(regs));
+                        } else {
+                            panic!("Whut!")
+                        }
                     }
                 };
 
@@ -354,9 +433,8 @@ impl Assembler {
                 let bytes_str: Vec<_> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
                 let bytes_str = bytes_str.join("");
                 let msg = format!("{:04X}  {:20} {}", pc, bytes_str, frag);
-                if ins_amode == RegisterSet {
-                    x.error(msg);
-                } else if ins_amode == Indexed {
+
+                if ins_amode == Indexed {
                     if let AddrModeParseType::Indexed(imode) = amode {
                         let msg = format!("{:50} {:?}", msg, imode);
                         x.info(msg);

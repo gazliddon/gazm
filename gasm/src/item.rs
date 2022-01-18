@@ -176,6 +176,7 @@ pub enum AddrModeParseType {
     Inherent,
     Immediate,
     RegisterSet,
+    RegisterPair(RegEnum, RegEnum),
 }
 
 impl AddrModeParseType {
@@ -199,6 +200,7 @@ impl AddrModeParseType {
             Self::Immediate => get(Immediate8).or_else(|| get(Immediate16)),
 
             Self::RegisterSet => get(RegisterSet),
+            Self::RegisterPair(..) => get(RegisterPair),
         }
     }
 }
@@ -221,6 +223,7 @@ pub enum Item {
     UnaryOp,
     UnaryTerm,
 
+    RegisterPair(RegEnum, RegEnum),
     RegisterList(Vec<RegEnum>),
     RegisterSet(HashSet<RegEnum>),
 

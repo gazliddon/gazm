@@ -158,14 +158,14 @@
             "size": 1
         },
         {
-            "addr_mode": "RegisterSet",
+            "addr_mode": "RegisterPair",
             "cycles": 8,
             "opcode": "1E",
             "action": "EXG",
             "size": 2
         },
         {
-            "addr_mode": "RegisterSet",
+            "addr_mode": "RegisterPair",
             "cycles": 6,
             "opcode": "1F",
             "action": "TFR",

@@ -80,6 +80,12 @@ fn get_reg_list(input: Span) -> IResult< Vec<emu::cpu::RegEnum>> {
     Ok((rest, matched))
 }
 
+pub fn get_reg_pair(input: Span) -> IResult< ( emu::cpu::RegEnum , emu::cpu::RegEnum )> {
+    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
+    let (rest, matched) = separated_pair(get_reg, sep, get_reg)(input)?;
+    Ok((rest, matched))
+}
+
 fn get_reg_set(input: Span) -> IResult< HashSet<emu::cpu::RegEnum>> {
     let mut ret = HashSet::new();
 
@@ -103,6 +109,7 @@ pub fn parse_reg(input: Span) -> IResult< Node> {
     let ret = Node::from_item(Item::Register(matched), input);
     Ok((rest,ret))
 }
+
 pub fn parse_index_reg(input: Span) -> IResult< Node> {
     let (rest,matched) = get_index_reg(input)?;
     let ret = Node::from_item(Item::Register(matched), input);
@@ -115,7 +122,6 @@ pub fn parse_reg_list(input: Span) -> IResult< Item> {
 }
 
 pub fn parse_reg_set_n(input: Span, n : usize) -> IResult<Node> {
-
     use nom::error::ErrorKind::NoneOf;
     use nom::error::Error;
 
@@ -124,21 +130,19 @@ pub fn parse_reg_set_n(input: Span, n : usize) -> IResult<Node> {
     if let Item::RegisterSet(regs) = matched.item() {
         if regs.len() < n {
             return 
-
                 Err(nom::Err::Error(ParseError::new(
                             "Need at least 2 registers in list".to_owned(),
-                            &input,
-                            )));
+                            &input)));
         }
     } 
 
-    let matched = matched;
 
     Ok((rest,matched))
 }
 
 fn parse_reg_set(input: Span) -> IResult< Node> {
     let (rest, matched) = get_reg_set(input)?;
+
     let ret = Node::from_item(Item::RegisterSet(matched), input);
     Ok((rest, ret))
 }

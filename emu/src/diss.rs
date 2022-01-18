@@ -5,7 +5,7 @@ use op_table;
 
 use super::cpu::{
     AddressLines, Direct, Extended, Immediate16, Immediate8, Indexed, Inherent,
-    InstructionDecoder, Relative, Relative16, RegisterSet,
+    InstructionDecoder, Relative, Relative16, RegisterSet, RegisterPair,
 };
 
 use lru_cache::LruCache;

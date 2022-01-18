@@ -70,8 +70,18 @@ fn parse_reg_set(input : Span) -> IResult<Node> {
     use Item::*;
     use crate::item::AddrModeParseType;
     use nom::combinator::map;
-    let reg_map = |other| Node::from_item(Operand(AddrModeParseType::RegisterSet), input).take_children(other);
-    map(register::parse_reg_set_1, reg_map)(input)
+
+    let (rest, matched) = register::parse_reg_set_1(input)?;
+    let matched = Node::from_item(Operand(AddrModeParseType::RegisterSet), input).with_child(matched);
+    Ok((rest,matched))
+}
+fn parse_opcode_reg_pair(input : Span) -> IResult<Node> {
+    use Item::*;
+    use crate::item::AddrModeParseType;
+    use nom::combinator::map;
+    let reg_map = |(a,b)| Node::from_item(Operand(AddrModeParseType::RegisterPair(a,b)), input);
+    let (rest, matched) =map(register::get_reg_pair, reg_map)(input)?;
+    Ok((rest,matched))
 }
 
 fn parse_extended(input : Span) -> IResult<Node> {
@@ -126,10 +136,12 @@ fn get_instruction<'a>(amode : &crate::item::AddrModeParseType, info: &'a Instru
             get(Immediate8)
                 .or_else(|| get(Immediate16))
         },
+        AddrModeParseType::RegisterPair(..)=>{get(RegisterPair)},
 
         AddrModeParseType::RegisterSet=>{get(RegisterSet)},
     }
 }
+
 
 fn parse_opcode_with_arg(input: Span) -> IResult< Node> {
     use AddrModeEnum::*;
@@ -138,7 +150,10 @@ fn parse_opcode_with_arg(input: Span) -> IResult< Node> {
     let (rest,(info, text)) = opcode_token(input)?;
 
     let (rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
-        preceded(multispace1, parse_reg_set)(rest)
+        let (rest, arg) = preceded(multispace1, parse_reg_set)(rest)?;
+        Ok((rest, arg))
+    } else if info.supports_addr_mode(AddrModeEnum::RegisterPair){
+        preceded(multispace1, parse_opcode_reg_pair)(rest)
     } else {
         preceded(multispace1, parse_opcode_arg)(rest)
     }?;
