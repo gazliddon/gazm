@@ -13,6 +13,8 @@ use crate::eval::eval;
 use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
+use crate::sourcefile::SourceDatabase;
+use crate::sourcefile::SourceMapping;
 use crate::symbols::SymbolTable;
 use crate::util;
 use crate::util::info;
@@ -22,6 +24,17 @@ use romloader::ResultExt;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::vec;
+
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+
+#[derive(Serialize, Deserialize)]
+pub struct Assembled {
+    #[serde(skip)]
+    pub mem: Vec<u8>,
+    pub database: SourceDatabase,
+    pub symbols : SymbolTable,
+}
 
 fn reg_to_reg_num(a: RegEnum) -> u8 {
     use emu::cpu::RegEnum::*;
@@ -87,7 +100,7 @@ pub struct Binary {
     write_address: usize,
     written: bool,
     range: Option<(usize, usize)>,
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 impl Default for Binary {
@@ -197,6 +210,7 @@ pub struct Assembler {
     sources: crate::sourcefile::Sources,
     bin: Binary,
     tree: crate::ast::AstTree,
+    source_map: SourceMapping,
 }
 
 fn eval_node(
@@ -217,6 +231,7 @@ impl From<crate::ast::Ast> for Assembler {
             sources: ast.sources,
             bin: Binary::new(),
             tree: ast.tree,
+            source_map: SourceMapping::new(),
         }
     }
 }
@@ -307,9 +322,19 @@ impl Assembler {
         Ok(ret)
     }
 
-    pub fn assemble(&mut self) -> Result<(), UserError> {
+    pub fn assemble(&mut self) -> Result<Assembled, UserError> {
         info("Assembling...", |_| {
-            self.assemble_node(self.tree.root().id())
+            self.assemble_node(self.tree.root().id())?;
+
+            let database = SourceDatabase::new(self.source_map.clone(), &self.sources);
+
+            let ret = Assembled {
+                mem: self.bin.data.clone(),
+                database,
+                symbols: self.symbols.clone(),
+            };
+
+            Ok(ret)
         })
     }
 
@@ -358,6 +383,9 @@ impl Assembler {
 
         // let node = self.tree.get(id).unwrap();
         let i = &node.value().item.clone();
+        let pos = &node.value().pos.clone();
+        let file_id = node.value().file_id.clone();
+
         let pc = self.bin.get_write_address() as i64;
 
         match i {
@@ -367,6 +395,8 @@ impl Assembler {
             }
 
             OpCode(ins, amode) => {
+                self.source_map.add_mapping(pc, file_id, pos);
+
                 use emu::isa::AddrModeEnum::*;
                 let ins_amode = ins.addr_mode;
 
@@ -396,13 +426,13 @@ impl Assembler {
                     Relative => {
                         let (arg, id) = self.eval_first_arg(node)?;
                         // offset is from PC after Instruction and operand has been fetched
-                        self.write_byte_check_size(id, arg - ( pc + ins.size as i64 ))?;
+                        self.write_byte_check_size(id, arg - (pc + ins.size as i64))?;
                     }
 
                     Relative16 => {
                         let (arg, id) = self.eval_first_arg(node)?;
                         // offset is from PC after Instruction and operand has been fetched
-                        self.write_word_check_size(id,  arg - ( pc  + ins.size as i64 ))?;
+                        self.write_word_check_size(id, arg - (pc + ins.size as i64))?;
                     }
 
                     Inherent => {}
@@ -417,7 +447,7 @@ impl Assembler {
 
                     RegisterSet => {
                         // println!("{:#?}", node);
-                        
+
                         let rset = &node.first_child().unwrap().value().item;
                         if let Item::RegisterSet(regs) = rset {
                             self.bin.write_byte(registers_to_flags(regs));
@@ -445,6 +475,7 @@ impl Assembler {
             }
 
             TokenizedFile(..) => {
+                self.source_map.add_mapping(pc, file_id, pos);
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
                     self.assemble_node(c)?;
@@ -452,6 +483,7 @@ impl Assembler {
             }
 
             Fdb(_) => {
+                self.source_map.add_mapping(pc, file_id, pos);
                 for n in node.children() {
                     let x = self.eval_node(n)?;
                     self.bin
@@ -461,6 +493,7 @@ impl Assembler {
             }
 
             Fcb(_) => {
+                self.source_map.add_mapping(pc, file_id, pos);
                 for n in node.children() {
                     let x = self.eval_node(n)?;
                     self.bin
@@ -470,6 +503,7 @@ impl Assembler {
             }
 
             Zmb => {
+                self.source_map.add_mapping(pc, file_id, pos);
                 let (bytes, _) = self.eval_first_arg(node)?;
                 for _ in 0..bytes {
                     self.bin.write_byte(0)
@@ -477,6 +511,7 @@ impl Assembler {
             }
 
             Zmd => {
+                self.source_map.add_mapping(pc, file_id, pos);
                 let (words, _) = self.eval_first_arg(node)?;
                 for _ in 0..words {
                     self.bin.write_word(0)
@@ -484,6 +519,7 @@ impl Assembler {
             }
 
             Fill => {
+                self.source_map.add_mapping(pc, file_id, pos);
                 let (byte, size) = self.eval_two_args(node)?;
                 for _ in 0..size {
                     self.bin
@@ -590,7 +626,7 @@ impl Assembler {
                 let msg = format!("{} -> ${:04X}", name, pc);
                 x.debug(msg);
                 self.symbols
-                    .add_symbol_with_value(name, pc as i64, node.id())
+                    .add_symbol_with_value(name, pc as i64)
                     .unwrap();
             }
 

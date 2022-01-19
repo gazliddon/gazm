@@ -1,4 +1,15 @@
 # 6809 Assembler
+* Try out in emu
+    * Write a map file with SLB data
+    * Write binary
+    * Load and run
+
+* macros
+* structs
+* Add in forced 5 bit offset as per as6809
+* Other unary operators
+* Allow for multiple errors (maxerr amount)
+* change equ * to assign PC
 * Add in PCR to flag PC relative
 * Back bin writer with a memory block
 
@@ -13,6 +24,67 @@ OffTop(),
 OffBottom(is)
 InTopScrollZone
 InBottomScrollZone
+
+(fn stilob[a b c]
+    (asm #[
+            JSR    GETOB            ;GET AN OBJECT
+            LDD    #0               ;VELOCITY
+            STD    OXV,X
+            STD    OYV,X
+            LDD    #b              ;X
+            STD    OX16,X
+            LDD    #c
+            STD    OY16,X
+            LDD    #a              ;PICTURE
+            STD    OPICT,X
+            STX    OPTR             ;AND APPEND TO LIST
+    ]))
+
+(def task (struct {a : byte, b: word, c : dword}))
+
+struct Task {
+    a : byte,
+    b : word,
+    c : dword,
+}
+
+local task_table = Task[100]
+
+fn stilob(a,b,c) {
+    asm {
+            JSR    GETOB            ;GET AN OBJECT
+            LDD    #0               ;VELOCITY
+            STD    OXV,X
+            STD    OYV,X
+            LDD    #b              ;X
+            STD    OX16,X
+            LDD    #c
+            STD    OY16,X
+            LDD    #a              ;PICTURE
+            STD    OPICT,X
+            STX    OPTR             ;AND APPEND TO LIST
+    }
+}
+
+
+asm {
+STILOB  MACRO  \1,\2,\3
+        JSR    GETOB            ;GET AN OBJECT
+        LDD    #0               ;VELOCITY
+        STD    OXV,X
+        STD    OYV,X
+        LDD    #\2              ;X
+        STD    OX16,X
+        LDD    #\3
+        STD    OY16,X
+        LDD    #\1              ;PICTURE
+        STD    OPICT,X
+        STX    OPTR             ;AND APPEND TO LIST
+        ENDM 
+}
+
+
+
 
 
 ```

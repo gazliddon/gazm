@@ -62,7 +62,7 @@ use crate::error::*;
 
 use assemble::Assembler;
 
-fn assemble(ctx: &cli::Context) -> Result<(), Box<dyn std::error::Error>> {
+fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
     let msg = format!("Assembling {}", ctx.file.to_string_lossy());
 
     info(&msg, |x| {
@@ -76,11 +76,11 @@ fn assemble(ctx: &cli::Context) -> Result<(), Box<dyn std::error::Error>> {
         let mut asm : Assembler = ast.into();
 
         asm.size()?;
-        asm.assemble()?;
+        let ret = asm.assemble()?;
 
         x.success("Complete");
 
-        Ok(())
+        Ok(ret)
     })
 }
 
@@ -110,7 +110,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     x.indent();
 
-    assemble(&ctx)?;
+    let ret = assemble(&ctx)?;
+
+    use std::fs;
+
+    if let Some(sym_file) = ctx.syms {
+        x.intertesting(format!("Writing symbols: {}", sym_file));
+        let j = serde_json::to_string_pretty(&ret).unwrap();
+        fs::write(sym_file, j).expect("Unable to write file");
+    }
+
+    if let Some(bin_file) = ctx.out {
+        x.intertesting(format!("Writing binary: {}", bin_file));
+        let data = &ret.mem;
+        fs::write(bin_file, data).expect("Unable to write file");
+    }
 
     x.deindent();
     x.info("");

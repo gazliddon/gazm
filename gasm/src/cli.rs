@@ -7,8 +7,7 @@ pub struct Context {
     pub verbose: bool,
     pub file : PathBuf,
     pub out: Option<String>,
-    pub dump_ast : bool,
-    pub pretty_dump_ast : bool,
+    pub syms : Option<String>,
 }
 
 impl Default for Context {
@@ -17,8 +16,7 @@ impl Default for Context {
             verbose: false,
             file: "No FIle".into(),
             out: None,
-            dump_ast: false,
-            pretty_dump_ast : false,
+            syms : None,
         }
     }
 }
@@ -27,14 +25,14 @@ impl From<clap::ArgMatches> for Context {
     fn from(m : clap::ArgMatches) -> Self {
 
         let file : PathBuf = m.value_of("file").unwrap().to_string().into();
-        let out = m.value_of("out").map(|f| f.to_string());
+        let out = m.value_of("out-file").map(|f| f.to_string());
+        let syms = m.value_of("symbol-file").map(|f| f.to_string());
 
         Self {
             verbose : m.is_present("verbose"),
             out,
             file,
-            pretty_dump_ast : m.is_present("pretty-dump-ast"),
-            dump_ast : m.is_present("dump-ast"),
+            syms,
         }
     }
 }
@@ -48,20 +46,19 @@ pub fn parse() -> clap::ArgMatches {
              .index(1)
              .use_delimiter(false)
              .required(true))
-        .arg(Arg::new("dump-ast")
-             .help("dump the ast")
-             .short('d'))
-        .arg(Arg::new("out")
-             .help("dump the ast")
+        .arg(Arg::new("out-file")
+             .help("out file")
              .takes_value(true)
              .use_delimiter(false)
              .short('o'))
+        .arg(Arg::new("symbol-file")
+             .help("symbol file")
+             .takes_value(true)
+             .use_delimiter(false)
+             .short('s'))
         .arg(Arg::new("verbose")
              .help("Verbose mode")
              .use_delimiter(false)
              .short('v'))
-        .arg(Arg::new("pretty-dump-ast")
-             .help("pretty dump the ast")
-             .short('p'))
         .get_matches()
 }

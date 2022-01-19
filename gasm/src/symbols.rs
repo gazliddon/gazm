@@ -1,18 +1,19 @@
 // symtab
 use std::collections::{HashMap, VecDeque};
 
+use serde_json::json;
+use serde::{Deserialize, Serialize};
+
 use crate::ast::AstNodeId;
 
 pub type SymbolId = usize;
 /// Holds information about a symbol
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SymbolInfo {
     /// Symbol Name
     pub name: String,
     /// Unique Symbol Id
     pub id: SymbolId,
-    /// Id of Ast Node that symbol was defined in
-    pub node_id: AstNodeId,
     /// Value, if any
     pub value: Option<i64>,
 }
@@ -25,7 +26,7 @@ pub enum SymbolError {
 }
 
 /// Holds information about symbols
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SymbolTable {
     info: Vec<SymbolInfo>,
     name_to_id: HashMap<String, SymbolId>,
@@ -44,6 +45,7 @@ impl SymbolTable {
             name_to_id: Default::default(),
         }
     }
+
     pub fn get_value<S>(&self, name: S) -> Result<i64, SymbolError>
     where
         S: Into<String>,
@@ -89,17 +91,16 @@ impl SymbolTable {
         &mut self,
         name: S,
         value: i64,
-        node_id: AstNodeId,
     ) -> Result<SymbolId, SymbolError>
     where
         S: Into<String>,
     {
-        let id = self.add_symbol(name, node_id)?;
+        let id = self.add_symbol(name)?;
         self.set_value(id, value)?;
         Ok(id)
     }
 
-    pub fn add_symbol<S>(&mut self, name: S, node_id: AstNodeId) -> Result<SymbolId, SymbolError>
+    pub fn add_symbol<S>(&mut self, name: S ) -> Result<SymbolId, SymbolError>
     where
         S: Into<String>,
     {
@@ -115,7 +116,6 @@ impl SymbolTable {
             let info = SymbolInfo {
                 name,
                 id,
-                node_id,
                 value: None,
             };
 

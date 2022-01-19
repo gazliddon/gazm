@@ -1,33 +1,40 @@
 use crate::locate::Position;
-use std::path::{Path, PathBuf };
+use std::hash::Hash;
+use std::path::{Path, PathBuf};
 
-use crate::ast::{ AstNodeId, AstTree, ItemWithPos };
+use crate::ast::{AstNodeId, AstTree, ItemWithPos};
 use std::collections::HashMap;
 
 ////////////////////////////////////////////////////////////////////////////////
 pub struct SourceFile {
-    pub file : PathBuf,
+    pub file: PathBuf,
     source: String,
     lines: Vec<String>,
 }
 
 impl SourceFile {
-    pub fn new(file : &Path, source: &str) -> Self {
+    pub fn new(file: &Path, source: &str) -> Self {
         let lines = source.lines().map(|x| x.to_string()).collect();
-        Self {lines, file : file.to_path_buf(), source: source.to_string()}
+        Self {
+            lines,
+            file: file.to_path_buf(),
+            source: source.to_string(),
+        }
     }
 
-    pub fn get_line(&self,p : &Position) -> Result<&str, String> {
-        self.lines.get(p.line - 1).map(|x| x.as_str()).ok_or_else(|| "Out of range".to_string())
+    pub fn get_line(&self, p: &Position) -> Result<&str, String> {
+        self.lines
+            .get(p.line - 1)
+            .map(|x| x.as_str())
+            .ok_or_else(|| "Out of range".to_string())
     }
 
-    pub fn get_span(&self,p : &Position) -> Result<&str, String> {
+    pub fn get_span(&self, p: &Position) -> Result<&str, String> {
         // If the span is zero in length then return the single char at that position
         if p.range.is_empty() {
-            Ok(&self.source[p.range.start..p.range.start+1])
+            Ok(&self.source[p.range.start..p.range.start + 1])
         } else {
-
-            Ok(  &self.source[p.range.clone()]  )
+            Ok(&self.source[p.range.clone()])
         }
     }
 }
@@ -41,9 +48,7 @@ impl Debug for SourceFile {
     }
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
-
 
 // Add a source file to the hash if this is a source node
 // return true if it did
@@ -97,13 +102,13 @@ pub struct NodeSourceInfo<'a> {
 
 #[derive(Debug)]
 pub struct Sources {
-    id_to_source_file: HashMap<AstNodeId, SourceFile>,
+    pub id_to_source_file: HashMap<AstNodeId, SourceFile>,
 }
 
 impl Sources {
     pub fn new(ast: &mut AstTree) -> Self {
         Self {
-            id_to_source_file : add_file_references(ast)
+            id_to_source_file: add_file_references(ast),
         }
     }
 
@@ -133,3 +138,72 @@ impl Sources {
         Ok(ret)
     }
 }
+
+use serde_json::json;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone)]
+struct Mapping {
+    pub file_id: u64,
+    pub line: usize,
+    pub range: std::ops::Range<usize>,
+
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SourceMapping {
+    addr_to_mapping: HashMap<u64,Mapping>,
+    #[serde(skip)]
+    pub node_id_to_file_id : HashMap<AstNodeId, u64>,
+}
+
+impl SourceMapping {
+    pub fn new() -> Self {
+        Self {
+            addr_to_mapping: HashMap::new(),
+            node_id_to_file_id: HashMap::new(),
+        }
+    }
+
+    pub fn add_mapping(&mut self, addr: i64, id: Option<AstNodeId>, pos: &Position) {
+        let addr = addr as u64;
+        if let Some(id) = id {
+
+            let next_id = self.node_id_to_file_id.len() as u64;
+
+            let file_id = *self.node_id_to_file_id.entry(id).or_insert(next_id);
+
+            let entry = Mapping {
+                file_id,
+                line: pos.line,
+                range: pos.range.clone(),
+            };
+
+            self.addr_to_mapping.insert(addr, entry);
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SourceDatabase {
+    source_files : HashMap<u64, PathBuf>,
+    mappings : SourceMapping,
+}
+
+impl SourceDatabase {
+    pub fn new(mappings: SourceMapping, sources : &Sources) -> Self {
+        let mut source_files = HashMap::new();
+
+
+        for (k,v) in &sources.id_to_source_file {
+            let file_id = mappings.node_id_to_file_id.get(k).unwrap();
+            source_files.insert(*file_id,v.file.clone());
+        }
+
+        Self {
+            mappings,
+            source_files,
+        }
+    }
+}
+

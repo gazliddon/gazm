@@ -255,7 +255,7 @@ impl Ast {
         S: Into<String>,
     {
         symbols
-            .add_symbol_with_value(&name.into(), value, id)
+            .add_symbol_with_value(&name.into(), value)
             .map_err(|e| {
                 let msg = format!("Symbol error {:?}", e);
                 self.user_error(&msg, id)
