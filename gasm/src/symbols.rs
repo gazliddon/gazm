@@ -27,6 +27,7 @@ pub enum SymbolError {
 
 /// Holds information about symbols
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SymbolTable {
     info: Vec<SymbolInfo>,
     name_to_id: HashMap<String, SymbolId>,

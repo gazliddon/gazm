@@ -151,6 +151,7 @@ struct Mapping {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceMapping {
     addr_to_mapping: HashMap<u64,Mapping>,
     #[serde(skip)]
@@ -185,6 +186,7 @@ impl SourceMapping {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceDatabase {
     source_files : HashMap<u64, PathBuf>,
     mappings : SourceMapping,
