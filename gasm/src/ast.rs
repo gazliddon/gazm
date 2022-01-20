@@ -22,7 +22,7 @@ use crate::item::{Item, Node};
 use crate::locate::Position;
 
 use crate::postfix;
-use crate::sourcefile::{NodeSourceInfo, SourceFile, Sources};
+use crate::sourcefile::{SourceInfo, SourceFile, Sources};
 use crate::symbols::SymbolTable;
 use crate::util::{debug, info};
 
@@ -101,11 +101,11 @@ impl Ast {
     fn get_source_info_from_node<'a>(
         &'a self,
         node: &'a AstNodeRef,
-    ) -> Result<NodeSourceInfo<'a>, String> {
+    ) -> Result<SourceInfo<'a>, String> {
         self.sources.get_source_info(&node.value().pos)
     }
 
-    fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<NodeSourceInfo, String> {
+    fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, String> {
         let n = self.tree.get(id).unwrap();
         self.sources.get_source_info(&n.value().pos)
     }

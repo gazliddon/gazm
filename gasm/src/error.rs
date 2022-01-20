@@ -5,7 +5,7 @@ use nom::{self, Offset};
 
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::locate::{Position, Span};
-use crate::sourcefile::NodeSourceInfo;
+use crate::sourcefile::SourceInfo;
 use nom::AsBytes;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -144,12 +144,12 @@ use crate::messages::Messageize;
 use colored::*;
 
 impl UserError {
-    pub fn from_ast_error(_err: AstError, info: &NodeSourceInfo) -> Self {
+    pub fn from_ast_error(_err: AstError, info: &SourceInfo) -> Self {
         let message = _err.message.unwrap_or_else(|| "Error".to_string());
         Self::from_text(message, info, &_err.pos)
     }
 
-    pub fn from_text<S>(msg: S, info: &NodeSourceInfo, pos: &Position) -> Self
+    pub fn from_text<S>(msg: S, info: &SourceInfo, pos: &Position) -> Self
     where
         S: Into<String>,
     {

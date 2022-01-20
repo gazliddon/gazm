@@ -55,7 +55,7 @@ impl Debug for SourceFile {
 // return true if it did
 
 #[derive(Debug, Clone)]
-pub struct NodeSourceInfo<'a> {
+pub struct SourceInfo<'a> {
     pub fragment: &'a str,
     pub line_str: &'a str,
     pub line: usize,
@@ -81,7 +81,7 @@ impl Sources {
     pub fn get_source_info<'a>(
         &'a self,
         pos: &Position,
-    ) -> Result<NodeSourceInfo<'a>, String> {
+    ) -> Result<SourceInfo<'a>, String> {
 
         if let AsmSource::FileId(file_id) = pos.src {
             let source_file = self.id_to_source_file.get(&file_id).ok_or(format!(
@@ -91,7 +91,7 @@ impl Sources {
             let fragment = source_file.get_span(pos)?;
             let line_str = source_file.get_line(pos)?;
 
-            let ret = NodeSourceInfo {
+            let ret = SourceInfo {
                 line_str,
                 col: pos.col,
                 line: pos.line,
