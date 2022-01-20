@@ -34,7 +34,6 @@ pub struct Assembled {
     #[serde(skip)]
     pub mem: Vec<u8>,
     pub database: SourceDatabase,
-    pub symbols : SymbolTable,
 }
 
 fn reg_to_reg_num(a: RegEnum) -> u8 {
@@ -326,12 +325,11 @@ impl Assembler {
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
             self.assemble_node(self.tree.root().id())?;
 
-            let database = SourceDatabase::new(&self.source_map, &self.sources);
+            let database = SourceDatabase::new(&self.source_map, &self.sources, &self.symbols);
 
             let ret = Assembled {
                 mem: self.bin.data.clone(),
                 database,
-                symbols: self.symbols.clone(),
             };
 
             Ok(ret)

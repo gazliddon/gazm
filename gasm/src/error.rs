@@ -4,7 +4,8 @@ use std::path::PathBuf;
 use nom::{self, Offset};
 
 use crate::ast::{AstNodeId, AstNodeRef};
-use crate::locate::{Position, Span};
+use crate::locate::Span;
+use crate::position::Position;
 use crate::sourcefile::SourceInfo;
 use nom::AsBytes;
 

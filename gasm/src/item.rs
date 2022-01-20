@@ -12,7 +12,7 @@ use crate::fileloader::FileLoader;
 use crate::locate::{matched_span, Span};
 use crate::node::{BaseNode, CtxTrait};
 
-use crate::locate::Position;
+use crate::position::Position;
 use crate::postfix::GetPriotity;
 
 impl<'a> CtxTrait for Span<'a> {}

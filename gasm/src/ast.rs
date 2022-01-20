@@ -19,7 +19,7 @@ use crate::scopes::ScopeBuilder;
 use crate::symbols::SymbolId;
 
 use crate::item::{Item, Node};
-use crate::locate::Position;
+use crate::position::Position;
 
 use crate::postfix;
 use crate::sourcefile::{SourceInfo, SourceFile, Sources};

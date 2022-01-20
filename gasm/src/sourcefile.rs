@@ -1,9 +1,8 @@
 use crate::fileloader::FileLoader;
-use crate::locate::{AsmSource, Position};
+use crate::position::{Position,AsmSource};
+use crate::symbols::SymbolTable;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
-
-use crate::ast::{AstNodeId, AstTree, ItemWithPos};
 use std::collections::HashMap;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -153,11 +152,11 @@ impl SourceMapping {
 pub struct SourceDatabase {
     id_to_source_file : HashMap<u64,PathBuf>,
     mappings: SourceMapping,
-
+    symbols : SymbolTable,
 }
 
 impl SourceDatabase {
-    pub fn new(mappings: &SourceMapping, sources : &Sources) -> Self {
+    pub fn new(mappings: &SourceMapping, sources : &Sources, symbols : &SymbolTable) -> Self {
         let mut id_to_source_file = HashMap::new();
 
         for (k, v) in &sources.id_to_source_file {
@@ -166,7 +165,8 @@ impl SourceDatabase {
 
         Self {
             mappings : mappings.clone(),
-            id_to_source_file
+            id_to_source_file,
+            symbols : symbols.clone()
         }
     }
 }

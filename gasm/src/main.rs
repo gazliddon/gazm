@@ -35,6 +35,9 @@ mod sourcefile;
 mod symbols;
 mod tokenize;
 mod util;
+mod position;
+
+
 
 use std::path::PathBuf;
 use std::time::Instant;
@@ -42,7 +45,6 @@ use std::time::Instant;
 use ast::ItemWithPos;
 use colored::*;
 use error::UserError;
-use locate::Position;
 use romloader::ResultExt;
 use util::{debug, info};
 

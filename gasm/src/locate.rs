@@ -4,17 +4,7 @@ use nom_locate::LocatedSpan;
 use nom::{InputTake, Offset};
 
 use crate::commands::parse_command;
-#[derive(Clone, PartialEq,Debug, Copy)]
-pub enum AsmSource {
-    FromStr,
-    FileId(u64)
-}
-
-impl Default for AsmSource {
-    fn default() -> Self {
-        AsmSource::FromStr
-    }
-}
+use crate::position::{Position, AsmSource};
 
 pub type Span<'a> = LocatedSpan<&'a str, AsmSource>;
 
@@ -29,13 +19,6 @@ pub fn matched_span<'a>(input: Span<'a>, rest: Span<'a>) -> Span<'a> {
     input.take(r.len())
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Position {
-    pub line : usize,
-    pub col: usize,
-    pub range: std::ops::Range<usize>,
-    pub src : AsmSource,
-}
 
 impl Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
