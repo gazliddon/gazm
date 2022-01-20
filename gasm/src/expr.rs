@@ -20,7 +20,7 @@ use super::util;
 use super::labels::parse_label;
 
 use crate::error::{IResult, ParseError};
-use crate::locate::{matched_span, Span};
+use crate::locate::{matched_span, Span, AsmSource};
 use crate::opcodes::parse_opcode;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,11 +142,13 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
+    
 
     #[test]
     fn test_brackets() {
         let input = "(10 + 4) + 20";
-        let (rest, matched) = parse_bracketed_expr(Span::new(input)).unwrap();
+        let span = Span::new_extra(input, AsmSource::FromStr);
+        let (rest, matched) = parse_bracketed_expr(span).unwrap();
         println!("{:#?}", matched);
         let matched = matched.to_string();
         assert_eq!(*rest, " + 20");
@@ -156,7 +158,8 @@ mod test {
     #[test]
     fn test_get_expr() {
         let input = "3 * 4 + %101 + -10";
-        let (rest, matched) = parse_expr(Span::new(input)).unwrap();
+        let span = Span::new_extra(input, AsmSource::FromStr);
+        let (rest, matched) = parse_expr(span).unwrap();
         println!("{:#?}", matched);
         let matched = matched.to_string();
 
@@ -164,22 +167,25 @@ mod test {
         assert_eq!(matched, "3*4+5+-10");
 
         let input = "3 * 4 + 5 - (5 * 4)";
-        let (rest, matched) = parse_expr(Span::new(input)).unwrap();
+        let span = Span::new_extra(input, AsmSource::FromStr);
+        let (rest, matched) = parse_expr(span).unwrap();
         let matched = matched.to_string();
 
         assert_eq!(*rest, "");
         assert_eq!(matched, "3*4+5-(5*4)");
     }
     fn test_expr_pc() {
-        let input = Span::new("* ;; ");
-        let (rest, matched) = parse_expr(input).unwrap();
+        let input = "* ;; ";
+        let span = Span::new_extra(input, AsmSource::FromStr);
+        let (rest, matched) = parse_expr(span).unwrap();
         assert_eq!(*rest, " ;; ");
         assert_eq!(&matched.to_string(), "*");
     }
 
     fn test_parse_pc() {
-        let input = Span::new("* ;; ");
-        let (rest, matched) = parse_pc(input).unwrap();
+        let input = "* ;; ";
+        let span = Span::new_extra(input, AsmSource::FromStr);
+        let (rest, matched) = parse_pc(span).unwrap();
         assert_eq!(*rest, " ;; ");
         assert_eq!(&matched.to_string(), "*");
     }

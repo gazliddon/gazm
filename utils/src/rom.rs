@@ -1,5 +1,5 @@
 
-use super::chunk::{ Chunk};
+use super::chunk::Chunk;
 
 use super::location::Location;
 
@@ -14,21 +14,20 @@ pub struct Symbol {
 
 pub type RomData = [u8;0x1_0000];
 
-use std::collections::{ HashMap};
+use std::collections::HashMap;
 
 pub struct Rom {
     pub data : RomData,
     chunks : Vec<Chunk>,
     addr_to_loc : Vec<Option<Location>>,
     location_to_addr_range: HashMap<Location,std::ops::Range<usize>>,
-    symbols : HashMap<String,Symbol>,
 
     pub sources : SourceStore,
 }
 
 impl Rom {
 
-    pub fn get_location_addr_range(&self, loc : &Location) -> Option<&std::ops::Range<usize>> {
+    fn get_location_addr_range(&self, loc : &Location) -> Option<&std::ops::Range<usize>> {
         self.location_to_addr_range.get(loc)
     }
 
@@ -40,23 +39,6 @@ impl Rom {
         self
             .get_source_location(_addr)
             .and_then(|loc| self.sources.get_line(loc))
-    }
-
-    pub fn add_symbol(&mut self, name : &str, value : u16) {
-        let name = name.to_string();
-
-        if self.symbols.get(&name).is_some() {
-            // TODO fix this
-            panic!("Duplicate symbol!")
-        }
-
-        self.symbols.insert(name.clone(), Symbol {name, value});
-    }
-
-    pub fn get_symbol(&self, name : &str) -> Option< ( &Symbol, Option<Location> ) > {
-        self.symbols.get(name).map(|sym| {
-            let loc = self.get_source_location(sym.value).cloned();
-            ( sym, loc) })
     }
 
     pub fn get_slice(&self, addr : u16, size : usize) -> &[u8]  {
@@ -100,7 +82,6 @@ impl Rom {
             chunks,
             data, 
             addr_to_loc ,
-            symbols : HashMap::new(),
             location_to_addr_range,
             sources 
         };

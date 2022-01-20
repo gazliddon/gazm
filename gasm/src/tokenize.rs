@@ -1,10 +1,10 @@
-use crate::{cli, commands, comments, expr, fileloader, item, labels, locate::Position, messages, opcodes, util};
+use crate::{cli, commands, comments, expr, fileloader, item, labels, locate::Position, messages, opcodes, sourcefile::Sources, util};
 
 use nom::{AsBytes, branch::alt, bytes::complete::{ take_until, is_not }, character::complete::{ multispace1, multispace0, line_ending, }, combinator::{opt, all_consuming, eof, not, recognize}, multi::{ many0, many1 }, sequence::{ pair, terminated, preceded }};
 use romloader::ResultExt;
 
 use crate::error::{IResult, ParseError, UserError};
-use crate::locate::Span;
+use crate::locate::{ Span, AsmSource };
 use crate::item::{ Node, Item };
 
 fn get_line(input : Span)-> IResult<Span> {
@@ -21,9 +21,9 @@ struct Tokens {
 }
 
 pub fn tokenize_file_from_str<'a>(file : &str,input : &'a str) -> Result<Node, ParseError<'a>> { 
-    let input = Span::new(input);
+    let span = Span::new_extra(input, AsmSource::FromStr);
     let source = input.to_string();
-    let mut matched = tokenize_str(input)?;
+    let mut matched = tokenize_str(span)?;
     matched.item = Item::TokenizedFile(file.into(), file.into(), source);
     Ok(matched)
 }
@@ -108,14 +108,14 @@ use std::path::{Path, PathBuf};
 extern crate colored;
 use colored::*;
 
-pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileLoader, file : &std::path::Path, parent : &std::path::Path ) -> anyhow::Result<Node> {
+pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &mut fileloader::FileLoader, file : &std::path::Path, parent : &std::path::Path ) -> anyhow::Result<Node> {
     use anyhow::Context;
 
     use super::messages::*;
     use item::Item::*;
         let x = messages::messages();
 
-    let (file_name, source) = fl.read_to_string(file).with_context(|| 
+    let (file_name, source, id) = fl.read_to_string(file).with_context(|| 
         format!("Failed to load file: {}", file.to_string_lossy()))?;
 
     let action = if depth == 0 {
@@ -130,8 +130,10 @@ pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileL
 
     x.info(&comp_msg);
 
-    let input = Span::new(&source);
+    let input = Span::new_extra(&source, AsmSource::FileId(id));
+
     let mut matched = tokenize_str(input).map_err(mapper)?;
+
     matched.item = TokenizedFile(file.to_path_buf(),parent.to_path_buf(), source.clone());
 
     // Tokenize includes
@@ -146,7 +148,7 @@ pub fn tokenize_file(depth: usize, _ctx : &cli::Context, fl : &fileloader::FileL
     Ok(matched)
 }
 
-pub fn tokenize( ctx : &cli::Context ) -> anyhow::Result<Node> {
+pub fn tokenize( ctx : &cli::Context ) -> anyhow::Result<( Node, Sources )> {
     use fileloader::FileLoader;
 
     let file = ctx.file.clone();
@@ -157,11 +159,11 @@ pub fn tokenize( ctx : &cli::Context ) -> anyhow::Result<Node> {
         paths.push(dir);
     }
 
-    let fl = FileLoader::from_search_paths(&paths);
+    let mut fl = FileLoader::from_search_paths(&paths);
     let parent = PathBuf::new();
 
-    let res = tokenize_file(0, ctx, &fl,&ctx.file, &parent)?;
-    Ok(res)
+    let res = tokenize_file(0, ctx, &mut fl,&ctx.file, &parent)?;
+    Ok(( res, fl.into() ))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

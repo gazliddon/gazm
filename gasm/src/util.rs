@@ -129,15 +129,16 @@ pub fn parse_number(input: Span) -> IResult< Node> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Compile a string as a fake file
-pub fn compile_text(code: &str) -> Result<String, String> {
-    use crate::tokenize::tokenize_file_from_str;
-    use crate::ast::Ast;
+pub fn compile_text(_code: &str) -> Result<String, String> {
+    panic!()
+    // use crate::tokenize::tokenize_file_from_str;
+    // use crate::ast::Ast;
 
-    let node = tokenize_file_from_str("no file", code).map_err(|e| format!("{:?}", e))?;
+    // let node = tokenize_file_from_str("no file", code).map_err(|e| format!("{:?}", e))?;
 
-    let ast = Ast::from_nodes(node).map_err(|e| format!("error: {:?}", e.message))?;
+    // let ast = Ast::from_nodes(node).map_err(|e| format!("error: {:?}", e.message))?;
 
-    Ok(ast.to_string())
+    // Ok(ast.to_string())
 }
 ////////////////////////////////////////////////////////////////////////////////
 pub fn debug<F, Y>(text: &str, mut f: F) -> Y

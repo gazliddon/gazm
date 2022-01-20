@@ -69,13 +69,14 @@ fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::erro
         use assemble::Assembler;
         use ast::Ast;
 
-        let tokens = tokenize::tokenize(ctx)?;
+        let ( tokens, sources ) = tokenize::tokenize(ctx)?;
 
-        let ast = Ast::from_nodes(tokens.clone())?;
+        let ast = Ast::from_nodes(tokens, sources)?;
 
         let mut asm : Assembler = ast.into();
 
         asm.size()?;
+
         let ret = asm.assemble()?;
 
         x.success("Complete");

@@ -32,8 +32,6 @@ use crate::util::{debug, info};
 pub struct ItemWithPos {
     pub item: Item,
     pub pos: Position,
-    pub file_id: Option<AstNodeId>,
-    pub id: Option<AstNodeId>,
 }
 
 impl ItemWithPos {
@@ -41,8 +39,6 @@ impl ItemWithPos {
         Self {
             item: n.item().clone(),
             pos: n.ctx().clone(),
-            file_id: None,
-            id: None,
         }
     }
 }
@@ -52,8 +48,6 @@ pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
     let ipos = ItemWithPos::new(node);
     let mut this_node = parent.append(ipos);
 
-    this_node.value().id = Some(this_node.id());
-
     for n in &node.children {
         add_node(&mut this_node, n);
     }
@@ -61,10 +55,6 @@ pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
 
 pub fn make_tree(node: &Node) -> AstTree {
     let mut ret = AstTree::new(ItemWithPos::new(node));
-
-    let mut this_node = ret.root_mut();
-
-    this_node.value().id = Some(this_node.id());
 
     for c in &node.children {
         add_node(&mut ret.root_mut(), c);
@@ -80,16 +70,9 @@ pub struct Ast {
 }
 
 impl Ast {
-    pub fn from_nodes(n: Node) -> Result<Self, UserError> {
-        let (t, sources) = info("Building Ast from nodes", |_| {
-            let mut tree = info("Building AST", |_| make_tree(&n));
-
-            let sources = info("Resolving file references", |_| Sources::new(&mut tree));
-
-            (tree, sources)
-        });
-
-        Self::new(t, sources)
+    pub fn from_nodes(n: Node, sources: Sources) -> Result<Self, UserError> {
+        let tree = make_tree(&n);
+        Self::new(tree, sources)
     }
 
     pub fn new(tree: AstTree, sources: Sources) -> Result<Self, UserError> {
@@ -119,12 +102,12 @@ impl Ast {
         &'a self,
         node: &'a AstNodeRef,
     ) -> Result<NodeSourceInfo<'a>, String> {
-        self.sources.get_source_info_from_value(node.value())
+        self.sources.get_source_info(&node.value().pos)
     }
 
     fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<NodeSourceInfo, String> {
         let n = self.tree.get(id).unwrap();
-        self.sources.get_source_info_from_value(n.value())
+        self.sources.get_source_info(&n.value().pos)
     }
 
     fn rename_locals(&mut self) {

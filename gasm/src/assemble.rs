@@ -220,7 +220,7 @@ fn eval_node(
     sources: &crate::sourcefile::Sources,
 ) -> Result<i64, UserError> {
     eval(&symbols, node).map_err(|err| {
-        let info = sources.get_source_info_from_value(node.value()).unwrap();
+        let info = sources.get_source_info(&node.value().pos).unwrap();
         UserError::from_ast_error(err, &info)
     })
 }
@@ -250,7 +250,7 @@ impl Assembler {
     fn write_byte_check_size(&mut self, n: AstNodeId, val: i64) -> Result<(), UserError> {
         self.bin.write_byte_check_size(val).map_err(|_| {
             let n = self.tree.get(n).unwrap();
-            let info = &self.sources.get_source_info_from_value(n.value()).unwrap();
+            let info = &self.sources.get_source_info(&n.value().pos).unwrap();
             let msg = format!("{:4X} does not fit in a byte", val);
             UserError::from_text(msg, info, &n.value().pos)
         })
@@ -259,7 +259,7 @@ impl Assembler {
     fn write_word_check_size(&mut self, n: AstNodeId, val: i64) -> Result<(), UserError> {
         self.bin.write_word_check_size(val).map_err(|_| {
             let n = self.tree.get(n).unwrap();
-            let info = &self.sources.get_source_info_from_value(n.value()).unwrap();
+            let info = &self.sources.get_source_info(&n.value().pos).unwrap();
             let msg = format!("{:4X} does not fit in a word", val);
             UserError::from_text(msg, info, &n.value().pos)
         })
@@ -281,7 +281,7 @@ impl Assembler {
     fn user_error<S: Into<String>>(&self, err: S, node: AstNodeRef) -> UserError {
         let info = self
             .sources
-            .get_source_info_from_value(node.value())
+            .get_source_info(&node.value().pos)
             .unwrap();
         UserError::from_text(err, &info, &node.value().pos)
     }
@@ -290,7 +290,7 @@ impl Assembler {
         eval(&self.symbols, node).map_err(|err| {
             let info = self
                 .sources
-                .get_source_info_from_value(node.value())
+                .get_source_info(&node.value().pos)
                 .unwrap();
             UserError::from_ast_error(err, &info)
         })
@@ -324,10 +324,9 @@ impl Assembler {
     }
 
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
-        info("Assembling...", |_| {
             self.assemble_node(self.tree.root().id())?;
 
-            let database = SourceDatabase::new(self.source_map.clone(), &self.sources);
+            let database = SourceDatabase::new(&self.source_map, &self.sources);
 
             let ret = Assembled {
                 mem: self.bin.data.clone(),
@@ -336,7 +335,6 @@ impl Assembler {
             };
 
             Ok(ret)
-        })
     }
 
     fn assemble_indexed(&mut self, id: AstNodeId, imode: IndexParseType) -> Result<(), UserError> {
@@ -377,7 +375,7 @@ impl Assembler {
         let node = self.tree.get(id).unwrap();
         let frag = self
             .sources
-            .get_source_info_from_value(&node.value())
+            .get_source_info(&node.value().pos)
             .unwrap()
             .fragment
             .to_string();
@@ -385,7 +383,6 @@ impl Assembler {
         // let node = self.tree.get(id).unwrap();
         let i = &node.value().item.clone();
         let pos = &node.value().pos.clone();
-        let file_id = node.value().file_id.clone();
 
         let pc = self.bin.get_write_address() as i64;
 
@@ -396,7 +393,7 @@ impl Assembler {
             }
 
             OpCode(ins, amode) => {
-                self.source_map.add_mapping(pc, file_id, pos);
+                self.source_map.add_mapping(pc, pos);
 
                 use emu::isa::AddrModeEnum::*;
                 let ins_amode = ins.addr_mode;
@@ -476,7 +473,6 @@ impl Assembler {
             }
 
             TokenizedFile(..) => {
-                self.source_map.add_mapping(pc, file_id, pos);
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
                     self.assemble_node(c)?;
@@ -484,7 +480,7 @@ impl Assembler {
             }
 
             Fdb(_) => {
-                self.source_map.add_mapping(pc, file_id, pos);
+                self.source_map.add_mapping(pc, pos);
                 for n in node.children() {
                     let x = self.eval_node(n)?;
                     self.bin
@@ -494,7 +490,7 @@ impl Assembler {
             }
 
             Fcb(_) => {
-                self.source_map.add_mapping(pc, file_id, pos);
+                self.source_map.add_mapping(pc, pos);
                 for n in node.children() {
                     let x = self.eval_node(n)?;
                     self.bin
@@ -504,7 +500,7 @@ impl Assembler {
             }
 
             Zmb => {
-                self.source_map.add_mapping(pc, file_id, pos);
+                self.source_map.add_mapping(pc, pos);
                 let (bytes, _) = self.eval_first_arg(node)?;
                 for _ in 0..bytes {
                     self.bin.write_byte(0)
@@ -512,7 +508,7 @@ impl Assembler {
             }
 
             Zmd => {
-                self.source_map.add_mapping(pc, file_id, pos);
+                self.source_map.add_mapping(pc, pos);
                 let (words, _) = self.eval_first_arg(node)?;
                 for _ in 0..words {
                     self.bin.write_word(0)
@@ -520,7 +516,7 @@ impl Assembler {
             }
 
             Fill => {
-                self.source_map.add_mapping(pc, file_id, pos);
+                self.source_map.add_mapping(pc, pos);
                 let (byte, size) = self.eval_two_args(node)?;
                 for _ in 0..size {
                     self.bin

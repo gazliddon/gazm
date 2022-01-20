@@ -2,9 +2,13 @@ use std::path::{Path, PathBuf,};
 use std::fs;
 
 use anyhow::{anyhow, Context, Result};
+use std::collections::HashMap;
+use crate::sourcefile::SourceFile;
 
 pub struct FileLoader {
-    search_paths : Vec<PathBuf>
+    pub search_paths : Vec<PathBuf>,
+    pub loaded_files : HashMap<u64, SourceFile>,
+    id : u64,
 }
 
 impl Default for FileLoader {
@@ -22,11 +26,13 @@ impl FileLoader {
     pub fn from_search_paths<P: AsRef<Path>>(paths : &[P]) -> Self {
         let search_paths : Vec<PathBuf> = paths.iter().map(|x| PathBuf::from(x.as_ref())).collect();
         Self {
-            search_paths
+            search_paths,
+            loaded_files : Default::default(),
+            id: 0,
         }
     }
 
-    pub fn read_to_string <P: AsRef<Path>>(&self, path : P) -> Result<(PathBuf, String )> {
+    pub fn read_to_string <P: AsRef<Path>>(&mut self, path : P) -> Result<(PathBuf, String, u64 )> {
         let str_path = path.as_ref().to_string_lossy();
 
         let path = self.get_file_name(path.as_ref()).map_err(|e|
@@ -34,8 +40,12 @@ impl FileLoader {
         )?;
 
         let ret = fs::read_to_string(path.clone())?;
+        let id = self.id;
+        let source_file = SourceFile::new(&path, &ret);
+        self.loaded_files.insert(id, source_file);
+        self.id += 1;
 
-        Ok((path, ret))
+        Ok((path, ret, id))
     }
 
     fn get_file_name<P: AsRef<Path>>(&self, file_name : P) -> Result<PathBuf> {

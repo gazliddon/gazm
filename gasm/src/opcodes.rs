@@ -79,8 +79,10 @@ fn parse_opcode_reg_pair(input : Span) -> IResult<Node> {
     use Item::*;
     use crate::item::AddrModeParseType;
     use nom::combinator::map;
-    let reg_map = |(a,b)| Node::from_item(Operand(AddrModeParseType::RegisterPair(a,b)), input);
+    let reg_map = |(a,b)| Node::from_item(Operand(AddrModeParseType::RegisterPair(a,b)), input.clone());
+
     let (rest, matched) =map(register::get_reg_pair, reg_map)(input)?;
+
     Ok((rest,matched))
 }
 

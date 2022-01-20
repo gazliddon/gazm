@@ -1,4 +1,5 @@
-use crate::locate::Position;
+use crate::fileloader::FileLoader;
+use crate::locate::{AsmSource, Position};
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
@@ -52,43 +53,6 @@ impl Debug for SourceFile {
 
 // Add a source file to the hash if this is a source node
 // return true if it did
-fn get_tokenize_file(t: &AstTree, node_id: AstNodeId) -> Option<SourceFile> {
-    t.get(node_id)
-        .unwrap()
-        .value()
-        .item
-        .get_my_tokenized_file()
-        .map(|(f, _, s)| SourceFile::new(f, s))
-}
-fn set_file_ids(
-    t: &mut AstTree,
-    node_id: AstNodeId,
-    file_node_id: AstNodeId,
-    mapper: &mut HashMap<AstNodeId, SourceFile>,
-) {
-    let mut file_node_id = file_node_id;
-
-    if let Some(source) = get_tokenize_file(t, node_id) {
-        file_node_id = node_id;
-        mapper.insert(node_id, source);
-    }
-
-    let mut node = t.get_mut(node_id).unwrap();
-    node.value().file_id = Some(file_node_id);
-
-    let children: Vec<_> = t.get(node_id).unwrap().children().map(|n| n.id()).collect();
-
-    for c in children {
-        set_file_ids(t, c, file_node_id, mapper)
-    }
-}
-
-fn add_file_references(ast: &mut AstTree) -> HashMap<AstNodeId, SourceFile> {
-    let root_id = ast.root().id();
-    let mut hm = HashMap::new();
-    set_file_ids(ast, root_id, root_id, &mut hm);
-    hm
-}
 
 #[derive(Debug, Clone)]
 pub struct NodeSourceInfo<'a> {
@@ -102,78 +66,75 @@ pub struct NodeSourceInfo<'a> {
 
 #[derive(Debug)]
 pub struct Sources {
-    pub id_to_source_file: HashMap<AstNodeId, SourceFile>,
+    pub id_to_source_file: HashMap<u64, SourceFile>,
+}
+
+impl From<FileLoader> for Sources {
+    fn from(fl: FileLoader) -> Self {
+        Self {
+            id_to_source_file: fl.loaded_files,
+        }
+    }
 }
 
 impl Sources {
-    pub fn new(ast: &mut AstTree) -> Self {
-        Self {
-            id_to_source_file: add_file_references(ast),
-        }
-    }
-
-    pub fn get_source_info_from_value<'a>(
+    pub fn get_source_info<'a>(
         &'a self,
-        v: &ItemWithPos,
+        pos: &Position,
     ) -> Result<NodeSourceInfo<'a>, String> {
-        let pos = &v.pos;
-        let file_id = v.file_id.ok_or_else(|| "No file id!".to_string())?;
 
-        let source_file = self.id_to_source_file.get(&file_id).ok_or(format!(
-            "Can't find file id {:?} {:?}",
-            file_id, self.id_to_source_file
-        ))?;
-        let fragment = source_file.get_span(pos)?;
-        let line_str = source_file.get_line(pos)?;
+        if let AsmSource::FileId(file_id) = pos.src {
+            let source_file = self.id_to_source_file.get(&file_id).ok_or(format!(
+                "Can't find file id {:?} {:?}",
+                file_id, self.id_to_source_file
+            ))?;
+            let fragment = source_file.get_span(pos)?;
+            let line_str = source_file.get_line(pos)?;
 
-        let ret = NodeSourceInfo {
-            line_str,
-            col: pos.col,
-            line: pos.line,
-            fragment,
-            source_file,
-            file: source_file.file.clone(),
-        };
+            let ret = NodeSourceInfo {
+                line_str,
+                col: pos.col,
+                line: pos.line,
+                fragment,
+                source_file,
+                file: source_file.file.clone(),
+            };
 
-        Ok(ret)
+            Ok(ret)
+        } else {
+            Err("No file id!".to_string())
+        }
     }
 }
 
-use serde_json::json;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct Mapping {
     pub file_id: u64,
     pub line: usize,
     pub range: std::ops::Range<usize>,
-
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceMapping {
-    addr_to_mapping: HashMap<u64,Mapping>,
-    #[serde(skip)]
-    pub node_id_to_file_id : HashMap<AstNodeId, u64>,
+    addr_to_mapping: HashMap<u64, Mapping>,
 }
 
 impl SourceMapping {
     pub fn new() -> Self {
         Self {
             addr_to_mapping: HashMap::new(),
-            node_id_to_file_id: HashMap::new(),
         }
     }
 
-    pub fn add_mapping(&mut self, addr: i64, id: Option<AstNodeId>, pos: &Position) {
+    pub fn add_mapping(&mut self, addr: i64, pos: &Position) {
         let addr = addr as u64;
-        if let Some(id) = id {
 
-            let next_id = self.node_id_to_file_id.len() as u64;
-
-            let file_id = *self.node_id_to_file_id.entry(id).or_insert(next_id);
-
+        if let AsmSource::FileId(file_id) = pos.src {
             let entry = Mapping {
                 file_id,
                 line: pos.line,
@@ -181,31 +142,31 @@ impl SourceMapping {
             };
 
             self.addr_to_mapping.insert(addr, entry);
+        } else {
+            panic!("No file id!")
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceDatabase {
-    source_files : HashMap<u64, PathBuf>,
-    mappings : SourceMapping,
+    id_to_source_file : HashMap<u64,PathBuf>,
+    mappings: SourceMapping,
+
 }
 
 impl SourceDatabase {
-    pub fn new(mappings: SourceMapping, sources : &Sources) -> Self {
-        let mut source_files = HashMap::new();
+    pub fn new(mappings: &SourceMapping, sources : &Sources) -> Self {
+        let mut id_to_source_file = HashMap::new();
 
-
-        for (k,v) in &sources.id_to_source_file {
-            let file_id = mappings.node_id_to_file_id.get(k).unwrap();
-            source_files.insert(*file_id,v.file.clone());
+        for (k, v) in &sources.id_to_source_file {
+            id_to_source_file.insert(*k, v.file.clone());
         }
 
         Self {
-            mappings,
-            source_files,
+            mappings : mappings.clone(),
+            id_to_source_file
         }
     }
 }
-
