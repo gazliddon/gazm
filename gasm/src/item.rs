@@ -8,7 +8,7 @@ use emu::isa::{AddrModeEnum, Instruction, InstructionInfo};
 use nom::{IResult, Offset};
 
 use crate::ctx::Ctx;
-use crate::fileloader::FileLoader;
+use crate::fileloader::SourceFileLoader;
 use crate::locate::{matched_span, Span};
 use crate::node::{BaseNode, CtxTrait};
 
@@ -144,7 +144,7 @@ impl IndexParseType {
                 let mut bits = 0b0000_0000;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
-                bits  = bits | (off as u8 &0x1f);
+                bits  |= off as u8 &0x1f;
                 bits
             }
 

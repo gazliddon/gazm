@@ -117,7 +117,7 @@ use colored::*;
 pub fn tokenize_file(
     depth: usize,
     _ctx: &cli::Context,
-    fl: &mut fileloader::FileLoader,
+    fl: &mut fileloader::SourceFileLoader,
     file: &std::path::Path,
     parent: &std::path::Path,
 ) -> anyhow::Result<Node> {
@@ -153,7 +153,7 @@ pub fn tokenize_file(
     for n in matched.children.iter_mut() {
         if let Some(inc_file) = n.get_include_file() {
             x.indent();
-            *n = tokenize_file(depth + 1, _ctx, fl, &inc_file.to_path_buf(), file)?.into();
+            *n = tokenize_file(depth + 1, _ctx, fl, inc_file, file)?.into();
             x.deindent();
         }
     }
@@ -162,7 +162,7 @@ pub fn tokenize_file(
 }
 
 pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, Sources)> {
-    use fileloader::FileLoader;
+    use fileloader::SourceFileLoader;
 
     let file = ctx.file.clone();
 
@@ -172,7 +172,7 @@ pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, Sources)> {
         paths.push(dir);
     }
 
-    let mut fl = FileLoader::from_search_paths(&paths);
+    let mut fl = SourceFileLoader::from_search_paths(&paths);
     let parent = PathBuf::new();
 
     let res = tokenize_file(0, ctx, &mut fl, &ctx.file, &parent)?;

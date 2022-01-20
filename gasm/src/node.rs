@@ -196,16 +196,10 @@ impl<I : std::fmt::Debug , C: CtxTrait > std::fmt::Debug for BaseNode<I,C> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Dummy { }
 
 impl CtxTrait for Dummy {
-}
-
-impl Default for Dummy {
-    fn default() -> Self {
-        Self{}
-    }
 }
 
 

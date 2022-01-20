@@ -84,7 +84,7 @@ impl AnnotatedSourceFile {
     }
 
     pub fn text_line(&self, line : usize) -> Option<&String> {
-        self.lines.get(line).map(|v| v.line.as_ref()).flatten()
+        self.lines.get(line).and_then(|v| v.line.as_ref())
     }
     pub fn text_line_string(&self, line : usize) -> String {
         self.text_line(line).cloned().unwrap_or_default()

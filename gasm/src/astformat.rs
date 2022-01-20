@@ -114,7 +114,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                     if *indirect {
                         format!("[{}]", s)
                     } else {
-                        s.to_string()
+                        s
                     }
                 };
 

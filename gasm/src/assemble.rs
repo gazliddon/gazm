@@ -28,7 +28,7 @@ use std::vec;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Assembled {
     #[serde(skip)]
@@ -64,34 +64,34 @@ fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
     let mut registers = 0;
 
     if regs.contains(&CC) {
-        registers = registers | 0x01;
+        registers |=  0x01;
     }
 
     if regs.contains(&A) {
-        registers = registers | 0x02;
+        registers |= 0x02;
     }
     if regs.contains(&B) {
-        registers = registers | 0x04;
+        registers |= 0x04;
     }
 
     if regs.contains(&DP) {
-        registers = registers | 0x08;
+        registers |= 0x08;
     }
 
     if regs.contains(&X) {
-        registers = registers | 0x10;
+        registers |= 0x10;
     }
 
     if regs.contains(&Y) {
-        registers = registers | 0x20;
+        registers |= 0x20;
     }
 
     if regs.contains(&U) || regs.contains(&S) {
-        registers = registers | 0x40;
+        registers |= 0x40;
     }
 
     if regs.contains(&PC) {
-        registers = registers | 0x80;
+        registers |= 0x80;
     }
     registers
 }
@@ -218,7 +218,7 @@ fn eval_node(
     node: AstNodeRef,
     sources: &crate::sourcefile::Sources,
 ) -> Result<i64, UserError> {
-    eval(&symbols, node).map_err(|err| {
+    eval(symbols, node).map_err(|err| {
         let info = sources.get_source_info(&node.value().pos).unwrap();
         UserError::from_ast_error(err, &info)
     })
@@ -298,7 +298,7 @@ impl Assembler {
     fn eval_first_arg(&self, node: AstNodeRef) -> Result<(i64, AstNodeId), UserError> {
         let c = node
             .first_child()
-            .ok_or(self.user_error("Missing argument", node))?;
+            .ok_or_else(|| self.user_error("Missing argument", node))?;
         let v = self.eval_node(c)?;
         Ok((v, c.id()))
     }
@@ -405,7 +405,7 @@ impl Assembler {
                 match ins_amode {
                     Indexed => {
                         if let AddrModeParseType::Indexed(imode) = amode {
-                            self.assemble_indexed(id, imode.clone())?;
+                            self.assemble_indexed(id, *imode)?;
                         }
                     }
 
@@ -552,7 +552,7 @@ impl Assembler {
             OpCode(ins, amode) => {
                 use emu::isa::AddrModeEnum::*;
 
-                pc = pc + ins.size as u64;
+                pc += ins.size as u64;
 
                 if let AddrModeParseType::Indexed(pmode) = amode {
                     use item::IndexParseType::*;
@@ -598,11 +598,11 @@ impl Assembler {
 
                             let new_amode = match v.byte_size() {
                                 ByteSizes::Bits5(v) | ByteSizes::Byte(v) => {
-                                    pc = pc + 1;
+                                    pc += 1;
                                     PcOffsetByte(v, *indirect)
                                 }
                                 ByteSizes::Word(v) => {
-                                    pc = pc + 2;
+                                    pc += 2;
                                     PcOffsetWord(v, *indirect)
                                 }
                             };
@@ -643,19 +643,19 @@ impl Assembler {
             Zmb => {
                 let (v, _) = self.eval_first_arg(node)?;
                 assert!(v >= 0);
-                pc = pc + v as u64;
+                pc += v as u64;
             }
 
             Zmd => {
                 let (v, _) = self.eval_first_arg(node)?;
                 assert!(v >= 0);
-                pc = pc + (v * 2) as u64;
+                pc += (v * 2) as u64;
             }
 
             Fill => {
                 let (_, c) = self.eval_two_args(node)?;
                 assert!(c >= 0);
-                pc = pc + c as u64;
+                pc += c as u64;
             }
 
             Assignment(..) | Comment(..) => (),

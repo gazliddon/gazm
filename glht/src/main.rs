@@ -274,8 +274,7 @@ impl App<events::Events> for MyApp {
         if self.sourcewin.is_empty() {
             if let Some(sf) = sources
                 .addr_to_loc(pc)
-                .map(|l| sources.get(&l.file))
-                .flatten()
+                .and_then(|l| sources.get(&l.file))
             {
                 self.sourcewin.set_source_file(sf.clone());
             }

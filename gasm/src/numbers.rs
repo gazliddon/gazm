@@ -22,7 +22,7 @@ pub fn parse_hex(input: Span) -> IResult<i64> {
     let (rest,_) = alt(( tag("0x"), tag("0X"), tag("$") ))(input)?;
     let (rest,num_str) = num_get(rest)?;
 
-    let num = i64::from_str_radix(&num_str.replace("_", ""), 16)
+    let num = i64::from_str_radix(&num_str.replace('_', ""), 16)
         .map_err(|e| num_parse_err(num_str, "hex", e))?;
 
     Ok((rest, num))
@@ -31,7 +31,7 @@ pub fn parse_hex(input: Span) -> IResult<i64> {
 fn parse_binary(input: Span) -> IResult<i64> {
     let (rest,_) = alt(( tag("%"),tag("0b"), tag("0B") ))(input)?;
     let (rest,num_str) = num_get(rest)?;
-    let num = i64::from_str_radix(&num_str.replace( "_", ""), 2)
+    let num = i64::from_str_radix(&num_str.replace( '_', ""), 2)
         .map_err(|e| num_parse_err(num_str, "binary", e))?;
 
     Ok((rest, num))
@@ -40,7 +40,7 @@ fn parse_binary(input: Span) -> IResult<i64> {
 fn parse_dec(input: Span) -> IResult<i64> {
     let (rest, num_str) = num_get(input)?;
 
-    let num = num_str.replace( "_", "").parse::<i64>()
+    let num = num_str.replace( '_', "").parse::<i64>()
         .map_err(|e| num_parse_err(num_str, "Decimal", e))?;
 
     Ok((rest, num))

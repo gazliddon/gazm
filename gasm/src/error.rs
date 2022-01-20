@@ -109,7 +109,7 @@ impl AstError {
 
 impl std::fmt::Display for AstError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let err_string = self.message.clone().unwrap_or("NO ERROR".to_string());
+        let err_string = self.message.clone().unwrap_or_else(|| "NO ERROR".to_string());
         write!(f, "{} : ({}:{})", err_string, self.pos.line, self.pos.col)
     }
 }

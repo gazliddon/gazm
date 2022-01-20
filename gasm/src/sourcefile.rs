@@ -1,4 +1,4 @@
-use crate::fileloader::FileLoader;
+use crate::fileloader::SourceFileLoader;
 use crate::position::{Position,AsmSource};
 use crate::symbols::SymbolTable;
 use std::hash::Hash;
@@ -68,8 +68,8 @@ pub struct Sources {
     pub id_to_source_file: HashMap<u64, SourceFile>,
 }
 
-impl From<FileLoader> for Sources {
-    fn from(fl: FileLoader) -> Self {
+impl From<SourceFileLoader> for Sources {
+    fn from(fl: SourceFileLoader) -> Self {
         Self {
             id_to_source_file: fl.loaded_files,
         }
@@ -147,7 +147,7 @@ impl SourceMapping {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceDatabase {
     id_to_source_file : HashMap<u64,PathBuf>,

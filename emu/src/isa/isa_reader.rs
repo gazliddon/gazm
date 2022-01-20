@@ -27,7 +27,7 @@ where
     D: Deserializer<'de>,
 {
     let action = String::deserialize(deserializer)?;
-    Ok(action.to_lowercase().replace("/", "_"))
+    Ok(action.to_lowercase().replace('/', "_"))
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]

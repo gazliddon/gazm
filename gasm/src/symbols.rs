@@ -1,14 +1,11 @@
 // symtab
 use std::collections::{HashMap, VecDeque};
-
 use serde_json::json;
 use serde::{Deserialize, Serialize};
 
-use crate::ast::AstNodeId;
-
 pub type SymbolId = usize;
 /// Holds information about a symbol
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Debug, PartialEq, Clone)]
 pub struct SymbolInfo {
     /// Symbol Name
     pub name: String,
@@ -26,7 +23,7 @@ pub enum SymbolError {
 }
 
 /// Holds information about symbols
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SymbolTable {
     info: Vec<SymbolInfo>,

@@ -5,20 +5,20 @@ use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use crate::sourcefile::SourceFile;
 
-pub struct FileLoader {
+pub struct SourceFileLoader {
     pub search_paths : Vec<PathBuf>,
     pub loaded_files : HashMap<u64, SourceFile>,
     id : u64,
 }
 
-impl Default for FileLoader {
+impl Default for SourceFileLoader {
     fn default() -> Self {
         let vec : Vec<&str> = vec![];
         Self::from_search_paths(&vec)
     }
 }
 
-impl FileLoader {
+impl SourceFileLoader {
     pub fn new() -> Self {
         Self::default()
     }

@@ -158,10 +158,10 @@ where
     F: FnMut(&mut super::messages::Messages) -> Y,
     S: Into<String>
 {
-    let mut x = super::messages::messages();
+    let x = super::messages::messages();
     x.info(text.into());
     x.indent();
-    let r = f(&mut x);
+    let r = f(x);
     x.deindent();
     r
 }
