@@ -21,23 +21,23 @@ pub type Node = BaseNode<Item, Position>;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {
-    ConstantOffset(RegEnum, bool), //               arg,R
+    ConstantOffset(RegEnum), //               arg,R
 
     Plus(RegEnum),           //               ,R+              2 0 |
-    PlusPlus(RegEnum, bool), //               ,R++             3 0 |
+    PlusPlus(RegEnum), //               ,R++             3 0 |
     Sub(RegEnum),            //               ,-R              2 0 |
-    SubSub(RegEnum, bool),   //               ,--R             3 0 |
-    Zero(RegEnum, bool),     //               ,R               0 0 |
-    AddB(RegEnum, bool),     //             (+/- B),R          1 0 |
-    AddA(RegEnum, bool),     //             (+/- A),R          1 0 |
-    AddD(RegEnum, bool),     //             (+/- D),R          4 0 |
-    PCOffset(bool),          //      (+/- 7 bit offset),PC     1 1 |
+    SubSub(RegEnum),   //               ,--R             3 0 |
+    Zero(RegEnum),     //               ,R               0 0 |
+    AddB(RegEnum),     //             (+/- B),R          1 0 |
+    AddA(RegEnum),     //             (+/- A),R          1 0 |
+    AddD(RegEnum),     //             (+/- D),R          4 0 |
+    PCOffset,          //      (+/- 7 bit offset),PC     1 1 |
     ExtendedIndirect,        //  [expr]
-    Constant5BitOffset(RegEnum, i8, bool),
-    ConstantByteOffset(RegEnum, i8, bool),
-    ConstantWordOffset(RegEnum, i16, bool),
-    PcOffsetWord(i16, bool),
-    PcOffsetByte(i8, bool),
+    Constant5BitOffset(RegEnum, i8),
+    ConstantByteOffset(RegEnum, i8),
+    ConstantWordOffset(RegEnum, i16),
+    PcOffsetWord(i16),
+    PcOffsetByte(i8),
 }
 
 fn rbits(r: RegEnum) -> u8 {
@@ -66,7 +66,7 @@ fn add_ind(bits: u8, ind: bool) -> u8 {
 }
 
 impl IndexParseType {
-    pub fn get_index_byte(&self) -> u8 {
+    pub fn get_index_byte(&self, indirect : bool) -> u8 {
         use IndexParseType::*;
 
         match *self {
@@ -76,7 +76,7 @@ impl IndexParseType {
                 bits
             }
 
-            PlusPlus(r, indirect) => {
+            PlusPlus(r) => {
                 let mut bits = 0b1000_0001;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
@@ -89,87 +89,84 @@ impl IndexParseType {
                 bits
             }
 
-            SubSub(r, indirect) => {
+            SubSub(r) => {
                 let mut bits = 0b1000_0011;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            Zero(r, indirect) => {
+            Zero(r) => {
                 let mut bits = 0b10000100;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            AddA(r, indirect) => {
+            AddA(r) => {
                 let mut bits = 0b10000110;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            AddB(r, indirect) => {
+            AddB(r) => {
                 let mut bits = 0b1000_0101;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            AddD(r, indirect) => {
+            AddD(r) => {
                 let mut bits = 0b1000_1011;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            PcOffsetByte(_, indirect) => {
+            PcOffsetByte(_) => {
                 let mut bits = 0b1000_1100;
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            PcOffsetWord(_, indirect) => {
+            PcOffsetWord(_) => {
                 let mut bits = 0b1000_1101;
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            ExtendedIndirect => {
-                0b1001_1111
-            },
+            ExtendedIndirect => 0b1001_1111,
 
-            Constant5BitOffset(r, off, indirect) => {
+            Constant5BitOffset(r, off) => {
                 let mut bits = 0b0000_0000;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
-                bits  |= off as u8 &0x1f;
+                bits |= off as u8 & 0x1f;
                 bits
             }
 
-            ConstantByteOffset(r, _, indirect) => {
+            ConstantByteOffset(r, _) => {
                 let mut bits = 0b1000_1100;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
-            ConstantWordOffset(r, _, indirect) => {
+            ConstantWordOffset(r, _) => {
                 let mut bits = 0b1000_1001;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            PCOffset(..) |
-            ConstantOffset(..) => panic!("Internal error"),
+            PCOffset | ConstantOffset(..) => panic!("Internal error"),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum AddrModeParseType {
-    Indexed(IndexParseType),
+    Indexed(IndexParseType, bool),
     Direct,
     Extended,
     Relative,
@@ -185,7 +182,7 @@ impl AddrModeParseType {
         let get = |amode| info.get_instruction(&amode);
 
         match self {
-            Self::Indexed(_) => get(Indexed),
+            Self::Indexed(_, _) => get(Indexed),
 
             Self::Direct => get(Direct),
 
@@ -235,6 +232,7 @@ pub enum Item {
 
     OpCode(Instruction, AddrModeParseType),
     Operand(AddrModeParseType),
+    OperandIndexed(IndexParseType, bool),
 
     Register(RegEnum),
 
@@ -274,8 +272,8 @@ impl GetPriotity for Item {
 }
 
 impl Item {
-    pub fn operand_from_index_mode(imode: IndexParseType) -> Self {
-        Self::Operand(AddrModeParseType::Indexed(imode))
+    pub fn operand_from_index_mode(imode: IndexParseType, indirect : bool) -> Self {
+        Self::OperandIndexed(imode, indirect)
     }
 
     pub fn is_empty_comment(&self) -> bool {

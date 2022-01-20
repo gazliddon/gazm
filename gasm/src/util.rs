@@ -39,16 +39,6 @@ where
         Ok((input, matched))
     }
 }
-// pub fn parse_str<'a, O, F>(
-//     mut inner: F
-//     ) -> impl FnMut(&str) -> IResult<O>
-// where
-// F: nom::Parser<Span<'a>, O,ParseError<'a>>
-// {
-//     move |input: &'a str| {
-//         inner.parse(input.into())
-//     }
-// }
 
 pub fn wrapped_chars<'a, O, F>(
     open: char,
@@ -206,18 +196,20 @@ impl ByteSize for i64 {
 #[allow(unused_imports)]
 mod test {
 
+    use crate::position::AsmSource;
+
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
     #[test]
     fn test_byte_sizes() {
         let x : i64 = 7;
         let y = x.byte_size();
-        assert_eq!(y, ByteSizes::Nybble(7))
+        assert_eq!(y, ByteSizes::Bits5(7))
     }
 
     #[test]
     fn test_parse_number() {
-        let input = Span::new("1000 ;; ");
+        let input = Span::new_extra("1000 ;; ", AsmSource::FromStr);
         let (rest,matched) = parse_number(input).unwrap();
         assert_eq!(*rest, " ;; ");
         assert_eq!(&matched.to_string(), "1000");
@@ -225,11 +217,11 @@ mod test {
 
     #[test]
     fn test_assignment() {
-        let input = Span::new("hello equ $1000");
+        let input = Span::new_extra("hello equ $1000", AsmSource::FromStr);
         let (_,matched) = parse_assignment(input).unwrap();
         assert_eq!(&matched.to_string(), "hello equ 4096");
 
-        let input = Span::new("hello equ * ;;");
+        let input = Span::new_extra("hello equ * ;;", AsmSource::FromStr);
         let (rest,matched) = parse_assignment(input).unwrap();
         println!("original: {:?}", *input);
         println!("Rest: {:?}", rest);

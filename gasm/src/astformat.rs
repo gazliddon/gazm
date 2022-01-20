@@ -121,32 +121,32 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 let operand = match amode {
                     Immediate => format!("#{}", child(0)),
                     Direct => format!("<{}", child(0)),
-                    Indexed(imode) => {
+                    Indexed(imode, indirect) => {
                         use item::IndexParseType::*;
                         match imode {
-                            ConstantByteOffset(r, v, indirect)
-                            | Constant5BitOffset(r, v, indirect) => {
+                            ConstantByteOffset(r, v)
+                            | Constant5BitOffset(r, v) => {
                                 ind(format!("{},{}", v, r), indirect)
                             }
 
-                            ConstantWordOffset(r, v, indirect) => {
+                            ConstantWordOffset(r, v) => {
                                 ind(format!("{},{}", v, r), indirect)
                             }
 
-                            PcOffsetWord(v, indirect) => ind(format!("{},PC", v), indirect),
-                            PcOffsetByte(v, indirect) => ind(format!("{},PC", v), indirect),
-                            ConstantOffset(r, indirect) => {
+                            PcOffsetWord(v) => ind(format!("{},PC", v), indirect),
+                            PcOffsetByte(v) => ind(format!("{},PC", v), indirect),
+                            ConstantOffset(r) => {
                                 ind(format!("{},{}", child(0), r), indirect)
                             }
-                            Zero(r, indirect) => ind(format!(",{}", r), indirect),
-                            SubSub(r, indirect) => ind(format!(",--{}", r), indirect),
+                            Zero(r) => ind(format!(",{}", r), indirect),
+                            SubSub(r) => ind(format!(",--{}", r), indirect),
                             Sub(r) => format!(",-{}", r),
-                            PlusPlus(r, indirect) => ind(format!(",{}++", r), indirect),
+                            PlusPlus(r) => ind(format!(",{}++", r), indirect),
                             Plus(r) => format!(",{}+", r),
-                            AddA(r, indirect) => ind(format!("A,{}", r), indirect),
-                            AddB(r, indirect) => ind(format!("B,{}", r), indirect),
-                            AddD(r, indirect) => ind(format!("D,{}", r), indirect),
-                            PCOffset(indirect) => ind(format!("{},PC", child(0)), indirect),
+                            AddA(r) => ind(format!("A,{}", r), indirect),
+                            AddB(r) => ind(format!("B,{}", r), indirect),
+                            AddD(r) => ind(format!("D,{}", r), indirect),
+                            PCOffset => ind(format!("{},PC", child(0)), indirect),
                             ExtendedIndirect => format!("[{}]", child(0)),
                         }
                     }

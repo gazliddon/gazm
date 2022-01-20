@@ -68,21 +68,21 @@ pub fn parse_label(input: Span) -> IResult<Node> {
 
 #[allow(unused_imports)]
 mod test {
-    use crate::position::Position;
+    use crate::position::{AsmSource, Position};
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
 
     #[test]
     fn test_parse_label() {
-        let input = Span::new("hello ;;");
+        let input = Span::new_extra("hello ;;", AsmSource::FromStr);
         let (rest,matched) = parse_label(input).unwrap();
         assert_eq!(" ;;", *rest);
         assert_eq!("hello",&matched.to_string());
     }
     #[test]
     fn test_parse_opcode_like_lable() {
-        let input = Span::new("swi3_vec ;;");
+        let input = Span::new_extra("swi3_vec ;;", AsmSource::FromStr);
         let (rest,matched) = parse_label(input).unwrap();
         assert_eq!(" ;;", *rest);
         assert_eq!("swi3_vec",&matched.to_string());
@@ -90,7 +90,7 @@ mod test {
 
     #[test]
     fn test_parse_local_abel() {
-        let input = Span::new("@hello\n");
+        let input = Span::new_extra("@hello\n", AsmSource::FromStr);
         let (rest,matched) = parse_label(input).unwrap();
         assert_eq!("\n", *rest);
         assert_eq!("@hello",&matched.to_string());

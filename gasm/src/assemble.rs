@@ -1,3 +1,4 @@
+use clap::Indices;
 use colored::*;
 use emu::cpu::RegEnum;
 use nom::combinator::recognize;
@@ -335,14 +336,14 @@ impl Assembler {
             Ok(ret)
     }
 
-    fn assemble_indexed(&mut self, id: AstNodeId, imode: IndexParseType) -> Result<(), UserError> {
-        let idx_byte = imode.get_index_byte();
+    fn assemble_indexed(&mut self, id: AstNodeId, imode: IndexParseType, indirect : bool) -> Result<(), UserError> {
+        let idx_byte = imode.get_index_byte(indirect);
         self.bin.write_byte(idx_byte);
         use item::IndexParseType::*;
         let node = self.tree.get(id).unwrap();
 
         match imode {
-            PCOffset(..) | ConstantOffset(..) => {
+            PCOffset | ConstantOffset(..) => {
                 panic!("Should not happen")
             }
 
@@ -351,11 +352,11 @@ impl Assembler {
                 self.write_word_check_size(id, val)?
             }
 
-            ConstantWordOffset(_, val, _) | PcOffsetWord(val, _) => {
+            ConstantWordOffset(_, val) | PcOffsetWord(val) => {
                 self.write_word_check_size(id, val as i64)?;
             }
 
-            ConstantByteOffset(_, val, _) | PcOffsetByte(val, _) => {
+            ConstantByteOffset(_, val) | PcOffsetByte(val) => {
                 self.write_byte_check_size(id, val as i64)?;
             }
 
@@ -404,8 +405,8 @@ impl Assembler {
 
                 match ins_amode {
                     Indexed => {
-                        if let AddrModeParseType::Indexed(imode) = amode {
-                            self.assemble_indexed(id, *imode)?;
+                        if let AddrModeParseType::Indexed(imode, indirect) = amode {
+                            self.assemble_indexed(id, *imode, *indirect)?;
                         }
                     }
 
@@ -461,8 +462,8 @@ impl Assembler {
                 let msg = format!("{:04X}  {:20} {}", pc, bytes_str, frag);
 
                 if ins_amode == Indexed {
-                    if let AddrModeParseType::Indexed(imode) = amode {
-                        let msg = format!("{:50} {:?}", msg, imode);
+                    if let AddrModeParseType::Indexed(imode, indirect) = amode {
+                        let msg = format!("{:50} {:?} Indirect: {}", msg, imode, indirect);
                         x.info(msg);
                     }
                 } else {
@@ -526,7 +527,7 @@ impl Assembler {
             Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) => (),
 
             _ => {
-                println!("Unable to assemble {:?}", i);
+                panic!("Unable to assemble {:?}", i);
             }
         }
 
@@ -554,7 +555,8 @@ impl Assembler {
 
                 pc += ins.size as u64;
 
-                if let AddrModeParseType::Indexed(pmode) = amode {
+                if let AddrModeParseType::Indexed(pmode, indirect) = amode {
+                    let indirect = *indirect;
                     use item::IndexParseType::*;
 
                     match pmode {
@@ -566,49 +568,49 @@ impl Assembler {
                             panic!()
                         }
 
-                        ConstantOffset(r, indirect) => {
+                        ConstantOffset(r) => {
                             let (v, _) = self.eval_first_arg(node)?;
 
                             let mut bs = v.byte_size();
 
                             if let ByteSizes::Bits5(..) = bs {
-                                if *indirect {
+                                if indirect {
                                     bs.promote();
                                 }
                             }
 
                             let new_amode = match bs {
-                                ByteSizes::Bits5(v) => Constant5BitOffset(*r, v, *indirect),
+                                ByteSizes::Bits5(v) => Constant5BitOffset(*r, v),
                                 ByteSizes::Word(v) => {
                                     pc += 2;
-                                    ConstantWordOffset(*r, v, *indirect)
+                                    ConstantWordOffset(*r, v)
                                 }
                                 ByteSizes::Byte(v) => {
                                     pc += 1;
-                                    ConstantByteOffset(*r, v, *indirect)
+                                    ConstantByteOffset(*r, v)
                                 }
                             };
 
                             let ins = ins.clone();
-                            self.set_item(id, OpCode(ins, AddrModeParseType::Indexed(new_amode)));
+                            self.set_item(id, OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)));
                         }
 
-                        PCOffset(indirect) => {
+                        PCOffset => {
                             let (v, id) = self.eval_first_arg(node)?;
 
                             let new_amode = match v.byte_size() {
                                 ByteSizes::Bits5(v) | ByteSizes::Byte(v) => {
                                     pc += 1;
-                                    PcOffsetByte(v, *indirect)
+                                    PcOffsetByte(v)
                                 }
                                 ByteSizes::Word(v) => {
                                     pc += 2;
-                                    PcOffsetWord(v, *indirect)
+                                    PcOffsetWord(v)
                                 }
                             };
 
                             let ins = ins.clone();
-                            self.set_item(id, OpCode(ins, AddrModeParseType::Indexed(new_amode)));
+                            self.set_item(id, OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)));
                         }
 
                         ExtendedIndirect => pc += 2,
@@ -661,7 +663,7 @@ impl Assembler {
             Assignment(..) | Comment(..) => (),
 
             _ => {
-                println!("Unable to size {:?}", i);
+                panic!("Unable to size {:?}", i);
             }
         };
 
