@@ -94,7 +94,7 @@ impl MyApp {
     }
 
     fn get_source_line(&self) -> Option<romloader::SourceLine> {
-        use romloader::SourceDataBase;
+        use romloader::sources::SourceDataBase;
         self.sourcewin.get_cursor_file_loc().and_then(|loc| {
             self.machine
                 .get_rom()
@@ -261,7 +261,7 @@ impl App<events::Events> for MyApp {
     }
 
     fn ui(&mut self, hdpi: f64, _pos: V2<isize>, dims: V2<usize>, ui: &mut Ui) {
-        use romloader::SourceDataBase;
+        use romloader::sources::SourceDataBase;
         use text::Dimensions;
 
         let char_dims = ui.current_font().dims() / hdpi as f32;

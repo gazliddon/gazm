@@ -19,7 +19,7 @@ mod ctx;
 mod error;
 mod eval;
 mod expr;
-mod fileloader;
+// mod fileloader;
 mod indexed;
 mod item;
 mod labels;
@@ -31,12 +31,10 @@ mod opcodes;
 mod postfix;
 mod register;
 mod scopes;
-mod sourcefile;
-mod symbols;
+// mod sourcefile;
+// mod symbols;
 mod tokenize;
 mod util;
-
-
 
 use std::path::PathBuf;
 use std::time::Instant;

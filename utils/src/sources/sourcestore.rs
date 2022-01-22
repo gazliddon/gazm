@@ -1,9 +1,31 @@
-use crate::fileloader::SourceFileLoader;
-use romloader::sources::{Position,AsmSource};
-use crate::symbols::SymbolTable;
-use std::hash::Hash;
+use super::{Position,AsmSource};
+use super::symbols::SymbolTable;
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+
+pub trait LocationTrait {
+    fn get_line_number(&self) -> usize;
+    fn get_file(&self) -> &String;
+}
+
+#[derive(Clone, Debug)]
+pub struct SourceLine<L : LocationTrait> {
+    pub loc: L,
+    pub addr: Option<u16>,
+    pub line: Option<String>,
+}
+
+pub trait SourceDataBase<L: LocationTrait> {
+    fn addr_to_source_line(&self, addr: u16) -> Option<&SourceLine<L>>;
+    fn get(&self, file: &str) -> Option<&Vec<SourceLine<L>>>;
+    fn addr_to_loc(&self, _addr: u16) -> Option<&L>;
+
+    fn loc_to_source_line(&self, loc: &L) -> Option<&SourceLine<L>> {
+        let lines = self.get(&loc.get_file())?;
+        lines.get(loc.get_line_number())
+    }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 pub struct SourceFile {
@@ -38,7 +60,7 @@ impl SourceFile {
         }
     }
 }
-use std::fmt::{Debug, DebugMap};
+use std::fmt::Debug;
 
 impl Debug for SourceFile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -99,7 +121,7 @@ impl Sources {
 }
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+// use serde_json::json;
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]

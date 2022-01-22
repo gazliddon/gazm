@@ -1,7 +1,7 @@
 #[derive( Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Location {
     pub file : String,
-    line : usize,
+    pub line : usize,
 }
 
 pub struct SourceChunk {

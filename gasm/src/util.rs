@@ -196,7 +196,7 @@ impl ByteSize for i64 {
 #[allow(unused_imports)]
 mod test {
 
-    use romloader::AsmSource;
+    use romloader::sources::AsmSource;
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};

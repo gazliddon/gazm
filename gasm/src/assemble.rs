@@ -14,9 +14,7 @@ use crate::eval::eval;
 use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
-use crate::sourcefile::SourceDatabase;
-use crate::sourcefile::SourceMapping;
-use crate::symbols::SymbolTable;
+use romloader::sources::{ SourceDatabase, SourceMapping, SymbolTable, Sources };
 use crate::util;
 use crate::util::info;
 use crate::util::ByteSize;
@@ -207,8 +205,8 @@ impl Binary {
 }
 
 pub struct Assembler {
-    symbols: crate::symbols::SymbolTable,
-    sources: crate::sourcefile::Sources,
+    symbols: SymbolTable,
+    sources: Sources,
     bin: Binary,
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
@@ -217,7 +215,7 @@ pub struct Assembler {
 fn eval_node(
     symbols: &SymbolTable,
     node: AstNodeRef,
-    sources: &crate::sourcefile::Sources,
+    sources: &Sources,
 ) -> Result<i64, UserError> {
     eval(symbols, node).map_err(|err| {
         let info = sources.get_source_info(&node.value().pos).unwrap();

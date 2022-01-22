@@ -5,8 +5,7 @@ use nom::{self, Offset};
 
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::locate::Span;
-use romloader::Position;
-use crate::sourcefile::SourceInfo;
+use romloader::sources::{ Position, SourceInfo };
 use nom::AsBytes;
 use crate::locate::to_pos;
 

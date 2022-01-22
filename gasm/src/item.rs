@@ -8,11 +8,10 @@ use emu::isa::{AddrModeEnum, Instruction, InstructionInfo};
 use nom::{IResult, Offset};
 
 use crate::ctx::Ctx;
-use crate::fileloader::SourceFileLoader;
 use crate::locate::{matched_span, Span};
 use crate::node::{BaseNode, CtxTrait};
 
-use romloader::Position;
+use romloader::sources::{SourceFileLoader, Position };
 use crate::postfix::GetPriotity;
 use crate::locate::to_pos;
 

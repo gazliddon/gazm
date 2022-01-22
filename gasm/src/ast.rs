@@ -16,14 +16,12 @@ use romloader::ResultExt;
 use crate::error::{AstError, UserError};
 use crate::item;
 use crate::scopes::ScopeBuilder;
-use crate::symbols::SymbolId;
 
 use crate::item::{Item, Node};
-use romloader::Position;
+use romloader::sources::Position;
 
 use crate::postfix;
-use crate::sourcefile::{SourceInfo, SourceFile, Sources};
-use crate::symbols::SymbolTable;
+use romloader::sources::{SourceInfo, SourceFile, Sources, SymbolId, SymbolTable};
 use crate::util::{debug, info};
 
 ////////////////////////////////////////////////////////////////////////////////

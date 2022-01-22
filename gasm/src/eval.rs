@@ -7,7 +7,7 @@ use crate::postfix::{GetPriotity, Stack};
 use std::{collections::HashMap, hash::Hash};
 
 use crate::error::AstError;
-use crate::symbols::{SymbolError, SymbolTable};
+use romloader::sources::{SymbolError, SymbolTable};
 
 fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
     if let Item::Number(_) = i {

@@ -4,7 +4,7 @@ use nom_locate::LocatedSpan;
 use nom::{InputTake, Offset};
 
 use crate::commands::parse_command;
-use romloader::{Position, AsmSource};
+use romloader::sources::{Position, AsmSource};
 
 pub type Span<'a> = LocatedSpan<&'a str, AsmSource>;
 

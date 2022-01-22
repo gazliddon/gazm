@@ -5,18 +5,11 @@ use super::error;
 use std::collections::{HashMap, HashSet};
 
 use log::{info, warn};
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
-pub trait SourceDataBase {
-    fn addr_to_source_line(&self, addr: u16) -> Option<&SourceLine>;
-    fn get(&self, file: &str) -> Option<&Vec<SourceLine>>;
-    fn addr_to_loc(&self, _addr: u16) -> Option<&Location>;
-
-    fn loc_to_source_line(&self, loc: &Location) -> Option<&SourceLine> {
-        let lines = self.get(&loc.file)?;
-        lines.get(loc.get_line_number())
-    }
-}
+pub type SourceLine = super::sources::SourceLine<Location>;
 
 ////////////////////////////////////////////////////////////////////////////////
 fn load_lines(file: &str) -> error::Result<Vec<String>> {
@@ -26,13 +19,6 @@ fn load_lines(file: &str) -> error::Result<Vec<String>> {
     Ok(contents.lines().map(|x| x.to_string()).collect())
 }
 
-#[derive(Clone, Debug)]
-pub struct SourceLine {
-    pub loc: Location,
-    pub addr: Option<u16>,
-    pub line: Option<String>,
-}
-
 pub struct SourceStore {
     annotated_files: HashMap<String, Vec<SourceLine>>,
     source_dir: String,
@@ -40,7 +26,19 @@ pub struct SourceStore {
     addr_to_loc: HashMap<u16, Location>,
 }
 
-impl SourceDataBase for SourceStore {
+impl crate::sources::LocationTrait for Location {
+
+    fn get_line_number(&self) -> usize {
+        self.line
+    }
+
+    fn get_file(&self) -> &String {
+        &self.file
+    }
+}
+use crate::sources::SourceDataBase;
+
+impl SourceDataBase<Location> for SourceStore {
     fn addr_to_source_line(&self, addr: u16) -> Option<&SourceLine> {
         let loc = self.addr_to_loc.get(&addr)?;
         self.loc_to_source_line(loc)

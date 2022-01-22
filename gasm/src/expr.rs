@@ -23,7 +23,7 @@ use crate::error::{IResult, ParseError};
 use crate::locate::{matched_span, Span};
 use crate::opcodes::parse_opcode;
 
-    use romloader::AsmSource;
+    use romloader::sources::AsmSource;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operands

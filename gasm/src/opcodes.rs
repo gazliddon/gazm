@@ -199,7 +199,7 @@ mod test {
 
     use std::os::unix::prelude::JoinHandleExt;
 
-    use romloader::Position;
+    use romloader::sources::Position;
     use emu::cpu::RegEnum;
     use pretty_assertions::{assert_eq, assert_ne};
 

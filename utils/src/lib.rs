@@ -3,7 +3,7 @@
 // #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate quick_error;
 
-mod sources;
+pub mod sources;
 mod chunk;
 mod error;
 mod rom;
@@ -17,5 +17,4 @@ pub use error::*;
 pub use rom::*;
 pub use sourcestore::*;
 pub use location::*;
-pub use sources::*;
 

@@ -1,6 +1,6 @@
 use crate::{
-    cli, commands, comments, expr, fileloader, item, labels, messages, opcodes,
-    sourcefile::Sources, util,
+    cli, commands, comments, expr, item, labels, messages, opcodes,
+    util,
 };
 
 use nom::{
@@ -17,7 +17,7 @@ use romloader::ResultExt;
 use crate::error::{IResult, ParseError, UserError};
 use crate::item::{Item, Node};
 use crate::locate::Span;
-use romloader::AsmSource;
+use romloader::sources::{ AsmSource, SourceFileLoader, Sources };
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = preceded(
@@ -117,7 +117,7 @@ use colored::*;
 pub fn tokenize_file(
     depth: usize,
     _ctx: &cli::Context,
-    fl: &mut fileloader::SourceFileLoader,
+    fl: &mut SourceFileLoader,
     file: &std::path::Path,
     parent: &std::path::Path,
 ) -> anyhow::Result<Node> {
@@ -162,7 +162,6 @@ pub fn tokenize_file(
 }
 
 pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, Sources)> {
-    use fileloader::SourceFileLoader;
 
     let file = ctx.file.clone();
 

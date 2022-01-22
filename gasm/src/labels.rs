@@ -68,7 +68,7 @@ pub fn parse_label(input: Span) -> IResult<Node> {
 
 #[allow(unused_imports)]
 mod test {
-    use romloader::{AsmSource, Position};
+    use romloader::sources::{AsmSource, Position};
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
