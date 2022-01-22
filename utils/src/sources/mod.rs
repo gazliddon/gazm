@@ -1,10 +1,8 @@
 mod position;
-mod traits;
 mod sourcestore;
 mod fileloader;
 mod symbols;
 pub use position::*;
-pub use traits::*;
 pub use sourcestore::*;
 pub use fileloader::*;
 pub use symbols::*;
