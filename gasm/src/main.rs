@@ -116,7 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(sym_file) = ctx.syms {
         x.intertesting(format!("Writing symbols: {}", sym_file));
-        let j = serde_json::to_string_pretty(&ret).unwrap();
+        let j = serde_json::to_string_pretty(&ret.database).unwrap();
         fs::write(sym_file, j).expect("Unable to write file");
     }
 

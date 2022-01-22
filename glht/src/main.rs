@@ -129,6 +129,11 @@ impl MyApp {
     pub fn new(system: &System) -> Self {
         use emu::breakpoints::{BreakPoint, BreakPointTypes};
 
+        let sym_file = "./gasm/a.syms.json";
+        let symstr = std::fs::read_to_string(sym_file).unwrap();
+        let sd : romloader::sources::SourceDatabase = serde_json::from_str(&symstr).unwrap();
+        println!("{:#?}", sd);
+
         let sym_file = "./asm/out/demo.syms";
         let mut machine = simple::make_simple(sym_file);
 

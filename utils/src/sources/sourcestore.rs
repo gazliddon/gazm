@@ -121,18 +121,15 @@ impl Sources {
 }
 
 use serde::{Deserialize, Serialize};
-// use serde_json::json;
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug,Serialize, Deserialize, Clone)]
 struct Mapping {
     pub file_id: u64,
     pub line: usize,
     pub range: std::ops::Range<usize>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug,Serialize, Deserialize, Clone)]
 pub struct SourceMapping {
     addr_to_mapping: HashMap<u64, Mapping>,
 }
@@ -161,8 +158,7 @@ impl SourceMapping {
     }
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug,Serialize, Deserialize)]
 pub struct SourceDatabase {
     id_to_source_file : HashMap<u64,PathBuf>,
     mappings: SourceMapping,

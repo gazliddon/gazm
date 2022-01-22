@@ -496,6 +496,7 @@ dependencies = [
  "lru-cache",
  "notify",
  "num",
+ "romloader",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1535,7 +1536,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
- "itertools",
  "log",
  "quick-error",
  "regex",
