@@ -106,13 +106,13 @@ fn get_reg_set(input: Span) -> IResult< HashSet<emu::cpu::RegEnum>> {
 
 pub fn parse_reg(input: Span) -> IResult< Node> {
     let (rest,matched) = get_reg(input)?;
-    let ret = Node::from_item(Item::Register(matched), input);
+    let ret = Node::from_item_span(Item::Register(matched), input);
     Ok((rest,ret))
 }
 
 pub fn parse_index_reg(input: Span) -> IResult< Node> {
     let (rest,matched) = get_index_reg(input)?;
-    let ret = Node::from_item(Item::Register(matched), input);
+    let ret = Node::from_item_span(Item::Register(matched), input);
     Ok((rest,ret))
 }
 
@@ -143,7 +143,7 @@ pub fn parse_reg_set_n(input: Span, n : usize) -> IResult<Node> {
 fn parse_reg_set(input: Span) -> IResult< Node> {
     let (rest, matched) = get_reg_set(input)?;
 
-    let ret = Node::from_item(Item::RegisterSet(matched), input);
+    let ret = Node::from_item_span(Item::RegisterSet(matched), input);
     Ok((rest, ret))
 }
 

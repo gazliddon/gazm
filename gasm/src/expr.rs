@@ -21,8 +21,9 @@ use super::labels::parse_label;
 
 use crate::error::{IResult, ParseError};
 use crate::locate::{matched_span, Span};
-use crate::position::AsmSource;
 use crate::opcodes::parse_opcode;
+
+    use romloader::AsmSource;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
@@ -51,13 +52,13 @@ fn parse_bracketed_expr(input: Span) -> IResult<Node> {
     let (rest, mut matched) = wrapped_chars('(', ws(parse_expr), ')')(input)?;
     let matched_span = matched_span(input, rest);
     matched.item = Item::BracketedExpr;
-    Ok((rest, matched.with_ctx(matched_span)))
+    Ok((rest, matched.with_span(matched_span)))
 }
 
 pub fn parse_pc(input: Span) -> IResult<Node> {
     let (rest, _matched) = nom_char('*')(input)?;
     let matched_span = matched_span(input, rest);
-    Ok((rest, Node::from_item(Item::Pc, matched_span)))
+    Ok((rest, Node::from_item_span(Item::Pc, matched_span)))
 }
 
 pub fn parse_non_unary_term(input: Span) -> IResult<Node> {
@@ -76,7 +77,7 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
         separated_pair(parse_unary_op, multispace0, parse_non_unary_term)(input)?;
 
     let matched_span = matched_span(input, rest);
-    let ret = Node::from_item(Item::UnaryTerm, matched_span).with_children(vec![op, term]);
+    let ret = Node::from_item_span(Item::UnaryTerm, matched_span).with_children(vec![op, term]);
     Ok((rest, ret))
 }
 
@@ -86,7 +87,7 @@ fn parse_op_allowed<'a>(input: Span<'a>, ops: &str) -> IResult<'a, Node> {
     let op = to_op(matched).unwrap();
 
     let matched_span = matched_span(input, rest);
-    let ret = Node::from_item(op, matched_span);
+    let ret = Node::from_item_span(op, matched_span);
 
     Ok((rest, ret))
 }
@@ -132,7 +133,7 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
 
     let matched_span = matched_span(input, rest);
 
-    let node = Node::from_item(Item::Expr, matched_span).with_children(vec_ret);
+    let node = Node::from_item_span(Item::Expr, matched_span).with_children(vec_ret);
 
     Ok((rest, node))
 }

@@ -4,7 +4,7 @@ use nom_locate::LocatedSpan;
 use nom::{InputTake, Offset};
 
 use crate::commands::parse_command;
-use crate::position::{Position, AsmSource};
+use romloader::{Position, AsmSource};
 
 pub type Span<'a> = LocatedSpan<&'a str, AsmSource>;
 
@@ -19,33 +19,11 @@ pub fn matched_span<'a>(input: Span<'a>, rest: Span<'a>) -> Span<'a> {
     input.take(r.len())
 }
 
-
-impl Display for Position {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}:{})", self.line, self.col)
-    }
-}
-
-impl<'a> Default for Position {
-    fn default() -> Self {
-        todo!()
-    }
-}
-
-impl <'a> From<Span<'a>> for Position {
-    fn from(i : Span<'a>) -> Self {
+pub fn to_pos<'a>(i : Span<'a>) -> Position {
         let start = i.location_offset();
         let range = start .. (start + i.len());
         Position::new(i.location_line() as usize, i.get_column() as usize, range, i.extra)
-    }
 }
 
 impl crate::node::CtxTrait for Position { }
-
-impl Position {
-    pub fn new(line : usize, col: usize, range: std::ops::Range<usize>, src : AsmSource) -> Self {
-        Self {line,col, range, src }
-    }
-}
-
 

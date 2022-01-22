@@ -51,13 +51,13 @@ fn get_local_label(input: Span) -> IResult<Span> {
 
 fn parse_just_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
-    let ret = Node::from_item(Item::Label(matched.to_string()), matched);
+    let ret = Node::from_item_span(Item::Label(matched.to_string()), matched);
     Ok((rest,ret))
 }
 
 fn parse_local_label(input: Span) -> IResult< Node> {
     let (rest, matched) = get_local_label(input)?;
-    let ret = Node::from_item(Item::LocalLabel(matched.to_string()), matched);
+    let ret = Node::from_item_span(Item::LocalLabel(matched.to_string()), matched);
     Ok((rest,ret))
 }
 
@@ -68,7 +68,7 @@ pub fn parse_label(input: Span) -> IResult<Node> {
 
 #[allow(unused_imports)]
 mod test {
-    use crate::position::{AsmSource, Position};
+    use romloader::{AsmSource, Position};
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;

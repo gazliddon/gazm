@@ -13,13 +13,12 @@ use super::{
     text::Dimensions, text::*, v2::*,
 };
 
-use romloader::AnnotatedSourceFile;
 use Events::*;
 
 use super::simple::{Machine, SimState, SimpleMachine};
 use emu::cpu::Regs;
 use emu::mem::MemoryIO;
-use romloader::Location;
+use romloader::{ Location, SourceLine };
 
 trait RenderDoc<'a> {
     fn render_line(&mut self, cursor: usize, win_ypos: usize, doc_ypos: usize);
@@ -38,7 +37,7 @@ trait RenderDoc<'a> {
 }
 
 struct SourceRenderer<'a, IR: TextRenderer> {
-    sf: &'a AnnotatedSourceFile,
+    sf: &'a Vec<SourceLine>,
     machine: &'a dyn Machine,
     text_styles: &'a TextStyles,
     blank: String,
@@ -48,7 +47,7 @@ struct SourceRenderer<'a, IR: TextRenderer> {
 impl<'a, TR: TextRenderer> SourceRenderer<'a, TR> {
     pub fn new(
         machine: &'a dyn Machine,
-        sf: &'a romloader::AnnotatedSourceFile,
+        sf: &'a Vec<SourceLine>,
         text_styles: &'a TextStyles,
         tc: &'a TR,
     ) -> Self {
@@ -66,7 +65,7 @@ impl<'a, TR: TextRenderer> SourceRenderer<'a, TR> {
 
 impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
     fn render_line(&mut self, cursor: usize, win_ypos: usize, doc_ypos: usize) {
-        if let Some(sl) = self.sf.line(doc_ypos) {
+        if let Some(sl) = self.sf.get(doc_ypos) {
             let addr_str = sl
                 .addr
                 .map(|x| format!("{:04X}", x))
@@ -110,7 +109,7 @@ pub struct SourceWin {
     cursor: usize,
     scroll_offset: usize,
     styles: StylesDatabase,
-    source_file: Option<romloader::AnnotatedSourceFile>,
+    source_file: Option<Vec<SourceLine>>,
     frame_time: FrameTime,
     win_dims: V2<usize>,
 }
@@ -151,7 +150,7 @@ impl SourceWin {
     pub fn get_cursor_file_loc(&self) -> Option<Location> {
         self.source_file
             .as_ref()
-            .and_then(|sf| sf.line(self.cursor + self.scroll_offset))
+            .and_then(|sf| sf.get(self.cursor + self.scroll_offset))
             .map(|sl| sl.loc.clone())
     }
 
@@ -162,7 +161,7 @@ impl SourceWin {
         if let Some(sf) = &self.source_file {
             let st = ScrollTriggers::new(
                 self.scroll_offset,
-                sf.num_of_lines(),
+                sf.len(),
                 self.win_dims,
                 self.scroll_zone_height,
             );
@@ -228,7 +227,7 @@ impl SourceWin {
         }
     }
 
-    pub fn set_source_file(&mut self, sf: romloader::AnnotatedSourceFile) {
+    pub fn set_source_file(&mut self, sf: Vec<SourceLine>) {
         self.source_file = Some(sf);
     }
 

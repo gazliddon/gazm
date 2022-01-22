@@ -53,7 +53,7 @@ fn parse_immediate(input: Span) -> IResult<Node> {
     use crate::item::AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag("#"), expr::parse_expr)(input)?;
-    let ret = Node::from_item(Operand(Immediate), input).with_child(matched);
+    let ret = Node::from_item_span(Operand(Immediate), input).with_child(matched);
     Ok((rest, ret))
 }
 
@@ -61,7 +61,7 @@ fn parse_dp(input: Span) -> IResult<Node> {
     use crate::item::AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag("<"), expr::parse_expr)(input)?;
-    let ret = Node::from_item(Operand(Direct), input).with_child(matched);
+    let ret = Node::from_item_span(Operand(Direct), input).with_child(matched);
     Ok((rest, ret))
 }
 
@@ -72,14 +72,14 @@ fn parse_reg_set(input: Span) -> IResult<Node> {
 
     let (rest, matched) = register::parse_reg_set_1(input)?;
     let matched =
-        Node::from_item(Operand(AddrModeParseType::RegisterSet), input).with_child(matched);
+        Node::from_item_span(Operand(AddrModeParseType::RegisterSet), input).with_child(matched);
     Ok((rest, matched))
 }
 fn parse_opcode_reg_pair(input: Span) -> IResult<Node> {
     use crate::item::AddrModeParseType;
     use nom::combinator::map;
     use Item::*;
-    let reg_map = |(a, b)| Node::from_item(Operand(AddrModeParseType::RegisterPair(a, b)), input);
+    let reg_map = |(a, b)| Node::from_item_span(Operand(AddrModeParseType::RegisterPair(a, b)), input);
 
     let (rest, matched) = map(register::get_reg_pair, reg_map)(input)?;
 
@@ -91,7 +91,7 @@ fn parse_extended(input: Span) -> IResult<Node> {
     use nom::combinator::map;
     use Item::*;
     let (rest, matched) = expr::parse_expr(input)?;
-    let res = Node::from_item(Operand(Extended), input).with_child(matched);
+    let res = Node::from_item_span(Operand(Extended), input).with_child(matched);
     Ok((rest, res))
 }
 
@@ -159,7 +159,7 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
     if let Some(instruction) = get_instruction(&amode, info) {
         let matched = matched_span(input, rest);
         let item = Item::OpCode(instruction.clone(), amode);
-        let node = Node::from_item(item, matched).take_children(arg);
+        let node = Node::from_item_span(item, matched).take_children(arg);
         Ok((rest, node))
     } else {
         let msg = format!("{} does not support {:?} addresing mode", text, amode);
@@ -175,7 +175,7 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
     let matched_span = matched_span(input, rest);
 
     if let Some(instruction) = info.get_instruction(&Inherent) {
-        let ret = Node::from_item(
+        let ret = Node::from_item_span(
             OpCode(
                 instruction.clone(),
                 super::item::AddrModeParseType::Inherent,
@@ -199,7 +199,7 @@ mod test {
 
     use std::os::unix::prelude::JoinHandleExt;
 
-    use crate::position::Position;
+    use romloader::Position;
     use emu::cpu::RegEnum;
     use pretty_assertions::{assert_eq, assert_ne};
 

@@ -12,8 +12,9 @@ use crate::fileloader::SourceFileLoader;
 use crate::locate::{matched_span, Span};
 use crate::node::{BaseNode, CtxTrait};
 
-use crate::position::Position;
+use romloader::Position;
 use crate::postfix::GetPriotity;
+use crate::locate::to_pos;
 
 impl<'a> CtxTrait for Span<'a> {}
 
@@ -328,7 +329,7 @@ impl Item {
     }
 }
 
-impl<E: CtxTrait> BaseNode<Item, E> {
+impl<> BaseNode<Item, Position> {
     pub fn is_empty_comment(&self) -> bool {
         match self.item() {
             Item::Comment(text) => text.is_empty(),
@@ -336,17 +337,19 @@ impl<E: CtxTrait> BaseNode<Item, E> {
         }
     }
 
-    pub fn from_number<X>(n: i64, ctx: X) -> Self
-    where
-        X: Into<E>,
-    {
-        Self::from_item(Item::Number(n), ctx.into())
+    pub fn from_item_span(item: Item, sp: Span) -> Self
+        {
+            Self::new(item, vec![], to_pos(sp))
+        }
+
+    pub fn from_number(n: i64, sp: Span) -> Self {
+        Self::from_item_span(Item::Number(n), sp)
     }
 
-    pub fn to_label(txt: &str, ctx: E) -> Self {
+    pub fn to_label(txt: &str, ctx: Position) -> Self {
         Self::from_item(Item::Label(txt.to_string()), ctx)
     }
-    pub fn to_local_label(txt: &str, ctx: E) -> Self {
+    pub fn to_local_label(txt: &str, ctx: Position) -> Self {
         Self::from_item(Item::LocalLabel(txt.to_string()), ctx)
     }
 
@@ -367,6 +370,11 @@ impl<E: CtxTrait> BaseNode<Item, E> {
 
     pub fn is_include_file(&self) -> bool {
         self.get_include_file().is_some()
+    }
+    pub fn with_span(self, sp : Span) -> Self {
+            let mut ret = self;
+            ret.ctx = to_pos(sp);
+            ret
     }
 }
 

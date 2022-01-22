@@ -26,27 +26,27 @@ use crate::locate::Span;
 
 fn parse_org_arg(input: Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Org,input).with_child(matched);
+    let ret = Node::from_item_span(Org,input).with_child(matched);
     Ok((rest, ret))
 }
 
 fn parse_fdb_arg(input: Span) -> IResult< Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     let num_of_bytes = matched.len();
-    let ret = Node::from_item(Fdb(num_of_bytes), input).with_children(matched);
+    let ret = Node::from_item_span(Fdb(num_of_bytes), input).with_children(matched);
     Ok((rest, ret))
 }
 
 fn parse_include_arg(input : Span) -> IResult< Node> {
     let (rest, matched) = match_escaped_str(input)?;
     let matched = matched.to_string();
-    let ret = Node::from_item(Include(PathBuf::from(&matched)), input);
+    let ret = Node::from_item_span(Include(PathBuf::from(&matched)), input);
     Ok((rest, ret))
 }
 
 fn parse_set_dp(input : Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(SetDp, input).with_child(matched);
+    let ret = Node::from_item_span(SetDp, input).with_child(matched);
     Ok((rest,ret)) 
 }
 
@@ -59,19 +59,19 @@ fn parse_fill_arg( input: Span) -> IResult< Node> {
 
 fn parse_zmb_arg( input: Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Zmb, input).with_child(matched);
+    let ret = Node::from_item_span(Zmb, input).with_child(matched);
     Ok((rest, ret))
 }
 
 fn parse_zmd_arg( input: Span) -> IResult< Node> {
     let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item(Zmd, input).with_child(matched);
+    let ret = Node::from_item_span(Zmd, input).with_child(matched);
     Ok((rest,ret))
 }
 
 fn mk_fill(input : Span, cv: ( Node, Node) ) -> Node {
     let (count, value) = cv;
-    Node::from_item(Fill, input).with_children(vec![count,value])
+    Node::from_item_span(Fill, input).with_children(vec![count,value])
 }
 
 fn parse_bsz_arg( input : Span) -> IResult< Node> {
@@ -125,7 +125,7 @@ pub fn parse_command(input: Span) -> IResult<Node> {
     let (rest, (_command_text, func)) = command_token_function(input)?;
     let (rest, matched) = preceded(multispace1, func)(rest)?;
     let span = matched_span(input, rest);
-    let matched = matched.with_ctx(span);
+    let matched = matched.with_span(span);
     Ok((rest, matched))
 }
 

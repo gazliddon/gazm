@@ -3,7 +3,15 @@ use std::fs;
 
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
-use crate::sourcefile::SourceFile;
+use crate::sourcefile::{ SourceFile, Sources };
+
+impl Into<Sources> for SourceFileLoader {
+    fn into(self) -> Sources {
+        Sources {
+            id_to_source_file: self.loaded_files,
+        }
+    }
+}
 
 pub struct SourceFileLoader {
     pub search_paths : Vec<PathBuf>,

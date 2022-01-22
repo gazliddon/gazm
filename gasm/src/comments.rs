@@ -22,7 +22,7 @@ fn parse_comment(input: Span) -> IResult<Node> {
     use Item::*;
 
     let (rest, matched) = get_comment(input)?;
-    let ret = Node::from_item(Comment(matched.to_string()),input);
+    let ret = Node::from_item_span(Comment(matched.to_string()),input);
     Ok((rest, ret))
 }
 
@@ -44,7 +44,7 @@ pub fn strip_comments(input: Span) -> IResult<Option<Node>> {
 // tests
 #[allow(unused_imports)]
 mod test {
-    use crate::position::Position;
+    use romloader::Position;
 
     use super::*;
     use pretty_assertions::assert_eq;

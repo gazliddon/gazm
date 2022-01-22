@@ -17,7 +17,7 @@ use romloader::ResultExt;
 use crate::error::{IResult, ParseError, UserError};
 use crate::item::{Item, Node};
 use crate::locate::Span;
-use crate::position::AsmSource;
+use romloader::AsmSource;
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = preceded(
@@ -49,7 +49,7 @@ pub fn tokenize_str(input: Span<'_>) -> Result<Node, ParseError> {
     use util::parse_assignment;
     use util::ws;
 
-    let ret = Node::from_item(Block, input);
+    let ret = Node::from_item_span(Block, input);
 
     let mut source = input;
 

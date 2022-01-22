@@ -82,7 +82,7 @@ pub fn parse_assignment(input: Span) -> IResult< Node> {
         _ => panic!()
     };
 
-    let ret = Node::from_item(item, matched_span)
+    let ret = Node::from_item_span(item, matched_span)
         .with_child(arg);
 
     Ok((rest, ret))
@@ -196,7 +196,7 @@ impl ByteSize for i64 {
 #[allow(unused_imports)]
 mod test {
 
-    use crate::position::AsmSource;
+    use romloader::AsmSource;
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};

@@ -1,5 +1,5 @@
 use crate::fileloader::SourceFileLoader;
-use crate::position::{Position,AsmSource};
+use romloader::{Position,AsmSource};
 use crate::symbols::SymbolTable;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
@@ -66,14 +66,6 @@ pub struct SourceInfo<'a> {
 #[derive(Debug)]
 pub struct Sources {
     pub id_to_source_file: HashMap<u64, SourceFile>,
-}
-
-impl From<SourceFileLoader> for Sources {
-    fn from(fl: SourceFileLoader) -> Self {
-        Self {
-            id_to_source_file: fl.loaded_files,
-        }
-    }
 }
 
 impl Sources {

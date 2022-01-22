@@ -35,7 +35,6 @@ mod sourcefile;
 mod symbols;
 mod tokenize;
 mod util;
-mod position;
 
 
 

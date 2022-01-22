@@ -133,7 +133,7 @@ fn parse_offset(input: Span) -> IResult<Node> {
     let ctx = matched_span(input, rest);
     let item = Item::operand_from_index_mode(offset, false);
 
-    let matched = Node::from_item(item, ctx).with_child(expr);
+    let matched = Node::from_item_span(item, ctx).with_child(expr);
     Ok((rest,matched))
 }
 
@@ -147,7 +147,7 @@ fn parse_pc_offset(input: Span) -> IResult<Node> {
     let ctx = matched_span(input, rest);
     let item = Item::operand_from_index_mode(offset, false);
 
-    let matched = Node::from_item(item, ctx).with_child(expr);
+    let matched = Node::from_item_span(item, ctx).with_child(expr);
     Ok((rest,matched))
 }
 
@@ -157,14 +157,14 @@ fn parse_extended_indirect(input: Span) -> IResult<Node> {
     let (rest, matched) = wrapped_chars('[', ws(parse_expr),']')(input)?;
     let item = Item::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
     let ctx = matched_span(input, rest);
-    let matched = Node::from_item(item, ctx).with_child(matched);
+    let matched = Node::from_item_span(item, ctx).with_child(matched);
     Ok((rest, matched))
 }
 
 fn parse_no_arg_indexed(input: Span) -> IResult<Node> {
     let (rest, matched) = get_no_arg_indexed(input)?;
     let ctx = matched_span(input, rest);
-    let matched = Node::from_item(Item::OperandIndexed(matched, false), ctx);
+    let matched = Node::from_item_span(Item::OperandIndexed(matched, false), ctx);
     Ok((rest,matched))
 }
 
@@ -183,7 +183,7 @@ fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
             Err(failure(err, ctx))
         },
         _=> {
-        let matched = Node::from_item(Item::OperandIndexed(matched, false), ctx);
+        let matched = Node::from_item_span(Item::OperandIndexed(matched, false), ctx);
             Ok((rest,matched))
         },
     }

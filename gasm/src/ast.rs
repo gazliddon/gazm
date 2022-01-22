@@ -19,7 +19,7 @@ use crate::scopes::ScopeBuilder;
 use crate::symbols::SymbolId;
 
 use crate::item::{Item, Node};
-use crate::position::Position;
+use romloader::Position;
 
 use crate::postfix;
 use crate::sourcefile::{SourceInfo, SourceFile, Sources};
