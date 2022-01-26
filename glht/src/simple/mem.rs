@@ -137,8 +137,8 @@ impl<E: ByteOrder> MemoryIO for SimpleMem<E> {
         region != self::MemRegion::Illegal
     }
 
-    fn get_range(&self) -> std::ops::RangeInclusive<usize> {
-        0..=0xffff
+    fn get_range(&self) -> std::ops::Range<usize> {
+        0..0x1_0000
     }
 
     fn update_sha1(&self, _digest: &mut emu::sha1::Sha1) {

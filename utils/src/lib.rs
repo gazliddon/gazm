@@ -8,13 +8,11 @@ mod chunk;
 mod error;
 mod rom;
 pub mod romloader;
-mod sourcestore;
 pub mod rle;
 mod location;
 
 pub use chunk::*;
 pub use error::*;
 pub use rom::*;
-pub use sourcestore::*;
 pub use location::*;
 

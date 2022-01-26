@@ -60,9 +60,8 @@ impl Region {
         (self.addr as usize, self.last_addr as usize)
     }
 
-    pub fn as_range(&self) -> std::ops::RangeInclusive<usize> {
-        let (addr, last_addr) = self.to_usize();
-        addr..=last_addr
+    pub fn as_range(&self) -> std::ops::Range<usize> {
+        self.addr as usize ..(self.last_addr as usize +1)
     }
 }
 

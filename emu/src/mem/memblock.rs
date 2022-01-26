@@ -58,7 +58,7 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
         self.name.clone()
     }
 
-    fn get_range(&self) -> std::ops::RangeInclusive<usize> {
+    fn get_range(&self) -> std::ops::Range<usize> {
         self.region.as_range()
     }
 
@@ -83,8 +83,8 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
     }
 
     fn load_word(&mut self, addr: u16) -> MemResult<u16> {
-        let a = self.load_byte(addr.wrapping_add(1))?;
-        let b = self.load_byte(addr)?;
+        let a = self.load_byte(addr)?;
+        let b = self.load_byte(addr.wrapping_add(1))?;
         let buf = [a,b];
         Ok(E::read_u16(&buf))
     }

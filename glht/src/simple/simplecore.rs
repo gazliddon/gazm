@@ -19,7 +19,7 @@ IO
 
 */
 // use emu::cpu;
-
+use romloader::sources::SourceDatabase;
 use byteorder::ByteOrder;
 // use filewatcher::FileWatcher;
 //
@@ -117,13 +117,13 @@ fn check_breakpoints(machine: &(impl Machine + ?Sized)) -> Result<(), MachineErr
 }
 
 pub trait Machine {
+    fn get_sources(&self) -> &SourceDatabase;
     fn get_breakpoints(&self) -> &BreakPoints;
     fn get_breakpoints_mut(&mut self) -> &mut BreakPoints;
 
     fn get_state(&self) -> SimState;
     fn set_state(&mut self, state: SimState) -> Option<SimState>;
 
-    fn get_rom(&self) -> &romloader::Rom;
     fn get_mem(&self) -> &dyn MemoryIO;
     fn get_mem_mut(&mut self) -> &mut dyn MemoryIO;
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
@@ -163,6 +163,8 @@ pub trait Machine {
 
 #[allow(dead_code)]
 pub struct SimpleMachine<M: MemoryIO> {
+
+    source_database: SourceDatabase,
     regs: Regs,
     mem: M,
     rc_clock: Rc<RefCell<StandardClock>>,
@@ -171,11 +173,14 @@ pub struct SimpleMachine<M: MemoryIO> {
     dirty: bool,
     verbose: bool,
     state: state::State<SimState>,
-    rom: romloader::Rom,
     breakpoints: emu::breakpoints::BreakPoints,
 }
 
 impl< M: MemoryIO> Machine for SimpleMachine<M> {
+    fn get_sources(&self) -> &SourceDatabase {
+        &self.source_database
+    }
+
     fn get_breakpoints(&self) -> &BreakPoints {
         &self.breakpoints
     }
@@ -188,9 +193,6 @@ impl< M: MemoryIO> Machine for SimpleMachine<M> {
         &self.regs
     }
 
-    fn get_rom(&self) -> &romloader::Rom {
-        &self.rom
-    }
     fn get_mem(&self) -> &dyn MemoryIO{
         &self.mem
     }
@@ -264,7 +266,7 @@ impl< M: MemoryIO> SimpleMachine<M> {
         self.verbose = !v;
     }
 
-    pub fn new(mem: M, rom: romloader::Rom) -> Self {
+    pub fn new(mem: M, source_database: SourceDatabase) -> Self {
 
         let path = std::env::current_dir().expect("getting dir");
         info!("Creatning Simple 6809 machine");
@@ -276,7 +278,7 @@ impl< M: MemoryIO> SimpleMachine<M> {
         let verbose = false;
 
         Self {
-            rom,
+            source_database,
             mem,
             regs,
             rc_clock,
@@ -291,18 +293,9 @@ impl< M: MemoryIO> SimpleMachine<M> {
     }
 }
 
-fn load_rom_to_mem<M: MemoryIO>(file: &str, mem: M, addr: u16, size: usize) -> SimpleMachine<M> {
-    let mut mem = mem;
-    let rom = romloader::Rom::from_sym_file(file).expect("Load syms");
-    info!("loaded symbol file {} as ROM", file);
-    let rom_data = rom.get_slice(addr, size);
-    mem.upload(addr, rom_data).unwrap();
-    let mut ret = SimpleMachine::new(mem, rom);
+pub fn make_simple<E: ByteOrder>(source_database: SourceDatabase) -> SimpleMachine<SimpleMem<E>>  {
+    let mem = SimpleMem::default();
+    let mut ret = SimpleMachine::new(mem, source_database);
     ret.reset();
     ret
-}
-
-pub fn make_simple<E: ByteOrder>(file: &str) -> SimpleMachine<SimpleMem<E>> {
-    let mem = SimpleMem::default();
-    load_rom_to_mem(file, mem, 0x9900, 0x1_0000 - 0x9900)
 }

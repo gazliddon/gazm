@@ -7,6 +7,7 @@
 //
 
 use log::info;
+use romloader::sources::{LocationTrait, SourceFileAccess};
 
 use super::{
     colour::*, colourcell::*, events::Events, scrbox::ScrBox, styles::TextStyles, styles::*,
@@ -18,83 +19,89 @@ use Events::*;
 use super::simple::{Machine, SimState, SimpleMachine};
 use emu::cpu::Regs;
 use emu::mem::MemoryIO;
-use romloader::{ Location, SourceLine };
+use romloader::Location;
 
 trait RenderDoc<'a> {
-    fn render_line(&mut self, cursor: usize, win_ypos: usize, doc_ypos: usize);
+    fn render_line(&mut self, is_cursor_line: bool,  win_ypos: usize, doc_ypos: usize);
 
-    fn render_doc(&mut self, num_of_lines: usize, offset: usize, cursor: usize) -> usize {
+    fn num_of_lines(&self) -> usize;
+
+    fn render_doc(&mut self, offset: usize, cursor: usize) -> usize {
         let mut lines_rendered = 0;
+        let num_of_lines = self.num_of_lines();
 
         let range = (0..num_of_lines).map(|y| (y, y + offset));
 
         for (win_ypos, doc_ypos) in range {
-            self.render_line(cursor, win_ypos, doc_ypos);
-            lines_rendered +=  1;
+            self.render_line(cursor == win_ypos, win_ypos, doc_ypos);
+            lines_rendered += 1;
         }
         lines_rendered
     }
 }
 
 struct SourceRenderer<'a, IR: TextRenderer> {
-    sf: &'a Vec<SourceLine>,
+    // sf: &'a Vec<SourceLine>,
     machine: &'a dyn Machine,
     text_styles: &'a TextStyles,
     blank: String,
     lp: LinePrinter<'a, IR>,
+    sources : &'a SourceFileAccess<'a>,
 }
 
 impl<'a, TR: TextRenderer> SourceRenderer<'a, TR> {
     pub fn new(
         machine: &'a dyn Machine,
-        sf: &'a Vec<SourceLine>,
+        // sf: &'a Vec<SourceLine>,
         text_styles: &'a TextStyles,
         tc: &'a TR,
+        sources : &'a SourceFileAccess<'a>,
     ) -> Self {
         let blank = String::new();
         let lp = LinePrinter::new(tc);
         Self {
             blank,
-            sf,
+            // sf,
             text_styles,
             lp,
             machine,
+            sources 
         }
     }
 }
 
 impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
-    fn render_line(&mut self, cursor: usize, win_ypos: usize, doc_ypos: usize) {
-        if let Some(sl) = self.sf.get(doc_ypos) {
-            let addr_str = sl
-                .addr
-                .map(|x| format!("{:04X}", x))
-                .unwrap_or_else(|| self.blank.clone());
+    fn num_of_lines(&self) -> usize {
+        self.sources.num_of_lines()
+    }
 
-            let source_text = sl.line.as_ref().unwrap_or(&self.blank);
-            let pc = self.machine.get_regs().pc;
+    fn render_line(&mut self, is_cursor_line : bool, _win_ypos: usize, doc_ypos: usize) {
+        let source_line_number = doc_ypos+1 ;
 
-            let is_pc_line = sl.addr.map(|p| p == pc).unwrap_or(false);
-            let is_cursor_line = win_ypos == cursor;
-            let is_debug_line = false;
+        if let Some(sl) = self.sources.get_line(source_line_number) {
+            // let mem_range = sl.mapping.map(|m| &m.mem_range);
 
+            let addr_str = sl.mapping
+                .map(|m| {
+                    let mem_str = self.machine.get_mem().get_mem_as_str(&m.mem_range,"");
+                    format!("{:04X} {}", m.mem_range.start, mem_str)
+                }).unwrap_or_else(|| self.blank.clone());
+
+            let source_text = &sl.text;
+            let pc = self.machine.get_regs().pc as usize;
+            let is_pc_line = sl.mapping.map(|p| p.mem_range.start == pc).unwrap_or(false);
             let (line_col, addr_col) =
                 self.text_styles
-                    .get_source_win_style(is_cursor_line, is_pc_line, is_debug_line);
+                    .get_source_win_style(is_cursor_line, is_pc_line, false);
 
-            let mut bp_str = " ";
+            let mut bp_str = format!(" {:03} ", source_line_number);
 
-            let break_points = self.machine.get_breakpoints();
-            let has_bp = sl
-                .addr
-                .map(|addr| break_points.has_any_breakpoint(addr))
-                .unwrap_or(false);
-            if has_bp {
-                bp_str = "*";
+            if is_cursor_line {
+                bp_str = format!(">{:03} ", source_line_number);
             }
 
             self.lp.cols(&addr_col);
-            self.lp.print(&format!(" {} {:4}  ", bp_str, addr_str));
+            self.lp.print(&format!(" {} {:20}  ", bp_str, addr_str));
             self.lp.cols(&line_col);
             self.lp.print("  ");
             self.lp.print(source_text);
@@ -104,14 +111,20 @@ impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
     }
 }
 
+#[derive(Clone)]
+pub struct LoadedSource {
+    pub file_id : u64,
+    pub num_of_lines : usize,
+}
+
 pub struct SourceWin {
     scroll_zone_height: usize,
     cursor: usize,
     scroll_offset: usize,
     styles: StylesDatabase,
-    source_file: Option<Vec<SourceLine>>,
     frame_time: FrameTime,
     win_dims: V2<usize>,
+    current_source_file : Option<LoadedSource>,
 }
 
 impl Default for SourceWin {
@@ -121,16 +134,12 @@ impl Default for SourceWin {
             cursor: 0,
             scroll_offset: 0,
             styles: StylesDatabase::default(),
-            source_file: None,
             frame_time: FrameTime::from_now(),
             win_dims: V2::new(0, 0),
+            current_source_file : None,
         }
     }
 }
-
-// To print a document
-// Doc line number
-// Screen cursor position
 
 use super::app::frametime::FrameTime;
 
@@ -139,74 +148,62 @@ impl SourceWin {
         Self::default()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.source_file.is_none()
-    }
-
-    pub fn has_source_file(&self) -> bool {
-        !self.is_empty()
-    }
-
-    pub fn get_cursor_file_loc(&self) -> Option<Location> {
-        self.source_file
-            .as_ref()
-            .and_then(|sf| sf.get(self.cursor + self.scroll_offset))
-            .map(|sl| sl.loc.clone())
-    }
-
     pub fn event(&mut self, event: Events) -> Option<Events> {
         let mut cursor = self.cursor as isize;
         let mut scroll_offset = self.scroll_offset as isize;
+        println!("{:#?}", event);
 
-        if let Some(sf) = &self.source_file {
-            let st = ScrollTriggers::new(
-                self.scroll_offset,
-                sf.len(),
-                self.win_dims,
-                self.scroll_zone_height,
-            );
+         if let Some(source) = &self.current_source_file {
 
-            match event {
-                CursorUp => cursor -= 1,
-                CursorDown => cursor += 1,
-                ScrollUp => scroll_offset += 1,
-                ScrollDown => scroll_offset -= 1,
-                PageUp => scroll_offset += 20,
-                PageDown => scroll_offset -= 20,
-                _ => (),
-            }
+             let st = ScrollTriggers::new(
+                 self.scroll_offset,
+                 source.num_of_lines,
+                 self.win_dims,
+                 self.scroll_zone_height,
+             );
 
-            let h = self.win_dims.height() as isize;
+             match event {
+                 CursorUp => cursor -= 1,
+                 CursorDown => cursor += 1,
+                 ScrollUp => scroll_offset += 1,
+                 ScrollDown => scroll_offset -= 1,
+                 PageUp => scroll_offset += 20,
+                 PageDown => scroll_offset -= 20,
+                 _ => (),
+             }
 
-            if cursor >= h {
-                cursor = h - 1;
-            }
+             let h = self.win_dims.height() as isize;
 
-            if cursor < 0 {
-                cursor = 0;
-            }
-            if scroll_offset < 0 {
-                scroll_offset = 0;
-            }
+             if cursor >= h {
+                 cursor = h - 1;
+             }
 
-            let mut cursor = cursor as usize;
+             if cursor < 0 {
+                 cursor = 0;
+             }
+             if scroll_offset < 0 {
+                 scroll_offset = 0;
+             }
 
-            if self.cursor != cursor {
-                if st.in_bottom_zone(cursor) {
-                    scroll_offset +=  1;
-                    cursor = self.cursor;
-                }
+             let mut cursor = cursor as usize;
 
-                if st.in_top_zone(cursor) {
-                    scroll_offset -= 1;
-                    cursor = self.cursor;
-                    self.event(ScrollUp);
-                }
-            }
+             if self.cursor != cursor {
+                 if st.in_bottom_zone(cursor) {
+                     scroll_offset +=  1;
+                     cursor = self.cursor;
+                 }
 
-            self.scroll_offset = scroll_offset as usize;
-            self.cursor = cursor;
-        }
+                 if st.in_top_zone(cursor) {
+                     scroll_offset -= 1;
+                     cursor = self.cursor;
+                     self.event(ScrollUp);
+                 }
+             }
+
+             self.scroll_offset = scroll_offset as usize;
+             self.cursor = cursor;
+         }
+
         None
     }
 
@@ -218,39 +215,58 @@ impl SourceWin {
         &mut self,
         dims: &D,
         frame_time: &FrameTime,
-        _machine: &dyn Machine,
+        machine: &dyn Machine,
     ) {
-        if self.has_source_file() {
-            // FIX : dims being passed is wrong
-            self.win_dims = dims.dims();
-            self.frame_time = *frame_time;
-        }
-    }
+        if !self.has_source_file() {
 
-    pub fn set_source_file(&mut self, sf: Vec<SourceLine>) {
-        self.source_file = Some(sf);
-    }
+            let pc = machine.get_regs().pc as usize;
+            let sources = machine.get_sources();
 
-    pub fn clear_source_file(&mut self) {
-        self.source_file = None;
-    }
-
-    pub fn render<TR: TextRenderer>(&self, tc: &TR, machine: &dyn Machine) {
-        if self.has_source_file() {
-            let _w = self.win_dims.x;
-            let h = self.win_dims.y;
-
-            let text_styles = TextStyles::new(&self.styles);
-            let offset = self.scroll_offset;
-
-            if let Some(sf) = &self.source_file {
-                let mut renderer = SourceRenderer::new(machine, sf, &text_styles, tc);
-                renderer.render_doc(h, offset, self.cursor);
+            if let Some(sl) = sources.get_source_info_from_address(pc).and_then(|si| sources.get_source_file(si.file_id)) {
+                self.current_source_file = Some(LoadedSource {
+                    num_of_lines: sl.num_of_lines(),
+                    file_id : sl.file_id
+                })
             }
         }
 
-        let reg_win = RegWin::new();
-        reg_win.render(&V2::new(0, 0), tc, machine.get_regs());
+        self.win_dims = dims.dims();
+        self.frame_time = *frame_time;
+    }
+
+    fn has_source_file(&self) -> bool {
+        self.current_source_file.is_some()
+    }
+
+    fn set_source_file(&mut self, file_id: u64, num_of_lines: usize) {
+        self.current_source_file = Some(LoadedSource{file_id,num_of_lines})
+    }
+
+    pub fn render<TR: TextRenderer>(&self, tc: &TR, machine: &dyn Machine) {
+
+        if let Some(sf) = self.current_source_file.clone().and_then(|sf| machine.get_sources().get_source_file(sf.file_id)) {
+            let text_styles = TextStyles::new(&self.styles);
+            let offset = self.scroll_offset;
+            let mut sr = SourceRenderer::new(machine,&text_styles,tc,&sf);
+            sr.render_doc(offset, self.cursor);
+        }
+
+
+            let pc = machine.get_regs().pc as usize;
+            let sources = machine.get_sources();
+            let mut text = format!("{:04X}", pc);
+
+            if let Some(sl) = sources.get_source_info_from_address(pc) {
+                text = format!("{} {} {}", text,sl.file.to_string_lossy(), sl.text);
+            } else {
+                text = format!("{} ???", text);
+            }
+                let pos = &V2::new(0,0);
+                let cols = ColourCell::new_bw();
+                tc.draw_text_with_bg(pos, &text, &cols);
+
+        // let reg_win = RegWin::new();
+        // reg_win.render(&V2::new(0, 0), tc, machine.get_regs());
     }
 }
 
@@ -301,39 +317,6 @@ impl ScrollTriggers {
             bottom_zone,
         }
     }
-
-    pub fn draw<TR: TextRenderer>(&self, tr: &TR, cursor: usize, norm: &Colour, flash: &Colour) {
-        let ccel = super::colourcell::ColourCell::new(RED, YELLOW);
-
-        let mut norm = *norm;
-        let mut flash = *flash;
-        norm.set_alpha(0.5);
-        flash.set_alpha(0.5);
-
-        let tz = format!("{:?}", self.top_zone);
-        let bz = format!("{:?}", self.bottom_zone);
-        tr.draw_text_with_bg(&V2::new(0, 0), &tz, &ccel);
-        tr.draw_text_with_bg(&V2::new(0, (tr.height() - 1) as isize), &bz, &ccel);
-
-        if let Some(top) = self.top_zone {
-            let ccol = if self.in_top_zone(cursor) {
-                &flash
-            } else {
-                &norm
-            };
-
-            tr.draw_box(&top.pos, &top.dims, ccol);
-        }
-
-        if let Some(bottom) = self.bottom_zone {
-            let ccol = if self.in_bottom_zone(cursor) {
-                &flash
-            } else {
-                &norm
-            };
-            tr.draw_box(&bottom.pos, &bottom.dims, ccol);
-        }
-    }
 }
 
 struct RegWin {}
@@ -369,14 +352,15 @@ impl RegWin {
         Self {}
     }
 
-    pub fn render<TR: TextRenderer>(&self, _pos: &V2<isize>, tr: &TR, _regs: &Regs) {
-        // let cel_col = ColourCell::new(&YELLOW, &RED.mul_scalar(0.2));
-        // let mut v = LinePrinter::new(tr);
-
-        // v.cols(&cel_col);
-        // v.println(&regs.get_hdr());
-        // v.println(&regs.get_text());
-
+    pub fn render<TR: TextRenderer>(&self, _pos: &V2<isize>, tr: &TR, regs: &Regs) {
         boxer(tr);
+
+        let cel_col = ColourCell::new(&YELLOW, &RED.mul_scalar(0.2));
+        let mut v = LinePrinter::new(tr);
+
+        v.cols(&cel_col);
+        v.println(&regs.get_hdr());
+        v.println(&regs.get_text());
+
     }
 }

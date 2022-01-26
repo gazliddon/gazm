@@ -130,7 +130,6 @@ impl TextStyles {
     }
 
     pub fn get_source_win_style(&self,  is_cursor_line : bool , is_pc_line : bool, is_debug_line : bool ) -> (ColourCell, ColourCell) {
-
             let defaults = &(self.normal, self.addr);
             *self.hm.get(&(is_debug_line, is_cursor_line, is_pc_line)).unwrap_or(defaults)
     }

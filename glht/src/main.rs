@@ -26,6 +26,7 @@ use imgui::{im_str, Condition, Ui, Window};
 use imgui_glium_renderer::imgui;
 use log::info;
 use mesh::Mesh;
+use romloader::sources::SourceDatabase;
 use v2::*;
 
 use simple::{Machine, SimpleMachine, SimpleMem};
@@ -80,6 +81,16 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
     Box::new(Mesh::new(system, vertex_buffer, index_buffer))
 }
 
+fn load_binary(filename : &str) -> Vec<u8> {
+    use std::fs::File;
+    use std::io::Read;
+    let mut f = File::open(&filename).expect("no file found");
+    let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
+    let mut buffer = vec![0; metadata.len() as usize];
+    f.read(&mut buffer).expect("buffer overflow");
+    buffer
+}
+
 
 impl MyApp {
     fn toggle_breakpoint_at_cursor(&mut self, bp_type: BreakPointTypes) {
@@ -93,22 +104,23 @@ impl MyApp {
         });
     }
 
-    fn get_source_line(&self) -> Option<romloader::SourceLine> {
-        use romloader::sources::SourceDataBase;
-        self.sourcewin.get_cursor_file_loc().and_then(|loc| {
-            self.machine
-                .get_rom()
-                .sources
-                .loc_to_source_line(&loc)
-                .cloned()
-        })
+    fn get_source_line(&self) {
+        panic!()
+        // use romloader::sources::SourceDatabaseTrait;
+        // self.sourcewin.get_cursor_file_loc().and_then(|loc| {
+        //     self.machine
+        //         .get_rom()
+        //         .sources
+        //         .loc_to_source_line(&loc)
+        // })
     }
 
-    fn break_point_fn_mut(&mut self, f: impl Fn(u16, &mut BreakPoints)) {
-        if let Some(addr) = self.get_source_line().and_then(|sl| sl.addr) {
-            let bp = self.machine.get_breakpoints_mut();
-            f(addr, bp);
-        };
+    fn break_point_fn_mut(&mut self, _f: impl Fn(u16, &mut BreakPoints)) {
+        panic!()
+        // if let Some(addr) = self.get_source_line().and_then(|sl| sl.addr) {
+        //     let bp = self.machine.get_breakpoints_mut();
+        //     f(addr, bp);
+        // };
     }
 
     fn break_points_at_addr_fn_mut(&mut self, f: impl Fn(Vec<&mut BreakPoint>)) {
@@ -127,19 +139,24 @@ impl MyApp {
     }
 
     pub fn new(system: &System) -> Self {
+        use emu::mem::MemoryIO;
+        use romloader::sources::SourceDatabase;
         use emu::breakpoints::{BreakPoint, BreakPointTypes};
 
-        let sym_file = "./gasm/a.syms.json";
-        let symstr = std::fs::read_to_string(sym_file).unwrap();
-        let sd : romloader::sources::SourceDatabase = serde_json::from_str(&symstr).unwrap();
-        println!("{:#?}", sd);
+        let bin_file = "./out/a.bin";
+        let sym_file = "./out/a.syms.json";
 
-        let sym_file = "./asm/out/demo.syms";
-        let mut machine = simple::make_simple(sym_file);
+        let sd = SourceDatabase::from_json(sym_file);
+
+        let bin_data = load_binary(bin_file);
+        let slice = &bin_data[0x9900..];
+        let mut mem = SimpleMem::default();
+        mem.upload(0x9900, slice).expect("couldn't upload");
+        let mut machine = SimpleMachine::new(mem,sd);
+        machine.reset();
 
         // FIX : Remove!
         let bps = machine.get_breakpoints_mut();
-
         bps.add(0x9904, BreakPointTypes::EXEC);
 
         let mesh = make_mesh(system);
@@ -266,7 +283,7 @@ impl App<events::Events> for MyApp {
     }
 
     fn ui(&mut self, hdpi: f64, _pos: V2<isize>, dims: V2<usize>, ui: &mut Ui) {
-        use romloader::sources::SourceDataBase;
+        // use romloader::sources::SourceDatabaseTrait;
         use text::Dimensions;
 
         let char_dims = ui.current_font().dims() / hdpi as f32;
@@ -275,17 +292,19 @@ impl App<events::Events> for MyApp {
         use simple::Machine;
 
         let machine = &self.machine;
-        let pc = machine.get_regs().pc;
-        let sources = &machine.get_rom().sources;
+        // let pc = machine.get_regs().pc;
 
-        if self.sourcewin.is_empty() {
-            if let Some(sf) = sources
-                .addr_to_loc(pc)
-                .and_then(|l| sources.get(&l.file))
-            {
-                self.sourcewin.set_source_file(sf.clone());
-            }
-        }
+
+        // let sources = &machine.get_rom().sources;
+
+        // if self.sourcewin.is_empty() {
+        //     if let Some(sf) = sources
+        //         .addr_to_source_line(pc)
+        //         .and_then(|l| sources.get(&l.file))
+        //     {
+        //         self.sourcewin.set_source_file(sf.clone());
+        //     }
+        // }
 
         self.sourcewin
             .update(grid_cell_dims, &self.frame_time, machine);

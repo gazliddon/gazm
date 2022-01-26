@@ -1,6 +1,6 @@
     org $9900
-    include	"equates.68"
 
+    include	"equates.68"
 
 start      lda #$55
            tfr a,cc

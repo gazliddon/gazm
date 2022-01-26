@@ -23,7 +23,7 @@ impl fmt::Debug for MemMap {
 
         for m in &self.all_memory {
             let r = m.get_range();
-            let msg = format!("{} : ${:04x} ${:04x}", m.get_name(),r.start(), r.end());
+            let msg = format!("{} : ${:04x} ${:04x}", m.get_name(),r.start, r.end - 1);
             strs.push(msg)
         }
 
@@ -50,8 +50,8 @@ impl MemoryIO for MemMap {
         self.name.clone()
     }
 
-    fn get_range(&self) -> std::ops::RangeInclusive<usize> {
-        0..=0xffff
+    fn get_range(&self) -> std::ops::Range<usize> {
+        0..0x1_0000
     }
 
     fn load_byte(&mut self, addr: u16) -> MemResult<u8> {

@@ -50,7 +50,7 @@ pub trait MemoryIO {
 
     fn upload(&mut self, _addr: u16, _data: &[u8]) -> MemResult<()>;
 
-    fn get_range(&self) -> std::ops::RangeInclusive<usize>;
+    fn get_range(&self) -> std::ops::Range<usize>;
 
     fn update_sha1(&self, _digest: &mut Sha1);
 
@@ -80,19 +80,18 @@ pub trait MemoryIO {
 
     fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()>;
 
-    fn load_word(&mut self, addr: u16) -> MemResult<u16>;
+    fn load_word(&mut self, addr: u16) -> MemResult<u16> ;
 
-    fn get_mem_as_str(&self, addr: u16, size: u16) -> String {
-        let r = to_mem_range(addr, size);
+    fn get_mem_as_str(&self, range : &std::ops::Range<usize>, sep : &str) -> String {
 
         let mut v: Vec<String> = Vec::new();
 
-        for a in r {
+        for a in range.clone() {
             let b = self.inspect_byte(a as u16).unwrap();
             let t = format!("{:02X}", b);
             v.push(t);
         }
 
-        v.join(" ")
+        v.join(sep)
     }
 }

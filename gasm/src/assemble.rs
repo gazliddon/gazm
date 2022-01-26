@@ -14,11 +14,11 @@ use crate::eval::eval;
 use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
-use romloader::sources::{ SourceDatabase, SourceMapping, SymbolTable, Sources };
 use crate::util;
 use crate::util::info;
 use crate::util::ByteSize;
 use item::{Item, Node};
+use romloader::sources::{SourceDatabase, SourceMapping, Sources, SymbolTable};
 use romloader::ResultExt;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -63,7 +63,7 @@ fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
     let mut registers = 0;
 
     if regs.contains(&CC) {
-        registers |=  0x01;
+        registers |= 0x01;
     }
 
     if regs.contains(&A) {
@@ -212,11 +212,7 @@ pub struct Assembler {
     source_map: SourceMapping,
 }
 
-fn eval_node(
-    symbols: &SymbolTable,
-    node: AstNodeRef,
-    sources: &Sources,
-) -> Result<i64, UserError> {
+fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Result<i64, UserError> {
     eval(symbols, node).map_err(|err| {
         let info = sources.get_source_info(&node.value().pos).unwrap();
         UserError::from_ast_error(err, &info)
@@ -277,19 +273,13 @@ impl Assembler {
     }
 
     fn user_error<S: Into<String>>(&self, err: S, node: AstNodeRef) -> UserError {
-        let info = self
-            .sources
-            .get_source_info(&node.value().pos)
-            .unwrap();
+        let info = self.sources.get_source_info(&node.value().pos).unwrap();
         UserError::from_text(err, &info, &node.value().pos)
     }
 
     fn eval_node(&self, node: AstNodeRef) -> Result<i64, UserError> {
         eval(&self.symbols, node).map_err(|err| {
-            let info = self
-                .sources
-                .get_source_info(&node.value().pos)
-                .unwrap();
+            let info = self.sources.get_source_info(&node.value().pos).unwrap();
             UserError::from_ast_error(err, &info)
         })
     }
@@ -322,19 +312,24 @@ impl Assembler {
     }
 
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
-            self.assemble_node(self.tree.root().id())?;
+        self.assemble_node(self.tree.root().id())?;
 
-            let database = SourceDatabase::new(&self.source_map, &self.sources, &self.symbols);
+        let database = SourceDatabase::new(&self.source_map, &self.sources, &self.symbols);
 
-            let ret = Assembled {
-                mem: self.bin.data.clone(),
-                database,
-            };
+        let ret = Assembled {
+            mem: self.bin.data.clone(),
+            database,
+        };
 
-            Ok(ret)
+        Ok(ret)
     }
 
-    fn assemble_indexed(&mut self, id: AstNodeId, imode: IndexParseType, indirect : bool) -> Result<(), UserError> {
+    fn assemble_indexed(
+        &mut self,
+        id: AstNodeId,
+        imode: IndexParseType,
+        indirect: bool,
+    ) -> Result<(), UserError> {
         let idx_byte = imode.get_index_byte(indirect);
         self.bin.write_byte(idx_byte);
         use item::IndexParseType::*;
@@ -390,8 +385,6 @@ impl Assembler {
             }
 
             OpCode(ins, amode) => {
-                self.source_map.add_mapping(pc, pos);
-
                 use emu::isa::AddrModeEnum::*;
                 let ins_amode = ins.addr_mode;
 
@@ -452,21 +445,26 @@ impl Assembler {
                     }
                 };
 
-                let pc = pc as usize;
-                let written = self.bin.get_write_address() - pc;
-                let bytes = self.bin.get_bytes(pc as usize, written);
-                let bytes_str: Vec<_> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
-                let bytes_str = bytes_str.join("");
-                let msg = format!("{:04X}  {:20} {}", pc, bytes_str, frag);
+                {
+                    let pc = pc as usize;
+                    let written = self.bin.get_write_address() - pc;
+                    let bytes = self.bin.get_bytes(pc as usize, written);
+                    let bytes_str: Vec<_> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
+                    let bytes_str = bytes_str.join("");
+                    let msg = format!("{:04X}  {:20} {}", pc, bytes_str, frag);
 
-                if ins_amode == Indexed {
-                    if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                        let msg = format!("{:50} {:?} Indirect: {}", msg, imode, indirect);
-                        x.info(msg);
+                    if ins_amode == Indexed {
+                        if let AddrModeParseType::Indexed(imode, indirect) = amode {
+                            let msg = format!("{:50} {:?} Indirect: {}", msg, imode, indirect);
+                            x.info(msg);
+                        }
+                    } else {
+                        x.success(msg);
                     }
-                } else {
-                    x.success(msg);
                 }
+
+                let range = pc as usize ..self.bin.get_write_address() as usize;
+                self.source_map.add_mapping(range, pos);
             }
 
             TokenizedFile(..) => {
@@ -477,49 +475,56 @@ impl Assembler {
             }
 
             Fdb(_) => {
-                self.source_map.add_mapping(pc, pos);
                 for n in node.children() {
                     let x = self.eval_node(n)?;
                     self.bin
                         .write_word_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
                 }
+
+                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                self.source_map.add_mapping(range, pos);
             }
 
             Fcb(_) => {
-                self.source_map.add_mapping(pc, pos);
                 for n in node.children() {
                     let x = self.eval_node(n)?;
                     self.bin
                         .write_byte_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
                 }
+                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                self.source_map.add_mapping(range, pos);
             }
 
             Zmb => {
-                self.source_map.add_mapping(pc, pos);
                 let (bytes, _) = self.eval_first_arg(node)?;
                 for _ in 0..bytes {
                     self.bin.write_byte(0)
                 }
+                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                self.source_map.add_mapping(range, pos);
             }
 
             Zmd => {
-                self.source_map.add_mapping(pc, pos);
                 let (words, _) = self.eval_first_arg(node)?;
                 for _ in 0..words {
                     self.bin.write_word(0)
                 }
+
+                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                self.source_map.add_mapping(range, pos);
             }
 
             Fill => {
-                self.source_map.add_mapping(pc, pos);
                 let (byte, size) = self.eval_two_args(node)?;
                 for _ in 0..size {
                     self.bin
                         .write_byte_check_size(byte)
                         .map_err(|_| self.user_error("Does not fit in a word", node))?;
                 }
+                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                self.source_map.add_mapping(range, pos);
             }
 
             Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) => (),
@@ -590,7 +595,10 @@ impl Assembler {
                             };
 
                             let ins = ins.clone();
-                            self.set_item(id, OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)));
+                            self.set_item(
+                                id,
+                                OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
+                            );
                         }
 
                         PCOffset => {
@@ -608,7 +616,10 @@ impl Assembler {
                             };
 
                             let ins = ins.clone();
-                            self.set_item(id, OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)));
+                            self.set_item(
+                                id,
+                                OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
+                            );
                         }
 
                         ExtendedIndirect => pc += 2,
@@ -620,9 +631,7 @@ impl Assembler {
             AssignmentFromPc(name) => {
                 let msg = format!("{} -> ${:04X}", name, pc);
                 x.debug(msg);
-                self.symbols
-                    .add_symbol_with_value(name, pc as i64)
-                    .unwrap();
+                self.symbols.add_symbol_with_value(name, pc as i64).unwrap();
             }
 
             TokenizedFile(..) => {

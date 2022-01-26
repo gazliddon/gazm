@@ -4,7 +4,6 @@ use super::chunk::Chunk;
 // use super::location::Location;
 
 use super::error;
-use crate::sourcestore::SourceStore;
 
 ////////////////////////////////////////////////////////////////////////////////
 pub struct Symbol {
@@ -21,7 +20,6 @@ pub struct Rom {
     chunks : Vec<Chunk>,
     // location_to_addr_range: HashMap<Location,std::ops::Range<usize>>,
 
-    pub sources : SourceStore,
 }
 
 impl Rom {
@@ -55,13 +53,12 @@ impl Rom {
         }
 
 
-        let sources = SourceStore::new("asm", &chunks);
 
         let rom = Rom {
             chunks,
             data, 
             // location_to_addr_range,
-            sources 
+            // sources 
         };
 
         Ok(rom)

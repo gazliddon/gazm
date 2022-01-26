@@ -1,4 +1,6 @@
 
+
+#[derive(Clone, Debug)]
 pub enum Events {
     CursorUp,
     CursorDown,
