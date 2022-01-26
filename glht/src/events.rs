@@ -13,4 +13,5 @@ pub enum Events {
     SimRun,
     SimStop,
     ToggleBreakpoint,
+    Step,
 }

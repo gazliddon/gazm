@@ -230,8 +230,8 @@ impl App<events::Events> for MyApp {
 
         if mstate.ctrl() {
             match _code {
-                Vk::J => target.event(ScrollUp),
-                Vk::K => target.event(ScrollDown),
+                Vk::J => target.event(&self.machine, ScrollUp),
+                Vk::K => target.event(&self.machine, ScrollDown),
                 _ => None,
             }
         } else if mstate.is_empty() {
@@ -246,11 +246,12 @@ impl App<events::Events> for MyApp {
                     None
                 }
 
-                Vk::J => target.event(CursorDown),
-                Vk::K => target.event(CursorUp),
-                Vk::Space => target.event(Space),
+                Vk::J => target.event(&self.machine,CursorDown),
+                Vk::K => target.event(&self.machine,CursorUp),
+                Vk::Space => target.event(&self.machine,Space),
                 Vk::S => {
                     self.machine.step().expect("Handle this");
+                    target.event(&self.machine,Step);
                     None
                 }
                 Vk::B => {
