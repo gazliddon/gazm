@@ -6,25 +6,26 @@ use crate::v2::*;
 use super::Dimensions;
 use super::TextRenderer;
 
-pub struct TextContext<TR : TextRenderer> {
+#[derive(Clone,Copy)]
+pub struct TextContext<'a, TR : TextRenderer> {
     dims : ScrBox,
-    tr : TR,
+    tr : &'a TR,
 }
 
-impl<TR : TextRenderer> super::Dimensions<isize> for TextContext<TR> { 
+impl<'a, TR : TextRenderer> super::Dimensions<isize> for TextContext<'a, TR> { 
     fn dims(&self) -> V2<isize> {
         self.dims.dims.as_isizes()
     }
 }
 
-impl<TR : TextRenderer> super::Extents<isize> for TextContext<TR> {
+impl<'a, TR : TextRenderer> super::Extents<isize> for TextContext<'a,TR> {
     fn pos(&self) -> V2<isize> {
         self.dims.pos
     }
 }
 
-impl<TR : TextRenderer > TextContext< TR> {
-    pub fn new(tr : TR) -> Self {
+impl<'a,TR : TextRenderer > TextContext<'a, TR> {
+    pub fn new(tr : &'a TR) -> Self {
         let dims = tr.dims();
         let dims = ScrBox::new(&V2::new(0,0), &dims);
 
@@ -33,39 +34,77 @@ impl<TR : TextRenderer > TextContext< TR> {
         }
     }
 
+    pub fn new_with_dims(tr : &'a TR, scr_box : &ScrBox) -> Self {
+        let dims = *scr_box;
+        Self {
+            tr, dims
+        }
+    }
+
+    pub fn child_context(&self, scr_box : &ScrBox) -> Self {
+        let mut new_box = *scr_box;
+        new_box.pos += self.dims.pos;
+        Self::new_with_dims(self.tr, scr_box)
+    }
+
     fn clip(&self, scr_box : &ScrBox) -> Option<ScrBox> {
         ScrBox::clip_box(&self.dims, scr_box)
     }
 
     pub fn clear(&self, col : &Colour) {
-        self.tr.draw_box( &self.dims.pos, &self.dims.dims, col);
+        self.tr.draw_with_clip_rect(&self.dims, || {
+            self.tr.draw_box( &self.dims.pos, &self.dims.dims, col);
+        });
+
     }
 
     pub fn clear_line(&self, col : &Colour, line : usize) {
+        self.tr.draw_with_clip_rect(&self.dims, || {
+
         let pos = V2::new(0,line).as_isizes();
+        let pos = pos + self.dims.pos;
+
         let dims = V2::new(self.width(),1);
         self.tr.draw_box( &pos, &dims.as_usizes(), col);
+        });
+
     }
 
     pub fn draw_text(&self, pos : &V2<isize>, text : &str, col : &Colour) { 
-        self.tr.draw_text( pos, text, col);
+        self.tr.draw_with_clip_rect(&self.dims, || {
+            let pos = self.dims.pos + *pos;
+            self.tr.draw_text( &pos, text, col);
+        });
     }
 
     pub fn draw_text_with_bg(&self, pos : &V2<isize>, text : &str, cols : &ColourCell) { 
+
+        self.tr.draw_with_clip_rect(&self.dims, || {
+        let pos = &( self.dims.pos + *pos );
         self.tr.draw_text_with_bg( pos, text, cols);
+        });
+
     }
 
     pub fn draw_box(&self, pos : &V2<isize>, dims : &V2<usize>, col : &Colour) { 
+        self.tr.draw_with_clip_rect(&self.dims, || {
+        let pos = &( self.dims.pos + *pos );
         self.tr.draw_box( pos, dims, col);
+        });
+
     }
 
     fn draw_char(&self, pos : &V2<isize>, ch : char, col : &Colour) {
+        self.tr.draw_with_clip_rect(&self.dims, || {
+        let pos = &( self.dims.pos + *pos );
         self.tr.draw_char( pos, ch, col);
+        });
+
     }
 }
 
 pub struct LinePrinter<'a, TR : TextRenderer > {
-    pub tc : &'a TR,
+    pub tc : &'a TextContext<'a, TR>,
     cols : ColourCell,
     pos : V2<isize>,
     dims : V2<usize>,
@@ -73,10 +112,10 @@ pub struct LinePrinter<'a, TR : TextRenderer > {
 
 impl<'a, TR : TextRenderer > LinePrinter<'a, TR> {
 
-    pub fn new(tc : &'a TR) -> Self {
+    pub fn new(tc : &'a TextContext<'a, TR>) -> Self {
         let cols = ColourCell::new_bw();
         let pos = V2::new(0,0);
-        Self { tc, cols, pos, dims: tc.dims()}
+        Self { tc, cols, pos, dims: tc.dims().as_usizes()}
     }
 
     pub fn cols_alpha(&mut self, cols : &ColourCell, alpha : f32) -> &mut Self{

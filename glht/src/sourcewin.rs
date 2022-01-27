@@ -56,7 +56,7 @@ impl<'a, TR: TextRenderer> SourceRenderer<'a, TR> {
         machine: &'a dyn Machine,
         // sf: &'a Vec<SourceLine>,
         text_styles: &'a TextStyles,
-        tc: &'a TR,
+        tc: &'a TextContext<'a, TR>,
         sources: &'a SourceFileAccess<'a>,
     ) -> Self {
         let blank = String::new();
@@ -86,8 +86,12 @@ impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
             let addr_str = sl
                 .mapping
                 .map(|m| {
-                    let mem_str = self.machine.get_mem().get_mem_as_str(&m.mem_range, "");
-                    format!("{:04X} {}", m.mem_range.start, mem_str)
+                    let mut mem_str = self.machine.get_mem().get_mem_as_str(&m.mem_range, "");
+                    if mem_str.len() > 8 {
+                        mem_str = format!("{:.8}..", mem_str)
+                    }
+
+                    format!("{:04X} {:.10}", m.mem_range.start, mem_str)
                 })
                 .unwrap_or_else(|| self.blank.clone());
 
@@ -267,13 +271,9 @@ impl SourceWin {
                         .map(|sf| (sf, source_line))
                 })
             {
-                let mut offset = source_line.line_number as isize - (dims.height() / 2) as isize;
+                let offset = source_line.line_number as isize - (dims.height() / 2) as isize;
+                self.scroll_offset = std::cmp::max(0, offset) as usize;
 
-                if offset < 0 {
-                    offset = 0;
-                }
-
-                self.scroll_offset = offset as usize;
                 self.cursor = (source_line.line_number - 1) - self.scroll_offset;
 
                 self.current_source_file = Some(LoadedSource {
@@ -298,18 +298,21 @@ impl SourceWin {
         })
     }
 
-    pub fn render<TR: TextRenderer>(&self, tc: &TR, machine: &dyn Machine) {
+    pub fn render<TR: TextRenderer>(&self, renderer: &TR, machine: &dyn Machine) {
+        let tc = TextContext::new(renderer);
+
         if let Some(sf) = self
             .current_source_file
-            .clone()
-            .and_then(|sf| machine.get_sources().get_source_file(sf.file_id))
+                .clone()
+                .and_then(|sf| machine.get_sources().get_source_file(sf.file_id))
         {
             let text_styles = TextStyles::new(&self.styles);
             let offset = self.scroll_offset;
-            let mut sr = SourceRenderer::new(machine, &text_styles, tc, &sf);
+            let mut sr = SourceRenderer::new(machine, &text_styles, &tc, &sf);
             sr.render_doc(offset, self.cursor);
         }
 
+        let tc = TextContext::new(renderer);
         let pc = machine.get_regs().pc as usize;
         let sources = machine.get_sources();
         let mut text = format!("{:04X}", pc);
@@ -323,8 +326,12 @@ impl SourceWin {
         let cols = ColourCell::new_bw();
         tc.draw_text_with_bg(pos, &text, &cols);
 
-        // let reg_win = RegWin::new();
-        // reg_win.render(&V2::new(0, 0), tc, machine.get_regs());
+        let sc_box = ScrBox::new(&V2::new(0, 0), &V2::new(10, 5));
+
+        let tc = TextContext::new(renderer);
+        let new_tc = tc.child_context(&sc_box);
+        let reg_win = RegWin::new();
+        reg_win.render(&new_tc, machine.get_regs());
     }
 }
 
@@ -379,12 +386,12 @@ impl ScrollTriggers {
 
 struct RegWin {}
 
-pub fn boxer<TR: TextRenderer>(render: &TR) {
+pub fn boxer<'a, TR: TextRenderer>(render: &'a TextContext<TR>) -> TextContext<'a, TR> {
     let cel_col = ColourCell::new(YELLOW, &RED.mul_scalar(0.2));
-    let h = 3;
-    let w = 10;
+    let h = render.height() as usize;
+    let w = render.width() as usize;
 
-    let horiz = "─".repeat(w);
+    let horiz = "─".repeat(w-2);
     let vert = "│";
 
     let tr = '┐';
@@ -393,16 +400,22 @@ pub fn boxer<TR: TextRenderer>(render: &TR) {
     let bl = '└';
 
     let top = format!("{}{}{}", tl, horiz, tr);
-    let mid = format!("{}{}{}", vert, " ".repeat(w), vert);
+    let mid = format!("{}{}{}", vert, " ".repeat(w-2), vert);
     let bottom = format!("{}{}{}", bl, horiz, br);
 
     let mut v = LinePrinter::new(render);
     v.cols_alpha(&cel_col, 1.0);
     v.println(&top);
-    for _ in 0..h {
+    for _ in 0..h-2 {
         v.println(&mid);
     }
     v.println(&bottom);
+
+    let dims = render.dims() - V2::new(2,2) ;
+    let pos = render.pos() + V2::new(2,1);
+    let dims = V2::new(dims.x as usize, dims.y as usize);
+    let sc_box  = ScrBox::new(&pos,&dims);
+    render.child_context(&sc_box)
 }
 
 impl RegWin {
@@ -410,14 +423,18 @@ impl RegWin {
         Self {}
     }
 
-    pub fn render<TR: TextRenderer>(&self, _pos: &V2<isize>, tr: &TR, regs: &Regs) {
-        boxer(tr);
+    pub fn render<TR: TextRenderer>(&self, tr: &TextContext<TR>, regs: &Regs) {
+        let hdr = &regs.get_hdr();
+        let txt = &regs.get_text();
+        let sc_box = ScrBox::new(&tr.pos(), &V2::new(txt.len() + 4, 4));
+        let tr = tr.child_context(&sc_box);
+        let tr = boxer(&tr);
 
         let cel_col = ColourCell::new(&YELLOW, &RED.mul_scalar(0.2));
-        let mut v = LinePrinter::new(tr);
+        let mut v = LinePrinter::new(&tr);
 
         v.cols(&cel_col);
-        v.println(&regs.get_hdr());
-        v.println(&regs.get_text());
+        v.println(hdr);
+        v.println(txt);
     }
 }

@@ -232,6 +232,8 @@ impl App<events::Events> for MyApp {
             match _code {
                 Vk::J => target.event(&self.machine, ScrollUp),
                 Vk::K => target.event(&self.machine, ScrollDown),
+                Vk::D => target.event(&self.machine, PageUp),
+                Vk::U => target.event(&self.machine, PageDown),
                 _ => None,
             }
         } else if mstate.is_empty() {
