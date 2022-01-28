@@ -33,7 +33,7 @@ use log::info;
 use super::mem::SimpleMem;
 use super::{filewatcher, state};
 
-use cpu::{CpuErr, Regs, StandardClock};
+use cpu::{CpuErr, CpuResult,Regs, StandardClock, InstructionDecoder};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -127,7 +127,8 @@ pub trait Machine {
     fn get_mem(&self) -> &dyn MemoryIO;
     fn get_mem_mut(&mut self) -> &mut dyn MemoryIO;
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
-    fn get_context_mut(&mut self) -> cpu::Context;
+    fn get_context_mut(&mut self) -> CpuResult<cpu::Context>;
+    fn inspect_instruction(&self, addr : usize) -> CpuResult<InstructionDecoder>;
     fn update(&mut self) -> Result<(), MachineErr>;
 
     fn get_regs(&self) -> &cpu::Regs;
@@ -138,7 +139,7 @@ pub trait Machine {
 
     fn run_instructions(&mut self, n: usize) -> Result<(), MachineErr> {
         for _ in 0..n {
-            let mut ctx = self.get_context_mut();
+            let mut ctx = self.get_context_mut()?;
             ctx.step()?;
             let pc = ctx.get_pc();
             let bp = self.get_breakpoints();
@@ -151,13 +152,14 @@ pub trait Machine {
     }
 
     fn step(&mut self) -> Result<u16, MachineErr> {
-        self.get_context_mut().step()?;
+        self.get_context_mut()?.step()?;
         Ok(self.get_regs().pc)
     }
 
-    fn reset(&mut self) {
-        let mut ctx = self.get_context_mut();
+    fn reset(&mut self) -> CpuResult<()>{
+        let mut ctx = self.get_context_mut()?;
         ctx.reset();
+        Ok(())
     }
 }
 
@@ -177,6 +179,7 @@ pub struct SimpleMachine<M: MemoryIO> {
 }
 
 impl< M: MemoryIO> Machine for SimpleMachine<M> {
+
     fn get_sources(&self) -> &SourceDatabase {
         &self.source_database
     }
@@ -205,7 +208,11 @@ impl< M: MemoryIO> Machine for SimpleMachine<M> {
         &mut self.rc_clock
     }
 
-    fn get_context_mut(&mut self) -> cpu::Context {
+    fn inspect_instruction(&self, addr : usize) -> CpuResult<InstructionDecoder> {
+        InstructionDecoder::new_from_inspect_mem(addr as u16, &self.mem)
+    }
+
+    fn get_context_mut(&mut self) -> CpuResult<cpu::Context> {
         emu::cpu::Context::new(&mut self.mem, &mut self.regs)
     }
 
@@ -293,9 +300,3 @@ impl< M: MemoryIO> SimpleMachine<M> {
     }
 }
 
-pub fn make_simple<E: ByteOrder>(source_database: SourceDatabase) -> SimpleMachine<SimpleMem<E>>  {
-    let mem = SimpleMem::default();
-    let mut ret = SimpleMachine::new(mem, source_database);
-    ret.reset();
-    ret
-}

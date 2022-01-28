@@ -18,7 +18,7 @@ use crate::util;
 use crate::util::info;
 use crate::util::ByteSize;
 use item::{Item, Node};
-use romloader::sources::{SourceDatabase, SourceMapping, Sources, SymbolTable};
+use romloader::sources::{SourceDatabase, SourceMapping, ItemType,Sources, SymbolTable};
 use romloader::ResultExt;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -464,7 +464,7 @@ impl Assembler {
                 }
 
                 let range = pc as usize ..self.bin.get_write_address() as usize;
-                self.source_map.add_mapping(range, pos);
+                self.source_map.add_mapping(range, pos, ItemType::OpCode);
             }
 
             TokenizedFile(..) => {
@@ -483,7 +483,7 @@ impl Assembler {
                 }
 
                 let range = pc as usize ..self.bin.get_write_address() as usize ;
-                self.source_map.add_mapping(range, pos);
+                self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
             Fcb(_) => {
@@ -494,7 +494,7 @@ impl Assembler {
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
                 }
                 let range = pc as usize ..self.bin.get_write_address() as usize ;
-                self.source_map.add_mapping(range, pos);
+                self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
             Zmb => {
@@ -503,7 +503,7 @@ impl Assembler {
                     self.bin.write_byte(0)
                 }
                 let range = pc as usize ..self.bin.get_write_address() as usize ;
-                self.source_map.add_mapping(range, pos);
+                self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
             Zmd => {
@@ -513,7 +513,7 @@ impl Assembler {
                 }
 
                 let range = pc as usize ..self.bin.get_write_address() as usize ;
-                self.source_map.add_mapping(range, pos);
+                self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
             Fill => {
@@ -524,7 +524,7 @@ impl Assembler {
                         .map_err(|_| self.user_error("Does not fit in a word", node))?;
                 }
                 let range = pc as usize ..self.bin.get_write_address() as usize ;
-                self.source_map.add_mapping(range, pos);
+                self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
             Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) => (),

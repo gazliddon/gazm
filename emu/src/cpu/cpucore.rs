@@ -15,13 +15,14 @@ bitflags! {
 }
 
 // Handles CPU emulation
-
 use super::{
     alu,
     mem::{MemErrorTypes, MemoryIO},
-    AddressLines, Direct, Extended, Flags, Immediate16, Immediate8, Indexed, Inherent, RegisterSet, RegisterPair,
-    InstructionDecoder, RegEnum, Regs, Relative, Relative16,
+    AddressLines, Direct, Extended, Flags, Immediate16, Immediate8, Indexed, Inherent,
+    InstructionDecoder, RegEnum, RegisterPair, RegisterSet, Regs, Relative, Relative16,
 };
+
+use crate::isa::AddrModeEnum;
 
 use alu::GazAlu;
 
@@ -37,7 +38,7 @@ pub enum CpuErr {
 }
 
 // use cpu::alu;
-type CpuResult<T> = std::result::Result<T, CpuErr>;
+pub type CpuResult<T> = std::result::Result<T, CpuErr>;
 
 fn get_tfr_reg(op: u8) -> RegEnum {
     match op {
@@ -62,8 +63,7 @@ fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
     (get_tfr_reg(op >> 4), get_tfr_reg(op & 0xf))
 }
 
-
-pub struct Context<'a > {
+pub struct Context<'a> {
     regs: &'a mut Regs,
     mem: &'a mut dyn MemoryIO,
     cycles: usize,
@@ -906,8 +906,7 @@ impl<'a> Context<'a> {
     // }}}
 
     ////////////////////////////////////////////////////////////////////////////////
-    fn pul_nostack<A: AddressLines>(&mut self, sf : StackFlags) -> CpuResult<()> {
-
+    fn pul_nostack<A: AddressLines>(&mut self, sf: StackFlags) -> CpuResult<()> {
         if sf.contains(StackFlags::CC) {
             let i0 = self.pops_byte()?;
             self.regs.flags.set_flags(i0);
@@ -923,29 +922,29 @@ impl<'a> Context<'a> {
             self.regs.b = i0;
         }
 
-        if sf.contains(StackFlags::DP){
+        if sf.contains(StackFlags::DP) {
             let i0 = self.pops_byte()?;
             self.regs.dp = i0;
         }
 
-        if sf.contains(StackFlags::X){
+        if sf.contains(StackFlags::X) {
             let i0 = self.pops_word()?;
             self.regs.x = i0;
         }
 
-        if sf.contains(StackFlags::Y){
+        if sf.contains(StackFlags::Y) {
             let i0 = self.pops_word()?;
             self.regs.y = i0;
         }
 
-        if sf.contains(StackFlags::PC){
+        if sf.contains(StackFlags::PC) {
             let i0 = self.pops_word()?;
             self.set_pc(i0);
         }
         Ok(())
     }
 
-    fn psh_nostack<A: AddressLines>(&mut self, sf : StackFlags) -> CpuResult<()> {
+    fn psh_nostack<A: AddressLines>(&mut self, sf: StackFlags) -> CpuResult<()> {
         if sf.contains(StackFlags::PC) {
             let i0 = self.get_pc();
             self.pushu_word(i0)?;
@@ -1014,7 +1013,7 @@ impl<'a> Context<'a> {
         let sf = StackFlags::from_bits(op).unwrap();
         self.pul_nostack::<A>(sf)?;
 
-        if sf.contains(StackFlags::STACK){
+        if sf.contains(StackFlags::STACK) {
             let i0 = self.pops_word()?;
             self.regs.u = i0;
         }
@@ -1027,7 +1026,7 @@ impl<'a> Context<'a> {
         let sf = StackFlags::from_bits(op).unwrap();
         self.pul_nostack::<A>(sf)?;
 
-        if sf.contains(StackFlags::STACK){
+        if sf.contains(StackFlags::STACK) {
             let i0 = self.pops_word()?;
             self.regs.s = i0;
         }
@@ -1147,7 +1146,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
     fn subb<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.modb_2::<A>(Flags::NZVC.bits(), u8::sub).map(|_|())
+        self.modb_2::<A>(Flags::NZVC.bits(), u8::sub).map(|_| ())
     }
 
     fn tsta<A: AddressLines>(&mut self) -> CpuResult<()> {
@@ -1293,21 +1292,49 @@ impl<'a> Context<'a> {
 
 #[allow(unused_variables, unused_mut)]
 impl<'a> Context<'a> {
-    pub fn new(
-        mem: &'a mut dyn MemoryIO,
-        regs: &'a mut Regs,
-    ) -> Context<'a> {
-        let ins = InstructionDecoder::new_from_read_mem(regs.pc, mem);
-        Context {
+    pub fn new(mem: &'a mut dyn MemoryIO, regs: &'a mut Regs) -> CpuResult<Context<'a>> {
+        let ins = InstructionDecoder::new_from_read_mem(regs.pc, mem)?;
+        let ret = Context {
             regs,
             mem,
             cycles: 0,
             ins,
+        };
+        Ok(ret)
+    }
+
+    pub fn opcode_size<A: AddressLines>(&self, ins: &InstructionDecoder) -> CpuResult<usize> {
+        let ret = if A::get_addr_mode() == AddrModeEnum::Indexed {
+            let index_mode_id = self.mem.inspect_byte(ins.next_addr)?;
+            let index_mode = super::indexed::IndexedFlags::new(index_mode_id);
+            index_mode.get_index_type().get_size() + 1
+        } else {
+            0
+        };
+
+        let ret = ret + ins.instruction_info.size as usize;
+
+        Ok(ret )
+    }
+
+    pub fn get_size(&self) -> CpuResult<usize> {
+        let ins = InstructionDecoder::new_from_inspect_mem(self.regs.pc, self.mem)?;
+
+        macro_rules! handle_op {
+            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
+                self.opcode_size::<$addr>(&ins)
+            }};
         }
+
+        op_table!(ins.instruction_info.opcode, { Err(CpuErr::Unimplemented) })
+    }
+
+    pub fn peek_op(&self) -> CpuResult<InstructionDecoder> {
+        InstructionDecoder::new_from_inspect_mem(self.regs.pc, self.mem)
     }
 
     pub fn step(&mut self) -> CpuResult<()> {
-        self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc, self.mem);
+        self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc, self.mem)?;
 
         macro_rules! handle_op {
             ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{

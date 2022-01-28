@@ -7,6 +7,7 @@ use super::Dimensions;
 use super::TextRenderer;
 
 #[derive(Clone,Copy)]
+
 pub struct TextContext<'a, TR : TextRenderer> {
     dims : ScrBox,
     tr : &'a TR,
@@ -105,6 +106,7 @@ impl<'a,TR : TextRenderer > TextContext<'a, TR> {
 
 pub struct LinePrinter<'a, TR : TextRenderer > {
     pub tc : &'a TextContext<'a, TR>,
+    italic : bool,
     cols : ColourCell,
     pos : V2<isize>,
     dims : V2<usize>,
@@ -115,7 +117,7 @@ impl<'a, TR : TextRenderer > LinePrinter<'a, TR> {
     pub fn new(tc : &'a TextContext<'a, TR>) -> Self {
         let cols = ColourCell::new_bw();
         let pos = V2::new(0,0);
-        Self { tc, cols, pos, dims: tc.dims().as_usizes()}
+        Self { tc, cols, pos, dims: tc.dims().as_usizes(), italic: false}
     }
 
     pub fn cols_alpha(&mut self, cols : &ColourCell, alpha : f32) -> &mut Self{

@@ -1,10 +1,11 @@
+
 use crate::colour::*;
 use crate::imgui::{color, DrawListMut, Font, Ui};
 use crate::scrbox::ScrBox;
 use crate::v2::*;
 use std::f32;
 
-use super::{Dimensions, TextRenderer};
+use super::{Extents,Dimensions, TextRenderer};
 
 impl From<Colour> for color::ImColor32 {
     fn from(v: Colour) -> Self {
@@ -70,7 +71,12 @@ impl<'a> Dimensions<usize> for ImgUiTextRender<'a> {
     }
 }
 
+
 impl<'a> TextRenderer for ImgUiTextRender<'a> {
+    fn get_scr_box(&self) -> ScrBox {
+        ScrBox::new(&V2::new(0,0), &self.grid_dims)
+    }
+
     fn draw_text(&self, pos: &V2<isize>, text: &str, col: &Colour) {
         let tl = self.xform(pos);
         self.dl.add_text(tl, col, text);

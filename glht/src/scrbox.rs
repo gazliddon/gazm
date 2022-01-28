@@ -1,9 +1,17 @@
 
+use crate::text::{Extents, Dimensions };
+
 use super::v2::*;
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub struct ScrBox {
     pub pos : V2<isize>,
     pub dims : V2<usize>
+}
+
+impl From<&dyn Extents<usize>> for ScrBox {
+    fn from(src: &dyn Extents<usize>) -> Self {
+        ScrBox::new(&src.pos().as_isizes(), &src.dims())
+    }
 }
 
 impl ScrBox {

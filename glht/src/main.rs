@@ -153,7 +153,7 @@ impl MyApp {
         let mut mem = SimpleMem::default();
         mem.upload(0x9900, slice).expect("couldn't upload");
         let mut machine = SimpleMachine::new(mem,sd);
-        machine.reset();
+        machine.reset().unwrap();
 
         // FIX : Remove!
         let bps = machine.get_breakpoints_mut();

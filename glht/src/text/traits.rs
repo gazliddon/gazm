@@ -4,6 +4,7 @@ use crate::colour::Colour;
 use crate::colourcell::ColourCell;
 
 
+
 pub trait Dimensions<I: num::traits::Num> {
     fn dims(&self) -> V2<I>;
 
@@ -21,7 +22,10 @@ pub trait Extents<I: num::traits::Num>  : Dimensions<I> {
     fn pos(&self) -> V2<I>;
 }
 
-pub trait TextRenderer : Dimensions<usize> {
+
+pub trait TextRenderer : Dimensions<usize>  {
+
+    fn get_scr_box(&self) -> ScrBox;
 
     fn draw_text(&self, pos : &V2<isize>, text : &str, col : &Colour);
     fn draw_box(&self, pos : &V2<isize>, dims : &V2<usize>, col : &Colour);

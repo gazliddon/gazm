@@ -157,12 +157,19 @@ impl Sources {
 
 use serde::{Deserialize, Serialize};
 
+#[derive(PartialEq,Debug, Serialize, Deserialize, Clone)]
+pub enum ItemType {
+    OpCode,
+    Command,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Mapping {
     pub file_id: u64,
     pub line: usize,
     pub range: std::ops::Range<usize>,
     pub mem_range: std::ops::Range<usize>,
+    pub item_type : ItemType,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -176,13 +183,14 @@ impl SourceMapping {
             addr_to_mapping: Default::default(),
         }
     }
-    pub fn add_mapping(&mut self, mem_range: std::ops::Range<usize>, pos: &Position) {
+    pub fn add_mapping(&mut self, mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
         if let AsmSource::FileId(file_id) = pos.src {
             let entry = Mapping {
                 file_id,
                 line: pos.line,
                 range: pos.range.clone(),
                 mem_range: mem_range.clone(),
+                item_type
             };
 
             self.addr_to_mapping.push(entry);

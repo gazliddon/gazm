@@ -9,11 +9,11 @@
 use std::error::Error;
 
 use log::info;
-use romloader::sources::{LocationTrait, SourceFileAccess};
+use romloader::sources::{ItemType, LocationTrait, SourceFileAccess};
 
 use super::{
     colour::*, colourcell::*, events::Events, scrbox::ScrBox, styles::TextStyles, styles::*,
-    text::Dimensions, text::*, v2::*,
+    text::Dimensions, text::Extents, text::*, v2::*,
 };
 
 use Events::*;
@@ -87,11 +87,23 @@ impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
                 .mapping
                 .map(|m| {
                     let mut mem_str = self.machine.get_mem().get_mem_as_str(&m.mem_range, "");
+
                     if mem_str.len() > 8 {
                         mem_str = format!("{:.8}..", mem_str)
                     }
+                    format!("{:04X} {:10}", m.mem_range.start, mem_str)
+                })
+                .unwrap_or_else(|| self.blank.clone());
 
-                    format!("{:04X} {:.10}", m.mem_range.start, mem_str)
+            let info_str = sl
+                .mapping
+                .and_then(|m| {
+                    if m.item_type == ItemType::OpCode {
+                        let ins = self.machine.inspect_instruction(m.mem_range.start).unwrap();
+                        Some(format!("{} {}", ins.size, ins.cycles))
+                    } else {
+                        None
+                    }
                 })
                 .unwrap_or_else(|| self.blank.clone());
 
@@ -102,14 +114,23 @@ impl<'a, TR: TextRenderer> RenderDoc<'a> for SourceRenderer<'a, TR> {
                 self.text_styles
                     .get_source_win_style(is_cursor_line, is_pc_line, false);
 
-            let mut bp_str = format!(" {:03} ", source_line_number);
+            let mut bp_str = format!(" {:>3} ", source_line_number);
 
             if is_cursor_line {
-                bp_str = format!(">{:03} ", source_line_number);
+                bp_str = format!(">{:>3} ", source_line_number);
             }
 
+            let mut cyc_col = addr_col.clone();
+            cyc_col.fg = cyc_col.fg.mul_scalar(0.75);
+
             self.lp.cols(&addr_col);
-            self.lp.print(&format!(" {} {:20}  ", bp_str, addr_str));
+            self.lp.print(&bp_str);
+
+            self.lp.cols(&addr_col);
+            self.lp.print(&format!("{:20}", addr_str,));
+            self.lp.cols(&cyc_col);
+            self.lp.print(&format!("{:6}", info_str));
+
             self.lp.cols(&line_col);
             self.lp.print("  ");
             self.lp.print(source_text);
@@ -299,12 +320,17 @@ impl SourceWin {
     }
 
     pub fn render<TR: TextRenderer>(&self, renderer: &TR, machine: &dyn Machine) {
-        let tc = TextContext::new(renderer);
+        let mut sc_box = renderer.get_scr_box();
+
+        sc_box.pos.y += 4;
+        sc_box.dims.y -= 4;
+
+        let tc = TextContext::new_with_dims(renderer, &sc_box);
 
         if let Some(sf) = self
             .current_source_file
-                .clone()
-                .and_then(|sf| machine.get_sources().get_source_file(sf.file_id))
+            .clone()
+            .and_then(|sf| machine.get_sources().get_source_file(sf.file_id))
         {
             let text_styles = TextStyles::new(&self.styles);
             let offset = self.scroll_offset;
@@ -312,21 +338,7 @@ impl SourceWin {
             sr.render_doc(offset, self.cursor);
         }
 
-        let tc = TextContext::new(renderer);
-        let pc = machine.get_regs().pc as usize;
-        let sources = machine.get_sources();
-        let mut text = format!("{:04X}", pc);
-
-        if let Some(sl) = sources.get_source_info_from_address(pc) {
-            text = format!("{} {} {}", text, sl.file.to_string_lossy(), sl.text);
-        } else {
-            text = format!("{} ???", text);
-        }
-        let pos = &V2::new(0, 0);
-        let cols = ColourCell::new_bw();
-        tc.draw_text_with_bg(pos, &text, &cols);
-
-        let sc_box = ScrBox::new(&V2::new(0, 0), &V2::new(10, 5));
+        let sc_box = ScrBox::new(&V2::new(0, 0), &V2::new(sc_box.dims.x, 5));
 
         let tc = TextContext::new(renderer);
         let new_tc = tc.child_context(&sc_box);
@@ -387,11 +399,11 @@ impl ScrollTriggers {
 struct RegWin {}
 
 pub fn boxer<'a, TR: TextRenderer>(render: &'a TextContext<TR>) -> TextContext<'a, TR> {
-    let cel_col = ColourCell::new(YELLOW, &RED.mul_scalar(0.2));
+    let cel_col = ColourCell::new(&WHITE, BLUE);
     let h = render.height() as usize;
     let w = render.width() as usize;
 
-    let horiz = "─".repeat(w-2);
+    let horiz = "─".repeat(w - 2);
     let vert = "│";
 
     let tr = '┐';
@@ -400,21 +412,21 @@ pub fn boxer<'a, TR: TextRenderer>(render: &'a TextContext<TR>) -> TextContext<'
     let bl = '└';
 
     let top = format!("{}{}{}", tl, horiz, tr);
-    let mid = format!("{}{}{}", vert, " ".repeat(w-2), vert);
+    let mid = format!("{}{}{}", vert, " ".repeat(w - 2), vert);
     let bottom = format!("{}{}{}", bl, horiz, br);
 
     let mut v = LinePrinter::new(render);
     v.cols_alpha(&cel_col, 1.0);
     v.println(&top);
-    for _ in 0..h-2 {
+    for _ in 0..h - 2 {
         v.println(&mid);
     }
     v.println(&bottom);
 
-    let dims = render.dims() - V2::new(2,2) ;
-    let pos = render.pos() + V2::new(2,1);
+    let dims = render.dims() - V2::new(4, 2);
+    let pos = render.pos() + V2::new(2, 1);
     let dims = V2::new(dims.x as usize, dims.y as usize);
-    let sc_box  = ScrBox::new(&pos,&dims);
+    let sc_box = ScrBox::new(&pos, &dims);
     render.child_context(&sc_box)
 }
 
@@ -426,7 +438,7 @@ impl RegWin {
     pub fn render<TR: TextRenderer>(&self, tr: &TextContext<TR>, regs: &Regs) {
         let hdr = &regs.get_hdr();
         let txt = &regs.get_text();
-        let sc_box = ScrBox::new(&tr.pos(), &V2::new(txt.len() + 4, 4));
+        let sc_box = ScrBox::new(&tr.pos(), &V2::new(tr.width() as usize, 4));
         let tr = tr.child_context(&sc_box);
         let tr = boxer(&tr);
 

@@ -97,7 +97,7 @@ impl<'a, > Disassembler<'a, > {
 
         try_cache_or_create(addr, || {
 
-            let mut ins = InstructionDecoder::new_from_inspect_mem(addr, self.mem);
+            let mut ins = InstructionDecoder::new_from_inspect_mem(addr, self.mem).unwrap();
 
             macro_rules! handle_op {
                 ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
