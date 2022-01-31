@@ -1,12 +1,19 @@
 #![allow(unused_macros)]
 
 use colored::*;
-use nom::{AsChar, combinator::success};
+use nom::{combinator::success, AsChar};
 
 pub trait Messageize {
     fn error(self) -> ColoredString;
     fn info(self) -> ColoredString;
     fn success(self) -> ColoredString;
+}
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum Verbosity {
+    NORMAL = 0,
+    INFO = 1,
+    INTERESTING = 2,
+    DEBUG = 3,
 }
 
 impl<'a> Messageize for &'a str {
@@ -24,14 +31,20 @@ impl<'a> Messageize for &'a str {
 }
 
 pub struct Messages {
-    indent : usize
+    indent: usize,
+    verbosity: Verbosity,
 }
 
 impl Messages {
     pub fn new() -> Self {
         Self {
-            indent : 0
+            indent: 0,
+            verbosity: Verbosity::NORMAL,
         }
+    }
+
+    pub fn set_verbosity(&mut self, verbosity : &Verbosity) {
+        self.verbosity = *verbosity;
     }
 
     pub fn indent(&mut self) {
@@ -52,28 +65,62 @@ impl Messages {
         " ".repeat(self.get_indent())
     }
 
-    pub fn info<S>(&self,  m : S) where S : Into<String> {
-        println!("{}{}", self.get_indent_str(), m.into().blue());
+    pub fn info<S>(&self, m: S)
+    where
+        S: Into<String>,
+    {
+        if self.verbosity >= Verbosity::INFO {
+            println!("{}{}", self.get_indent_str(), m.into().blue());
+        }
     }
 
-    pub fn error<S>(&self,  m : S) where S : Into<String>{
+    pub fn status<S>(&self, m: S)
+    where
+        S: Into<String>,
+    {
+        println!("{}{}", self.get_indent_str(), m.into().bright_magenta());
+    }
+
+    pub fn error<S>(&self, m: S)
+    where
+        S: Into<String>,
+    {
         println!("{}{}", self.get_indent_str(), m.into().red().bold());
     }
 
-    
-    pub fn warning<S>(&self,  m : S) where S : Into<String>{
+    pub fn warning<S>(&self, m: S)
+    where
+        S: Into<String>,
+    {
         println!("{}{}", self.get_indent_str(), m.into().yellow().bold());
     }
 
-    pub fn success<S>(&self,  m : S) where S : Into<String>{
+    pub fn success<S>(&self, m: S)
+    where
+        S: Into<String>,
+    {
         println!("{}{}", self.get_indent_str(), m.into().bold().green());
     }
 
-    pub fn intertesting<S>(&self, m : S) where S : Into<String>{
-        println!("{}{}", self.get_indent_str(), m.into().italic().bold().purple());
+    pub fn intertesting<S>(&self, m: S)
+    where
+        S: Into<String>,
+    {
+        if self.verbosity >= Verbosity::INTERESTING {
+            println!(
+                "{}{}",
+                self.get_indent_str(),
+                m.into().italic().bold().purple()
+            );
+        }
     }
-    pub fn debug<S>(&self, m : S) where S : Into<String>{
-        println!("{}{}", self.get_indent_str(), m.into().italic().yellow());
+    pub fn debug<S>(&self, m: S)
+    where
+        S: Into<String>,
+    {
+        if self.verbosity >= Verbosity::DEBUG {
+            println!("{}{}", self.get_indent_str(), m.into().italic().yellow());
+        }
     }
 }
 
@@ -104,4 +151,3 @@ pub fn messages() -> &'static mut Messages {
         SINGLETON.assume_init_mut()
     }
 }
-

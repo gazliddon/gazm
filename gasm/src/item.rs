@@ -203,11 +203,28 @@ impl AddrModeParseType {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum StructTypes {
+    BYTE,
+    WORD,
+    DWORD,
+    QWORD,
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct StructEntry {
+    name : String,
+    item_type: StructTypes,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Item {
     LocalAssignment(String),
     Assignment(String),
     AssignmentFromPc(String),
     LocalAssignmentFromPc(String),
+
+    MacroCall(String),
+    MacroDef(String, String),
+    StructDef(String, Vec<StructEntry>),
 
     SetPc(u16),
 

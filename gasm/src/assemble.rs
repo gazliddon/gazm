@@ -18,7 +18,7 @@ use crate::util;
 use crate::util::info;
 use crate::util::ByteSize;
 use item::{Item, Node};
-use romloader::sources::{SourceDatabase, SourceMapping, ItemType,Sources, SymbolTable};
+use romloader::sources::{ItemType, SourceDatabase, SourceMapping, Sources, SymbolTable};
 use romloader::ResultExt;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -459,11 +459,11 @@ impl Assembler {
                             x.info(msg);
                         }
                     } else {
-                        x.success(msg);
+                        x.info(msg);
                     }
                 }
 
-                let range = pc as usize ..self.bin.get_write_address() as usize;
+                let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::OpCode);
             }
 
@@ -482,7 +482,7 @@ impl Assembler {
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
                 }
 
-                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
@@ -493,7 +493,7 @@ impl Assembler {
                         .write_byte_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
                 }
-                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
@@ -502,7 +502,7 @@ impl Assembler {
                 for _ in 0..bytes {
                     self.bin.write_byte(0)
                 }
-                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
@@ -512,7 +512,7 @@ impl Assembler {
                     self.bin.write_word(0)
                 }
 
-                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
@@ -523,11 +523,13 @@ impl Assembler {
                         .write_byte_check_size(byte)
                         .map_err(|_| self.user_error("Does not fit in a word", node))?;
                 }
-                let range = pc as usize ..self.bin.get_write_address() as usize ;
+                let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
-            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) => (),
+            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) => (),
+
+            MacroCall(..) => x.error("Implement macro invocation assembly"),
 
             _ => {
                 panic!("Unable to assemble {:?}", i);
@@ -667,7 +669,9 @@ impl Assembler {
                 pc += c as u64;
             }
 
-            Assignment(..) | Comment(..) => (),
+            Assignment(..) | Comment(..) | MacroDef(..) => (),
+
+            MacroCall(..) => x.error("Implement macro invocation sizing"),
 
             _ => {
                 panic!("Unable to size {:?}", i);

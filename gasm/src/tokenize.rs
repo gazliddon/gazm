@@ -1,6 +1,12 @@
 use crate::{
-    cli, commands, comments, expr, item, labels, messages, opcodes,
-    util,
+    cli, commands, comments,
+    expr::{self, parse_expr},
+    item,
+    labels::{get_just_label, parse_label},
+    macros::{parse_macro_call, parse_macro_definition},
+    messages, opcodes,
+    util::{self, sep_list1, wrapped_chars, ws},
+    structs::get_struct,
 };
 
 use nom::{
@@ -9,7 +15,7 @@ use nom::{
     character::complete::{line_ending, multispace0, multispace1},
     combinator::{all_consuming, eof, not, opt, recognize},
     multi::{many0, many1},
-    sequence::{pair, preceded, terminated},
+    sequence::{pair, preceded, separated_pair, terminated},
     AsBytes,
 };
 use romloader::ResultExt;
@@ -17,7 +23,7 @@ use romloader::ResultExt;
 use crate::error::{IResult, ParseError, UserError};
 use crate::item::{Item, Node};
 use crate::locate::Span;
-use romloader::sources::{ AsmSource, SourceFileLoader, Sources };
+use romloader::sources::{AsmSource, SourceFileLoader, Sources};
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = preceded(
@@ -28,7 +34,7 @@ fn get_line(input: Span) -> IResult<Span> {
     Ok((rest, line))
 }
 
-struct Tokens {
+struct Token {
     text: String,
     tokens: Vec<item::Node>,
 }
@@ -41,10 +47,111 @@ pub fn tokenize_file_from_str<'a>(file: &str, input: &'a str) -> Result<Node, Pa
     Ok(matched)
 }
 
+fn mk_pc_equate(node: Node) -> Node {
+    use item::{Item::*, Node};
+    let pos = node.ctx().clone();
+
+    match &node.item {
+        Label(name) => Node::from_item(AssignmentFromPc(name.clone()), pos),
+        LocalLabel(name) => Node::from_item(LocalAssignmentFromPc(name.clone()), pos),
+        _ => panic!("shouldn't happen"),
+    }
+}
+
+struct Tokens {
+    tokens: Vec<Node>,
+    macros: Vec<Node>,
+}
+
+impl Tokens {
+    fn add_macro(&mut self, node: Node) {
+        self.macros.push(node)
+    }
+
+    fn add_some_node(&mut self, node: Option<Node>) {
+        if let Some(node) = node {
+            self.add_node(node)
+        }
+    }
+    fn add_node(&mut self, node: Node) {
+        self.tokens.push(node)
+    }
+
+    pub fn tokenize_str<'a>(&'a mut self, input: Span<'a>) -> Result<(), ParseError> {
+        use commands::parse_command;
+        use item::{Item::*, Node};
+        use opcodes::parse_opcode;
+        use util::parse_assignment;
+        use util::ws;
+
+        // let ret = Node::from_item_span(Block, input);
+
+        let mut source = input;
+
+        while !source.is_empty() {
+            let res = get_struct(source);
+
+            if res.is_ok() {
+                let (rest, _matched) = res.unwrap();
+                source = rest;
+                continue;
+            }
+
+            let res = parse_macro_definition(source);
+
+            if res.is_ok() {
+                let (rest, matched) = res.unwrap();
+                // macros.push(matched);
+                self.add_macro(matched);
+                source = rest;
+                continue;
+            }
+
+            let (rest, line) = get_line(source)?;
+
+            source = rest;
+
+            if !line.is_empty() {
+                let (input, comment) = comments::strip_comments(line)?;
+                self.add_some_node(comment);
+
+                if input.is_empty() {
+                    continue;
+                }
+
+                // An equate
+                if let Ok((_, equate)) = all_consuming(ws(parse_assignment))(input) {
+                    self.add_node(equate);
+                    continue;
+                }
+
+                if let Ok((_, node)) = all_consuming(ws(parse_macro_call))(input) {
+                    self.add_node(node);
+                    continue;
+                }
+
+                if let Ok((_, label)) = all_consuming(ws(parse_label))(input) {
+                    let node = mk_pc_equate(label);
+                    self.add_node(node);
+                    continue;
+                }
+
+                let body = alt((ws(parse_macro_call), ws(parse_opcode), ws(parse_command)));
+
+                let (_, (label, body)) = all_consuming(pair(opt(parse_label), body))(input)?;
+                let label = label.map(mk_pc_equate);
+                self.add_some_node(label);
+                self.add_node(body);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 pub fn tokenize_str(input: Span<'_>) -> Result<Node, ParseError> {
     use commands::parse_command;
     use item::{Item::*, Node};
-    use labels::parse_label;
     use opcodes::parse_opcode;
     use util::parse_assignment;
     use util::ws;
@@ -52,8 +159,8 @@ pub fn tokenize_str(input: Span<'_>) -> Result<Node, ParseError> {
     let ret = Node::from_item_span(Block, input);
 
     let mut source = input;
-
     let mut items: Vec<Node> = vec![];
+    let mut macros: Vec<Node> = vec![];
 
     let mut push_some = |x: &Option<Node>| {
         if let Some(x) = x {
@@ -66,14 +173,29 @@ pub fn tokenize_str(input: Span<'_>) -> Result<Node, ParseError> {
 
         match &node.item {
             Label(name) => Node::from_item(AssignmentFromPc(name.clone()), pos),
-
             LocalLabel(name) => Node::from_item(LocalAssignmentFromPc(name.clone()), pos),
-
             _ => panic!("shouldn't happen"),
         }
     };
 
     while !source.is_empty() {
+        let res = get_struct(source);
+
+        if res.is_ok() {
+            let (rest, _matched) = res.unwrap();
+            source = rest;
+            continue;
+        }
+
+        let res = parse_macro_definition(source);
+
+        if res.is_ok() {
+            let (rest, matched) = res.unwrap();
+            macros.push(matched);
+            source = rest;
+            continue;
+        }
+
         let (rest, line) = get_line(source)?;
 
         source = rest;
@@ -86,18 +208,24 @@ pub fn tokenize_str(input: Span<'_>) -> Result<Node, ParseError> {
                 continue;
             }
 
+            // An equate
             if let Ok((_, equate)) = all_consuming(ws(parse_assignment))(input) {
                 push_some(&Some(equate));
                 continue;
             }
 
-            if let Ok((_, label)) = all_consuming(ws(labels::parse_label))(input) {
+            if let Ok((_, node)) = all_consuming(ws(parse_macro_call))(input) {
+                push_some(&Some(node));
+                continue;
+            }
+
+            if let Ok((_, label)) = all_consuming(ws(parse_label))(input) {
                 let node = mk_pc_equate(label);
                 push_some(&Some(node));
                 continue;
             }
 
-            let body = alt((ws(parse_opcode), ws(parse_command)));
+            let body = alt((ws(parse_macro_call), ws(parse_opcode), ws(parse_command)));
 
             let (_, (label, body)) = all_consuming(pair(opt(parse_label), body))(input)?;
             let label = label.map(mk_pc_equate);
@@ -162,7 +290,6 @@ pub fn tokenize_file(
 }
 
 pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, Sources)> {
-
     let file = ctx.file.clone();
 
     let mut paths = vec![];

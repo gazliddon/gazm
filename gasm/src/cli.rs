@@ -2,9 +2,11 @@ use std::path::{Path, PathBuf,};
 use clap::Parser;
 use clap::{App, Arg};
 
+use crate::messages::Verbosity;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Context {
-    pub verbose: bool,
+    pub verbose: Verbosity,
     pub file : PathBuf,
     pub out: Option<String>,
     pub syms : Option<String>,
@@ -13,7 +15,7 @@ pub struct Context {
 impl Default for Context {
     fn default() -> Self {
         Self {
-            verbose: false,
+            verbose: Verbosity::NORMAL,
             file: "No FIle".into(),
             out: None,
             syms : None,
@@ -23,13 +25,18 @@ impl Default for Context {
 
 impl From<clap::ArgMatches> for Context {
     fn from(m : clap::ArgMatches) -> Self {
-
         let file : PathBuf = m.value_of("file").unwrap().to_string().into();
         let out = m.value_of("out-file").map(|f| f.to_string());
         let syms = m.value_of("symbol-file").map(|f| f.to_string());
 
+        let verbose = if m.is_present("verbose") {
+            Verbosity::INFO
+        } else {
+            Verbosity::NORMAL
+        };
+
         Self {
-            verbose : m.is_present("verbose"),
+            verbose,
             out,
             file,
             syms,

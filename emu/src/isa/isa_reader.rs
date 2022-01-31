@@ -31,6 +31,13 @@ where
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+pub enum InstructionType {
+    CallSubroutine,
+    Return,
+    Normal,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Instruction {
     // pub display : Option<String>,
@@ -46,6 +53,8 @@ pub struct Instruction {
     #[serde(default)]
     #[serde(deserialize_with = "u16::deserialize")]
     pub operand_size: u16,
+    pub subroutine: Option<bool>,
+
 }
 
 impl Instruction {
@@ -210,7 +219,6 @@ impl Default for Dbase {
         let loaded: Dbase = serde_json::from_str(json_str).unwrap();
         Self::from_data(loaded.instructions, loaded.unknown)
     }
-
 }
 
 impl fmt::Display for Instruction {

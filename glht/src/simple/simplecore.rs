@@ -45,6 +45,8 @@ pub enum MachineErr {
     Halted,
 }
 
+pub type MachineResult<T=()> = std::result::Result<T, MachineErr>;
+
 impl From<CpuErr> for MachineErr {
     fn from(c: CpuErr) -> Self {
         MachineErr::Cpu(c)
@@ -117,6 +119,11 @@ fn check_breakpoints(machine: &(impl Machine + ?Sized)) -> Result<(), MachineErr
 }
 
 pub trait Machine {
+
+    fn step_into(&mut self) -> MachineResult {
+        panic!()
+    }
+
     fn get_sources(&self) -> &SourceDatabase;
     fn get_breakpoints(&self) -> &BreakPoints;
     fn get_breakpoints_mut(&mut self) -> &mut BreakPoints;
@@ -129,7 +136,7 @@ pub trait Machine {
     fn get_clock_mut(&mut self) -> &mut Rc<RefCell<StandardClock>>;
     fn get_context_mut(&mut self) -> CpuResult<cpu::Context>;
     fn inspect_instruction(&self, addr : usize) -> CpuResult<InstructionDecoder>;
-    fn update(&mut self) -> Result<(), MachineErr>;
+    fn update(&mut self) -> MachineResult;
 
     fn get_regs(&self) -> &cpu::Regs;
 
@@ -137,7 +144,7 @@ pub trait Machine {
         panic!("")
     }
 
-    fn run_instructions(&mut self, n: usize) -> Result<(), MachineErr> {
+    fn run_instructions(&mut self, n: usize) -> MachineResult {
         for _ in 0..n {
             let mut ctx = self.get_context_mut()?;
             ctx.step()?;
@@ -151,12 +158,26 @@ pub trait Machine {
         Ok(())
     }
 
-    fn step(&mut self) -> Result<u16, MachineErr> {
+    fn run_until(&mut self, addr : usize) -> MachineResult {
+        while self.get_regs().pc  as usize != addr {
+            let mut ctx = self.get_context_mut()?;
+            ctx.step()?;
+        }
+        Ok(())
+    }
+
+    fn step_over(&mut self) -> MachineResult {
+        let pc = self.get_regs().pc as usize;
+        let ins = self.inspect_instruction(pc)?;
+        self.run_until(pc + ins.size)
+    }
+
+    fn step(&mut self) -> MachineResult<u16> {
         self.get_context_mut()?.step()?;
         Ok(self.get_regs().pc)
     }
 
-    fn reset(&mut self) -> CpuResult<()>{
+    fn reset(&mut self) -> MachineResult {
         let mut ctx = self.get_context_mut()?;
         ctx.reset();
         Ok(())

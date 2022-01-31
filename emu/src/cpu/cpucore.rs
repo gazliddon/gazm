@@ -38,7 +38,7 @@ pub enum CpuErr {
 }
 
 // use cpu::alu;
-pub type CpuResult<T> = std::result::Result<T, CpuErr>;
+pub type CpuResult<T=()> = std::result::Result<T, CpuErr>;
 
 fn get_tfr_reg(op: u8) -> RegEnum {
     match op {

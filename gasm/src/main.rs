@@ -31,6 +31,8 @@ mod opcodes;
 mod postfix;
 mod register;
 mod scopes;
+mod macros;
+mod structs;
 // mod sourcefile;
 // mod symbols;
 mod tokenize;
@@ -43,7 +45,7 @@ use ast::ItemWithPos;
 use colored::*;
 use error::UserError;
 use romloader::ResultExt;
-use util::{debug, info};
+use util::{debug, info, status};
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___
@@ -64,7 +66,7 @@ use assemble::Assembler;
 fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
     let msg = format!("Assembling {}", ctx.file.to_string_lossy());
 
-    info(&msg, |x| {
+   status(&msg, |x| {
         use assemble::Assembler;
         use ast::Ast;
 
@@ -77,8 +79,7 @@ fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::erro
         asm.size()?;
 
         let ret = asm.assemble()?;
-
-        x.success("Complete");
+        x.success("Sucess");
 
         Ok(ret)
     })
@@ -103,10 +104,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx: cli::Context = cli::parse().into();
 
-    let x = messages::messages();
 
-    x.info(BANNER);
-    x.intertesting("GASM 6809 Assembler\n");
+    let x = messages::messages();
+    x.set_verbosity(&ctx.verbose);
+
+    x.status(BANNER);
+    x.status("GASM 6809 Assembler\n");
 
     x.indent();
 
@@ -115,13 +118,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::fs;
 
     if let Some(sym_file) = ctx.syms {
-        x.intertesting(format!("Writing symbols: {}", sym_file));
+        x.status(format!("Writing symbols: {}", sym_file));
         let j = serde_json::to_string_pretty(&ret.database).unwrap();
         fs::write(sym_file, j).expect("Unable to write file");
     }
 
     if let Some(bin_file) = ctx.out {
-        x.intertesting(format!("Writing binary: {}", bin_file));
+        x.status(format!("Writing binary: {}", bin_file));
         let data = &ret.mem;
         fs::write(bin_file, data).expect("Unable to write file");
     }

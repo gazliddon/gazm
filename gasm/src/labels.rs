@@ -9,7 +9,7 @@ use nom::character::complete::{
 };
 
 use nom::multi::many0 ;
-use nom::bytes::complete::is_a;
+use nom::bytes::complete::{ is_a};
 use nom::branch::alt;
 
 use crate::error::IResult;
@@ -22,7 +22,7 @@ use nom_locate::position;
 static LOCAL_LABEL_PREFIX: &str = "@!";
 static OK_LABEL_CHARS: &str = "_?.";
 
-fn get_just_label(input: Span) -> IResult<Span> {
+pub fn get_just_label(input: Span) -> IResult<Span> {
     use crate::error::error;
     // match a label identifier
     let (rest,matched) = recognize(
@@ -49,7 +49,7 @@ fn get_local_label(input: Span) -> IResult<Span> {
     alt((postfix_parse, prefix_parse))(input)
 }
 
-fn parse_just_label(input: Span) -> IResult<Node> {
+pub fn parse_just_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
     let ret = Node::from_item_span(Item::Label(matched.to_string()), matched);
     Ok((rest,ret))

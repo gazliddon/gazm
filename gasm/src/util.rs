@@ -15,6 +15,7 @@ use nom::bytes::complete::{
     tag,
     tag_no_case,
     take_while,
+    is_not,
 };
 
 use nom::character::complete::{
@@ -154,6 +155,24 @@ where
     let r = f(x);
     x.deindent();
     r
+}
+
+
+pub fn status<F, Y, S>(text: S, mut f: F) -> Y
+where
+    F: FnMut(&mut super::messages::Messages) -> Y,
+    S: Into<String>
+{
+    let x = super::messages::messages();
+    x.status(text.into());
+    x.indent();
+    let r = f(x);
+    x.deindent();
+    r
+}
+
+pub fn get_block(input: Span<'_>) -> IResult<Span> {
+    ws(wrapped_chars('{', is_not("}"), '}'))(input)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

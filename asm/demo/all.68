@@ -2,37 +2,57 @@
 
     include	"equates.68"
 
-start      lda #$55
-           tfr a,cc
-           lds #stack_top
+    macro gaz_mac(a,b,c) {
 
-            jsr clear_screen
+    }
 
-            lda #0
-            sync
+    gaz_mac(1,2,3)
 
-            ;; copy the palette over
+struct task_2 {
+    next : word,
+    func : word,
+    tick : word,
+    sleep : word,
+    d : word, 
+    x : word,
+    y : word,
+    temp0 : word,
+    temp1 : word,
+}
 
-            lda #255
-            sta PALETTE+3
-            lda #127
-            sta PALETTE+4
-            lda #0
-            sta PALETTE+5
-            ;;
-loop1      inc PALETTE+15*3
-            inc PALETTE+15*3
-            inc PALETTE+15*3
-            lda PALETTE+15
-            lsra
-            sta PALETTE+15*3+1
-            ldx #0
-            bsr draw_box
-            jsr print_a
-            sync
-            nop
-            nop
-            bra loop1
+start
+    lda #$55
+    tfr a,cc
+    lds #stack_top
+
+    jsr clear_screen
+
+    lda #0
+    sync
+
+    ;; copy the palette over
+
+    lda #255
+    sta PALETTE+3
+    lda #127
+    sta PALETTE+4
+    lda #0
+    sta PALETTE+5
+
+@loop1
+    inc PALETTE+15*3
+    inc PALETTE+15*3
+    inc PALETTE+15*3
+    lda PALETTE+15
+    lsra
+    sta PALETTE+15*3+1
+    ldx #0
+    bsr draw_box
+    jsr print_a
+    sync
+    nop
+    nop
+    bra @loop1
 
 clear_screen
     ldy #SCREEN

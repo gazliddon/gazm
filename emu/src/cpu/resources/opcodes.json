@@ -127,7 +127,8 @@
             "cycles": 9,
             "opcode": "17",
             "action": "LBSR",
-            "size": 3
+            "size": 3,
+            "subroutine": true
         },
         {
             "addr_mode": "Inherent",
@@ -379,7 +380,8 @@
             "cycles": 19,
             "opcode": "3F",
             "action": "SWI",
-            "size": 1
+            "size": 1,
+            "subroutine": true
         },
         {
             "addr_mode": "Inherent",
@@ -792,7 +794,8 @@
             "cycles": 7,
             "opcode": "8D",
             "action": "BSR",
-            "size": 2
+            "size": 2,
+            "subroutine": true
         },
         {
             "addr_mode": "Immediate16",
@@ -897,7 +900,8 @@
             "cycles": 7,
             "opcode": "9D",
             "action": "JSR",
-            "size": 2
+            "size": 2,
+            "subroutine": true
         },
         {
             "addr_mode": "Direct",
@@ -1009,7 +1013,8 @@
             "cycles": 7,
             "opcode": "AD",
             "action": "JSR",
-            "size": 2
+            "size": 2,
+            "subroutine": true
         },
         {
             "addr_mode": "Indexed",
@@ -1121,7 +1126,8 @@
             "cycles": 8,
             "opcode": "BD",
             "action": "JSR",
-            "size": 3
+            "size": 3,
+            "subroutine": true
         },
         {
             "addr_mode": "Extended",
@@ -1674,7 +1680,8 @@
             "cycles": 20,
             "opcode": "103F",
             "action": "SWI2",
-            "size": 2
+            "size": 2,
+            "subroutine": true
         },
         {
             "addr_mode": "Immediate16",
@@ -1835,7 +1842,8 @@
             "cycles": 20,
             "opcode": "113F",
             "action": "SWI3",
-            "size": 2
+            "size": 2,
+            "subroutine": true
         },
         {
             "addr_mode": "Indexed",
