@@ -19,13 +19,19 @@ use crate::item::{Item, Node};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacroDef {
-    name: String,
-    params: Vec<String>,
-    body: String,
+    pub name: String,
+    pub params: Vec<String>,
+    pub body: String,
 }
 
 impl MacroDef {
-    pub fn expand(&self, args: &Vec<String>) -> String {
+    pub fn new(name: String, params: Vec<String>, body: String) -> Self {
+        Self {
+            name, params, body
+        }
+    }
+
+    pub fn expand(&self, args: Vec<&str>) -> String {
         use regex::Regex;
 
         let to_regex = |v: &String| {
@@ -91,4 +97,27 @@ pub fn parse_macro_call(input: Span<'_>) -> IResult<Node> {
         Node::from_item_span(Item::MacroCall(name.to_string()), matched_span).with_children(args);
 
     Ok((rest, ret))
+}
+
+
+#[allow(unused_imports)]
+mod test {
+    use super::*;
+    use pretty_assertions::{assert_eq, assert_ne};
+
+    #[test]
+    fn test_expansion() {
+        let body = "Hello my name is { arg1   } I am {arg2}";
+        let params = vec!["arg1", "arg2"];
+        let args = vec!["Gaz", "Ace"];
+        let desired = "Hello my name is Gaz I am Ace";
+
+        let name = "test";
+        let params = params.iter().map(|x| x.to_string());
+        let mac = MacroDef::new(name.to_string(), params.collect(), body.to_string());
+        let res = mac.expand(args);
+        println!("{}", res);
+
+        assert_eq!(res, desired.to_string());
+    }
 }
