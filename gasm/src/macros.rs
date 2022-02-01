@@ -17,6 +17,7 @@ use crate::error::{IResult, ParseError, UserError};
 
 use crate::item::{Item, Node};
 
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacroDef {
     pub name: String,
@@ -24,28 +25,34 @@ pub struct MacroDef {
     pub body: String,
 }
 
+use regex::Regex;
+
 impl MacroDef {
     pub fn new(name: String, params: Vec<String>, body: String) -> Self {
         Self {
             name, params, body
         }
     }
-
-    pub fn expand(&self, args: Vec<&str>) -> String {
-        use regex::Regex;
-
+    fn mk_regex(&self) -> Vec<Regex> {
         let to_regex = |v: &String| {
             let start = r"\{\s*";
             let end = r"\s*\}";
             let re = format!("{}{}{}", start, v, end);
             regex::Regex::new(&re).unwrap()
         };
+        self.params.iter().map(to_regex).collect()
+    }
+
+    pub fn expand(&self, args: Vec<&str>) -> String {
+
 
         if args.len() != self.params.len() {
             panic!("Wrong number of args")
         }
 
-        let pairs = self.params.iter().map(to_regex).zip(args.clone());
+        let regex = self.mk_regex();
+
+        let pairs = regex.iter().zip(args);
 
         let mut ret = self.body.clone();
 
