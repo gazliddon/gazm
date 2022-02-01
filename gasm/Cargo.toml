@@ -17,6 +17,7 @@ colored = "2"
 ego-tree="*"
 petgraph="*"
 anyhow="*"
+regex="*"
 
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"

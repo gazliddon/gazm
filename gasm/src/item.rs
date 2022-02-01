@@ -203,17 +203,20 @@ impl AddrModeParseType {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum StructTypes {
-    BYTE,
-    WORD,
-    DWORD,
-    QWORD,
+pub enum StructMemberType {
+    Byte,
+    Word,
+    DWord,
+    QWord,
+    UserType(String),
 }
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct StructEntry {
-    name : String,
-    item_type: StructTypes,
+    pub name : String,
+    pub item_type: StructMemberType,
 }
+use crate::macros::MacroDef;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
@@ -223,7 +226,7 @@ pub enum Item {
     LocalAssignmentFromPc(String),
 
     MacroCall(String),
-    MacroDef(String, String),
+    MacroDef(MacroDef),
     StructDef(String, Vec<StructEntry>),
 
     SetPc(u16),

@@ -605,6 +605,7 @@ dependencies = [
  "nom_locate",
  "petgraph",
  "pretty_assertions",
+ "regex",
  "romloader",
  "serde",
  "serde_derive",
