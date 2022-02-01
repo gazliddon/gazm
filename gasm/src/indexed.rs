@@ -267,36 +267,36 @@ mod test {
     #[test]
     fn test_parse_indexed() {
         let to_try = vec![
-            (",--Y", IndexParseType::SubSub(Y)),
-            (",-U", IndexParseType::Sub(U)),
-            (",Y", IndexParseType::Zero(Y)),
-            ("A,X", IndexParseType::AddA(X)),
-            ("B,U", IndexParseType::AddB(U)),
-            ("D,U", IndexParseType::AddD(U)),
-            (",--X", IndexParseType::SubSub(X)),
-            (",S++", IndexParseType::PlusPlus(S)),
-            (",S+", IndexParseType::Plus(S)),
-            ("100,PC", IndexParseType::PCOffset),
-            ("100,U", IndexParseType::ConstantOffset(U)),
-            ("[100,U]", IndexParseType::ConstantOffset(U)),
+            (false, ",--Y", IndexParseType::SubSub(Y)),
+            (false, ",-U", IndexParseType::Sub(U)),
+            (false, ",Y", IndexParseType::Zero(Y)),
+            (false, "A,X", IndexParseType::AddA(X)),
+            (false, "B,U", IndexParseType::AddB(U)),
+            (false, "D,U", IndexParseType::AddD(U)),
+            (false, ",--X", IndexParseType::SubSub(X)),
+            (false, ",S++", IndexParseType::PlusPlus(S)),
+            (false, ",S+", IndexParseType::Plus(S)),
+            (false, "100,PC", IndexParseType::PCOffset),
+            (false, "100,U", IndexParseType::ConstantOffset(U)),
+            (true, "[100,U]", IndexParseType::ConstantOffset(U)),
 
 
-            ("[,--Y]", IndexParseType::SubSub(Y)),
-            ("[ ,Y ]", IndexParseType::Zero(Y)),
-            ("[ A,X ]", IndexParseType::AddA(X)),
-            ("[ B,U ]", IndexParseType::AddB(U)),
-            ("[ D,U ]", IndexParseType::AddD(U)),
-            ("[ ,--X ]", IndexParseType::SubSub(X)),
-            ("[ ,S++ ]", IndexParseType::PlusPlus(S)),
-            ("[ 100,PC ]", IndexParseType::PCOffset),
-            ("[ 100,U ]", IndexParseType::ConstantOffset(U)),
+            (true, "[,--Y]", IndexParseType::SubSub(Y)),
+            (true, "[ ,Y ]", IndexParseType::Zero(Y)),
+            (true, "[ A,X ]", IndexParseType::AddA(X)),
+            (true, "[ B,U ]", IndexParseType::AddB(U)),
+            (true, "[ D,U ]", IndexParseType::AddD(U)),
+            (true, "[ ,--X ]", IndexParseType::SubSub(X)),
+            (true, "[ ,S++ ]", IndexParseType::PlusPlus(S)),
+            (true, "[ 100,PC ]", IndexParseType::PCOffset),
+            (true, "[ 100,U ]", IndexParseType::ConstantOffset(U)),
         ];
 
-        for (input, desired) in to_try {
-            let desired = Item::operand_from_index_mode(desired, false);
-            println!("Testing {} -> {:?}", input, desired);
+        for (indirect, input, desired) in to_try {
+            let desired = Item::operand_from_index_mode(desired, indirect);
+            // println!("Testing {} -> {:?}", input, desired);
             let res =  parse_indexed(input.into());
-            println!("{:#?}", res);
+            // println!("{:#?}", res);
             let (_,matched) = res.unwrap();
             assert_eq!(matched.item,desired);
         }

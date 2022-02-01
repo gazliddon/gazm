@@ -39,7 +39,7 @@ struct Token {
     tokens: Vec<item::Node>,
 }
 
-pub fn tokenize_file_from_str<'a>(file: &str, input: &'a str) -> Result<Node, ParseError<'a>> {
+pub fn tokenize_file_from_str<'a>(file: &PathBuf, input: &'a str) -> Result<Node, ParseError<'a>> {
     let span = Span::new_extra(input, AsmSource::FromStr);
     let source = input.to_string();
     let mut matched = tokenize_str(span)?;

@@ -120,16 +120,29 @@ pub fn parse_number(input: Span) -> IResult< Node> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Compile a string as a fake file
-pub fn compile_text(_code: &str) -> Result<String, String> {
-    panic!()
-    // use crate::tokenize::tokenize_file_from_str;
-    // use crate::ast::Ast;
+use std::collections::HashMap;
 
-    // let node = tokenize_file_from_str("no file", code).map_err(|e| format!("{:?}", e))?;
+pub fn compile_text(code: &str) -> Result<String, String> {
+    use crate::tokenize::tokenize_file_from_str;
+    use crate::ast::Ast;
+    use romloader::sources::*;
+use std::path::PathBuf;
 
-    // let ast = Ast::from_nodes(node).map_err(|e| format!("error: {:?}", e.message))?;
+    let file_name = &PathBuf::from("nofile");
 
-    // Ok(ast.to_string())
+    let node = tokenize_file_from_str(file_name, code).map_err(|e| format!("{:?}", e))?;
+
+    let mut id_to_source_file = HashMap::new();
+    let source_file = SourceFile::new(file_name, code);
+    id_to_source_file.insert(0,source_file);
+
+    let sources = Sources {
+        id_to_source_file
+    };
+
+    let ast = Ast::from_nodes(node, sources).map_err(|e| format!("error: {:?}", e.message))?;
+
+    Ok(ast.to_string())
 }
 ////////////////////////////////////////////////////////////////////////////////
 pub fn debug<F, Y>(text: &str, mut f: F) -> Y
