@@ -2,11 +2,11 @@
 
     include	"equates.68"
 
-    macro gaz_mac(a,b,c) {
-
-    }
-
-    gaz_mac(1,2,3)
+macro gaz_mac(a,b,c) {
+    lda #|a|
+    lda #|b|
+    jmp |c|
+}
 
 struct task_2 {
     next : word,
@@ -21,6 +21,8 @@ struct task_2 {
 }
 
 start
+    gaz_mac(0x10,20,%101010)
+
     lda #$55
     tfr a,cc
     lds #stack_top

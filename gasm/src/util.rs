@@ -126,7 +126,7 @@ pub fn compile_text(code: &str) -> Result<String, String> {
     use crate::tokenize::tokenize_file_from_str;
     use crate::ast::Ast;
     use romloader::sources::*;
-use std::path::PathBuf;
+    use std::path::PathBuf;
 
     let file_name = &PathBuf::from("nofile");
 

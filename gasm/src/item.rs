@@ -220,6 +220,7 @@ use crate::macros::MacroDef;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
+    RawText(String),
     LocalAssignment(String),
     Assignment(String),
     AssignmentFromPc(String),

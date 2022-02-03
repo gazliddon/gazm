@@ -8,6 +8,8 @@ use crate::{
     util::{self, sep_list1, wrapped_chars, ws},
     structs::get_struct,
 };
+use std::{path::{Path, PathBuf}, vec};
+use colored::*;
 
 use nom::{
     branch::alt,
@@ -42,7 +44,7 @@ struct Token {
 pub fn tokenize_file_from_str<'a>(file: &PathBuf, input: &'a str) -> Result<Node, ParseError<'a>> {
     let span = Span::new_extra(input, AsmSource::FromStr);
     let source = input.to_string();
-    let mut matched = tokenize_str(span)?;
+    let mut matched = Tokens::new().to_tokens(span)?;
     matched.item = Item::TokenizedFile(file.into(), file.into(), source);
     Ok(matched)
 }
@@ -60,12 +62,19 @@ fn mk_pc_equate(node: Node) -> Node {
 
 struct Tokens {
     tokens: Vec<Node>,
-    macros: Vec<Node>,
+}
+
+impl Default for Tokens {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Tokens {
-    fn add_macro(&mut self, node: Node) {
-        self.macros.push(node)
+    fn new() -> Self {
+        Self {
+            tokens: vec![],
+        }
     }
 
     fn add_some_node(&mut self, node: Option<Node>) {
@@ -77,16 +86,16 @@ impl Tokens {
         self.tokens.push(node)
     }
 
-    pub fn tokenize_str<'a>(&'a mut self, input: Span<'a>) -> Result<(), ParseError> {
+    pub fn to_tokens<'a>(mut self, input: Span<'a>) -> Result<Node, ParseError<'a>> {
         use commands::parse_command;
         use item::{Item::*, Node};
         use opcodes::parse_opcode;
         use util::parse_assignment;
         use util::ws;
 
-        // let ret = Node::from_item_span(Block, input);
+        let ret = Node::from_item_span(Block, input.clone());
 
-        let mut source = input;
+        let mut source = input.clone();
 
         while !source.is_empty() {
             let res = get_struct(source);
@@ -101,8 +110,7 @@ impl Tokens {
 
             if res.is_ok() {
                 let (rest, matched) = res.unwrap();
-                // macros.push(matched);
-                self.add_macro(matched);
+                self.add_node(matched);
                 source = rest;
                 continue;
             }
@@ -145,104 +153,15 @@ impl Tokens {
             }
         }
 
-        Ok(())
+        let tokes = self.tokens.clone();
+        self.tokens = vec![];
+
+        Ok(ret.with_children(tokes))
     }
 }
 
-pub fn tokenize_str(input: Span<'_>) -> Result<Node, ParseError> {
-    use commands::parse_command;
-    use item::{Item::*, Node};
-    use opcodes::parse_opcode;
-    use util::parse_assignment;
-    use util::ws;
 
-    let ret = Node::from_item_span(Block, input);
-
-    let mut source = input;
-    let mut items: Vec<Node> = vec![];
-    let mut macros: Vec<Node> = vec![];
-
-    let mut push_some = |x: &Option<Node>| {
-        if let Some(x) = x {
-            items.push(x.clone())
-        }
-    };
-
-    let mk_pc_equate = |node: Node| {
-        let pos = node.ctx().clone();
-
-        match &node.item {
-            Label(name) => Node::from_item(AssignmentFromPc(name.clone()), pos),
-            LocalLabel(name) => Node::from_item(LocalAssignmentFromPc(name.clone()), pos),
-            _ => panic!("shouldn't happen"),
-        }
-    };
-
-    while !source.is_empty() {
-        let res = get_struct(source);
-
-        if res.is_ok() {
-            let (rest, _matched) = res.unwrap();
-            source = rest;
-            continue;
-        }
-
-        let res = parse_macro_definition(source);
-
-        if res.is_ok() {
-            let (rest, matched) = res.unwrap();
-            macros.push(matched);
-            source = rest;
-            continue;
-        }
-
-        let (rest, line) = get_line(source)?;
-
-        source = rest;
-
-        if !line.is_empty() {
-            let (input, comment) = comments::strip_comments(line)?;
-            push_some(&comment);
-
-            if input.is_empty() {
-                continue;
-            }
-
-            // An equate
-            if let Ok((_, equate)) = all_consuming(ws(parse_assignment))(input) {
-                push_some(&Some(equate));
-                continue;
-            }
-
-            if let Ok((_, node)) = all_consuming(ws(parse_macro_call))(input) {
-                push_some(&Some(node));
-                continue;
-            }
-
-            if let Ok((_, label)) = all_consuming(ws(parse_label))(input) {
-                let node = mk_pc_equate(label);
-                push_some(&Some(node));
-                continue;
-            }
-
-            let body = alt((ws(parse_macro_call), ws(parse_opcode), ws(parse_command)));
-
-            let (_, (label, body)) = all_consuming(pair(opt(parse_label), body))(input)?;
-            let label = label.map(mk_pc_equate);
-            push_some(&label);
-            push_some(&Some(body));
-        }
-    }
-
-    Ok(ret.with_children(items))
-}
-
-use std::path::{Path, PathBuf};
-
-extern crate colored;
-use colored::*;
-
-pub fn tokenize_file(
+fn tokenize_file(
     depth: usize,
     _ctx: &cli::Context,
     fl: &mut SourceFileLoader,
@@ -273,7 +192,7 @@ pub fn tokenize_file(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut matched = tokenize_str(input).map_err(mapper)?;
+    let mut matched = Tokens::new().to_tokens(input).map_err(mapper)?;
 
     matched.item = TokenizedFile(file.to_path_buf(), parent.to_path_buf(), source.clone());
 
