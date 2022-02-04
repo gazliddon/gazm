@@ -2,19 +2,20 @@ use std::collections::HashMap;
 
 use crate::expr::parse_expr;
 use crate::labels::{get_just_label, parse_just_label};
-use crate::locate::{matched_span, Span};
+use crate::locate::{Span, matched_span, span_to_pos};
 use crate::util::{self, get_block, sep_list1, wrapped_chars, ws};
 
 use nom::multi::separated_list0;
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, take_until, is_a, tag},
+    bytes::complete::{is_a, is_not, tag, take_until},
     character::complete::{line_ending, multispace0, multispace1},
     combinator::{all_consuming, eof, not, opt, recognize},
     multi::{many0, many1},
     sequence::{pair, preceded, separated_pair, terminated},
     AsBytes,
 };
+use romloader::sources::{LocationTrait, Position};
 
 use crate::error::{IResult, ParseError, UserError};
 
@@ -24,14 +25,14 @@ use crate::item::{Item, Node};
 pub struct MacroDef {
     pub name: String,
     pub params: Vec<String>,
-    pub body: String,
+    pub pos: Position,
 }
 
 use regex::Regex;
 
 impl MacroDef {
-    pub fn new(name: String, params: Vec<String>, body: String) -> Self {
-        Self { name, params, body }
+    pub fn new(name: String, params: Vec<String>, pos: Position) -> Self {
+        Self { name, params, pos }
     }
     fn mk_regex(&self) -> Vec<Regex> {
         let to_regex = |v: &String| {
@@ -43,22 +44,25 @@ impl MacroDef {
         self.params.iter().map(to_regex).collect()
     }
 
-    pub fn expand(&self, args: Vec<&str>) -> String {
+    pub fn expand(&self, sources: &romloader::sources::Sources, args: Vec<Position>) -> (Position, String) {
         if args.len() != self.params.len() {
             panic!("Wrong number of args")
         }
+
+        let x = sources.get_source_info(&self.pos).unwrap();
 
         let regex = self.mk_regex();
 
         let pairs = regex.iter().zip(args);
 
-        let mut ret = self.body.clone();
+        let mut ret = x.fragment.to_string();
 
-        for (rex, sub) in pairs {
+        for (rex, arg) in pairs {
+            let sub = sources.get_source_info(&arg).unwrap().fragment;
             ret = rex.replace_all(&ret, sub).to_string();
         }
 
-        ret
+        (self.pos.clone(), ret)
     }
 }
 
@@ -73,89 +77,73 @@ pub fn get_macro_def(input: Span<'_>) -> IResult<(Span, Vec<Span>, Span)> {
     Ok((rest, (name, params, body)))
 }
 
-pub fn parse_macro_definition(input: Span<'_>) -> IResult<Node> {
+pub fn parse_macro_definition(input: Span<'_>) -> IResult<MacroDef> {
     let (rest, (name, params, body)) = get_macro_def(input)?;
 
-    let matched_span = matched_span(input, rest);
+    let _matched_span = matched_span(input, rest);
 
-    let def = MacroDef {
-        name: name.to_string(),
-        body: body.to_string(),
-        params: params.iter().map(|x| x.to_string()).collect(),
-    };
+    let pos = crate::locate::span_to_pos(body);
 
-    let ret = Node::from_item_span(Item::MacroDef(def), matched_span);
+    let name = name.to_string();
+    let params = params.iter().map(|x| x.to_string()).collect();
 
-    Ok((rest, ret))
+    let def = MacroDef::new(name, params, pos);
+
+    Ok((rest, def))
 }
 
-fn parse_raw_args(input: Span<'_>)-> IResult<Vec<Node>> {
+fn parse_raw_args(input: Span<'_>) -> IResult<Vec<Span<'_>>> {
     let sep = ws(tag(","));
     let arg = ws(recognize(many1(is_not(",)"))));
-    let (rest,matched) = ws(wrapped_chars('(',separated_list0(sep, arg),')'))(input)?;
+    let (rest, matched) = ws(wrapped_chars('(', separated_list0(sep, arg), ')'))(input)?;
 
-    let ret = matched.iter().map(|i|{
-        let item = Item::RawText(i.to_string());
-        Node::from_item_span(item, i.clone())
-    });
-
-    Ok(( rest,ret.collect() ))
+    Ok((rest, matched))
 }
 
-pub fn parse_macro_call(input: Span<'_>) -> IResult<Node> {
+#[derive( Debug, Clone, PartialEq)]
+pub struct MacroCall {
+    name : Position,
+    args : Vec<Position>,
+}
+
+pub fn parse_macro_call(input: Span) -> IResult<MacroCall> {
     let rest = input;
-    let (rest, (name, args)) = separated_pair(parse_just_label, multispace0, parse_raw_args)(rest)?;
+    let (rest, (name, args)) = separated_pair(get_just_label, multispace0, parse_raw_args)(rest)?;
 
-    println!("Found macro invocation!");
+    let args = args.into_iter().map(span_to_pos).collect();
+    let name = span_to_pos(name);
 
-    let matched_span = matched_span(input, rest);
-    let ret =
-        Node::from_item_span(Item::MacroCall(name.to_string()), matched_span).with_children(args);
+    let ret = MacroCall {
+        name, args
+    };
 
     Ok((rest, ret))
 }
 
-pub fn expand_macros(
-    tokens: &mut Node,
-    sources: &mut romloader::sources::Sources,
-) -> anyhow::Result<()> {
-    use crate::item::Item;
-    // get all macro defs into a hash
-    let mut name_to_def = HashMap::new();
-    let defs = tokens.iter().filter_map(|x| match &x.item {
-        Item::MacroDef(mdef) => Some(mdef),
-        _ => None,
-    });
-    for x in defs {
-        name_to_def.insert(x.name.clone(), x);
-    }
+use romloader::sources::Sources;
 
-    let calls = tokens.iter().filter_map(|x| {
-        match &x.item {
-            Item::MacroCall(name) => Some(( name,&x.children )),
-            _ => None,
-        }
-    });
+pub struct Macros {
+    macro_defs: HashMap<String, MacroDef>,
+}
 
-    for (name, args) in calls {
-        if let Some(def) = name_to_def.get(name) {
-
-            let args : Vec<&str> = args.iter().filter_map(|x|{
-                match &x.item {
-                    Item::RawText(value) => Some(value.as_str()),
-                    _ => panic!("Shouldn't happen")
-                }
-            }).collect();
-
-            let expansion = def.expand(args);
-            println!("Expansion: {}", expansion);
-
-        } else {
-            panic!("can't find macro def {}", name)
+impl Macros {
+    pub fn new() -> Self {
+        Self {
+            macro_defs: HashMap::new(),
         }
     }
 
-    Ok(())
+    pub fn add_def(&mut self, def: MacroDef) {
+        self.macro_defs.insert(def.name.clone(), def);
+    }
+
+    /// Expands a macro and returns a position of the macro body text
+    /// an expanded version of the macro ready to tokenize
+    pub fn expand_macro(&self, sources: &Sources, macro_call : MacroCall) -> (Position, String ) {
+        let name = sources.get_source_info(&macro_call.name).unwrap().fragment;
+        let def = self.macro_defs.get(name).unwrap();
+        def.expand(sources, macro_call.args)
+    }
 }
 
 #[allow(unused_imports)]
@@ -165,17 +153,17 @@ mod test {
 
     #[test]
     fn test_expansion() {
-        let body = "Hello my name is { arg1   } I am {arg2}";
-        let params = vec!["arg1", "arg2"];
-        let args = vec!["Gaz", "Ace"];
-        let desired = "Hello my name is Gaz I am Ace";
+        // let body = "Hello my name is { arg1   } I am {arg2}";
+        // let params = vec!["arg1", "arg2"];
+        // let args = vec!["Gaz", "Ace"];
+        // let desired = "Hello my name is Gaz I am Ace";
 
-        let name = "test";
-        let params = params.iter().map(|x| x.to_string());
-        let mac = MacroDef::new(name.to_string(), params.collect(), body.to_string());
-        let res = mac.expand(args);
-        println!("{}", res);
+        // let name = "test";
+        // let params = params.iter().map(|x| x.to_string());
+        // // let mac = MacroDef::new(name.to_string(), params.collect(), body.to_string());
+        // let res = mac.expand(args);
+        // println!("{}", res);
 
-        assert_eq!(res, desired.to_string());
+        // assert_eq!(res, desired.to_string());
     }
 }

@@ -467,6 +467,7 @@ impl Assembler {
                 self.source_map.add_mapping(range, pos, ItemType::OpCode);
             }
 
+            Block |
             TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
@@ -528,8 +529,6 @@ impl Assembler {
             }
 
             Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) => (),
-
-            MacroCall(..) => x.error("Implement macro invocation assembly"),
 
             _ => {
                 panic!("Unable to assemble {:?}", i);
@@ -636,6 +635,7 @@ impl Assembler {
                 self.symbols.add_symbol_with_value(name, pc as i64).unwrap();
             }
 
+            Block |
             TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
@@ -671,7 +671,10 @@ impl Assembler {
 
             Assignment(..) | Comment(..) | MacroDef(..) => (),
 
-            MacroCall(..) => x.error("Implement macro invocation sizing"),
+            MacroCall(mcall) => {
+                let msg = format!("implement macro call sizing for {:?}", mcall);
+                x.error(msg)
+            }
 
             _ => {
                 panic!("Unable to size {:?}", i);

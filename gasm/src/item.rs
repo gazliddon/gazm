@@ -13,7 +13,8 @@ use crate::node::{BaseNode, CtxTrait};
 
 use romloader::sources::{SourceFileLoader, Position };
 use crate::postfix::GetPriotity;
-use crate::locate::to_pos;
+use crate::locate::span_to_pos;
+use crate::macros::MacroCall;
 
 impl<'a> CtxTrait for Span<'a> {}
 
@@ -226,7 +227,7 @@ pub enum Item {
     AssignmentFromPc(String),
     LocalAssignmentFromPc(String),
 
-    MacroCall(String),
+    MacroCall(MacroCall),
     MacroDef(MacroDef),
     StructDef(String, Vec<StructEntry>),
 
@@ -359,7 +360,7 @@ impl<> BaseNode<Item, Position> {
 
     pub fn from_item_span(item: Item, sp: Span) -> Self
         {
-            Self::new(item, vec![], to_pos(sp))
+            Self::new(item, vec![], span_to_pos(sp))
         }
 
     pub fn from_number(n: i64, sp: Span) -> Self {
@@ -393,7 +394,7 @@ impl<> BaseNode<Item, Position> {
     }
     pub fn with_span(self, sp : Span) -> Self {
             let mut ret = self;
-            ret.ctx = to_pos(sp);
+            ret.ctx = span_to_pos(sp);
             ret
     }
 }
@@ -452,11 +453,21 @@ impl<'a> Display for BaseNode<Item, Position> {
                 format!("({})", join_children(""))
             }
 
+            OpCode(ins,addr_type) => {
+                format!("{} {:?}", ins.action, addr_type)
+            },
+
             TokenizedFile(file, _, _) => {
                 let header = format!("; included file {}", file.to_string_lossy());
                 let children: Vec<String> =
                     self.children.iter().map(|n| format!("{}", &*n)).collect();
                 format!("{}\n{}", header, children.join("\n"))
+            }
+
+            Block => {
+                let children: Vec<String> =
+                    self.children.iter().map(|n| format!("{}", &*n)).collect();
+                format!("{}",children.join("\n"))
             }
 
             _ => format!("{:?} not implemented", item),

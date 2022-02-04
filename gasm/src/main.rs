@@ -69,13 +69,12 @@ fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::erro
    status(&msg, |x| {
         use assemble::Assembler;
         use ast::Ast;
-        use crate::macros::expand_macros;
 
-        let ( mut tokens, mut sources ) = tokenize::tokenize(ctx)?;
+        let ( tokens, sources) = tokenize::tokenize(ctx)?;
 
         // we need to expand macros and tokenize them
         // take mut sources and mut tokens
-        expand_macros(&mut tokens, &mut sources)?;
+        // expand_macros(&mut tokens, &mut sources, &macros)?;
 
         let ast = Ast::from_nodes(tokens, sources)?;
 

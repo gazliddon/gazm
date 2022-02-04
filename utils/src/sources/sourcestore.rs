@@ -101,6 +101,7 @@ impl SourceFile {
     }
 }
 use std::fmt::Debug;
+use std::str::FromStr;
 
 impl Debug for SourceFile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -130,6 +131,28 @@ pub struct Sources {
 }
 
 impl Sources {
+    pub fn new() -> Self {
+        Self {
+            id_to_source_file: HashMap::new(),
+        }
+    }
+
+    pub fn add_source_text(&mut self, text : &str ) -> u64 {
+        let max = self.id_to_source_file.keys().max();
+
+        let id = if let Some(max) = max {
+            max + 1
+
+        } else {
+            0
+        };
+
+        let name = format!("macro_epxansion_{}",id);
+        let source_file = SourceFile::new(&PathBuf::from_str(&name).unwrap(), text);
+        self.id_to_source_file.insert(id, source_file);
+        id
+    }
+
     pub fn get_source_info<'a>(&'a self, pos: &Position) -> Result<SourceInfo<'a>, String> {
         if let AsmSource::FileId(file_id) = pos.src {
             let source_file = self.id_to_source_file.get(&file_id).ok_or(format!(

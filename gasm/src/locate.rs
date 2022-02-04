@@ -19,7 +19,7 @@ pub fn matched_span<'a>(input: Span<'a>, rest: Span<'a>) -> Span<'a> {
     input.take(r.len())
 }
 
-pub fn to_pos<'a>(i : Span<'a>) -> Position {
+pub fn span_to_pos<'a>(i : Span<'a>) -> Position {
         let start = i.location_offset();
         let range = start .. (start + i.len());
         Position::new(i.location_line() as usize, i.get_column() as usize, range, i.extra)

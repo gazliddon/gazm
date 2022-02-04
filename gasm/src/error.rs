@@ -7,7 +7,7 @@ use crate::ast::{AstNodeId, AstNodeRef};
 use crate::locate::Span;
 use romloader::sources::{ Position, SourceInfo };
 use nom::AsBytes;
-use crate::locate::to_pos;
+use crate::locate::span_to_pos;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError<'a> {
@@ -198,7 +198,7 @@ impl UserError {
         let line = String::from_utf8_lossy(line).to_string();
         Self {
             message: err.message(),
-            pos: to_pos(err.span),
+            pos: span_to_pos(err.span),
             fragment: err.span.to_string(),
             line,
             file: file.to_path_buf(),

@@ -2,20 +2,11 @@ use std::path::{Path, PathBuf,};
 use std::fs;
 
 use anyhow::{anyhow, Result};
-use std::collections::HashMap;
 use super::sourcestore::{ SourceFile, Sources };
-
-impl Into<Sources> for SourceFileLoader {
-    fn into(self) -> Sources {
-        Sources {
-            id_to_source_file: self.loaded_files,
-        }
-    }
-}
 
 pub struct SourceFileLoader {
     pub search_paths : Vec<PathBuf>,
-    pub loaded_files : HashMap<u64, SourceFile>,
+    pub sources : Sources,
     id : u64,
 }
 
@@ -35,7 +26,7 @@ impl SourceFileLoader {
         let search_paths : Vec<PathBuf> = paths.iter().map(|x| PathBuf::from(x.as_ref())).collect();
         Self {
             search_paths,
-            loaded_files : Default::default(),
+            sources : Sources::new(),
             id: 0,
         }
     }
@@ -50,7 +41,7 @@ impl SourceFileLoader {
         let ret = fs::read_to_string(path.clone())?;
         let id = self.id;
         let source_file = SourceFile::new(&path, &ret);
-        self.loaded_files.insert(id, source_file);
+        self.sources.id_to_source_file.insert(id, source_file);
         self.id += 1;
 
         Ok((path, ret, id))
