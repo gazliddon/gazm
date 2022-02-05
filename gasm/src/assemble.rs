@@ -3,6 +3,7 @@ use colored::*;
 use emu::cpu::RegEnum;
 use nom::combinator::recognize;
 
+use crate::assemble;
 use crate::ast::AstNodeRef;
 use crate::ast::AstTree;
 use crate::ast::{Ast, AstNodeId, AstNodeMut};
@@ -21,6 +22,7 @@ use item::{Item, Node};
 use romloader::sources::{ItemType, SourceDatabase, SourceMapping, Sources, SymbolTable};
 use romloader::ResultExt;
 use std::collections::HashSet;
+use std::net::UdpSocket;
 use std::path::PathBuf;
 use std::vec;
 
@@ -360,19 +362,11 @@ impl Assembler {
     }
 
     fn assemble_node(&mut self, id: AstNodeId) -> Result<(), UserError> {
+        use item::Item::*;
         let x = super::messages::messages();
 
-        use item::Item::*;
 
         let node = self.tree.get(id).unwrap();
-        let frag = self
-            .sources
-            .get_source_info(&node.value().pos)
-            .unwrap()
-            .fragment
-            .to_string();
-
-        // let node = self.tree.get(id).unwrap();
         let i = &node.value().item.clone();
         let pos = &node.value().pos.clone();
 
@@ -445,29 +439,25 @@ impl Assembler {
                     }
                 };
 
-                {
-                    let pc = pc as usize;
-                    let written = self.bin.get_write_address() - pc;
-                    let bytes = self.bin.get_bytes(pc as usize, written);
-                    let bytes_str: Vec<_> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
-                    let bytes_str = bytes_str.join("");
-                    let msg = format!("{:04X}  {:20} {}", pc, bytes_str, frag);
-
-                    if ins_amode == Indexed {
-                        if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                            let msg = format!("{:50} {:?} Indirect: {}", msg, imode, indirect);
-                            x.info(msg);
-                        }
-                    } else {
-                        x.info(msg);
-                    }
-                }
-
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::OpCode);
             }
 
-            Block |
+            ExpandedMacro(mcall) => {
+                // We need to tell the source mapper we're 
+                // expanding a macro so the file / line for everything 
+                // expanded by the macro will point to the line that instantiated the
+                // macro
+                self.source_map.start_macro(&mcall.name);
+
+                let children: Vec<_> = node.children().map(|n| n.id()).collect();
+                for c in children {
+                    self.assemble_node(c)?;
+                }
+
+                self.source_map.stop_macro();
+            },
+
             TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
@@ -481,7 +471,7 @@ impl Assembler {
                     self.bin
                         .write_word_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
-                }
+                    }
 
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
@@ -493,7 +483,7 @@ impl Assembler {
                     self.bin
                         .write_byte_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
-                }
+                    }
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
@@ -523,7 +513,7 @@ impl Assembler {
                     self.bin
                         .write_byte_check_size(byte)
                         .map_err(|_| self.user_error("Does not fit in a word", node))?;
-                }
+                    }
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
@@ -565,12 +555,12 @@ impl Assembler {
 
                     match pmode {
                         ConstantByteOffset(..)
-                        | PcOffsetByte(..)
-                        | PcOffsetWord(..)
-                        | ConstantWordOffset(..)
-                        | Constant5BitOffset(..) => {
-                            panic!()
-                        }
+                            | PcOffsetByte(..)
+                            | PcOffsetWord(..)
+                            | ConstantWordOffset(..)
+                            | Constant5BitOffset(..) => {
+                                panic!()
+                            }
 
                         ConstantOffset(r) => {
                             let (v, _) = self.eval_first_arg(node)?;
@@ -635,13 +625,13 @@ impl Assembler {
                 self.symbols.add_symbol_with_value(name, pc as i64).unwrap();
             }
 
-            Block |
-            TokenizedFile(..) => {
-                let children: Vec<_> = node.children().map(|n| n.id()).collect();
-                for c in children {
-                    pc = self.size_node(pc, c)?;
+            ExpandedMacro(..) |
+                TokenizedFile(..) => {
+                    let children: Vec<_> = node.children().map(|n| n.id()).collect();
+                    for c in children {
+                        pc = self.size_node(pc, c)?;
+                    }
                 }
-            }
 
             Fdb(num_of_words) => {
                 pc += (*num_of_words * 2) as u64;
@@ -670,11 +660,6 @@ impl Assembler {
             }
 
             Assignment(..) | Comment(..) | MacroDef(..) => (),
-
-            MacroCall(mcall) => {
-                let msg = format!("implement macro call sizing for {:?}", mcall);
-                x.error(msg)
-            }
 
             _ => {
                 panic!("Unable to size {:?}", i);

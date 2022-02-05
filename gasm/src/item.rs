@@ -238,6 +238,7 @@ pub enum Item {
     BracketedExpr,
     Pc,
     Block,
+    ExpandedMacro(MacroCall),
 
     UnaryOp,
     UnaryTerm,

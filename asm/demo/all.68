@@ -5,7 +5,6 @@
 macro gaz_mac(a,b,c) {
     lda #|a|
     lda #|b|
-    jmp |c|
 }
 
 struct task_2 {

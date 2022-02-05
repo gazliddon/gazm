@@ -187,9 +187,9 @@ impl Tokens {
             for (node, macro_call) in mcalls {
                 let (pos, text) = macros.expand_macro(sources, macro_call.clone());
                 let input = Span::new_extra(&text, pos.src);
-                let new_node = self.to_tokens(input, sources, macros).unwrap();
+                let mut new_node = self.to_tokens(input, sources, macros).unwrap();
+                new_node.item = Item::ExpandedMacro(macro_call);
                 *node = new_node;
-                println!("Macro expanded\n{}\n{}", input, node);
             }
 
             Ok(ret.with_children(tokes))

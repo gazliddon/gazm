@@ -2,7 +2,8 @@ use romloader::ResultExt;
 
 use crate::ast::{to_priority, Ast, AstNodeMut, AstNodeRef, ItemWithPos};
 use crate::item::Item;
-use crate::postfix::{GetPriotity, Stack};
+use crate::postfix::GetPriotity;
+use romloader::Stack;
 
 use std::{collections::HashMap, hash::Hash};
 

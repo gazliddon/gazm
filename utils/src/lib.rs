@@ -10,9 +10,11 @@ mod rom;
 pub mod romloader;
 pub mod rle;
 mod location;
+mod stack;
 
 pub use chunk::*;
 pub use error::*;
 pub use rom::*;
 pub use location::*;
+pub use stack::*;
 

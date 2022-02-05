@@ -102,8 +102,8 @@ fn parse_raw_args(input: Span<'_>) -> IResult<Vec<Span<'_>>> {
 
 #[derive( Debug, Clone, PartialEq)]
 pub struct MacroCall {
-    name : Position,
-    args : Vec<Position>,
+    pub name : Position,
+    pub args : Vec<Position>,
 }
 
 pub fn parse_macro_call(input: Span) -> IResult<MacroCall> {

@@ -1,3 +1,4 @@
+
 use super::symbols::SymbolTable;
 use super::{AsmSource, Position};
 use std::collections::HashMap;
@@ -190,28 +191,57 @@ pub enum ItemType {
 pub struct Mapping {
     pub file_id: u64,
     pub line: usize,
-    pub range: std::ops::Range<usize>,
     pub mem_range: std::ops::Range<usize>,
     pub item_type : ItemType,
 }
 
+use crate::Stack;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SourceMapping {
     pub addr_to_mapping: Vec<Mapping>,
+    #[serde(skip)]
+    macro_stack: Stack<Position>,
+}
+
+impl Default for SourceMapping {
+    fn default() -> Self {
+        Self {
+            addr_to_mapping: Default::default(),
+            macro_stack : Default::default(),
+        }
+    }
 }
 
 impl SourceMapping {
     pub fn new() -> Self {
-        Self {
-            addr_to_mapping: Default::default(),
-        }
+        Self::default()
     }
+
+    pub fn start_macro(&mut self, pos : &Position) {
+        self.macro_stack.push(pos.clone())
+    }
+
+    pub fn stop_macro(&mut self) {
+        self.macro_stack.pop();
+    }
+
+    fn get_macro_pos(&self) -> Option<&Position> {
+        self.macro_stack.front()
+    }
+
+    fn is_expanding_macro(&self) -> bool {
+        self.macro_stack.is_empty() == false
+    }
+
     pub fn add_mapping(&mut self, mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
+
+        let pos = self.get_macro_pos().unwrap_or(pos);
+
         if let AsmSource::FileId(file_id) = pos.src {
             let entry = Mapping {
                 file_id,
                 line: pos.line,
-                range: pos.range.clone(),
                 mem_range: mem_range.clone(),
                 item_type
             };
