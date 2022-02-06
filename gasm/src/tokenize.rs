@@ -47,15 +47,16 @@ struct Token {
 }
 
 pub fn tokenize_file_from_str<'a>(
-    _file: &PathBuf,
-    _input: &'a str,
+    file: &PathBuf,
+    input: &'a str,
 ) -> Result<Node, ParseError<'a>> {
-    panic!()
-    // let span = Span::new_extra(input, AsmSource::FromStr);
-    // let source = input.to_string();
-    // let mut matched = Tokens::new().to_tokens(span)?;
-    // matched.item = Item::TokenizedFile(file.into(), file.into(), source);
-    // Ok(matched)
+    let span = Span::new_extra(input, AsmSource::FromStr);
+    let source = input.to_string();
+    let mut macros = Macros::new();
+    let mut sources = Sources::new();
+    let mut matched = Tokens::new().to_tokens(span, &mut sources, &mut macros)?;
+    matched.item = Item::TokenizedFile(file.into(), file.into(), source);
+    Ok(matched)
 }
 
 fn mk_pc_equate(node: Node) -> Node {

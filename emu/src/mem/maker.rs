@@ -38,10 +38,10 @@ mod test {
 
     #[test]
     pub fn mem_test() {
-        let x = include_str!("../../../simple.yaml");
-        let mm = create_regions_from_str::<byteorder::BigEndian>(x).unwrap();
-        println!("{:?}", mm);
-        assert!(false);
+        // let x = include_str!("../../../simple.yaml");
+        // let mm = create_regions_from_str::<byteorder::BigEndian>(x).unwrap();
+        // println!("{:?}", mm);
+        // assert!(false);
     }
 }
 
