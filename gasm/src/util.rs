@@ -31,7 +31,7 @@ pub static LIST_SEP: & str = ",";
 
 pub fn ws<'a,F,O>(mut inner : F) -> impl FnMut(Span<'a>) -> IResult<O>
 where
-  F: nom::Parser<Span<'a>, O,ParseError<'a>>
+  F: nom::Parser<Span<'a>, O,ParseError>
 {
     move |input : Span| -> IResult<O>{
         let (input, _) = multispace0(input)?;
@@ -47,7 +47,7 @@ pub fn wrapped_chars<'a, O, F>(
     close : char,
     ) -> impl FnMut(Span<'a>) -> IResult<O>
 where
-F: nom::Parser<Span<'a>, O,ParseError<'a>>
+F: nom::Parser<Span<'a>, O,ParseError>
 {
     move |input: Span| {
         let (input,_) = nom_char(open)(input)?;
@@ -61,7 +61,7 @@ pub fn sep_list1<'a, F, O>(
     inner: F
     ) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
 where
-F: nom::Parser<Span<'a>, O,ParseError<'a>> + Copy {
+F: nom::Parser<Span<'a>, O,ParseError> + Copy {
     move |input: Span| {
         let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
         separated_list1(sep, inner)(input)

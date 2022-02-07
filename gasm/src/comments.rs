@@ -5,17 +5,19 @@ use nom::multi::{many0, many1, };
 use nom::bytes::complete::take_until ;
 
 use nom::combinator::recognize;
+use nom::branch::alt;
 
 use nom::sequence::{preceded, tuple, pair};
 use nom::bytes::complete::tag;
 
 use crate::error::IResult;
-use crate::locate::{ Span};
+use crate::locate::Span;
 
 static COMMENT: & str = ";";
 
 fn get_comment(input: Span) -> IResult<Span> {
-    recognize(pair(many1(tag(COMMENT)), not_line_ending))(input)
+    let comments = alt((tag(";"), tag("//")));
+    recognize(pair(comments, not_line_ending))(input)
 }
 
 fn parse_comment(input: Span) -> IResult<Node> {
@@ -28,7 +30,9 @@ fn parse_comment(input: Span) -> IResult<Node> {
 
 // Strips comment if there
 pub fn strip_comments(input: Span) -> IResult<Option<Node>> {
-    let not_comment = take_until(COMMENT);
+    let not_comment_1 = take_until(COMMENT);
+    let not_comment_2 = take_until("//");
+    let not_comment = alt((not_comment_2, not_comment_1));
 
     let res = tuple((not_comment, parse_comment))(input);
 

@@ -45,21 +45,22 @@ impl MacroDef {
     }
 
     pub fn expand(&self, sources: &romloader::sources::Sources, args: Vec<Position>) -> (Position, String) {
+
         if args.len() != self.params.len() {
             panic!("Wrong number of args")
         }
 
+        let args = args.iter().map(|pos| sources.get_source_info(pos).unwrap().fragment);
+
         let x = sources.get_source_info(&self.pos).unwrap();
 
-        let regex = self.mk_regex();
-
-        let pairs = regex.iter().zip(args);
+        let pairs = self.params.iter().zip(args);
 
         let mut ret = x.fragment.to_string();
 
-        for (rex, arg) in pairs {
-            let sub = sources.get_source_info(&arg).unwrap().fragment;
-            ret = rex.replace_all(&ret, sub).to_string();
+        for (param, arg) in pairs {
+            let param = format!("|{param}|");
+            ret = ret.replace(&param, arg);
         }
 
         (self.pos.clone(), ret)
@@ -139,10 +140,17 @@ impl Macros {
 
     /// Expands a macro and returns a position of the macro body text
     /// an expanded version of the macro ready to tokenize
-    pub fn expand_macro(&self, sources: &Sources, macro_call : MacroCall) -> (Position, String ) {
-        let name = sources.get_source_info(&macro_call.name).unwrap().fragment;
-        let def = self.macro_defs.get(name).unwrap();
-        def.expand(sources, macro_call.args)
+    pub fn expand_macro(&self, sources: &Sources, macro_call : MacroCall) -> Result<(Position, String ), ParseError> {
+
+        let si = sources.get_source_info(&macro_call.name).unwrap();
+        let name = si.fragment;
+
+        let def = self.macro_defs.get(name).ok_or_else(|| {
+            let x = format!("Couldn't find a macro definition for {name}");
+            ParseError::from_pos(x, macro_call.name)
+        })?;
+
+        Ok(def.expand(sources, macro_call.args))
     }
 }
 

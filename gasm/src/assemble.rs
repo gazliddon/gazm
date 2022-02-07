@@ -488,6 +488,14 @@ impl Assembler {
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
+            Fcc(text) => {
+                for c in text.as_bytes() {
+                    self.bin.write_byte(*c)
+                }
+                let range = pc as usize..self.bin.get_write_address() as usize;
+                self.source_map.add_mapping(range, pos, ItemType::Command);
+            }
+
             Zmb => {
                 let (bytes, _) = self.eval_first_arg(node)?;
                 for _ in 0..bytes {
@@ -639,6 +647,10 @@ impl Assembler {
 
             Fcb(num_of_bytes) => {
                 pc += *num_of_bytes as u64;
+            }
+
+            Fcc(text) => {
+                pc += text.as_bytes().len() as u64;
             }
 
             Zmb => {

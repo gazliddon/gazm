@@ -23,7 +23,7 @@ use crate::error::{IResult, ParseError};
 use crate::locate::{matched_span, Span};
 use crate::opcodes::parse_opcode;
 
-    use romloader::sources::AsmSource;
+use romloader::sources::AsmSource;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
@@ -51,7 +51,7 @@ fn parse_bracketed_expr(input: Span) -> IResult<Node> {
     use util::{wrapped_chars, ws};
     let (rest, mut matched) = wrapped_chars('(', ws(parse_expr), ')')(input)?;
     let matched_span = matched_span(input, rest);
-    matched.item = Item::BracketedExpr;
+    matched.item = Item::Expr;
     Ok((rest, matched.with_span(matched_span)))
 }
 

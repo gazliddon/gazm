@@ -266,6 +266,7 @@ pub enum Item {
     Org,
     Fdb(usize),
     Fcb(usize),
+    Fcc(String),
     Fill,
     Zmb,
     Zmd,

@@ -1,4 +1,5 @@
 use romloader::ResultExt;
+use serde_json::to_string;
 
 use crate::ast::{to_priority, Ast, AstNodeMut, AstNodeRef, ItemWithPos};
 use crate::item::Item;
@@ -10,6 +11,8 @@ use std::{collections::HashMap, hash::Hash};
 use crate::error::AstError;
 use romloader::sources::{SymbolError, SymbolTable};
 
+use crate::astformat::as_string;
+
 fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
     if let Item::Number(_) = i {
         Ok(i)
@@ -19,10 +22,11 @@ fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
 }
 
 /// Evaluates a node and returns an item
-/// Node can only contain
+/// Node can only c?ontain
 ///  - Labels that can resolve to a value
 ///  - Numbers
 ///  - PostFixExpr containing only labels and numbers
+///  - UnaryTerm
 ///  - Must eval to a number
 pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> {
     use Item::*;
@@ -36,14 +40,32 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
             .get_value(name)
             .map(Item::number)
             .map_err(|_| {
-                println!("{:#?}", symbols);
                 let msg = format!("Couldn't find symbol {}", name);
                 AstError::from_node(&msg, n)
             })?,
 
+        UnaryTerm => {
+            let ops = n.children().nth(0).unwrap();
+            let num = n.children().nth(1).unwrap();
+            let r = eval_internal(symbols, num)?;
+
+            let num = r.get_number().unwrap();
+
+            let num = &match ops.value().item {
+                Item::Sub => Item::Number(-num),
+                _ => panic!()
+            };
+
+            num.clone()
+        },
+
         Number(_) => i.clone(),
 
-        _ => return Err(AstError::from_node("Unable to evaluate ", n)),
+
+        _ => {
+            let msg = format!("Can't evaluate: {:#?}", i);
+            return Err(AstError::from_node(msg, n))
+        }
     };
 
     // If this isn't a number return an error

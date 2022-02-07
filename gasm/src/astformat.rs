@@ -41,9 +41,14 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
         let to_string = |n: AstNodeRef| -> String {
             let x: DisplayWrapper = n.into();
             x.to_string()
+
+        };
+        let child_item = |n: usize| {
+            node.children().nth(n).map(|x| &x.value().item)
         };
 
-        let child = |n: usize| {
+
+        let child_string = |n: usize| {
             let v = node.children().nth(n).unwrap();
             to_string(v)
         };
@@ -55,7 +60,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
         let ret: String = match item {
             LocalAssignmentFromPc(name) | AssignmentFromPc(name) => {
-                format!("{} equ {}", name, child(0))
+                format!("{} equ {}", name, child_string(0))
             }
 
             Pc => "*".to_string(),
@@ -72,7 +77,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             }
 
             LocalAssignment(name) | Assignment(name) => {
-                format!("{} equ {}", name, child(0))
+                format!("{} equ {}", name, child_string(0))
             }
 
             Expr => join_kids(""),
@@ -83,8 +88,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Number(n) => n.to_string(),
             UnaryMinus => "-".to_string(),
+
             UnaryTerm => {
-                panic!()
+                format!("!{:?} {:?}", child_item(0), child_item(1))
             }
 
             Mul => "*".to_string(),
@@ -96,7 +102,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             Xor => "^".to_string(),
 
             Org => {
-                format!("org {}", child(0))
+                format!("org {}", child_string(0))
             }
 
             BracketedExpr => {
@@ -119,8 +125,8 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 };
 
                 let operand = match amode {
-                    Immediate => format!("#{}", child(0)),
-                    Direct => format!("<{}", child(0)),
+                    Immediate => format!("#{}", child_string(0)),
+                    Direct => format!("<{}", child_string(0)),
                     Indexed(imode, indirect) => {
                         use item::IndexParseType::*;
                         match imode {
@@ -136,7 +142,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                             PcOffsetWord(v) => ind(format!("{},PC", v), indirect),
                             PcOffsetByte(v) => ind(format!("{},PC", v), indirect),
                             ConstantOffset(r) => {
-                                ind(format!("{},{}", child(0), r), indirect)
+                                ind(format!("{},{}", child_string(0), r), indirect)
                             }
                             Zero(r) => ind(format!(",{}", r), indirect),
                             SubSub(r) => ind(format!(",--{}", r), indirect),
@@ -146,8 +152,8 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                             AddA(r) => ind(format!("A,{}", r), indirect),
                             AddB(r) => ind(format!("B,{}", r), indirect),
                             AddD(r) => ind(format!("D,{}", r), indirect),
-                            PCOffset => ind(format!("{},PC", child(0)), indirect),
-                            ExtendedIndirect => format!("[{}]", child(0)),
+                            PCOffset => ind(format!("{},PC", child_string(0)), indirect),
+                            ExtendedIndirect => format!("[{}]", child_string(0)),
                         }
                     }
                     _ => format!("{:?} NOT IMPLEMENTED", ins.addr_mode),

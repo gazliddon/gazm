@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use nom::{self, Offset};
+use nom_locate::position;
 
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::locate::Span;
@@ -10,35 +11,42 @@ use nom::AsBytes;
 use crate::locate::span_to_pos;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ParseError<'a> {
-    pub span: Span<'a>,
+pub struct ParseError {
     pub message: Option<String>,
+    pub pos : Position,
 }
 
-impl<'a> ParseError<'a> {
+impl ParseError {
     pub fn message(&self) -> String {
         self.message.clone().unwrap_or_else(|| "".to_string())
     }
 }
 
-pub fn error<'a>(err: &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
+pub fn error(err: &str, ctx: Span) -> nom::Err<ParseError> {
     nom::Err::Error(ParseError::new(err.to_string(), &ctx))
 }
 pub fn user_error(_err: &str, _ctx: Span) -> UserError {
     panic!()
 }
 
-pub fn failure<'a>(err: &str, ctx: Span<'a>) -> nom::Err<ParseError<'a>> {
+pub fn failure<'a>(err: &str, ctx: Span<'a>) -> nom::Err<ParseError> {
     nom::Err::Failure(ParseError::new(err.to_string(), &ctx))
 }
 
-pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError<'a>>;
+pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
 
-impl<'a> ParseError<'a> {
-    pub fn new(message: String, span: &Span<'a>) -> ParseError<'a> {
+impl ParseError {
+    pub fn new(message: String, span: &Span) -> ParseError {
         Self {
-            span: *span,
             message: Some(message),
+            pos : span_to_pos(span.clone())
+        }
+    }
+
+    pub fn from_pos(message: String, pos : Position) -> Self {
+        Self {
+            message: Some(message),
+            pos : pos.clone(),
         }
     }
 
@@ -52,8 +60,12 @@ impl<'a> ParseError<'a> {
         panic!()
     }
 
-    pub fn fragment(&self) -> &'a str {
-        &self.span
+    pub fn pos(&self) -> &Position {
+        &self.pos
+    }
+
+    pub fn fragment<'a>(&self, sources : &'a romloader::sources::Sources) -> &'a str {
+        sources.get_source_info(&self.pos).unwrap().fragment
     }
 
     // pub fn from_text(message : &str) -> Self {
@@ -62,8 +74,8 @@ impl<'a> ParseError<'a> {
     // }
 }
 
-impl<'a> From<nom::Err<ParseError<'a>>> for ParseError<'a> {
-    fn from(i: nom::Err<ParseError<'a>>) -> Self {
+impl From<nom::Err<ParseError>> for ParseError {
+    fn from(i: nom::Err<ParseError>) -> Self {
         match i {
             nom::Err::Incomplete(_) => panic!(),
             nom::Err::Error(e) => e,
@@ -73,7 +85,7 @@ impl<'a> From<nom::Err<ParseError<'a>>> for ParseError<'a> {
 }
 
 // That's what makes it nom-compatible.
-impl<'a> nom::error::ParseError<Span<'a>> for ParseError<'a> {
+impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
     fn from_error_kind(input: Span<'a>, kind: nom::error::ErrorKind) -> Self {
         Self::new(format!("parse error {:?}", kind), &input)
     }
@@ -193,14 +205,14 @@ impl UserError {
         Ok(s)
     }
 
-    pub fn from_parse_error(err: ParseError, file: &std::path::Path) -> Self {
-        let line = err.span.get_line_beginning();
-        let line = String::from_utf8_lossy(line).to_string();
+    pub fn from_parse_error(err: ParseError, file: &std::path::Path, sources : &romloader::sources::Sources) -> Self {
+        let si = sources.get_source_info(&err.pos).unwrap();
+
         Self {
             message: err.message(),
-            pos: span_to_pos(err.span),
-            fragment: err.span.to_string(),
-            line,
+            pos : err.pos,
+            fragment: si.fragment.to_string(),
+            line : si.line.to_string(),
             file: file.to_path_buf(),
         }
     }

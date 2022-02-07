@@ -11,12 +11,13 @@ use crate::{item::{Item, Node}, locate::matched_span, util::match_escaped_str};
 
 use nom::{
     branch::alt,
-    bytes::complete::tag,
+    bytes::complete::{ tag, is_not },
     character::complete::{anychar, multispace0,multispace1, alpha1},
     combinator::{recognize, map},
     error::ErrorKind::NoneOf,
     multi::many1,
     sequence::{ separated_pair, preceded, tuple, }
+
 };
 
 use expr::parse_expr;
@@ -30,12 +31,26 @@ fn parse_org_arg(input: Span) -> IResult< Node> {
     Ok((rest, ret))
 }
 
+fn parse_fcc_arg(input: Span) -> IResult< Node> {
+    let (rest, matched) = recognize(util::wrapped_chars('\'',is_not("'"), '\''))(input)?;
+    let ret = Node::from_item_span(Fcc(matched.to_string()), input);
+    Ok((rest, ret))
+}
+
 fn parse_fdb_arg(input: Span) -> IResult< Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     let num_of_bytes = matched.len();
     let ret = Node::from_item_span(Fdb(num_of_bytes), input).with_children(matched);
     Ok((rest, ret))
 }
+
+fn parse_fcb_arg(input: Span) -> IResult< Node> {
+    let (rest, matched) = util::sep_list1(parse_expr)(input)?;
+    let num_of_bytes = matched.len();
+    let ret = Node::from_item_span(Fcb(num_of_bytes), input).with_children(matched);
+    Ok((rest, ret))
+}
+
 
 fn parse_include_arg(input : Span) -> IResult< Node> {
     let (rest, matched) = match_escaped_str(input)?;
@@ -89,6 +104,8 @@ lazy_static! {
             ("bsz", parse_bsz_arg),
             ("fill", parse_fill_arg),
             ("fdb", parse_fdb_arg),
+            ("fcc", parse_fcc_arg),
+            ("fcb", parse_fcb_arg),
             ("zmb", parse_zmb_arg),
             ("zmd", parse_zmd_arg),
             ("rmb", parse_fdb_arg),
