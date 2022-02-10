@@ -151,3 +151,58 @@ pub fn messages() -> &'static mut Messages {
         SINGLETON.assume_init_mut()
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+pub fn verbosity<F, Y>(verbosity : Verbosity, mut f: F) -> Y
+where
+    F: FnMut(&mut super::messages::Messages) -> Y,
+{
+    let x = super::messages::messages();
+    let old_verbosity = x.verbosity;
+    x.set_verbosity(&verbosity);
+
+    let r = f(x);
+
+    let x = super::messages::messages();
+    x.set_verbosity(&old_verbosity);
+
+    r
+}
+
+pub fn debug<F, Y>(text: &str, mut f: F) -> Y
+where
+    F: FnMut(&mut super::messages::Messages) -> Y,
+{
+    let x = super::messages::messages();
+    x.debug(text);
+    x.indent();
+    let r = f(x);
+    x.deindent();
+    r
+}
+
+pub fn info<F, Y, S>(text: S, mut f: F) -> Y
+where
+    F: FnMut(&mut super::messages::Messages) -> Y,
+    S: Into<String>
+{
+    let x = super::messages::messages();
+    x.info(text.into());
+    x.indent();
+    let r = f(x);
+    x.deindent();
+    r
+}
+
+pub fn status<F, Y, S>(text: S, mut f: F) -> Y
+where
+    F: FnMut(&mut super::messages::Messages) -> Y,
+    S: Into<String>
+{
+    let x = super::messages::messages();
+    x.status(text.into());
+    x.indent();
+    let r = f(x);
+    x.deindent();
+    r
+}

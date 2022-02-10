@@ -170,6 +170,9 @@ impl<I, C : CtxTrait > BaseNode<I, C> {
         ret.children = vec![child.into()];
         ret
     }
+    pub fn add_child(&mut self, n : Self) {
+        self.children.push(Box::new(n))
+    }
 
     pub fn with_ctx<X>(self, ctx : X) -> Self
         where X : Into<C>

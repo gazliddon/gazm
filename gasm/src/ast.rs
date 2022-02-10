@@ -12,7 +12,9 @@ use std::path::{PathBuf, Prefix};
 use nom::bytes::complete::take_till;
 use nom::InputIter;
 use romloader::ResultExt;
+use serde_json::map::Values;
 
+use crate::astformat::as_string;
 use crate::error::{AstError, UserError};
 use crate::item;
 use crate::scopes::ScopeBuilder;
@@ -20,9 +22,9 @@ use crate::scopes::ScopeBuilder;
 use crate::item::{Item, Node};
 use romloader::sources::Position;
 
+use crate::messages::{debug, info, verbosity, Verbosity};
 use crate::postfix;
-use romloader::sources::{SourceInfo, SourceFile, Sources, SymbolId, SymbolTable};
-use crate::util::{debug, info};
+use romloader::sources::{SourceFile, SourceInfo, Sources, SymbolId, SymbolTable};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -82,9 +84,13 @@ impl Ast {
 
         ret.rename_locals();
 
-        let _ = ret.postfix_expressions();
+        // TODO!
+        // handle error properly
+        let _ = ret.postfix_expressions().unwrap();
 
-        ret.evaluate()?;
+        ret.generate_struct_symbols()?;
+
+        ret.evaluate_assignments()?;
 
         Ok(ret)
     }
@@ -168,6 +174,10 @@ impl Ast {
         Ok(ret)
     }
 
+    // TODO!
+    // Make this and other functions return an appropriate
+    // error rather tha a string
+
     fn postfix_expressions(&mut self) -> Result<(), String> {
         info("Converting expressions to poxtfix", |x| {
             use Item::*;
@@ -219,10 +229,32 @@ impl Ast {
         self.convert_error(e)
     }
 
+    fn node_error(&self, msg: &str, id: AstNodeId) -> UserError {
+        let node = self.tree.get(id).unwrap();
+        let si = &self.get_source_info_from_node_id(node.id()).unwrap();
+        let pos = &node.value().pos;
+        UserError::from_text(msg, si, pos)
+    }
+
     pub fn eval(&self, symbols: &SymbolTable, id: AstNodeId) -> Result<i64, UserError> {
         use super::eval::eval;
         let node = self.tree.get(id).unwrap();
-        eval(symbols, node.first_child().unwrap()).map_err(|e| self.convert_error(e))
+
+        let err = |m| self.node_error(m, id);
+
+        let first_child = node
+            .first_child()
+            .ok_or_else(|| err("Can't find a child node"))?;
+
+        let child_item = &first_child.value().item;
+
+        if let Item::PostFixExpr = child_item {
+            eval(symbols, first_child).map_err(|e| self.convert_error(e))
+        } else {
+            Err(err(&format!(
+                "Incorrect item type for evalulation : {child_item:?}"
+            )))
+        }
     }
 
     pub fn add_symbol<S>(
@@ -243,7 +275,44 @@ impl Ast {
             })
     }
 
-    fn evaluate(&mut self) -> Result<(), UserError> {
+    fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
+        info("Generating symbols for struct definitions", |x| {
+            use super::eval::eval;
+            use Item::*;
+
+            let mut symbols = self.symbols.clone();
+
+            // let mut symbols = self.symbols.clone();
+            for n in self.tree.nodes() {
+                let item = &n.value().item;
+
+                if let StructDef(name) = item {
+                    let mut current = 0;
+                    x.info(format!("Generating symbols for {name}"));
+
+                    for c in n.children() {
+                        if let StructEntry(entry_name) = &c.value().item {
+                            let id = c.id();
+                            let value = self.eval(&self.symbols, id)?;
+                            let scoped_name = format!("{}.{}", name, entry_name);
+                            self.add_symbol(&mut symbols, current, &scoped_name, id)?;
+                            x.info(format!("Set {scoped_name} to {current}"));
+                            current = current + value;
+                        }
+                    }
+
+                    let scoped_name = format!("{name}.size");
+
+                    self.add_symbol(&mut symbols, current, &scoped_name, n.id())?;
+                }
+            }
+
+            self.symbols = symbols;
+            Ok(())
+        })
+    }
+
+    fn evaluate_assignments(&mut self) -> Result<(), UserError> {
         info("Evaluating assignments", |x| {
             use super::eval::eval;
             use Item::*;

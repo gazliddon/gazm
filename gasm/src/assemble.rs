@@ -16,7 +16,7 @@ use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
 use crate::util;
-use crate::util::info;
+use crate::messages::info;
 use crate::util::ByteSize;
 use item::{Item, Node};
 use romloader::sources::{ItemType, SourceDatabase, SourceMapping, Sources, SymbolTable};
@@ -240,14 +240,21 @@ impl Assembler {
         _addr_mode: &AddrModeParseType,
         _node: AstNodeRef,
     ) -> Result<(), UserError> {
-        todo!("assemble indexed opcode")
+        todo!(
+            "assemble
+    indexed opcode"
+        )
     }
 
     fn write_byte_check_size(&mut self, n: AstNodeId, val: i64) -> Result<(), UserError> {
         self.bin.write_byte_check_size(val).map_err(|_| {
             let n = self.tree.get(n).unwrap();
             let info = &self.sources.get_source_info(&n.value().pos).unwrap();
-            let msg = format!("{:4X} does not fit in a byte", val);
+            let msg = format!(
+                "{:4X}
+            does not fit in a byte",
+                val
+            );
             UserError::from_text(msg, info, &n.value().pos)
         })
     }
@@ -256,7 +263,11 @@ impl Assembler {
         self.bin.write_word_check_size(val).map_err(|_| {
             let n = self.tree.get(n).unwrap();
             let info = &self.sources.get_source_info(&n.value().pos).unwrap();
-            let msg = format!("{:4X} does not fit in a word", val);
+            let msg = format!(
+                "{:4X}
+            does not fit in a word",
+                val
+            );
             UserError::from_text(msg, info, &n.value().pos)
         })
     }
@@ -365,7 +376,6 @@ impl Assembler {
         use item::Item::*;
         let x = super::messages::messages();
 
-
         let node = self.tree.get(id).unwrap();
         let i = &node.value().item.clone();
         let pos = &node.value().pos.clone();
@@ -375,7 +385,11 @@ impl Assembler {
         match i {
             SetPc(pc) => {
                 self.bin.set_write_addr(*pc as usize);
-                x.debug(format!("Set PC to {:02X}", *pc));
+                x.debug(format!(
+                    "Set PC to
+                {:02X}",
+                    *pc
+                ));
             }
 
             OpCode(ins, amode) => {
@@ -444,9 +458,8 @@ impl Assembler {
             }
 
             ExpandedMacro(mcall) => {
-                // We need to tell the source mapper we're 
-                // expanding a macro so the file / line for everything 
-                // expanded by the macro will point to the line that instantiated the
+                // We need to tell the source mapper we're expanding a macro so the file / line for
+                // everything expanded by the macro will point to the line that instantiated the
                 // macro
                 self.source_map.start_macro(&mcall.name);
 
@@ -456,7 +469,7 @@ impl Assembler {
                 }
 
                 self.source_map.stop_macro();
-            },
+            }
 
             TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
@@ -471,7 +484,7 @@ impl Assembler {
                     self.bin
                         .write_word_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
-                    }
+                }
 
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
@@ -483,7 +496,7 @@ impl Assembler {
                     self.bin
                         .write_byte_check_size(x)
                         .map_err(|_| self.user_error("Does not fit in a word", n))?;
-                    }
+                }
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
@@ -521,12 +534,12 @@ impl Assembler {
                     self.bin
                         .write_byte_check_size(byte)
                         .map_err(|_| self.user_error("Does not fit in a word", node))?;
-                    }
+                }
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
-            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) => (),
+            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) | StructDef(..) => (),
 
             _ => {
                 panic!("Unable to assemble {:?}", i);
@@ -563,12 +576,12 @@ impl Assembler {
 
                     match pmode {
                         ConstantByteOffset(..)
-                            | PcOffsetByte(..)
-                            | PcOffsetWord(..)
-                            | ConstantWordOffset(..)
-                            | Constant5BitOffset(..) => {
-                                panic!()
-                            }
+                        | PcOffsetByte(..)
+                        | PcOffsetWord(..)
+                        | ConstantWordOffset(..)
+                        | Constant5BitOffset(..) => {
+                            panic!()
+                        }
 
                         ConstantOffset(r) => {
                             let (v, _) = self.eval_first_arg(node)?;
@@ -633,13 +646,12 @@ impl Assembler {
                 self.symbols.add_symbol_with_value(name, pc as i64).unwrap();
             }
 
-            ExpandedMacro(..) |
-                TokenizedFile(..) => {
-                    let children: Vec<_> = node.children().map(|n| n.id()).collect();
-                    for c in children {
-                        pc = self.size_node(pc, c)?;
-                    }
+            ExpandedMacro(..) | TokenizedFile(..) => {
+                let children: Vec<_> = node.children().map(|n| n.id()).collect();
+                for c in children {
+                    pc = self.size_node(pc, c)?;
                 }
+            }
 
             Fdb(num_of_words) => {
                 pc += (*num_of_words * 2) as u64;
@@ -671,8 +683,7 @@ impl Assembler {
                 pc += c as u64;
             }
 
-            Assignment(..) | Comment(..) | MacroDef(..) => (),
-
+            Assignment(..) | Comment(..) | MacroDef(..) | StructDef(..) => (),
             _ => {
                 panic!("Unable to size {:?}", i);
             }

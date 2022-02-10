@@ -113,6 +113,7 @@ fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> 
                 Div => rhs / lhs,
                 Add => rhs + lhs,
                 Sub => rhs - lhs,
+                And => rhs & lhs,
                 _ => return Err(AstError::from_node("Unexpected op ", *cn)),
             };
 

@@ -212,6 +212,20 @@ pub enum StructMemberType {
     UserType(String),
 }
 
+impl StructMemberType {
+
+    pub fn to_size_item(&self) -> Item {
+        use Item::*;
+        match self {
+            Self::Byte => Number(1),
+            Self::Word => Number(2),
+            Self::DWord => Number(4),
+            Self::QWord => Number(8),
+            Self::UserType(name) => Label(format!("{}.size", name))
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct StructEntry {
     pub name : String,
@@ -229,7 +243,9 @@ pub enum Item {
 
     MacroCall(MacroCall),
     MacroDef(MacroDef),
-    StructDef(String, Vec<StructEntry>),
+
+    StructDef(String),
+    StructEntry(String),
 
     SetPc(u16),
 
@@ -290,6 +306,7 @@ impl GetPriotity for Item {
             Item::Div => Some(5),
             Item::Add => Some(4),
             Item::Sub => Some(4),
+            Item::And => Some(3),
             _ => None,
         }
     }

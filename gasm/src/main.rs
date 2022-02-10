@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
+#![feature(try_blocks)]
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
@@ -45,7 +46,7 @@ use ast::ItemWithPos;
 use colored::*;
 use error::UserError;
 use romloader::ResultExt;
-use util::{debug, info, status};
+use messages::{debug, info, status};
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___
@@ -70,7 +71,9 @@ fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::erro
         use assemble::Assembler;
         use ast::Ast;
 
-        let ( tokens, sources) = tokenize::tokenize(ctx)?;
+        let mut errors = vec![];
+
+        let ( tokens, sources) = tokenize::tokenize(ctx, &mut errors)?;
 
         // we need to expand macros and tokenize them
         // take mut sources and mut tokens
@@ -83,6 +86,7 @@ fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::erro
         asm.size()?;
 
         let ret = asm.assemble()?;
+
         x.success("Sucess");
 
         Ok(ret)

@@ -1,7 +1,7 @@
 use std::panic::PanicInfo;
 
 use crate::item::{ Item, Node };
-use crate::numbers;
+use crate::{cli, numbers};
 use crate::labels;
 use crate::expr::{self, parse_expr};
 
@@ -130,7 +130,11 @@ pub fn compile_text(code: &str) -> Result<String, String> {
 
     let file_name = &PathBuf::from("nofile");
 
-    let node = tokenize_file_from_str(file_name, code).map_err(|e| format!("{:?}", e))?;
+    let mut errors : Vec<ParseError> = vec![];
+
+    let ctx = cli::Context::default();
+
+    let node = tokenize_file_from_str(file_name, code, &mut errors, &ctx).map_err(|e| format!("{:?}", e))?;
 
     let mut id_to_source_file = HashMap::new();
     let source_file = SourceFile::new(file_name, code);
@@ -143,45 +147,6 @@ pub fn compile_text(code: &str) -> Result<String, String> {
     let ast = Ast::from_nodes(node, sources).map_err(|e| format!("error: {:?}", e.message))?;
 
     Ok(ast.to_string())
-}
-////////////////////////////////////////////////////////////////////////////////
-pub fn debug<F, Y>(text: &str, mut f: F) -> Y
-where
-    F: FnMut(&mut super::messages::Messages) -> Y,
-{
-    let x = super::messages::messages();
-    x.debug(text);
-    x.indent();
-    let r = f(x);
-    x.deindent();
-    r
-}
-
-pub fn info<F, Y, S>(text: S, mut f: F) -> Y
-where
-    F: FnMut(&mut super::messages::Messages) -> Y,
-    S: Into<String>
-{
-    let x = super::messages::messages();
-    x.info(text.into());
-    x.indent();
-    let r = f(x);
-    x.deindent();
-    r
-}
-
-
-pub fn status<F, Y, S>(text: S, mut f: F) -> Y
-where
-    F: FnMut(&mut super::messages::Messages) -> Y,
-    S: Into<String>
-{
-    let x = super::messages::messages();
-    x.status(text.into());
-    x.indent();
-    let r = f(x);
-    x.deindent();
-    r
 }
 
 pub fn get_block(input: Span<'_>) -> IResult<Span> {

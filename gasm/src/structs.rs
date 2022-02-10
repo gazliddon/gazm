@@ -1,16 +1,18 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, take_until, tag_no_case},
+    bytes::complete::{is_not, tag, tag_no_case, take_until},
     character::complete::{line_ending, multispace0, multispace1},
-    combinator::{all_consuming, eof, not, opt, recognize, map},
-    multi::{many0, many1, separated_list0},
+    combinator::{all_consuming, eof, map, not, opt, recognize},
+    multi::{self, many0, many1, separated_list0},
     sequence::{pair, preceded, separated_pair, terminated, tuple},
     AsBytes,
 };
 
+use romloader::sources::Position;
+
 use crate::{
     labels::{get_just_label, parse_label},
-    locate::matched_span,
+    locate::{matched_span, span_to_pos},
     macros::{parse_macro_call, parse_macro_definition},
     util::{self, sep_list1, wrapped_chars, ws},
 };
@@ -31,23 +33,53 @@ pub fn get_struct(input: Span<'_>) -> IResult<(Span, Span)> {
 }
 
 fn get_struct_arg_type(input: Span<'_>) -> IResult<StructMemberType> {
-     alt((
-            map(tag_no_case("byte"), |_| StructMemberType::Byte),
-            map(tag_no_case("word"), |_| StructMemberType::Word),
-            map(tag_no_case("dword"), |_| StructMemberType::DWord),
-            map(tag_no_case("qword"), |_| StructMemberType::QWord),
-            map(get_just_label, |utype| StructMemberType::UserType(utype.to_string())),
-    ))(input)
+    let (rest, item_type) = alt((
+        map(tag_no_case("byte"), |_| StructMemberType::Byte),
+        map(tag_no_case("word"), |_| StructMemberType::Word),
+        map(tag_no_case("dword"), |_| StructMemberType::DWord),
+        map(tag_no_case("qword"), |_| StructMemberType::QWord),
+        map(get_just_label, |utype| {
+            StructMemberType::UserType(utype.to_string())
+        }),
+    ))(input)?;
+
+    Ok((rest, item_type))
 }
 
-fn get_struct_entry(input: Span<'_>) -> IResult<StructEntry> {
+fn get_struct_entry(input: Span<'_>) -> IResult<(Span, StructMemberType, Option<Span>, Option<Node>)> {
+
+    let (input, comment) = crate::comments::strip_comments(input)?;
+
     let sep = ws(tag(":"));
     let (rest, (name, item_type)) =
         separated_pair(get_just_label, sep, get_struct_arg_type)(input)?;
-    let ret = StructEntry {
-        name: name.to_string(),
-        item_type,
+    let mut array = opt(ws(wrapped_chars('[', ws(is_not("]")), ']')));
+    let (rest, an_array) = array(rest)?;
+    Ok((rest, (name, item_type, an_array, comment)))
+}
+
+fn parse_struct_entry(input: Span<'_>) -> IResult<Node> {
+    use crate::expr::parse_expr;
+
+    let (rest, (name, entry_type, array_exp, _)) = get_struct_entry(input)?;
+    let size = entry_type.to_size_item();
+
+    let multiplier = if let Some(expr) = array_exp {
+        let (_, matched) = parse_expr(expr)?;
+        matched
+    } else {
+        Node::from_item_span(Item::Number(1), input)
     };
+
+    let expr = Node::from_item_span(Item::Expr, input).with_children(vec![
+        multiplier,
+        Node::from_item_span(Item::Mul, input),
+        Node::from_item_span(size, input),
+    ]);
+    
+
+    let ret = Node::from_item_span(Item::StructEntry(name.to_string()), input).with_child(expr);
+
     Ok((rest, ret))
 }
 
@@ -55,9 +87,17 @@ pub fn parse_struct_definition(input: Span<'_>) -> IResult<Node> {
     let (rest, (name, body)) = get_struct(input)?;
 
     let sep = ws(tag(","));
+    let (spare, entries) = ws(separated_list0(sep, parse_struct_entry))(body)?;
+    let sep = ws(tag(","));
+    let (spare,_) = opt(sep)(spare)?;
 
-    let (_, defs) = separated_list0(sep, get_struct_entry)(body)?;
-    let matched_span = matched_span(input, rest);
-    let res = Node::from_item_span(Item::StructDef(name.to_string(), defs), matched_span);
-    Ok((rest, res))
+    if !spare.is_empty() {
+        let m = format!("Unexpected text in struct definition, missing comma on previous line?");
+        Err(crate::failure(&m, spare))
+    } else {
+        let matched_span = matched_span(input, rest);
+        let res = Node::from_item_span(Item::StructDef(name.to_string()), matched_span)
+            .with_children(entries);
+        Ok((rest, res))
+    }
 }

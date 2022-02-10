@@ -10,6 +10,7 @@ pub struct Context {
     pub file : PathBuf,
     pub out: Option<String>,
     pub syms : Option<String>,
+    pub trailing_comments : bool,
 }
 
 impl Default for Context {
@@ -19,6 +20,7 @@ impl Default for Context {
             file: "No FIle".into(),
             out: None,
             syms : None,
+            trailing_comments : false,
         }
     }
 }
@@ -28,6 +30,8 @@ impl From<clap::ArgMatches> for Context {
         let file : PathBuf = m.value_of("file").unwrap().to_string().into();
         let out = m.value_of("out-file").map(|f| f.to_string());
         let syms = m.value_of("symbol-file").map(|f| f.to_string());
+
+        let trailing_comments = m.is_present("trailing-comments");
 
         let verbose = if m.is_present("verbose") {
             Verbosity::INFO
@@ -40,6 +44,7 @@ impl From<clap::ArgMatches> for Context {
             out,
             file,
             syms,
+            trailing_comments,
         }
     }
 }
@@ -67,5 +72,9 @@ pub fn parse() -> clap::ArgMatches {
              .help("Verbose mode")
              .use_delimiter(false)
              .short('v'))
+        .arg(Arg::new("trailing-comments")
+             .help("Treat text after an opcode as a comment")
+             .use_delimiter(false)
+             .short('t'))
         .get_matches()
 }

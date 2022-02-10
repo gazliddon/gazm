@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::path::PathBuf;
 
+use nom::combinator::fail;
 use nom::{self, Offset};
 use nom_locate::position;
 
@@ -14,6 +15,7 @@ use crate::locate::span_to_pos;
 pub struct ParseError {
     pub message: Option<String>,
     pub pos : Position,
+    pub failure : bool,
 }
 
 impl ParseError {
@@ -39,14 +41,23 @@ impl ParseError {
     pub fn new(message: String, span: &Span) -> ParseError {
         Self {
             message: Some(message),
-            pos : span_to_pos(span.clone())
+            pos : span_to_pos(span.clone()),
+            failure: false,
+
         }
+    }
+
+    pub fn set_failure(self, failure : bool) -> Self {
+        let mut ret = self;
+        ret.failure= failure;
+        ret
     }
 
     pub fn from_pos(message: String, pos : Position) -> Self {
         Self {
             message: Some(message),
             pos : pos.clone(),
+            failure: false,
         }
     }
 
@@ -67,6 +78,9 @@ impl ParseError {
     pub fn fragment<'a>(&self, sources : &'a romloader::sources::Sources) -> &'a str {
         sources.get_source_info(&self.pos).unwrap().fragment
     }
+    pub fn is_failure(&self) -> bool {
+        self.failure
+    }
 
     // pub fn from_text(message : &str) -> Self {
     //     Self {message: Some(message.to_string()),
@@ -78,8 +92,8 @@ impl From<nom::Err<ParseError>> for ParseError {
     fn from(i: nom::Err<ParseError>) -> Self {
         match i {
             nom::Err::Incomplete(_) => panic!(),
-            nom::Err::Error(e) => e,
-            nom::Err::Failure(e) => e,
+            nom::Err::Error(e) => e.set_failure(false),
+            nom::Err::Failure(e) => e.set_failure(true),
         }
     }
 }
@@ -98,6 +112,9 @@ impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
         Self::new(format!("unexpected character '{}'", c), &input)
     }
 }
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstError {
@@ -212,7 +229,7 @@ impl UserError {
             message: err.message(),
             pos : err.pos,
             fragment: si.fragment.to_string(),
-            line : si.line.to_string(),
+            line : si.line_str.to_string(),
             file: file.to_path_buf(),
         }
     }

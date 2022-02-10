@@ -62,7 +62,6 @@ impl MacroDef {
             let param = format!("|{param}|");
             ret = ret.replace(&param, arg);
         }
-
         (self.pos.clone(), ret)
     }
 }
