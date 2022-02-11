@@ -28,7 +28,7 @@ use nom::{
 };
 use romloader::ResultExt;
 
-use crate::error::{IResult, ParseError, UserError};
+use crate::error::{IResult, ParseError, UserErrors, UserError};
 use crate::item::{Item, Node};
 use crate::locate::Span;
 use romloader::sources::{AsmSource, SourceFileLoader, Sources};
@@ -50,9 +50,9 @@ struct Token {
 pub fn tokenize_file_from_str<'a>(
     file: &PathBuf,
     input: &'a str,
-    errors: &mut Vec<ParseError>,
+    errors: &mut UserErrors,
     ctx: &cli::Context,
-) -> Result<Node, ParseError> {
+) -> Result<Node, UserError> {
     let span = Span::new_extra(input, AsmSource::FromStr);
     let source = input.to_string();
     let mut macros = Macros::new();
@@ -110,19 +110,20 @@ impl Tokens {
                 self.add_comment(rest);
             } else {
                 let message = format!("Unexpected characters");
-                return Err(ParseError::new(message, &rest))
+                return Err(ParseError::new(message, &rest, false))
             }
         }
         Ok(())
     }
 
-    pub fn to_tokens<'a>(
+    fn to_tokens<'a>(
         &mut self,
         input: Span<'a>,
         sources: &mut Sources,
         macros: &mut Macros,
-        errors: &mut Vec<ParseError>,
-    ) -> Result<Node, ParseError> {
+        errors: &mut UserErrors,
+    ) -> Result<Node, UserError> {
+
         use crate::macros::MacroCall;
         use commands::parse_command;
         use item::{Item, Node};
@@ -201,17 +202,12 @@ impl Tokens {
             match &res {
                 Ok(..) => (),
                 Err(pe) => {
-                    errors.push(pe.clone());
-                    if pe.failure || errors.len() > 5 {
-                        return Err(pe.clone());
-                    }
+                    errors.add_parse_error(pe.clone(), sources)?;
                 }
             };
         }
 
-        if !errors.is_empty() {
-            return Err(errors.last().unwrap().clone());
-        }
+        errors.raise_errors()?;
 
         {
             // Expand all macros for this block of stuff
@@ -242,7 +238,7 @@ impl Tokens {
 
                         let err1 = format!("Macro expansion:\n {}", text);
                         let err2 = format!("Args:\n {:#?}", args);
-                        e.message = Some(format!("{}\n{}", err1, err2));
+                        e.message = format!("{}\n{}", err1, err2);
                         e
                     })?;
                 new_node.item = Item::ExpandedMacro(macro_call);
@@ -261,7 +257,7 @@ fn tokenize_file(
     file: &std::path::Path,
     parent: &std::path::Path,
     macros: &mut Macros,
-    errors: &mut Vec<ParseError>,
+    errors: &mut UserErrors,
 ) -> anyhow::Result<Node> {
     use anyhow::Context;
 
@@ -285,8 +281,7 @@ fn tokenize_file(
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
     let mut matched = Tokens::new(ctx)
-        .to_tokens(input, &mut fl.sources, macros, errors)
-        .map_err(|e| UserError::from_parse_error(e, &file_name, &fl.sources))?;
+        .to_tokens(input, &mut fl.sources, macros, errors)?;
 
     matched.item = TokenizedFile(file.to_path_buf(), parent.to_path_buf(), source.clone());
 
@@ -305,9 +300,8 @@ use crate::macros::Macros;
 
 pub fn tokenize(
     ctx: &cli::Context,
-    _errors: &mut Vec<UserError>,
+    errors: &mut UserErrors,
 ) -> anyhow::Result<(Node, Sources)> {
-    let mut errors = vec![];
     let mut macros = Macros::new();
     let file = ctx.file.clone();
 
@@ -327,7 +321,7 @@ pub fn tokenize(
         &ctx.file,
         &parent,
         &mut macros,
-        &mut errors,
+        errors,
     )?;
 
     Ok((res, fl.sources))

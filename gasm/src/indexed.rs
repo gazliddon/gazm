@@ -169,18 +169,18 @@ fn parse_no_arg_indexed(input: Span) -> IResult<Node> {
 }
 
 fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
-    use crate::error::failure;
+    use crate::error::parse_failure;
     let (rest, matched) = get_no_arg_indexed(input)?;
     let ctx = matched_span(input, rest);
 
     match matched {
         IndexParseType::Plus(_) => {
             let err = "Post-increment indexing not valid indirectly";
-            Err(failure(err, ctx))
+            Err(parse_failure(err, ctx))
         },
         IndexParseType::Sub(_) => {
             let err = "Pre-decrement indexing not valid indirectly";
-            Err(failure(err, ctx))
+            Err(parse_failure(err, ctx))
         },
         _=> {
         let matched = Node::from_item_span(Item::OperandIndexed(matched, false), ctx);

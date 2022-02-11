@@ -139,14 +139,14 @@ impl Macros {
 
     /// Expands a macro and returns a position of the macro body text
     /// an expanded version of the macro ready to tokenize
-    pub fn expand_macro(&self, sources: &Sources, macro_call : MacroCall) -> Result<(Position, String ), ParseError> {
+    pub fn expand_macro(&self, sources: &Sources, macro_call : MacroCall) -> Result<(Position, String ), UserError> {
 
         let si = sources.get_source_info(&macro_call.name).unwrap();
         let name = si.fragment;
 
         let def = self.macro_defs.get(name).ok_or_else(|| {
             let x = format!("Couldn't find a macro definition for {name}");
-            ParseError::from_pos(x, macro_call.name)
+            UserError::from_text(x, &sources.get_source_info(&macro_call.name).unwrap(), true)
         })?;
 
         Ok(def.expand(sources, macro_call.args))

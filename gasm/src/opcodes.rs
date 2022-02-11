@@ -1,4 +1,4 @@
-use crate::expr;
+use crate::{error, expr};
 use crate::expr::parse_expr;
 use crate::indexed::parse_indexed;
 use crate::item::AddrModeParseType;
@@ -39,13 +39,13 @@ pub fn opcode_just_token(input: Span) -> IResult<Span> {
 }
 
 pub fn opcode_token(input: Span) -> IResult<(&InstructionInfo, Span)> {
-    use crate::error::error;
+    use crate::error::parse_error;
     let (rest, matched) = recognize(pair(alpha1, digit0))(input)?;
 
     if let Some(op_code) = OPCODES_REC.get_opcode(&matched) {
         Ok((rest, (op_code, matched)))
     } else {
-        Err(error("Expected an opcode", input))
+        Err(parse_error("Expected an opcode", input))
     }
 }
 
@@ -163,7 +163,7 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
         Ok((rest, node))
     } else {
         let msg = format!("{} does not support {:?} addresing mode", text, amode);
-        Err(nom::Err::Failure(ParseError::new(msg, &input)))
+        Err(crate::error::parse_error(&msg, input))
     }
 }
 
@@ -185,7 +185,7 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
         Ok((rest, ret))
     } else {
         let msg = format!("Missing operand for {}", text);
-        Err(nom::Err::Failure(ParseError::new(msg, &input)))
+        Err(crate::error::parse_failure(&msg, matched_span))
     }
 }
 

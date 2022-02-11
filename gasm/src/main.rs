@@ -64,6 +64,7 @@ use crate::error::*;
 
 use assemble::Assembler;
 
+
 fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
     let msg = format!("Assembling {}", ctx.file.to_string_lossy());
 
@@ -71,13 +72,9 @@ fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::erro
         use assemble::Assembler;
         use ast::Ast;
 
-        let mut errors = vec![];
+        let mut errors = UserErrors::new(5);
 
         let ( tokens, sources) = tokenize::tokenize(ctx, &mut errors)?;
-
-        // we need to expand macros and tokenize them
-        // take mut sources and mut tokens
-        // expand_macros(&mut tokens, &mut sources, &macros)?;
 
         let ast = Ast::from_nodes(tokens, sources)?;
 
@@ -127,7 +124,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(sym_file) = ctx.syms {
         x.status(format!("Writing symbols: {}", sym_file));
-        let j = serde_json::to_string_pretty(&ret.database).unwrap();
+        let j = serde_json::to_string_pretty(&ret.database).expect("Unable to serialize to json");
         fs::write(sym_file, j).expect("Unable to write file");
     }
 

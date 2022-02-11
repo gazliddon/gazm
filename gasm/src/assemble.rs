@@ -255,7 +255,7 @@ impl Assembler {
             does not fit in a byte",
                 val
             );
-            UserError::from_text(msg, info, &n.value().pos)
+            UserError::from_text(msg, info, true)
         })
     }
 
@@ -268,7 +268,7 @@ impl Assembler {
             does not fit in a word",
                 val
             );
-            UserError::from_text(msg, info, &n.value().pos)
+            UserError::from_text(msg, info, true)
         })
     }
 
@@ -285,9 +285,9 @@ impl Assembler {
         node_mut.value().item = value;
     }
 
-    fn user_error<S: Into<String>>(&self, err: S, node: AstNodeRef) -> UserError {
+    fn user_error<S: Into<String>>(&self, err: S, node: AstNodeRef, is_failure: bool) -> UserError {
         let info = self.sources.get_source_info(&node.value().pos).unwrap();
-        UserError::from_text(err, &info, &node.value().pos)
+        UserError::from_text(err, &info, is_failure)
     }
 
     fn eval_node(&self, node: AstNodeRef) -> Result<i64, UserError> {
@@ -300,7 +300,7 @@ impl Assembler {
     fn eval_first_arg(&self, node: AstNodeRef) -> Result<(i64, AstNodeId), UserError> {
         let c = node
             .first_child()
-            .ok_or_else(|| self.user_error("Missing argument", node))?;
+            .ok_or_else(|| self.user_error("Missing argument", node, true))?;
         let v = self.eval_node(c)?;
         Ok((v, c.id()))
     }
@@ -483,7 +483,7 @@ impl Assembler {
                     let x = self.eval_node(n)?;
                     self.bin
                         .write_word_check_size(x)
-                        .map_err(|_| self.user_error("Does not fit in a word", n))?;
+                        .map_err(|_| self.user_error("Does not fit in a word", n, true))?;
                 }
 
                 let range = pc as usize..self.bin.get_write_address() as usize;
@@ -495,7 +495,7 @@ impl Assembler {
                     let x = self.eval_node(n)?;
                     self.bin
                         .write_byte_check_size(x)
-                        .map_err(|_| self.user_error("Does not fit in a word", n))?;
+                        .map_err(|_| self.user_error("Does not fit in a word", n, true))?;
                 }
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);
@@ -533,7 +533,7 @@ impl Assembler {
                 for _ in 0..size {
                     self.bin
                         .write_byte_check_size(byte)
-                        .map_err(|_| self.user_error("Does not fit in a word", node))?;
+                        .map_err(|_| self.user_error("Does not fit in a word", node, true))?;
                 }
                 let range = pc as usize..self.bin.get_write_address() as usize;
                 self.source_map.add_mapping(range, pos, ItemType::Command);

@@ -23,7 +23,7 @@ static LOCAL_LABEL_PREFIX: &str = "@!";
 static OK_LABEL_CHARS: &str = "_?.";
 
 pub fn get_just_label(input: Span) -> IResult<Span> {
-    use crate::error::error;
+    use crate::error::parse_error;
     // match a label identifier
     let (rest,matched) = recognize(
         pair(alt((alpha1, is_a(OK_LABEL_CHARS))),
@@ -32,7 +32,7 @@ pub fn get_just_label(input: Span) -> IResult<Span> {
     // make sure it's not a command or opcode
     if all_consuming(alt((command_token, opcode_just_token)))(matched).is_ok() {
         let msg = format!("{} is a reserved keyword and cannot be used as a label",matched);
-        Err(error(&msg, matched))
+        Err(parse_error(&msg, matched))
     } else {
         Ok((rest, matched))
     }

@@ -126,10 +126,8 @@ fn command_token_function(input: Span) -> IResult< (Span, CommandParseFn ) > {
     if let Some(func) = PARSE_ARG.get(token.as_str()) {
         Ok((rest, (matched, *func )))
     } else {
-        Err(nom::Err::Error(ParseError::new(
-            "This is not a command token".to_owned(),
-            &input,
-        )))
+        Err(
+            crate::error::parse_error("This is not a command token", input))
     }
 }
 

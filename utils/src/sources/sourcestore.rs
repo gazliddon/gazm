@@ -124,6 +124,7 @@ pub struct SourceInfo<'a> {
     pub col: usize,
     pub source_file: &'a SourceFile,
     pub file: PathBuf,
+    pub pos : Position,
 }
 
 #[derive(Debug)]
@@ -170,6 +171,7 @@ impl Sources {
                 fragment,
                 source_file,
                 file: source_file.file.clone(),
+                pos : pos.clone(),
             };
 
             Ok(ret)

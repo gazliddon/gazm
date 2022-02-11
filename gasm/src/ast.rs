@@ -229,18 +229,17 @@ impl Ast {
         self.convert_error(e)
     }
 
-    fn node_error(&self, msg: &str, id: AstNodeId) -> UserError {
+    fn node_error(&self, msg: &str, id: AstNodeId, is_failure : bool) -> UserError {
         let node = self.tree.get(id).unwrap();
         let si = &self.get_source_info_from_node_id(node.id()).unwrap();
-        let pos = &node.value().pos;
-        UserError::from_text(msg, si, pos)
+        UserError::from_text(msg, si, is_failure)
     }
 
     pub fn eval(&self, symbols: &SymbolTable, id: AstNodeId) -> Result<i64, UserError> {
         use super::eval::eval;
         let node = self.tree.get(id).unwrap();
 
-        let err = |m| self.node_error(m, id);
+        let err = |m| self.node_error(m, id, true);
 
         let first_child = node
             .first_child()

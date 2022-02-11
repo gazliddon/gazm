@@ -15,7 +15,7 @@ fn num_get(input : Span) -> IResult<Span> {
 
 fn num_parse_err<'a>(input : Span<'a>, radix : &str, e : std::num::ParseIntError ) -> nom::Err<ParseError> {
     let e = format!("Parsing {}: {}",radix, e);
-    nom::Err::Error(ParseError::new(e, &input))
+    nom::Err::Error(ParseError::new(e, &input, true))
 }
 
 pub fn parse_hex(input: Span) -> IResult<i64> {

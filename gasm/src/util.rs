@@ -5,7 +5,7 @@ use crate::{cli, numbers};
 use crate::labels;
 use crate::expr::{self, parse_expr};
 
-use crate::error::{IResult, ParseError};
+use crate::error::{IResult, ParseError, UserErrors};
 use crate::locate::{Span, matched_span, };
 
 use nom::{InputTake, Offset};
@@ -130,7 +130,7 @@ pub fn compile_text(code: &str) -> Result<String, String> {
 
     let file_name = &PathBuf::from("nofile");
 
-    let mut errors : Vec<ParseError> = vec![];
+    let mut errors = UserErrors::new(0);
 
     let ctx = cli::Context::default();
 
