@@ -35,8 +35,8 @@ use romloader::sources::{AsmSource, SourceFileLoader, Sources};
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
-        multispace0,
-        terminated(recognize(many0(is_not("\n"))), opt(line_ending)),
+            multispace0,
+            terminated(recognize(many0(is_not("\n"))), opt(line_ending)),
     ))(input)?;
 
     Ok((rest, line))
@@ -300,10 +300,10 @@ use crate::macros::Macros;
 
 pub fn tokenize(
     ctx: &cli::Context,
-    errors: &mut UserErrors,
 ) -> anyhow::Result<(Node, Sources)> {
     let mut macros = Macros::new();
     let file = ctx.file.clone();
+    let mut errors =  UserErrors::new(10);
 
     let mut paths = vec![];
 
@@ -321,8 +321,14 @@ pub fn tokenize(
         &ctx.file,
         &parent,
         &mut macros,
-        errors,
-    )?;
+        &mut errors,
+    ).map_err(|e| {
+        if errors.has_errors() {
+            anyhow::Error::new(errors)
+        } else {
+            e
+        }
+    })?;
 
     Ok((res, fl.sources))
 }

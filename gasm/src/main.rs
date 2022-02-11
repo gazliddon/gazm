@@ -72,9 +72,7 @@ fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::erro
         use assemble::Assembler;
         use ast::Ast;
 
-        let mut errors = UserErrors::new(5);
-
-        let ( tokens, sources) = tokenize::tokenize(ctx, &mut errors)?;
+        let ( tokens, sources) = tokenize::tokenize(ctx)?;
 
         let ast = Ast::from_nodes(tokens, sources)?;
 
