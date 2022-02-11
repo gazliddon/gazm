@@ -19,12 +19,23 @@ fn get_comment(input: Span) -> IResult<Span> {
     let comments = alt((tag(";"), tag("//")));
     recognize(pair(comments, not_line_ending))(input)
 }
+fn get_star_comment(input: Span) -> IResult<Span> {
+    let comments = tag("*");
+    recognize(pair(comments, not_line_ending))(input)
+}
 
 fn parse_comment(input: Span) -> IResult<Node> {
     use Item::*;
 
     let (rest, matched) = get_comment(input)?;
     let ret = Node::from_item_span(Comment(matched.to_string()),input);
+    Ok((rest, ret))
+}
+
+pub fn strip_star_comment(input: Span) -> IResult<Node> {
+    use crate::util::ws;
+    let (rest, matched) = ws(get_star_comment)(input)?;
+    let ret = Node::from_item_span(Item::Comment(matched.to_string()),input);
     Ok((rest, ret))
 }
 

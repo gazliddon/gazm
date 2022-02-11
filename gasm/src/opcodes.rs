@@ -190,7 +190,8 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
 }
 
 pub fn parse_opcode(input: Span) -> IResult<Node> {
-    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;
+    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input).map_err(|_|
+        crate::error::parse_failure("Expected an opcode", input))?;
     Ok((rest, item))
 }
 

@@ -159,44 +159,54 @@ impl Tokens {
 
                 source = rest;
 
-                if !line.is_empty() {
-                    let (input, comment) = comments::strip_comments(line)?;
-                    self.add_some_node(comment);
-
-                    if input.is_empty() {
-                        continue;
-                    }
-
-                    // An equate
-                    if let Ok((rest, equate)) = ws(parse_assignment)(input) {
-                        self.add_node(equate);
-                        self.handle_trailing_text(rest)?;
-                        continue;
-                    }
-
-                    if let Ok((rest, mcall)) = ws(parse_macro_call)(input) {
-                        let span = matched_span(input, rest);
-                        let node = Node::from_item_span(Item::MacroCall(mcall), span);
-                        self.add_node(node);
-                        self.handle_trailing_text(rest)?;
-                        continue;
-                    }
-
-                    if let Ok((_, label)) = all_consuming(ws(parse_label))(input) {
-                        let node = mk_pc_equate(label);
-                        self.add_node(node);
-                        continue;
-                    }
-
-                    let body = alt((ws(parse_opcode), ws(parse_command)));
-                    let (rest, (label, body)) = pair(opt(parse_label), body)(input)?;
-                    self.handle_trailing_text(rest)?;
-
-                    let label = label.map(mk_pc_equate);
-                    self.add_some_node(label);
-                    self.add_node(body);
-                    ()
+                if line.is_empty() {
+                    continue;
                 }
+
+                if self.ctx.star_comments {
+                    if let Ok((_rest, matched )) = comments::strip_star_comment(line) {
+                        self.add_node(matched);
+                        continue;
+                    }
+                }
+
+                let (input, comment) = comments::strip_comments(line)?;
+                self.add_some_node(comment);
+
+                if input.is_empty() {
+                    continue;
+                }
+
+                // An equate
+                if let Ok((rest, equate)) = ws(parse_assignment)(input) {
+                    self.add_node(equate);
+                    self.handle_trailing_text(rest)?;
+                    continue;
+                }
+
+                if let Ok((rest, mcall)) = ws(parse_macro_call)(input) {
+                    let span = matched_span(input, rest);
+                    let node = Node::from_item_span(Item::MacroCall(mcall), span);
+                    self.add_node(node);
+                    self.handle_trailing_text(rest)?;
+                    continue;
+                }
+
+                if let Ok((_, label)) = all_consuming(ws(parse_label))(input) {
+                    let node = mk_pc_equate(label);
+                    self.add_node(node);
+                    continue;
+                }
+
+                let body = alt((ws(parse_opcode), ws(parse_command)));
+                let (rest, (label, body)) = pair(opt(parse_label), body)(input)?;
+                println!("!!!! 3");
+                self.handle_trailing_text(rest)?;
+
+                let label = label.map(mk_pc_equate);
+                self.add_some_node(label);
+                self.add_node(body);
+                ()
             };
 
             match &res {
@@ -303,7 +313,7 @@ pub fn tokenize(
 ) -> anyhow::Result<(Node, Sources)> {
     let mut macros = Macros::new();
     let file = ctx.file.clone();
-    let mut errors =  UserErrors::new(10);
+    let mut errors =  UserErrors::new(ctx.max_errors);
 
     let mut paths = vec![];
 

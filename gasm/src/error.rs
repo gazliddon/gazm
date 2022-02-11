@@ -47,6 +47,12 @@ impl ParseError {
         }
     }
 
+    pub fn with_message(self, msg : &str) -> Self {
+        let mut ret = self;
+        ret.message = Some(msg.to_string());
+        ret
+    }
+
     pub fn set_failure(self, failure: bool) -> Self {
         let mut ret = self;
         ret.failure = failure;
