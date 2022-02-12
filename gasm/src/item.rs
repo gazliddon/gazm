@@ -295,8 +295,11 @@ pub enum Item {
     And,
     Or,
     Xor,
+    ShiftRight,
+    ShiftLeft,
     UnaryPlus,
     UnaryMinus,
+    UnaryGreaterThan,
 }
 
 impl GetPriotity for Item {

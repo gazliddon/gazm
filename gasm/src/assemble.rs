@@ -15,8 +15,8 @@ use crate::eval::eval;
 use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
-use crate::util;
 use crate::messages::info;
+use crate::util;
 use crate::util::ByteSize;
 use item::{Item, Node};
 use romloader::sources::{ItemType, SourceDatabase, SourceMapping, Sources, SymbolTable};
@@ -212,6 +212,7 @@ pub struct Assembler {
     bin: Binary,
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
+    direct_page : u8,
 }
 
 fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Result<i64, UserError> {
@@ -229,11 +230,16 @@ impl From<crate::ast::Ast> for Assembler {
             bin: Binary::new(),
             tree: ast.tree,
             source_map: SourceMapping::new(),
+            direct_page: 0,
         }
     }
 }
 
 impl Assembler {
+    pub fn set_dp(&mut self, dp : u8) {
+        self.direct_page = dp;
+    }
+
     pub fn assemble_indexed_opcode(
         &mut self,
         _ins: &emu::isa::Instruction,
@@ -471,8 +477,7 @@ impl Assembler {
                 self.source_map.stop_macro();
             }
 
-            Block |
-            TokenizedFile(..) => {
+            Block | TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
                     self.assemble_node(c)?;
@@ -540,7 +545,8 @@ impl Assembler {
                 self.source_map.add_mapping(range, pos, ItemType::Command);
             }
 
-            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) | StructDef(..) => (),
+            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..)
+            | StructDef(..) => (),
 
             _ => {
                 panic!("Unable to assemble {:?}", i);
@@ -576,6 +582,9 @@ impl Assembler {
                     use item::IndexParseType::*;
 
                     match pmode {
+                        Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..)
+                        | Sub(..) | SubSub(..) => (),
+
                         ConstantByteOffset(..)
                         | PcOffsetByte(..)
                         | PcOffsetWord(..)
@@ -589,9 +598,11 @@ impl Assembler {
 
                             let mut bs = v.byte_size();
 
-                            if let ByteSizes::Bits5(..) = bs {
+                            if let ByteSizes::Bits5(val) = bs {
                                 if indirect {
-                                    bs.promote();
+                                    // Indirect constant offset does not support
+                                    // 5 bit offsets so promote to 8 bit
+                                    bs = ByteSizes::Byte(val);
                                 }
                             }
 
@@ -629,6 +640,7 @@ impl Assembler {
                             };
 
                             let ins = ins.clone();
+
                             self.set_item(
                                 id,
                                 OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
@@ -636,7 +648,6 @@ impl Assembler {
                         }
 
                         ExtendedIndirect => pc += 2,
-                        _ => (),
                     };
                 }
             }
@@ -647,8 +658,7 @@ impl Assembler {
                 self.symbols.add_symbol_with_value(name, pc as i64).unwrap();
             }
 
-            Block |
-            ExpandedMacro(..) | TokenizedFile(..) => {
+            Block | ExpandedMacro(..) | TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
                     pc = self.size_node(pc, c)?;

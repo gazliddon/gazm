@@ -199,6 +199,7 @@ impl Tokens {
 
                 if res.is_ok() {
                     let (rest, def) = res.unwrap();
+                    println!("Added macro defo {}", &def.name);
                     macros.add_def(def);
                     source = rest;
                     continue;

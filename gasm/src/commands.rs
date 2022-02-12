@@ -84,6 +84,12 @@ fn parse_zmd_arg( input: Span) -> IResult< Node> {
     Ok((rest,ret))
 }
 
+fn parse_setdp_arg( input: Span) -> IResult< Node> {
+    let (rest, matched) = parse_expr(input)?;
+    let ret = Node::from_item_span(SetDp, input).with_child(matched);
+    Ok((rest,ret))
+}
+
 fn mk_fill(input : Span, cv: ( Node, Node) ) -> Node {
     let (count, value) = cv;
     Node::from_item_span(Fill, input).with_children(vec![count,value])
@@ -101,6 +107,7 @@ fn parse_bsz_arg( input : Span) -> IResult< Node> {
 lazy_static! {
     static ref PARSE_ARG: HashMap<&'static str, CommandParseFn>= {
         let v : Vec<(_, CommandParseFn)>= vec![
+            ("setdp", parse_setdp_arg),
             ("bsz", parse_bsz_arg),
             ("fill", parse_fill_arg),
             ("fdb", parse_fdb_arg),

@@ -81,10 +81,12 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
-fn parse_op_allowed<'a>(input: Span<'a>, ops: &str) -> IResult<'a, Node> {
-    let (rest, matched) = one_of(ops)(input)?;
-
-    let op = to_op(matched).unwrap();
+fn parse_unary_op<'a>(input: Span<'a>) -> IResult<'a, Node> {
+    use nom::combinator::map;
+    let (rest, op) = alt((
+            map(tag("-"), |_| Item::UnaryMinus),
+            map(tag(">"), |_| Item::UnaryGreaterThan),
+    ))(input)?;
 
     let matched_span = matched_span(input, rest);
     let ret = Node::from_item_span(op, matched_span);
@@ -92,31 +94,31 @@ fn parse_op_allowed<'a>(input: Span<'a>, ops: &str) -> IResult<'a, Node> {
     Ok((rest, ret))
 }
 
-fn parse_unary_op(input: Span) -> IResult<Node> {
-    let ops = "-";
-    parse_op_allowed(input, ops)
-}
+fn parse_binary_op<'a>(input: Span<'a>) -> IResult<'a, Node> {
+    use nom::combinator::map;
+    // let (rest, matched) = one_of(ops)(input)?;
+    // let op = to_op(matched).unwrap();
 
-fn to_op(c: char) -> Result<Item, ()> {
-    match c {
-        '+' => Ok(Item::Add),
-        '-' => Ok(Item::Sub),
-        '*' => Ok(Item::Mul),
-        '/' => Ok(Item::Div),
-        '|' => Ok(Item::Or),
-        '&' => Ok(Item::And),
-        '^' => Ok(Item::Xor),
-        _ => Err(()),
-    }
-}
+    let (rest, op) = alt((
+            map(tag("+"), |_| Item::Add),
+            map(tag("-"), |_| Item::Sub),
+            map(tag("*"), |_| Item::Mul),
+            map(tag("/"), |_| Item::Div),
+            map(tag("|"), |_| Item::Or),
+            map(tag("&"), |_| Item::And),
+            map(tag("^"), |_| Item::Xor),
+            map(tag(">>"), |_| Item::ShiftRight),
+            map(tag("<<"), |_| Item::ShiftLeft),
+    ))(input)?;
 
-fn parse_op(input: Span) -> IResult<Node> {
-    let ops = "+-*/|&^";
-    parse_op_allowed(input, ops)
+    let matched_span = matched_span(input, rest);
+    let ret = Node::from_item_span(op, matched_span);
+
+    Ok((rest, ret))
 }
 
 fn parse_op_term(input: Span) -> IResult<(Node, Node)> {
-    let (rest, (op, term)) = separated_pair(parse_op, multispace0, parse_term)(input)?;
+    let (rest, (op, term)) = separated_pair(parse_binary_op, multispace0, parse_term)(input)?;
     Ok((rest, (op, term)))
 }
 
