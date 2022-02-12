@@ -33,6 +33,11 @@ impl Position {
 
 impl<'a> Default for Position {
     fn default() -> Self {
-        todo!()
+        Self {
+            line : 0,
+            col: 0,
+            range : 0..0,
+            src: AsmSource::FromStr,
+        }
     }
 }

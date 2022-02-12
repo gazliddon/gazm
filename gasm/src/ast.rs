@@ -70,8 +70,8 @@ pub struct Ast {
 }
 
 impl Ast {
-    pub fn from_nodes(n: Node, sources: Sources) -> Result<Self, UserError> {
-        let tree = make_tree(&n);
+    pub fn from_nodes(node: Node, sources: Sources) -> Result<Self, UserError> {
+        let tree = make_tree(&node);
         Self::new(tree, sources)
     }
 

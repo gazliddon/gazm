@@ -66,7 +66,7 @@ use assemble::Assembler;
 
 
 fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
-    let msg = format!("Assembling {}", ctx.file.to_string_lossy());
+    let msg = format!("Assembling {}", "TBD");
 
    status(&msg, |x| {
         use assemble::Assembler;

@@ -471,6 +471,7 @@ impl Assembler {
                 self.source_map.stop_macro();
             }
 
+            Block |
             TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
@@ -646,6 +647,7 @@ impl Assembler {
                 self.symbols.add_symbol_with_value(name, pc as i64).unwrap();
             }
 
+            Block |
             ExpandedMacro(..) | TokenizedFile(..) => {
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {

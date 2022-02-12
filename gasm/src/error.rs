@@ -285,6 +285,12 @@ impl UserErrors {
         }
     }
 
+    pub fn add_errors(&mut self, other : Self) {
+        for x in other.errors.into_iter() {
+            self.errors.push(x)
+        }
+    }
+
     pub fn num_of_errors(&self) -> usize {
         self.errors.len()
     }
