@@ -22,7 +22,7 @@ fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
 }
 
 /// Evaluates a node and returns an item
-/// Node can only c?ontain
+/// Node can only contain
 ///  - Labels that can resolve to a value
 ///  - Numbers
 ///  - PostFixExpr containing only labels and numbers
@@ -40,7 +40,7 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
             .get_value(name)
             .map(Item::number)
             .map_err(|_| {
-                let msg = format!("Couldn't find symbol {}", name);
+                let msg = format!("Evaluation: Couldn't find symbol {}", name);
                 AstError::from_node(&msg, n)
             })?,
 
@@ -53,14 +53,16 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
 
             let num = &match ops.value().item {
                 Item::Sub => Item::Number(-num),
-                _ => panic!()
+                _ => {
+                    let msg = format!("Evaluation: Unhandled unary term {:?}", ops.value().item);
+                    return Err(AstError::from_node(&msg, ops))
+                }
             };
 
             num.clone()
         },
 
         Number(_) => i.clone(),
-
 
         _ => {
             let msg = format!("Can't evaluate: {:#?}", i);
@@ -114,6 +116,8 @@ fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> 
                 Add => rhs + lhs,
                 Sub => rhs - lhs,
                 And => rhs & lhs,
+                ShiftLeft => rhs >> (lhs as u64),
+                ShiftRight => rhs << ( lhs as u64),
                 _ => return Err(AstError::from_node("Unexpected op ", *cn)),
             };
 

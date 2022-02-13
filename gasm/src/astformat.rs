@@ -123,6 +123,14 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{name} : {}", child_string(0) )
             },
 
+            ShiftRight => {
+                ">>".into()
+            },
+
+            ShiftLeft => {
+                "<<".into()
+            }
+
             OpCode(ins, amode) => {
                 use item::AddrModeParseType::*;
 

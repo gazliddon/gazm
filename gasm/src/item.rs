@@ -248,6 +248,7 @@ pub enum Item {
     StructEntry(String),
 
     SetPc(u16),
+    SetPut(u16),
 
     Expr,
     PostFixExpr,
@@ -280,6 +281,7 @@ pub enum Item {
     TokenizedFile(PathBuf, PathBuf, String),
 
     Org,
+    Put,
     Fdb(usize),
     Fcb(usize),
     Fcc(String),
@@ -310,6 +312,8 @@ impl GetPriotity for Item {
             Item::Add => Some(4),
             Item::Sub => Some(4),
             Item::And => Some(3),
+            Item::ShiftRight => Some(2),
+            Item::ShiftLeft => Some(2),
             _ => None,
         }
     }
@@ -487,6 +491,12 @@ impl<'a> Display for BaseNode<Item, Position> {
             }
 
             Block => {
+                let children: Vec<String> =
+                    self.children.iter().map(|n| format!("{}", &*n)).collect();
+                format!("{}",children.join("\n"))
+            }
+
+            SetDp => {
                 let children: Vec<String> =
                     self.children.iter().map(|n| format!("{}", &*n)).collect();
                 format!("{}",children.join("\n"))

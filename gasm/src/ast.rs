@@ -86,7 +86,7 @@ impl Ast {
 
         // TODO!
         // handle error properly
-        let _ = ret.postfix_expressions().unwrap();
+        ret.postfix_expressions()?;
 
         ret.generate_struct_symbols()?;
 
@@ -164,10 +164,14 @@ impl Ast {
     fn node_to_postfix(&self, node: AstNodeRef) -> Result<Vec<AstNodeId>, String> {
         use postfix::PostFixer;
 
-        let args = node.children().map(|n| Term::new(&n)).collect();
+        let args : Vec<_> = node.children().map(|n| Term::new(&n)).collect();
 
         let mut pfix: PostFixer<Term> = postfix::PostFixer::new();
-        let ret = pfix.get_postfix(args);
+        let ret = pfix.get_postfix(args.clone()).map_err(|s| {
+            let args : Vec<String> = args.iter().map(|a| format!("{:?}", self.tree.get(a.node).unwrap().value().item )).collect();
+            format!("\n{:?}\n {}",self.tree.get(s.node).unwrap().value(), args.join("\n"))
+        }
+            )?;
 
         let ret = ret.iter().map(|t| t.node).collect();
 
@@ -178,8 +182,9 @@ impl Ast {
     // Make this and other functions return an appropriate
     // error rather tha a string
 
-    fn postfix_expressions(&mut self) -> Result<(), String> {
+    fn postfix_expressions(&mut self) -> Result<(), UserError> {
         info("Converting expressions to poxtfix", |x| {
+            use crate::error::UserError;
             use Item::*;
 
             let mut to_convert: Vec<(AstNodeId, Vec<AstNodeId>)> = vec![];
@@ -189,18 +194,27 @@ impl Ast {
                 let v = n.value();
 
                 if let Expr = v.item {
-                    let new_order = self.node_to_postfix(n)?;
+                    let new_order = self.node_to_postfix(n).map_err(|s| {
+                        let si = self.get_source_info_from_node_id(n.id()).unwrap();
+                        let msg = format!("Can't convert to postfix: {}", s);
+                        UserError::from_text(msg, &si, true)
+                    })?;
+
                     to_convert.push((n.id(), new_order));
                 }
             }
 
             for (parent, new_children) in &to_convert {
                 for c in new_children {
-                    let mut c = self.tree.get_mut(*c).ok_or("Illegal node value")?;
-                    c.detach();
+                    if let Some(mut c) = self.tree.get_mut(*c) {
+                        c.detach();
+                    } else {
+                        let si = self.get_source_info_from_node_id(*c).unwrap();
+                        return Err(UserError::from_text("Can't get a mutatable node", &si, true))
+                    }
                 }
 
-                let mut p = self.tree.get_mut(*parent).ok_or("Illegal node value")?;
+                let mut p = self.tree.get_mut(*parent).unwrap();
 
                 for c in new_children {
                     p.append_id(*c);
@@ -229,7 +243,7 @@ impl Ast {
         self.convert_error(e)
     }
 
-    fn node_error(&self, msg: &str, id: AstNodeId, is_failure : bool) -> UserError {
+    fn node_error(&self, msg: &str, id: AstNodeId, is_failure: bool) -> UserError {
         let node = self.tree.get(id).unwrap();
         let si = &self.get_source_info_from_node_id(node.id()).unwrap();
         UserError::from_text(msg, si, is_failure)
@@ -361,6 +375,8 @@ pub fn to_priority(i: &Item) -> Option<usize> {
         And => Some(2),
         Or => Some(2),
         Xor => Some(2),
+        ShiftLeft => Some(1),
+        ShiftRight => Some(1),
         _ => None,
     }
 }

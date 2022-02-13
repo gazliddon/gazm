@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::expr::parse_expr;
 use crate::labels::{get_just_label, parse_just_label};
 use crate::locate::{Span, matched_span, span_to_pos};
-use crate::util::{self, get_block, sep_list1, wrapped_chars, ws};
+use crate::util::{self, get_block, sep_list1, sep_list0,wrapped_chars, ws};
 
 use nom::multi::separated_list0;
 use nom::{
@@ -72,7 +72,7 @@ pub fn get_macro_def(input: Span<'_>) -> IResult<(Span, Vec<Span>, Span)> {
     use nom::bytes::complete::tag;
     let rest = input;
     let (rest, (_, name)) = ws(separated_pair(tag("macro"), multispace1, get_just_label))(rest)?;
-    let (rest, params) = wrapped_chars('(', sep_list1(get_just_label), ')')(rest)?;
+    let (rest, params) = wrapped_chars('(', sep_list0(get_just_label), ')')(rest)?;
     let (rest, body) = get_block(rest)?;
     Ok((rest, (name, params, body)))
 }

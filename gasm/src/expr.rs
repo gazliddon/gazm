@@ -84,7 +84,7 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
 fn parse_unary_op<'a>(input: Span<'a>) -> IResult<'a, Node> {
     use nom::combinator::map;
     let (rest, op) = alt((
-            map(tag("-"), |_| Item::UnaryMinus),
+            map(tag("-"), |_| Item::Sub),
             map(tag(">"), |_| Item::UnaryGreaterThan),
     ))(input)?;
 

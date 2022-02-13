@@ -7,7 +7,7 @@ use Item::*;
 
 type CommandParseFn = fn( Span)-> IResult<Node>;
 
-use crate::{item::{Item, Node}, locate::matched_span, util::match_escaped_str};
+use crate::{astformat::as_string, item::{Item, Node}, locate::matched_span, util::match_escaped_str};
 
 use nom::{
     branch::alt,
@@ -59,12 +59,6 @@ fn parse_include_arg(input : Span) -> IResult< Node> {
     Ok((rest, ret))
 }
 
-fn parse_set_dp(input : Span) -> IResult< Node> {
-    let (rest, matched) = parse_expr(input)?;
-    let ret = Node::from_item_span(SetDp, input).with_child(matched);
-    Ok((rest,ret)) 
-}
-
 fn parse_fill_arg( input: Span) -> IResult< Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let (rest, matched) = separated_pair(parse_expr, sep, parse_expr)(input)?;
@@ -90,6 +84,13 @@ fn parse_setdp_arg( input: Span) -> IResult< Node> {
     Ok((rest,ret))
 }
 
+fn parse_put_arg( input: Span) -> IResult< Node> {
+    let (rest, matched) = parse_expr(input)?;
+    let ret = Node::from_item_span(Put, input).with_child(matched);
+    Ok((rest,ret))
+}
+
+
 fn mk_fill(input : Span, cv: ( Node, Node) ) -> Node {
     let (count, value) = cv;
     Node::from_item_span(Fill, input).with_children(vec![count,value])
@@ -107,6 +108,7 @@ fn parse_bsz_arg( input : Span) -> IResult< Node> {
 lazy_static! {
     static ref PARSE_ARG: HashMap<&'static str, CommandParseFn>= {
         let v : Vec<(_, CommandParseFn)>= vec![
+            ("put", parse_put_arg),
             ("setdp", parse_setdp_arg),
             ("bsz", parse_bsz_arg),
             ("fill", parse_fill_arg),
@@ -118,7 +120,6 @@ lazy_static! {
             ("rmb", parse_fdb_arg),
             ("org", parse_org_arg),
             ("include", parse_include_arg),
-            ("setdp", parse_set_dp),
         ];
         v.into_iter().collect()
     };

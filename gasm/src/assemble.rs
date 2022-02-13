@@ -139,6 +139,9 @@ impl Binary {
     pub fn set_write_addr(&mut self, pc: usize) {
         self.write_address = pc;
     }
+    pub fn set_put_addr(&mut self, _put: usize) {
+        panic!()
+    }
 
     pub fn get_range(&self) -> Option<(usize, usize)> {
         self.range
@@ -212,7 +215,7 @@ pub struct Assembler {
     bin: Binary,
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
-    direct_page : u8,
+    direct_page : Option<u8>,
 }
 
 fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Result<i64, UserError> {
@@ -230,14 +233,18 @@ impl From<crate::ast::Ast> for Assembler {
             bin: Binary::new(),
             tree: ast.tree,
             source_map: SourceMapping::new(),
-            direct_page: 0,
+            direct_page: None,
         }
     }
 }
 
 impl Assembler {
-    pub fn set_dp(&mut self, dp : u8) {
-        self.direct_page = dp;
+    pub fn set_dp(&mut self, dp : i64) {
+        if dp < 0 {
+            self.direct_page = None
+        } else {
+            self.direct_page = Some(dp as u64 as u8)
+        }
     }
 
     pub fn assemble_indexed_opcode(
@@ -397,6 +404,14 @@ impl Assembler {
                     *pc
                 ));
             }
+            SetPut(put) => {
+                self.bin.set_put_addr(*put as usize);
+                x.debug(format!(
+                    "Set PUT to
+                {:02X}",
+                    *put
+                ));
+            }
 
             OpCode(ins, amode) => {
                 use emu::isa::AddrModeEnum::*;
@@ -548,9 +563,15 @@ impl Assembler {
             Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..)
             | StructDef(..) => (),
 
+            SetDp => {
+                let (dp,_) = self.eval_first_arg(node)?;
+                self.set_dp(dp);
+            }
+
             _ => {
                 panic!("Unable to assemble {:?}", i);
             }
+
         }
 
         Ok(())
@@ -569,6 +590,12 @@ impl Assembler {
             Org => {
                 let (value, _) = self.eval_first_arg(node)?;
                 self.set_item(id, Item::SetPc(value as u16));
+                pc = value as u64;
+            }
+
+            Put => {
+                let (value, _) = self.eval_first_arg(node)?;
+                self.set_item(id, Item::SetPut(value as u16));
                 pc = value as u64;
             }
 
@@ -693,6 +720,11 @@ impl Assembler {
                 let (_, c) = self.eval_two_args(node)?;
                 assert!(c >= 0);
                 pc += c as u64;
+            }
+
+            SetDp => {
+                let (dp,_) = self.eval_first_arg(node)?;
+                self.set_dp(dp);
             }
 
             Assignment(..) | Comment(..) | MacroDef(..) | StructDef(..) => (),

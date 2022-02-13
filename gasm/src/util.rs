@@ -22,7 +22,7 @@ use nom::character::complete::{
     char as nom_char, multispace0, multispace1,
     one_of, 
 };
-use nom::multi::separated_list1;
+use nom::multi::{ separated_list1, separated_list0 };
 use nom::sequence::{preceded, separated_pair, terminated, tuple};
 use nom::combinator::cut;
 use nom_locate::position;
@@ -68,12 +68,23 @@ F: nom::Parser<Span<'a>, O,ParseError> + Copy {
     }
 }
 
+pub fn sep_list0<'a, F, O>(
+    inner: F
+    ) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
+where
+F: nom::Parser<Span<'a>, O,ParseError> + Copy {
+    move |input: Span| {
+        let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
+        separated_list0(sep, inner)(input)
+    }
+}
+
 pub fn parse_assignment(input: Span) -> IResult< Node> {
     use labels::parse_label;
 
     let sep = tuple((multispace1,tag_no_case("equ"), multispace1));
 
-    let (rest, (label,arg)) = separated_pair(parse_label, sep, cut(parse_expr))(input)?;
+    let (rest, (label,arg)) = ws(separated_pair(parse_label, sep, parse_expr))(input)?;
 
     let matched_span = matched_span(input, rest);
 

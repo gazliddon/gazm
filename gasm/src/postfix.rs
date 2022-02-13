@@ -18,7 +18,7 @@ pub struct PostFixer<I : Clone + GetPriotity> {
     ret : Vec<I>,
 }
 
-impl<I : Clone + GetPriotity > PostFixer<I> {
+impl<I : Clone + GetPriotity + std::fmt::Debug > PostFixer<I> {
     pub fn new() -> Self {
         Self {
             opstack: Stack::new(),
@@ -27,13 +27,18 @@ impl<I : Clone + GetPriotity > PostFixer<I> {
         }
     }
 
-    fn emit(&mut self, i : &I){
+    fn emit(&mut self, i : &I) {
         self.ret.push(i.clone())
     }
 
-    fn push(&mut self, op : &I){
-        assert!(op.is_op());
-        self.opstack.push(op.clone())
+    fn push(&mut self, op : &I) -> Result<(),I>{
+        if op.is_op() {
+            self.opstack.push(op.clone()) ;
+        Ok(())
+
+        } else {
+            Err(op.clone())
+        }
     }
 
     fn flush(&mut self) {
@@ -49,7 +54,7 @@ impl<I : Clone + GetPriotity > PostFixer<I> {
         }
     }
 
-    pub fn get_postfix(&mut self, ops : Vec<I>) ->Vec<I> {
+    pub fn get_postfix(&mut self, ops : Vec<I>) ->Result<Vec<I>, I> {
 
         let mut it = ops.iter();
 
@@ -62,7 +67,7 @@ impl<I : Clone + GetPriotity > PostFixer<I> {
             while let Some([ op,rhs ]) = cit.next() {
                 if first {
                     self.emit(rhs);
-                    self.push(op);
+                    self.push(op)?;
                     first = false;
 
                 } else {
@@ -70,26 +75,24 @@ impl<I : Clone + GetPriotity > PostFixer<I> {
                     self.emit(rhs);
 
                     let top_pri = self.top_pri();
-                    let this_pri = op.priority().unwrap();
+                    let this_pri = op.priority().ok_or(op.clone())?;
 
                     if this_pri > top_pri {
                         self.emit(op);
                         self.flush()
                     } else {
-                        self.push(op);
+                        self.push(op)?;
                     }
                 }
             }
 
             self.flush();
-
-            std::mem::take(&mut self.ret)
+            Ok( std::mem::take(&mut self.ret) )
         } else {
-            ops
+            Ok(ops)
         }
     }
 }
-
 
 #[allow(unused_imports)]
 mod test {
@@ -161,7 +164,7 @@ mod test {
 
         let args : Vec<_> = test.chars().collect();
 
-        let ret = x.get_postfix(args);
+        let ret = x.get_postfix(args).unwrap();
         let result = eval(&ret);
         let ret_str = to_string(&ret);
 
