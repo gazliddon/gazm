@@ -93,6 +93,11 @@ fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
         registers |= 0x20;
     }
 
+    if regs.contains(&D) {
+        registers |= 0x02;
+        registers |= 0x04;
+    }
+
     if regs.contains(&U) || regs.contains(&S) {
         registers |= 0x40;
     }
