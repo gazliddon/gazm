@@ -236,7 +236,7 @@ impl SourceMapping {
         self.macro_stack.is_empty() == false
     }
 
-    pub fn add_mapping(&mut self, mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
+    pub fn add_mapping(&mut self, _sources : &Sources,mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
 
         let pos = self.get_macro_pos().unwrap_or(pos);
 

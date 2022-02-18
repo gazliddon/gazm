@@ -6,6 +6,7 @@ use crate::item::Item;
 use crate::postfix::GetPriotity;
 use romloader::Stack;
 
+use std::fmt::format;
 use std::{collections::HashMap, hash::Hash};
 
 use crate::error::AstError;
@@ -18,6 +19,21 @@ fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
         Ok(i)
     } else {
         Err(AstError::from_node("Expected a number", n))
+    }
+}
+
+impl GetPriotity for Item {
+    fn priority(&self) -> Option<usize> {
+        match self {
+            Item::Mul => Some(5),
+            Item::Div => Some(5),
+            Item::Add => Some(4),
+            Item::Sub => Some(4),
+            Item::And => Some(3),
+            Item::ShiftRight => Some(2),
+            Item::ShiftLeft => Some(2),
+            _ => None,
+        }
     }
 }
 
@@ -36,13 +52,10 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
     let rez = match i {
         PostFixExpr => eval_postfix(symbols, n)?,
 
-        Label(name) => symbols
-            .get_value(name)
-            .map(Item::number)
-            .map_err(|_| {
-                let msg = format!("Evaluation: Couldn't find symbol {}", name);
-                AstError::from_node(&msg, n)
-            })?,
+        Label(name) => symbols.get_value(name).map(Item::number).map_err(|_| {
+            let msg = format!("Evaluation: Couldn't find symbol {}", name);
+            AstError::from_node(&msg, n)
+        })?,
 
         UnaryTerm => {
             let ops = n.children().nth(0).unwrap();
@@ -55,18 +68,18 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
                 Item::Sub => Item::Number(-num),
                 _ => {
                     let msg = format!("Evaluation: Unhandled unary term {:?}", ops.value().item);
-                    return Err(AstError::from_node(&msg, ops))
+                    return Err(AstError::from_node(&msg, ops));
                 }
             };
 
             num.clone()
-        },
+        }
 
         Number(_) => i.clone(),
 
         _ => {
             let msg = format!("Can't evaluate: {:#?}", i);
-            return Err(AstError::from_node(msg, n))
+            return Err(AstError::from_node(msg, n));
         }
     };
 
@@ -102,26 +115,34 @@ fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> 
             items.push((c, item));
         }
     }
+    use std::panic;
 
     for (cn, i) in &items {
         if i.is_op() {
-            let (lhs, rhs) = s.pop_pair();
+            let (rhs, lhs) = s.pop_pair();
 
             let lhs = lhs.get_number().unwrap();
             let rhs = rhs.get_number().unwrap();
 
-            let res = match i {
-                Mul => rhs * lhs,
-                Div => rhs / lhs,
-                Add => rhs + lhs,
-                Sub => rhs - lhs,
-                And => rhs & lhs,
-                ShiftLeft => rhs >> (lhs as u64),
-                ShiftRight => rhs << ( lhs as u64),
-                _ => return Err(AstError::from_node("Unexpected op ", *cn)),
-            };
+            let res = panic::catch_unwind(|| {
+                let res = match i {
+                    Mul => lhs * rhs,
+                    Div => lhs / rhs,
+                    Add => lhs + rhs,
+                    Sub => lhs - rhs,
+                    And => lhs & rhs,
+                    ShiftLeft => lhs << (rhs as u64),
+                    ShiftRight => lhs >> (rhs as u64),
+                    _ => return Err(AstError::from_node("Unexpected op ", *cn)),
+                };
+                Ok(res)
+            })
+            .map_err(|_| 
+                { let msg = format!("{lhs} : {rhs} {}", as_string(n));
+                    AstError::from_node(msg, *cn)})??;
 
             s.push(Number(res))
+
         } else {
             s.push(i.clone());
         }

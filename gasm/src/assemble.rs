@@ -1,12 +1,17 @@
 use clap::Indices;
 use colored::*;
 use emu::cpu::RegEnum;
+use emu::isa::AddrModeEnum;
+use nom::combinator::map_opt;
 use nom::combinator::recognize;
+use romloader::sources::SymbolError;
 
 use crate::assemble;
 use crate::ast::AstNodeRef;
 use crate::ast::AstTree;
 use crate::ast::{Ast, AstNodeId, AstNodeMut};
+use crate::astformat::as_string;
+use crate::binary::Binary;
 use crate::cli;
 use crate::cli::Context;
 use crate::error::UserError;
@@ -16,6 +21,7 @@ use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
 use crate::messages::info;
+use crate::messages::messages;
 use crate::util;
 use crate::util::ByteSize;
 use item::{Item, Node};
@@ -97,125 +103,15 @@ fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
     registers
 }
 
-pub struct Binary {
-    write_address: usize,
-    written: bool,
-    range: Option<(usize, usize)>,
-    pub data: Vec<u8>,
-}
-
-impl Default for Binary {
-    fn default() -> Self {
-        Self {
-            write_address: 0,
-            written: false,
-            range: None,
-            data: vec![0; 0x10000],
-        }
-    }
-}
-
-impl Binary {
-    fn dirty(&mut self) {
-        self.written = true;
-    }
-
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn bump_write_address(&mut self, n: usize) {
-        self.write_address += n;
-    }
-
-    pub fn get_write_address(&self) -> usize {
-        self.write_address
-    }
-
-    pub fn set_write_address(&mut self, pc: usize) {
-        self.write_address = pc
-    }
-
-    pub fn set_write_addr(&mut self, pc: usize) {
-        self.write_address = pc;
-    }
-    pub fn set_put_addr(&mut self, _put: usize) {
-        panic!()
-    }
-
-    pub fn get_range(&self) -> Option<(usize, usize)> {
-        self.range
-    }
-
-    pub fn write_byte_check_size(&mut self, val: i64) -> Result<(), ()> {
-        let bits = val >> 8;
-        if bits == -1 || bits == 0 {
-            self.write_byte(val as u8);
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-
-    pub fn write_word_check_size(&mut self, val: i64) -> Result<(), ()> {
-        let bits = val >> 16;
-        if bits == -1 || bits == 0 {
-            self.write_word(val as u16);
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-
-    pub fn write_byte(&mut self, val: u8) {
-        let pc = self.write_address;
-
-        if let Some((mut low, mut high)) = self.range {
-            if pc < low {
-                low = pc
-            }
-
-            if pc > high {
-                high = pc
-            }
-
-            self.range = Some((low, high))
-        } else {
-            self.range = Some((pc, pc))
-        }
-        self.data[pc] = val;
-
-        self.write_address += 1;
-    }
-    pub fn fill(&mut self, count: usize, byte: u8) {
-        for _i in 0..count {
-            self.write_byte(byte)
-        }
-    }
-
-    pub fn write_bytes(&mut self, bytes: &[u8]) {
-        for b in bytes {
-            self.write_byte(*b)
-        }
-    }
-
-    pub fn get_bytes(&self, pc: usize, count: usize) -> &[u8] {
-        &self.data[pc..(pc + count)]
-    }
-
-    pub fn write_word(&mut self, val: u16) {
-        self.write_byte((val >> 8) as u8);
-        self.write_byte((val & 0xff) as u8);
-    }
-}
-
 pub struct Assembler {
     symbols: SymbolTable,
     sources: Sources,
-    bin: Binary,
+    binary: Binary,
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
-    direct_page : Option<u8>,
+    direct_page: Option<u8>,
+    write_offset: isize,
+    ctx: crate::cli::Context,
 }
 
 fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Result<i64, UserError> {
@@ -225,21 +121,35 @@ fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Resu
     })
 }
 
-impl From<crate::ast::Ast> for Assembler {
-    fn from(ast: crate::ast::Ast) -> Self {
+impl Assembler {
+    pub fn new(ast: crate::ast::Ast, ctx: &Context) -> Self {
+        let mut binary = Binary::new();
+
+        if let Some(file) = &ctx.as6809_lst {
+            let m = crate::as6809::MapFile::new(&file).expect("can't load map file");
+            binary.addr_reference(m);
+        }
+
+        let mut symbols = ast.symbols;
+
+        if let Some(file) = &ctx.as6809_sym {
+            crate::as6809::add_reference_syms(file, &mut symbols)
+                .expect("Can't add reference syms");
+        }
+
         Self {
-            symbols: ast.symbols,
+            symbols,
             sources: ast.sources,
-            bin: Binary::new(),
+            binary,
             tree: ast.tree,
             source_map: SourceMapping::new(),
             direct_page: None,
+            write_offset: 0,
+            ctx: ctx.clone(),
         }
     }
-}
 
-impl Assembler {
-    pub fn set_dp(&mut self, dp : i64) {
+    pub fn set_dp(&mut self, dp: i64) {
         if dp < 0 {
             self.direct_page = None
         } else {
@@ -253,36 +163,33 @@ impl Assembler {
         _addr_mode: &AddrModeParseType,
         _node: AstNodeRef,
     ) -> Result<(), UserError> {
-        todo!(
-            "assemble
-    indexed opcode"
-        )
+        todo!("assemble indexed opcode")
     }
 
-    fn write_byte_check_size(&mut self, n: AstNodeId, val: i64) -> Result<(), UserError> {
-        self.bin.write_byte_check_size(val).map_err(|_| {
-            let n = self.tree.get(n).unwrap();
-            let info = &self.sources.get_source_info(&n.value().pos).unwrap();
-            let msg = format!(
-                "{:4X}
-            does not fit in a byte",
-                val
-            );
-            UserError::from_text(msg, info, true)
-        })
+    fn get_pc(&self) -> usize {
+        (self.binary.get_write_address() as isize + self.write_offset) as usize
     }
 
-    fn write_word_check_size(&mut self, n: AstNodeId, val: i64) -> Result<(), UserError> {
-        self.bin.write_word_check_size(val).map_err(|_| {
-            let n = self.tree.get(n).unwrap();
-            let info = &self.sources.get_source_info(&n.value().pos).unwrap();
-            let msg = format!(
-                "{:4X}
-            does not fit in a word",
-                val
-            );
-            UserError::from_text(msg, info, true)
-        })
+    fn size_error(&self, n: AstNodeId, e: crate::binary::BinaryError) -> UserError {
+        let n = self.tree.get(n).unwrap();
+        let info = &self.sources.get_source_info(&n.value().pos).unwrap();
+        let msg = e.to_string();
+        UserError::from_text(msg, info, true)
+    }
+
+    fn relative_error(&self, n: AstNodeId, val: i64, bits: usize) -> UserError {
+        let p = 1 << (bits - 1);
+
+        let message = if val < 0 {
+            format!("Branch out of range by {} bytes ({val})", (p + val).abs())
+        } else {
+            format!("Branch out of range by {} bytes ({val})", val - (p - 1))
+        };
+
+        let n = self.tree.get(n).unwrap();
+        let info = &self.sources.get_source_info(&n.value().pos).unwrap();
+        let msg = message;
+        UserError::from_text(msg, info, true)
     }
 
     pub fn size(&mut self) -> Result<(), UserError> {
@@ -338,12 +245,14 @@ impl Assembler {
     }
 
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
+        self.write_offset = 0;
+
         self.assemble_node(self.tree.root().id())?;
 
         let database = SourceDatabase::new(&self.source_map, &self.sources, &self.symbols);
 
         let ret = Assembled {
-            mem: self.bin.data.clone(),
+            mem: self.binary.data.clone(),
             database,
         };
 
@@ -357,7 +266,9 @@ impl Assembler {
         indirect: bool,
     ) -> Result<(), UserError> {
         let idx_byte = imode.get_index_byte(indirect);
-        self.bin.write_byte(idx_byte);
+        self.binary
+            .write_byte(idx_byte)
+            .map_err(|e| self.size_error(id, e))?;
         use item::IndexParseType::*;
         let node = self.tree.get(id).unwrap();
 
@@ -368,16 +279,20 @@ impl Assembler {
 
             ExtendedIndirect => {
                 let (val, _) = self.eval_first_arg(node)?;
-                self.write_word_check_size(id, val)?
+                self.binary
+                    .write_uword_check_size(val)
+                    .map_err(|e| self.size_error(id, e))?
             }
 
-            ConstantWordOffset(_, val) | PcOffsetWord(val) => {
-                self.write_word_check_size(id, val as i64)?;
-            }
+            ConstantWordOffset(_, val) | PcOffsetWord(val) => self
+                .binary
+                .write_iword_check_size(val as i64)
+                .map_err(|e| self.size_error(id, e))?,
 
-            ConstantByteOffset(_, val) | PcOffsetByte(val) => {
-                self.write_byte_check_size(id, val as i64)?;
-            }
+            ConstantByteOffset(_, val) | PcOffsetByte(val) => self
+                .binary
+                .write_ibyte_check_size(val as i64)
+                .map_err(|e| self.size_error(id, e))?,
 
             _ => (),
         }
@@ -385,32 +300,30 @@ impl Assembler {
         Ok(())
     }
 
+    fn get_range(&self, pc: i64) -> std::ops::Range<usize> {
+        pc as usize..self.get_pc()
+    }
+
     fn assemble_node(&mut self, id: AstNodeId) -> Result<(), UserError> {
         use item::Item::*;
         let x = super::messages::messages();
 
         let node = self.tree.get(id).unwrap();
+        let id = node.id();
         let i = &node.value().item.clone();
         let pos = &node.value().pos.clone();
 
-        let pc = self.bin.get_write_address() as i64;
+        let pc = self.get_pc() as i64;
 
         match i {
             SetPc(pc) => {
-                self.bin.set_write_addr(*pc as usize);
-                x.debug(format!(
-                    "Set PC to
-                {:02X}",
-                    *pc
-                ));
+                self.binary.set_write_addr(*pc as usize);
+                x.debug(format!("Set PC to {:02X}", *pc));
             }
-            SetPut(put) => {
-                self.bin.set_put_addr(*put as usize);
-                x.debug(format!(
-                    "Set PUT to
-                {:02X}",
-                    *put
-                ));
+
+            SetPutOffset(offset) => {
+                x.debug(format!("Set put offset to {}", offset));
+                self.write_offset = *offset;
             }
 
             OpCode(ins, amode) => {
@@ -418,9 +331,13 @@ impl Assembler {
                 let ins_amode = ins.addr_mode;
 
                 if ins.opcode > 0xff {
-                    self.bin.write_word(ins.opcode);
+                    self.binary
+                        .write_word(ins.opcode)
+                        .map_err(|e| self.size_error(id, e))?;
                 } else {
-                    self.bin.write_byte(ins.opcode as u8);
+                    self.binary
+                        .write_byte(ins.opcode as u8)
+                        .map_err(|e| self.size_error(id, e))?;
                 }
 
                 match ins_amode {
@@ -432,61 +349,116 @@ impl Assembler {
 
                     Immediate8 | Direct => {
                         let (arg, id) = self.eval_first_arg(node)?;
-                        self.write_byte_check_size(id, arg)?;
+                        self.binary
+                            .write_byte_check_size(arg)
+                            .map_err(|e| self.size_error(id, e))?;
                     }
 
-                    Immediate16 | Extended => {
+                    Extended | Immediate16 => {
                         let (arg, id) = self.eval_first_arg(node)?;
-                        self.write_word_check_size(id, arg)?;
+
+                        let ret = self
+                            .binary
+                            .write_word_check_size(arg)
+                            .map_err(|e| self.size_error(id, e));
+
+                        if let Err(..) = ret {
+                            println!("{}", self.sources.get_source_info(pos).unwrap().line_str);
+                            println!("{}", as_string(node));
+
+                            let it = ["DISP2", "SCANH", "SCANER"]
+                                .map(|name| self.symbols.get_from_name(name));
+
+                            for sym in it {
+                                if let Ok(sym) = sym {
+                                    let val = sym.value.unwrap();
+                                    println!("{} equ {val}: ${:X?}", sym.name, val);
+                                } else {
+                                }
+                            }
+                        }
+
+                        ret?;
                     }
 
                     Relative => {
                         let (arg, id) = self.eval_first_arg(node)?;
+                        let val = arg - (pc + ins.size as i64);
                         // offset is from PC after Instruction and operand has been fetched
-                        self.write_byte_check_size(id, arg - (pc + ins.size as i64))?;
+                        let res = self
+                            .binary
+                            .write_ibyte_check_size(val)
+                            .map_err(|_| self.relative_error(id, val, 8));
+
+                        match &res {
+                            Ok(..) => (),
+                            Err(e) => {
+                                if self.ctx.ignore_relative_offset_errors {
+                                    self.binary.write_iword_check_size(0).unwrap();
+                                    x.warning(e.pretty().unwrap());
+                                    x.warning("Skipping writing relative offset");
+                                } else {
+                                    res?;
+                                }
+                            }
+                        }
                     }
 
                     Relative16 => {
                         let (arg, id) = self.eval_first_arg(node)?;
+                        let val = arg - (pc + ins.size as i64);
                         // offset is from PC after Instruction and operand has been fetched
-                        self.write_word_check_size(id, arg - (pc + ins.size as i64))?;
+                        let res = self.binary.write_iword_check_size(val);
+                        res.map_err(|_| self.relative_error(id, val, 16))?;
                     }
 
                     Inherent => {}
 
                     RegisterPair => {
                         if let AddrModeParseType::RegisterPair(a, b) = amode {
-                            self.bin.write_byte(reg_pair_to_flags(*a, *b));
+                            self.binary
+                                .write_byte(reg_pair_to_flags(*a, *b))
+                                .map_err(|e| self.size_error(id, e))?;
                         } else {
                             panic!("Whut!")
                         }
                     }
 
                     RegisterSet => {
-                        // println!("{:#?}", node);
-
                         let rset = &node.first_child().unwrap().value().item;
+
                         if let Item::RegisterSet(regs) = rset {
-                            self.bin.write_byte(registers_to_flags(regs));
+                            self.binary
+                                .write_byte(registers_to_flags(regs))
+                                .map_err(|e| self.size_error(id, e))?;
                         } else {
                             panic!("Whut!")
                         }
                     }
                 };
 
-                let range = pc as usize..self.bin.get_write_address() as usize;
-                self.source_map.add_mapping(range, pos, ItemType::OpCode);
+                let range = self.get_range(pc);
+                self.source_map
+                    .add_mapping(&self.sources, range, pos, ItemType::OpCode);
             }
 
             ExpandedMacro(mcall) => {
                 // We need to tell the source mapper we're expanding a macro so the file / line for
                 // everything expanded by the macro will point to the line that instantiated the
                 // macro
+                let si = self.sources.get_source_info(&mcall.name).unwrap();
+                let frag = si.fragment.to_string();
                 self.source_map.start_macro(&mcall.name);
 
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
-                    self.assemble_node(c)?;
+                    let mut res = self.assemble_node(c);
+
+                    if let Err(ref mut err) = res {
+                        err.message = format!("expanding macro : {}\n{}", frag, err.message);
+                    }
+
+                    res?;
                 }
 
                 self.source_map.stop_macro();
@@ -502,79 +474,185 @@ impl Assembler {
             Fdb(_) => {
                 for n in node.children() {
                     let x = self.eval_node(n)?;
-                    self.bin
-                        .write_word_check_size(x)
-                        .map_err(|_| self.user_error("Does not fit in a word", n, true))?;
+                    self.binary
+                        .write_uword_check_size(x)
+                        .map_err(|e| self.size_error(n.id(), e))?;
                 }
 
-                let range = pc as usize..self.bin.get_write_address() as usize;
-                self.source_map.add_mapping(range, pos, ItemType::Command);
+                let range = self.get_range(pc);
+                self.source_map
+                    .add_mapping(&self.sources, range, pos, ItemType::Command);
             }
 
-            Fcb(_) => {
+            Fcb(..) => {
                 for n in node.children() {
                     let x = self.eval_node(n)?;
-                    self.bin
-                        .write_byte_check_size(x)
-                        .map_err(|_| self.user_error("Does not fit in a word", n, true))?;
+                    self.binary
+                        .write_ubyte_check_size(x)
+                        .map_err(|e| self.size_error(n.id(), e))?;
                 }
-                let range = pc as usize..self.bin.get_write_address() as usize;
-                self.source_map.add_mapping(range, pos, ItemType::Command);
+                let range = self.get_range(pc);
+                self.source_map
+                    .add_mapping(&self.sources, range, pos, ItemType::Command);
             }
 
             Fcc(text) => {
                 for c in text.as_bytes() {
-                    self.bin.write_byte(*c)
+                    self.binary
+                        .write_byte(*c)
+                        .map_err(|e| self.size_error(id, e))?;
                 }
-                let range = pc as usize..self.bin.get_write_address() as usize;
-                self.source_map.add_mapping(range, pos, ItemType::Command);
+                let range = self.get_range(pc);
+                self.source_map
+                    .add_mapping(&self.sources, range, pos, ItemType::Command);
             }
 
             Zmb => {
                 let (bytes, _) = self.eval_first_arg(node)?;
                 for _ in 0..bytes {
-                    self.bin.write_byte(0)
+                    self.binary
+                        .write_byte(0)
+                        .map_err(|e| self.size_error(id, e))?;
                 }
-                let range = pc as usize..self.bin.get_write_address() as usize;
-                self.source_map.add_mapping(range, pos, ItemType::Command);
+                let range = self.get_range(pc);
+                self.source_map
+                    .add_mapping(&self.sources, range, pos, ItemType::Command);
             }
 
             Zmd => {
                 let (words, _) = self.eval_first_arg(node)?;
                 for _ in 0..words {
-                    self.bin.write_word(0)
+                    self.binary
+                        .write_word(0)
+                        .map_err(|e| self.size_error(id, e))?;
                 }
 
-                let range = pc as usize..self.bin.get_write_address() as usize;
-                self.source_map.add_mapping(range, pos, ItemType::Command);
+                let range = self.get_range(pc);
+                self.source_map
+                    .add_mapping(&self.sources, range, pos, ItemType::Command);
             }
 
             Fill => {
                 let (byte, size) = self.eval_two_args(node)?;
+
                 for _ in 0..size {
-                    self.bin
-                        .write_byte_check_size(byte)
-                        .map_err(|_| self.user_error("Does not fit in a word", node, true))?;
+                    self.binary
+                        .write_ubyte_check_size(byte)
+                        .map_err(|e| self.size_error(id, e))?;
                 }
-                let range = pc as usize..self.bin.get_write_address() as usize;
-                self.source_map.add_mapping(range, pos, ItemType::Command);
+
+                let range = self.get_range(pc);
+                self.source_map
+                    .add_mapping(&self.sources, range, pos, ItemType::Command);
             }
 
-            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..)
+            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) | Rmb
             | StructDef(..) => (),
 
             SetDp => {
-                let (dp,_) = self.eval_first_arg(node)?;
+                let (dp, _) = self.eval_first_arg(node)?;
                 self.set_dp(dp);
             }
 
             _ => {
                 panic!("Unable to assemble {:?}", i);
             }
-
         }
 
         Ok(())
+    }
+
+    fn size_indexed(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {
+        use crate::util::{ByteSize, ByteSizes};
+        use item::Item::*;
+        let node = self.tree.get(id).unwrap();
+        let i = &node.value().item;
+
+        if let OpCode(ins, amode) = i {
+            if let AddrModeParseType::Indexed(pmode, indirect) = amode {
+                pc += ins.size as u64;
+                let indirect = *indirect;
+                use item::IndexParseType::*;
+
+                match pmode {
+                    Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..)
+                    | Sub(..) | SubSub(..) => (),
+
+                    ConstantByteOffset(..)
+                    | PcOffsetByte(..)
+                    | PcOffsetWord(..)
+                    | ConstantWordOffset(..)
+                    | Constant5BitOffset(..) => {
+                        panic!()
+                    }
+
+                    ConstantOffset(r) => {
+                        let (v, _) = self.eval_first_arg(node)?;
+
+                        let mut bs = v.byte_size();
+
+                        if let ByteSizes::Bits5(val) = bs {
+                            if indirect {
+                                // Indirect constant offset does not support
+                                // 5 bit offsets so promote to 8 bit
+                                bs = ByteSizes::Byte(val);
+                            }
+                        }
+
+                        let new_amode = match bs {
+                            ByteSizes::Zero => Zero(*r),
+                            ByteSizes::Bits5(v) => Constant5BitOffset(*r, v),
+                            ByteSizes::Word(v) => {
+                                pc += 2;
+                                ConstantWordOffset(*r, v)
+                            }
+                            ByteSizes::Byte(v) => {
+                                pc += 1;
+                                ConstantByteOffset(*r, v)
+                            }
+                        };
+
+                        let ins = ins.clone();
+                        self.set_item(
+                            id,
+                            OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
+                        );
+                    }
+
+                    PCOffset => {
+                        let (v, id) = self.eval_first_arg(node)?;
+
+                        let new_amode = match v.byte_size() {
+                            ByteSizes::Zero  => {
+                                pc += 1;
+                                PcOffsetByte(0)
+                            },
+
+                            ByteSizes::Bits5(v) | ByteSizes::Byte(v) => {
+                                pc += 1;
+                                PcOffsetByte(v)
+                            }
+                            ByteSizes::Word(v) => {
+                                pc += 2;
+                                PcOffsetWord(v)
+                            }
+                        };
+
+                        let ins = ins.clone();
+
+                        self.set_item(
+                            id,
+                            OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
+                        );
+                    }
+
+                    ExtendedIndirect => pc += 2,
+                };
+                return Ok(pc);
+            }
+        }
+
+        panic!();
     }
 
     fn size_node(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {
@@ -591,98 +669,121 @@ impl Assembler {
                 let (value, _) = self.eval_first_arg(node)?;
                 self.set_item(id, Item::SetPc(value as u16));
                 pc = value as u64;
+                self.write_offset = 0;
+                x.info(format!( "Setting put address and org to {pc:04X?}"));
             }
 
             Put => {
+                let x = messages();
+
                 let (value, _) = self.eval_first_arg(node)?;
-                self.set_item(id, Item::SetPut(value as u16));
+
+
+                let offset = (value - pc as i64) as isize;
+                self.set_item(id, Item::SetPutOffset(offset));
+                self.write_offset = offset;
                 pc = value as u64;
+                x.info(format!( "Setting put address {value:04X?}"));
+            }
+
+            Rmb => {
+                let (bytes, _) = self.eval_first_arg(node)?;
+
+                if bytes < 0 {
+                    return Err(self.user_error("Argument for RMB must be positive", node, true));
+                };
+
+                pc = pc + bytes as u64;
             }
 
             OpCode(ins, amode) => {
+                let old_pc = pc;
+                let line = self.sources.get_source_info(&node.value().pos).unwrap().line_str.to_string();
                 use emu::isa::AddrModeEnum::*;
 
-                pc += ins.size as u64;
+                match amode {
+                    AddrModeParseType::Extended(false) => {
+                        // If there is a direct page set AND
+                        // I can evaluate the arg AND
+                        // the instruction supports DIRECT addressing (phew)
+                        // I can changing this to a direct page mode instruction
+                        // !!!! and it wasn't forced (need someway to propogate this from parse)
 
-                if let AddrModeParseType::Indexed(pmode, indirect) = amode {
-                    let indirect = *indirect;
-                    use item::IndexParseType::*;
+                        let mut size = ins.size;
 
-                    match pmode {
-                        Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..)
-                        | Sub(..) | SubSub(..) => (),
+                        use crate::opcodes::get_opcode_info;
 
-                        ConstantByteOffset(..)
-                        | PcOffsetByte(..)
-                        | PcOffsetWord(..)
-                        | ConstantWordOffset(..)
-                        | Constant5BitOffset(..) => {
-                            panic!()
-                        }
+                        let dp_info = get_opcode_info(&ins.action)
+                            .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
+                            .and_then(|ins| self.direct_page.map(|dp| (ins, dp)));
 
-                        ConstantOffset(r) => {
-                            let (v, _) = self.eval_first_arg(node)?;
+                        if let Some((new_ins, dp)) = dp_info {
+                            if let Ok((value, _)) = self.eval_first_arg(node) {
+                                let top_byte = ((value >> 8) & 0xff) as u8;
 
-                            let mut bs = v.byte_size();
+                                if top_byte == dp {
+                                    if let Ok(si) = self.sources.get_source_info(&node.value().pos)
+                                    {
+                                        let x = messages();
+                                        x.info(format!("extended -> direct: {}", si.line_str));
+                                    }
 
-                            if let ByteSizes::Bits5(val) = bs {
-                                if indirect {
-                                    // Indirect constant offset does not support
-                                    // 5 bit offsets so promote to 8 bit
-                                    bs = ByteSizes::Byte(val);
+                                    // Here we go!
+                                    let new_ins = new_ins.clone();
+                                    size = new_ins.size;
+                                    // get the node
+                                    let mut node_mut = self.tree.get_mut(id).unwrap();
+                                    // Change the opcode to the direct version
+                                    node_mut.value().item =
+                                        OpCode(new_ins, AddrModeParseType::Direct);
+                                    // Change the value to just include the lower 8 bits
+                                    node_mut.first_child().unwrap().value().item =
+                                        Item::Number(value & 0xff);
+                                }
+                            } else {
+                                let pos = &node.value().pos;
+                                if let Ok(si) = self.sources.get_source_info(pos) {
+                                    let x = messages();
+                                    x.info(format!(
+                                        "Couldn't eval: {} {} {:?} {} {:X}",
+                                        si.line_str, ins.action, pos.src, pos, pc
+                                    ));
                                 }
                             }
-
-                            let new_amode = match bs {
-                                ByteSizes::Bits5(v) => Constant5BitOffset(*r, v),
-                                ByteSizes::Word(v) => {
-                                    pc += 2;
-                                    ConstantWordOffset(*r, v)
-                                }
-                                ByteSizes::Byte(v) => {
-                                    pc += 1;
-                                    ConstantByteOffset(*r, v)
-                                }
-                            };
-
-                            let ins = ins.clone();
-                            self.set_item(
-                                id,
-                                OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
-                            );
                         }
+                        pc += size as u64;
+                    }
 
-                        PCOffset => {
-                            let (v, id) = self.eval_first_arg(node)?;
+                    AddrModeParseType::Indexed(..) => {
+                        pc = self.size_indexed(pc, id)?;
+                    }
 
-                            let new_amode = match v.byte_size() {
-                                ByteSizes::Bits5(v) | ByteSizes::Byte(v) => {
-                                    pc += 1;
-                                    PcOffsetByte(v)
-                                }
-                                ByteSizes::Word(v) => {
-                                    pc += 2;
-                                    PcOffsetWord(v)
-                                }
-                            };
+                    _ => {
+                        pc += ins.size as u64;
+                    }
 
-                            let ins = ins.clone();
+                };
+                let size = pc - old_pc;
+                println!("{old_pc:04X} {size} {line}");
 
-                            self.set_item(
-                                id,
-                                OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
-                            );
-                        }
-
-                        ExtendedIndirect => pc += 2,
-                    };
-                }
             }
 
             AssignmentFromPc(name) => {
                 let msg = format!("{} -> ${:04X}", name, pc);
-                x.debug(msg);
-                self.symbols.add_symbol_with_value(name, pc as i64).unwrap();
+                x.info(msg);
+                self.symbols
+                    .add_symbol_with_value(name, pc as i64)
+                    .map_err(|e| {
+                        let err = if let SymbolError::Mismatch { expected } = e {
+                            format!(
+                                "Mismatch symbol {name} : expected {:04X} got : {:04X}",
+                                expected, pc
+                            )
+                        } else {
+                            format!("{:?}", e)
+                        };
+                        self.user_error(err, node, false)
+                    })?;
             }
 
             Block | ExpandedMacro(..) | TokenizedFile(..) => {
@@ -723,7 +824,7 @@ impl Assembler {
             }
 
             SetDp => {
-                let (dp,_) = self.eval_first_arg(node)?;
+                let (dp, _) = self.eval_first_arg(node)?;
                 self.set_dp(dp);
             }
 

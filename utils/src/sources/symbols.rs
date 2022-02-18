@@ -1,7 +1,7 @@
 // symtab
 use std::collections::HashMap;
 // use serde_json::json;
-use serde::{ Serialize, Deserialize };
+use serde::{Deserialize, Serialize};
 
 pub type SymbolId = usize;
 /// Holds information about a symbol
@@ -18,6 +18,7 @@ pub struct SymbolInfo {
 #[derive(Debug, PartialEq, Clone)]
 pub enum SymbolError {
     AlreadyDefined(String),
+    Mismatch{ expected: i64},
     NotFound,
     NoValue,
 }
@@ -28,6 +29,8 @@ pub enum SymbolError {
 pub struct SymbolTable {
     info: Vec<SymbolInfo>,
     name_to_id: HashMap<String, SymbolId>,
+
+    ref_name_to_value: HashMap<String,i64>,
 }
 
 impl Default for SymbolTable {
@@ -41,7 +44,13 @@ impl SymbolTable {
         Self {
             info: Default::default(),
             name_to_id: Default::default(),
+            ref_name_to_value : Default::default(),
         }
+    }
+
+    pub fn add_reference_symbol(&mut self, name: &str, val : i64) {
+        let res = self.ref_name_to_value.insert(name.to_string(), val);
+        assert!(res.is_none());
     }
 
     pub fn get_value<S>(&self, name: S) -> Result<i64, SymbolError>
@@ -91,10 +100,18 @@ impl SymbolTable {
         value: i64,
     ) -> Result<SymbolId, SymbolError>
     where
-        S: Into<String>,
+        S: Into<String> + Copy,
     {
-        let id = self.add_symbol(name)?;
+        let nstr : String = name.into();
+        let id = self.add_symbol(&nstr)?;
         self.set_value(id, value)?;
+
+        if let Some(expected) = self.ref_name_to_value.get(&nstr) {
+            if *expected != value {
+                return Err(SymbolError::Mismatch{expected: *expected})
+            }
+        }
+
         Ok(id)
     }
 

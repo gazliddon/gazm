@@ -16,11 +16,11 @@ mod astformat;
 mod cli;
 mod commands;
 mod comments;
-mod ctx;
+mod as6809;
 mod error;
 mod eval;
 mod expr;
-// mod fileloader;
+mod binary;
 mod indexed;
 mod item;
 mod labels;
@@ -40,6 +40,7 @@ mod tokenize;
 mod util;
 
 use std::path::PathBuf;
+use std::process::abort;
 use std::time::Instant;
 
 use ast::ItemWithPos;
@@ -76,7 +77,7 @@ fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::erro
 
         let ast = Ast::from_nodes(tokens, sources)?;
 
-        let mut asm : Assembler = ast.into();
+        let mut asm = Assembler::new(ast, ctx);
 
         asm.size()?;
 

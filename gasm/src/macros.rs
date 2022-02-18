@@ -44,6 +44,9 @@ impl MacroDef {
         self.params.iter().map(to_regex).collect()
     }
 
+    /// Expands this macro
+    /// args = a vec of positions of the arguments
+    /// returns a string of the expanded macro and the position of the original macro text
     pub fn expand(&self, sources: &romloader::sources::Sources, args: Vec<Position>) -> (Position, String) {
 
         if args.len() != self.params.len() {
@@ -139,6 +142,7 @@ impl Macros {
 
     /// Expands a macro and returns a position of the macro body text
     /// an expanded version of the macro ready to tokenize
+    /// returns an the position of the original macro definition and the expanded macro
     pub fn expand_macro(&self, sources: &Sources, macro_call : MacroCall) -> Result<(Position, String ), UserError> {
 
         let si = sources.get_source_info(&macro_call.name).unwrap();

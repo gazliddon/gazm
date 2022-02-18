@@ -44,6 +44,12 @@ fn parse_fdb_arg(input: Span) -> IResult< Node> {
     Ok((rest, ret))
 }
 
+fn parse_rmb_arg(input: Span) -> IResult< Node> {
+    let (rest, matched) = parse_expr(input)?;
+    let ret = Node::from_item_span(Rmb, input).with_child(matched);
+    Ok((rest, ret))
+}
+
 fn parse_fcb_arg(input: Span) -> IResult< Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     let num_of_bytes = matched.len();
@@ -117,7 +123,7 @@ lazy_static! {
             ("fcb", parse_fcb_arg),
             ("zmb", parse_zmb_arg),
             ("zmd", parse_zmd_arg),
-            ("rmb", parse_fdb_arg),
+            ("rmb", parse_rmb_arg),
             ("org", parse_org_arg),
             ("include", parse_include_arg),
         ];

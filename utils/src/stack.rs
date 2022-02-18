@@ -33,10 +33,13 @@ impl<OP: Clone > Stack<OP> {
         self.stack.pop_front().unwrap()
     }
 
+    /// Pop top pair from stack
+    /// rhs = top, lhs = next
+    /// returns (rhs, lhs)
     pub fn pop_pair(&mut self) -> (OP,OP) {
-        let a = self.pop();
-        let b = self.pop();
-        (a,b)
+        let rhs = self.pop();
+        let lhs = self.pop();
+        (rhs,lhs)
     }
 
     pub fn flush(&mut self) -> Vec<OP> {

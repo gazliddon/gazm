@@ -17,6 +17,7 @@ colored = "2"
 ego-tree="*"
 petgraph="*"
 anyhow="*"
+thiserror="*"
 regex="*"
 
 serde = { version = "*", features = ["derive"] }

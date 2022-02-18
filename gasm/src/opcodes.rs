@@ -34,6 +34,10 @@ lazy_static::lazy_static! {
     static ref OPCODES_REC: Dbase = Dbase::new();
 }
 
+pub fn get_opcode_info(name : &str) -> Option<&InstructionInfo> {
+    OPCODES_REC.get_opcode(name)
+}
+
 pub fn opcode_just_token(input: Span) -> IResult<Span> {
     nom::combinator::map(opcode_token, |(_, e)| e)(input)
 }
@@ -57,13 +61,22 @@ fn parse_immediate(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
-fn parse_dp(input: Span) -> IResult<Node> {
+fn parse_force_dp(input: Span) -> IResult<Node> {
     use crate::item::AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag("<"), expr::parse_expr)(input)?;
     let ret = Node::from_item_span(Operand(Direct), input).with_child(matched);
     Ok((rest, ret))
 }
+
+fn parse_force_extended(input: Span) -> IResult<Node> {
+    use crate::item::AddrModeParseType::*;
+    use Item::*;
+    let (rest, matched) = preceded(tag(">"), expr::parse_expr)(input)?;
+    let ret = Node::from_item_span(Operand(Extended(true)), input).with_child(matched);
+    Ok((rest, ret))
+}
+
 
 fn parse_reg_set(input: Span) -> IResult<Node> {
     use crate::item::AddrModeParseType;
@@ -91,7 +104,7 @@ fn parse_extended(input: Span) -> IResult<Node> {
     use nom::combinator::map;
     use Item::*;
     let (rest, matched) = expr::parse_expr(input)?;
-    let res = Node::from_item_span(Operand(Extended), input).with_child(matched);
+    let res = Node::from_item_span(Operand(Extended(false)), input).with_child(matched);
     Ok((rest, res))
 }
 
@@ -100,7 +113,7 @@ fn parse_opcode_arg(input: Span) -> IResult<Node> {
     use nom::combinator::map;
     use Item::*;
 
-    let (rest, matched) = alt((parse_indexed, parse_immediate, parse_dp, parse_extended))(input)?;
+    let (rest, matched) = alt((parse_indexed, parse_immediate, parse_force_dp, parse_force_extended,parse_extended))(input)?;
 
     Ok((rest, matched))
 }
@@ -118,7 +131,7 @@ fn get_instruction<'a>(
 
         AddrModeParseType::Direct => get(Direct),
 
-        AddrModeParseType::Extended => get(Extended)
+        AddrModeParseType::Extended(_) => get(Extended)
             .or_else(|| get(Relative))
             .or_else(|| get(Relative16)),
 

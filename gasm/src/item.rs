@@ -7,7 +7,6 @@ use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::{AddrModeEnum, Instruction, InstructionInfo};
 use nom::{IResult, Offset};
 
-use crate::ctx::Ctx;
 use crate::locate::{matched_span, Span};
 use crate::node::{BaseNode, CtxTrait};
 
@@ -169,38 +168,12 @@ impl IndexParseType {
 pub enum AddrModeParseType {
     Indexed(IndexParseType, bool),
     Direct,
-    Extended,
+    Extended(bool),    // if set then extended mode was forced, do not opt for DP
     Relative,
     Inherent,
     Immediate,
     RegisterSet,
     RegisterPair(RegEnum, RegEnum),
-}
-
-impl AddrModeParseType {
-    pub fn get_instruction<'a>(&self, info: &'a InstructionInfo) -> Option<&'a Instruction> {
-        use AddrModeEnum::*;
-        let get = |amode| info.get_instruction(&amode);
-
-        match self {
-            Self::Indexed(_, _) => get(Indexed),
-
-            Self::Direct => get(Direct),
-
-            Self::Extended => get(Extended)
-                .or_else(|| get(Relative))
-                .or_else(|| get(Relative16)),
-
-            Self::Relative => get(Relative).or_else(|| get(Relative16)),
-
-            Self::Inherent => get(Inherent),
-
-            Self::Immediate => get(Immediate8).or_else(|| get(Immediate16)),
-
-            Self::RegisterSet => get(RegisterSet),
-            Self::RegisterPair(..) => get(RegisterPair),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -248,7 +221,7 @@ pub enum Item {
     StructEntry(String),
 
     SetPc(u16),
-    SetPut(u16),
+    SetPutOffset(isize),
 
     Expr,
     PostFixExpr,
@@ -285,6 +258,7 @@ pub enum Item {
     Fdb(usize),
     Fcb(usize),
     Fcc(String),
+    Rmb,
     Fill,
     Zmb,
     Zmd,
@@ -302,21 +276,6 @@ pub enum Item {
     UnaryPlus,
     UnaryMinus,
     UnaryGreaterThan,
-}
-
-impl GetPriotity for Item {
-    fn priority(&self) -> Option<usize> {
-        match self {
-            Item::Mul => Some(5),
-            Item::Div => Some(5),
-            Item::Add => Some(4),
-            Item::Sub => Some(4),
-            Item::And => Some(3),
-            Item::ShiftRight => Some(2),
-            Item::ShiftLeft => Some(2),
-            _ => None,
-        }
-    }
 }
 
 impl Item {

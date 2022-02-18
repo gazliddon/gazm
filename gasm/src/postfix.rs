@@ -1,8 +1,7 @@
-use std::collections::{VecDeque, HashMap };
+use romloader::Stack;
+use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::os::unix::prelude::OpenOptionsExt;
-use romloader::Stack;
-
 
 pub trait GetPriotity {
     fn priority(&self) -> Option<usize>;
@@ -12,38 +11,42 @@ pub trait GetPriotity {
 }
 
 #[derive(Debug, Clone)]
-pub struct PostFixer<I : Clone + GetPriotity> {
-    opstack : Stack<I>,
-    input : Vec<I>,
-    ret : Vec<I>,
+pub struct PostFixer<I: Clone + GetPriotity> {
+    opstack: Stack<I>,
+    input: Vec<I>,
+    ret: Vec<I>,
 }
 
-impl<I : Clone + GetPriotity + std::fmt::Debug > PostFixer<I> {
+impl<I: Clone + GetPriotity + std::fmt::Debug> PostFixer<I> {
     pub fn new() -> Self {
         Self {
             opstack: Stack::new(),
-            input : Default::default(),
-            ret : vec![],
+            input: Default::default(),
+            ret: vec![],
         }
     }
 
-    fn emit(&mut self, i : &I) {
+    fn emit(&mut self, i: &I) {
         self.ret.push(i.clone())
     }
 
-    fn push(&mut self, op : &I) -> Result<(),I>{
+    fn push(&mut self, op: &I) -> Result<(), I> {
         if op.is_op() {
-            self.opstack.push(op.clone()) ;
-        Ok(())
-
+            self.opstack.push(op.clone());
+            Ok(())
         } else {
             Err(op.clone())
         }
     }
 
-    fn flush(&mut self) {
+    fn flush(&mut self)  {
         let mut v = self.opstack.flush();
         self.ret.append(&mut v);
+    }
+
+    fn finalize(&mut self) -> Vec<I> {
+        self.flush();
+        std::mem::take(&mut self.ret)
     }
 
     fn top_pri(&self) -> usize {
@@ -54,42 +57,43 @@ impl<I : Clone + GetPriotity + std::fmt::Debug > PostFixer<I> {
         }
     }
 
-    pub fn get_postfix(&mut self, ops : Vec<I>) ->Result<Vec<I>, I> {
+    pub fn get_postfix(&mut self, ops: Vec<I>) -> Result<Vec<I>, I> {
+        let len = ops.len();
 
-        let mut it = ops.iter();
+        if len % 2 == 0 && len != 0 {
+            panic!()
+        }
 
-        if let Some(lhs)  = it.next() {
-            self.emit(lhs);
+        match len {
+            0 => Ok(vec![]),
+            1 => Ok(ops),
+            _ => {
+                let mut it = ops.iter();
+                let lhs = it.next().unwrap();
 
-            let mut first = true;
-            let mut cit = it.as_slice().chunks(2);
+                let mut next_pair = || it.next().and_then(|op| it.next().map(|rhs| (op, rhs)));
 
-            while let Some([ op,rhs ]) = cit.next() {
-                if first {
-                    self.emit(rhs);
-                    self.push(op)?;
-                    first = false;
+                let ( op,rhs ) = next_pair().unwrap();
+                self.emit(lhs);
+                self.emit(rhs);
+                self.push(op)?;
 
-                } else {
-                    first = false;
-                    self.emit(rhs);
+                while let Some((op, rhs)) = next_pair() {
 
                     let top_pri = self.top_pri();
+
                     let this_pri = op.priority().ok_or(op.clone())?;
 
-                    if this_pri > top_pri {
-                        self.emit(op);
-                        self.flush()
-                    } else {
-                        self.push(op)?;
+                    if top_pri >= this_pri {
+                        self.flush();
                     }
-                }
-            }
 
-            self.flush();
-            Ok( std::mem::take(&mut self.ret) )
-        } else {
-            Ok(ops)
+                    self.push(op)?;
+                    self.emit(rhs);
+                }
+
+                Ok(self.finalize())
+            }
         }
     }
 }
@@ -99,23 +103,25 @@ mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
 
-    fn to_string(vs : &[char])-> String {
+    fn to_string(vs: &[char]) -> String {
         String::from_iter(vs.iter())
     }
 
     impl GetPriotity for char {
         fn priority(&self) -> Option<usize> {
             match self {
-                '/'=> Some(5),
-                '*'=> Some(4),
-                '+'=> Some(3),
-                '-'=> Some(2),
+                '/' => Some(5),
+                '*' => Some(4),
+                '+' => Some(2),
+                '-' => Some(2),
+                '>' => Some(1),
+                '<' => Some(1),
                 _ => None,
             }
         }
     }
 
-    fn to_args(test : &str) -> (char, Vec<(char, char)>) {
+    fn to_args(test: &str) -> (char, Vec<(char, char)>) {
         let mut it = test.chars();
 
         let first = it.next().unwrap();
@@ -128,22 +134,40 @@ mod test {
         (first, rest)
     }
 
-    pub fn eval(e : &[ char ]) -> i64 {
-        let mut s : Stack<i64> = Stack::new();
+    pub fn eval(e: &[char]) -> i64 {
+        let mut s: Stack<i64> = Stack::new();
 
-        let to_i64 = |c : char| {
-            ( c as i64 ) - '0' as i64
-        };
+        let to_i64 = |c: char| (c as i64) - '0' as i64;
 
-        for i in e.iter(){
+        for i in e.iter() {
             if i.is_op() {
-                let (lhs, rhs) = s.pop_pair();
+                let (rhs, lhs) = s.pop_pair();
                 let res = match i {
-                    '*' => {println!("{} * {}", rhs, lhs); rhs * lhs },
-                    '/' => {println!("{} / {}", rhs, lhs); rhs / lhs },
-                    '+' => {println!("{} + {}", rhs, lhs); rhs + lhs },
-                    '-' => {println!("{} - {}", rhs, lhs); rhs - lhs },
-                    _ => panic!()
+                    '*' => {
+                        println!("{} * {}", lhs, rhs);
+                        lhs * rhs
+                    }
+                    '<' => {
+                        println!("{} << {}", lhs, rhs);
+                        lhs << rhs
+                    }
+                    '>' => {
+                        println!("{} > {}", lhs, rhs);
+                        lhs >> rhs
+                    }
+                    '/' => {
+                        println!("{} / {}", lhs, rhs);
+                        lhs / rhs
+                    }
+                    '+' => {
+                        println!("{} + {}", lhs, rhs);
+                        lhs + rhs
+                    }
+                    '-' => {
+                        println!("{} - {}", lhs, rhs);
+                        lhs - rhs
+                    }
+                    _ => panic!(),
                 };
                 s.push(res);
             } else {
@@ -156,14 +180,32 @@ mod test {
 
     #[test]
     fn postix() {
-        let test =    "3+4*6-5-1";
-        let desired = "346*+5-1-";
+        let tests = vec![
+            ("1+2*4", 1+2*4),
+            ("1/2*4", 1/2*4),
+            ( "8-1+3",  8-1+3),
+            ( "8-1<9",  8-1<<9),
+            ( "9+8>1",  9+8>>1),
+        ];
+
+        for (test, res) in tests {
+            println!("testing : {test}");
+            let mut x = PostFixer::new();
+            let args: Vec<_> = test.chars().collect();
+            let ret = x.get_postfix(args).unwrap();
+            let result = eval(&ret);
+            let ret_str = to_string(&ret);
+            println!("Infix {}", ret_str);
+            assert_eq!(result, res);
+        }
+
+        let test = "8-1+3";
+        let desired = "81-3+";
 
         println!("Input: {}", test);
         let mut x = PostFixer::new();
 
-        let args : Vec<_> = test.chars().collect();
-
+        let args: Vec<_> = test.chars().collect();
         let ret = x.get_postfix(args).unwrap();
         let result = eval(&ret);
         let ret_str = to_string(&ret);
@@ -172,7 +214,6 @@ mod test {
         println!("{:?}", ret_str);
         println!("{:?}", ret);
         assert_eq!(ret_str, desired);
-        assert_eq!(result, 21);
+        assert_eq!(result, 10);
     }
 }
-

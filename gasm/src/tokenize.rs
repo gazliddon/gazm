@@ -234,6 +234,7 @@ impl Tokens {
 
         for (node, macro_call) in mcalls {
             let (pos, text) = macros.expand_macro(sources, macro_call.clone())?;
+
             let input = Span::new_extra(&text, pos.src);
 
             let new_tokens = self
@@ -250,8 +251,10 @@ impl Tokens {
                     e.message = format!("{}\n{}", err1, err2);
                     e
                 })?;
+
             let new_node = Node::from_item_span(Item::ExpandedMacro(macro_call), input)
                 .with_children(new_tokens);
+
             *node = new_node;
         }
 

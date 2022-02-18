@@ -218,7 +218,7 @@ impl UserError {
         let bar = format!("{}|", spaces).info();
         let bar_line = format!("{} |", line_num).info();
 
-        writeln!(&mut s, "{}: {}", "error".error(), self.message.bold())?;
+        writeln!(&mut s, "{}", self.message.bold())?;
         writeln!(
             &mut s,
             "   {} {}:{}:{}",

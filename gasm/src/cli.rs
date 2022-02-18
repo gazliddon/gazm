@@ -1,6 +1,7 @@
 use clap::Parser;
 use clap::{App, Arg};
 use romloader::ResultExt;
+use std::os::unix::prelude::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 
 use crate::messages::Verbosity;
@@ -14,6 +15,9 @@ pub struct Context {
     pub trailing_comments: bool,
     pub star_comments: bool,
     pub max_errors: usize,
+    pub ignore_relative_offset_errors: bool,
+    pub as6809_lst : Option<String>,
+    pub as6809_sym : Option<String>,
 }
 
 impl Default for Context {
@@ -26,6 +30,9 @@ impl Default for Context {
             trailing_comments: false,
             star_comments: false,
             max_errors: 5,
+            ignore_relative_offset_errors : false,
+            as6809_lst : None,
+            as6809_sym : None,
         }
     }
 }
@@ -35,8 +42,11 @@ impl From<clap::ArgMatches> for Context {
         let mut ret = Self {
             out: m.value_of("out-file").map(|f| f.to_string()),
             syms: m.value_of("symbol-file").map(|f| f.to_string()),
+            as6809_lst: m.value_of("as6809-lst").map(|f| f.to_string()),
+            as6809_sym: m.value_of("as6809-sym").map(|f| f.to_string()),
             trailing_comments: m.is_present("trailing-comments"),
             star_comments: m.is_present("star-comments"),
+            ignore_relative_offset_errors : m.is_present("ignore-relative-offset-errors"),
             ..Default::default()
         };
 
@@ -94,6 +104,11 @@ pub fn parse() -> clap::ArgMatches {
             .short('v'),
         )
         .arg(
+            Arg::new("ignore-relative-offset-errors")
+            .long("ignore-relative-offset-errors")
+            .help("ignore relative offset errors")
+        )
+        .arg(
             Arg::new("trailing-comments")
             .long("trailing-comments")
             .help("Text at end of line treated as a comment")
@@ -104,6 +119,18 @@ pub fn parse() -> clap::ArgMatches {
             .long("star-comments")
             .help("Lines that start with '*' parsed as comments")
             .short('q'),
+        )
+        .arg(
+            Arg::new("as6809-lst")
+            .long("as6809-lst")
+            .help("Load in AS609 lst file to compare against")
+            .takes_value(true)
+        )
+        .arg(
+            Arg::new("as6809-sym")
+            .long("as6809-sym")
+            .help("Load in AS609 sym file to compare against")
+            .takes_value(true)
         )
         .arg(
             Arg::new("max-errors")
