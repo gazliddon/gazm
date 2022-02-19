@@ -3,8 +3,16 @@ use clap::{App, Arg};
 use romloader::ResultExt;
 use std::os::unix::prelude::OpenOptionsExt;
 use std::path::{Path, PathBuf};
+use std::usize;
 
 use crate::messages::Verbosity;
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct WriteBin {
+    pub file : PathBuf,
+    pub start : usize,
+    pub size : usize,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Context {
@@ -19,6 +27,7 @@ pub struct Context {
     pub as6809_lst : Option<String>,
     pub as6809_sym : Option<String>,
     pub as6809_bin : Option<String>,
+    pub to_write : Vec<WriteBin>,
 }
 
 impl Default for Context {
@@ -35,6 +44,7 @@ impl Default for Context {
             as6809_lst : None,
             as6809_sym : None,
             as6809_bin : None,
+            to_write : Default::default(),
         }
     }
 }
@@ -51,6 +61,19 @@ impl From<clap::ArgMatches> for Context {
             ignore_relative_offset_errors : m.is_present("ignore-relative-offset-errors"),
             ..Default::default()
         };
+
+        if let Some(mut it) = m.values_of("write-bin") {
+            let file = it.next().unwrap();
+            let start = it.next().unwrap();
+            let size = it.next().unwrap();
+            let start = usize::from_str_radix(start, 16).unwrap();
+            let size = usize::from_str_radix(size,16).unwrap();
+            let writer = WriteBin {
+                file : file.into(),
+                start, size
+            };
+            ret.to_write.push(writer)
+        }
 
         if let Some(it) = m.values_of("file") {
             ret.files = it.map(|x| x.into()).collect();
@@ -139,6 +162,12 @@ pub fn parse() -> clap::ArgMatches {
             .long("as6809-bin")
             .help("Load in binary file to compare against")
             .takes_value(true)
+        )
+        .arg(
+            Arg::new("write-bin")
+            .long("write-bin")
+            .value_names(&["file","start","size"])
+            .help("Write out a binary file")
         )
         .arg(
             Arg::new("max-errors")

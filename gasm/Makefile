@@ -19,7 +19,8 @@ defender_1_src = $(foreach file,$(defender_1), $(DEFENDER_SRC_DIR)/$(file))
 $(BIN_DIR)/defender.1 : $(defender_1_src)
 	$(ASM) $(defender_1_src) \
 	--as6809-sym $(DEFENDER_BIN_DIR)/defa7-defb6-amode1.sym \
-	--as6809-bin $(DEFENDER_BIN_DIR)/defa7-defb6-amode1.o
+	--as6809-bin $(DEFENDER_BIN_DIR)/defa7-defb6-amode1.o \
+	--write-bin $(BIN_DIR)/defender.1 d000 800
 
 roms : $(BIN_DIR)/defender.1
 
