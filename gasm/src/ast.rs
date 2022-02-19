@@ -309,7 +309,7 @@ impl Ast {
                             let value = self.eval(&self.symbols, id)?;
                             let scoped_name = format!("{}.{}", name, entry_name);
                             self.add_symbol(&mut symbols, current, &scoped_name, id)?;
-                            x.info(format!("Set {scoped_name} to {current}"));
+                            x.info(format!("Struct: Set {scoped_name} to {current}"));
                             current = current + value;
                         }
                     }

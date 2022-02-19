@@ -147,7 +147,7 @@ impl IndexParseType {
             }
 
             ConstantByteOffset(r, _) => {
-                let mut bits = 0b1000_1100;
+                let mut bits = 0b1000_1000;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits

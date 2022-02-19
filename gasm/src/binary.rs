@@ -5,6 +5,7 @@ pub struct Binary {
     range: Option<(usize, usize)>,
     pub data: Vec<u8>,
     ref_data : Option<Vec<u8>>,
+    write_offset: isize,
 }
 
 impl Default for Binary {
@@ -15,6 +16,7 @@ impl Default for Binary {
             range: None,
             data: vec![0; 0x10000],
             ref_data: None,
+            write_offset: 0,
         }
     }
 }
@@ -35,6 +37,15 @@ pub enum BinaryError {
 }
 
 impl Binary {
+    pub fn bin_reference(&mut self, m : &[u8]) {
+        let  mut bin = vec![0; 0x10000];
+
+        for (i,x) in m.iter().enumerate() {
+            bin[i] = *x
+        }
+
+        self.ref_data = Some(bin);
+    }
 
     pub fn addr_reference(&mut self, m : crate::as6809::MapFile) {
         let  mut bin = vec![0; 0x10000];
@@ -64,18 +75,22 @@ impl Binary {
         self.write_address
     }
 
-    pub fn set_write_address(&mut self, pc: usize) {
-        self.write_address = pc
+    pub fn get_write_address_with_offset(&self) -> usize {
+        ( self.write_address as isize + self.write_offset ) as usize
     }
 
-    pub fn set_write_addr(&mut self, pc: usize) {
+    pub fn set_write_address(&mut self, pc: usize, offset : isize) {
         self.write_address = pc;
+        self.set_write_offset(offset)
     }
 
     pub fn get_range(&self) -> Option<(usize, usize)> {
         self.range
     }
 
+    pub fn set_write_offset(&mut self, offset : isize) {
+        self.write_offset = offset
+    }
 
     fn write_byte_check(&mut self, val: i64, r: std::ops::Range<i64>, dest_type : &str) -> Result<(), BinaryError> {
         if r.contains(&val) {
@@ -112,8 +127,6 @@ impl Binary {
         }
     }
 
-
-
     pub fn write_iword_check_size(&mut self, val: i64) -> Result<(), BinaryError> {
         let x = 1 << 15;
         let r = -x..x;
@@ -149,8 +162,10 @@ impl Binary {
             self.range = Some((addr, addr))
         }
 
-        self.data[addr] = val;
 
+        let new_addr = self.get_write_address_with_offset();
+
+        self.data[new_addr as usize] = val;
 
         self.write_address += 1;
 

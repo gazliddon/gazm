@@ -18,6 +18,7 @@ pub struct Context {
     pub ignore_relative_offset_errors: bool,
     pub as6809_lst : Option<String>,
     pub as6809_sym : Option<String>,
+    pub as6809_bin : Option<String>,
 }
 
 impl Default for Context {
@@ -33,6 +34,7 @@ impl Default for Context {
             ignore_relative_offset_errors : false,
             as6809_lst : None,
             as6809_sym : None,
+            as6809_bin : None,
         }
     }
 }
@@ -130,6 +132,12 @@ pub fn parse() -> clap::ArgMatches {
             Arg::new("as6809-sym")
             .long("as6809-sym")
             .help("Load in AS609 sym file to compare against")
+            .takes_value(true)
+        )
+        .arg(
+            Arg::new("as6809-bin")
+            .long("as6809-bin")
+            .help("Load in binary file to compare against")
             .takes_value(true)
         )
         .arg(

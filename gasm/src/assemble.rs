@@ -115,7 +115,6 @@ pub struct Assembler {
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
     direct_page: Option<u8>,
-    write_offset: isize,
     ctx: crate::cli::Context,
 }
 
@@ -135,6 +134,18 @@ impl Assembler {
             binary.addr_reference(m);
         }
 
+        if let Some(file) = &ctx.as6809_bin {
+            use std::fs::File;
+            use std::io::Read;
+            let mut buffer = Vec::new();
+            let mut file = File::open(file).expect("Can't load binary file");
+
+            file.read_to_end(&mut buffer)
+                .expect("Can't read bindary file");
+
+            binary.bin_reference(&buffer[0xb000..0xb800])
+        }
+
         let mut symbols = ast.symbols;
 
         if let Some(file) = &ctx.as6809_sym {
@@ -149,7 +160,6 @@ impl Assembler {
             tree: ast.tree,
             source_map: SourceMapping::new(),
             direct_page: None,
-            write_offset: 0,
             ctx: ctx.clone(),
         }
     }
@@ -169,10 +179,6 @@ impl Assembler {
         _node: AstNodeRef,
     ) -> Result<(), UserError> {
         todo!("assemble indexed opcode")
-    }
-
-    fn get_pc(&self) -> usize {
-        (self.binary.get_write_address() as isize + self.write_offset) as usize
     }
 
     fn size_error(&self, n: AstNodeId, e: crate::binary::BinaryError) -> UserError {
@@ -250,7 +256,6 @@ impl Assembler {
     }
 
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
-        self.write_offset = 0;
 
         self.assemble_node(self.tree.root().id())?;
 
@@ -271,9 +276,17 @@ impl Assembler {
         indirect: bool,
     ) -> Result<(), UserError> {
         let idx_byte = imode.get_index_byte(indirect);
+
+        let n = self.tree.get(id).unwrap();
+
+        let si = self.sources.get_source_info(&n.value().pos).unwrap();
+
+        println!("{} {:?}", si.line_str, imode);
+
         self.binary
             .write_byte(idx_byte)
             .map_err(|e| self.size_error(id, e))?;
+
         use item::IndexParseType::*;
         let node = self.tree.get(id).unwrap();
 
@@ -309,6 +322,11 @@ impl Assembler {
         pc as usize..self.get_pc()
     }
 
+    // Get the PC we're using to assemble to
+    fn get_pc(&self) -> usize {
+        self.binary.get_write_address()
+    }
+
     fn assemble_node(&mut self, id: AstNodeId) -> Result<(), UserError> {
         use item::Item::*;
         let x = super::messages::messages();
@@ -322,13 +340,13 @@ impl Assembler {
 
         match i {
             SetPc(pc) => {
-                self.binary.set_write_addr(*pc as usize);
+                self.binary.set_write_address(*pc as usize, 0);
                 x.debug(format!("Set PC to {:02X}", *pc));
             }
 
             SetPutOffset(offset) => {
                 x.debug(format!("Set put offset to {}", offset));
-                self.write_offset = *offset;
+                self.binary.set_write_offset(*offset);
             }
 
             OpCode(ins, amode) => {
@@ -390,18 +408,22 @@ impl Assembler {
                         let (arg, id) = self.eval_first_arg(node)?;
                         let val = arg - (pc + ins.size as i64);
                         // offset is from PC after Instruction and operand has been fetched
+                        use crate::binary::BinaryError::*;
                         let res = self
                             .binary
                             .write_ibyte_check_size(val)
-                            .map_err(|_| self.relative_error(id, val, 8));
+                            .map_err(|x| match x {
+                                DoesNotFit { .. } => self.relative_error(id, val, 8),
+                                _ => self.user_error(format!("{:?}", x), node, true),
+                            });
 
                         match &res {
                             Ok(..) => (),
                             Err(e) => {
                                 if self.ctx.ignore_relative_offset_errors {
-                                    self.binary.write_iword_check_size(0).unwrap();
                                     x.warning(e.pretty().unwrap());
                                     x.warning("Skipping writing relative offset");
+                                    self.binary.write_ibyte_check_size(0).unwrap();
                                 } else {
                                     res?;
                                 }
@@ -410,11 +432,17 @@ impl Assembler {
                     }
 
                     Relative16 => {
+                        use crate::binary::BinaryError::*;
                         let (arg, id) = self.eval_first_arg(node)?;
                         let val = arg - (pc + ins.size as i64);
                         // offset is from PC after Instruction and operand has been fetched
+                        println!("pc is {pc:04x} dest is {val}");
                         let res = self.binary.write_iword_check_size(val);
-                        res.map_err(|_| self.relative_error(id, val, 16))?;
+
+                        res.map_err(|x| match x {
+                                DoesNotFit { .. } => self.relative_error(id, val, 16),
+                                _ => self.user_error(format!("{:?}", x), node, true),
+                            })?;
                     }
 
                     Inherent => {}
@@ -628,10 +656,10 @@ impl Assembler {
                         let (v, id) = self.eval_first_arg(node)?;
 
                         let new_amode = match v.byte_size() {
-                            ByteSizes::Zero  => {
+                            ByteSizes::Zero => {
                                 pc += 1;
                                 PcOffsetByte(0)
-                            },
+                            }
 
                             ByteSizes::Bits5(v) | ByteSizes::Byte(v) => {
                                 pc += 1;
@@ -674,21 +702,16 @@ impl Assembler {
                 let (value, _) = self.eval_first_arg(node)?;
                 self.set_item(id, Item::SetPc(value as u16));
                 pc = value as u64;
-                self.write_offset = 0;
-                x.info(format!( "Setting put address and org to {pc:04X?}"));
+                x.info(format!("Setting put address and org to {pc:04X?}"));
             }
 
             Put => {
                 let x = messages();
-
                 let (value, _) = self.eval_first_arg(node)?;
-
-
                 let offset = (value - pc as i64) as isize;
                 self.set_item(id, Item::SetPutOffset(offset));
-                self.write_offset = offset;
-                pc = value as u64;
-                x.info(format!( "Setting put address {value:04X?}"));
+                // pc = value as u64;
+                x.info(format!("Setting put address {value:04X?}"));
             }
 
             Rmb => {
@@ -703,7 +726,12 @@ impl Assembler {
 
             OpCode(ins, amode) => {
                 let old_pc = pc;
-                let line = self.sources.get_source_info(&node.value().pos).unwrap().line_str.to_string();
+                let line = self
+                    .sources
+                    .get_source_info(&node.value().pos)
+                    .unwrap()
+                    .line_str
+                    .to_string();
                 use emu::isa::AddrModeEnum::*;
 
                 match amode {
@@ -766,11 +794,9 @@ impl Assembler {
                     _ => {
                         pc += ins.size as u64;
                     }
-
                 };
                 let size = pc - old_pc;
                 println!("{old_pc:04X} {size} {line}");
-
             }
 
             AssignmentFromPc(name) => {
