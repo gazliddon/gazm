@@ -34,9 +34,10 @@ lazy_static::lazy_static! {
     static ref OPCODES_REC: Dbase = Dbase::new();
 }
 
-pub fn get_opcode_info(name : &str) -> Option<&InstructionInfo> {
-    OPCODES_REC.get_opcode(name)
+pub fn get_opcode_info(i : &Instruction) -> Option<&InstructionInfo> {
+    OPCODES_REC.get_opcode_info_from_opcode(i.opcode)
 }
+
 
 pub fn opcode_just_token(input: Span) -> IResult<Span> {
     nom::combinator::map(opcode_token, |(_, e)| e)(input)

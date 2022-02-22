@@ -114,7 +114,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             OpCode(ins, item::AddrModeParseType::Inherent) => ins.action.clone(),
 
             StructDef(name) => {
-                println!("struct called {name} with {:?}", child_item(0).unwrap());
                 let body = join_kids(",\n");
                 format!("struct {name} {{\n {body}\n}}")
             },

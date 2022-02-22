@@ -34,17 +34,21 @@ pub enum BinaryError {
     InvalidWriteAddress(usize),
     #[error("Value {val} does not fit into a {dest_type}")]
     DoesNotFit {dest_type: String, val : i64},
+    #[error("Hit watch location")]
+    Halt,
 }
 
 impl Binary {
-    pub fn bin_reference(&mut self, m : &[u8]) {
-        let  mut bin = vec![0; 0x10000];
-
-        for (i,x) in m.iter().enumerate() {
-            bin[i] = *x
+    pub fn bin_reference(&mut self, dest : usize, m : &[u8]) {
+        if self.ref_data.is_none() {
+            self.ref_data = Some(vec![0; 0x10000]);
         }
 
-        self.ref_data = Some(bin);
+        let bin = self.ref_data.as_mut().unwrap();
+
+        for (i,x) in m.iter().enumerate() {
+            bin[i+dest] = *x
+        }
     }
 
     pub fn addr_reference(&mut self, m : crate::as6809::MapFile) {
@@ -82,6 +86,9 @@ impl Binary {
     pub fn set_write_address(&mut self, pc: usize, offset : isize) {
         self.write_address = pc;
         self.set_write_offset(offset)
+    }
+    pub fn skip(&mut self, skip : usize) {
+        self.write_address += skip;
     }
 
     pub fn get_range(&self) -> Option<(usize, usize)> {
@@ -145,6 +152,7 @@ impl Binary {
     }
 
     pub fn write_byte(&mut self, val: u8) -> Result<(), BinaryError> {
+
         let addr = self.write_address;
 
 
@@ -162,17 +170,20 @@ impl Binary {
             self.range = Some((addr, addr))
         }
 
-
         let new_addr = self.get_write_address_with_offset();
 
-        self.data[new_addr as usize] = val;
+        if new_addr >= self.data.len() {
+            panic!("Address out of bounds!")
+        }
 
+        self.data[new_addr] = val;
         self.write_address += 1;
 
+
         if let Some(ref_data) = &self.ref_data {
-            if ref_data[addr] != self.data[addr] {
+            if ref_data[new_addr] != self.data[new_addr] {
                 return Err(
-                    BinaryError::DoesNotMatchReference{addr, expected: ref_data[addr], val : self.data[addr]}
+                    BinaryError::DoesNotMatchReference{addr:new_addr, expected: ref_data[new_addr], val : self.data[new_addr]}
                 )
             }
         }
@@ -199,8 +210,10 @@ impl Binary {
     }
 
     pub fn write_word(&mut self, val: u16) -> Result<(), BinaryError>{
-        self.write_byte((val >> 8) as u8)?;
-        self.write_byte((val & 0xff) as u8)
+        let hi = val >> 8;
+        let lo = val &0xff;
+        self.write_byte(hi as u8)?;
+        self.write_byte(lo as u8)
     }
 }
 

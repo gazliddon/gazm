@@ -208,6 +208,7 @@ use crate::macros::MacroDef;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
+    Skip(usize),
     RawText(String),
     LocalAssignment(String),
     Assignment(String),
@@ -250,6 +251,7 @@ pub enum Item {
     Register(RegEnum),
 
     Include(PathBuf),
+    IncBin(PathBuf),
 
     TokenizedFile(PathBuf, PathBuf, String),
 

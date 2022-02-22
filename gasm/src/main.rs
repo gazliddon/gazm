@@ -10,21 +10,22 @@ use std::hash::Hash;
 use std::os::unix::prelude::OsStrExt;
 use std::path::Path;
 
+mod as6809;
 mod assemble;
 mod ast;
 mod astformat;
+mod binary;
 mod cli;
 mod commands;
 mod comments;
-mod as6809;
 mod error;
 mod eval;
 mod expr;
-mod binary;
 mod indexed;
 mod item;
 mod labels;
 mod locate;
+mod macros;
 mod messages;
 mod node;
 mod numbers;
@@ -32,7 +33,6 @@ mod opcodes;
 mod postfix;
 mod register;
 mod scopes;
-mod macros;
 mod structs;
 // mod sourcefile;
 // mod symbols;
@@ -46,8 +46,8 @@ use std::time::Instant;
 use ast::ItemWithPos;
 use colored::*;
 use error::UserError;
-use romloader::ResultExt;
 use messages::{debug, info, status};
+use romloader::ResultExt;
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___
@@ -57,39 +57,30 @@ static BANNER: &str = r#"
  \____|\__,_|___/_| |_| |_|  \___/ \___/ \___/   /_/
 "#;
 
+use crate::ast::AstNodeRef;
+use crate::cli::WriteBin;
+use crate::error::*;
 use crate::item::{Item, Node};
 use crate::messages::Messageize;
-use crate::ast::AstNodeRef;
-use crate::error::*;
-
 
 use assemble::Assembler;
 
-
 fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
-    let msg = format!("Assembling {}", "TBD");
+    use assemble::Assembler;
+    use ast::Ast;
 
-   status(&msg, |x| {
-        use assemble::Assembler;
-        use ast::Ast;
+    let (tokens, sources) = tokenize::tokenize(ctx)?;
 
-        let ( tokens, sources) = tokenize::tokenize(ctx)?;
+    let ast = Ast::from_nodes(tokens, sources)?;
 
-        let ast = Ast::from_nodes(tokens, sources)?;
+    let mut asm = Assembler::new(ast, ctx)?;
 
-        let mut asm = Assembler::new(ast, ctx);
+    asm.size()?;
 
-        asm.size()?;
+    let ret = asm.assemble()?;
 
-        let ret = asm.assemble()?;
-
-        x.success("Sucess");
-
-        Ok(ret)
-    })
+    Ok(ret)
 }
-
-
 
 fn print_tree(tree: &ast::AstNodeRef, depth: usize) {
     let dstr = " ".repeat(depth * 4);
@@ -108,12 +99,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx: cli::Context = cli::parse().into();
 
-
     let x = messages::messages();
     x.set_verbosity(&ctx.verbose);
 
-    x.status(BANNER);
-    x.status("GASM 6809 Assembler\n");
+    // x.status(BANNER);
+    // x.status("GASM 6809 Assembler\n");
 
     x.indent();
 
@@ -133,7 +123,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         fs::write(bin_file, data).expect("Unable to write file");
     }
 
+    for WriteBin { file, start, size } in ctx.to_write {
+        let file_str = file.to_string_lossy();
+        let end = start + size;
+        x.status(format!(
+            "Writing binary chunk {start:04X}..{end:04X}: {file_str}"
+        ));
+        let data = &ret.mem[start..end];
+        fs::write(file, data).expect("Unable to write file");
+    }
+
     x.deindent();
+
     x.info("");
 
     Ok(())

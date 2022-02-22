@@ -119,7 +119,10 @@ pub struct Dbase {
     #[serde(skip)]
     lookup: Vec<Instruction>,
     #[serde(skip)]
-    name_to_ins : HashMap<String, InstructionInfo>
+    name_to_ins : HashMap<String, InstructionInfo>,
+    #[serde(skip)]
+    opcode_to_ins : HashMap<u16, InstructionInfo>,
+
 }
 
 fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
@@ -158,16 +161,18 @@ impl Dbase {
         }
 
         let mut name_to_ins: HashMap<String, InstructionInfo> = HashMap::new();
+        let mut opcode_to_ins: HashMap<u16, InstructionInfo> = HashMap::new();
 
         let mut add = |name: &str, i: &Instruction| {
-            let i = i.clone();
             let name = String::from(name).to_ascii_lowercase();
             if let Some(rec) = name_to_ins.get_mut(&name) {
                 rec.add(&i);
             } else {
-                let info = InstructionInfo::new(i);
+                let info = InstructionInfo::new(i.clone());
                 name_to_ins.insert(name.to_string(), info);
             }
+            let x = name_to_ins.get(&name.to_string()).unwrap().clone();
+            opcode_to_ins.insert(i.opcode.clone(), x);
         };
 
         for i in &instructions {
@@ -184,6 +189,7 @@ impl Dbase {
             instructions,
             unknown,
             name_to_ins,
+            opcode_to_ins,
         }
     }
 
@@ -194,6 +200,9 @@ impl Dbase {
     pub fn get_opcode(&self, input: &str) -> Option<&InstructionInfo> {
         let op = input.to_string().to_lowercase();
         self.name_to_ins.get(&op)
+    }
+    pub fn get_opcode_info_from_opcode(&self, opcode : u16) -> Option<&InstructionInfo> {
+        self.opcode_to_ins.get(&opcode)
     }
 
     pub fn new() -> Self {

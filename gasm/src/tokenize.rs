@@ -1,14 +1,4 @@
-use crate::{
-    cli, commands, comments,
-    expr::{self, parse_expr},
-    item,
-    labels::{get_just_label, parse_label},
-    locate::matched_span,
-    macros::{parse_macro_call, parse_macro_definition},
-    messages, opcodes,
-    structs::{get_struct, parse_struct_definition},
-    util::{self, sep_list1, wrapped_chars, ws},
-};
+use crate::{cli, commands, comments, expr::{self, parse_expr}, item, labels::{get_just_label, parse_label}, locate::matched_span, macros::{parse_macro_call, parse_macro_definition}, messages::{self, messages}, opcodes, structs::{get_struct, parse_struct_definition}, util::{self, sep_list1, wrapped_chars, ws}};
 
 use colored::*;
 use std::{
@@ -129,7 +119,7 @@ impl Tokens {
             }
         }
 
-        let (input, comment) = comments::strip_comments(line)?;
+        let (mut input, comment) = comments::strip_comments(line)?;
         self.add_some_node(comment);
 
         if input.is_empty() {
@@ -157,14 +147,15 @@ impl Tokens {
             return Ok(());
         }
 
-        let body = alt((ws(parse_command), ws(parse_opcode)));
-        let (rest, (label, body)) = pair(opt(parse_label), body)(input)?;
+        if let Ok((rest, label)) = ws(parse_label)(input) {
+            let node = mk_pc_equate(label);
+            self.add_node(node);
+            input = rest;
+        }
+
+        let (rest,body) = alt((ws(parse_command), ws(parse_opcode)))(input)?;
+
         self.handle_trailing_text(rest)?;
-
-        let label = label.map(mk_pc_equate);
-
-        self.add_some_node(label);
-
         self.add_node(body);
 
         return Ok(());
@@ -296,11 +287,20 @@ fn tokenize_file(
 
     // Tokenize includes
     for n in tokes.iter_mut() {
-        if let Some(inc_file) = n.get_include_file() {
-            x.indent();
-            *n = tokenize_file(depth + 1, ctx, fl, inc_file, file, macros, errors)?.into();
-            x.deindent();
-        }
+
+        match &n.item {
+            IncBin(bin_file) => {
+                x.status(format!( "Reading binary file {}", bin_file.to_string_lossy() ));
+                x.error("TODO");
+            }
+
+            Include(inc_file) => {
+                x.indent();
+                *n = tokenize_file(depth + 1, ctx, fl, inc_file, file, macros, errors)?.into();
+                x.deindent();
+            }
+            _ => ()
+        };
     }
 
     let item = TokenizedFile(file.to_path_buf(), parent.to_path_buf(), source.clone());
@@ -331,6 +331,9 @@ pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, Sources)> {
     let mut errors = UserErrors::new(ctx.max_errors);
 
     for file in &ctx.files {
+        let msg = format!("Reading {}", file.to_string_lossy());
+        messages().status(msg);
+
         let res = tokenize_file(0, ctx, &mut fl, &file, &parent, &mut macros, &mut errors);
 
         match res {
