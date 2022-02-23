@@ -22,7 +22,6 @@ roms : intermediates
 intermediates : $(BIN_DIR)/defa7-defb6-amode1.o $(BIN_DIR)/blk71.o $(BIN_DIR)/roms.o \
 	$(BIN_DIR)/defend.11 \
 	$(BIN_DIR)/defend.12 \
-	$(BIN_DIR)/defend.3 \
 	$(BIN_DIR)/defend.6
 	@echo Built intermediates
 
@@ -48,10 +47,6 @@ $(BIN_DIR)/defa7-defb6-amode1.o : $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	--write-bin $(BIN_DIR)/defend.9 2000 800 \
 	--write-bin $(BIN_DIR)/defend.12 2800 800 \
 	--write-bin x.bin 2ee9 117
-
-$(BIN_DIR)/defend.3 : $(DEFENDER_SRC_DIR)/defend3.src
-	@$(ASM) $? \
-	--write-bin $@ 0 1000
 
 $(BIN_DIR)/defend.6 : $(DEFENDER_SRC_DIR)/defend6.src
 	@$(ASM) $? \
@@ -92,8 +87,7 @@ $(BIN_DIR)/roms.o : $(ROMS_SRC_FULL)
 	--write-bin $@ 2000 e000 \
 	--write-bin $(BIN_DIR)/defend.8 2000 800 \
 	--write-bin $(BIN_DIR)/defend.10 c800 800 \
-	--write-bin $(BIN_DIR)/defend.7 c000 800 \
-	--write-bin $(BIN_DIR)/defend.11.a 2800 800 
+	--write-bin $(BIN_DIR)/defend.7 c000 800
 
 clean:
 	@rm -rf $(BIN_DIR)
