@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use super::sourcestore::{SourceFile, Sources};
 use anyhow::{anyhow, Result};
 
+#[derive(Debug)]
 pub struct SourceFileLoader {
     pub search_paths: Vec<PathBuf>,
     pub sources: Sources,
@@ -59,12 +60,17 @@ impl SourceFileLoader {
     pub fn read_binary_chunk<P: AsRef<Path>>(&self, path: P, r: std::ops::Range<usize>) -> Result<(PathBuf, Vec<u8>)> {
         let (path, buff) = self.read_binary(path)?;
 
-        if r.contains(&(buff.len() - 1)) {
+        let buff_r = 0..buff.len();
+
+        let start = r.start;
+        let last = ( r.len() + r.start ) -1;
+
+        if buff_r.contains(&start) && buff_r.contains(&last) {
             Ok((path, buff[r].into() ))
         } else {
             Err(anyhow!(
-                "Range exceeds size of file {}",
-                path.to_string_lossy(),
+                "Cannot read binary chunk. Range exceeds size of file {}: file size is {}, tried to grab up to {}",
+                path.to_string_lossy(), buff_r.len(), last
                 ))
         }
     }
@@ -85,10 +91,6 @@ impl SourceFileLoader {
         let mut file = File::open(path.clone())?;
         file.read_to_end(&mut buffer)?;
         Ok((path, buffer))
-    }
-
-    pub fn get_file_size<P: AsRef<Path>>(&self, _path: P) -> Result<(PathBuf, usize)> {
-        panic!()
     }
 
     fn get_file_name<P: AsRef<Path>>(&self, file_name: P) -> Result<PathBuf> {

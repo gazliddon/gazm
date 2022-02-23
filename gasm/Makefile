@@ -19,7 +19,11 @@ directories:
 roms : intermediates
 	@echo TODO build ROMS
 
-intermediates : $(BIN_DIR)/defa7-defb6-amode1.o $(BIN_DIR)/samexap7.o $(BIN_DIR)/blk71.o $(BIN_DIR)/roms.o
+intermediates : $(BIN_DIR)/defa7-defb6-amode1.o $(BIN_DIR)/samexap7.o $(BIN_DIR)/blk71.o $(BIN_DIR)/roms.o \
+	$(BIN_DIR)/defend.11 \
+	$(BIN_DIR)/defend.12 \
+	$(BIN_DIR)/defend.3 \
+	$(BIN_DIR)/defend.6
 	@echo Built intermediates
 
 # Build amode1 # The equivalent of: RASM PHR2,DEFA2,DEFB2,AMODE0;-X (ELSE CREF SYMBOL OVERFLOW)
@@ -53,6 +57,23 @@ $(BIN_DIR)/samexap7.o : $(SAMEXAP7_SRC_FULL)
 	--bin-ref $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).o 0 2f8 fc60 \
 	--write-bin $@ fc60 2f8
 
+$(BIN_DIR)/defend.3 : $(DEFENDER_SRC_DIR)/defend3.src
+	@$(ASM) $? \
+	--write-bin $@ 0 1000
+
+$(BIN_DIR)/defend.6 : $(DEFENDER_SRC_DIR)/defend6.src
+	@$(ASM) $? \
+	--write-bin $@ 0 800
+
+$(BIN_DIR)/defend.11 : $(DEFENDER_SRC_DIR)/defend11.src
+	@$(ASM) $? \
+	--write-bin $@ 0 800
+
+	# bin/defa7-defb6-amode1.o,0x0800,0x0000,0x0800,
+	# bin/defa7-defb6-amode1.o,0xaeeb,0x06e9,0x0117,"amode tail"
+$(BIN_DIR)/defend.12 : $(DEFENDER_SRC_DIR)/defend12.src
+	@$(ASM) $? \
+	--write-bin $@ 0 800
 
 # Build amode1 # The equivalent of: RASM PHR2,DEFA2,DEFB2,AMODE0;-X (ELSE CREF SYMBOL OVERFLOW)
 BLK71_SRC = blk71.src
@@ -97,6 +118,14 @@ defend.3
 	bin/defa7-defb6-amode1.o,0xd000,0x0000,0x0c60
 	bin/samexap7.o,0x0000,0x0c60,0x02f8
 	bin/defa7-defb6-amode1.o,0xdf57,0x0f58,0x0230
+
+	org 0
+	incbin "bin/defa7-defb6-amode1.o",0xd000,0x0c60
+	org $c60
+	incbin "bin/samexap7.o",0x0000,0x02f8
+	org $f58
+	incbin "bin/defa7-defb6-amode1.o",0xdf57,0x0230
+
 
 defend.4
 	bin/defa7-defb6-amode1.o,0xb800,0x0000,0x0800

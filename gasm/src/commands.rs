@@ -7,12 +7,7 @@ use Item::*;
 
 type CommandParseFn = fn(Span) -> IResult<Node>;
 
-use crate::{
-    astformat::as_string,
-    item::{Item, Node},
-    locate::matched_span,
-    util::match_escaped_str,
-};
+use crate::{astformat::as_string, item::{Item, Node}, locate::matched_span, util::{match_escaped_str, match_file_name}};
 
 use nom::{
     branch::alt,
@@ -73,7 +68,7 @@ fn parse_incbin_arg(input: Span) -> IResult<Node> {
     let sep = ws(tag(","));
     let sep2 = ws(tag(","));
 
-    let (rest, file) = match_escaped_str(input)?;
+    let (rest, file) = match_file_name(input)?;
 
     let (rest, extra_args) = opt(preceded(sep, separated_list1(sep2,parse_expr)))(rest)?;
 

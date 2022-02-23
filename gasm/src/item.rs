@@ -252,6 +252,7 @@ pub enum Item {
 
     Include(PathBuf),
     IncBin(PathBuf),
+    IncBinResolved{ file: PathBuf, r : std::ops::Range<usize> },
 
     TokenizedFile(PathBuf, PathBuf, String),
 

@@ -4,6 +4,9 @@ use emu::cpu::RegEnum;
 use emu::isa::AddrModeEnum;
 use nom::combinator::map_opt;
 use nom::combinator::recognize;
+use nom::Offset;
+use romloader::sources::SourceFileLoader;
+use romloader::sources::SourceInfo;
 use romloader::sources::SymbolError;
 
 use crate::assemble;
@@ -25,10 +28,11 @@ use crate::messages::messages;
 use crate::util;
 use crate::util::ByteSize;
 use item::{Item, Node};
-use romloader::sources::{ItemType, SourceDatabase, SourceMapping, Sources, SymbolTable};
+use romloader::sources::{ItemType, Position, SourceDatabase, SourceMapping, Sources, SymbolTable};
 use romloader::ResultExt;
 use std::collections::HashSet;
 use std::net::UdpSocket;
+use std::ops::RangeBounds;
 use std::path::PathBuf;
 use std::vec;
 
@@ -110,7 +114,7 @@ fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
 
 pub struct Assembler {
     symbols: SymbolTable,
-    sources: Sources,
+    sources_loader: SourceFileLoader,
     binary: Binary,
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
@@ -143,9 +147,8 @@ impl Assembler {
 
         if let Some(file) = &ctx.as6809_lst {
             messages().status(format!("Loading map file {}", file));
-            let m = crate::as6809::MapFile::new(&file).map_err(|_| 
-                AssemblerErrors::MapFile(file.to_string())
-                )?;
+            let m = crate::as6809::MapFile::new(&file)
+                .map_err(|_| AssemblerErrors::MapFile(file.to_string()))?;
             binary.addr_reference(m);
         }
 
@@ -159,11 +162,11 @@ impl Assembler {
             use std::io::Read;
             let mut buffer = Vec::new();
             let filename = bin_ref.file.to_string_lossy();
-            let mut file = File::open(&bin_ref.file).map_err(|_|
-                AssemblerErrors::BinRefFile(filename.to_string()))?;
+            let mut file = File::open(&bin_ref.file)
+                .map_err(|_| AssemblerErrors::BinRefFile(filename.to_string()))?;
 
-            file.read_to_end(&mut buffer).map_err(|_|
-                AssemblerErrors::BinRefFile(filename.to_string()))?;
+            file.read_to_end(&mut buffer)
+                .map_err(|_| AssemblerErrors::BinRefFile(filename.to_string()))?;
 
             binary.bin_reference(
                 bin_ref.dest,
@@ -174,12 +177,13 @@ impl Assembler {
         let mut symbols = ast.symbols;
 
         if let Some(file) = &ctx.as6809_sym {
-            crate::as6809::add_reference_syms(file, &mut symbols).map_err(|_| AssemblerErrors::AddingSymbols)?;
+            crate::as6809::add_reference_syms(file, &mut symbols)
+                .map_err(|_| AssemblerErrors::AddingSymbols)?;
         }
 
         let ret = Self {
             symbols,
-            sources: ast.sources,
+            sources_loader: ast.sources_loader,
             binary,
             tree: ast.tree,
             source_map: SourceMapping::new(),
@@ -205,14 +209,16 @@ impl Assembler {
     ) -> Result<(), UserError> {
         todo!("assemble indexed opcode")
     }
+    fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, String> {
+        self.sources_loader.sources.get_source_info(pos)
+    }
 
     fn binary_error(&self, n: AstNodeId, e: crate::binary::BinaryError) -> UserError {
         let n = self.tree.get(n).unwrap();
-        let info = &self.sources.get_source_info(&n.value().pos).unwrap();
+        let info = &self.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
         UserError::from_text(msg, info, true)
     }
-
 
     fn relative_error(&self, n: AstNodeId, val: i64, bits: usize) -> UserError {
         let p = 1 << (bits - 1);
@@ -224,7 +230,7 @@ impl Assembler {
         };
 
         let n = self.tree.get(n).unwrap();
-        let info = &self.sources.get_source_info(&n.value().pos).unwrap();
+        let info = &self.get_source_info(&n.value().pos).unwrap();
         let msg = message;
         UserError::from_text(msg, info, true)
     }
@@ -243,13 +249,13 @@ impl Assembler {
     }
 
     fn user_error<S: Into<String>>(&self, err: S, node: AstNodeRef, is_failure: bool) -> UserError {
-        let info = self.sources.get_source_info(&node.value().pos).unwrap();
+        let info = self.get_source_info(&node.value().pos).unwrap();
         UserError::from_text(err, &info, is_failure)
     }
 
     fn eval_node(&self, node: AstNodeRef) -> Result<i64, UserError> {
         eval(&self.symbols, node).map_err(|err| {
-            let info = self.sources.get_source_info(&node.value().pos).unwrap();
+            let info = self.get_source_info(&node.value().pos).unwrap();
             UserError::from_ast_error(err, &info)
         })
     }
@@ -284,7 +290,11 @@ impl Assembler {
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
         self.assemble_node(self.tree.root().id())?;
 
-        let database = SourceDatabase::new(&self.source_map, &self.sources, &self.symbols);
+        let database = SourceDatabase::new(
+            &self.source_map,
+            &self.sources_loader.sources,
+            &self.symbols,
+        );
 
         let ret = Assembled {
             mem: self.binary.data.clone(),
@@ -304,7 +314,7 @@ impl Assembler {
 
         let n = self.tree.get(id).unwrap();
 
-        let si = self.sources.get_source_info(&n.value().pos).unwrap();
+        let si = self.get_source_info(&n.value().pos).unwrap();
 
         messages().debug(format!("{} {:?}", si.line_str, imode));
 
@@ -364,13 +374,18 @@ impl Assembler {
         let pc = self.get_pc() as i64;
 
         match i {
-            IncBin(_file) => {
-                panic!()
-            },
+            IncBinResolved{file, r} => {
+                println!("Trying to load {} :  offset: {:04X} len: {:04X}", file.to_string_lossy(),r.start, r.len());
+                println!("file size is {:04X?}", self.sources_loader.get_size(file));
+                let (_,bin) = self.sources_loader.read_binary_chunk(file, r.clone()).map_err(|e| self.user_error(e.to_string(), node, true))?;
+                for val in bin {
+                    self.binary.write_byte(val).map_err(|e| self.binary_error(id, e))?;
+                }
+            }
 
             Skip(skip) => {
                 self.binary.skip(*skip);
-            },
+            }
 
             SetPc(pc) => {
                 self.binary.set_write_address(*pc as usize, 0);
@@ -484,15 +499,19 @@ impl Assembler {
                 };
 
                 let range = self.get_range(pc);
-                self.source_map
-                    .add_mapping(&self.sources, range, pos, ItemType::OpCode);
+                self.source_map.add_mapping(
+                    &self.sources_loader.sources,
+                    range,
+                    pos,
+                    ItemType::OpCode,
+                );
             }
 
             ExpandedMacro(mcall) => {
                 // We need to tell the source mapper we're expanding a macro so the file / line for
                 // everything expanded by the macro will point to the line that instantiated the
                 // macro
-                let si = self.sources.get_source_info(&mcall.name).unwrap();
+                let si = self.get_source_info(&mcall.name).unwrap();
                 let frag = si.fragment.to_string();
                 self.source_map.start_macro(&mcall.name);
 
@@ -519,17 +538,19 @@ impl Assembler {
 
             Fdb(..) => {
                 for n in node.children() {
-
                     let x = self.eval_node(n)?;
                     self.binary
                         .write_word_check_size(x)
-                        .map_err(|e| {
-                            self.binary_error(n.id(), e) })?;
+                        .map_err(|e| self.binary_error(n.id(), e))?;
                 }
 
                 let range = self.get_range(pc);
-                self.source_map
-                    .add_mapping(&self.sources, range, pos, ItemType::Command);
+                self.source_map.add_mapping(
+                    &self.sources_loader.sources,
+                    range,
+                    pos,
+                    ItemType::Command,
+                );
             }
 
             Fcb(..) => {
@@ -540,8 +561,12 @@ impl Assembler {
                         .map_err(|e| self.binary_error(n.id(), e))?;
                 }
                 let range = self.get_range(pc);
-                self.source_map
-                    .add_mapping(&self.sources, range, pos, ItemType::Command);
+                self.source_map.add_mapping(
+                    &self.sources_loader.sources,
+                    range,
+                    pos,
+                    ItemType::Command,
+                );
             }
 
             Fcc(text) => {
@@ -551,8 +576,12 @@ impl Assembler {
                         .map_err(|e| self.binary_error(id, e))?;
                 }
                 let range = self.get_range(pc);
-                self.source_map
-                    .add_mapping(&self.sources, range, pos, ItemType::Command);
+                self.source_map.add_mapping(
+                    &self.sources_loader.sources,
+                    range,
+                    pos,
+                    ItemType::Command,
+                );
             }
 
             Zmb => {
@@ -563,8 +592,12 @@ impl Assembler {
                         .map_err(|e| self.binary_error(id, e))?;
                 }
                 let range = self.get_range(pc);
-                self.source_map
-                    .add_mapping(&self.sources, range, pos, ItemType::Command);
+                self.source_map.add_mapping(
+                    &self.sources_loader.sources,
+                    range,
+                    pos,
+                    ItemType::Command,
+                );
             }
 
             Zmd => {
@@ -576,8 +609,12 @@ impl Assembler {
                 }
 
                 let range = self.get_range(pc);
-                self.source_map
-                    .add_mapping(&self.sources, range, pos, ItemType::Command);
+                self.source_map.add_mapping(
+                    &self.sources_loader.sources,
+                    range,
+                    pos,
+                    ItemType::Command,
+                );
             }
 
             Fill => {
@@ -590,12 +627,15 @@ impl Assembler {
                 }
 
                 let range = self.get_range(pc);
-                self.source_map
-                    .add_mapping(&self.sources, range, pos, ItemType::Command);
+                self.source_map.add_mapping(
+                    &self.sources_loader.sources,
+                    range,
+                    pos,
+                    ItemType::Command,
+                );
             }
-            
 
-            Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) | Rmb
+            IncBin(..) |Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) | Rmb
             | StructDef(..) => (),
 
             SetDp => {
@@ -737,7 +777,7 @@ impl Assembler {
                 if bytes < 0 {
                     return Err(self.user_error("Argument for RMB must be positive", node, true));
                 };
-                
+
                 self.set_item(id, Item::Skip(bytes as usize));
 
                 pc = pc + bytes as u64;
@@ -746,7 +786,6 @@ impl Assembler {
             OpCode(ins, amode) => {
                 use emu::isa::AddrModeEnum::*;
                 let _line = self
-                    .sources
                     .get_source_info(&node.value().pos)
                     .unwrap()
                     .line_str
@@ -773,8 +812,7 @@ impl Assembler {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
                                 if top_byte == dp {
-                                    if let Ok(si) = self.sources.get_source_info(&node.value().pos)
-                                    {
+                                    if let Ok(si) = self.get_source_info(&node.value().pos) {
                                         let x = messages();
                                         x.debug(format!("extended -> direct: {}", si.line_str));
                                     }
@@ -793,7 +831,7 @@ impl Assembler {
                                 }
                             } else {
                                 let pos = &node.value().pos;
-                                if let Ok(si) = self.sources.get_source_info(pos) {
+                                if let Ok(si) = self.get_source_info(pos) {
                                     let x = messages();
                                     x.debug(format!(
                                         "Couldn't eval: {} {} {:?} {} {:X}",
@@ -850,7 +888,6 @@ impl Assembler {
             Fcc(text) => {
                 pc += text.as_bytes().len() as u64;
                 let _line = self
-                    .sources
                     .get_source_info(&node.value().pos)
                     .unwrap()
                     .line_str
@@ -879,6 +916,39 @@ impl Assembler {
             SetDp => {
                 let (dp, _) = self.eval_first_arg(node)?;
                 self.set_dp(dp);
+            }
+
+            IncBin(file_name) => {
+                let data_len = self.sources_loader.get_size(file_name).map_err(|e|
+                    self.user_error(e.to_string(), node, true))?;
+
+                let mut r = 0..data_len;
+
+                let mut c = node.children();
+
+                let offset_size = c.next().and_then(|offset| 
+                    c.next().map(|size| (offset,size)));
+
+                if let Some((offset,size)) = offset_size {
+                    let offset = self.eval_node(offset)?;
+                    let size = self.eval_node(size)?;
+                    let offset = offset as usize;
+                    let size = size as usize;
+                    let last = ( offset + size ) - 1;
+
+                    if !(r.contains(&offset) && r.contains(&last)) {
+                        let msg = format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
+                        return Err(self.user_error(msg, node, true))
+                    };
+
+                    r.start = offset;
+                    r.end = offset + size;
+                }
+
+                pc = pc + r.len() as u64;
+                let new_item = IncBinResolved{ file: file_name.to_path_buf(), r };
+                let mut node_mut = self.tree.get_mut(id).unwrap();
+                node_mut.value().item = new_item;
             }
 
             Assignment(..) | Comment(..) | MacroDef(..) | StructDef(..) => (),

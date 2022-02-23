@@ -108,9 +108,18 @@ pub fn match_str(input: Span) -> IResult<Span> {
     let body = take_while(move |c| !term.contains(c));
     escaped(body, '\\', one_of(term))(input)
 }
+pub fn match_file_str(input: Span) -> IResult<Span> {
+    let term = "\"n\\";
+    let body = take_while(move |c| !term.contains(c));
+    escaped(body, '\\', one_of(term))(input)
+}
 
 pub fn match_escaped_str(input: Span) -> IResult<Span> {
     preceded(nom_char('\"'), cut(terminated(match_str, nom_char('\"'))))(input)
+}
+pub fn match_file_name(input: Span) -> IResult<Span> {
+    let body = take_while(move |c| c != '"');
+    wrapped_chars('"', body, '"')(input)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -151,11 +160,12 @@ pub fn compile_text(code: &str) -> Result<String, String> {
     let source_file = SourceFile::new(file_name, code);
     id_to_source_file.insert(0,source_file);
 
-    let sources = Sources {
+    let mut loader = SourceFileLoader::new();
+    loader.sources = Sources {
         id_to_source_file
     };
 
-    let ast = Ast::from_nodes(node, sources).map_err(|e| format!("error: {:?}", e.message))?;
+    let ast = Ast::from_nodes(node, loader).map_err(|e| format!("error: {:?}", e.message))?;
 
     Ok(ast.to_string())
 }

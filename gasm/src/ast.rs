@@ -20,7 +20,7 @@ use crate::item;
 use crate::scopes::ScopeBuilder;
 
 use crate::item::{Item, Node};
-use romloader::sources::Position;
+use romloader::sources::{Position, SourceFileLoader};
 
 use crate::messages::{debug, info, verbosity, Verbosity};
 use crate::postfix;
@@ -65,20 +65,20 @@ pub fn make_tree(node: &Node) -> AstTree {
 #[derive(Debug)]
 pub struct Ast {
     pub tree: AstTree,
-    pub sources: Sources,
+    pub sources_loader: SourceFileLoader,
     pub symbols: SymbolTable,
 }
 
 impl Ast {
-    pub fn from_nodes(node: Node, sources: Sources) -> Result<Self, UserError> {
+    pub fn from_nodes(node: Node, sources: SourceFileLoader) -> Result<Self, UserError> {
         let tree = make_tree(&node);
         Self::new(tree, sources)
     }
 
-    pub fn new(tree: AstTree, sources: Sources) -> Result<Self, UserError> {
+    pub fn new(tree: AstTree, sources_loader: SourceFileLoader) -> Result<Self, UserError> {
         let mut ret = Self {
             tree,
-            sources,
+            sources_loader,
             symbols: Default::default(),
         };
 
@@ -106,12 +106,12 @@ impl Ast {
         &'a self,
         node: &'a AstNodeRef,
     ) -> Result<SourceInfo<'a>, String> {
-        self.sources.get_source_info(&node.value().pos)
+        self.sources_loader.sources.get_source_info(&node.value().pos)
     }
 
     fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, String> {
         let n = self.tree.get(id).unwrap();
-        self.sources.get_source_info(&n.value().pos)
+        self.sources_loader.sources.get_source_info(&n.value().pos)
     }
 
     fn rename_locals(&mut self) {

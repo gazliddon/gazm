@@ -289,11 +289,6 @@ fn tokenize_file(
     for n in tokes.iter_mut() {
 
         match &n.item {
-            IncBin(bin_file) => {
-                x.status(format!( "Reading binary file {}", bin_file.to_string_lossy() ));
-                x.error("TODO");
-            }
-
             Include(inc_file) => {
                 x.indent();
                 *n = tokenize_file(depth + 1, ctx, fl, inc_file, file, macros, errors)?.into();
@@ -310,7 +305,7 @@ fn tokenize_file(
 
 use crate::macros::Macros;
 
-pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, Sources)> {
+pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, SourceFileLoader)> {
     // let ret = Node::new(Item::Block, vec![], Position::default());
 
     let file = ctx.files[0].clone();
@@ -352,7 +347,7 @@ pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, Sources)> {
     }
     let block =  Node::from_item(Item::Block, Position::default()).with_children(all_tokens);
 
-    Ok((block, fl.sources))
+    Ok((block, fl))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
