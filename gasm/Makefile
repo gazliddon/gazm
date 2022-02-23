@@ -19,7 +19,7 @@ directories:
 roms : intermediates
 	@echo TODO build ROMS
 
-intermediates : $(BIN_DIR)/defa7-defb6-amode1.o $(BIN_DIR)/samexap7.o $(BIN_DIR)/blk71.o $(BIN_DIR)/roms.o \
+intermediates : $(BIN_DIR)/defa7-defb6-amode1.o $(BIN_DIR)/blk71.o $(BIN_DIR)/roms.o \
 	$(BIN_DIR)/defend.11 \
 	$(BIN_DIR)/defend.12 \
 	$(BIN_DIR)/defend.3 \
@@ -27,7 +27,7 @@ intermediates : $(BIN_DIR)/defa7-defb6-amode1.o $(BIN_DIR)/samexap7.o $(BIN_DIR)
 	@echo Built intermediates
 
 # Build amode1 # The equivalent of: RASM PHR2,DEFA2,DEFB2,AMODE0;-X (ELSE CREF SYMBOL OVERFLOW)
-DEFA7_DEFB6_AMODE1_SRC = phr6.src defa7.src defb6.src amode1.src
+DEFA7_DEFB6_AMODE1_SRC = phr6.src defa7.src defb6.src amode1.src samexap7.src
 DEFA7_DEFB6_AMODE1_SRC_FULL := $(foreach file,$(DEFA7_DEFB6_AMODE1_SRC), $(DEFENDER_SRC_DIR)/$(file))
 $(BIN_DIR)/defa7-defb6-amode1.o : $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	@echo Building $@ from $(DEFA7_DEFB6_AMODE1_SRC_FULL)
@@ -39,23 +39,15 @@ $(BIN_DIR)/defa7-defb6-amode1.o : $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	--bin-ref $(RED_LABEL)/defend.4 0000 800 d800 \
 	--bin-ref $(RED_LABEL)/defend.9 0000 800 2000 \
 	--bin-ref $(RED_LABEL)/defend.12 0000 800 2800 \
-	--bin-ref $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).o aee9 117 2ee9 \
+	--bin-ref $(RED_LABEL)/defend.3 0000 1000 f000 \
 	--write-bin $@ 2000 e000 \
 	--write-bin $(BIN_DIR)/defend.1 d000 800 \
 	--write-bin $(BIN_DIR)/defend.2 e000 1000 \
+	--write-bin $(BIN_DIR)/defend.3 f000 1000 \
 	--write-bin $(BIN_DIR)/defend.4 d800 800 \
 	--write-bin $(BIN_DIR)/defend.9 2000 800 \
 	--write-bin $(BIN_DIR)/defend.12 2800 800 \
 	--write-bin x.bin 2ee9 117
-
-SAMEXAP7_SRC = phr6.src samexap7.src 
-SAMEXAP7_SRC_FULL := $(foreach file,$(SAMEXAP7_SRC), $(DEFENDER_SRC_DIR)/$(file))
-$(BIN_DIR)/samexap7.o : $(SAMEXAP7_SRC_FULL)
-	@echo Building $@ from $?
-	@$(ASM) $? \
-	--as6809-sym $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).sym \
-	--bin-ref $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).o 0 2f8 fc60 \
-	--write-bin $@ fc60 2f8
 
 $(BIN_DIR)/defend.3 : $(DEFENDER_SRC_DIR)/defend3.src
 	@$(ASM) $? \
