@@ -45,8 +45,7 @@ $(BIN_DIR)/defa7-defb6-amode1.o : $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	--write-bin $(BIN_DIR)/defend.3 f000 1000 \
 	--write-bin $(BIN_DIR)/defend.4 d800 800 \
 	--write-bin $(BIN_DIR)/defend.9 2000 800 \
-	--write-bin $(BIN_DIR)/defend.12 2800 800 \
-	--write-bin x.bin 2ee9 117
+	--write-bin $(BIN_DIR)/defend.12 2800 800
 
 $(BIN_DIR)/defend.6 : $(DEFENDER_SRC_DIR)/defend6.src
 	@$(ASM) $? \
