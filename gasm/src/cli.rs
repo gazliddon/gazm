@@ -36,6 +36,7 @@ pub struct Context {
     pub as6809_sym: Option<String>,
     pub bin_refs: Vec<BinRef>,
     pub to_write: Vec<WriteBin>,
+    pub memory_image_size : usize,
 }
 
 impl Default for Context {
@@ -51,6 +52,7 @@ impl Default for Context {
             ignore_relative_offset_errors: false,
             as6809_lst: None,
             as6809_sym: None,
+            memory_image_size: 0x10000,
             bin_refs: Default::default(),
             to_write: Default::default(),
         }
@@ -115,6 +117,13 @@ impl From<clap::ArgMatches> for Context {
         if m.is_present("verbose") {
             ret.verbose = Verbosity::DEBUG;
         };
+
+        if m.is_present("mem-size") {
+            ret.memory_image_size = m
+                .value_of("mem-size")
+                .map(|s| s.parse::<usize>().unwrap())
+                .unwrap();
+        }
 
         if m.is_present("max-errors") {
             ret.max_errors = m
@@ -214,6 +223,15 @@ pub fn parse() -> clap::ArgMatches {
                 .use_delimiter(false)
                 .validator(|s| s.parse::<usize>())
                 .short('m'),
+        )
+        .arg(
+            Arg::new("mem-size")
+                .default_value("65536")
+                .help("Size of output binary")
+                .long("mem-size")
+                .takes_value(true)
+                .use_delimiter(false)
+                .validator(|s| s.parse::<usize>())
         )
         .get_matches()
 }

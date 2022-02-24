@@ -143,7 +143,7 @@ enum AssemblerErrors {
 
 impl Assembler {
     pub fn new(ast: crate::ast::Ast, ctx: &Context) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut binary = Binary::new();
+        let mut binary = Binary::new(ctx.memory_image_size);
 
         if let Some(file) = &ctx.as6809_lst {
             messages().status(format!("Loading map file {}", file));

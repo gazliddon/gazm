@@ -10,14 +10,7 @@ pub struct Binary {
 
 impl Default for Binary {
     fn default() -> Self {
-        Self {
-            write_address: 0,
-            written: false,
-            range: None,
-            data: vec![0; 0x10000],
-            ref_data: None,
-            write_offset: 0,
-        }
+        Self::new(0x10000)
     }
 }
 
@@ -67,8 +60,15 @@ impl Binary {
         self.written = true;
     }
 
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(size : usize) -> Self {
+        Self {
+            write_address: 0,
+            written: false,
+            range: None,
+            data: vec![0; size],
+            ref_data: None,
+            write_offset: 0,
+        }
     }
 
     pub fn bump_write_address(&mut self, n: usize) {

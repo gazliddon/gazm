@@ -31,21 +31,24 @@ DEFA7_DEFB6_AMODE1_SRC_FULL := $(foreach file,$(DEFA7_DEFB6_AMODE1_SRC), $(DEFEN
 $(BIN_DIR)/defa7-defb6-amode1.o : $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	@echo Building $@ from $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	@$(ASM) $(DEFA7_DEFB6_AMODE1_SRC_FULL) \
+	-s t.json \
 	--as6809-sym $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).sym \
 	--bin-ref $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).o 0000 e000 2000 \
 	--bin-ref $(RED_LABEL)/defend.1 0000 800 d000 \
-	--bin-ref $(RED_LABEL)/defend.2 0000 1000 e000 \
 	--bin-ref $(RED_LABEL)/defend.4 0000 800 d800 \
-	--bin-ref $(RED_LABEL)/defend.9 0000 800 2000 \
-	--bin-ref $(RED_LABEL)/defend.12 0000 800 2800 \
+	--bin-ref $(RED_LABEL)/defend.2 0000 1000 e000 \
 	--bin-ref $(RED_LABEL)/defend.3 0000 1000 f000 \
+	\
+	--bin-ref $(RED_LABEL)/defend.9 0000 800 2000 \
+	--bin-ref $(RED_LABEL)/defend.12 0000 800 c800 \
 	--write-bin $@ 2000 e000 \
 	--write-bin $(BIN_DIR)/defend.1 d000 800 \
+	--write-bin $(BIN_DIR)/defend.4 d800 800 \
 	--write-bin $(BIN_DIR)/defend.2 e000 1000 \
 	--write-bin $(BIN_DIR)/defend.3 f000 1000 \
-	--write-bin $(BIN_DIR)/defend.4 d800 800 \
+	\
 	--write-bin $(BIN_DIR)/defend.9 2000 800 \
-	--write-bin $(BIN_DIR)/defend.12 2800 800
+	--write-bin $(BIN_DIR)/defend.12 c800 800
 
 $(BIN_DIR)/defend.6 : $(DEFENDER_SRC_DIR)/defend6.src
 	@$(ASM) $? \
@@ -55,8 +58,6 @@ $(BIN_DIR)/defend.11 : $(DEFENDER_SRC_DIR)/defend11.src
 	@$(ASM) $? \
 	--write-bin $@ 0 800
 
-	# bin/defa7-defb6-amode1.o,0x0800,0x0000,0x0800,
-	# bin/defa7-defb6-amode1.o,0xaeeb,0x06e9,0x0117,"amode tail"
 $(BIN_DIR)/defend.12 : $(DEFENDER_SRC_DIR)/defend12.src
 	@$(ASM) $? \
 	--write-bin $@ 0 800
