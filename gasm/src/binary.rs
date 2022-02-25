@@ -123,6 +123,10 @@ impl Binary {
         ( self.write_address as isize + self.write_offset ) as usize
     }
 
+    pub fn get_write_offset(&self) -> isize {
+        self.write_offset
+    }
+
     pub fn set_write_address(&mut self, pc: usize, offset : isize) {
         self.write_address = pc;
         self.set_write_offset(offset)
