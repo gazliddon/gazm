@@ -48,13 +48,13 @@ struct Sections {
 impl Deref for Sections {
     type Target = Binary;
     fn deref(&self) -> &Self::Target {
-        self.get_current_section().unwrap()
+        self.get_current_section_binary().unwrap()
     }
 }
 
 impl DerefMut for Sections {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.get_current_section_mut().unwrap()
+        self.get_current_section_binary_mut().unwrap()
     }
 }
 
@@ -91,20 +91,31 @@ impl Sections {
         self.current_section = Some(*x);
         Ok(())
     }
-
-    pub fn get_current_section(&self) -> Result<&Binary, SectionError> {
+    /// Get the current section
+    pub fn get_current_section(&self) -> Result<&(SectionDescriptor, Binary ), SectionError> {
         self.current_section.map(|idx|
-            &self.sections[idx].1).ok_or(SectionError::NoCurrentSection)
+            &self.sections[idx]).ok_or(SectionError::NoCurrentSection)
     }
 
-    pub fn get_current_section_mut(&mut self) -> Result<&mut Binary, SectionError> {
+    /// Get a mutable version of the current section
+    pub fn get_current_section_mut(&mut self) -> Result<&mut (SectionDescriptor, Binary ), SectionError> {
         self.current_section.map(|idx|
-            &mut self.sections[idx].1).ok_or(SectionError::NoCurrentSection)
+            &mut self.sections[idx]).ok_or(SectionError::NoCurrentSection)
+    }
+
+    /// Get the current section's binary
+    pub fn get_current_section_binary(&self) -> Result<&Binary, SectionError> {
+        self.get_current_section().map(|(_,b)| b)
+    }
+
+    /// Get a mutable version of the current section's binary chunk
+    pub fn get_current_section_binary_mut(&mut self) -> Result<&mut Binary, SectionError> {
+        self.get_current_section_mut().map(|(_,b)| b)
     }
 
     /// org to a logical address within the current section
     pub fn logical_org(&mut self, addr : usize) -> Result<(), SectionError>{
-        let b = self.get_current_section_mut()?;
+        let b = self.get_current_section_binary_mut()?;
         let offset = b.get_write_offset();
         b.set_write_address(addr, offset);
         Ok(())
