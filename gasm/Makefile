@@ -4,13 +4,16 @@ DEFENDER_BIN_DIR := $(DEFENDER_DIR)/bin
 DEFENDER_SRC_DIR := $(DEFENDER_DIR)/gasmsrc
 RED_LABEL := $(DEFENDER_DIR)/redlabel
 
-ASM := ../target/release/gasm --star-comments --max-errors 50 $(DEFENDER_SRC_DIR)/macros.68
+ASM := ../target/debug/gasm --star-comments --max-errors 50 --mem-size 94208\
+	   $(DEFENDER_SRC_DIR)/macros.68 \
+	   $(DEFENDER_SRC_DIR)/memory.src
+
 
 all: gasm directories roms
 	@echo done
 
 gasm:
-	cargo build --release
+	cargo build
 
 directories:
 	@mkdir -p $(BIN_DIR)
@@ -21,44 +24,42 @@ roms : intermediates
 
 intermediates : $(BIN_DIR)/defa7-defb6-amode1.o $(BIN_DIR)/blk71.o $(BIN_DIR)/roms.o \
 	$(BIN_DIR)/defend.11 \
-	$(BIN_DIR)/defend.12 \
 	$(BIN_DIR)/defend.6
 	@echo Built intermediates
 
 # Build amode1 # The equivalent of: RASM PHR2,DEFA2,DEFB2,AMODE0;-X (ELSE CREF SYMBOL OVERFLOW)
-DEFA7_DEFB6_AMODE1_SRC = phr6.src defa7.src defb6.src amode1.src samexap7.src
+DEFA7_DEFB6_AMODE1_SRC = phr6.src defa7.src defb6.src amode1.src
 DEFA7_DEFB6_AMODE1_SRC_FULL := $(foreach file,$(DEFA7_DEFB6_AMODE1_SRC), $(DEFENDER_SRC_DIR)/$(file))
 $(BIN_DIR)/defa7-defb6-amode1.o : $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	@echo Building $@ from $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	@$(ASM) $(DEFA7_DEFB6_AMODE1_SRC_FULL) \
-	-s t.json \
+		-v \
+	--watch 0xcee9 \
 	--as6809-sym $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).sym \
+	\
 	--bin-ref $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).o 0000 e000 2000 \
 	--bin-ref $(RED_LABEL)/defend.1 0000 800 d000 \
 	--bin-ref $(RED_LABEL)/defend.4 0000 800 d800 \
 	--bin-ref $(RED_LABEL)/defend.2 0000 1000 e000 \
 	--bin-ref $(RED_LABEL)/defend.3 0000 1000 f000 \
+	--bin-ref $(RED_LABEL)/defend.9 0000 800 10000 \
+	--bin-ref $(RED_LABEL)/defend.12 0000 800 10800 \
 	\
-	--bin-ref $(RED_LABEL)/defend.9 0000 800 2000 \
-	--bin-ref $(RED_LABEL)/defend.12 0000 800 c800 \
-	--write-bin $@ 2000 e000 \
 	--write-bin $(BIN_DIR)/defend.1 d000 800 \
 	--write-bin $(BIN_DIR)/defend.4 d800 800 \
 	--write-bin $(BIN_DIR)/defend.2 e000 1000 \
 	--write-bin $(BIN_DIR)/defend.3 f000 1000 \
+	--write-bin $@ 0 17000 \
 	\
-	--write-bin $(BIN_DIR)/defend.9 2000 800 \
-	--write-bin $(BIN_DIR)/defend.12 c800 800
+	--write-bin $(BIN_DIR)/defend.9 10000 800 \
+	--write-bin $(BIN_DIR)/defend.12 10800 800 \
+	--write-bin x.bin cc90 112
 
 $(BIN_DIR)/defend.6 : $(DEFENDER_SRC_DIR)/defend6.src
 	@$(ASM) $? \
 	--write-bin $@ 0 800
 
 $(BIN_DIR)/defend.11 : $(DEFENDER_SRC_DIR)/defend11.src
-	@$(ASM) $? \
-	--write-bin $@ 0 800
-
-$(BIN_DIR)/defend.12 : $(DEFENDER_SRC_DIR)/defend12.src
 	@$(ASM) $? \
 	--write-bin $@ 0 800
 

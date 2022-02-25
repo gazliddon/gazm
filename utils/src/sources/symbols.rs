@@ -28,7 +28,7 @@ pub enum SymbolError {
 #[serde(rename_all = "camelCase")]
 pub struct SymbolTable {
     info: Vec<SymbolInfo>,
-    name_to_id: HashMap<String, SymbolId>,
+    pub name_to_id: HashMap<String, SymbolId>,
 
     ref_name_to_value: HashMap<String,i64>,
 }

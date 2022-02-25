@@ -38,6 +38,7 @@ mod structs;
 // mod symbols;
 mod tokenize;
 mod util;
+mod sections;
 
 use std::path::PathBuf;
 use std::process::abort;

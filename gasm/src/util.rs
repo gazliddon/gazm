@@ -1,12 +1,13 @@
 use std::panic::PanicInfo;
 
 use crate::item::{ Item, Node };
-use crate::{cli, numbers};
+use crate::{ast, cli, numbers};
 use crate::labels;
 use crate::expr::{self, parse_expr};
 
 use crate::error::{IResult, ParseError, UserErrors};
 use crate::locate::{Span, matched_span, };
+use romloader::sources::SymbolTable;
 
 use nom::{InputTake, Offset};
 // use nom::error::ParseError;
@@ -141,6 +142,33 @@ pub fn parse_number(input: Span) -> IResult< Node> {
 ////////////////////////////////////////////////////////////////////////////////
 // Compile a string as a fake file
 use std::collections::HashMap;
+
+pub fn tokenize_text(code: &str, symbols : SymbolTable) -> Result<crate::ast::Ast, String> {
+    use crate::tokenize::tokenize_file_from_str;
+    use crate::ast::Ast;
+    use romloader::sources::*;
+    use std::path::PathBuf;
+
+    let file_name = &PathBuf::from("nofile");
+    let mut errors = UserErrors::new(0);
+    let ctx = cli::Context::default();
+    let node = tokenize_file_from_str(file_name, code, &mut errors, &ctx).map_err(|e| format!("{:?}", e))?;
+    let mut id_to_source_file = HashMap::new();
+    let source_file = SourceFile::new(file_name, code);
+    id_to_source_file.insert(0,source_file);
+
+    let mut loader = SourceFileLoader::new();
+
+    loader.sources = Sources {
+        id_to_source_file
+    };
+
+    let tree = ast::make_tree(&node);
+    println!("new with symbols!");
+    let ast = Ast::new_with_symbols(tree, loader, symbols).map_err(|e| format!("error: {:?}", e.message))?;
+
+    Ok(ast)
+}
 
 pub fn compile_text(code: &str) -> Result<String, String> {
     use crate::tokenize::tokenize_file_from_str;

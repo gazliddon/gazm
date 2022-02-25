@@ -14,7 +14,7 @@ use crate::ast::AstNodeRef;
 use crate::ast::AstTree;
 use crate::ast::{Ast, AstNodeId, AstNodeMut};
 use crate::astformat::as_string;
-use crate::binary::Binary;
+use crate::binary::{ Binary, AccessType };
 use crate::cli;
 use crate::cli::Context;
 use crate::error::UserError;
@@ -143,7 +143,7 @@ enum AssemblerErrors {
 
 impl Assembler {
     pub fn new(ast: crate::ast::Ast, ctx: &Context) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut binary = Binary::new(ctx.memory_image_size);
+        let mut binary = Binary::new(ctx.memory_image_size, AccessType::ReadWrite);
 
         if let Some(file) = &ctx.as6809_lst {
             messages().status(format!("Loading map file {}", file));
@@ -288,6 +288,14 @@ impl Assembler {
     }
 
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
+        messages().status(format!( "Adding {} watches", self.ctx.watches.len() ));
+        for w in &self.ctx.watches {
+            let w = format!("val equ {}",w);
+            let ast = crate::util::tokenize_text(&w, self.symbols.clone()).unwrap();
+            let x = ast.symbols.get_from_name("val").unwrap().value.unwrap() as usize;
+            self.binary.add_watch(x..x+1);
+        }
+
         self.assemble_node(self.tree.root().id())?;
 
         let database = SourceDatabase::new(
@@ -375,8 +383,9 @@ impl Assembler {
 
         match i {
             IncBinResolved{file, r} => {
-                println!("Trying to load {} :  offset: {:04X} len: {:04X}", file.to_string_lossy(),r.start, r.len());
-                println!("file size is {:04X?}", self.sources_loader.get_size(file));
+                let msg = format!("Including Binary {} :  offset: {:04X} len: {:04X}", file.to_string_lossy(),r.start, r.len());
+                messages().status(msg);
+
                 let (_,bin) = self.sources_loader.read_binary_chunk(file, r.clone()).map_err(|e| self.user_error(e.to_string(), node, true))?;
                 for val in bin {
                     self.binary.write_byte(val).map_err(|e| self.binary_error(id, e))?;
@@ -757,18 +766,23 @@ impl Assembler {
         match i {
             Org => {
                 let (value, _) = self.eval_first_arg(node)?;
+                let si = self.get_source_info(&node.value().pos).unwrap();
+                x.info(format!("Setting put address and org to {value:04X?} : {:5} {}", si.line, si.file.to_string_lossy()));
+
                 self.set_item(id, Item::SetPc(value as u16));
                 pc = value as u64;
-                x.info(format!("Setting put address and org to {pc:04X?}"));
             }
 
             Put => {
                 let x = messages();
                 let (value, _) = self.eval_first_arg(node)?;
                 let offset = (value - pc as i64) as isize;
+
+                let line_str = self.get_source_info(&node.value().pos).unwrap().line_str;
+                x.info(format!("Setting put address {value:04X?} {line_str}"));
+
                 self.set_item(id, Item::SetPutOffset(offset));
                 // pc = value as u64;
-                x.info(format!("Setting put address {value:04X?}"));
             }
 
             Rmb => {

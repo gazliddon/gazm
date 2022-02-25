@@ -223,6 +223,8 @@ impl Tokens {
             })
             .collect();
 
+        // Expand all macro calls
+
         for (node, macro_call) in mcalls {
             let (pos, text) = macros.expand_macro(sources, macro_call.clone())?;
 

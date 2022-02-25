@@ -237,7 +237,6 @@ impl SourceMapping {
     }
 
     pub fn add_mapping(&mut self, _sources : &Sources,mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
-
         let pos = self.get_macro_pos().unwrap_or(pos);
 
         if let AsmSource::FileId(file_id) = pos.src {

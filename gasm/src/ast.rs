@@ -22,7 +22,7 @@ use crate::scopes::ScopeBuilder;
 use crate::item::{Item, Node};
 use romloader::sources::{Position, SourceFileLoader};
 
-use crate::messages::{debug, info, verbosity, Verbosity};
+use crate::messages::{debug, info, verbosity, Verbosity, status};
 use crate::postfix;
 use romloader::sources::{SourceFile, SourceInfo, Sources, SymbolId, SymbolTable};
 
@@ -74,12 +74,11 @@ impl Ast {
         let tree = make_tree(&node);
         Self::new(tree, sources)
     }
-
-    pub fn new(tree: AstTree, sources_loader: SourceFileLoader) -> Result<Self, UserError> {
+    pub fn new_with_symbols(tree: AstTree, sources_loader: SourceFileLoader, symbols : SymbolTable) -> Result<Self, UserError> {
         let mut ret = Self {
             tree,
             sources_loader,
-            symbols: Default::default(),
+            symbols
         };
 
         ret.rename_locals();
@@ -93,6 +92,10 @@ impl Ast {
         ret.evaluate_assignments()?;
 
         Ok(ret)
+    }
+
+    pub fn new(tree: AstTree, sources_loader: SourceFileLoader) -> Result<Self, UserError> {
+        Self::new_with_symbols(tree, sources_loader, SymbolTable::default())
     }
 
     pub fn get_tree(&self) -> &AstTree {
@@ -326,7 +329,7 @@ impl Ast {
     }
 
     fn evaluate_assignments(&mut self) -> Result<(), UserError> {
-        info("Evaluating assignments", |x| {
+        status("Evaluating assignments", |x| {
             use super::eval::eval;
             use Item::*;
 

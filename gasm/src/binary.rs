@@ -1,4 +1,12 @@
 
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AccessType {
+    ReadWrite,
+    ReadOnly,
+}
+
+#[derive(Debug, Clone)]
 pub struct Binary {
     write_address: usize,
     written: bool,
@@ -6,18 +14,37 @@ pub struct Binary {
     pub data: Vec<u8>,
     ref_data : Option<Vec<u8>>,
     write_offset: isize,
+    watches : Vec<Watch>,
+    access_type: AccessType,
 }
 
 impl Default for Binary {
     fn default() -> Self {
-        Self::new(0x10000)
+        Self::new(0x10000, AccessType::ReadWrite)
     }
 }
 
 use crate::as6809::{ MapFile, Record };
 
+use emu::mem::LoggingMemMap;
 use romloader::ResultExt;
 use thiserror::Error;
+
+pub struct MemoryLocation {
+    physical: usize, logical: usize
+}
+
+impl std::fmt::Display for MemoryLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "physical: ${:05X} logical: ${:04X}", self.physical, self.logical)
+    }
+}
+
+impl std::fmt::Debug for MemoryLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum BinaryError {
@@ -27,14 +54,25 @@ pub enum BinaryError {
     InvalidWriteAddress(usize),
     #[error("Value {val} does not fit into a {dest_type}")]
     DoesNotFit {dest_type: String, val : i64},
-    #[error("Hit watch location")]
-    Halt,
+    #[error("Hit watch location: {0}")]
+    Halt(MemoryLocation),
+    #[error("Write to read only memory: {0}")]
+    IllegalWrite(MemoryLocation)
+}
+
+#[derive(Debug, Clone)]
+pub struct Watch {
+    range : std::ops::Range<usize>,
 }
 
 impl Binary {
+    pub fn add_watch(&mut self, range : std::ops::Range<usize>) {
+        self.watches.push(Watch{range})
+    }
+
     pub fn bin_reference(&mut self, dest : usize, m : &[u8]) {
         if self.ref_data.is_none() {
-            self.ref_data = Some(vec![0; 0x10000]);
+            self.ref_data = Some(vec![0; self.data.len()]);
         }
 
         let bin = self.ref_data.as_mut().unwrap();
@@ -45,7 +83,7 @@ impl Binary {
     }
 
     pub fn addr_reference(&mut self, m : crate::as6809::MapFile) {
-        let  mut bin = vec![0; 0x10000];
+        let  mut bin = vec![0; self.data.len()];
 
         for Record {addr, data} in m.data {
             for (i,d) in data.iter().enumerate() {
@@ -60,7 +98,7 @@ impl Binary {
         self.written = true;
     }
 
-    pub fn new(size : usize) -> Self {
+    pub fn new(size : usize, access_type: AccessType) -> Self {
         Self {
             write_address: 0,
             written: false,
@@ -68,6 +106,8 @@ impl Binary {
             data: vec![0; size],
             ref_data: None,
             write_offset: 0,
+            watches: vec![],
+            access_type,
         }
     }
 
@@ -151,39 +191,54 @@ impl Binary {
         self.write_word_check(val, r, "u16")
     }
 
+    pub fn get_write_location(&self) -> MemoryLocation {
+        MemoryLocation {
+            logical : self.get_write_address(),
+            physical : self.get_write_address_with_offset()
+        }
+    }
+
     pub fn write_byte(&mut self, val: u8) -> Result<(), BinaryError> {
+        let loc = self.get_write_location();
 
-        let addr = self.write_address;
+        let physical = loc.physical;
 
+        if self.access_type == AccessType::ReadOnly {
+            return Err(BinaryError::IllegalWrite(loc))
+        }
 
         if let Some((mut low, mut high)) = self.range {
-            if addr < low {
-                low = addr
+            if physical < low {
+                low = physical
             }
 
-            if addr > high {
-                high = addr
+            if physical > high {
+                high = physical
             }
 
             self.range = Some((low, high))
         } else {
-            self.range = Some((addr, addr))
+            self.range = Some((physical, physical))
         }
 
-        let new_addr = self.get_write_address_with_offset();
-
-        if new_addr >= self.data.len() {
+        if physical >= self.data.len() {
             panic!("Address out of bounds!")
         }
 
-        self.data[new_addr] = val;
+        for r in &self.watches {
+            if r.range.contains(&physical) {
+                let x = BinaryError::Halt(loc);
+                return Err(x)
+            }
+        }
+
+        self.data[physical] = val;
         self.write_address += 1;
 
-
         if let Some(ref_data) = &self.ref_data {
-            if ref_data[new_addr] != self.data[new_addr] {
+            if ref_data[physical] != self.data[physical] {
                 return Err(
-                    BinaryError::DoesNotMatchReference{addr:new_addr, expected: ref_data[new_addr], val : self.data[new_addr]}
+                    BinaryError::DoesNotMatchReference{addr:physical, expected: ref_data[physical], val : self.data[physical]}
                 )
             }
         }

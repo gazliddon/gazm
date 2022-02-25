@@ -53,7 +53,7 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
         PostFixExpr => eval_postfix(symbols, n)?,
 
         Label(name) => symbols.get_value(name).map(Item::number).map_err(|_| {
-            let msg = format!("Evaluation: Couldn't find symbol {}", name);
+            let msg = format!("Evaluation: Couldn't find symbol! {}", name);
             AstError::from_node(&msg, n)
         })?,
 
@@ -94,6 +94,7 @@ pub fn eval(symbols: &SymbolTable, n: AstNodeRef) -> Result<i64, AstError> {
     let ret = eval_internal(symbols, n)?;
     Ok(ret.get_number().unwrap())
 }
+
 
 /// Evaluates a postfix expression
 fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> {

@@ -3,7 +3,7 @@ use clap::{App, Arg};
 use romloader::ResultExt;
 use std::os::unix::prelude::OpenOptionsExt;
 use std::path::{Path, PathBuf};
-use std::usize;
+use std::{usize, vec};
 
 use crate::messages::Verbosity;
 
@@ -36,6 +36,7 @@ pub struct Context {
     pub as6809_sym: Option<String>,
     pub bin_refs: Vec<BinRef>,
     pub to_write: Vec<WriteBin>,
+    pub watches: Vec<String>,
     pub memory_image_size : usize,
 }
 
@@ -53,6 +54,7 @@ impl Default for Context {
             as6809_lst: None,
             as6809_sym: None,
             memory_image_size: 0x10000,
+            watches: vec![],
             bin_refs: Default::default(),
             to_write: Default::default(),
         }
@@ -71,6 +73,10 @@ impl From<clap::ArgMatches> for Context {
             ignore_relative_offset_errors: m.is_present("ignore-relative-offset-errors"),
             ..Default::default()
         };
+
+        if let Some(it) = m.values_of("watch") {
+            ret.watches = it.map(|x| x.to_string()).collect();
+        }
 
         if let Some(mut it) = m.values_of("write-bin") {
             loop {
@@ -212,6 +218,13 @@ pub fn parse() -> clap::ArgMatches {
                 .long("write-bin")
                 .value_names(&["file", "start", "size"])
                 .multiple_occurrences(true)
+                .help("Write out a binary file"),
+        )
+        .arg(
+            Arg::new("watch")
+                .long("watch")
+                .takes_value(true)
+                .multiple_values(true)
                 .help("Write out a binary file"),
         )
         .arg(

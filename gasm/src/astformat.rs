@@ -65,7 +65,8 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Pc => "*".to_string(),
 
-            Label(name) | LocalLabel(name) => name.clone(),
+            Label(name)  => format!("Label: {name}"),
+            LocalLabel(name) => format!("LocalLable: {name}"),
 
             Comment(comment) => comment.clone(),
 
@@ -80,9 +81,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{} equ {}", name, child_string(0))
             }
 
-            Expr => join_kids(""),
+            Expr => format!("Expr: {}", join_kids("")),
 
-            PostFixExpr => join_kids(" "),
+            PostFixExpr => format!("PostFixExpr: {}", join_kids(" ")),
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
@@ -103,6 +104,10 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Org => {
                 format!("org {}", child_string(0))
+            }
+
+            Put => {
+                format!("put {}", child_string(0))
             }
 
             BracketedExpr => {
