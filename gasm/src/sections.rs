@@ -9,39 +9,59 @@ pub struct SectionDescriptor {
     physical_range: std::ops::Range<usize>,
     access_type : AccessType,
 }
-impl SectionDescriptor {
-    pub fn new(name : &str, logical_range: std::ops::Range<usize>, physical_base : usize, access_type : AccessType) -> Self {
-        let physical_range = physical_base..physical_base+logical_range.len();
-        Self { name: name.to_string(), logical_range, physical_range, access_type }
-    }
 
-    fn get_offset(&self) -> isize {
-        let p_start = self.physical_range.start as isize;
-        let l_start = self.logical_range.start as isize;
-        p_start - l_start
-    }
+struct Section {
+    descriptor: SectionDescriptor,
+    binary : Binary,
+}
 
-    pub fn make_binary(&self) -> Binary {
-        let mut ret = Binary::new(self.logical_range.len(), self.access_type.clone());
-        ret.set_write_offset(self.get_offset());
-        ret
+impl From<SectionDescriptor> for Section {
+    fn from(descriptor: SectionDescriptor) -> Self {
+        Self {
+            binary : make_binary(&descriptor),
+            descriptor,
+        }
+    }
+}
+
+pub fn make_binary(desc : &SectionDescriptor) -> Binary {
+    let p_start = desc.physical_range.start as isize;
+    let l_start = desc.logical_range.start as isize;
+    let offset = p_start - l_start;
+    let mut ret = Binary::new(desc.logical_range.len(), desc.access_type.clone());
+    ret.set_write_offset(offset);
+    ret
+}
+
+impl Section {
+    fn new(name : &str, logical_range: std::ops::Range<usize>, physical_base : usize, access_type : AccessType) -> Self {
+        let desc = SectionDescriptor::new(name, logical_range, physical_base,access_type);
+        desc.into()
     }
 
     /// Does this section overlap with other
     pub fn overlaps(&self, other : &Self) -> bool {
-        // TODO need to make sure we don't have any zero length sections
-        let ostart = other.logical_range.start;
-        let oend = other.logical_range.end;
+        let ostart = other.descriptor.logical_range.start;
+        let oend = other.descriptor.logical_range.end;
         let olast = ( ostart + oend ) - 1;
-
-        self.logical_range.contains(&ostart) ||
-        self.logical_range.contains(&olast)
+        self.descriptor.logical_range.contains(&ostart) ||
+            self.descriptor.logical_range.contains(&olast)
     }
+}
+
+impl SectionDescriptor {
+    /// Create a section descritor, private to this module
+    fn new(name : &str, logical_range: std::ops::Range<usize>, physical_base : usize, access_type : AccessType) -> Self {
+        assert!(logical_range.len() > 0);
+        let physical_range = physical_base..physical_base+logical_range.len();
+        Self { name: name.to_string(), logical_range, physical_range, access_type }
+    }
+
 }
 
 struct Sections {
     current_section: Option<usize>,
-    sections : Vec<(SectionDescriptor, Binary )>,
+    sections : Vec<Section>,
     name_to_section : HashMap<String,usize>,
 }
 
@@ -63,6 +83,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum SectionError {
+    #[error("Sections cannot be zero in size")]
+    ZeroSizedSection,
     #[error("No section selected as current")]
     NoCurrentSection,
     #[error("Org {org:04X} does not fit in current section")]
@@ -87,30 +109,30 @@ impl Sections {
     pub fn set_current_section(&mut self, name : &str) -> Result<(), SectionError>{
         let x = self.name_to_section.get(name).ok_or(
             SectionError::UknownSectionName(name.to_string())
-            )?;
+        )?;
         self.current_section = Some(*x);
         Ok(())
     }
     /// Get the current section
-    pub fn get_current_section(&self) -> Result<&(SectionDescriptor, Binary ), SectionError> {
+    pub fn get_current_section(&self) -> Result<&Section, SectionError> {
         self.current_section.map(|idx|
             &self.sections[idx]).ok_or(SectionError::NoCurrentSection)
     }
 
     /// Get a mutable version of the current section
-    pub fn get_current_section_mut(&mut self) -> Result<&mut (SectionDescriptor, Binary ), SectionError> {
+    pub fn get_current_section_mut(&mut self) -> Result<&mut Section, SectionError> {
         self.current_section.map(|idx|
             &mut self.sections[idx]).ok_or(SectionError::NoCurrentSection)
     }
 
     /// Get the current section's binary
     pub fn get_current_section_binary(&self) -> Result<&Binary, SectionError> {
-        self.get_current_section().map(|(_,b)| b)
+        self.get_current_section().map(|s| &s.binary)
     }
 
     /// Get a mutable version of the current section's binary chunk
     pub fn get_current_section_binary_mut(&mut self) -> Result<&mut Binary, SectionError> {
-        self.get_current_section_mut().map(|(_,b)| b)
+        self.get_current_section_mut().map(|s| &mut s.binary)
     }
 
     /// org to a logical address within the current section
@@ -121,30 +143,36 @@ impl Sections {
         Ok(())
     }
 
-    fn get_section(&self,  name : &str) -> Option<&(SectionDescriptor, Binary)> {
+    fn get_section(&self,  name : &str) -> Option<&Section> {
         self.name_to_section.get(name).map(|id| &self.sections[*id])
     }
 
     /// Add a section
     pub fn add_section(&mut self, name : &str, logical_range: std::ops::Range<usize>, physical_base : usize, access_type : AccessType) -> Result<usize,SectionError> {
-        // check for section already existing
-        if let Some((s,_)) = self.get_section(name) {
-                return Err(SectionError::SectionNameInUse(s.clone()))
+        // Check to make sure the size is > 0
+        if logical_range.len() < 1 {
+            return Err(SectionError::ZeroSizedSection)
         }
-        
+
+        // check for section already existing
+        if let Some(s) = self.get_section(name) {
+            return Err(SectionError::SectionNameInUse(s.descriptor.clone()))
+        }
+
         // check for overlaps
         let section = SectionDescriptor::new(name , logical_range, physical_base,  access_type);
+        let section = section.into();
 
-        for (s,_) in &self.sections {
+
+        for s in &self.sections {
             if s.overlaps(&section) {
-                return Err(SectionError::OverlapsWithExistingSection(s.clone()))
+                return Err(SectionError::OverlapsWithExistingSection(s.descriptor.clone()))
             }
         }
 
-        let binary = section.make_binary();
         let id = self.sections.len();
 
-        self.sections.push((section,binary));
+        self.sections.push(section);
         self.name_to_section.insert(name.to_string(), id);
 
         Ok(id)
