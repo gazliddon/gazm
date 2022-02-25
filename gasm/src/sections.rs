@@ -2,16 +2,17 @@ use crate::binary::*;
 
 use std::{collections::HashMap, ops::Deref, ops::DerefMut};
 
-struct SectionDef {
+#[derive(Debug, Clone)]
+pub struct SectionDescriptor {
     name: String,
     logical_range: std::ops::Range<usize>,
     physical_range: std::ops::Range<usize>,
     access_type : AccessType,
 }
-impl SectionDef {
+impl SectionDescriptor {
     pub fn new(name : &str, logical_range: std::ops::Range<usize>, physical_base : usize, access_type : AccessType) -> Self {
         let physical_range = physical_base..physical_base+logical_range.len();
-        SectionDef { name: name.to_string(), logical_range, physical_range, access_type }
+        Self { name: name.to_string(), logical_range, physical_range, access_type }
     }
 
     fn get_offset(&self) -> isize {
@@ -29,7 +30,7 @@ impl SectionDef {
 
 struct Sections {
     current_section: Option<usize>,
-    sections : Vec<(SectionDef, Binary )>,
+    sections : Vec<(SectionDescriptor, Binary )>,
     name_to_section : HashMap<String,usize>,
 }
 
@@ -44,6 +45,22 @@ impl DerefMut for Sections {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.get_current_section_mut().unwrap()
     }
+}
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum SectionError {
+    #[error("No section selected as current")]
+    NoCurrentSection,
+    #[error("Org {org:04X} does not fit in current section")]
+    OrgOutsideSectionBounds {bounds : std::ops::Range<usize>, org: usize},
+    #[error("Section name already in use")]
+    SectionNameInUse,
+    #[error("Overlaps with section {0:?}")]
+    OverlapsWithExistingSection(SectionDescriptor),
+    #[error("Can't find a section with name {0}")]
+    UknownSectionName(String),
 }
 
 impl Sections {
@@ -65,6 +82,7 @@ impl Sections {
         self.current_section.map(|idx|
             &self.sections[idx].1)
     }
+
     pub fn get_current_section_mut(&mut self) -> Option<&mut Binary> {
         self.current_section.map(|idx|
             &mut self.sections[idx].1)
@@ -83,7 +101,7 @@ impl Sections {
         // TODO check for section already existing
         // TODO add error
 
-        let section = SectionDef::new(name , logical_range, physical_base,  access_type);
+        let section = SectionDescriptor::new(name , logical_range, physical_base,  access_type);
         let binary = section.make_binary();
         let id = self.sections.len();
 
