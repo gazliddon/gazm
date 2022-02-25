@@ -26,6 +26,17 @@ impl SectionDescriptor {
         ret.set_write_offset(self.get_offset());
         ret
     }
+
+    /// Does this section overlap with other
+    pub fn overlaps(&self, other : &Self) -> bool {
+        // TODO need to make sure we don't have any zero length sections
+        let ostart = other.logical_range.start;
+        let oend = other.logical_range.end;
+        let olast = ( ostart + oend ) - 1;
+
+        self.logical_range.contains(&ostart) ||
+        self.logical_range.contains(&olast)
+    }
 }
 
 struct Sections {
@@ -47,6 +58,7 @@ impl DerefMut for Sections {
     }
 }
 
+use romloader::ResultExt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -56,7 +68,7 @@ pub enum SectionError {
     #[error("Org {org:04X} does not fit in current section")]
     OrgOutsideSectionBounds {bounds : std::ops::Range<usize>, org: usize},
     #[error("Section name already in use")]
-    SectionNameInUse,
+    SectionNameInUse(SectionDescriptor),
     #[error("Overlaps with section {0:?}")]
     OverlapsWithExistingSection(SectionDescriptor),
     #[error("Can't find a section with name {0}")]
@@ -72,41 +84,58 @@ impl Sections {
         }
     }
 
-    pub fn set_current_section(&mut self, name : &str) {
-        // TODO add error
-        let x = self.name_to_section.get(name).unwrap();
-        self.current_section = Some(*x)
+    pub fn set_current_section(&mut self, name : &str) -> Result<(), SectionError>{
+        let x = self.name_to_section.get(name).ok_or(
+            SectionError::UknownSectionName(name.to_string())
+            )?;
+        self.current_section = Some(*x);
+        Ok(())
     }
 
-    pub fn get_current_section(&self) -> Option<&Binary> {
+    pub fn get_current_section(&self) -> Result<&Binary, SectionError> {
         self.current_section.map(|idx|
-            &self.sections[idx].1)
+            &self.sections[idx].1).ok_or(SectionError::NoCurrentSection)
     }
 
-    pub fn get_current_section_mut(&mut self) -> Option<&mut Binary> {
+    pub fn get_current_section_mut(&mut self) -> Result<&mut Binary, SectionError> {
         self.current_section.map(|idx|
-            &mut self.sections[idx].1)
+            &mut self.sections[idx].1).ok_or(SectionError::NoCurrentSection)
     }
 
-    // org to a logical address within the current section
-    pub fn logical_org(&mut self, addr : usize) {
-        // TODO add error condition
-        let b = self.get_current_section_mut().unwrap();
+    /// org to a logical address within the current section
+    pub fn logical_org(&mut self, addr : usize) -> Result<(), SectionError>{
+        let b = self.get_current_section_mut()?;
         let offset = b.get_write_offset();
         b.set_write_address(addr, offset);
+        Ok(())
     }
 
-    pub fn add_section(&mut self, name : &str, logical_range: std::ops::Range<usize>, physical_base : usize, access_type : AccessType) -> usize {
-        // TODO check for overlaps
-        // TODO check for section already existing
-        // TODO add error
+    fn get_section(&self,  name : &str) -> Option<&(SectionDescriptor, Binary)> {
+        self.name_to_section.get(name).map(|id| &self.sections[*id])
+    }
 
+    /// Add a section
+    pub fn add_section(&mut self, name : &str, logical_range: std::ops::Range<usize>, physical_base : usize, access_type : AccessType) -> Result<usize,SectionError> {
+        // check for section already existing
+        if let Some((s,_)) = self.get_section(name) {
+                return Err(SectionError::SectionNameInUse(s.clone()))
+        }
+        
+        // check for overlaps
         let section = SectionDescriptor::new(name , logical_range, physical_base,  access_type);
+
+        for (s,_) in &self.sections {
+            if s.overlaps(&section) {
+                return Err(SectionError::OverlapsWithExistingSection(s.clone()))
+            }
+        }
+
         let binary = section.make_binary();
         let id = self.sections.len();
 
         self.sections.push((section,binary));
         self.name_to_section.insert(name.to_string(), id);
-        id
+
+        Ok(id)
     }
 }
