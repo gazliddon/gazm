@@ -120,7 +120,7 @@ impl Binary {
     }
 
     pub fn get_write_address_with_offset(&self) -> usize {
-        ( self.write_address as isize + self.write_offset ) as usize
+        self.logical_to_physical(self.write_address)
     }
 
     pub fn get_write_offset(&self) -> isize {
@@ -142,6 +142,11 @@ impl Binary {
     pub fn set_write_offset(&mut self, offset : isize) {
         self.write_offset = offset
     }
+
+    pub fn logical_to_physical(&self, addr : usize) -> usize {
+        ( addr as isize + self.write_offset ) as usize
+    }
+
 
     fn write_byte_check(&mut self, val: i64, r: std::ops::Range<i64>, dest_type : &str) -> Result<(), BinaryError> {
         if r.contains(&val) {

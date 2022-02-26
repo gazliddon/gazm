@@ -14,7 +14,7 @@ use crate::ast::AstNodeRef;
 use crate::ast::AstTree;
 use crate::ast::{Ast, AstNodeId, AstNodeMut};
 use crate::astformat::as_string;
-use crate::binary::{ Binary, AccessType };
+use crate::binary::{AccessType, Binary};
 use crate::cli;
 use crate::cli::Context;
 use crate::error::UserError;
@@ -288,12 +288,12 @@ impl Assembler {
     }
 
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
-        messages().status(format!( "Adding {} watches", self.ctx.watches.len() ));
+        messages().status(format!("Adding {} watches", self.ctx.watches.len()));
         for w in &self.ctx.watches {
-            let w = format!("val equ {}",w);
+            let w = format!("val equ {}", w);
             let ast = crate::util::tokenize_text(&w, self.symbols.clone()).unwrap();
             let x = ast.symbols.get_from_name("val").unwrap().value.unwrap() as usize;
-            self.binary.add_watch(x..x+1);
+            self.binary.add_watch(x..x + 1);
         }
 
         self.assemble_node(self.tree.root().id())?;
@@ -361,8 +361,29 @@ impl Assembler {
         Ok(())
     }
 
-    fn get_range(&self, pc: i64) -> std::ops::Range<usize> {
-        pc as usize..self.get_pc()
+    /// Adds a mapping of this source file fragment to a physicl and logical range of memory
+    /// ( physical range, logical_range )
+    fn add_mapping(
+        &mut self,
+        phys_range: std::ops::Range<usize>,
+        range: std::ops::Range<usize>,
+        pos: &Position,
+        i: ItemType,
+    ) {
+        self.source_map
+            .add_mapping(&self.sources_loader.sources, phys_range, range, pos, i);
+    }
+
+    /// Returns ranges from current_pc -> pc
+    /// ( physical range, logical_range )
+    fn get_range(&self, pc: i64) -> (std::ops::Range<usize>, std::ops::Range<usize>) {
+        let start = pc as usize;
+        let end = self.get_pc();
+
+        let pstart = self.binary.logical_to_physical(start);
+        let pend = self.binary.logical_to_physical(end);
+
+        (start..end, pstart..pend)
     }
 
     // Get the PC we're using to assemble to
@@ -382,13 +403,23 @@ impl Assembler {
         let pc = self.get_pc() as i64;
 
         match i {
-            IncBinResolved{file, r} => {
-                let msg = format!("Including Binary {} :  offset: {:04X} len: {:04X}", file.to_string_lossy(),r.start, r.len());
+            IncBinResolved { file, r } => {
+                let msg = format!(
+                    "Including Binary {} :  offset: {:04X} len: {:04X}",
+                    file.to_string_lossy(),
+                    r.start,
+                    r.len()
+                );
                 messages().status(msg);
 
-                let (_,bin) = self.sources_loader.read_binary_chunk(file, r.clone()).map_err(|e| self.user_error(e.to_string(), node, true))?;
+                let (_, bin) = self
+                    .sources_loader
+                    .read_binary_chunk(file, r.clone())
+                    .map_err(|e| self.user_error(e.to_string(), node, true))?;
                 for val in bin {
-                    self.binary.write_byte(val).map_err(|e| self.binary_error(id, e))?;
+                    self.binary
+                        .write_byte(val)
+                        .map_err(|e| self.binary_error(id, e))?;
                 }
             }
 
@@ -507,13 +538,8 @@ impl Assembler {
                     }
                 };
 
-                let range = self.get_range(pc);
-                self.source_map.add_mapping(
-                    &self.sources_loader.sources,
-                    range,
-                    pos,
-                    ItemType::OpCode,
-                );
+                let (phys_range, range) = self.get_range(pc);
+                self.add_mapping(phys_range, range, pos, ItemType::OpCode);
             }
 
             ExpandedMacro(mcall) => {
@@ -553,13 +579,8 @@ impl Assembler {
                         .map_err(|e| self.binary_error(n.id(), e))?;
                 }
 
-                let range = self.get_range(pc);
-                self.source_map.add_mapping(
-                    &self.sources_loader.sources,
-                    range,
-                    pos,
-                    ItemType::Command,
-                );
+                let (phys_range, range) = self.get_range(pc);
+                self.add_mapping(phys_range, range, pos, ItemType::Command);
             }
 
             Fcb(..) => {
@@ -569,13 +590,8 @@ impl Assembler {
                         .write_byte_check_size(x)
                         .map_err(|e| self.binary_error(n.id(), e))?;
                 }
-                let range = self.get_range(pc);
-                self.source_map.add_mapping(
-                    &self.sources_loader.sources,
-                    range,
-                    pos,
-                    ItemType::Command,
-                );
+                let (phys_range, range) = self.get_range(pc);
+                self.add_mapping(phys_range, range, pos, ItemType::Command);
             }
 
             Fcc(text) => {
@@ -584,13 +600,8 @@ impl Assembler {
                         .write_byte(*c)
                         .map_err(|e| self.binary_error(id, e))?;
                 }
-                let range = self.get_range(pc);
-                self.source_map.add_mapping(
-                    &self.sources_loader.sources,
-                    range,
-                    pos,
-                    ItemType::Command,
-                );
+                let (phys_range, range) = self.get_range(pc);
+                self.add_mapping(phys_range, range, pos, ItemType::Command);
             }
 
             Zmb => {
@@ -600,13 +611,8 @@ impl Assembler {
                         .write_byte(0)
                         .map_err(|e| self.binary_error(id, e))?;
                 }
-                let range = self.get_range(pc);
-                self.source_map.add_mapping(
-                    &self.sources_loader.sources,
-                    range,
-                    pos,
-                    ItemType::Command,
-                );
+                let (phys_range, range) = self.get_range(pc);
+                self.add_mapping(phys_range, range, pos, ItemType::Command);
             }
 
             Zmd => {
@@ -617,13 +623,8 @@ impl Assembler {
                         .map_err(|e| self.binary_error(id, e))?;
                 }
 
-                let range = self.get_range(pc);
-                self.source_map.add_mapping(
-                    &self.sources_loader.sources,
-                    range,
-                    pos,
-                    ItemType::Command,
-                );
+                let (phys_range, range) = self.get_range(pc);
+                self.add_mapping(phys_range, range, pos, ItemType::Command);
             }
 
             Fill => {
@@ -635,17 +636,12 @@ impl Assembler {
                         .map_err(|e| self.binary_error(id, e))?;
                 }
 
-                let range = self.get_range(pc);
-                self.source_map.add_mapping(
-                    &self.sources_loader.sources,
-                    range,
-                    pos,
-                    ItemType::Command,
-                );
+                let (phys_range, range) = self.get_range(pc);
+                self.add_mapping(phys_range, range, pos, ItemType::Command);
             }
 
-            IncBin(..) |Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | MacroDef(..) | Rmb
-            | StructDef(..) => (),
+            IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..)
+            | MacroDef(..) | Rmb | StructDef(..) => (),
 
             SetDp => {
                 let (dp, _) = self.eval_first_arg(node)?;
@@ -767,7 +763,11 @@ impl Assembler {
             Org => {
                 let (value, _) = self.eval_first_arg(node)?;
                 let si = self.get_source_info(&node.value().pos).unwrap();
-                x.info(format!("Setting put address and org to {value:04X?} : {:5} {}", si.line, si.file.to_string_lossy()));
+                x.info(format!(
+                    "Setting put address and org to {value:04X?} : {:5} {}",
+                    si.line,
+                    si.file.to_string_lossy()
+                ));
 
                 self.set_item(id, Item::SetPc(value as u16));
                 pc = value as u64;
@@ -933,26 +933,31 @@ impl Assembler {
             }
 
             IncBin(file_name) => {
-                let data_len = self.sources_loader.get_size(file_name).map_err(|e|
-                    self.user_error(e.to_string(), node, true))?;
+                let data_len = self
+                    .sources_loader
+                    .get_size(file_name)
+                    .map_err(|e| self.user_error(e.to_string(), node, true))?;
 
                 let mut r = 0..data_len;
 
                 let mut c = node.children();
 
-                let offset_size = c.next().and_then(|offset| 
-                    c.next().map(|size| (offset,size)));
+                let offset_size = c
+                    .next()
+                    .and_then(|offset| c.next().map(|size| (offset, size)));
 
-                if let Some((offset,size)) = offset_size {
+                if let Some((offset, size)) = offset_size {
                     let offset = self.eval_node(offset)?;
                     let size = self.eval_node(size)?;
                     let offset = offset as usize;
                     let size = size as usize;
-                    let last = ( offset + size ) - 1;
+                    let last = (offset + size) - 1;
 
                     if !(r.contains(&offset) && r.contains(&last)) {
-                        let msg = format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
-                        return Err(self.user_error(msg, node, true))
+                        let msg = format!(
+                            "Trying to grab {offset:04X} {size:04X} from file size {data_len:X}"
+                        );
+                        return Err(self.user_error(msg, node, true));
                     };
 
                     r.start = offset;
@@ -960,7 +965,10 @@ impl Assembler {
                 }
 
                 pc = pc + r.len() as u64;
-                let new_item = IncBinResolved{ file: file_name.to_path_buf(), r };
+                let new_item = IncBinResolved {
+                    file: file_name.to_path_buf(),
+                    r,
+                };
                 let mut node_mut = self.tree.get_mut(id).unwrap();
                 node_mut.value().item = new_item;
             }

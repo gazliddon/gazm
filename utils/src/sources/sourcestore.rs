@@ -194,6 +194,7 @@ pub struct Mapping {
     pub file_id: u64,
     pub line: usize,
     pub mem_range: std::ops::Range<usize>,
+    pub physical_mem_range: std::ops::Range<usize>,
     pub item_type : ItemType,
 }
 
@@ -236,7 +237,7 @@ impl SourceMapping {
         self.macro_stack.is_empty() == false
     }
 
-    pub fn add_mapping(&mut self, _sources : &Sources,mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
+    pub fn add_mapping(&mut self, _sources : &Sources, physical_mem_range: std::ops::Range<usize>, mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
         let pos = self.get_macro_pos().unwrap_or(pos);
 
         if let AsmSource::FileId(file_id) = pos.src {
@@ -244,7 +245,8 @@ impl SourceMapping {
                 file_id,
                 line: pos.line,
                 mem_range: mem_range.clone(),
-                item_type
+                item_type,
+                physical_mem_range
             };
 
             self.addr_to_mapping.push(entry);

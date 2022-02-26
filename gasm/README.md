@@ -10,3 +10,11 @@ defend.1 =
 		bin/defa7-defb6-amode1.o,0xb001,0x0000,0x0800,"defa7"
 	echo "c9eb365411ca8452debe66e7b7657f44  redlabel/defend.1" | md5sum -c
 
+
+
+d000 Select bank (c000-cfff)
+      0 = I/O
+      1 = BANK 1
+      2 = BANK 2
+      3 = BANK 3
+      7 = BANK 4
