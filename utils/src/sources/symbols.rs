@@ -18,18 +18,19 @@ pub struct SymbolInfo {
 #[derive(Debug, PartialEq, Clone)]
 pub enum SymbolError {
     AlreadyDefined(String),
-    Mismatch{ expected: i64},
+    Mismatch { expected: i64 },
     NotFound,
     NoValue,
 }
 
 /// Holds information about symbols
-#[derive(Serialize, Deserialize,Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SymbolTable {
-    info: HashMap<SymbolId,SymbolInfo>,
+    scope: String,
+    info: HashMap<SymbolId, SymbolInfo>,
     name_to_id: HashMap<String, SymbolId>,
-    ref_name_to_value: HashMap<String,i64>,
+    ref_name_to_value: HashMap<String, i64>,
     id: usize,
 }
 
@@ -39,27 +40,60 @@ impl Default for SymbolTable {
     }
 }
 
+pub type SymbolTreeTree = ego_tree::Tree<SymbolTable>;
+pub type SymbolNodeRef<'a> = ego_tree::NodeRef<'a, SymbolTable>;
+pub type SymbolNodeId = ego_tree::NodeId;
+pub type SymbolNodeMut<'a> = ego_tree::NodeMut<'a, SymbolTable>;
+
+struct SymbolTree {
+    tree: ego_tree::Tree<SymbolTable>,
+    current_scope: SymbolNodeId,
+}
+
+impl SymbolTree {
+    pub fn new() -> Self {
+        let root = SymbolTable::new();
+        let tree = SymbolTreeTree::new(root);
+        let current_scope = tree.root().id();
+
+        Self {
+            tree,
+            current_scope,
+        }
+    }
+}
+
+pub trait SymbolQuery {
+    fn get_value(&self, name: &str) -> Result<i64, SymbolError>;
+    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError>;
+    fn symbol_exists_from_name(&self, name: &str) -> bool {
+        self.get_symbol_info(name).is_ok()
+    }
+}
+
+pub trait SymbolWriter {}
+
+impl SymbolQuery for SymbolTable {
+    fn get_value(&self, name: &str) -> Result<i64, SymbolError> {
+        let info = self.get_symbol_info(name)?;
+        info.value.ok_or(SymbolError::NoValue)
+    }
+
+    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
+        let id = self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
+        self.get(*id)
+    }
+}
+
 impl SymbolTable {
     pub fn new() -> Self {
         Self {
+            scope: "No scope".to_string(),
             info: Default::default(),
             name_to_id: Default::default(),
-            ref_name_to_value : Default::default(),
-            id: 1
+            ref_name_to_value: Default::default(),
+            id: 1,
         }
-    }
-
-    pub fn add_reference_symbol(&mut self, name: &str, val : i64) {
-        let res = self.ref_name_to_value.insert(name.to_string(), val);
-        assert!(res.is_none());
-    }
-
-    pub fn get_value<S>(&self, name: S) -> Result<i64, SymbolError>
-    where
-        S: Into<String>,
-    {
-        let info = self.get_from_name(&name.into())?;
-        info.value.ok_or(SymbolError::NoValue)
     }
 
     fn get(&self, id: SymbolId) -> Result<&SymbolInfo, SymbolError> {
@@ -70,23 +104,8 @@ impl SymbolTable {
         self.info.get_mut(&id).ok_or(SymbolError::NotFound)
     }
 
-    pub fn get_from_name<S>(&self, name: S) -> Result<&SymbolInfo, SymbolError>
-    where
-        S: Into<String>,
-    {
-        let id = self
-            .name_to_id
-            .get(&name.into())
-            .ok_or(SymbolError::NotFound)?;
-        self.get(*id)
-    }
-
     pub fn symbol_exists(&self, id: SymbolId) -> bool {
         self.get(id).is_ok()
-    }
-
-    pub fn symbol_exists_from_name(&self, name: &str) -> bool {
-        self.get_from_name(name).is_ok()
     }
 
     fn set_value(&mut self, id: SymbolId, value: i64) -> Result<(), SymbolError> {
@@ -95,48 +114,49 @@ impl SymbolTable {
         Ok(())
     }
 
-    pub fn add_symbol_with_value<S>(
-        &mut self,
-        name: S,
-        value: i64,
-    ) -> Result<SymbolId, SymbolError>
-    where
-        S: Into<String>,
-    {
-        let nstr : String = name.into();
-        let id = self.add_symbol(&nstr)?;
-        self.set_value(id, value)?;
-
-        if let Some(expected) = self.ref_name_to_value.get(&nstr) {
-            if *expected != value {
-                return Err(SymbolError::Mismatch{expected: *expected})
-            }
-        }
-
-        Ok(id)
-    }
     fn get_next_id(&mut self) -> SymbolId {
         let ret = self.id;
         self.id += 1;
         ret
     }
 
-    pub fn remove_symbol_name(&mut self, name: &str) 
-    {
-        if let Ok(x) = self.get_from_name(name) {
+    pub fn add_reference_symbol(&mut self, name: &str, val: i64) {
+        let res = self.ref_name_to_value.insert(name.to_string(), val);
+        assert!(res.is_none());
+    }
+
+    pub fn add_symbol_with_value(
+        &mut self,
+        name: &str,
+        value: i64,
+    ) -> Result<SymbolId, SymbolError> {
+        let nstr: String = name.into();
+        let id = self.add_symbol(&nstr)?;
+        self.set_value(id, value)?;
+
+        if let Some(expected) = self.ref_name_to_value.get(&nstr) {
+            if *expected != value {
+                return Err(SymbolError::Mismatch {
+                    expected: *expected,
+                });
+            }
+        }
+
+        Ok(id)
+    }
+
+    pub fn remove_symbol_name(&mut self, name: &str) {
+        if let Ok(x) = self.get_symbol_info(name) {
             let id = x.id;
             self.name_to_id.remove(name);
             self.info.remove(&id);
         }
     }
 
-    pub fn add_symbol<S>(&mut self, name: S ) -> Result<SymbolId, SymbolError>
-    where
-        S: Into<String>,
-    {
+    pub fn add_symbol(&mut self, name: &str) -> Result<SymbolId, SymbolError> {
         let name: String = name.into();
 
-        if let Ok(sym_info) = self.get_from_name(&name) {
+        if let Ok(sym_info) = self.get_symbol_info(&name) {
             Err(SymbolError::AlreadyDefined(sym_info.name.clone()))
         } else {
             let id = self.get_next_id();

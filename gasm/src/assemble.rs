@@ -8,6 +8,7 @@ use nom::Offset;
 use romloader::sources::SourceFileLoader;
 use romloader::sources::SourceInfo;
 use romloader::sources::SymbolError;
+use romloader::sources::SymbolQuery;
 
 use crate::assemble;
 use crate::ast::AstNodeRef;
@@ -304,7 +305,7 @@ impl Assembler {
         for w in &self.ctx.watches {
             let w = format!("val equ {}", w);
             let ast = crate::util::tokenize_text(&w, self.symbols.clone()).unwrap();
-            let x = ast.symbols.get_from_name("val").unwrap().value.unwrap() as usize;
+            let x = ast.symbols.get_symbol_info("val").unwrap().value.unwrap() as usize;
             self.binary.add_watch(x..x + 1);
         }
 
@@ -922,7 +923,7 @@ impl Assembler {
                 };
 
                 self.symbols
-                    .add_symbol_with_value(name.clone(), pcv)
+                    .add_symbol_with_value(&name, pcv)
                     .map_err(|e| {
                         let err = if let SymbolError::Mismatch { expected } = e {
                             format!(

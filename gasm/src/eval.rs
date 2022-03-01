@@ -11,7 +11,7 @@ use std::fmt::{Display, format};
 use std::{collections::HashMap, hash::Hash};
 
 use crate::error::{AstError, UserError};
-use romloader::sources::{SymbolError, SymbolTable, Position};
+use romloader::sources::{SymbolError, SymbolTable, Position, SymbolQuery};
 
 
 use crate::astformat::as_string;
