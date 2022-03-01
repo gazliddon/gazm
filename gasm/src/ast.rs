@@ -87,8 +87,6 @@ impl Ast {
 
         ret.rename_locals();
 
-        // TODO!
-        // handle error properly
         ret.postfix_expressions()?;
 
         ret.generate_struct_symbols()?;

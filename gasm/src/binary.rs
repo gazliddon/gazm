@@ -1,3 +1,7 @@
+use crate::as6809::{MapFile, Record};
+use emu::mem::LoggingMemMap;
+use romloader::ResultExt;
+use thiserror::Error;
 use serde_derive::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
@@ -43,11 +47,6 @@ impl Default for Binary {
     }
 }
 
-use crate::as6809::{MapFile, Record};
-
-use emu::mem::LoggingMemMap;
-use romloader::ResultExt;
-use thiserror::Error;
 
 #[derive(Clone)]
 pub struct MemoryLocation {

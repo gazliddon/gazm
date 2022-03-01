@@ -1,18 +1,55 @@
 use romloader::ResultExt;
 use serde_json::to_string;
 
-use crate::ast::{to_priority, Ast, AstNodeMut, AstNodeRef, ItemWithPos};
+use crate::ast::{Ast, AstNodeId, AstNodeMut, AstNodeRef, ItemWithPos, to_priority};
 use crate::item::Item;
 use crate::postfix::GetPriotity;
 use romloader::Stack;
 
-use std::fmt::format;
+use std::backtrace::Backtrace;
+use std::fmt::{Display, format};
 use std::{collections::HashMap, hash::Hash};
 
-use crate::error::AstError;
-use romloader::sources::{SymbolError, SymbolTable};
+use crate::error::{AstError, UserError};
+use romloader::sources::{SymbolError, SymbolTable, Position};
+
 
 use crate::astformat::as_string;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum EvalErrorEnum {
+    #[error("Unexpected Op")]
+    UnexpectedOp,
+    #[error("Symbol not found {0}")]
+    SymbolNotFoud(String),
+    #[error("Contains reference to PC")]
+    CotainsPcReference,
+    #[error("Expected a number")]
+    ExpectedANumber,
+    #[error("Unhandled unary term")]
+    UnhandledUnaryTerm,
+}
+
+#[derive(Error, Debug)]
+pub struct EvalError {
+    node : AstNodeId,
+    pos:   Position,
+    #[source]
+    source: EvalErrorEnum,
+}
+
+impl Display for EvalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl From<EvalError> for AstError {
+    fn from(err: EvalError) -> Self {
+        AstError::from_node_id(err.to_string(),err.node, err.pos)
+    }
+}
 
 fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
     if let Item::Number(_) = i {
@@ -90,6 +127,7 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
         Err(AstError::from_node("Expected a number", n))
     }
 }
+
 pub fn eval(symbols: &SymbolTable, n: AstNodeRef) -> Result<i64, AstError> {
     let ret = eval_internal(symbols, n)?;
     Ok(ret.get_number().unwrap())

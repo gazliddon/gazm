@@ -133,10 +133,21 @@ impl AstError {
     where
         S: Into<String>,
     {
+        Self::from_node_id(
+            msg,
+            n.id(),
+            n.value().pos.clone()
+        )
+    }
+
+    pub fn from_node_id<S>(msg: S, id: AstNodeId, pos: Position) -> Self
+    where
+        S: Into<String>,
+    {
         Self {
-            pos: n.value().pos.clone(),
+            pos,
             message: Some(msg.into()),
-            node_id: n.id(),
+            node_id: id,
             failure: false,
         }
     }

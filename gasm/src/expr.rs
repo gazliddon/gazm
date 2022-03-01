@@ -186,11 +186,23 @@ mod test {
         assert_eq!(&matched.to_string(), "*");
     }
 
+    #[test]
     fn test_parse_pc() {
         let input = "* ;; ";
         let span = Span::new_extra(input, AsmSource::FromStr);
         let (rest, matched) = parse_pc(span).unwrap();
         assert_eq!(*rest, " ;; ");
         assert_eq!(&matched.to_string(), "*");
+    }
+
+
+    #[test]
+    fn test_parse_pc2() {
+        let input = "* * 3";
+        let span = Span::new_extra(input, AsmSource::FromStr);
+        let (_, matched) = parse_expr(span).unwrap();
+        println!("{:#?}", matched);
+        assert_eq!(&matched.to_string(), "**3");
+        assert!(false)
     }
 }
