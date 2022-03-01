@@ -17,45 +17,57 @@ use romloader::sources::{SymbolError, SymbolTable, Position};
 use crate::astformat::as_string;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum EvalErrorEnum {
     #[error("Unexpected Op")]
     UnexpectedOp,
     #[error("Symbol not found {0}")]
     SymbolNotFoud(String),
-    #[error("Contains reference to PC")]
+    #[error("Contains unresolved reference to PC")]
     CotainsPcReference,
     #[error("Expected a number")]
     ExpectedANumber,
     #[error("Unhandled unary term")]
     UnhandledUnaryTerm,
+    #[error("Can't evaluate node")]
+    UnableToEvaluate,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub struct EvalError {
     node : AstNodeId,
     pos:   Position,
     #[source]
-    source: EvalErrorEnum,
+    pub source: EvalErrorEnum,
+}
+
+impl EvalError {
+    pub fn new(source: EvalErrorEnum, node: AstNodeRef) -> Self {
+        Self {
+            node: node.id(),
+            pos: node.value().pos.clone(),
+            source
+        }
+    }
 }
 
 impl Display for EvalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        write!(f, "{}", self.source)
     }
 }
 
 impl From<EvalError> for AstError {
     fn from(err: EvalError) -> Self {
-        AstError::from_node_id(err.to_string(),err.node, err.pos)
+        AstError::from_node_id(err.source.to_string(),err.node, err.pos)
     }
 }
 
-fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, AstError> {
+fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, EvalError> {
     if let Item::Number(_) = i {
         Ok(i)
     } else {
-        Err(AstError::from_node("Expected a number", n))
+        Err( EvalError::new(EvalErrorEnum::ExpectedANumber, n))
     }
 }
 
@@ -81,7 +93,7 @@ impl GetPriotity for Item {
 ///  - PostFixExpr containing only labels and numbers
 ///  - UnaryTerm
 ///  - Must eval to a number
-pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> {
+fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, EvalError> {
     use Item::*;
 
     let i = &n.value().item;
@@ -90,9 +102,14 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
         PostFixExpr => eval_postfix(symbols, n)?,
 
         Label(name) => symbols.get_value(name).map(Item::number).map_err(|_| {
-            let msg = format!("Evaluation: Couldn't find symbol! {}", name);
-            AstError::from_node(&msg, n)
+            EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n)
         })?,
+
+        Pc => {
+            symbols.get_value("*").map(Item::number).map_err(|_| {
+                EvalError::new(EvalErrorEnum::CotainsPcReference, n)
+            })?
+        }
 
         UnaryTerm => {
             let ops = n.children().nth(0).unwrap();
@@ -104,8 +121,7 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
             let num = &match ops.value().item {
                 Item::Sub => Item::Number(-num),
                 _ => {
-                    let msg = format!("Evaluation: Unhandled unary term {:?}", ops.value().item);
-                    return Err(AstError::from_node(&msg, ops));
+                    return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n))
                 }
             };
 
@@ -115,8 +131,9 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
         Number(_) => i.clone(),
 
         _ => {
-            let msg = format!("Can't evaluate: {:#?}", i);
-            return Err(AstError::from_node(msg, n));
+            return Err(
+                EvalError::new(EvalErrorEnum::UnableToEvaluate, n)
+                );
         }
     };
 
@@ -124,18 +141,16 @@ pub fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstEr
     if let Item::Number(_) = rez {
         Ok(rez)
     } else {
-        Err(AstError::from_node("Expected a number", n))
+        Err(
+            EvalError::new(EvalErrorEnum::ExpectedANumber, n)
+            )
     }
 }
 
-pub fn eval(symbols: &SymbolTable, n: AstNodeRef) -> Result<i64, AstError> {
-    let ret = eval_internal(symbols, n)?;
-    Ok(ret.get_number().unwrap())
-}
 
 
 /// Evaluates a postfix expression
-fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> {
+fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, EvalError> {
     use Item::*;
     let mut s: Stack<Item> = Stack::new();
 
@@ -172,13 +187,12 @@ fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> 
                     And => lhs & rhs,
                     ShiftLeft => lhs << (rhs as u64),
                     ShiftRight => lhs >> (rhs as u64),
-                    _ => return Err(AstError::from_node("Unexpected op ", *cn)),
+                    _ => return Err(EvalError::new(EvalErrorEnum::UnexpectedOp, *cn)),
                 };
                 Ok(res)
             })
             .map_err(|_| 
-                { let msg = format!("{lhs} : {rhs} {}", as_string(n));
-                    AstError::from_node(msg, *cn)})??;
+                { EvalError::new(EvalErrorEnum::UnableToEvaluate, *cn) })??;
 
             s.push(Number(res))
 
@@ -188,4 +202,9 @@ fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, AstError> 
     }
 
     Ok(s.pop())
+}
+
+pub fn eval(symbols: &SymbolTable, n: AstNodeRef) -> Result<i64, EvalError> {
+    let ret = eval_internal(symbols, n)?;
+    Ok(ret.get_number().unwrap())
 }

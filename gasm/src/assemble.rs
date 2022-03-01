@@ -17,6 +17,7 @@ use crate::astformat::as_string;
 use crate::binary::{AccessType, Binary};
 use crate::cli;
 use crate::cli::Context;
+use crate::error::AstError;
 use crate::error::UserError;
 use crate::eval;
 use crate::eval::eval;
@@ -125,7 +126,8 @@ pub struct Assembler {
 fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Result<i64, UserError> {
     eval(symbols, node).map_err(|err| {
         let info = sources.get_source_info(&node.value().pos).unwrap();
-        UserError::from_ast_error(err, &info)
+        let ast_err: AstError = err.into();
+        UserError::from_ast_error(ast_err, &info)
     })
 }
 
@@ -252,11 +254,21 @@ impl Assembler {
         let info = self.get_source_info(&node.value().pos).unwrap();
         UserError::from_text(err, &info, is_failure)
     }
+    fn user_error_id<S: Into<String>>(
+        &self,
+        err: S,
+        node: AstNodeId,
+        is_failure: bool,
+    ) -> UserError {
+        let node = self.tree.get(node).unwrap();
+        let info = self.get_source_info(&node.value().pos).unwrap();
+        UserError::from_text(err, &info, is_failure)
+    }
 
     fn eval_node(&self, node: AstNodeRef) -> Result<i64, UserError> {
         eval(&self.symbols, node).map_err(|err| {
             let info = self.get_source_info(&node.value().pos).unwrap();
-            UserError::from_ast_error(err, &info)
+            UserError::from_ast_error(err.into(), &info)
         })
     }
 
@@ -300,7 +312,6 @@ impl Assembler {
 
         let x = self.binary.get_unchecked_writes();
 
-
         let database = SourceDatabase::new(
             &self.source_map,
             &self.sources_loader.sources,
@@ -308,13 +319,19 @@ impl Assembler {
         );
 
         for uc in x {
-            let text =  if let Some(si) = database.get_source_info_from_physical_address(uc.physical) {
-                format!("{} {} {}", si.file.to_string_lossy(), si.line_number, si.text)
+            let text = if let Some(si) = database.get_source_info_from_physical_address(uc.physical)
+            {
+                format!(
+                    "{} {} {}",
+                    si.file.to_string_lossy(),
+                    si.line_number,
+                    si.text
+                )
             } else {
                 "no info!".to_string()
             };
 
-            println!("{:05X?} {}",uc, text);
+            println!("{:05X?} {}", uc, text);
         }
 
         let ret = Assembled {
@@ -497,7 +514,7 @@ impl Assembler {
                             .write_ibyte_check_size(val)
                             .map_err(|x| match x {
                                 DoesNotFit { .. } => self.relative_error(id, val, 8),
-                                DoesNotMatchReference { .. } => self.binary_error(id,  x),
+                                DoesNotMatchReference { .. } => self.binary_error(id, x),
                                 _ => self.user_error(format!("{:?}", x), node, true),
                             });
 
@@ -524,10 +541,9 @@ impl Assembler {
 
                         res.map_err(|x| match x {
                             DoesNotFit { .. } => self.relative_error(id, val, 16),
-                            DoesNotMatchReference { .. } => self.binary_error(id,  x),
+                            DoesNotMatchReference { .. } => self.binary_error(id, x),
                             _ => self.user_error(format!("{:?}", x), node, true),
                         })?;
-
                     }
 
                     Inherent => {}
@@ -562,7 +578,7 @@ impl Assembler {
             ExpandedMacro(mcall) => {
                 // We need to tell the source mapper we're expanding a macro so the file / line for
                 // everything expanded by the macro will point to the line that instantiated the
-                // 
+                //
                 let si = self.get_source_info(&mcall.name).unwrap();
                 let frag = si.fragment.to_string();
                 self.source_map.start_macro(&mcall.name);
@@ -766,6 +782,14 @@ impl Assembler {
         panic!();
     }
 
+    fn eval_with_pc(&mut self, n: AstNodeId, pc: u64) -> Result<i64, UserError> {
+        let n = self.tree.get(n).unwrap();
+        self.symbols.add_symbol_with_value("*", pc as i64).unwrap();
+        let ret = self.eval_node(n)?;
+        self.symbols.remove_symbol_name("*");
+        Ok(ret)
+    }
+
     fn size_node(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {
         use crate::util::{ByteSize, ByteSizes};
         use item::Item::*;
@@ -886,18 +910,29 @@ impl Assembler {
             }
 
             AssignmentFromPc(name) => {
+                let name = name.clone();
+
+                let pcv = if let Some(n) = node.first_child() {
+                    self.symbols.add_symbol_with_value("*", pc as i64).unwrap();
+                    let ret = self.eval_node(n)?;
+                    self.symbols.remove_symbol_name("*");
+                    ret
+                } else {
+                    pc as i64
+                };
+
                 self.symbols
-                    .add_symbol_with_value(name, pc as i64)
+                    .add_symbol_with_value(name.clone(), pcv)
                     .map_err(|e| {
                         let err = if let SymbolError::Mismatch { expected } = e {
                             format!(
                                 "Mismatch symbol {name} : expected {:04X} got : {:04X}",
-                                expected, pc
+                                expected, pcv
                             )
                         } else {
                             format!("{:?}", e)
                         };
-                        self.user_error(err, node, false)
+                        self.user_error_id(err, id, false)
                     })?;
             }
 

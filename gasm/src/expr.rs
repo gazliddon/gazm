@@ -203,6 +203,5 @@ mod test {
         let (_, matched) = parse_expr(span).unwrap();
         println!("{:#?}", matched);
         assert_eq!(&matched.to_string(), "**3");
-        assert!(false)
     }
 }

@@ -16,6 +16,7 @@ use serde_json::map::Values;
 
 use crate::astformat::as_string;
 use crate::error::{AstError, UserError};
+use crate::eval::{ EvalErrorEnum, EvalError };
 use crate::item;
 use crate::scopes::ScopeBuilder;
 
@@ -269,7 +270,7 @@ impl Ast {
         UserError::from_text(msg, si, is_failure)
     }
 
-    pub fn eval(&self, symbols: &SymbolTable, id: AstNodeId) -> Result<i64, UserError> {
+    fn eval_node_child(&self, symbols: &SymbolTable, id: AstNodeId) -> Result<i64, UserError> {
         use super::eval::eval;
         let node = self.tree.get(id).unwrap();
 
@@ -282,7 +283,7 @@ impl Ast {
         let child_item = &first_child.value().item;
 
         if let Item::PostFixExpr = child_item {
-            eval(symbols, first_child).map_err(|e| self.convert_error(e))
+            eval(symbols, first_child).map_err(|e| self.convert_error(e.into()))
         } else {
             Err(err(&format!(
                 "Incorrect item type for evalulation : {child_item:?}"
@@ -326,7 +327,7 @@ impl Ast {
                     for c in n.children() {
                         if let StructEntry(entry_name) = &c.value().item {
                             let id = c.id();
-                            let value = self.eval(&self.symbols, id)?;
+                            let value = self.eval_node_child(&self.symbols, id)?;
                             let scoped_name = format!("{}.{}", name, entry_name);
                             self.add_symbol(&mut symbols, current, &scoped_name, id)?;
                             x.info(format!("Struct: Set {scoped_name} to {current}"));
@@ -352,19 +353,43 @@ impl Ast {
 
             let mut symbols = self.symbols.clone();
 
+            let mut pc_references = vec![];
+
             for n in self.tree.nodes() {
                 if let Assignment(name) = &n.value().item {
-                    let id = n.id();
+                    // let id = n.id();
 
-                    let value = self.eval(&symbols, id)?;
-                    self.add_symbol(&mut symbols, value, name, id)?;
+                    let cnode = n.first_child().unwrap();
 
-                    let msg = format!("{} = {}", name.clone(), value);
-                    x.debug(&msg);
+                    let res = eval(&symbols, cnode);
+
+                    match res {
+                        Ok(value) => {
+                            self.add_symbol(&mut symbols, value, name, cnode.id())?;
+                            let msg = format!("{} = {}", name.clone(), value);
+                            x.debug(&msg);
+                        }
+
+                        Err(EvalError{source : EvalErrorEnum::CotainsPcReference,  ..}) => {
+                            pc_references.push((name.clone(),n.id()));
+                            let msg = format!("Marking to convert to pc reference: {}", name);
+                            x.debug(&msg);
+                        }
+
+                        Err(e) => {
+                            let ast_err : AstError = e.clone().into();
+                            return Err(self.node_error(&ast_err.to_string(), cnode.id(), true))
+                        }
+                    }
                 }
             }
 
             self.symbols = symbols;
+
+            for (name,id) in pc_references {
+                let mut n = self.tree.get_mut(id).unwrap();
+                n.value().item = Item::AssignmentFromPc(name);
+            }
 
             Ok(())
         })

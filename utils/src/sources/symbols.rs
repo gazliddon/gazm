@@ -27,10 +27,10 @@ pub enum SymbolError {
 #[derive(Serialize, Deserialize,Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SymbolTable {
-    info: Vec<SymbolInfo>,
-    pub name_to_id: HashMap<String, SymbolId>,
-
+    info: HashMap<SymbolId,SymbolInfo>,
+    name_to_id: HashMap<String, SymbolId>,
     ref_name_to_value: HashMap<String,i64>,
+    id: usize,
 }
 
 impl Default for SymbolTable {
@@ -45,6 +45,7 @@ impl SymbolTable {
             info: Default::default(),
             name_to_id: Default::default(),
             ref_name_to_value : Default::default(),
+            id: 1
         }
     }
 
@@ -62,11 +63,11 @@ impl SymbolTable {
     }
 
     fn get(&self, id: SymbolId) -> Result<&SymbolInfo, SymbolError> {
-        self.info.get(id).ok_or(SymbolError::NotFound)
+        self.info.get(&id).ok_or(SymbolError::NotFound)
     }
 
     fn get_mut(&mut self, id: SymbolId) -> Result<&mut SymbolInfo, SymbolError> {
-        self.info.get_mut(id).ok_or(SymbolError::NotFound)
+        self.info.get_mut(&id).ok_or(SymbolError::NotFound)
     }
 
     pub fn get_from_name<S>(&self, name: S) -> Result<&SymbolInfo, SymbolError>
@@ -100,7 +101,7 @@ impl SymbolTable {
         value: i64,
     ) -> Result<SymbolId, SymbolError>
     where
-        S: Into<String> + Copy,
+        S: Into<String>,
     {
         let nstr : String = name.into();
         let id = self.add_symbol(&nstr)?;
@@ -114,6 +115,20 @@ impl SymbolTable {
 
         Ok(id)
     }
+    fn get_next_id(&mut self) -> SymbolId {
+        let ret = self.id;
+        self.id += 1;
+        ret
+    }
+
+    pub fn remove_symbol_name(&mut self, name: &str) 
+    {
+        if let Ok(x) = self.get_from_name(name) {
+            let id = x.id;
+            self.name_to_id.remove(name);
+            self.info.remove(&id);
+        }
+    }
 
     pub fn add_symbol<S>(&mut self, name: S ) -> Result<SymbolId, SymbolError>
     where
@@ -124,7 +139,7 @@ impl SymbolTable {
         if let Ok(sym_info) = self.get_from_name(&name) {
             Err(SymbolError::AlreadyDefined(sym_info.name.clone()))
         } else {
-            let id = self.info.len();
+            let id = self.get_next_id();
 
             self.name_to_id.insert(name.clone(), id);
 
@@ -134,7 +149,7 @@ impl SymbolTable {
                 value: None,
             };
 
-            self.info.push(info);
+            self.info.insert(id, info);
             Ok(id)
         }
     }
