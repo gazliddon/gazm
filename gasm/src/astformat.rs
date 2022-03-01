@@ -81,9 +81,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{} equ {}", name, child_string(0))
             }
 
-            Expr => format!("Expr: {}", join_kids("")),
+            Expr => format!("{}", join_kids("")),
 
-            PostFixExpr => format!("PostFixExpr: {}", join_kids(" ")),
+            PostFixExpr => format!("{}", join_kids(" ")),
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 

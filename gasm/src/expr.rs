@@ -51,7 +51,7 @@ fn parse_bracketed_expr(input: Span) -> IResult<Node> {
     use util::{wrapped_chars, ws};
     let (rest, mut matched) = wrapped_chars('(', ws(parse_expr), ')')(input)?;
     let matched_span = matched_span(input, rest);
-    matched.item = Item::Expr;
+    matched.item = Item::BracketedExpr;
     Ok((rest, matched.with_span(matched_span)))
 }
 
@@ -156,7 +156,7 @@ mod test {
         println!("{:#?}", matched);
         let matched = matched.to_string();
         assert_eq!(*rest, " + 20");
-        assert_eq!("(10+4)", matched);
+        assert_eq!(matched, "(10+4)");
     }
 
     #[test]

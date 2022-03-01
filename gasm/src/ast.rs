@@ -22,7 +22,7 @@ use crate::scopes::ScopeBuilder;
 use crate::item::{Item, Node};
 use romloader::sources::{Position, SourceFileLoader};
 
-use crate::messages::{debug, info, verbosity, Verbosity, status};
+use crate::messages::{debug, info, status, verbosity, Verbosity};
 use crate::postfix;
 use romloader::sources::{SourceFile, SourceInfo, Sources, SymbolId, SymbolTable};
 
@@ -74,11 +74,15 @@ impl Ast {
         let tree = make_tree(&node);
         Self::new(tree, sources)
     }
-    pub fn new_with_symbols(tree: AstTree, sources_loader: SourceFileLoader, symbols : SymbolTable) -> Result<Self, UserError> {
+    pub fn new_with_symbols(
+        tree: AstTree,
+        sources_loader: SourceFileLoader,
+        symbols: SymbolTable,
+    ) -> Result<Self, UserError> {
         let mut ret = Self {
             tree,
             sources_loader,
-            symbols
+            symbols,
         };
 
         ret.rename_locals();
@@ -109,7 +113,9 @@ impl Ast {
         &'a self,
         node: &'a AstNodeRef,
     ) -> Result<SourceInfo<'a>, String> {
-        self.sources_loader.sources.get_source_info(&node.value().pos)
+        self.sources_loader
+            .sources
+            .get_source_info(&node.value().pos)
     }
 
     fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, String> {
@@ -167,14 +173,20 @@ impl Ast {
     fn node_to_postfix(&self, node: AstNodeRef) -> Result<Vec<AstNodeId>, String> {
         use postfix::PostFixer;
 
-        let args : Vec<_> = node.children().map(|n| Term::new(&n)).collect();
+        let args: Vec<_> = node.children().map(|n| Term::new(&n)).collect();
 
         let mut pfix: PostFixer<Term> = postfix::PostFixer::new();
         let ret = pfix.get_postfix(args.clone()).map_err(|s| {
-            let args : Vec<String> = args.iter().map(|a| format!("{:?}", self.tree.get(a.node).unwrap().value().item )).collect();
-            format!("\n{:?}\n {}",self.tree.get(s.node).unwrap().value(), args.join("\n"))
-        }
-            )?;
+            let args: Vec<String> = args
+                .iter()
+                .map(|a| format!("{:?}", self.tree.get(a.node).unwrap().value().item))
+                .collect();
+            format!(
+                "\n{:?}\n {}",
+                self.tree.get(s.node).unwrap().value(),
+                args.join("\n")
+            )
+        })?;
 
         let ret = ret.iter().map(|t| t.node).collect();
 
@@ -196,14 +208,17 @@ impl Ast {
             for n in self.tree.nodes() {
                 let v = n.value();
 
-                if let Expr = v.item {
-                    let new_order = self.node_to_postfix(n).map_err(|s| {
-                        let si = self.get_source_info_from_node_id(n.id()).unwrap();
-                        let msg = format!("Can't convert to postfix: {}", s);
-                        UserError::from_text(msg, &si, true)
-                    })?;
+                match v.item {
+                    BracketedExpr | Expr => {
+                        let new_order = self.node_to_postfix(n).map_err(|s| {
+                            let si = self.get_source_info_from_node_id(n.id()).unwrap();
+                            let msg = format!("Can't convert to postfix: {}", s);
+                            UserError::from_text(msg, &si, true)
+                        })?;
 
-                    to_convert.push((n.id(), new_order));
+                        to_convert.push((n.id(), new_order));
+                    }
+                    _ => (),
                 }
             }
 
@@ -213,7 +228,11 @@ impl Ast {
                         c.detach();
                     } else {
                         let si = self.get_source_info_from_node_id(*c).unwrap();
-                        return Err(UserError::from_text("Can't get a mutatable node", &si, true))
+                        return Err(UserError::from_text(
+                            "Can't get a mutatable node",
+                            &si,
+                            true,
+                        ));
                     }
                 }
 
