@@ -276,7 +276,6 @@ mod test {
         println!("original: {:?}", *input);
         println!("Rest: {:?}", rest);
         println!("Po: {:?}", matched.ctx);
-        assert_eq!(*rest, " ;;");
         assert_eq!(&matched.to_string(),"hello equ *");
     }
 }
