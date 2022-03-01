@@ -203,6 +203,7 @@ use crate::Stack;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SourceMapping {
     pub addr_to_mapping: Vec<Mapping>,
+    pub phys_addr_to_mapping: Vec<Mapping>,
     #[serde(skip)]
     macro_stack: Stack<Position>,
 }
@@ -211,6 +212,7 @@ impl Default for SourceMapping {
     fn default() -> Self {
         Self {
             addr_to_mapping: Default::default(),
+            phys_addr_to_mapping: Default::default(),
             macro_stack : Default::default(),
         }
     }
@@ -249,7 +251,8 @@ impl SourceMapping {
                 physical_mem_range
             };
 
-            self.addr_to_mapping.push(entry);
+            self.addr_to_mapping.push(entry.clone());
+            self.phys_addr_to_mapping.push(entry);
         } else {
             panic!("No file id!")
         }
@@ -264,6 +267,8 @@ pub struct SourceDatabase {
     symbols: SymbolTable,
     #[serde(skip)]
     range_to_mapping: HashMap<std::ops::Range<usize>, Mapping>,
+    #[serde(skip)]
+    phys_addr_to_mapping: HashMap<usize, Mapping>,
     #[serde(skip)]
     addr_to_mapping: HashMap<usize, Mapping>,
     #[serde(skip)]
@@ -296,6 +301,7 @@ impl SourceDatabase {
             symbols: symbols.clone(),
             range_to_mapping: Default::default(),
             addr_to_mapping: Default::default(),
+            phys_addr_to_mapping: Default::default(),
             loc_to_mapping: Default::default(),
         };
 
@@ -315,6 +321,7 @@ impl SourceDatabase {
         for v in &self.mappings.addr_to_mapping {
             self.range_to_mapping.insert(v.mem_range.clone(), v.clone());
             self.addr_to_mapping.insert(v.mem_range.start, v.clone());
+            self.phys_addr_to_mapping.insert(v.physical_mem_range.start, v.clone());
             let loc = (v.file_id, v.line);
             self.loc_to_mapping.insert(loc, v.clone());
         }
@@ -384,6 +391,11 @@ impl SourceDatabase {
     ) -> Option<SourceLine> {
         self.get_source_file_from_file_name(file_name)
             .and_then(|sf| sf.get_line(line))
+    }
+    pub fn get_source_info_from_physical_address(&self, addr: usize) -> Option<SourceLine> {
+        self.phys_addr_to_mapping
+            .get(&addr)
+            .and_then(|m| self.get_source_line(m.file_id, m.line))
     }
 
     pub fn get_source_info_from_address(&self, addr: usize) -> Option<SourceLine> {

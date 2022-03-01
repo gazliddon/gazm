@@ -1,0 +1,20 @@
+---
+  - name: Ram
+    start: 0xa000
+    size:  0x1000
+
+  - name: BankedRom
+    start: 0xc000
+    size: 0x1000
+
+  - name: MainRom
+    start: 0xd000
+    size: 0x3000
+
+
+  # Rom6 - blk71.src - terrain, player explosion, wave data
+  - name: Rom6
+    start: 0x18000
+    size: 0x800
+    org: 0xc000
+    

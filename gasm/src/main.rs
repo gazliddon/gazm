@@ -94,6 +94,7 @@ fn print_tree(tree: &ast::AstNodeRef, depth: usize) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+
     use clap::Parser;
     use item::Item::*;
     use messages::*;

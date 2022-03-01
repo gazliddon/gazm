@@ -169,7 +169,7 @@ impl Assembler {
                 .map_err(|_| AssemblerErrors::BinRefFile(filename.to_string()))?;
 
             binary.bin_reference(
-                bin_ref.dest,
+                bin_ref,
                 &buffer[bin_ref.start..(bin_ref.start + bin_ref.size)],
             );
         }
@@ -298,11 +298,24 @@ impl Assembler {
 
         self.assemble_node(self.tree.root().id())?;
 
+        let x = self.binary.get_unchecked_writes();
+
+
         let database = SourceDatabase::new(
             &self.source_map,
             &self.sources_loader.sources,
             &self.symbols,
         );
+
+        for uc in x {
+            let text =  if let Some(si) = database.get_source_info_from_physical_address(uc.physical) {
+                format!("{} {} {}", si.file.to_string_lossy(), si.line_number, si.text)
+            } else {
+                "no info!".to_string()
+            };
+
+            println!("{:05X?} {}",uc, text);
+        }
 
         let ret = Assembled {
             mem: self.binary.data.clone(),
@@ -342,19 +355,20 @@ impl Assembler {
                 let (val, _) = self.eval_first_arg(node)?;
                 self.binary
                     .write_uword_check_size(val)
-                    .map_err(|e| self.binary_error(id, e))?
+                    .map_err(|e| self.binary_error(id, e))?;
             }
 
-            ConstantWordOffset(_, val) | PcOffsetWord(val) => self
-                .binary
-                .write_iword_check_size(val as i64)
-                .map_err(|e| self.binary_error(id, e))?,
+            ConstantWordOffset(_, val) | PcOffsetWord(val) => {
+                self.binary
+                    .write_iword_check_size(val as i64)
+                    .map_err(|e| self.binary_error(id, e))?;
+            }
 
-            ConstantByteOffset(_, val) | PcOffsetByte(val) => self
-                .binary
-                .write_ibyte_check_size(val as i64)
-                .map_err(|e| self.binary_error(id, e))?,
-
+            ConstantByteOffset(_, val) | PcOffsetByte(val) => {
+                self.binary
+                    .write_ibyte_check_size(val as i64)
+                    .map_err(|e| self.binary_error(id, e))?;
+            }
             _ => (),
         }
 
@@ -483,11 +497,12 @@ impl Assembler {
                             .write_ibyte_check_size(val)
                             .map_err(|x| match x {
                                 DoesNotFit { .. } => self.relative_error(id, val, 8),
+                                DoesNotMatchReference { .. } => self.binary_error(id,  x),
                                 _ => self.user_error(format!("{:?}", x), node, true),
                             });
 
                         match &res {
-                            Ok(..) => (),
+                            Ok(_) => (),
                             Err(e) => {
                                 if self.ctx.ignore_relative_offset_errors {
                                     x.warning(e.pretty().unwrap());
@@ -509,8 +524,10 @@ impl Assembler {
 
                         res.map_err(|x| match x {
                             DoesNotFit { .. } => self.relative_error(id, val, 16),
+                            DoesNotMatchReference { .. } => self.binary_error(id,  x),
                             _ => self.user_error(format!("{:?}", x), node, true),
                         })?;
+
                     }
 
                     Inherent => {}
@@ -545,7 +562,7 @@ impl Assembler {
             ExpandedMacro(mcall) => {
                 // We need to tell the source mapper we're expanding a macro so the file / line for
                 // everything expanded by the macro will point to the line that instantiated the
-                // macro
+                // 
                 let si = self.get_source_info(&mcall.name).unwrap();
                 let frag = si.fragment.to_string();
                 self.source_map.start_macro(&mcall.name);

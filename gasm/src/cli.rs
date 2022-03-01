@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::{usize, vec};
 
 use crate::messages::Verbosity;
+use crate::binary::BinRef;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -14,13 +15,6 @@ pub struct WriteBin {
     pub size: usize,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct BinRef {
-    pub file: PathBuf,
-    pub start: usize,
-    pub size: usize,
-    pub dest: usize,
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Context {
