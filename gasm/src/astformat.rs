@@ -2,7 +2,7 @@ use crate::ast::*;
 use crate::item::{self, IndexParseType, Item};
 use std::fmt::Display;
 
-impl std::fmt::Display for Ast {
+impl<'a> std::fmt::Display for Ast<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let wrapped = DisplayWrapper {
             node: self.get_tree().root(),

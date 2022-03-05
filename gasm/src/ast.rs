@@ -21,11 +21,12 @@ use crate::item;
 use crate::scopes::ScopeBuilder;
 
 use crate::item::{Item, Node};
+use crate::cli::Context;
 use romloader::sources::{Position, SourceFileLoader};
 
 use crate::messages::{debug, info, status, verbosity, Verbosity};
 use crate::postfix;
-use romloader::sources::{SourceFile, SourceInfo, Sources, SymbolId, SymbolTable};
+use romloader::sources::{SourceFile, SourceInfo, Sources, SymbolId, SymbolTable, SymbolWriter};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -64,26 +65,30 @@ pub fn make_tree(node: &Node) -> AstTree {
 }
 
 #[derive(Debug)]
-pub struct Ast {
+pub struct Ast<'a> {
     pub tree: AstTree,
     pub sources_loader: SourceFileLoader,
     pub symbols: SymbolTable,
+    pub ctx : &'a mut Context
 }
 
-impl Ast {
-    pub fn from_nodes(node: Node, sources: SourceFileLoader) -> Result<Self, UserError> {
+impl<'a> Ast<'a> {
+    pub fn from_nodes(node: Node, sources: SourceFileLoader, ctx: &'a mut Context) -> Result<Self, UserError> {
         let tree = make_tree(&node);
-        Self::new(tree, sources)
+        Self::new(tree, sources, ctx)
     }
+
     pub fn new_with_symbols(
         tree: AstTree,
         sources_loader: SourceFileLoader,
         symbols: SymbolTable,
+        ctx: &'a mut Context,
     ) -> Result<Self, UserError> {
         let mut ret = Self {
             tree,
             sources_loader,
             symbols,
+            ctx,
         };
 
         ret.rename_locals();
@@ -97,8 +102,8 @@ impl Ast {
         Ok(ret)
     }
 
-    pub fn new(tree: AstTree, sources_loader: SourceFileLoader) -> Result<Self, UserError> {
-        Self::new_with_symbols(tree, sources_loader, SymbolTable::default())
+    pub fn new(tree: AstTree, sources_loader: SourceFileLoader, ctx : &'a mut Context) -> Result<Self, UserError> {
+        Self::new_with_symbols(tree, sources_loader, SymbolTable::default(), ctx)
     }
 
     pub fn get_tree(&self) -> &AstTree {
@@ -108,7 +113,7 @@ impl Ast {
         &mut self.tree
     }
 
-    fn get_source_info_from_node<'a>(
+    fn get_source_info_from_node(
         &'a self,
         node: &'a AstNodeRef,
     ) -> Result<SourceInfo<'a>, String> {
@@ -293,7 +298,7 @@ impl Ast {
 
     pub fn add_symbol<S>(
         &self,
-        symbols: &mut SymbolTable,
+        symbols: &mut dyn SymbolWriter,
         value: i64,
         name: S,
         id: AstNodeId,

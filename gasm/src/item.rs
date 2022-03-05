@@ -223,6 +223,7 @@ pub enum Item {
 
     SetPc(u16),
     SetPutOffset(isize),
+    Scope(String),
 
     Expr,
     PostFixExpr,
@@ -252,7 +253,11 @@ pub enum Item {
 
     Include(PathBuf),
     IncBin(PathBuf),
+    IncBinRef(PathBuf),
+    GrabMem,
     IncBinResolved{ file: PathBuf, r : std::ops::Range<usize> },
+
+    WriteBin(PathBuf),
 
     TokenizedFile(PathBuf, PathBuf, String),
 

@@ -27,16 +27,13 @@ intermediates : $(BIN_DIR)/defa7-defb6-amode1.o  $(BIN_DIR)/roms.o \
 	$(BIN_DIR)/defend.6
 	@echo Built intermediates
 
-# Build amode1 # The equivalent of: RASM PHR2,DEFA2,DEFB2,AMODE0;-X (ELSE CREF SYMBOL OVERFLOW)
-# First 4 files create roms 1,4,2,3 which are always reside
-# amode1 src creates roms 9,12
-
 DEFA7_DEFB6_AMODE1_SRC = phr6.src defa7.src defb6.src samexap7.src amode1.src
 DEFA7_DEFB6_AMODE1_SRC_FULL := $(foreach file,$(DEFA7_DEFB6_AMODE1_SRC), $(DEFENDER_SRC_DIR)/$(file))
 $(BIN_DIR)/defa7-defb6-amode1.o : $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	@echo Building $@ from $(DEFA7_DEFB6_AMODE1_SRC_FULL)
 	@$(ASM) $(DEFA7_DEFB6_AMODE1_SRC_FULL) \
 	--as6809-sym $(DEFENDER_BIN_DIR)/$(notdir $(basename $@)).sym \
+	-s $(BIN_DIR)/$(notdir $(basename $@)).sym \
 	-v \
 	\
 	--bin-ref $(RED_LABEL)/defend.1 0000 800 d000 \
@@ -63,7 +60,7 @@ $(BIN_DIR)/defend.11 : $(DEFENDER_SRC_DIR)/defend11.src
 	--bin-ref $(RED_LABEL)/defend.11 0 800 11800 \
 	--write-bin $@ 11800 800
 
-ROMS_SRC := phr6.src mess0.src romf8.src romc0.src romc8.src blk71.src
+ROMS_SRC := phr6.src mess0.src romc0.src romc8.src blk71.src
 ROMS_SRC_FULL := $(foreach file,$(ROMS_SRC), $(DEFENDER_SRC_DIR)/$(file))
 $(BIN_DIR)/roms.o : $(ROMS_SRC_FULL)
 	@echo Building $@ from $?
@@ -84,19 +81,24 @@ clean:
 	@echo Cleaned
 
 cmp:
-	cmp $(RED_LABEL)/defend.1 $(BIN_DIR)/defend.1
-	cmp $(RED_LABEL)/defend.2 $(BIN_DIR)/defend.2
-	cmp $(RED_LABEL)/defend.3 $(BIN_DIR)/defend.3
-	cmp $(RED_LABEL)/defend.4 $(BIN_DIR)/defend.4
-	cmp $(RED_LABEL)/defend.7 $(BIN_DIR)/defend.7
-	cmp $(RED_LABEL)/defend.8 $(BIN_DIR)/defend.8
-	cmp $(RED_LABEL)/defend.9 $(BIN_DIR)/defend.9
-	cmp $(RED_LABEL)/defend.10 $(BIN_DIR)/defend.10
-	cmp $(RED_LABEL)/defend.12 $(BIN_DIR)/defend.12
-	cmp $(RED_LABEL)/defend.11 $(BIN_DIR)/defend.11
-	cmp $(RED_LABEL)/defend.6 $(BIN_DIR)/defend.6
+	cmp  $(RED_LABEL)/defend.1 $(BIN_DIR)/defend.1
+	cmp  $(RED_LABEL)/defend.2 $(BIN_DIR)/defend.2
+	cmp  $(RED_LABEL)/defend.3 $(BIN_DIR)/defend.3
+	cmp  $(RED_LABEL)/defend.4 $(BIN_DIR)/defend.4
+	cmp  $(RED_LABEL)/defend.7 $(BIN_DIR)/defend.7
+	cmp  $(RED_LABEL)/defend.8 $(BIN_DIR)/defend.8
+	cmp  $(RED_LABEL)/defend.9 $(BIN_DIR)/defend.9
+	cmp  $(RED_LABEL)/defend.10 $(BIN_DIR)/defend.10
+	cmp  $(RED_LABEL)/defend.12 $(BIN_DIR)/defend.12
+	cmp  $(RED_LABEL)/defend.11 $(BIN_DIR)/defend.11
+	cmp  $(RED_LABEL)/defend.6 $(BIN_DIR)/defend.6
 
 ifeq ("x", "y")
+
+defend.6
+	blk71
+
+
 defend.1
 	bin/defa7-defb6-amode1.o 0xb000,0x000,0x800
 

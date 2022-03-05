@@ -281,7 +281,7 @@ fn tokenize_file(
     };
 
     let comp_msg = format!("{} {}", action, file_name.to_string_lossy());
-    x.info(&comp_msg);
+    x.status(&comp_msg);
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
@@ -308,19 +308,9 @@ fn tokenize_file(
 use crate::macros::Macros;
 
 pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, SourceFileLoader)> {
-    // let ret = Node::new(Item::Block, vec![], Position::default());
-
-    let file = ctx.files[0].clone();
-
     let mut macros = Macros::new();
 
-    let mut paths = vec![];
-
-    if let Some(dir) = file.parent() {
-        paths.push(dir);
-    }
-
-    let mut fl = SourceFileLoader::from_search_paths(&paths);
+    let mut fl = ctx.make_source_file_loader();
 
     let parent = PathBuf::new();
 
@@ -356,7 +346,6 @@ pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, SourceFileLoader)> 
 // Tests
 #[allow(unused_imports)]
 mod test {
-
     use super::*;
     #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};

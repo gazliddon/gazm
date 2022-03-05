@@ -11,6 +11,7 @@ pub mod romloader;
 pub mod rle;
 mod location;
 mod stack;
+mod pathsearcher;
 
 pub use chunk::*;
 pub use error::*;

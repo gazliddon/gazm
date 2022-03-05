@@ -16,7 +16,7 @@ pub fn read_to_string<P: AsRef<Path>>(path: P) -> anyhow::Result<String> {
 
 use nom::AsBytes;
 use regex::Regex;
-use romloader::sources::SymbolTable;
+use romloader::sources::{SymbolWriter, SymbolTable };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Record {

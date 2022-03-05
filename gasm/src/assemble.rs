@@ -5,19 +5,18 @@ use emu::isa::AddrModeEnum;
 use nom::combinator::map_opt;
 use nom::combinator::recognize;
 use nom::Offset;
-use romloader::sources::SourceFileLoader;
-use romloader::sources::SourceInfo;
-use romloader::sources::SymbolError;
-use romloader::sources::SymbolQuery;
+use romloader::sources::{ SymbolQuery, SymbolWriter, SymbolError, SourceInfo, SourceFileLoader };
 
 use crate::assemble;
 use crate::ast::AstNodeRef;
 use crate::ast::AstTree;
 use crate::ast::{Ast, AstNodeId, AstNodeMut};
 use crate::astformat::as_string;
+use crate::binary::BinRef;
 use crate::binary::{AccessType, Binary};
 use crate::cli;
 use crate::cli::Context;
+use crate::error;
 use crate::error::AstError;
 use crate::error::UserError;
 use crate::eval;
@@ -35,6 +34,7 @@ use romloader::ResultExt;
 use std::collections::HashSet;
 use std::net::UdpSocket;
 use std::ops::RangeBounds;
+use std::path::Path;
 use std::path::PathBuf;
 use std::vec;
 
@@ -114,14 +114,14 @@ fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
     registers
 }
 
-pub struct Assembler {
+pub struct Assembler<'a> {
     symbols: SymbolTable,
     sources_loader: SourceFileLoader,
     binary: Binary,
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
     direct_page: Option<u8>,
-    ctx: crate::cli::Context,
+    ctx: &'a mut crate::cli::Context,
 }
 
 fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Result<i64, UserError> {
@@ -144,8 +144,9 @@ enum AssemblerErrors {
     AddingSymbols,
 }
 
-impl Assembler {
-    pub fn new(ast: crate::ast::Ast, ctx: &Context) -> Result<Self, Box<dyn std::error::Error>> {
+impl<'a> Assembler<'a> {
+    pub fn new(ast: crate::ast::Ast<'a>) -> Result<Self, Box<dyn std::error::Error>> {
+        let ctx = ast.ctx;
         let mut binary = Binary::new(ctx.memory_image_size, AccessType::ReadWrite);
 
         if let Some(file) = &ctx.as6809_lst {
@@ -153,28 +154,6 @@ impl Assembler {
             let m = crate::as6809::MapFile::new(&file)
                 .map_err(|_| AssemblerErrors::MapFile(file.to_string()))?;
             binary.addr_reference(m);
-        }
-
-        for bin_ref in &ctx.bin_refs {
-            messages().status(format!(
-                "Adding bin reference file {}",
-                bin_ref.file.clone().to_string_lossy()
-            ));
-
-            use std::fs::File;
-            use std::io::Read;
-            let mut buffer = Vec::new();
-            let filename = bin_ref.file.to_string_lossy();
-            let mut file = File::open(&bin_ref.file)
-                .map_err(|_| AssemblerErrors::BinRefFile(filename.to_string()))?;
-
-            file.read_to_end(&mut buffer)
-                .map_err(|_| AssemblerErrors::BinRefFile(filename.to_string()))?;
-
-            binary.bin_reference(
-                bin_ref,
-                &buffer[bin_ref.start..(bin_ref.start + bin_ref.size)],
-            );
         }
 
         let mut symbols = ast.symbols;
@@ -191,7 +170,7 @@ impl Assembler {
             tree: ast.tree,
             source_map: SourceMapping::new(),
             direct_page: None,
-            ctx: ctx.clone(),
+            ctx
         };
         Ok(ret)
     }
@@ -300,14 +279,8 @@ impl Assembler {
         Ok(ret)
     }
 
+
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
-        messages().status(format!("Adding {} watches", self.ctx.watches.len()));
-        for w in &self.ctx.watches {
-            let w = format!("val equ {}", w);
-            let ast = crate::util::tokenize_text(&w, self.symbols.clone()).unwrap();
-            let x = ast.symbols.get_symbol_info("val").unwrap().value.unwrap() as usize;
-            self.binary.add_watch(x..x + 1);
-        }
 
         self.assemble_node(self.tree.root().id())?;
 
@@ -435,6 +408,42 @@ impl Assembler {
         let pc = self.get_pc() as i64;
 
         match i {
+            GrabMem => {
+                let args = self.eval_n_args(node,2)?; 
+                let source = args[0];
+                let size = args[1];
+                let bytes = self.binary.get_bytes(source as usize, size as usize).to_vec();
+                self.binary.write_bytes(&bytes).map_err(|e| self.binary_error(id, e))?;
+            },
+
+            WriteBin(file_name) => {
+                let (addr, size) = self.eval_two_args(node)?;
+                let mem = self.binary.get_bytes(addr as usize, size as usize);
+                let file_name = self.ctx.vars.expand_vars(file_name.to_string_lossy());
+                messages().info(format!("Write mem: {} {addr:05X} {size:05X}", file_name));
+                self.sources_loader.write(file_name,mem);
+            },
+
+            IncBinRef(file_name) => {
+                let data = self.get_binary(file_name.to_path_buf(), id)?;
+                let dest =  self.binary.get_write_location().physical;
+
+                let bin_ref = BinRef {
+                    file: file_name.to_path_buf(),
+                    start: 0,
+                    size: data.len(),
+                    dest
+                };
+
+                self.binary.bin_reference(&bin_ref, &data);
+                let file_name = file_name.to_string_lossy();
+
+                messages().info(format!(
+                    "Adding binary reference {file_name} for {:05X} - {:05X}",
+                    dest, dest + data.len()
+                ));
+            }
+
             IncBinResolved { file, r } => {
                 let msg = format!(
                     "Including Binary {} :  offset: {:04X} len: {:04X}",
@@ -442,12 +451,11 @@ impl Assembler {
                     r.start,
                     r.len()
                 );
+
                 messages().status(msg);
 
-                let (_, bin) = self
-                    .sources_loader
-                    .read_binary_chunk(file, r.clone())
-                    .map_err(|e| self.user_error(e.to_string(), node, true))?;
+                let bin = self.get_binary_chunk(file.to_path_buf(), id, r.clone())?;
+
                 for val in bin {
                     self.binary
                         .write_byte(val)
@@ -786,9 +794,66 @@ impl Assembler {
     fn eval_with_pc(&mut self, n: AstNodeId, pc: u64) -> Result<i64, UserError> {
         let n = self.tree.get(n).unwrap();
         self.symbols.add_symbol_with_value("*", pc as i64).unwrap();
+        self.ctx.syms.add_symbol_with_value("*", pc as i64).unwrap();
         let ret = self.eval_node(n)?;
         self.symbols.remove_symbol_name("*");
+        // self.ctx.syms.remove_symbol_name("*");
         Ok(ret)
+    }
+
+    fn get_binary_extents(
+        &self,
+        file_name: PathBuf,
+        node: AstNodeRef,
+    ) -> Result<std::ops::Range<usize>, UserError> {
+        use Item::*;
+
+        let data_len = self
+            .sources_loader
+            .get_size(file_name)
+            .map_err(|e| self.user_error(e.to_string(), node, true))?;
+
+        let mut r = 0..data_len;
+
+        let mut c = node.children();
+
+        let offset_size = c
+            .next()
+            .and_then(|offset| c.next().map(|size| (offset, size)));
+
+        if let Some((offset, size)) = offset_size {
+            let offset = self.eval_node(offset)?;
+            let size = self.eval_node(size)?;
+            let offset = offset as usize;
+            let size = size as usize;
+            let last = (offset + size) - 1;
+
+            if !(r.contains(&offset) && r.contains(&last)) {
+                let msg =
+                    format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
+                return Err(self.user_error(msg, node, true));
+            };
+
+            r.start = offset;
+            r.end = offset + size;
+        }
+
+        Ok(r)
+    }
+
+    fn get_binary_chunk(&mut self, file_name : PathBuf, id: AstNodeId, range : std::ops::Range<usize>) -> Result<Vec<u8>,UserError> {
+        let node = self.tree.get(id).unwrap();
+        let (_, bin) = self
+            .sources_loader
+            .read_binary_chunk(file_name, range.clone())
+            .map_err(|e| self.user_error(e.to_string(), node, true))?;
+        Ok(bin)
+    }
+
+    fn get_binary(&mut self, file_name: PathBuf, id: AstNodeId) -> Result<Vec<u8>, UserError> {
+        let node = self.tree.get(id).unwrap();
+        let range = self.get_binary_extents(file_name.clone(), node)?;
+        self.get_binary_chunk(file_name, id, range)
     }
 
     fn size_node(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {
@@ -802,6 +867,12 @@ impl Assembler {
         let _old_pc = pc;
 
         match i {
+            GrabMem => {
+                let args = self.eval_n_args(node,2)?; 
+                let size = args[1];
+                pc = pc + size as u64;
+            }
+
             Org => {
                 let (value, _) = self.eval_first_arg(node)?;
                 let si = self.get_source_info(&node.value().pos).unwrap();
@@ -959,7 +1030,6 @@ impl Assembler {
                     .unwrap()
                     .line_str
                     .to_string();
-                // println!("{:04X?} {:02X} {line}", old_pc, pc - old_pc);
             }
 
             Zmb => {
@@ -986,36 +1056,7 @@ impl Assembler {
             }
 
             IncBin(file_name) => {
-                let data_len = self
-                    .sources_loader
-                    .get_size(file_name)
-                    .map_err(|e| self.user_error(e.to_string(), node, true))?;
-
-                let mut r = 0..data_len;
-
-                let mut c = node.children();
-
-                let offset_size = c
-                    .next()
-                    .and_then(|offset| c.next().map(|size| (offset, size)));
-
-                if let Some((offset, size)) = offset_size {
-                    let offset = self.eval_node(offset)?;
-                    let size = self.eval_node(size)?;
-                    let offset = offset as usize;
-                    let size = size as usize;
-                    let last = (offset + size) - 1;
-
-                    if !(r.contains(&offset) && r.contains(&last)) {
-                        let msg = format!(
-                            "Trying to grab {offset:04X} {size:04X} from file size {data_len:X}"
-                        );
-                        return Err(self.user_error(msg, node, true));
-                    };
-
-                    r.start = offset;
-                    r.end = offset + size;
-                }
+                let r = self.get_binary_extents(file_name.to_path_buf(), node)?;
 
                 pc = pc + r.len() as u64;
                 let new_item = IncBinResolved {
@@ -1026,7 +1067,7 @@ impl Assembler {
                 node_mut.value().item = new_item;
             }
 
-            Assignment(..) | Comment(..) | MacroDef(..) | StructDef(..) => (),
+            WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | MacroDef(..) | StructDef(..) => (),
             _ => {
                 let msg = format!("Unable to size {:?}", i);
                 return Err(self.user_error(msg, node, true));

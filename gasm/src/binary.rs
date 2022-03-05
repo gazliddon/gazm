@@ -349,8 +349,11 @@ impl Binary {
         Ok(did_check)
     }
 
-    pub fn get_bytes(&self, pc: usize, count: usize) -> &[u8] {
-        &self.data[pc..(pc + count)]
+    // Get bytes from memory
+    // address is the physical_address
+    pub fn get_bytes(&self, physical_address: usize, count: usize) -> &[u8] {
+        let r = physical_address..(physical_address + count);
+        &self.data[r]
     }
 
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {

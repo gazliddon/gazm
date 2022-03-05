@@ -7,17 +7,9 @@ use Item::*;
 
 type CommandParseFn = fn(Span) -> IResult<Node>;
 
-use crate::{astformat::as_string, item::{Item, Node}, locate::matched_span, util::{match_escaped_str, match_file_name}};
+use crate::{astformat::as_string, item::{Item, Node}, labels::{get_just_label, parse_just_label}, locate::matched_span, util::{match_escaped_str, match_file_name, match_str}};
 
-use nom::{
-    branch::alt,
-    bytes::complete::{is_not, tag},
-    character::complete::{alpha1, anychar, multispace0, multispace1},
-    combinator::{map, opt, recognize},
-    error::ErrorKind::NoneOf,
-    multi::{many1, separated_list1},
-    sequence::{preceded, separated_pair, tuple},
-};
+use nom::{branch::alt, bytes::complete::{is_not, tag}, character::complete::{alpha1, anychar, multispace0, multispace1}, combinator::{map, opt, recognize}, error::ErrorKind::NoneOf, multi::{many1, separated_list0, separated_list1}, sequence::{preceded, separated_pair, tuple}};
 
 use expr::parse_expr;
 
@@ -63,17 +55,52 @@ fn parse_include_arg(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
-fn parse_incbin_arg(input: Span) -> IResult<Node> {
+fn parse_grab_mem(input: Span) -> IResult<Node> {
+    use crate::util::ws;
+    let (rest, (src, size)) = separated_pair(parse_expr, ws(tag(",")),  parse_expr)(input)?;
+    let ret = Node::from_item_span(GrabMem, input).with_children(vec![src,size]);
+    Ok((rest, ret))
+}
+
+fn inc_bin_args(input: Span) -> IResult<(PathBuf, Option<Vec<Node>>)> {
     use crate::util::ws;
     let sep = ws(tag(","));
     let sep2 = ws(tag(","));
-
     let (rest, file) = match_file_name(input)?;
+    let (rest, extra_args) = opt(preceded(sep, separated_list1(sep2, parse_expr)))(rest)?;
+    let file = PathBuf::from(&file.to_string());
 
-    let (rest, extra_args) = opt(preceded(sep, separated_list1(sep2,parse_expr)))(rest)?;
+    Ok((rest, (file, extra_args)))
+}
 
-    let ret = Node::from_item_span(IncBin(PathBuf::from(&file.to_string())), input).
-        with_children(extra_args.unwrap_or(vec![]));
+fn parse_refbin_arg(input: Span) -> IResult<Node> {
+    let (rest, (file, extra_args)) = inc_bin_args(input)?;
+    let ret = Node::from_item_span(IncBinRef(file), input).with_children(extra_args.unwrap_or(vec![]));
+    Ok((rest, ret))
+}
+
+fn parse_write_bin_args(input: Span) -> IResult<Node> {
+    use crate::util::ws;
+    let (rest, (file_name, _, source_addr, _, size)) = tuple((
+        match_file_name,
+        ws(tag(",")),
+        parse_expr,
+        ws(tag(",")),
+        parse_expr,
+    ))(input)?;
+
+    let file_name = PathBuf::from(file_name.to_string());
+
+    let ret =
+        Node::from_item_span(WriteBin(file_name), input).with_children(vec![source_addr, size]);
+
+    Ok((rest, ret))
+}
+
+fn parse_incbin_arg(input: Span) -> IResult<Node> {
+    let (rest, (file, extra_args)) = inc_bin_args(input)?;
+
+    let ret = Node::from_item_span(IncBin(file), input).with_children(extra_args.unwrap_or(vec![]));
 
     Ok((rest, ret))
 }
@@ -108,6 +135,11 @@ fn parse_put_arg(input: Span) -> IResult<Node> {
     let ret = Node::from_item_span(Put, input).with_child(matched);
     Ok((rest, ret))
 }
+fn parse_scope_arg(input: Span) -> IResult<Node> {
+    let (rest, matched) = get_just_label(input)?;
+    let ret = Node::from_item_span(Scope(matched.to_string()), input);
+    Ok((rest, ret))
+}
 
 fn mk_fill(input: Span, cv: (Node, Node)) -> Node {
     let (count, value) = cv;
@@ -123,11 +155,16 @@ fn parse_bsz_arg(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
+
 lazy_static! {
     static ref PARSE_ARG: HashMap<&'static str, CommandParseFn> = {
         let v: Vec<(_, CommandParseFn)> = vec![
+            ("scope", parse_scope_arg),
+            ("grabmem", parse_grab_mem),
             ("put", parse_put_arg),
+            ("writebin", parse_write_bin_args),
             ("incbin", parse_incbin_arg),
+            ("incbinref", parse_refbin_arg),
             ("setdp", parse_setdp_arg),
             ("bsz", parse_bsz_arg),
             ("fill", parse_fill_arg),

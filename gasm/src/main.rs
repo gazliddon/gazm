@@ -66,15 +66,15 @@ use crate::messages::Messageize;
 
 use assemble::Assembler;
 
-fn assemble(ctx: &cli::Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
+fn assemble(ctx: &mut cli::Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
     use assemble::Assembler;
     use ast::Ast;
 
     let (tokens, sources) = tokenize::tokenize(ctx)?;
 
-    let ast = Ast::from_nodes(tokens, sources)?;
+    let ast = Ast::from_nodes(tokens, sources, ctx)?;
 
-    let mut asm = Assembler::new(ast, ctx)?;
+    let mut asm = Assembler::new(ast)?;
 
     asm.size()?;
 
@@ -96,10 +96,10 @@ fn print_tree(tree: &ast::AstNodeRef, depth: usize) {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     use clap::Parser;
-    use item::Item::*;
+    use item::Item;
     use messages::*;
 
-    let ctx: cli::Context = cli::parse().into();
+    let mut ctx: cli::Context = cli::parse().into();
 
     let x = messages::messages();
     x.set_verbosity(&ctx.verbose);
@@ -109,30 +109,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     x.indent();
 
-    let ret = assemble(&ctx)?;
+    let ret = assemble(&mut ctx)?;
 
     use std::fs;
 
-    if let Some(sym_file) = ctx.syms {
+    if let Some(sym_file) = ctx.syms_file {
         x.status(format!("Writing symbols: {}", sym_file));
         let j = serde_json::to_string_pretty(&ret.database).expect("Unable to serialize to json");
         fs::write(sym_file, j).expect("Unable to write file");
-    }
-
-    if let Some(bin_file) = ctx.out {
-        x.status(format!("Writing binary: {}", bin_file));
-        let data = &ret.mem;
-        fs::write(bin_file, data).expect("Unable to write file");
-    }
-
-    for WriteBin { file, start, size } in ctx.to_write {
-        let file_str = file.to_string_lossy();
-        let end = start + size;
-        x.status(format!(
-            "Writing binary chunk {start:04X}..{end:04X}: {file_str}"
-        ));
-        let data = &ret.mem[start..end];
-        fs::write(file, data).expect("Unable to write file");
     }
 
     x.deindent();
