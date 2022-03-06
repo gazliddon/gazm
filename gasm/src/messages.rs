@@ -10,10 +10,11 @@ pub trait Messageize {
 }
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Verbosity {
-    NORMAL = 0,
-    INFO = 1,
-    INTERESTING = 2,
-    DEBUG = 3,
+    SILENT = 0,
+    NORMAL = 1,
+    INFO = 2,
+    INTERESTING = 3,
+    DEBUG = 4,
 }
 
 impl<'a> Messageize for &'a str {
@@ -78,7 +79,9 @@ impl Messages {
     where
         S: Into<String>,
     {
+        if self.verbosity >= Verbosity::NORMAL {
         println!("{}{}", self.get_indent_str(), m.into().bright_magenta());
+        }
     }
 
     pub fn error<S>(&self, m: S)

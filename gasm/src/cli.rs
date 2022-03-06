@@ -108,7 +108,7 @@ impl Default for Context {
     fn default() -> Self {
         Self {
             files: Default::default(),
-            verbose: Verbosity::NORMAL,
+            verbose: Verbosity::SILENT,
             syms_file: None,
             trailing_comments: false,
             star_comments: false,
@@ -150,13 +150,17 @@ impl From<clap::ArgMatches> for Context {
             }
         }
 
+         ret.verbose = match m.occurrences_of("verbose") {
+            0 => Verbosity::SILENT, 
+            1 => Verbosity::NORMAL, 
+            2 => Verbosity::INFO, 
+            3 => Verbosity::INTERESTING, 
+            _ => Verbosity::DEBUG,
+        };
+
         if let Some(it) = m.values_of("file") {
             ret.files = it.map(|x| x.into()).collect();
         }
-
-        if m.is_present("verbose") {
-            ret.verbose = Verbosity::DEBUG;
-        };
 
         if m.is_present("mem-size") {
             ret.memory_image_size = m
@@ -208,6 +212,7 @@ pub fn parse() -> clap::ArgMatches {
             Arg::new("verbose")
                 .long("verbose")
                 .help("Verbose mode")
+                .multiple_occurrences(true)
                 .short('v'),
         )
         .arg(
