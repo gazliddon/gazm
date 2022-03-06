@@ -53,6 +53,7 @@ impl<'a> SourceFileAccess<'a> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+#[derive(Clone)]
 pub struct SourceFile {
     pub file: PathBuf,
     pub source: String,
@@ -127,9 +128,9 @@ pub struct SourceInfo<'a> {
     pub pos : Position,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Sources {
-    pub id_to_source_file: HashMap<u64, SourceFile>,
+    id_to_source_file: HashMap<u64, SourceFile>,
 }
 
 impl Sources {
@@ -140,17 +141,21 @@ impl Sources {
     }
 
     pub fn add_source_text(&mut self, text : &str ) -> u64 {
-        let max = self.id_to_source_file.keys().max();
-
-        let id = if let Some(max) = max {
-            max + 1
-
-        } else {
-            0
-        };
-
+        let id = self.get_next_id();
         let name = format!("macro_epxansion_{}",id);
         let source_file = SourceFile::new(&PathBuf::from_str(&name).unwrap(), text);
+        self.id_to_source_file.insert(id, source_file);
+        id
+    }
+
+    fn get_next_id(&self) -> u64 {
+        let max = self.id_to_source_file.keys().max();
+        max.map(|x| x+1).unwrap_or(0)
+    }
+
+    pub fn add_source_file(&mut self, p : &PathBuf, text : &str) -> u64 {
+        let id = self.get_next_id();
+        let source_file = SourceFile::new(p, text);
         self.id_to_source_file.insert(id, source_file);
         id
     }

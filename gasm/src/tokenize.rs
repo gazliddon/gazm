@@ -21,7 +21,7 @@ use romloader::{sources::Position, ResultExt};
 use crate::error::{IResult, ParseError, UserError, UserErrors};
 use crate::item::{Item, Node};
 use crate::locate::Span;
-use romloader::sources::{AsmSource, SourceFileLoader, Sources};
+use romloader::sources::{AsmSource, SourceFileLoader, Sources, FileIo};
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
@@ -46,8 +46,7 @@ pub fn tokenize_file_from_str<'a>(
     let span = Span::new_extra(input, AsmSource::FromStr);
     let source = input.to_string();
     let mut macros = Macros::new();
-    let mut sources = Sources::new();
-    let matched = Tokens::new(ctx).to_tokens(span, &mut sources, &mut macros, errors)?;
+    let matched = Tokens::new(ctx).to_tokens(span, &mut macros, errors)?;
     let item = Item::TokenizedFile(file.into(), file.into(), source);
     let file_node = Node::from_item_span(item, span).with_children(matched);
     Ok(file_node)
@@ -164,7 +163,6 @@ impl Tokens {
     fn to_tokens<'a>(
         &mut self,
         input: Span<'a>,
-        sources: &mut Sources,
         macros: &mut Macros,
         errors: &mut UserErrors,
     ) -> Result<Vec<Node>, UserError> {
@@ -204,7 +202,7 @@ impl Tokens {
             match &res {
                 Ok(..) => (),
                 Err(pe) => {
-                    errors.add_parse_error(pe.clone(), sources)?;
+                    errors.add_parse_error(pe.clone(), self.ctx.sources())?;
                 }
             };
         }
@@ -226,17 +224,17 @@ impl Tokens {
         // Expand all macro calls
 
         for (node, macro_call) in mcalls {
-            let (pos, text) = macros.expand_macro(sources, macro_call.clone())?;
+            let (pos, text) = macros.expand_macro(self.ctx.sources(), macro_call.clone())?;
 
             let input = Span::new_extra(&text, pos.src);
 
             let new_tokens = self
-                .to_tokens(input, sources, macros, errors)
+                .to_tokens(input, macros, errors)
                 .map_err(|mut e| {
                     let args: Vec<_> = macro_call
                         .args
                         .iter()
-                        .map(|a| sources.get_source_info(a))
+                        .map(|a| self.ctx.sources().get_source_info(a))
                         .collect();
 
                     let err1 = format!("Macro expansion:\n {}", text);
@@ -257,8 +255,7 @@ impl Tokens {
 
 fn tokenize_file(
     depth: usize,
-    ctx: &cli::Context,
-    fl: &mut SourceFileLoader,
+    ctx: &mut cli::Context,
     file: &std::path::Path,
     parent: &std::path::Path,
     macros: &mut Macros,
@@ -270,9 +267,8 @@ fn tokenize_file(
     use item::Item::*;
     let x = messages::messages();
 
-    let (file_name, source, id) = fl
-        .read_to_string(file)
-        .with_context(|| format!("Failed to load file: {}", file.to_string_lossy()))?;
+    let (file_name,source,id) = ctx.read_source(&file.to_path_buf())
+    .with_context(|| format!("Failed to load file: {}", file.to_string_lossy()))?;
 
     let action = if depth == 0 {
         "Tokenizing"
@@ -285,7 +281,7 @@ fn tokenize_file(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = Tokens::new(ctx).to_tokens(input, &mut fl.sources, macros, errors)?;
+    let mut tokes = Tokens::new(ctx).to_tokens(input, macros, errors)?;
 
     // Tokenize includes
     for n in tokes.iter_mut() {
@@ -293,7 +289,7 @@ fn tokenize_file(
         match &n.item {
             Include(inc_file) => {
                 x.indent();
-                *n = tokenize_file(depth + 1, ctx, fl, inc_file, file, macros, errors)?.into();
+                *n = tokenize_file(depth + 1, ctx, inc_file, file, macros, errors)?.into();
                 x.deindent();
             }
             _ => ()
@@ -307,21 +303,20 @@ fn tokenize_file(
 
 use crate::macros::Macros;
 
-pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, SourceFileLoader)> {
+pub fn tokenize(ctx: &mut cli::Context) -> anyhow::Result<Node> {
     let mut macros = Macros::new();
-
-    let mut fl = ctx.make_source_file_loader();
 
     let parent = PathBuf::new();
 
     let mut all_tokens = vec![];
     let mut errors = UserErrors::new(ctx.max_errors);
+    let files = ctx.files.clone();
 
-    for file in &ctx.files {
+    for file in files {
         let msg = format!("Reading {}", file.to_string_lossy());
         messages().status(msg);
 
-        let res = tokenize_file(0, ctx, &mut fl, &file, &parent, &mut macros, &mut errors);
+        let res = tokenize_file(0, ctx, &file, &parent, &mut macros, &mut errors);
 
         match res {
             Err(e) => {
@@ -336,10 +331,11 @@ pub fn tokenize(ctx: &cli::Context) -> anyhow::Result<(Node, SourceFileLoader)> 
                 all_tokens.push(node);
             }
         };
-    }
+    };
+
     let block =  Node::from_item(Item::Block, Position::default()).with_children(all_tokens);
 
-    Ok((block, fl))
+    Ok(block)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -144,58 +144,23 @@ pub fn parse_number(input: Span) -> IResult< Node> {
 use std::collections::HashMap;
 use crate::cli::Context;
 
-pub fn tokenize_text<'a>(code: &str, symbols : SymbolTable, ctx : &'a mut Context) -> Result<crate::ast::Ast<'a>, String> {
+pub fn tokenize_text<'a>(code: &str, ctx : &'a mut Context) -> Result<crate::ast::Ast<'a>, String> {
     use crate::tokenize::tokenize_file_from_str;
     use crate::ast::Ast;
     use romloader::sources::*;
     use std::path::PathBuf;
 
-    let file_name = &PathBuf::from("nofile");
+    let path = &PathBuf::from("nofile");
     let mut errors = UserErrors::new(0);
-    let node = tokenize_file_from_str(file_name, code, &mut errors, ctx).map_err(|e| format!("{:?}", e))?;
-    let mut id_to_source_file = HashMap::new();
-    let source_file = SourceFile::new(file_name, code);
-    id_to_source_file.insert(0,source_file);
+    let node = tokenize_file_from_str(path, code, &mut errors, ctx).map_err(|e| format!("{:?}", e))?;
 
     let mut loader = SourceFileLoader::new();
-
-    loader.sources = Sources {
-        id_to_source_file
-    };
+    loader.add_source_file(path, code).unwrap();
 
     let tree = ast::make_tree(&node);
-    println!("new with symbols!");
-    let ast = Ast::new_with_symbols(tree, loader, symbols, ctx).map_err(|e| format!("error: {:?}", e.message))?;
+    let ast = Ast::new(tree, ctx).map_err(|e| format!("error: {:?}", e.message))?;
 
     Ok(ast)
-}
-
-pub fn compile_text(code: &str) -> Result<String, String> {
-    use crate::tokenize::tokenize_file_from_str;
-    use crate::ast::Ast;
-    use romloader::sources::*;
-    use std::path::PathBuf;
-
-    let file_name = &PathBuf::from("nofile");
-
-    let mut errors = UserErrors::new(0);
-
-    let mut ctx = cli::Context::default();
-
-    let node = tokenize_file_from_str(file_name, code, &mut errors, &ctx).map_err(|e| format!("{:?}", e))?;
-
-    let mut id_to_source_file = HashMap::new();
-    let source_file = SourceFile::new(file_name, code);
-    id_to_source_file.insert(0,source_file);
-
-    let mut loader = SourceFileLoader::new();
-    loader.sources = Sources {
-        id_to_source_file
-    };
-
-    let ast = Ast::from_nodes(node, loader, &mut ctx).map_err(|e| format!("error: {:?}", e.message))?;
-
-    Ok(ast.to_string())
 }
 
 pub fn get_block(input: Span<'_>) -> IResult<Span> {

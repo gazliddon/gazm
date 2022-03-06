@@ -5,7 +5,7 @@ use emu::isa::AddrModeEnum;
 use nom::combinator::map_opt;
 use nom::combinator::recognize;
 use nom::Offset;
-use romloader::sources::{ SymbolQuery, SymbolWriter, SymbolError, SourceInfo, SourceFileLoader };
+use romloader::sources::{ SymbolQuery, SymbolWriter, SymbolError, SourceInfo, SourceFileLoader, FileIo };
 
 use crate::assemble;
 use crate::ast::AstNodeRef;
@@ -115,8 +115,6 @@ fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
 }
 
 pub struct Assembler<'a> {
-    symbols: SymbolTable,
-    sources_loader: SourceFileLoader,
     binary: Binary,
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
@@ -147,6 +145,7 @@ enum AssemblerErrors {
 impl<'a> Assembler<'a> {
     pub fn new(ast: crate::ast::Ast<'a>) -> Result<Self, Box<dyn std::error::Error>> {
         let ctx = ast.ctx;
+
         let mut binary = Binary::new(ctx.memory_image_size, AccessType::ReadWrite);
 
         if let Some(file) = &ctx.as6809_lst {
@@ -156,22 +155,19 @@ impl<'a> Assembler<'a> {
             binary.addr_reference(m);
         }
 
-        let mut symbols = ast.symbols;
-
         if let Some(file) = &ctx.as6809_sym {
-            crate::as6809::add_reference_syms(file, &mut symbols)
+            crate::as6809::add_reference_syms(file, &mut ctx.symbols)
                 .map_err(|_| AssemblerErrors::AddingSymbols)?;
         }
 
         let ret = Self {
-            symbols,
-            sources_loader: ast.sources_loader,
             binary,
             tree: ast.tree,
             source_map: SourceMapping::new(),
             direct_page: None,
             ctx
         };
+
         Ok(ret)
     }
 
@@ -183,16 +179,8 @@ impl<'a> Assembler<'a> {
         }
     }
 
-    pub fn assemble_indexed_opcode(
-        &mut self,
-        _ins: &emu::isa::Instruction,
-        _addr_mode: &AddrModeParseType,
-        _node: AstNodeRef,
-    ) -> Result<(), UserError> {
-        todo!("assemble indexed opcode")
-    }
     fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, String> {
-        self.sources_loader.sources.get_source_info(pos)
+        self.ctx.sources().get_source_info(pos)
     }
 
     fn binary_error(&self, n: AstNodeId, e: crate::binary::BinaryError) -> UserError {
@@ -246,7 +234,7 @@ impl<'a> Assembler<'a> {
     }
 
     fn eval_node(&self, node: AstNodeRef) -> Result<i64, UserError> {
-        eval(&self.symbols, node).map_err(|err| {
+        eval(&self.ctx.symbols, node).map_err(|err| {
             let info = self.get_source_info(&node.value().pos).unwrap();
             UserError::from_ast_error(err.into(), &info)
         })
@@ -288,8 +276,8 @@ impl<'a> Assembler<'a> {
 
         let database = SourceDatabase::new(
             &self.source_map,
-            &self.sources_loader.sources,
-            &self.symbols,
+            &self.ctx.sources(),
+            &self.ctx.symbols,
         );
 
         for uc in x {
@@ -376,7 +364,7 @@ impl<'a> Assembler<'a> {
         i: ItemType,
     ) {
         self.source_map
-            .add_mapping(&self.sources_loader.sources, phys_range, range, pos, i);
+            .add_mapping(&self.ctx.sources(), phys_range, range, pos, i);
     }
 
     /// Returns ranges from current_pc -> pc
@@ -419,9 +407,8 @@ impl<'a> Assembler<'a> {
             WriteBin(file_name) => {
                 let (addr, size) = self.eval_two_args(node)?;
                 let mem = self.binary.get_bytes(addr as usize, size as usize);
-                let file_name = self.ctx.vars.expand_vars(file_name.to_string_lossy());
-                messages().info(format!("Write mem: {} {addr:05X} {size:05X}", file_name));
-                self.sources_loader.write(file_name,mem);
+                let p = self.ctx.write(file_name, mem);
+                messages().info(format!("Write mem: {} {addr:05X} {size:05X}", p.to_string_lossy()));
             },
 
             IncBinRef(file_name) => {
@@ -793,11 +780,9 @@ impl<'a> Assembler<'a> {
 
     fn eval_with_pc(&mut self, n: AstNodeId, pc: u64) -> Result<i64, UserError> {
         let n = self.tree.get(n).unwrap();
-        self.symbols.add_symbol_with_value("*", pc as i64).unwrap();
-        self.ctx.syms.add_symbol_with_value("*", pc as i64).unwrap();
+        self.ctx.symbols.add_symbol_with_value("*", pc as i64).unwrap();
         let ret = self.eval_node(n)?;
-        self.symbols.remove_symbol_name("*");
-        // self.ctx.syms.remove_symbol_name("*");
+        self.ctx.symbols.remove_symbol_name("*");
         Ok(ret)
     }
 
@@ -808,10 +793,9 @@ impl<'a> Assembler<'a> {
     ) -> Result<std::ops::Range<usize>, UserError> {
         use Item::*;
 
-        let data_len = self
-            .sources_loader
-            .get_size(file_name)
+        let data_len = self.ctx.get_size(file_name)
             .map_err(|e| self.user_error(e.to_string(), node, true))?;
+
 
         let mut r = 0..data_len;
 
@@ -843,10 +827,10 @@ impl<'a> Assembler<'a> {
 
     fn get_binary_chunk(&mut self, file_name : PathBuf, id: AstNodeId, range : std::ops::Range<usize>) -> Result<Vec<u8>,UserError> {
         let node = self.tree.get(id).unwrap();
-        let (_, bin) = self
-            .sources_loader
-            .read_binary_chunk(file_name, range.clone())
-            .map_err(|e| self.user_error(e.to_string(), node, true))?;
+
+        let (_,bin) = self.ctx.read_binary_chunk(file_name, range.clone())
+        .map_err(|e| self.user_error(e.to_string(), node, true))?;
+
         Ok(bin)
     }
 
@@ -985,15 +969,15 @@ impl<'a> Assembler<'a> {
                 let name = name.clone();
 
                 let pcv = if let Some(n) = node.first_child() {
-                    self.symbols.add_symbol_with_value("*", pc as i64).unwrap();
+                    self.ctx.symbols.add_symbol_with_value("*", pc as i64).unwrap();
                     let ret = self.eval_node(n)?;
-                    self.symbols.remove_symbol_name("*");
+                    self.ctx.symbols.remove_symbol_name("*");
                     ret
                 } else {
                     pc as i64
                 };
 
-                self.symbols
+                self.ctx.symbols
                     .add_symbol_with_value(&name, pcv)
                     .map_err(|e| {
                         let err = if let SymbolError::Mismatch { expected } = e {

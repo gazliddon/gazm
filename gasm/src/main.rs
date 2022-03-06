@@ -36,9 +36,9 @@ mod scopes;
 mod structs;
 // mod sourcefile;
 // mod symbols;
+mod sections;
 mod tokenize;
 mod util;
-mod sections;
 
 use std::path::PathBuf;
 use std::process::abort;
@@ -48,6 +48,7 @@ use ast::ItemWithPos;
 use colored::*;
 use error::UserError;
 use messages::{debug, info, status};
+use romloader::sources::FileIo;
 use romloader::ResultExt;
 
 static BANNER: &str = r#"
@@ -70,9 +71,9 @@ fn assemble(ctx: &mut cli::Context) -> Result<assemble::Assembled, Box<dyn std::
     use assemble::Assembler;
     use ast::Ast;
 
-    let (tokens, sources) = tokenize::tokenize(ctx)?;
+    let tokens = tokenize::tokenize(ctx)?;
 
-    let ast = Ast::from_nodes(tokens, sources, ctx)?;
+    let ast = Ast::from_nodes(tokens, ctx)?;
 
     let mut asm = Assembler::new(ast)?;
 
@@ -94,6 +95,7 @@ fn print_tree(tree: &ast::AstNodeRef, depth: usize) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    use anyhow::Context;
 
     use clap::Parser;
     use item::Item;
@@ -113,10 +115,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     use std::fs;
 
-    if let Some(sym_file) = ctx.syms_file {
+    if let Some(sym_file) = &ctx.syms_file {
         x.status(format!("Writing symbols: {}", sym_file));
         let j = serde_json::to_string_pretty(&ret.database).expect("Unable to serialize to json");
-        fs::write(sym_file, j).expect("Unable to write file");
+        fs::write(sym_file, j).with_context(|| format!("Unable to write {sym_file}"))?;
+
+        if let Some(deps) = &ctx.deps_file {
+            x.status(format!("Writing deps file : {deps}"));
+
+            let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
+
+            let read: Vec<String> = ctx
+                .get_source_file_loader()
+                .get_files_read()
+                .iter()
+                .map(as_string)
+                .collect();
+            let written: Vec<String> = ctx
+                .get_source_file_loader()
+                .get_files_written()
+                .iter()
+                .map(as_string)
+                .collect();
+
+            let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
+
+            let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
+
+            fs::write(deps,deps_line).with_context(|| format!("Unable to write {deps}"))?;
+        }
     }
 
     x.deindent();

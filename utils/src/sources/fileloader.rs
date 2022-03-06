@@ -1,19 +1,21 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::sourcestore::{SourceFile, Sources};
+use super::sourcestore::Sources;
 use anyhow::{anyhow, Result};
 
-use crate::pathsearcher::{ Paths, PathSearcher };
+use crate::pathsearcher::{ Paths, PathSearcher, SearchError };
 
-#[derive(Debug)]
+use std::collections::HashSet;
+
+
+#[derive(Debug, Clone)]
 pub struct SourceFileLoader {
-    pub bin_search_paths: Paths,
     pub source_search_paths: Paths,
     pub sources: Sources,
     id: u64,
-    pub files_loaded: Vec<PathBuf>,
-    pub files_written: Vec<PathBuf>,
+    pub files_loaded: HashSet<PathBuf>,
+    pub files_written: HashSet<PathBuf>,
 }
 
 impl Default for SourceFileLoader {
@@ -23,54 +25,7 @@ impl Default for SourceFileLoader {
     }
 }
 
-impl SourceFileLoader {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn from_search_paths<P: AsRef<Path>>(paths: &[P]) -> Self {
-        let search_paths: Vec<PathBuf> = paths.iter().map(|x| PathBuf::from(x.as_ref())).collect();
-        Self {
-            source_search_paths: Paths::from_paths(&search_paths),
-            bin_search_paths: Paths::new(),
-            sources: Sources::new(),
-            id: 0,
-            files_loaded: Default::default(),
-            files_written: Default::default(),
-        }
-    }
-
-    pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) {
-        let path = path.as_ref().to_path_buf();
-        std::fs::write(&path, data).expect("Can't write bin file");
-        self.files_written.push(path);
-    }
-
-    pub fn add_bin_search_path<P: AsRef<Path>>(&mut self, path: &P) {
-        self.bin_search_paths.add_path(path);
-    }
-
-    pub fn add_bin_search_paths<P: AsRef<Path>>(&mut self, paths: &[P]) {
-        for p in paths {
-            self.add_bin_search_path(p)
-        }
-    }
-
-    pub fn read_to_string<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String, u64)> {
-        let path = self.source_search_paths.get_full_path(path.as_ref())
-            .map_err(|e| self.mk_error(e))?;
-
-        let ret = fs::read_to_string(path.clone())?;
-        let id = self.id;
-        let source_file = SourceFile::new(&path, &ret);
-        self.sources.id_to_source_file.insert(id, source_file);
-        self.id += 1;
-
-        self.files_loaded.push(path.clone());
-
-        Ok((path, ret, id))
-    }
-
+pub trait FileIo : PathSearcher {
     fn mk_error(
         &self,
         e: crate::pathsearcher::SearchError,
@@ -93,20 +48,51 @@ impl SourceFileLoader {
         e
     }
 
-    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize> {
-        let path_finder = vec![&self.bin_search_paths, &self.source_search_paths];
+    fn add_to_files_read(&mut self, p : PathBuf);
+    fn add_to_files_written(&mut self, p : PathBuf);
 
-        let path = path_finder
+    fn expand_path<P: AsRef<Path>>(&self, p : P) -> PathBuf {
+        p.as_ref().to_path_buf()
+    }
+
+    fn get_files_written(&self) -> Vec<PathBuf>;
+    fn get_files_read(&self) -> Vec<PathBuf>;
+    
+    fn read_to_string<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String)> {
+
+        let path = self.get_full_path(path.as_ref())
+            .map_err(|e| self.mk_error(e))?;
+
+        let ret = fs::read_to_string(path.clone())?;
+        self.add_to_files_read(path.clone());
+        Ok((path, ret))
+    }
+
+    fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, Vec<u8>)> {
+        use std::fs::File;
+        use std::io::Read;
+        let mut buffer = vec![];
+
+        let path = self.expand_path(path);
+
+        let path = self
             .get_full_path(path.as_ref())
             .map_err(|e| self.mk_error(e))?;
 
-        let md = std::fs::metadata(path.clone())
-            .map_err(|e| anyhow!("Can't get size for : {}\n{}", path.to_string_lossy(), e))?;
-
-        Ok(md.len() as usize)
+        let mut file = File::open(path.clone())?;
+        file.read_to_end(&mut buffer)?;
+        self.add_to_files_read(path.clone());
+        Ok((path, buffer))
     }
 
-    pub fn read_binary_chunk<P: AsRef<Path>>(
+    fn write<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
+        let path = self.expand_path(path);
+        std::fs::write(&path, data).expect("Can't write bin file");
+        self.add_to_files_written(path.clone());
+        path
+    }
+
+    fn read_binary_chunk<P: AsRef<Path>>(
         &mut self,
         path: P,
         r: std::ops::Range<usize>,
@@ -128,22 +114,66 @@ impl SourceFileLoader {
         }
     }
 
-    fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, Vec<u8>)> {
-        use std::fs::File;
-        use std::io::Read;
-        let mut buffer = vec![];
-
-        let path_finder = vec![&self.bin_search_paths, &self.source_search_paths];
-
-        let path = path_finder
+    fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize> {
+        let path = self.expand_path(path);
+        let path = self
             .get_full_path(path.as_ref())
             .map_err(|e| self.mk_error(e))?;
 
-        let mut file = File::open(path.clone())?;
-        file.read_to_end(&mut buffer)?;
 
-        self.files_loaded.push(path.clone());
+        let md = std::fs::metadata(path.clone())
+            .map_err(|e| anyhow!("Can't get size for : {}\n{}", path.to_string_lossy(), e))?;
 
-        Ok((path, buffer))
+        Ok(md.len() as usize)
+    }
+}
+
+impl PathSearcher for SourceFileLoader {
+    fn get_full_path(&self, file: &Path) -> Result<PathBuf, SearchError> {
+        self.source_search_paths.get_full_path(file)
+    }
+}
+
+impl FileIo for SourceFileLoader {
+    fn get_files_written(&self) -> Vec<PathBuf> {
+        self.files_written.iter().cloned().collect()
+    }
+    fn get_files_read(&self) -> Vec<PathBuf> {
+        self.files_loaded.iter().cloned().collect()
+    }
+
+    fn add_to_files_read(&mut self, path : PathBuf) {
+        self.files_loaded.insert(path);
+    }
+    fn add_to_files_written(&mut self, path : PathBuf) {
+        self.files_written.insert(path);
+    }
+}
+
+impl SourceFileLoader {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn read_source(&mut self, path : &PathBuf) -> Result<(PathBuf, String, u64)> {
+        let (path, text) = self.read_to_string(path)?;
+        let (_,_,id) = self.add_source_file(&path, &text)?;
+        Ok((path,text,id))
+    }
+
+    pub fn add_source_file(&mut self, path : &PathBuf, text: &str) -> Result<(PathBuf, String, u64)> {
+        let id = self.sources.add_source_file(&path, &text);
+        Ok((path.clone(),text.to_string(),id))
+    }
+
+    pub fn from_search_paths<P: AsRef<Path>>(paths: &[P]) -> Self {
+        let search_paths: Vec<PathBuf> = paths.iter().map(|x| PathBuf::from(x.as_ref())).collect();
+        Self {
+            source_search_paths: Paths::from_paths(&search_paths),
+            sources: Sources::new(),
+            id: 0,
+            files_loaded: Default::default(),
+            files_written: Default::default(),
+        }
     }
 }

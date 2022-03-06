@@ -1,6 +1,6 @@
 use clap::Parser;
-use clap::{App, Arg};
-use romloader::sources::{SourceFileLoader, SymbolTable, SymbolTree};
+use clap::{Arg, Command};
+use romloader::sources::{FileIo, SourceFileLoader, Sources, SymbolTable, SymbolTree};
 use romloader::ResultExt;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -38,10 +38,10 @@ impl Vars {
         self.vars.get(v)
     }
 
-    pub fn expand_vars<P: Into<String>>(&self, val : P) -> String {
+    pub fn expand_vars<P: Into<String>>(&self, val: P) -> String {
         let mut ret = val.into();
-        for (k,to) in &self.vars {
-            let from= format!("$({k})");
+        for (k, to) in &self.vars {
+            let from = format!("$({k})");
             ret = ret.replace(&from, to);
         }
         ret
@@ -49,6 +49,9 @@ impl Vars {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Settings {}
+
+#[derive(Debug, Clone)]
 pub struct Context {
     pub verbose: Verbosity,
     pub files: Vec<PathBuf>,
@@ -59,24 +62,45 @@ pub struct Context {
     pub ignore_relative_offset_errors: bool,
     pub as6809_lst: Option<String>,
     pub as6809_sym: Option<String>,
+    pub deps_file: Option<String>,
     pub memory_image_size: usize,
-    pub bin_ref_search_paths: Vec<PathBuf>,
     pub vars: Vars,
-    pub syms: SymbolTree
+    pub symbols: SymbolTable,
+    source_file_loader: SourceFileLoader,
 }
+use anyhow::{anyhow, Result};
 
 impl Context {
-    pub fn make_source_file_loader(&self) -> SourceFileLoader {
-        let file = self.files[0].clone();
-        let mut paths = vec![];
+    pub fn get_source_file_loader(&self) -> &SourceFileLoader {
+        &self.source_file_loader
+    }
 
-        if let Some(dir) = file.parent() {
-            paths.push(dir);
-        }
+    pub fn sources(&self) -> &Sources {
+        &self.source_file_loader.sources
+    }
 
-        let mut fl = SourceFileLoader::from_search_paths(&paths);
-        fl.add_bin_search_paths(&self.bin_ref_search_paths);
-        fl
+    pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
+        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        self.source_file_loader.write(path, data)
+    }
+
+    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize> { 
+        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        self.source_file_loader.get_size(path)
+    }
+
+    pub fn read_source<P: AsRef<Path>>(&mut self, path : P) -> Result<(PathBuf, String, u64)> {
+        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        self.source_file_loader.read_source(&path.into())
+    }
+
+    pub fn read_binary_chunk<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        r: std::ops::Range<usize>,
+    ) -> Result<(PathBuf, Vec<u8>)> {
+        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        self.source_file_loader.read_binary_chunk(path, r)
     }
 }
 
@@ -93,9 +117,10 @@ impl Default for Context {
             as6809_lst: None,
             as6809_sym: None,
             memory_image_size: 0x10000,
-            bin_ref_search_paths: Default::default(),
             vars: Vars::new(),
-            syms: SymbolTree::new()
+            symbols: SymbolTable::new(),
+            source_file_loader: SourceFileLoader::new(),
+            deps_file: None,
         }
     }
 }
@@ -103,6 +128,7 @@ impl Default for Context {
 impl From<clap::ArgMatches> for Context {
     fn from(m: clap::ArgMatches) -> Self {
         let mut ret = Self {
+            deps_file: m.value_of("deps").map(|f| f.to_string()),
             syms_file: m.value_of("symbol-file").map(|f| f.to_string()),
             as6809_lst: m.value_of("as6809-lst").map(|f| f.to_string()),
             as6809_sym: m.value_of("as6809-sym").map(|f| f.to_string()),
@@ -111,11 +137,6 @@ impl From<clap::ArgMatches> for Context {
             ignore_relative_offset_errors: m.is_present("ignore-relative-offset-errors"),
             ..Default::default()
         };
-
-
-        if let Some(it) = m.values_of("bin-ref-search-paths") {
-            ret.bin_ref_search_paths = it.map(|p| PathBuf::from(p)).collect();
-        }
 
         if let Some(mut it) = m.values_of("set") {
             loop {
@@ -128,7 +149,6 @@ impl From<clap::ArgMatches> for Context {
                 }
             }
         }
-
 
         if let Some(it) = m.values_of("file") {
             ret.files = it.map(|x| x.into()).collect();
@@ -152,12 +172,20 @@ impl From<clap::ArgMatches> for Context {
                 .unwrap();
         }
 
+
+        if ret.files.len() != 0 {
+            let file = ret.files[0].clone();
+            if let Some(dir) = file.parent() {
+                ret.source_file_loader = SourceFileLoader::from_search_paths(&[dir]);
+            }
+        }
+
         ret
     }
 }
 
 pub fn parse() -> clap::ArgMatches {
-    App::new("gasm")
+    Command::new("gasm")
         .about("6809 assembler")
         .author("gazaxian")
         .version("0.1")
@@ -165,15 +193,8 @@ pub fn parse() -> clap::ArgMatches {
             Arg::new("file")
                 .multiple_values(true)
                 .index(1)
-                .use_delimiter(false)
+                .use_value_delimiter(false)
                 .required(true),
-        )
-        .arg(
-            Arg::new("bin-ref-search-paths")
-                .long("bin-ref-search-paths")
-                .takes_value(true)
-                .multiple_values(true)
-                .required(false),
         )
         .arg(
             Arg::new("symbol-file")
@@ -219,6 +240,12 @@ pub fn parse() -> clap::ArgMatches {
                 .takes_value(true),
         )
         .arg(
+            Arg::new("deps")
+                .long("deps")
+                .help("Write a Makefile compatible deps file")
+                .takes_value(true),
+        )
+        .arg(
             Arg::new("set")
                 .long("set")
                 .value_names(&["var", "value"])
@@ -232,7 +259,7 @@ pub fn parse() -> clap::ArgMatches {
                 .help("Maxium amount of non fatal errors allowed before failing")
                 .long("max-errors")
                 .takes_value(true)
-                .use_delimiter(false)
+                .use_value_delimiter(false)
                 .validator(|s| s.parse::<usize>())
                 .short('m'),
         )
@@ -242,7 +269,7 @@ pub fn parse() -> clap::ArgMatches {
                 .help("Size of output binary")
                 .long("mem-size")
                 .takes_value(true)
-                .use_delimiter(false)
+                .use_value_delimiter(false)
                 .validator(|s| s.parse::<usize>()),
         )
         .get_matches()

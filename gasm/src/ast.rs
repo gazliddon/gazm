@@ -67,27 +67,18 @@ pub fn make_tree(node: &Node) -> AstTree {
 #[derive(Debug)]
 pub struct Ast<'a> {
     pub tree: AstTree,
-    pub sources_loader: SourceFileLoader,
-    pub symbols: SymbolTable,
     pub ctx : &'a mut Context
 }
 
 impl<'a> Ast<'a> {
-    pub fn from_nodes(node: Node, sources: SourceFileLoader, ctx: &'a mut Context) -> Result<Self, UserError> {
+    pub fn from_nodes(node: Node, ctx: &'a mut Context) -> Result<Self, UserError> {
         let tree = make_tree(&node);
-        Self::new(tree, sources, ctx)
+        Self::new(tree, ctx)
     }
 
-    pub fn new_with_symbols(
-        tree: AstTree,
-        sources_loader: SourceFileLoader,
-        symbols: SymbolTable,
-        ctx: &'a mut Context,
-    ) -> Result<Self, UserError> {
+    pub fn new(tree: AstTree, ctx : &'a mut Context) -> Result<Self, UserError> {
         let mut ret = Self {
             tree,
-            sources_loader,
-            symbols,
             ctx,
         };
 
@@ -102,10 +93,6 @@ impl<'a> Ast<'a> {
         Ok(ret)
     }
 
-    pub fn new(tree: AstTree, sources_loader: SourceFileLoader, ctx : &'a mut Context) -> Result<Self, UserError> {
-        Self::new_with_symbols(tree, sources_loader, SymbolTable::default(), ctx)
-    }
-
     pub fn get_tree(&self) -> &AstTree {
         &self.tree
     }
@@ -117,14 +104,12 @@ impl<'a> Ast<'a> {
         &'a self,
         node: &'a AstNodeRef,
     ) -> Result<SourceInfo<'a>, String> {
-        self.sources_loader
-            .sources
-            .get_source_info(&node.value().pos)
+        self.ctx.sources().get_source_info(&node.value().pos)
     }
 
     fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, String> {
         let n = self.tree.get(id).unwrap();
-        self.sources_loader.sources.get_source_info(&n.value().pos)
+        self.ctx.sources().get_source_info(&n.value().pos)
     }
 
     fn rename_locals(&mut self) {
@@ -319,7 +304,7 @@ impl<'a> Ast<'a> {
             use super::eval::eval;
             use Item::*;
 
-            let mut symbols = self.symbols.clone();
+            let mut symbols = self.ctx.symbols.clone();
 
             // let mut symbols = self.symbols.clone();
             for n in self.tree.nodes() {
@@ -332,7 +317,7 @@ impl<'a> Ast<'a> {
                     for c in n.children() {
                         if let StructEntry(entry_name) = &c.value().item {
                             let id = c.id();
-                            let value = self.eval_node_child(&self.symbols, id)?;
+                            let value = self.eval_node_child(&self.ctx.symbols, id)?;
                             let scoped_name = format!("{}.{}", name, entry_name);
                             self.add_symbol(&mut symbols, current, &scoped_name, id)?;
                             x.info(format!("Struct: Set {scoped_name} to {current}"));
@@ -346,7 +331,7 @@ impl<'a> Ast<'a> {
                 }
             }
 
-            self.symbols = symbols;
+            self.ctx.symbols = symbols;
             Ok(())
         })
     }
@@ -356,7 +341,7 @@ impl<'a> Ast<'a> {
             use super::eval::eval;
             use Item::*;
 
-            let mut symbols = self.symbols.clone();
+            let mut symbols = self.ctx.symbols.clone();
 
             let mut pc_references = vec![];
 
@@ -389,7 +374,7 @@ impl<'a> Ast<'a> {
                 }
             }
 
-            self.symbols = symbols;
+            self.ctx.symbols = symbols;
 
             for (name,id) in pc_references {
                 let mut n = self.tree.get_mut(id).unwrap();
