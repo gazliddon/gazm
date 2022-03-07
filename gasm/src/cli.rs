@@ -65,7 +65,7 @@ pub struct Context {
     pub deps_file: Option<String>,
     pub memory_image_size: usize,
     pub vars: Vars,
-    pub symbols: SymbolTable,
+    pub symbols: SymbolTree,
     source_file_loader: SourceFileLoader,
 }
 use anyhow::{anyhow, Result};
@@ -118,7 +118,7 @@ impl Default for Context {
             as6809_sym: None,
             memory_image_size: 0x10000,
             vars: Vars::new(),
-            symbols: SymbolTable::new(),
+            symbols: SymbolTree::new(),
             source_file_loader: SourceFileLoader::new(),
             deps_file: None,
         }

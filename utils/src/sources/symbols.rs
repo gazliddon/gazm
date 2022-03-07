@@ -43,8 +43,8 @@ pub struct SymbolTree {
     current_scope: SymbolNodeId,
 }
 
-impl SymbolTree {
-    pub fn new() -> Self {
+impl Default for SymbolTree {
+    fn default() -> Self {
         let root = SymbolTable::new_with_scope("root");
         let tree = SymbolTreeTree::new(root);
         let current_scope = tree.root().id();
@@ -53,6 +53,12 @@ impl SymbolTree {
             tree,
             current_scope,
         }
+    }
+}
+
+impl SymbolTree {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn pop_scope(&mut self) {
@@ -83,7 +89,6 @@ impl SymbolTree {
 }
 
 impl SymbolQuery for SymbolTree {
-
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         let scope = self.current_scope;
 

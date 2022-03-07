@@ -26,7 +26,7 @@ use romloader::sources::{Position, SourceFileLoader};
 
 use crate::messages::{debug, info, status, verbosity, Verbosity};
 use crate::postfix;
-use romloader::sources::{SourceFile, SourceInfo, Sources, SymbolId, SymbolTable, SymbolWriter};
+use romloader::sources::{SourceFile, SourceInfo, Sources, SymbolId, SymbolTable, SymbolWriter, SymbolQuery};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -260,7 +260,7 @@ impl<'a> Ast<'a> {
         UserError::from_text(msg, si, is_failure)
     }
 
-    fn eval_node_child(&self, symbols: &SymbolTable, id: AstNodeId) -> Result<i64, UserError> {
+    fn eval_node_child(&self, symbols: &dyn SymbolQuery, id: AstNodeId) -> Result<i64, UserError> {
         use super::eval::eval;
         let node = self.tree.get(id).unwrap();
 

@@ -1,6 +1,5 @@
 
-use super::symbols::SymbolTable;
-use super::{AsmSource, Position};
+use super::{AsmSource, Position, SymbolTree};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -269,7 +268,8 @@ use std::cell::RefCell;
 pub struct SourceDatabase {
     id_to_source_file: HashMap<u64, PathBuf>,
     mappings: SourceMapping,
-    symbols: SymbolTable,
+    #[serde(skip)]
+    symbols: SymbolTree,
     #[serde(skip)]
     range_to_mapping: HashMap<std::ops::Range<usize>, Mapping>,
     #[serde(skip)]
@@ -291,7 +291,7 @@ pub struct SourceLineInfo<'a> {
 }
 
 impl SourceDatabase {
-    pub fn new(mappings: &SourceMapping, sources: &Sources, symbols: &SymbolTable) -> Self {
+    pub fn new(mappings: &SourceMapping, sources: &Sources, symbols: &SymbolTree) -> Self {
         let mut id_to_source_file = HashMap::new();
 
         for (k, v) in &sources.id_to_source_file {

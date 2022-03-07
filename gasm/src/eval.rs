@@ -93,7 +93,7 @@ impl GetPriotity for Item {
 ///  - PostFixExpr containing only labels and numbers
 ///  - UnaryTerm
 ///  - Must eval to a number
-fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, EvalError> {
+fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalError> {
     use Item::*;
 
     let i = &n.value().item;
@@ -150,7 +150,7 @@ fn eval_internal(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, EvalError
 
 
 /// Evaluates a postfix expression
-fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, EvalError> {
+fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalError> {
     use Item::*;
     let mut s: Stack<Item> = Stack::new();
 
@@ -204,7 +204,7 @@ fn eval_postfix(symbols: &SymbolTable, n: AstNodeRef) -> Result<Item, EvalError>
     Ok(s.pop())
 }
 
-pub fn eval(symbols: &SymbolTable, n: AstNodeRef) -> Result<i64, EvalError> {
+pub fn eval(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<i64, EvalError> {
     let ret = eval_internal(symbols, n)?;
     Ok(ret.get_number().unwrap())
 }

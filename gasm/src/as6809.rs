@@ -24,7 +24,7 @@ pub struct Record {
     pub data : Vec<u8>,
 }
 
-pub fn add_reference_syms<P: AsRef<Path>>(file_name : P, syms : &mut SymbolTable) -> anyhow::Result<()> {
+pub fn add_reference_syms<P: AsRef<Path>>(file_name : P, syms : &mut dyn SymbolWriter) -> anyhow::Result<()> {
     let text = read_to_string(file_name)?;
 
     let equ_rex = Regex::new(r"^(?P<label>\S+)\s*equ\s*(?P<data>[0-9]+)").unwrap();
