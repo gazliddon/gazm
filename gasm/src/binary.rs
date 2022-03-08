@@ -1,6 +1,5 @@
 use crate::as6809::{MapFile, Record};
 use emu::mem::LoggingMemMap;
-use romloader::ResultExt;
 use thiserror::Error;
 use serde_derive::{Deserialize, Serialize};
 use std::{

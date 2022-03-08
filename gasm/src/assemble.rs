@@ -5,7 +5,10 @@ use emu::isa::AddrModeEnum;
 use nom::combinator::map_opt;
 use nom::combinator::recognize;
 use nom::Offset;
-use romloader::sources::{ SymbolQuery, SymbolWriter, SymbolError, SourceInfo, SourceFileLoader, FileIo };
+use romloader::sources::{
+    FileIo, SourceFileLoader, SourceInfo, SymbolError, SymbolQuery, SymbolWriter,
+};
+use serde_json::to_string;
 
 use crate::assemble;
 use crate::ast::AstNodeRef;
@@ -30,7 +33,6 @@ use crate::util;
 use crate::util::ByteSize;
 use item::{Item, Node};
 use romloader::sources::{ItemType, Position, SourceDatabase, SourceMapping, Sources, SymbolTable};
-use romloader::ResultExt;
 use std::collections::HashSet;
 use std::net::UdpSocket;
 use std::ops::RangeBounds;
@@ -165,7 +167,7 @@ impl<'a> Assembler<'a> {
             tree: ast.tree,
             source_map: SourceMapping::new(),
             direct_page: None,
-            ctx
+            ctx,
         };
 
         Ok(ret)
@@ -218,7 +220,8 @@ impl<'a> Assembler<'a> {
         node_mut.value().item = value;
     }
 
-    fn user_error<S: Into<String>>(&self, err: S, node: AstNodeRef, is_failure: bool) -> UserError {
+    fn user_error<S: Into<String>>(&self, err: S, id: AstNodeId, is_failure: bool) -> UserError {
+        let node = self.tree.get(id).unwrap();
         let info = self.get_source_info(&node.value().pos).unwrap();
         UserError::from_text(err, &info, is_failure)
     }
@@ -240,20 +243,22 @@ impl<'a> Assembler<'a> {
         })
     }
 
-    fn eval_first_arg(&self, node: AstNodeRef) -> Result<(i64, AstNodeId), UserError> {
+    fn eval_first_arg(&self, id: AstNodeId) -> Result<(i64, AstNodeId), UserError> {
+        let node = self.tree.get(id).unwrap();
         let c = node
             .first_child()
-            .ok_or_else(|| self.user_error("Missing argument", node, true))?;
+            .ok_or_else(|| self.user_error("Missing argument", id, true))?;
         let v = self.eval_node(c)?;
         Ok((v, c.id()))
     }
 
-    fn eval_two_args(&self, node: AstNodeRef) -> Result<(i64, i64), UserError> {
-        let args = self.eval_n_args(node, 2)?;
+    fn eval_two_args(&self, id: AstNodeId) -> Result<(i64, i64), UserError> {
+        let args = self.eval_n_args(id, 2)?;
         Ok((args[0], args[1]))
     }
 
-    fn eval_n_args(&self, node: AstNodeRef, n: usize) -> Result<Vec<i64>, UserError> {
+    fn eval_n_args(&self, id: AstNodeId, n: usize) -> Result<Vec<i64>, UserError> {
+        let node = self.tree.get(id).unwrap();
         let mut ret = vec![];
 
         for (i, node) in node.children().enumerate() {
@@ -267,18 +272,13 @@ impl<'a> Assembler<'a> {
         Ok(ret)
     }
 
-
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
-
         self.assemble_node(self.tree.root().id())?;
 
         let x = self.binary.get_unchecked_writes();
 
-        let database = SourceDatabase::new(
-            &self.source_map,
-            &self.ctx.sources(),
-            &self.ctx.symbols,
-        );
+        let database =
+            SourceDatabase::new(&self.source_map, &self.ctx.sources(), &self.ctx.symbols);
 
         for uc in x {
             let text = if let Some(si) = database.get_source_info_from_physical_address(uc.physical)
@@ -323,7 +323,6 @@ impl<'a> Assembler<'a> {
             .map_err(|e| self.binary_error(id, e))?;
 
         use item::IndexParseType::*;
-        let node = self.tree.get(id).unwrap();
 
         match imode {
             PCOffset | ConstantOffset(..) => {
@@ -331,7 +330,7 @@ impl<'a> Assembler<'a> {
             }
 
             ExtendedIndirect => {
-                let (val, _) = self.eval_first_arg(node)?;
+                let (val, _) = self.eval_first_arg(id)?;
                 self.binary
                     .write_uword_check_size(val)
                     .map_err(|e| self.binary_error(id, e))?;
@@ -396,30 +395,42 @@ impl<'a> Assembler<'a> {
         let pc = self.get_pc() as i64;
 
         match i {
+            Scope(opt) => {
+                self.set_scope(opt.clone());
+            }
+
             GrabMem => {
-                let args = self.eval_n_args(node,2)?; 
+                let args = self.eval_n_args(id, 2)?;
                 let source = args[0];
                 let size = args[1];
-                let bytes = self.binary.get_bytes(source as usize, size as usize).to_vec();
-                self.binary.write_bytes(&bytes).map_err(|e| self.binary_error(id, e))?;
-            },
+                let bytes = self
+                    .binary
+                    .get_bytes(source as usize, size as usize)
+                    .to_vec();
+                self.binary
+                    .write_bytes(&bytes)
+                    .map_err(|e| self.binary_error(id, e))?;
+            }
 
             WriteBin(file_name) => {
-                let (addr, size) = self.eval_two_args(node)?;
+                let (addr, size) = self.eval_two_args(id)?;
                 let mem = self.binary.get_bytes(addr as usize, size as usize);
                 let p = self.ctx.write(file_name, mem);
-                messages().info(format!("Write mem: {} {addr:05X} {size:05X}", p.to_string_lossy()));
-            },
+                messages().info(format!(
+                    "Write mem: {} {addr:05X} {size:05X}",
+                    p.to_string_lossy()
+                ));
+            }
 
             IncBinRef(file_name) => {
                 let data = self.get_binary(file_name.to_path_buf(), id)?;
-                let dest =  self.binary.get_write_location().physical;
+                let dest = self.binary.get_write_location().physical;
 
                 let bin_ref = BinRef {
                     file: file_name.to_path_buf(),
                     start: 0,
                     size: data.len(),
-                    dest
+                    dest,
                 };
 
                 self.binary.bin_reference(&bin_ref, &data);
@@ -427,7 +438,8 @@ impl<'a> Assembler<'a> {
 
                 messages().info(format!(
                     "Adding binary reference {file_name} for {:05X} - {:05X}",
-                    dest, dest + data.len()
+                    dest,
+                    dest + data.len()
                 ));
             }
 
@@ -486,14 +498,14 @@ impl<'a> Assembler<'a> {
                     }
 
                     Immediate8 | Direct => {
-                        let (arg, id) = self.eval_first_arg(node)?;
+                        let (arg, id) = self.eval_first_arg(id)?;
                         self.binary
                             .write_byte_check_size(arg)
                             .map_err(|e| self.binary_error(id, e))?;
                     }
 
                     Extended | Immediate16 => {
-                        let (arg, id) = self.eval_first_arg(node)?;
+                        let (arg, id) = self.eval_first_arg(id)?;
 
                         self.binary
                             .write_word_check_size(arg)
@@ -501,7 +513,7 @@ impl<'a> Assembler<'a> {
                     }
 
                     Relative => {
-                        let (arg, id) = self.eval_first_arg(node)?;
+                        let (arg, id) = self.eval_first_arg(id)?;
                         let val = arg - (pc + ins.size as i64);
                         // offset is from PC after Instruction and operand has been fetched
                         use crate::binary::BinaryError::*;
@@ -511,7 +523,7 @@ impl<'a> Assembler<'a> {
                             .map_err(|x| match x {
                                 DoesNotFit { .. } => self.relative_error(id, val, 8),
                                 DoesNotMatchReference { .. } => self.binary_error(id, x),
-                                _ => self.user_error(format!("{:?}", x), node, true),
+                                _ => self.user_error(format!("{:?}", x), id, true),
                             });
 
                         match &res {
@@ -530,7 +542,7 @@ impl<'a> Assembler<'a> {
 
                     Relative16 => {
                         use crate::binary::BinaryError::*;
-                        let (arg, id) = self.eval_first_arg(node)?;
+                        let (arg, id) = self.eval_first_arg(id)?;
                         let val = arg - (pc + ins.size as i64);
                         // offset is from PC after Instruction and operand has been fetched
                         let res = self.binary.write_iword_check_size(val);
@@ -538,7 +550,7 @@ impl<'a> Assembler<'a> {
                         res.map_err(|x| match x {
                             DoesNotFit { .. } => self.relative_error(id, val, 16),
                             DoesNotMatchReference { .. } => self.binary_error(id, x),
-                            _ => self.user_error(format!("{:?}", x), node, true),
+                            _ => self.user_error(format!("{:?}", x), id, true),
                         })?;
                     }
 
@@ -634,7 +646,7 @@ impl<'a> Assembler<'a> {
             }
 
             Zmb => {
-                let (bytes, _) = self.eval_first_arg(node)?;
+                let (bytes, _) = self.eval_first_arg(id)?;
                 for _ in 0..bytes {
                     self.binary
                         .write_byte(0)
@@ -645,7 +657,7 @@ impl<'a> Assembler<'a> {
             }
 
             Zmd => {
-                let (words, _) = self.eval_first_arg(node)?;
+                let (words, _) = self.eval_first_arg(id)?;
                 for _ in 0..words {
                     self.binary
                         .write_word(0)
@@ -657,7 +669,7 @@ impl<'a> Assembler<'a> {
             }
 
             Fill => {
-                let (byte, size) = self.eval_two_args(node)?;
+                let (byte, size) = self.eval_two_args(id)?;
 
                 for _ in 0..size {
                     self.binary
@@ -673,7 +685,7 @@ impl<'a> Assembler<'a> {
             | MacroDef(..) | Rmb | StructDef(..) => (),
 
             SetDp => {
-                let (dp, _) = self.eval_first_arg(node)?;
+                let (dp, _) = self.eval_first_arg(id)?;
                 self.set_dp(dp);
             }
 
@@ -710,7 +722,7 @@ impl<'a> Assembler<'a> {
                     }
 
                     ConstantOffset(r) => {
-                        let (v, _) = self.eval_first_arg(node)?;
+                        let (v, _) = self.eval_first_arg(id)?;
 
                         let mut bs = v.byte_size();
 
@@ -743,7 +755,7 @@ impl<'a> Assembler<'a> {
                     }
 
                     PCOffset => {
-                        let (v, id) = self.eval_first_arg(node)?;
+                        let (v, id) = self.eval_first_arg(id)?;
 
                         let new_amode = match v.byte_size() {
                             ByteSizes::Zero => {
@@ -780,22 +792,35 @@ impl<'a> Assembler<'a> {
 
     fn eval_with_pc(&mut self, n: AstNodeId, pc: u64) -> Result<i64, UserError> {
         let n = self.tree.get(n).unwrap();
-        self.ctx.symbols.add_symbol_with_value("*", pc as i64).unwrap();
+        self.ctx
+            .symbols
+            .add_symbol_with_value("*", pc as i64)
+            .unwrap();
         let ret = self.eval_node(n)?;
         self.ctx.symbols.remove_symbol_name("*");
         Ok(ret)
     }
 
+    fn set_scope(&mut self, scope: String) {
+        self.ctx.symbols.set_root();
+        if scope != "root".to_string() {
+            self.ctx.symbols.set_scope(&scope);
+        }
+    }
+
     fn get_binary_extents(
         &self,
         file_name: PathBuf,
-        node: AstNodeRef,
+        id: AstNodeId,
     ) -> Result<std::ops::Range<usize>, UserError> {
         use Item::*;
 
-        let data_len = self.ctx.get_size(file_name)
-            .map_err(|e| self.user_error(e.to_string(), node, true))?;
+        let data_len = self
+            .ctx
+            .get_size(file_name)
+            .map_err(|e| self.user_error(e.to_string(), id, true))?;
 
+        let node = self.tree.get(id).unwrap();
 
         let mut r = 0..data_len;
 
@@ -815,7 +840,7 @@ impl<'a> Assembler<'a> {
             if !(r.contains(&offset) && r.contains(&last)) {
                 let msg =
                     format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
-                return Err(self.user_error(msg, node, true));
+                return Err(self.user_error(msg, id, true));
             };
 
             r.start = offset;
@@ -825,18 +850,22 @@ impl<'a> Assembler<'a> {
         Ok(r)
     }
 
-    fn get_binary_chunk(&mut self, file_name : PathBuf, id: AstNodeId, range : std::ops::Range<usize>) -> Result<Vec<u8>,UserError> {
-        let node = self.tree.get(id).unwrap();
-
-        let (_,bin) = self.ctx.read_binary_chunk(file_name, range.clone())
-        .map_err(|e| self.user_error(e.to_string(), node, true))?;
+    fn get_binary_chunk(
+        &mut self,
+        file_name: PathBuf,
+        id: AstNodeId,
+        range: std::ops::Range<usize>,
+    ) -> Result<Vec<u8>, UserError> {
+        let (_, bin) = self
+            .ctx
+            .read_binary_chunk(file_name, range.clone())
+            .map_err(|e| self.user_error(e.to_string(), id, true))?;
 
         Ok(bin)
     }
 
     fn get_binary(&mut self, file_name: PathBuf, id: AstNodeId) -> Result<Vec<u8>, UserError> {
-        let node = self.tree.get(id).unwrap();
-        let range = self.get_binary_extents(file_name.clone(), node)?;
+        let range = self.get_binary_extents(file_name.clone(), id)?;
         self.get_binary_chunk(file_name, id, range)
     }
 
@@ -846,20 +875,26 @@ impl<'a> Assembler<'a> {
 
         use crate::astformat;
         let x = super::messages::messages();
-        let node = self.tree.get(id).unwrap();
-        let i = &node.value().item;
-        let _old_pc = pc;
 
-        match i {
+        let x_node = self.tree.get(id).unwrap();
+        let pos = x_node.value().pos.clone();
+        let id = x_node.id().clone();
+        let i = x_node.value().item.clone();
+
+        match &i {
+            Scope(opt) => {
+                self.set_scope(opt.clone());
+            }
+
             GrabMem => {
-                let args = self.eval_n_args(node,2)?; 
+                let args = self.eval_n_args(id, 2)?;
                 let size = args[1];
                 pc = pc + size as u64;
             }
 
             Org => {
-                let (value, _) = self.eval_first_arg(node)?;
-                let si = self.get_source_info(&node.value().pos).unwrap();
+                let (value, _) = self.eval_first_arg(id)?;
+                let si = self.get_source_info(&pos).unwrap();
                 x.info(format!(
                     "Setting put address and org to {value:04X?} : {:5} {}",
                     si.line,
@@ -872,10 +907,10 @@ impl<'a> Assembler<'a> {
 
             Put => {
                 let x = messages();
-                let (value, _) = self.eval_first_arg(node)?;
+                let (value, _) = self.eval_first_arg(id)?;
                 let offset = (value - pc as i64) as isize;
 
-                let line_str = self.get_source_info(&node.value().pos).unwrap().line_str;
+                let line_str = self.get_source_info(&pos).unwrap().line_str;
                 x.info(format!("Setting put address {value:04X?} {line_str}"));
 
                 self.set_item(id, Item::SetPutOffset(offset));
@@ -883,10 +918,10 @@ impl<'a> Assembler<'a> {
             }
 
             Rmb => {
-                let (bytes, _) = self.eval_first_arg(node)?;
+                let (bytes, _) = self.eval_first_arg(id)?;
 
                 if bytes < 0 {
-                    return Err(self.user_error("Argument for RMB must be positive", node, true));
+                    return Err(self.user_error("Argument for RMB must be positive", id, true));
                 };
 
                 self.set_item(id, Item::Skip(bytes as usize));
@@ -896,11 +931,7 @@ impl<'a> Assembler<'a> {
 
             OpCode(ins, amode) => {
                 use emu::isa::AddrModeEnum::*;
-                let _line = self
-                    .get_source_info(&node.value().pos)
-                    .unwrap()
-                    .line_str
-                    .to_string();
+                let _line = self.get_source_info(&pos).unwrap().line_str.to_string();
 
                 match amode {
                     AddrModeParseType::Extended(false) => {
@@ -919,11 +950,11 @@ impl<'a> Assembler<'a> {
                             .and_then(|ins| self.direct_page.map(|dp| (ins, dp)));
 
                         if let Some((new_ins, dp)) = dp_info {
-                            if let Ok((value, _)) = self.eval_first_arg(node) {
+                            if let Ok((value, _)) = self.eval_first_arg(id) {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
                                 if top_byte == dp {
-                                    if let Ok(si) = self.get_source_info(&node.value().pos) {
+                                    if let Ok(si) = self.get_source_info(&pos) {
                                         let x = messages();
                                         x.debug(format!("extended -> direct: {}", si.line_str));
                                     }
@@ -941,8 +972,7 @@ impl<'a> Assembler<'a> {
                                         Item::Number(value & 0xff);
                                 }
                             } else {
-                                let pos = &node.value().pos;
-                                if let Ok(si) = self.get_source_info(pos) {
+                                if let Ok(si) = self.get_source_info(&pos) {
                                     let x = messages();
                                     x.debug(format!(
                                         "Couldn't eval: {} {} {:?} {} {:X}",
@@ -967,9 +997,13 @@ impl<'a> Assembler<'a> {
 
             AssignmentFromPc(name) => {
                 let name = name.clone();
+                let node = self.tree.get(id).unwrap();
 
                 let pcv = if let Some(n) = node.first_child() {
-                    self.ctx.symbols.add_symbol_with_value("*", pc as i64).unwrap();
+                    self.ctx
+                        .symbols
+                        .add_symbol_with_value("*", pc as i64)
+                        .unwrap();
                     let ret = self.eval_node(n)?;
                     self.ctx.symbols.remove_symbol_name("*");
                     ret
@@ -977,7 +1011,8 @@ impl<'a> Assembler<'a> {
                     pc as i64
                 };
 
-                self.ctx.symbols
+                self.ctx
+                    .symbols
                     .add_symbol_with_value(&name, pcv)
                     .map_err(|e| {
                         let err = if let SymbolError::Mismatch { expected } = e {
@@ -993,6 +1028,7 @@ impl<'a> Assembler<'a> {
             }
 
             Block | ExpandedMacro(..) | TokenizedFile(..) => {
+                let node = self.tree.get(id).unwrap();
                 let children: Vec<_> = node.children().map(|n| n.id()).collect();
                 for c in children {
                     pc = self.size_node(pc, c)?;
@@ -1009,38 +1045,33 @@ impl<'a> Assembler<'a> {
 
             Fcc(text) => {
                 pc += text.as_bytes().len() as u64;
-                let _line = self
-                    .get_source_info(&node.value().pos)
-                    .unwrap()
-                    .line_str
-                    .to_string();
             }
 
             Zmb => {
-                let (v, _) = self.eval_first_arg(node)?;
+                let (v, _) = self.eval_first_arg(id)?;
                 assert!(v >= 0);
                 pc += v as u64;
             }
 
             Zmd => {
-                let (v, _) = self.eval_first_arg(node)?;
+                let (v, _) = self.eval_first_arg(id)?;
                 assert!(v >= 0);
                 pc += (v * 2) as u64;
             }
 
             Fill => {
-                let (_, c) = self.eval_two_args(node)?;
+                let (_, c) = self.eval_two_args(id)?;
                 assert!(c >= 0);
                 pc += c as u64;
             }
 
             SetDp => {
-                let (dp, _) = self.eval_first_arg(node)?;
+                let (dp, _) = self.eval_first_arg(id)?;
                 self.set_dp(dp);
             }
 
             IncBin(file_name) => {
-                let r = self.get_binary_extents(file_name.to_path_buf(), node)?;
+                let r = self.get_binary_extents(file_name.to_path_buf(), id)?;
 
                 pc = pc + r.len() as u64;
                 let new_item = IncBinResolved {
@@ -1051,10 +1082,12 @@ impl<'a> Assembler<'a> {
                 node_mut.value().item = new_item;
             }
 
-            WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | MacroDef(..) | StructDef(..) => (),
+            WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | MacroDef(..)
+            | StructDef(..) => (),
             _ => {
+                let i = &self.tree.get(id).unwrap().value().item;
                 let msg = format!("Unable to size {:?}", i);
-                return Err(self.user_error(msg, node, true));
+                return Err(self.user_error(msg, id, true));
             }
         };
 

@@ -11,7 +11,6 @@ use std::path::{PathBuf, Prefix};
 
 use nom::bytes::complete::take_till;
 use nom::InputIter;
-use romloader::ResultExt;
 use serde_json::map::Values;
 
 use crate::astformat::as_string;

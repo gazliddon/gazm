@@ -69,6 +69,14 @@ impl SymbolTree {
         }
     }
 
+    pub fn set_root(&mut self) {
+        self.current_scope = self.tree.root().id()
+    }
+
+    pub fn set_scope_fqn(&mut self, name : &str) {
+        panic!("{}", name)
+    }
+
     // enters the child scope below the current_scope
     // If it doesn't exist then create it
     pub fn set_scope(&mut self, name : &str) {

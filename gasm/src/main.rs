@@ -49,7 +49,6 @@ use colored::*;
 use error::UserError;
 use messages::{debug, info, status};
 use romloader::sources::FileIo;
-use romloader::ResultExt;
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___

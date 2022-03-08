@@ -16,7 +16,7 @@ use nom::{
     sequence::{pair, preceded, separated_pair, terminated},
     AsBytes, Finish,
 };
-use romloader::{sources::Position, ResultExt};
+use romloader::sources::Position;
 
 use crate::error::{IResult, ParseError, UserError, UserErrors};
 use crate::item::{Item, Node};

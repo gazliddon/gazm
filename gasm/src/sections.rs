@@ -126,7 +126,6 @@ impl DerefMut for Sections {
     }
 }
 
-use romloader::ResultExt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

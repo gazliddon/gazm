@@ -1,7 +1,6 @@
 use clap::Parser;
 use clap::{Arg, Command};
 use romloader::sources::{FileIo, SourceFileLoader, Sources, SymbolTable, SymbolTree};
-use romloader::ResultExt;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::os::unix::prelude::OpenOptionsExt;

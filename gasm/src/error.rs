@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use nom::combinator::fail;
 use nom::{self, Offset};
 use nom_locate::position;
-use romloader::ResultExt;
 
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::locate::span_to_pos;
