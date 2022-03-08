@@ -1,4 +1,4 @@
-use crate::{cli, commands, comments, expr::{self, parse_expr}, item, labels::{get_just_label, parse_label}, locate::matched_span, macros::{parse_macro_call, parse_macro_definition}, messages::{self, messages}, opcodes, structs::{get_struct, parse_struct_definition}, util::{self, sep_list1, wrapped_chars, ws}};
+use crate::{cli, commands, comments, expr::{self, parse_expr}, item, labels::{get_just_label, parse_label}, locate::{matched_span, span_to_pos}, macros::{parse_macro_call, parse_macro_definition}, messages::{self, messages}, opcodes, structs::{get_struct, parse_struct_definition}, util::{self, sep_list1, wrapped_chars, ws}};
 
 use colored::*;
 use std::{
@@ -39,15 +39,14 @@ struct Token {
 
 pub fn tokenize_file_from_str<'a>(
     file: &PathBuf,
-    input: &'a str,
+    input: &str,
     errors: &mut UserErrors,
-    ctx: &cli::Context,
+    ctx: &'a mut crate::ctx::Context,
 ) -> Result<Node, UserError> {
     let span = Span::new_extra(input, AsmSource::FromStr);
-    let source = input.to_string();
     let mut macros = Macros::new();
     let matched = Tokens::new(ctx).to_tokens(span, &mut macros, errors)?;
-    let item = Item::TokenizedFile(file.into(), file.into(), source);
+    let item = Item::TokenizedFile(file.into(), file.into());
     let file_node = Node::from_item_span(item, span).with_children(matched);
     Ok(file_node)
 }
@@ -63,20 +62,20 @@ fn mk_pc_equate(node: Node) -> Node {
     }
 }
 
-struct Tokens {
+struct Tokens<'a> {
     tokens: Vec<Node>,
     macro_stack: Vec<String>,
     errors: Vec<ParseError>,
-    ctx: cli::Context,
+    ctx: &'a crate::ctx::Context,
 }
 
-impl Tokens {
-    fn new(ctx: &cli::Context) -> Self {
+impl<'a> Tokens<'a> {
+    fn new(ctx: &'a crate::ctx::Context) -> Self {
         Self {
             tokens: vec![],
             macro_stack: vec![],
             errors: vec![],
-            ctx: ctx.clone(),
+            ctx,
         }
     }
 
@@ -85,6 +84,7 @@ impl Tokens {
             self.add_node(node)
         }
     }
+
     fn add_node(&mut self, node: Node) {
         self.tokens.push(node)
     }
@@ -106,7 +106,7 @@ impl Tokens {
         Ok(())
     }
 
-    fn tokenize_line<'a>(&mut self, line: Span<'a>) -> Result<(), ParseError> {
+    fn tokenize_line(&mut self, line: Span) -> Result<(), ParseError> {
         use commands::parse_command;
         use opcodes::parse_opcode;
         use util::parse_assignment;
@@ -160,9 +160,9 @@ impl Tokens {
         return Ok(());
     }
 
-    fn to_tokens<'a>(
+    fn to_tokens(
         &mut self,
-        input: Span<'a>,
+        input: Span,
         macros: &mut Macros,
         errors: &mut UserErrors,
     ) -> Result<Vec<Node>, UserError> {
@@ -222,7 +222,7 @@ impl Tokens {
             .collect();
 
         // Expand all macro calls
-
+        //
         for (node, macro_call) in mcalls {
             let (pos, text) = macros.expand_macro(self.ctx.sources(), macro_call.clone())?;
 
@@ -242,11 +242,13 @@ impl Tokens {
                     e.message = format!("{}\n{}", err1, err2);
                     e
                 })?;
+            let pos : Position = span_to_pos(input) ;
 
-            let new_node = Node::from_item_span(Item::ExpandedMacro(macro_call), input)
+            let new_node = Node::from_item_pos(Item::ExpandedMacro(macro_call), pos)
                 .with_children(new_tokens);
 
             *node = new_node;
+
         }
 
         Ok(tokes)
@@ -255,7 +257,7 @@ impl Tokens {
 
 fn tokenize_file(
     depth: usize,
-    ctx: &mut cli::Context,
+    ctx: &mut crate::ctx::Context,
     file: &std::path::Path,
     parent: &std::path::Path,
     macros: &mut Macros,
@@ -296,14 +298,14 @@ fn tokenize_file(
         };
     }
 
-    let item = TokenizedFile(file.to_path_buf(), parent.to_path_buf(), source.clone());
+    let item = TokenizedFile(file.to_path_buf(), parent.to_path_buf());
     let node = Node::from_item_span(item, input).with_children(tokes);
     Ok(node)
 }
 
 use crate::macros::Macros;
 
-pub fn tokenize(ctx: &mut cli::Context) -> anyhow::Result<Node> {
+pub fn tokenize(ctx: &mut crate::ctx::Context) -> anyhow::Result<Node> {
     let mut macros = Macros::new();
 
     let parent = PathBuf::new();

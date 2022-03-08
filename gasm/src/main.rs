@@ -10,6 +10,7 @@ use std::hash::Hash;
 use std::os::unix::prelude::OsStrExt;
 use std::path::Path;
 
+mod ctx;
 mod as6809;
 mod assemble;
 mod ast;
@@ -49,6 +50,7 @@ use colored::*;
 use error::UserError;
 use messages::{debug, info, status};
 use romloader::sources::FileIo;
+use crate::ctx::Context;
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___
@@ -59,14 +61,14 @@ static BANNER: &str = r#"
 "#;
 
 use crate::ast::AstNodeRef;
-use crate::cli::WriteBin;
+use crate::ctx::WriteBin;
 use crate::error::*;
 use crate::item::{Item, Node};
 use crate::messages::Messageize;
 
 use assemble::Assembler;
 
-fn assemble(ctx: &mut cli::Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
+fn assemble(ctx: &mut Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
     use assemble::Assembler;
     use ast::Ast;
 
@@ -100,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use item::Item;
     use messages::*;
 
-    let mut ctx: cli::Context = cli::parse().into();
+    let mut ctx: ctx::Context = cli::parse().into();
 
     let x = messages::messages();
     x.set_verbosity(&ctx.verbose);

@@ -1,5 +1,8 @@
 [workspace]
+
 members = ["utils", "emu", "glht", "gasm"]
 
+[profile.release]
+debug = true
 
 

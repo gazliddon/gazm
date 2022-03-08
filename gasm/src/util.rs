@@ -142,7 +142,7 @@ pub fn parse_number(input: Span) -> IResult< Node> {
 ////////////////////////////////////////////////////////////////////////////////
 // Compile a string as a fake file
 use std::collections::HashMap;
-use crate::cli::Context;
+use crate::ctx::Context;
 
 pub fn tokenize_text<'a>(code: &str, ctx : &'a mut Context) -> Result<crate::ast::Ast<'a>, String> {
     use crate::tokenize::tokenize_file_from_str;

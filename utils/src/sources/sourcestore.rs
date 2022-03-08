@@ -160,11 +160,14 @@ impl Sources {
     }
 
     pub fn get_source_info<'a>(&'a self, pos: &Position) -> Result<SourceInfo<'a>, String> {
+
         if let AsmSource::FileId(file_id) = pos.src {
-            let source_file = self.id_to_source_file.get(&file_id).ok_or(format!(
+
+            let source_file = self.id_to_source_file.get(&file_id).ok_or_else(||format!(
                 "Can't find file id {:?} {:?}",
                 file_id, self.id_to_source_file
             ))?;
+
             let fragment = source_file.get_span(pos)?;
             let line_str = source_file.get_line(pos)?;
 
@@ -377,6 +380,7 @@ impl SourceDatabase {
             })
         })
     }
+
 
     pub fn func_source_file<F, R>(&self, file_id: u64, func: F) -> Option<R>
     where

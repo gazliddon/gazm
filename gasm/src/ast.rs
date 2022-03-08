@@ -20,7 +20,7 @@ use crate::item;
 use crate::scopes::ScopeBuilder;
 
 use crate::item::{Item, Node};
-use crate::cli::Context;
+use crate::ctx::Context;
 use romloader::sources::{Position, SourceFileLoader};
 
 use crate::messages::{debug, info, status, verbosity, Verbosity};
@@ -148,7 +148,7 @@ impl<'a> Ast<'a> {
                         v.item = Label(new_name);
                     }
 
-                    TokenizedFile(_, _, _) => {
+                    TokenizedFile(_, _) => {
                         scopes.pop();
                     }
 

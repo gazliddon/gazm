@@ -18,7 +18,7 @@ use crate::astformat::as_string;
 use crate::binary::BinRef;
 use crate::binary::{AccessType, Binary};
 use crate::cli;
-use crate::cli::Context;
+use crate::ctx::Context;
 use crate::error;
 use crate::error::AstError;
 use crate::error::UserError;
@@ -27,6 +27,7 @@ use crate::eval::eval;
 use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
+use crate::messages::Verbosity;
 use crate::messages::info;
 use crate::messages::messages;
 use crate::util;
@@ -121,7 +122,7 @@ pub struct Assembler<'a> {
     tree: crate::ast::AstTree,
     source_map: SourceMapping,
     direct_page: Option<u8>,
-    ctx: &'a mut crate::cli::Context,
+    ctx: &'a mut crate::ctx::Context,
 }
 
 fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Result<i64, UserError> {
@@ -396,7 +397,7 @@ impl<'a> Assembler<'a> {
 
         match i {
             Scope(opt) => {
-                self.set_scope(opt.clone());
+                self.set_scope(opt);
             }
 
             GrabMem => {
@@ -423,7 +424,7 @@ impl<'a> Assembler<'a> {
             }
 
             IncBinRef(file_name) => {
-                let data = self.get_binary(file_name.to_path_buf(), id)?;
+                let data = self.get_binary(file_name, id)?;
                 let dest = self.binary.get_write_location().physical;
 
                 let bin_ref = BinRef {
@@ -772,7 +773,6 @@ impl<'a> Assembler<'a> {
                                 PcOffsetWord(v)
                             }
                         };
-
                         let ins = ins.clone();
 
                         self.set_item(
@@ -801,10 +801,10 @@ impl<'a> Assembler<'a> {
         Ok(ret)
     }
 
-    fn set_scope(&mut self, scope: String) {
+    fn set_scope(&mut self, scope: &str) {
         self.ctx.symbols.set_root();
         if scope != "root".to_string() {
-            self.ctx.symbols.set_scope(&scope);
+            self.ctx.symbols.set_scope(scope);
         }
     }
 
@@ -864,9 +864,9 @@ impl<'a> Assembler<'a> {
         Ok(bin)
     }
 
-    fn get_binary(&mut self, file_name: PathBuf, id: AstNodeId) -> Result<Vec<u8>, UserError> {
-        let range = self.get_binary_extents(file_name.clone(), id)?;
-        self.get_binary_chunk(file_name, id, range)
+    fn get_binary(&mut self, file_name: &Path, id: AstNodeId) -> Result<Vec<u8>, UserError> {
+        let range = self.get_binary_extents(file_name.to_path_buf(), id)?;
+        self.get_binary_chunk(file_name.to_path_buf(), id, range)
     }
 
     fn size_node(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {
@@ -874,16 +874,15 @@ impl<'a> Assembler<'a> {
         use item::Item::*;
 
         use crate::astformat;
-        let x = super::messages::messages();
 
         let x_node = self.tree.get(id).unwrap();
-        let pos = x_node.value().pos.clone();
+        let _pos = x_node.value().pos.clone();
         let id = x_node.id().clone();
         let i = x_node.value().item.clone();
 
         match &i {
             Scope(opt) => {
-                self.set_scope(opt.clone());
+                self.set_scope(opt);
             }
 
             GrabMem => {
@@ -894,27 +893,15 @@ impl<'a> Assembler<'a> {
 
             Org => {
                 let (value, _) = self.eval_first_arg(id)?;
-                let si = self.get_source_info(&pos).unwrap();
-                x.info(format!(
-                    "Setting put address and org to {value:04X?} : {:5} {}",
-                    si.line,
-                    si.file.to_string_lossy()
-                ));
-
                 self.set_item(id, Item::SetPc(value as u16));
                 pc = value as u64;
             }
 
             Put => {
-                let x = messages();
+                // let x = messages();
                 let (value, _) = self.eval_first_arg(id)?;
                 let offset = (value - pc as i64) as isize;
-
-                let line_str = self.get_source_info(&pos).unwrap().line_str;
-                x.info(format!("Setting put address {value:04X?} {line_str}"));
-
                 self.set_item(id, Item::SetPutOffset(offset));
-                // pc = value as u64;
             }
 
             Rmb => {
@@ -931,7 +918,6 @@ impl<'a> Assembler<'a> {
 
             OpCode(ins, amode) => {
                 use emu::isa::AddrModeEnum::*;
-                let _line = self.get_source_info(&pos).unwrap().line_str.to_string();
 
                 match amode {
                     AddrModeParseType::Extended(false) => {
@@ -954,10 +940,6 @@ impl<'a> Assembler<'a> {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
                                 if top_byte == dp {
-                                    if let Ok(si) = self.get_source_info(&pos) {
-                                        let x = messages();
-                                        x.debug(format!("extended -> direct: {}", si.line_str));
-                                    }
 
                                     // Here we go!
                                     let new_ins = new_ins.clone();
@@ -971,15 +953,7 @@ impl<'a> Assembler<'a> {
                                     node_mut.first_child().unwrap().value().item =
                                         Item::Number(value & 0xff);
                                 }
-                            } else {
-                                if let Ok(si) = self.get_source_info(&pos) {
-                                    let x = messages();
-                                    x.debug(format!(
-                                        "Couldn't eval: {} {} {:?} {} {:X}",
-                                        si.line_str, ins.action, pos.src, pos, pc
-                                    ));
-                                }
-                            }
+                            } 
                         }
                         pc += size as u64;
                     }
@@ -992,11 +966,9 @@ impl<'a> Assembler<'a> {
                         pc += ins.size as u64;
                     }
                 };
-                // println!("{:04X?} {:02X} {line}", old_pc, pc - old_pc);
             }
 
             AssignmentFromPc(name) => {
-                let name = name.clone();
                 let node = self.tree.get(id).unwrap();
 
                 let pcv = if let Some(n) = node.first_child() {
@@ -1013,7 +985,7 @@ impl<'a> Assembler<'a> {
 
                 self.ctx
                     .symbols
-                    .add_symbol_with_value(&name, pcv)
+                    .add_symbol_with_value(name, pcv)
                     .map_err(|e| {
                         let err = if let SymbolError::Mismatch { expected } = e {
                             format!(

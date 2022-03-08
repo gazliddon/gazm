@@ -259,7 +259,7 @@ pub enum Item {
 
     WriteBin(PathBuf),
 
-    TokenizedFile(PathBuf, PathBuf, String),
+    TokenizedFile(PathBuf, PathBuf),
 
     Org,
     Put,
@@ -307,9 +307,9 @@ impl Item {
         Item::Number(n)
     }
 
-    pub fn get_my_tokenized_file(&self) -> Option<(&PathBuf, &PathBuf, &String)> {
-        if let Item::TokenizedFile(file, parent, source) = self {
-            Some((file, parent, source))
+    pub fn get_my_tokenized_file(&self) -> Option<(&PathBuf, &PathBuf)> {
+        if let Item::TokenizedFile(file, parent) = self {
+            Some((file, parent))
         } else {
             None
         }
@@ -323,7 +323,7 @@ impl Item {
         i.am_i_tokenized_file()
     }
 
-    pub fn get_tokenized_file(i: &Item) -> Option<(&PathBuf, &PathBuf, &String)> {
+    pub fn get_tokenized_file(i: &Item) -> Option<(&PathBuf, &PathBuf)> {
         i.get_my_tokenized_file()
     }
 
@@ -350,6 +350,10 @@ impl<> BaseNode<Item, Position> {
             _ => false,
         }
     }
+    pub fn from_item_pos(item: Item, p: Position) -> Self
+        {
+            Self::new(item, vec![], p)
+        }
 
     pub fn from_item_span(item: Item, sp: Span) -> Self
         {
@@ -450,7 +454,7 @@ impl<'a> Display for BaseNode<Item, Position> {
                 format!("{} {:?}", ins.action, addr_type)
             },
 
-            TokenizedFile(file, _, _) => {
+            TokenizedFile(file, _) => {
                 let header = format!("; included file {}", file.to_string_lossy());
                 let children: Vec<String> =
                     self.children.iter().map(|n| format!("{}", &*n)).collect();
