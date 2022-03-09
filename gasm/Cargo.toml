@@ -10,7 +10,7 @@ nom = "*"
 nom_locate = "*"
 lazy_static = "1.4.0"
 pretty_assertions="*"
-romloader = { path = "../utils" }
+utils = { path = "../utils" }
 emu = {path = "../emu"}
 clap = { version = "3.1.5", features = ["derive", "color"] }
 colored = "2"

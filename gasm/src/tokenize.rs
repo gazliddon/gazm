@@ -20,11 +20,11 @@ use nom::{
     multi::many0,
     sequence::{preceded, terminated},
 };
-use romloader::sources::Position;
+use utils::sources::Position;
 
 use crate::error::{IResult, ParseError, UserError, UserErrors};
 use crate::locate::Span;
-use romloader::sources::AsmSource;
+use utils::sources::AsmSource;
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(

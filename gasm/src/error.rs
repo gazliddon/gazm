@@ -1,7 +1,7 @@
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::locate::span_to_pos;
 use crate::locate::Span;
-use romloader::sources::{Position, SourceInfo};
+use utils::sources::{Position, SourceInfo};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError {
@@ -191,7 +191,7 @@ impl UserError {
         Ok(s)
     }
 
-    pub fn from_parse_error(err: ParseError, sources: &romloader::sources::Sources) -> Self {
+    pub fn from_parse_error(err: ParseError, sources: &utils::sources::Sources) -> Self {
         let si = sources.get_source_info(&err.pos).unwrap();
 
         Self {
@@ -281,7 +281,7 @@ impl UserErrors {
     pub fn add_parse_error(
         &mut self,
         err: ParseError,
-        sources: &romloader::sources::Sources,
+        sources: &utils::sources::Sources,
     ) -> Result<(), UserError> {
         self.add_error(UserError::from_parse_error(err, sources))
     }

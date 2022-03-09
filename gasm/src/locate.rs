@@ -1,6 +1,6 @@
 use nom::InputTake;
 use nom_locate::LocatedSpan;
-use romloader::sources::{AsmSource, Position};
+use utils::sources::{AsmSource, Position};
 
 pub type Span<'a> = LocatedSpan<&'a str, AsmSource>;
 

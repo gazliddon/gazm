@@ -1,4 +1,4 @@
-use romloader::Stack;
+use utils::Stack;
 
 pub trait GetPriotity {
     fn priority(&self) -> Option<usize>;

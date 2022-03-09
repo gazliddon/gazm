@@ -131,7 +131,7 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
-    use romloader::sources::AsmSource;
+    use utils::sources::AsmSource;
 
     #[test]
     fn test_brackets() {

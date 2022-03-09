@@ -1,5 +1,5 @@
 [package]
-name = "romloader"
+name = "utils"
 version = "0.1.0"
 authors = ["Gaz Liddon MBP19 <gaz@gazaxian.com>"]
 edition = "2018"

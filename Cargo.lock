@@ -192,13 +192,13 @@ dependencies = [
  "lru-cache",
  "notify",
  "num",
- "romloader",
  "serde",
  "serde_derive",
  "serde_json",
  "serde_yaml",
  "sha1 0.10.1",
  "sha1 0.5.0",
+ "utils",
 ]
 
 [[package]]
@@ -282,12 +282,12 @@ dependencies = [
  "petgraph",
  "pretty_assertions",
  "regex",
- "romloader",
  "serde",
  "serde_derive",
  "serde_json",
  "serde_yaml",
  "thiserror",
+ "utils",
 ]
 
 [[package]]
@@ -730,22 +730,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
-name = "romloader"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "ego-tree",
- "env_logger",
- "log",
- "quick-error",
- "regex",
- "serde",
- "serde_derive",
- "serde_json",
- "serde_yaml",
-]
-
-[[package]]
 name = "ryu"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -889,6 +873,22 @@ name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
+
+[[package]]
+name = "utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ego-tree",
+ "env_logger",
+ "log",
+ "quick-error",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_yaml",
+]
 
 [[package]]
 name = "version_check"

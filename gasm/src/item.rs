@@ -7,7 +7,7 @@ use crate::macros::MacroCall;
 use crate::node::{BaseNode, CtxTrait};
 use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
-use romloader::sources::Position;
+use utils::sources::Position;
 
 impl<'a> CtxTrait for Span<'a> {}
 

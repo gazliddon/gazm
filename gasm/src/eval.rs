@@ -1,12 +1,12 @@
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::item::Item;
 use crate::postfix::GetPriotity;
-use romloader::Stack;
 
 use std::fmt::Display;
 
 use crate::error::AstError;
-use romloader::sources::{Position, SymbolQuery};
+use utils::sources::{Position, SymbolQuery};
+use utils::Stack;
 
 use thiserror::Error;
 

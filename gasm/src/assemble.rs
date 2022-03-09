@@ -1,6 +1,8 @@
 use emu::cpu::RegEnum;
 
-use romloader::sources::{SourceInfo, SymbolError, SymbolWriter};
+use utils::sources::{
+    ItemType, Position, SourceDatabase, SourceInfo, SourceMapping, SymbolError, SymbolWriter,
+};
 
 use crate::ast::AstNodeId;
 use crate::ast::AstNodeRef;
@@ -14,7 +16,6 @@ use crate::item::IndexParseType;
 use crate::messages::info;
 use crate::messages::messages;
 use item::Item;
-use romloader::sources::{ItemType, Position, SourceDatabase, SourceMapping};
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;

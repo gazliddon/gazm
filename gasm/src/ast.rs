@@ -11,11 +11,10 @@ use crate::scopes::ScopeBuilder;
 
 use crate::ctx::Context;
 use crate::item::{Item, Node};
-use romloader::sources::Position;
 
 use crate::messages::*;
 use crate::postfix;
-use romloader::sources::{SourceInfo, SymbolId, SymbolQuery, SymbolWriter};
+use utils::sources::{Position, SourceInfo, SymbolId, SymbolQuery, SymbolWriter};
 
 ////////////////////////////////////////////////////////////////////////////////
 

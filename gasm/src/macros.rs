@@ -13,7 +13,7 @@ use nom::{
     sequence::separated_pair,
 };
 
-use romloader::sources::Position;
+use utils::sources::{ Sources, Position };
 
 use crate::error::{IResult, UserError};
 
@@ -45,7 +45,7 @@ impl MacroDef {
     /// returns a string of the expanded macro and the position of the original macro text
     pub fn expand(
         &self,
-        sources: &romloader::sources::Sources,
+        sources: &utils::sources::Sources,
         args: Vec<Position>,
     ) -> (Position, String) {
         if args.len() != self.params.len() {
@@ -121,7 +121,6 @@ pub fn parse_macro_call(input: Span) -> IResult<MacroCall> {
     Ok((rest, ret))
 }
 
-use romloader::sources::Sources;
 
 pub struct Macros {
     macro_defs: HashMap<String, MacroDef>,
