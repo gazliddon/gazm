@@ -1,9 +1,0 @@
-define basesympat SECT_%s_base
-define lensympat SECT_%s_len
-
-
-sectopt code padafter f0,ad
-section code load 9900
-
-section vectors high 10000
-

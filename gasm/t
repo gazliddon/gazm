@@ -1,0 +1,20 @@
+DEF=../../defender
+SRC=$DEF/gasmsrc
+RED_LABEL=$DEF/redlabel
+OUT=$SRC/redlabel
+TMP=$SRC/bin
+
+[ ! -d $OUT ] && mkdir -p $OUT
+[ ! -d $TMP ] && mkdir -p $TMP
+
+cargo flamegraph --bin gasm -- \
+--star-comments \
+--max-errors 50 \
+--mem-size 94208 \
+--set OUT_DIR $OUT \
+--set TMP_DIR $TMP \
+--set RED_LABEL $RED_LABEL \
+$SRC/macros.68 \
+$SRC/memory.src  \
+$SRC/roms.src \
+-s $TMP/roms.sym
