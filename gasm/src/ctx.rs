@@ -82,8 +82,8 @@ impl Context {
     }
 
     pub fn read_source<P: AsRef<Path>>(&mut self, path : P) -> Result<(PathBuf, String, u64)> {
-        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        self.source_file_loader.read_source(&path.into())
+        let path :PathBuf = self.vars.expand_vars(path.as_ref().to_string_lossy()).into();
+        self.source_file_loader.read_source(&path)
     }
 
     pub fn read_binary_chunk<P: AsRef<Path>>(
@@ -100,7 +100,7 @@ impl Default for Context {
     fn default() -> Self {
         Self {
             files: Default::default(),
-            verbose: Verbosity::SILENT,
+            verbose: Verbosity::Silent,
             syms_file: None,
             trailing_comments: false,
             star_comments: false,

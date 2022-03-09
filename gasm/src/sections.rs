@@ -96,7 +96,7 @@ impl SectionDescriptor {
         physical_base: usize,
         access_type: AccessType,
     ) -> Self {
-        assert!(logical_range.len() > 0);
+        assert!(!logical_range.is_empty());
         let physical_range = physical_base..physical_base + logical_range.len();
         Self {
             name: name.to_string(),
@@ -193,7 +193,7 @@ impl Sections {
         let id = self.sections.len();
 
         self.sections.push(section);
-        self.name_to_section.insert(name.clone(), id);
+        self.name_to_section.insert(name, id);
 
         Ok(id)
     }
@@ -202,7 +202,7 @@ impl Sections {
         let x = self
             .name_to_section
             .get(name)
-            .ok_or(SectionError::UknownSectionName(name.to_string()))?;
+            .ok_or_else(|| SectionError::UknownSectionName(name.to_string()))?;
         self.current_section = Some(*x);
         Ok(())
     }
@@ -251,7 +251,7 @@ impl Sections {
         access_type: AccessType,
     ) -> Result<usize, SectionError> {
         // Check to make sure the size is > 0
-        if logical_range.len() < 1 {
+        if logical_range.is_empty() {
             return Err(SectionError::ZeroSizedSection);
         }
 

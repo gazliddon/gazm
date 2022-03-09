@@ -31,7 +31,7 @@ pub fn user_error(_err: &str, _ctx: Span) -> UserError {
     panic!()
 }
 
-pub fn parse_failure<'a>(err: &str, ctx: Span<'a>) -> nom::Err<ParseError> {
+pub fn parse_failure(err: &str, ctx: Span) -> nom::Err<ParseError> {
     nom::Err::Failure(ParseError::new(err.to_string(), &ctx, true))
 }
 
@@ -41,7 +41,7 @@ impl ParseError {
     pub fn new(message: String, span: &Span, failure : bool) -> ParseError {
         Self {
             message: Some(message),
-            pos: span_to_pos(span.clone()),
+            pos: span_to_pos(*span),
             failure,
         }
     }
@@ -61,7 +61,7 @@ impl ParseError {
     pub fn from_pos(message: String, pos: Position) -> Self {
         Self {
             message: Some(message),
-            pos: pos.clone(),
+            pos,
             failure: false,
         }
     }

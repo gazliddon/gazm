@@ -464,13 +464,13 @@ impl<'a> Display for BaseNode<Item, Position> {
             Block => {
                 let children: Vec<String> =
                     self.children.iter().map(|n| format!("{}", &*n)).collect();
-                format!("{}",children.join("\n"))
+                children.join("\n")
             }
 
             SetDp => {
                 let children: Vec<String> =
                     self.children.iter().map(|n| format!("{}", &*n)).collect();
-                format!("{}",children.join("\n"))
+                children.join("\n")
             }
 
             _ => format!("{:?} not implemented", item),

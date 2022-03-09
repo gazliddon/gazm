@@ -27,9 +27,9 @@ use crate::eval::eval;
 use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
-use crate::messages::Verbosity;
 use crate::messages::info;
 use crate::messages::messages;
+use crate::messages::Verbosity;
 use crate::util;
 use crate::util::ByteSize;
 use item::{Item, Node};
@@ -278,8 +278,7 @@ impl<'a> Assembler<'a> {
 
         let x = self.binary.get_unchecked_writes();
 
-        let database =
-            SourceDatabase::new(&self.source_map, &self.ctx.sources(), &self.ctx.symbols);
+        let database = SourceDatabase::new(&self.source_map, self.ctx.sources(), &self.ctx.symbols);
 
         for uc in x {
             let text = if let Some(si) = database.get_source_info_from_physical_address(uc.physical)
@@ -364,7 +363,7 @@ impl<'a> Assembler<'a> {
         i: ItemType,
     ) {
         self.source_map
-            .add_mapping(&self.ctx.sources(), phys_range, range, pos, i);
+            .add_mapping(self.ctx.sources(), phys_range, range, pos, i);
     }
 
     /// Returns ranges from current_pc -> pc
@@ -704,87 +703,85 @@ impl<'a> Assembler<'a> {
         let node = self.tree.get(id).unwrap();
         let i = &node.value().item;
 
-        if let OpCode(ins, amode) = i {
-            if let AddrModeParseType::Indexed(pmode, indirect) = amode {
-                pc += ins.size as u64;
-                let indirect = *indirect;
-                use item::IndexParseType::*;
+        if let OpCode(ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
+            pc += ins.size as u64;
+            let indirect = *indirect;
+            use item::IndexParseType::*;
 
-                match pmode {
-                    Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..)
-                    | Sub(..) | SubSub(..) => (),
+            match pmode {
+                Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..) | Sub(..)
+                | SubSub(..) => (),
 
-                    ConstantByteOffset(..)
-                    | PcOffsetByte(..)
-                    | PcOffsetWord(..)
-                    | ConstantWordOffset(..)
-                    | Constant5BitOffset(..) => {
-                        panic!()
+                ConstantByteOffset(..)
+                | PcOffsetByte(..)
+                | PcOffsetWord(..)
+                | ConstantWordOffset(..)
+                | Constant5BitOffset(..) => {
+                    panic!()
+                }
+
+                ConstantOffset(r) => {
+                    let (v, _) = self.eval_first_arg(id)?;
+
+                    let mut bs = v.byte_size();
+
+                    if let ByteSizes::Bits5(val) = bs {
+                        if indirect {
+                            // Indirect constant offset does not support
+                            // 5 bit offsets so promote to 8 bit
+                            bs = ByteSizes::Byte(val);
+                        }
                     }
 
-                    ConstantOffset(r) => {
-                        let (v, _) = self.eval_first_arg(id)?;
+                    let new_amode = match bs {
+                        ByteSizes::Zero => Zero(*r),
+                        ByteSizes::Bits5(v) => Constant5BitOffset(*r, v),
+                        ByteSizes::Word(v) => {
+                            pc += 2;
+                            ConstantWordOffset(*r, v)
+                        }
+                        ByteSizes::Byte(v) => {
+                            pc += 1;
+                            ConstantByteOffset(*r, v)
+                        }
+                    };
 
-                        let mut bs = v.byte_size();
+                    let ins = ins.clone();
+                    self.set_item(
+                        id,
+                        OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
+                    );
+                }
 
-                        if let ByteSizes::Bits5(val) = bs {
-                            if indirect {
-                                // Indirect constant offset does not support
-                                // 5 bit offsets so promote to 8 bit
-                                bs = ByteSizes::Byte(val);
-                            }
+                PCOffset => {
+                    let (v, id) = self.eval_first_arg(id)?;
+
+                    let new_amode = match v.byte_size() {
+                        ByteSizes::Zero => {
+                            pc += 1;
+                            PcOffsetByte(0)
                         }
 
-                        let new_amode = match bs {
-                            ByteSizes::Zero => Zero(*r),
-                            ByteSizes::Bits5(v) => Constant5BitOffset(*r, v),
-                            ByteSizes::Word(v) => {
-                                pc += 2;
-                                ConstantWordOffset(*r, v)
-                            }
-                            ByteSizes::Byte(v) => {
-                                pc += 1;
-                                ConstantByteOffset(*r, v)
-                            }
-                        };
+                        ByteSizes::Bits5(v) | ByteSizes::Byte(v) => {
+                            pc += 1;
+                            PcOffsetByte(v)
+                        }
+                        ByteSizes::Word(v) => {
+                            pc += 2;
+                            PcOffsetWord(v)
+                        }
+                    };
+                    let ins = ins.clone();
 
-                        let ins = ins.clone();
-                        self.set_item(
-                            id,
-                            OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
-                        );
-                    }
+                    self.set_item(
+                        id,
+                        OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
+                    );
+                }
 
-                    PCOffset => {
-                        let (v, id) = self.eval_first_arg(id)?;
-
-                        let new_amode = match v.byte_size() {
-                            ByteSizes::Zero => {
-                                pc += 1;
-                                PcOffsetByte(0)
-                            }
-
-                            ByteSizes::Bits5(v) | ByteSizes::Byte(v) => {
-                                pc += 1;
-                                PcOffsetByte(v)
-                            }
-                            ByteSizes::Word(v) => {
-                                pc += 2;
-                                PcOffsetWord(v)
-                            }
-                        };
-                        let ins = ins.clone();
-
-                        self.set_item(
-                            id,
-                            OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect)),
-                        );
-                    }
-
-                    ExtendedIndirect => pc += 2,
-                };
-                return Ok(pc);
-            }
+                ExtendedIndirect => pc += 2,
+            };
+            return Ok(pc);
         }
 
         panic!();
@@ -803,7 +800,7 @@ impl<'a> Assembler<'a> {
 
     fn set_scope(&mut self, scope: &str) {
         self.ctx.symbols.set_root();
-        if scope != "root".to_string() {
+        if scope != "root" {
             self.ctx.symbols.set_scope(scope);
         }
     }
@@ -858,7 +855,7 @@ impl<'a> Assembler<'a> {
     ) -> Result<Vec<u8>, UserError> {
         let (_, bin) = self
             .ctx
-            .read_binary_chunk(file_name, range.clone())
+            .read_binary_chunk(file_name, range)
             .map_err(|e| self.user_error(e.to_string(), id, true))?;
 
         Ok(bin)
@@ -877,7 +874,7 @@ impl<'a> Assembler<'a> {
 
         let x_node = self.tree.get(id).unwrap();
         let _pos = x_node.value().pos.clone();
-        let id = x_node.id().clone();
+        let id = x_node.id();
         let i = x_node.value().item.clone();
 
         match &i {
@@ -888,7 +885,7 @@ impl<'a> Assembler<'a> {
             GrabMem => {
                 let args = self.eval_n_args(id, 2)?;
                 let size = args[1];
-                pc = pc + size as u64;
+                pc += size as u64;
             }
 
             Org => {
@@ -913,7 +910,7 @@ impl<'a> Assembler<'a> {
 
                 self.set_item(id, Item::Skip(bytes as usize));
 
-                pc = pc + bytes as u64;
+                pc += bytes as u64;
             }
 
             OpCode(ins, amode) => {
@@ -931,7 +928,7 @@ impl<'a> Assembler<'a> {
 
                         use crate::opcodes::get_opcode_info;
 
-                        let dp_info = get_opcode_info(&ins)
+                        let dp_info = get_opcode_info(ins)
                             .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
                             .and_then(|ins| self.direct_page.map(|dp| (ins, dp)));
 
@@ -940,7 +937,6 @@ impl<'a> Assembler<'a> {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
                                 if top_byte == dp {
-
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
@@ -953,7 +949,7 @@ impl<'a> Assembler<'a> {
                                     node_mut.first_child().unwrap().value().item =
                                         Item::Number(value & 0xff);
                                 }
-                            } 
+                            }
                         }
                         pc += size as u64;
                     }
@@ -1045,7 +1041,7 @@ impl<'a> Assembler<'a> {
             IncBin(file_name) => {
                 let r = self.get_binary_extents(file_name.to_path_buf(), id)?;
 
-                pc = pc + r.len() as u64;
+                pc += r.len() as u64;
                 let new_item = IncBinResolved {
                     file: file_name.to_path_buf(),
                     r,

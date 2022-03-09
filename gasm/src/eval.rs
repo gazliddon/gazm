@@ -111,8 +111,9 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
         }
 
         UnaryTerm => {
-            let ops = n.children().nth(0).unwrap();
-            let num = n.children().nth(1).unwrap();
+            let mut c = n.children();
+            let ops = c.next().unwrap();
+            let num = c.next().unwrap();
             let r = eval_internal(symbols, num)?;
 
             let num = r.get_number().unwrap();

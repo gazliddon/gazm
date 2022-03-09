@@ -10,11 +10,11 @@ pub trait Messageize {
 }
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Verbosity {
-    SILENT = 0,
-    NORMAL = 1,
-    INFO = 2,
-    INTERESTING = 3,
-    DEBUG = 4,
+    Silent = 0,
+    Normal = 1,
+    Info = 2,
+    Interesting = 3,
+    Debug = 4,
 }
 
 impl<'a> Messageize for &'a str {
@@ -40,7 +40,7 @@ impl Messages {
     pub fn new() -> Self {
         Self {
             indent: 0,
-            verbosity: Verbosity::NORMAL,
+            verbosity: Verbosity::Normal,
         }
     }
 
@@ -70,7 +70,7 @@ impl Messages {
     where
         S: Into<String>,
     {
-        if self.verbosity >= Verbosity::INFO {
+        if self.verbosity >= Verbosity::Info {
             println!("{}{}", self.get_indent_str(), m.into().blue());
         }
     }
@@ -79,7 +79,7 @@ impl Messages {
     where
         S: Into<String>,
     {
-        if self.verbosity >= Verbosity::NORMAL {
+        if self.verbosity >= Verbosity::Normal {
         println!("{}{}", self.get_indent_str(), m.into().bright_magenta());
         }
     }
@@ -109,7 +109,7 @@ impl Messages {
     where
         S: Into<String>,
     {
-        if self.verbosity >= Verbosity::INTERESTING {
+        if self.verbosity >= Verbosity::Interesting {
             println!(
                 "{}{}",
                 self.get_indent_str(),
@@ -121,7 +121,7 @@ impl Messages {
     where
         S: Into<String>,
     {
-        if self.verbosity >= Verbosity::DEBUG {
+        if self.verbosity >= Verbosity::Debug {
             println!("{}{}", self.get_indent_str(), m.into().italic().yellow());
         }
     }

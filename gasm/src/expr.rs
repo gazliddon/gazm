@@ -81,7 +81,7 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
-fn parse_unary_op<'a>(input: Span<'a>) -> IResult<'a, Node> {
+fn parse_unary_op(input: Span) -> IResult<'_, Node> {
     use nom::combinator::map;
     let (rest, op) = alt((
             map(tag("-"), |_| Item::Sub),
@@ -94,7 +94,7 @@ fn parse_unary_op<'a>(input: Span<'a>) -> IResult<'a, Node> {
     Ok((rest, ret))
 }
 
-fn parse_binary_op<'a>(input: Span<'a>) -> IResult<'a, Node> {
+fn parse_binary_op(input: Span) -> IResult<Node> {
     use nom::combinator::map;
     // let (rest, matched) = one_of(ops)(input)?;
     // let op = to_op(matched).unwrap();

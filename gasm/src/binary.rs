@@ -230,13 +230,7 @@ impl Binary {
     pub fn get_unchecked_writes(&self) -> Vec<MemoryLocation> {
         let mut x = self.unchecked_writes.clone();
         x.sort_by(|a,b| 
-            if a.logical < b.logical {
-                std::cmp::Ordering::Less
-            } else if a.logical == b.logical {
-                std::cmp::Ordering::Equal
-            } else {
-                std::cmp::Ordering::Greater
-            }
+            a.logical.cmp(&b.logical)
             );
         x
     }

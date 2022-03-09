@@ -92,8 +92,8 @@ pub fn parse_struct_definition(input: Span<'_>) -> IResult<Node> {
     let (spare,_) = opt(sep)(spare)?;
 
     if !spare.is_empty() {
-        let m = format!("Unexpected text in struct definition, missing comma on previous line?");
-        Err(crate::parse_failure(&m, spare))
+        let m = "Unexpected text in struct definition, missing comma on previous line?";
+        Err(crate::parse_failure(m, spare))
     } else {
         let matched_span = matched_span(input, rest);
         let res = Node::from_item_span(Item::StructDef(name.to_string()), matched_span)

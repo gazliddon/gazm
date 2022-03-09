@@ -320,7 +320,7 @@ impl<'a> Ast<'a> {
                             let scoped_name = format!("{}.{}", name, entry_name);
                             self.add_symbol(&mut symbols, current, &scoped_name, id)?;
                             x.info(format!("Struct: Set {scoped_name} to {current}"));
-                            current = current + value;
+                            current += value;
                         }
                     }
 
@@ -366,7 +366,7 @@ impl<'a> Ast<'a> {
                         }
 
                         Err(e) => {
-                            let ast_err : AstError = e.clone().into();
+                            let ast_err : AstError = e.into();
                             return Err(self.node_error(&ast_err.to_string(), cnode.id(), true))
                         }
                     }

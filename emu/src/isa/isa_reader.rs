@@ -166,13 +166,13 @@ impl Dbase {
         let mut add = |name: &str, i: &Instruction| {
             let name = String::from(name).to_ascii_lowercase();
             if let Some(rec) = name_to_ins.get_mut(&name) {
-                rec.add(&i);
+                rec.add(i);
             } else {
                 let info = InstructionInfo::new(i.clone());
                 name_to_ins.insert(name.to_string(), info);
             }
             let x = name_to_ins.get(&name.to_string()).unwrap().clone();
-            opcode_to_ins.insert(i.opcode.clone(), x);
+            opcode_to_ins.insert(i.opcode, x);
         };
 
         for i in &instructions {

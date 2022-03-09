@@ -81,9 +81,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{} equ {}", name, child_string(0))
             }
 
-            Expr => format!("{}", join_kids("")),
+            Expr => join_kids(""),
 
-            PostFixExpr => format!("{}", join_kids(" ")),
+            PostFixExpr => join_kids(" "),
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
@@ -149,7 +149,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 let operand = match amode {
                     Immediate => format!("#{}", child_string(0)),
                     Direct => format!("<{}", child_string(0)),
-                    Extended(..) => format!("{}", child_string(0)),
+                    Extended(..) => child_string(0),
                     Indexed(imode, indirect) => {
                         use item::IndexParseType::*;
                         match imode {

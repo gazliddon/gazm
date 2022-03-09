@@ -9,16 +9,14 @@ pub trait PathSearcher {
     fn get_full_path(&self, file: &Path) -> Result<PathBuf, SearchError>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Paths {
     paths: Vec<PathBuf>,
 }
 
 impl Paths {
     pub fn new() -> Self {
-        Self {
-            paths: vec![]
-        }
+        Self::default()
     }
     pub fn from_paths<P: AsRef<Path>>(paths: &[P]) -> Self {
         let paths = paths.iter().map(|p| p.as_ref().into()).collect();
@@ -45,12 +43,10 @@ impl PathSearcher for Paths {
                     tried.push(x.clone());
                 }
             }
-        } else {
-            if file_name.exists() {
-                return Ok(file_name.to_path_buf());
-            }
+        } else if file_name.exists() {
+            return Ok(file_name.to_path_buf());
         }
 
-        return Err(SearchError::FileNotFound(file_name.to_path_buf(), tried));
+        Err(SearchError::FileNotFound(file_name.to_path_buf(), tried))
     }
 }

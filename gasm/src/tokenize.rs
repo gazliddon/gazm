@@ -1,4 +1,15 @@
-use crate::{cli, commands, comments, expr::{self, parse_expr}, item, labels::{get_just_label, parse_label}, locate::{matched_span, span_to_pos}, macros::{parse_macro_call, parse_macro_definition}, messages::{self, messages}, opcodes, structs::{get_struct, parse_struct_definition}, util::{self, sep_list1, wrapped_chars, ws}};
+use crate::{
+    cli, commands, comments,
+    expr::{self, parse_expr},
+    item,
+    labels::{get_just_label, parse_label},
+    locate::{matched_span, span_to_pos},
+    macros::{parse_macro_call, parse_macro_definition},
+    messages::{self, messages},
+    opcodes,
+    structs::{get_struct, parse_struct_definition},
+    util::{self, sep_list1, wrapped_chars, ws},
+};
 
 use colored::*;
 use std::{
@@ -21,7 +32,7 @@ use romloader::sources::Position;
 use crate::error::{IResult, ParseError, UserError, UserErrors};
 use crate::item::{Item, Node};
 use crate::locate::Span;
-use romloader::sources::{AsmSource, SourceFileLoader, Sources, FileIo};
+use romloader::sources::{AsmSource, FileIo, SourceFileLoader, Sources};
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
@@ -38,14 +49,14 @@ struct Token {
 }
 
 pub fn tokenize_file_from_str<'a>(
-    file: &PathBuf,
+    file: &Path,
     input: &str,
     errors: &mut UserErrors,
     ctx: &'a mut crate::ctx::Context,
 ) -> Result<Node, UserError> {
     let span = Span::new_extra(input, AsmSource::FromStr);
     let mut macros = Macros::new();
-    let matched = Tokens::new(ctx).to_tokens(span, &mut macros, errors)?;
+    let matched = Tokens::new(ctx).convert_to_tokens(span, &mut macros, errors)?;
     let item = Item::TokenizedFile(file.into(), file.into());
     let file_node = Node::from_item_span(item, span).with_children(matched);
     Ok(file_node)
@@ -99,8 +110,8 @@ impl<'a> Tokens<'a> {
             if self.ctx.trailing_comments {
                 self.add_comment(rest);
             } else {
-                let message = format!("Unexpected characters");
-                return Err(ParseError::new(message, &rest, false));
+                let message = "Unexpected characters";
+                return Err(ParseError::new(message.to_string(), &rest, false));
             }
         }
         Ok(())
@@ -152,15 +163,15 @@ impl<'a> Tokens<'a> {
             input = rest;
         }
 
-        let (rest,body) = alt((ws(parse_command), ws(parse_opcode)))(input)?;
+        let (rest, body) = alt((ws(parse_command), ws(parse_opcode)))(input)?;
 
         self.handle_trailing_text(rest)?;
         self.add_node(body);
 
-        return Ok(());
+        Ok(())
     }
 
-    fn to_tokens(
+    fn convert_to_tokens(
         &mut self,
         input: Span,
         macros: &mut Macros,
@@ -173,7 +184,7 @@ impl<'a> Tokens<'a> {
 
         // let ret = Node::from_item_span(Item::Block, input.clone());
 
-        let mut source = input.clone();
+        let mut source = input;
 
         while !source.is_empty() {
             let res: Result<(), ParseError> = try {
@@ -184,10 +195,7 @@ impl<'a> Tokens<'a> {
                     continue;
                 }
 
-                let res = parse_macro_definition(source);
-
-                if res.is_ok() {
-                    let (rest, def) = res.unwrap();
+                if let Ok((rest, def)) = parse_macro_definition(source) {
                     macros.add_def(def);
                     source = rest;
                     continue;
@@ -216,7 +224,7 @@ impl<'a> Tokens<'a> {
         let mcalls: Vec<(&mut Node, MacroCall)> = tokes
             .iter_mut()
             .filter_map(|x| match x.item.clone() {
-                Item::MacroCall(mcall) => Some((x, mcall.clone())),
+                Item::MacroCall(mcall) => Some((x, mcall)),
                 _ => None,
             })
             .collect();
@@ -228,27 +236,24 @@ impl<'a> Tokens<'a> {
 
             let input = Span::new_extra(&text, pos.src);
 
-            let new_tokens = self
-                .to_tokens(input, macros, errors)
-                .map_err(|mut e| {
-                    let args: Vec<_> = macro_call
-                        .args
-                        .iter()
-                        .map(|a| self.ctx.sources().get_source_info(a))
-                        .collect();
+            let new_tokens = self.convert_to_tokens(input, macros, errors).map_err(|mut e| {
+                let args: Vec<_> = macro_call
+                    .args
+                    .iter()
+                    .map(|a| self.ctx.sources().get_source_info(a))
+                    .collect();
 
-                    let err1 = format!("Macro expansion:\n {}", text);
-                    let err2 = format!("Args:\n {:#?}", args);
-                    e.message = format!("{}\n{}", err1, err2);
-                    e
-                })?;
-            let pos : Position = span_to_pos(input) ;
+                let err1 = format!("Macro expansion:\n {}", text);
+                let err2 = format!("Args:\n {:#?}", args);
+                e.message = format!("{}\n{}", err1, err2);
+                e
+            })?;
+            let pos: Position = span_to_pos(input);
 
-            let new_node = Node::from_item_pos(Item::ExpandedMacro(macro_call), pos)
-                .with_children(new_tokens);
+            let new_node =
+                Node::from_item_pos(Item::ExpandedMacro(macro_call), pos).with_children(new_tokens);
 
             *node = new_node;
-
         }
 
         Ok(tokes)
@@ -269,8 +274,9 @@ fn tokenize_file(
     use item::Item::*;
     let x = messages::messages();
 
-    let (file_name,source,id) = ctx.read_source(&file.to_path_buf())
-    .with_context(|| format!("Failed to load file: {}", file.to_string_lossy()))?;
+    let (file_name, source, id) = ctx
+        .read_source(&file)
+        .with_context(|| format!("Failed to load file: {}", file.to_string_lossy()))?;
 
     let action = if depth == 0 {
         "Tokenizing"
@@ -283,18 +289,14 @@ fn tokenize_file(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = Tokens::new(ctx).to_tokens(input, macros, errors)?;
+    let mut tokes = Tokens::new(ctx).convert_to_tokens(input, macros, errors)?;
 
     // Tokenize includes
     for n in tokes.iter_mut() {
-
-        match &n.item {
-            Include(inc_file) => {
-                x.indent();
-                *n = tokenize_file(depth + 1, ctx, inc_file, file, macros, errors)?.into();
-                x.deindent();
-            }
-            _ => ()
+        if let Include(inc_file) = &n.item {
+            x.indent();
+            *n = tokenize_file(depth + 1, ctx, inc_file, file, macros, errors)?;
+            x.deindent();
         };
     }
 
@@ -333,9 +335,9 @@ pub fn tokenize(ctx: &mut crate::ctx::Context) -> anyhow::Result<Node> {
                 all_tokens.push(node);
             }
         };
-    };
+    }
 
-    let block =  Node::from_item(Item::Block, Position::default()).with_children(all_tokens);
+    let block = Node::from_item(Item::Block, Position::default()).with_children(all_tokens);
 
     Ok(block)
 }

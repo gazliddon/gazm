@@ -1,7 +1,7 @@
 
 use super::{AsmSource, Position, SymbolTree};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{ PathBuf, Path };
 
 pub trait LocationTrait: Clone {
     fn get_line_number(&self) -> usize;
@@ -65,7 +65,7 @@ pub struct SourceFileInfo {
 }
 
 impl SourceFile {
-    pub fn new(file: &PathBuf, source: &str) -> Self {
+    pub fn new(file: &Path, source: &str) -> Self {
         let lines = source.lines().map(|x| x.to_string()).collect();
         Self {
             lines,
@@ -127,16 +127,14 @@ pub struct SourceInfo<'a> {
     pub pos : Position,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Sources {
     id_to_source_file: HashMap<u64, SourceFile>,
 }
 
 impl Sources {
     pub fn new() -> Self {
-        Self {
-            id_to_source_file: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn add_source_text(&mut self, text : &str ) -> u64 {
@@ -152,7 +150,7 @@ impl Sources {
         max.map(|x| x+1).unwrap_or(0)
     }
 
-    pub fn add_source_file(&mut self, p : &PathBuf, text : &str) -> u64 {
+    pub fn add_source_file(&mut self, p : &Path, text : &str) -> u64 {
         let id = self.get_next_id();
         let source_file = SourceFile::new(p, text);
         self.id_to_source_file.insert(id, source_file);
@@ -207,22 +205,12 @@ pub struct Mapping {
 
 use crate::Stack;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SourceMapping {
     pub addr_to_mapping: Vec<Mapping>,
     pub phys_addr_to_mapping: Vec<Mapping>,
     #[serde(skip)]
     macro_stack: Stack<Position>,
-}
-
-impl Default for SourceMapping {
-    fn default() -> Self {
-        Self {
-            addr_to_mapping: Default::default(),
-            phys_addr_to_mapping: Default::default(),
-            macro_stack : Default::default(),
-        }
-    }
 }
 
 impl SourceMapping {
@@ -243,7 +231,7 @@ impl SourceMapping {
     }
 
     fn is_expanding_macro(&self) -> bool {
-        self.macro_stack.is_empty() == false
+        !self.macro_stack.is_empty()
     }
 
     pub fn add_mapping(&mut self, _sources : &Sources, physical_mem_range: std::ops::Range<usize>, mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
@@ -253,7 +241,7 @@ impl SourceMapping {
             let entry = Mapping {
                 file_id,
                 line: pos.line,
-                mem_range: mem_range.clone(),
+                mem_range,
                 item_type,
                 physical_mem_range
             };
@@ -339,7 +327,7 @@ impl SourceDatabase {
         }
     }
 
-    fn load_source_file<'a>(&'a self, file_id: u64) -> Result<(), ()> {
+    fn load_source_file(&self, file_id: u64) -> Result<(), ()> {
         let file_name = self.id_to_source_file.get(&file_id).ok_or(())?;
         let x = self.source_files.borrow().contains_key(&file_id);
 
@@ -355,14 +343,14 @@ impl SourceDatabase {
 
     pub fn get_source_file_from_file_name<'a>(
         &'a self,
-        file_name: &PathBuf,
+        file_name: &Path,
     ) -> Option<SourceFileAccess<'a>> {
         self.source_file_to_id
             .get(file_name)
             .and_then(|file_id| self.get_source_file(*file_id))
     }
 
-    pub fn get_source_file<'a>(&'a self, file_id: u64) -> Option<SourceFileAccess<'a>> {
+    pub fn get_source_file(&self, file_id: u64) -> Option<SourceFileAccess> {
         self.func_source_file(file_id, |sf| {
             let num_of_lines = sf.get_num_of_lines();
             Some(SourceFileAccess::new(self, file_id, num_of_lines))
@@ -390,12 +378,12 @@ impl SourceDatabase {
         self.source_files
             .borrow()
             .get(&file_id)
-            .and_then(|sf| func(sf))
+            .and_then(func)
     }
 
     pub fn get_source_line_from_file(
         &self,
-        file_name: &PathBuf,
+        file_name: &Path,
         line: usize,
     ) -> Option<SourceLine> {
         self.get_source_file_from_file_name(file_name)

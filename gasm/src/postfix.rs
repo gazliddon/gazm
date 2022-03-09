@@ -82,7 +82,7 @@ impl<I: Clone + GetPriotity + std::fmt::Debug> PostFixer<I> {
 
                     let top_pri = self.top_pri();
 
-                    let this_pri = op.priority().ok_or(op.clone())?;
+                    let this_pri = op.priority().ok_or_else(|| op.clone())?;
 
                     if top_pri >= this_pri {
                         self.flush();

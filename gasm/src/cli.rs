@@ -26,23 +26,18 @@ impl From<clap::ArgMatches> for Context {
         };
 
         if let Some(mut it) = m.values_of("set") {
-            loop {
-                if let Some((var, value)) =
-                    it.next().and_then(|var| it.next().map(|val| (var, val)))
-                {
-                    ret.vars.set_var(var.to_string(), value.to_string());
-                } else {
-                    break;
-                }
+            while let Some((var, value)) = it.next().and_then(|var| it.next().map(|val| (var, val)))
+            {
+                ret.vars.set_var(var.to_string(), value.to_string());
             }
         }
 
-         ret.verbose = match m.occurrences_of("verbose") {
-            0 => Verbosity::SILENT, 
-            1 => Verbosity::NORMAL, 
-            2 => Verbosity::INFO, 
-            3 => Verbosity::INTERESTING, 
-            _ => Verbosity::DEBUG,
+        ret.verbose = match m.occurrences_of("verbose") {
+            0 => Verbosity::Silent,
+            1 => Verbosity::Normal,
+            2 => Verbosity::Info,
+            3 => Verbosity::Interesting,
+            _ => Verbosity::Debug,
         };
 
         if let Some(it) = m.values_of("file") {
@@ -63,8 +58,7 @@ impl From<clap::ArgMatches> for Context {
                 .unwrap();
         }
 
-
-        if ret.files.len() != 0 {
+        if !ret.files.is_empty() {
             let file = ret.files[0].clone();
             if let Some(dir) = file.parent() {
                 ret.source_file_loader = SourceFileLoader::from_search_paths(&[dir]);

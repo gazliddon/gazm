@@ -31,7 +31,7 @@ pub fn add_reference_syms<P: AsRef<Path>>(file_name : P, syms : &mut dyn SymbolW
 
     for line in text.lines() {
         if let Some(matches) = equ_rex.captures(line) {
-            let data = i64::from_str_radix(&matches["data"], 10).unwrap();
+            let data = (&matches["data"]).parse::<i64>().unwrap();
             let label = &matches["label"];
             syms.add_reference_symbol(label, data);
         }
@@ -40,7 +40,7 @@ pub fn add_reference_syms<P: AsRef<Path>>(file_name : P, syms : &mut dyn SymbolW
     Ok(())
 }
 
-fn make_records(x: &String) -> Vec<Record>{
+fn make_records(x: &str) -> Vec<Record>{
     let data_rex = Regex::new(r"^(?P<addr>[0-9A-F]{4})\s+(?P<data>[0-9A-F]{2}+)").unwrap();
 
     let mut ret = vec![];

@@ -155,15 +155,15 @@ impl SourceFileLoader {
         Self::default()
     }
 
-    pub fn read_source(&mut self, path : &PathBuf) -> Result<(PathBuf, String, u64)> {
+    pub fn read_source(&mut self, path : &Path) -> Result<(PathBuf, String, u64)> {
         let (path, text) = self.read_to_string(path)?;
         let (_,_,id) = self.add_source_file(&path, &text)?;
         Ok((path,text,id))
     }
 
-    pub fn add_source_file(&mut self, path : &PathBuf, text: &str) -> Result<(PathBuf, String, u64)> {
-        let id = self.sources.add_source_file(&path, &text);
-        Ok((path.clone(),text.to_string(),id))
+    pub fn add_source_file(&mut self, path : &Path, text: &str) -> Result<(PathBuf, String, u64)> {
+        let id = self.sources.add_source_file(path, text);
+        Ok((path.into(),text.to_string(),id))
     }
 
     pub fn from_search_paths<P: AsRef<Path>>(paths: &[P]) -> Self {
