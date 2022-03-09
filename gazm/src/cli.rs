@@ -1,4 +1,5 @@
 use crate::ctx::Context;
+use std::path::Path;
 use crate::messages::Verbosity;
 use clap::{Arg, Command};
 use utils::sources::SourceFileLoader;
@@ -52,7 +53,8 @@ impl From<clap::ArgMatches> for Context {
         if !ret.files.is_empty() {
             let file = ret.files[0].clone();
             if let Some(dir) = file.parent() {
-                ret.source_file_loader = SourceFileLoader::from_search_paths(&[dir]);
+                let cdir = Path::new(".");
+                ret.source_file_loader = SourceFileLoader::from_search_paths(&[cdir, dir]);
             }
         }
 
