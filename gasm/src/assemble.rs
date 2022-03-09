@@ -1,50 +1,31 @@
-use clap::Indices;
-use colored::*;
 use emu::cpu::RegEnum;
-use emu::isa::AddrModeEnum;
-use nom::combinator::map_opt;
-use nom::combinator::recognize;
-use nom::Offset;
-use romloader::sources::{
-    FileIo, SourceFileLoader, SourceInfo, SymbolError, SymbolQuery, SymbolWriter,
-};
-use serde_json::to_string;
 
-use crate::assemble;
+use romloader::sources::{
+    SourceInfo, SymbolError, SymbolWriter,
+};
+
 use crate::ast::AstNodeRef;
-use crate::ast::AstTree;
-use crate::ast::{Ast, AstNodeId, AstNodeMut};
-use crate::astformat::as_string;
+use crate::ast::AstNodeId;
 use crate::binary::BinRef;
 use crate::binary::{AccessType, Binary};
-use crate::cli;
-use crate::ctx::Context;
-use crate::error;
-use crate::error::AstError;
 use crate::error::UserError;
-use crate::eval;
 use crate::eval::eval;
 use crate::item;
 use crate::item::AddrModeParseType;
 use crate::item::IndexParseType;
 use crate::messages::info;
 use crate::messages::messages;
-use crate::messages::Verbosity;
-use crate::util;
-use crate::util::ByteSize;
-use item::{Item, Node};
-use romloader::sources::{ItemType, Position, SourceDatabase, SourceMapping, Sources, SymbolTable};
+use item::Item;
+use romloader::sources::{ItemType, Position, SourceDatabase, SourceMapping, };
 use std::collections::HashSet;
-use std::net::UdpSocket;
-use std::ops::RangeBounds;
 use std::path::Path;
 use std::path::PathBuf;
 use std::vec;
 
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+// use serde::{Deserialize, Serialize};
+// use serde_json::json;
 
-#[derive(Serialize)]
+#[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Assembled {
     #[serde(skip)]
@@ -123,14 +104,6 @@ pub struct Assembler<'a> {
     source_map: SourceMapping,
     direct_page: Option<u8>,
     ctx: &'a mut crate::ctx::Context,
-}
-
-fn eval_node(symbols: &SymbolTable, node: AstNodeRef, sources: &Sources) -> Result<i64, UserError> {
-    eval(symbols, node).map_err(|err| {
-        let info = sources.get_source_info(&node.value().pos).unwrap();
-        let ast_err: AstError = err.into();
-        UserError::from_ast_error(ast_err, &info)
-    })
 }
 
 use thiserror::Error;
@@ -682,7 +655,7 @@ impl<'a> Assembler<'a> {
             }
 
             IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..)
-            | MacroDef(..) | Rmb | StructDef(..) => (),
+            | Rmb | StructDef(..) => (),
 
             SetDp => {
                 let (dp, _) = self.eval_first_arg(id)?;
@@ -810,7 +783,6 @@ impl<'a> Assembler<'a> {
         file_name: PathBuf,
         id: AstNodeId,
     ) -> Result<std::ops::Range<usize>, UserError> {
-        use Item::*;
 
         let data_len = self
             .ctx
@@ -867,10 +839,7 @@ impl<'a> Assembler<'a> {
     }
 
     fn size_node(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {
-        use crate::util::{ByteSize, ByteSizes};
         use item::Item::*;
-
-        use crate::astformat;
 
         let x_node = self.tree.get(id).unwrap();
         let _pos = x_node.value().pos.clone();
@@ -914,7 +883,7 @@ impl<'a> Assembler<'a> {
             }
 
             OpCode(ins, amode) => {
-                use emu::isa::AddrModeEnum::*;
+                use emu::isa::AddrModeEnum;
 
                 match amode {
                     AddrModeParseType::Extended(false) => {
@@ -1050,7 +1019,7 @@ impl<'a> Assembler<'a> {
                 node_mut.value().item = new_item;
             }
 
-            WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | MacroDef(..)
+            WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) 
             | StructDef(..) => (),
             _ => {
                 let i = &self.tree.get(id).unwrap().value().item;

@@ -3,29 +3,20 @@ pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
 pub type AstNodeId = ego_tree::NodeId;
 pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 
-use std::collections::{HashMap, VecDeque};
-use std::error::Error;
 // use std::fmt::{Debug, DebugMap};
-use std::hash::Hash;
-use std::path::{PathBuf, Prefix};
 
-use nom::bytes::complete::take_till;
-use nom::InputIter;
-use serde_json::map::Values;
 
-use crate::astformat::as_string;
 use crate::error::{AstError, UserError};
 use crate::eval::{ EvalErrorEnum, EvalError };
-use crate::item;
 use crate::scopes::ScopeBuilder;
 
 use crate::item::{Item, Node};
 use crate::ctx::Context;
-use romloader::sources::{Position, SourceFileLoader};
+use romloader::sources::Position;
 
-use crate::messages::{debug, info, status, verbosity, Verbosity};
+use crate::messages::*;
 use crate::postfix;
-use romloader::sources::{SourceFile, SourceInfo, Sources, SymbolId, SymbolTable, SymbolWriter, SymbolQuery};
+use romloader::sources::{SourceInfo, SymbolId, SymbolWriter, SymbolQuery};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -45,7 +36,6 @@ impl ItemWithPos {
 }
 
 pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
-    use super::item::Item::*;
     let ipos = ItemWithPos::new(node);
     let mut this_node = parent.append(ipos);
 
@@ -95,15 +85,8 @@ impl<'a> Ast<'a> {
     pub fn get_tree(&self) -> &AstTree {
         &self.tree
     }
-    pub fn get_tree_mut(&mut self) -> &AstTree {
+    pub fn get_tree_mut(&mut self) -> &mut AstTree {
         &mut self.tree
-    }
-
-    fn get_source_info_from_node(
-        &'a self,
-        node: &'a AstNodeRef,
-    ) -> Result<SourceInfo<'a>, String> {
-        self.ctx.sources().get_source_info(&node.value().pos)
     }
 
     fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, String> {
@@ -187,7 +170,6 @@ impl<'a> Ast<'a> {
 
     fn postfix_expressions(&mut self) -> Result<(), UserError> {
         info("Converting expressions to poxtfix", |x| {
-            use crate::error::UserError;
             use Item::*;
 
             let mut to_convert: Vec<(AstNodeId, Vec<AstNodeId>)> = vec![];
@@ -300,7 +282,6 @@ impl<'a> Ast<'a> {
 
     fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
         info("Generating symbols for struct definitions", |x| {
-            use super::eval::eval;
             use Item::*;
 
             let mut symbols = self.ctx.symbols.clone();

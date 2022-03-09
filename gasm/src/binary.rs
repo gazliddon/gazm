@@ -1,11 +1,7 @@
-use crate::as6809::{MapFile, Record};
-use emu::mem::LoggingMemMap;
+use crate::as6809::Record;
 use thiserror::Error;
 use serde_derive::{Deserialize, Serialize};
-use std::{
-    path::{Path, PathBuf},
-    vec,
-};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum AccessType {
@@ -30,7 +26,6 @@ struct BinRefChunk {
 #[derive(Debug, Clone)]
 pub struct Binary {
     write_address: usize,
-    written: bool,
     range: Option<(usize, usize)>,
     pub data: Vec<u8>,
     write_offset: isize,
@@ -123,14 +118,9 @@ impl Binary {
         }
     }
 
-    fn dirty(&mut self) {
-        self.written = true;
-    }
-
     pub fn new(size: usize, access_type: AccessType) -> Self {
         Self {
             write_address: 0,
-            written: false,
             range: None,
             data: vec![0; size],
             write_offset: 0,

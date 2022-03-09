@@ -1,13 +1,11 @@
 use crate::item::{ Item, Node };
-use nom::character::complete::{anychar, multispace0, not_line_ending};
-use nom::multi::{many0, many1, };
+use nom::character::complete::not_line_ending;
 
 use nom::bytes::complete::take_until ;
 
 use nom::combinator::recognize;
 use nom::branch::alt;
-
-use nom::sequence::{preceded, tuple, pair};
+use nom::sequence::{tuple, pair};
 use nom::bytes::complete::tag;
 
 use crate::error::IResult;

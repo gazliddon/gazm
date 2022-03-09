@@ -1,24 +1,21 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, tag_no_case, take_until},
-    character::complete::{line_ending, multispace0, multispace1},
-    combinator::{all_consuming, eof, map, not, opt, recognize},
-    multi::{self, many0, many1, separated_list0},
-    sequence::{pair, preceded, separated_pair, terminated, tuple},
-    AsBytes,
+    bytes::complete::{is_not, tag, tag_no_case, },
+    character::complete::multispace1,
+    combinator::{map, opt, },
+    multi::separated_list0,
+    sequence::separated_pair,
 };
 
-use romloader::sources::Position;
+use crate::locate::matched_span;
 
 use crate::{
-    labels::{get_just_label, parse_label},
-    locate::{matched_span, span_to_pos},
-    macros::{parse_macro_call, parse_macro_definition},
-    util::{self, sep_list1, wrapped_chars, ws},
+    labels::get_just_label,
+    util::{wrapped_chars, ws},
 };
 
-use crate::error::{IResult, ParseError, UserError};
-use crate::item::{Item, Node, StructEntry, StructMemberType};
+use crate::error::{IResult};
+use crate::item::{Item, Node, StructMemberType};
 use crate::locate::Span;
 
 fn parse_block(input: Span<'_>) -> IResult<Span> {

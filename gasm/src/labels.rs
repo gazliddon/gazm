@@ -1,21 +1,19 @@
 use crate::item::{ Item, Node };
 use crate::opcodes::opcode_just_token;
-use crate::{ commands::command_token, opcodes::opcode_token };
+use crate::commands::command_token;
 use nom::sequence::pair;
-use nom::combinator::{ recognize, not, all_consuming};
+use nom::combinator::{ all_consuming, recognize };
 
 use nom::character::complete::{
     alpha1, alphanumeric1, 
 };
 
 use nom::multi::many0 ;
-use nom::bytes::complete::{ is_a};
+use nom::bytes::complete::is_a;
 use nom::branch::alt;
 
 use crate::error::IResult;
-use crate::locate::{Span, matched_span};
-
-use nom_locate::position;
+use crate::locate::Span;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Labels

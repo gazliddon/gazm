@@ -1,6 +1,5 @@
 use crate::ast::*;
-use crate::item::{self, IndexParseType, Item};
-use std::fmt::Display;
+use crate::item::{self, Item};
 
 impl<'a> std::fmt::Display for Ast<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -9,11 +8,6 @@ impl<'a> std::fmt::Display for Ast<'a> {
         };
         write!(f, "{}", wrapped)
     }
-}
-
-pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {
-    let ret: Vec<_> = v.iter().map(|x| x.to_string()).collect();
-    ret.join(sep)
 }
 
 struct DisplayWrapper<'a> {
@@ -70,12 +64,12 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Comment(comment) => comment.clone(),
 
-            QuotedString(test) => format!("\"{}\"", test),
+            // QuotedString(test) => format!("\"{}\"", test),
             // Register(r) => r.to_string(),
-            RegisterList(vec) => {
-                let vec: Vec<_> = vec.iter().map(|r| r.to_string()).collect();
-                vec.join(",")
-            }
+            // RegisterList(vec) => {
+            //     let vec: Vec<_> = vec.iter().map(|r| r.to_string()).collect();
+            //     vec.join(",")
+            // }
 
             LocalAssignment(name) | Assignment(name) => {
                 format!("{} equ {}", name, child_string(0))
@@ -88,7 +82,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
             Number(n) => n.to_string(),
-            UnaryMinus => "-".to_string(),
+            // UnaryMinus => "-".to_string(),
 
             UnaryTerm => {
                 format!("!{:?} {:?}", child_item(0), child_item(1))

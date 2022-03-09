@@ -1,29 +1,15 @@
 // Parse expressions
 //
 use super::item::{Item, Node};
-use nom::character::complete::{char as nom_char, multispace0, one_of};
-use nom::error::Error;
-use nom::error::ErrorKind::NoneOf;
-
-use nom::InputTake;
-
-use nom::bytes::complete::{is_a, tag};
-
-use nom::sequence::{preceded, separated_pair, terminated};
-
+use nom::character::complete::{char as nom_char, multispace0};
+use nom::bytes::complete::tag;
+use nom::sequence::{preceded, separated_pair};
 use nom::branch::alt;
-use nom::combinator::{map_parser, recognize};
-use nom::multi::{many0, many0_count};
-
+use nom::multi::many0;
 use super::util;
-
 use super::labels::parse_label;
-
-use crate::error::{IResult, ParseError};
+use crate::error::IResult;
 use crate::locate::{matched_span, Span};
-use crate::opcodes::parse_opcode;
-
-use romloader::sources::AsmSource;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
@@ -72,7 +58,6 @@ pub fn parse_term(input: Span) -> IResult<Node> {
 }
 
 fn parse_unary_term(input: Span) -> IResult<Node> {
-    use util::parse_number;
     let (rest, (op, term)) =
         separated_pair(parse_unary_op, multispace0, parse_non_unary_term)(input)?;
 
@@ -146,7 +131,7 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
-    
+    use romloader::sources::AsmSource;
 
     #[test]
     fn test_brackets() {
@@ -177,13 +162,6 @@ mod test {
 
         assert_eq!(*rest, "");
         assert_eq!(matched, "3*4+5-(5*4)");
-    }
-    fn test_expr_pc() {
-        let input = "* ;; ";
-        let span = Span::new_extra(input, AsmSource::FromStr);
-        let (rest, matched) = parse_expr(span).unwrap();
-        assert_eq!(*rest, " ;; ");
-        assert_eq!(&matched.to_string(), "*");
     }
 
     #[test]

@@ -1,17 +1,11 @@
 use std::fmt::Display;
-use std::ops::Add;
-use std::path::Path;
-use std::{collections::HashSet, path::PathBuf, slice::Iter};
+use std::{collections::HashSet, path::PathBuf};
 
 use emu::cpu::{IndexedFlags, RegEnum};
-use emu::isa::{AddrModeEnum, Instruction, InstructionInfo};
-use nom::{IResult, Offset};
-
-use crate::locate::{matched_span, Span};
+use emu::isa::Instruction;
+use crate::locate::Span;
 use crate::node::{BaseNode, CtxTrait};
-
-use romloader::sources::{SourceFileLoader, Position };
-use crate::postfix::GetPriotity;
+use romloader::sources::Position;
 use crate::locate::span_to_pos;
 use crate::macros::MacroCall;
 
@@ -21,17 +15,16 @@ pub type Node = BaseNode<Item, Position>;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {
-    ConstantOffset(RegEnum), //               arg,R
-
-    Plus(RegEnum),           //               ,R+              2 0 |
-    PlusPlus(RegEnum), //               ,R++             3 0 |
-    Sub(RegEnum),            //               ,-R              2 0 |
-    SubSub(RegEnum),   //               ,--R             3 0 |
-    Zero(RegEnum),     //               ,R               0 0 |
-    AddB(RegEnum),     //             (+/- B),R          1 0 |
-    AddA(RegEnum),     //             (+/- A),R          1 0 |
-    AddD(RegEnum),     //             (+/- D),R          4 0 |
-    PCOffset,          //      (+/- 7 bit offset),PC     1 1 |
+    ConstantOffset(RegEnum), //             arg,R
+    Plus(RegEnum),           //             ,R+                    2 0 |
+    PlusPlus(RegEnum),       //             ,R++                   3 0 |
+    Sub(RegEnum),            //             ,-R                    2 0 |
+    SubSub(RegEnum),         //             ,--R                   3 0 |
+    Zero(RegEnum),           //             ,R                     0 0 |
+    AddB(RegEnum),           //             (+/- B),R              1 0 |
+    AddA(RegEnum),           //             (+/- A),R              1 0 |
+    AddD(RegEnum),           //             (+/- D),R              4 0 |
+    PCOffset,                //             (+/- 7 bit offset),PC  1 1 |
     ExtendedIndirect,        //  [expr]
     Constant5BitOffset(RegEnum, i8),
     ConstantByteOffset(RegEnum, i8),
@@ -164,7 +157,7 @@ impl IndexParseType {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(PartialEq,Debug, Clone, Copy)]
 pub enum AddrModeParseType {
     Indexed(IndexParseType, bool),
     Direct,
@@ -204,19 +197,17 @@ pub struct StructEntry {
     pub name : String,
     pub item_type: StructMemberType,
 }
-use crate::macros::MacroDef;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
     Skip(usize),
-    RawText(String),
     LocalAssignment(String),
     Assignment(String),
     AssignmentFromPc(String),
     LocalAssignmentFromPc(String),
 
     MacroCall(MacroCall),
-    MacroDef(MacroDef),
+    // MacroDef(MacroDef),
 
     StructDef(String),
     StructEntry(String),
@@ -232,25 +223,18 @@ pub enum Item {
     Block,
     ExpandedMacro(MacroCall),
 
-    UnaryOp,
     UnaryTerm,
 
-    RegisterPair(RegEnum, RegEnum),
-    RegisterList(Vec<RegEnum>),
     RegisterSet(HashSet<RegEnum>),
 
     Label(String),
     LocalLabel(String),
     Comment(String),
-    QuotedString(String),
     Number(i64),
 
     OpCode(Instruction, AddrModeParseType),
     Operand(AddrModeParseType),
     OperandIndexed(IndexParseType, bool),
-
-    Register(RegEnum),
-
     Include(PathBuf),
     IncBin(PathBuf),
     IncBinRef(PathBuf),
@@ -263,9 +247,11 @@ pub enum Item {
 
     Org,
     Put,
+
     Fdb(usize),
     Fcb(usize),
     Fcc(String),
+
     Rmb,
     Fill,
     Zmb,
@@ -281,8 +267,6 @@ pub enum Item {
     Xor,
     ShiftRight,
     ShiftLeft,
-    UnaryPlus,
-    UnaryMinus,
     UnaryGreaterThan,
 }
 
@@ -291,41 +275,41 @@ impl Item {
         Self::OperandIndexed(imode, indirect)
     }
 
-    pub fn is_empty_comment(&self) -> bool {
-        if let Item::Comment(com) = &*self {
-            com.is_empty()
-        } else {
-            false
-        }
-    }
+    // pub fn is_empty_comment(&self) -> bool {
+    //     if let Item::Comment(com) = &*self {
+    //         com.is_empty()
+    //     } else {
+    //         false
+    //     }
+    // }
 
-    pub fn zero() -> Self {
-        Self::number(0)
-    }
+    // pub fn zero() -> Self {
+    //     Self::number(0)
+    // }
 
     pub fn number(n: i64) -> Self {
         Item::Number(n)
     }
 
-    pub fn get_my_tokenized_file(&self) -> Option<(&PathBuf, &PathBuf)> {
-        if let Item::TokenizedFile(file, parent) = self {
-            Some((file, parent))
-        } else {
-            None
-        }
-    }
+    // pub fn get_my_tokenized_file(&self) -> Option<(&PathBuf, &PathBuf)> {
+    //     if let Item::TokenizedFile(file, parent) = self {
+    //         Some((file, parent))
+    //     } else {
+    //         None
+    //     }
+    // }
 
-    pub fn am_i_tokenized_file(&self) -> bool {
-        self.get_my_tokenized_file().is_some()
-    }
+    // pub fn am_i_tokenized_file(&self) -> bool {
+    //     self.get_my_tokenized_file().is_some()
+    // }
 
-    pub fn is_tokenized_file(i: &Item) -> bool {
-        i.am_i_tokenized_file()
-    }
+    // pub fn is_tokenized_file(i: &Item) -> bool {
+    //     i.am_i_tokenized_file()
+    // }
 
-    pub fn get_tokenized_file(i: &Item) -> Option<(&PathBuf, &PathBuf)> {
-        i.get_my_tokenized_file()
-    }
+    // pub fn get_tokenized_file(i: &Item) -> Option<(&PathBuf, &PathBuf)> {
+    //     i.get_my_tokenized_file()
+    // }
 
     pub fn get_number(&self) -> Option<i64> {
         if let Item::Number(n) = self {
@@ -334,22 +318,22 @@ impl Item {
             None
         }
     }
-    pub fn label_name(&self) -> Option<&String> {
-        if let Item::Label(n) = self {
-            Some(n)
-        } else {
-            None
-        }
-    }
+    // pub fn label_name(&self) -> Option<&String> {
+    //     if let Item::Label(n) = self {
+    //         Some(n)
+    //     } else {
+    //         None
+    //     }
+    // }
 }
 
 impl<> BaseNode<Item, Position> {
-    pub fn is_empty_comment(&self) -> bool {
-        match self.item() {
-            Item::Comment(text) => text.is_empty(),
-            _ => false,
-        }
-    }
+    // pub fn is_empty_comment(&self) -> bool {
+    //     match self.item() {
+    //         Item::Comment(text) => text.is_empty(),
+    //         _ => false,
+    //     }
+    // }
     pub fn from_item_pos(item: Item, p: Position) -> Self
         {
             Self::new(item, vec![], p)
@@ -364,31 +348,31 @@ impl<> BaseNode<Item, Position> {
         Self::from_item_span(Item::Number(n), sp)
     }
 
-    pub fn to_label(txt: &str, ctx: Position) -> Self {
-        Self::from_item(Item::Label(txt.to_string()), ctx)
-    }
-    pub fn to_local_label(txt: &str, ctx: Position) -> Self {
-        Self::from_item(Item::LocalLabel(txt.to_string()), ctx)
-    }
+    // pub fn to_label(txt: &str, ctx: Position) -> Self {
+    //     Self::from_item(Item::Label(txt.to_string()), ctx)
+    // }
+    // pub fn to_local_label(txt: &str, ctx: Position) -> Self {
+    //     Self::from_item(Item::LocalLabel(txt.to_string()), ctx)
+    // }
 
-    pub fn get_label_name(&self) -> Option<&String> {
-        if let Item::Label(name) = self.item() {
-            Some(name)
-        } else {
-            None
-        }
-    }
+    // pub fn get_label_name(&self) -> Option<&String> {
+    //     if let Item::Label(name) = self.item() {
+    //         Some(name)
+    //     } else {
+    //         None
+    //     }
+    // }
 
-    pub fn get_include_file(&self) -> Option<&PathBuf> {
-        match self.item() {
-            Item::Include(name) => Some(name),
-            _ => None,
-        }
-    }
+    // pub fn get_include_file(&self) -> Option<&PathBuf> {
+    //     match self.item() {
+    //         Item::Include(name) => Some(name),
+    //         _ => None,
+    //     }
+    // }
 
-    pub fn is_include_file(&self) -> bool {
-        self.get_include_file().is_some()
-    }
+    // pub fn is_include_file(&self) -> bool {
+    //     self.get_include_file().is_some()
+    // }
     pub fn with_span(self, sp : Span) -> Self {
             let mut ret = self;
             ret.ctx = span_to_pos(sp);
@@ -418,10 +402,10 @@ impl<'a> Display for BaseNode<Item, Position> {
             Label(name) | LocalLabel(name) => name.clone(),
 
             Comment(comment) => comment.clone(),
-            QuotedString(test) => format!("\"{}\"", test),
-            Register(r) => r.to_string(),
+            // QuotedString(test) => format!("\"{}\"", test),
+            // Register(r) => r.to_string(),
 
-            RegisterList(vec) => join_vec(vec, ","),
+            // RegisterList(vec) => join_vec(vec, ","),
 
             LocalAssignment(name) | Assignment(name) => {
                 format!("{} equ {}", name, self.children[0])
@@ -432,7 +416,6 @@ impl<'a> Display for BaseNode<Item, Position> {
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
             Number(n) => n.to_string(),
-            UnaryMinus => "-".to_string(),
             UnaryTerm => join_children(""),
 
             Mul => "*".to_string(),

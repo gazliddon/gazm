@@ -1,16 +1,12 @@
-use std::panic::PanicInfo;
 
 use crate::item::{ Item, Node };
-use crate::{ast, cli, numbers};
+use crate::numbers;
 use crate::labels;
-use crate::expr::{self, parse_expr};
+use crate::expr::parse_expr;
 
-use crate::error::{IResult, ParseError, UserErrors};
+use crate::error::{IResult, ParseError};
 use crate::locate::{Span, matched_span, };
-use romloader::sources::SymbolTable;
 
-use nom::{InputTake, Offset};
-// use nom::error::ParseError;
 use nom::bytes::complete::{
     escaped,
     tag,
@@ -26,7 +22,6 @@ use nom::character::complete::{
 use nom::multi::{ separated_list1, separated_list0 };
 use nom::sequence::{preceded, separated_pair, terminated, tuple};
 use nom::combinator::cut;
-use nom_locate::position;
 
 pub static LIST_SEP: & str = ",";
 
@@ -109,11 +104,6 @@ pub fn match_str(input: Span) -> IResult<Span> {
     let body = take_while(move |c| !term.contains(c));
     escaped(body, '\\', one_of(term))(input)
 }
-pub fn match_file_str(input: Span) -> IResult<Span> {
-    let term = "\"n\\";
-    let body = take_while(move |c| !term.contains(c));
-    escaped(body, '\\', one_of(term))(input)
-}
 
 pub fn match_escaped_str(input: Span) -> IResult<Span> {
     preceded(nom_char('\"'), cut(terminated(match_str, nom_char('\"'))))(input)
@@ -126,12 +116,6 @@ pub fn match_file_name(input: Span) -> IResult<Span> {
 ////////////////////////////////////////////////////////////////////////////////
 // Number
 
-pub fn parse_escaped_str(input: Span) -> IResult< Item> {
-    let (rest, matched) = match_escaped_str(input)?;
-    Ok((rest, Item::QuotedString(matched.to_string())))
-}
-
-
 pub fn parse_number(input: Span) -> IResult< Node> {
     let (rest, num) = numbers::number_token(input)?;
     let matched = super::locate::matched_span(input,rest);
@@ -141,27 +125,6 @@ pub fn parse_number(input: Span) -> IResult< Node> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Compile a string as a fake file
-use std::collections::HashMap;
-use crate::ctx::Context;
-
-pub fn tokenize_text<'a>(code: &str, ctx : &'a mut Context) -> Result<crate::ast::Ast<'a>, String> {
-    use crate::tokenize::tokenize_file_from_str;
-    use crate::ast::Ast;
-    use romloader::sources::*;
-    use std::path::PathBuf;
-
-    let path = &PathBuf::from("nofile");
-    let mut errors = UserErrors::new(0);
-    let node = tokenize_file_from_str(path, code, &mut errors, ctx).map_err(|e| format!("{:?}", e))?;
-
-    let mut loader = SourceFileLoader::new();
-    loader.add_source_file(path, code).unwrap();
-
-    let tree = ast::make_tree(&node);
-    let ast = Ast::new(tree, ctx).map_err(|e| format!("error: {:?}", e.message))?;
-
-    Ok(ast)
-}
 
 pub fn get_block(input: Span<'_>) -> IResult<Span> {
     ws(wrapped_chars('{', is_not("}"), '}'))(input)

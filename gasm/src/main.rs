@@ -2,13 +2,6 @@
 #![allow(dead_code)]
 #![feature(try_blocks)]
 #![feature(backtrace)]
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::env::consts::OS;
-use std::hash::Hash;
-use std::os::unix::prelude::OsStrExt;
-use std::path::Path;
 
 mod ctx;
 mod as6809;
@@ -35,20 +28,12 @@ mod postfix;
 mod register;
 mod scopes;
 mod structs;
-// mod sourcefile;
-// mod symbols;
 mod sections;
 mod tokenize;
 mod util;
 
 use std::path::PathBuf;
-use std::process::abort;
-use std::time::Instant;
 
-use ast::ItemWithPos;
-use colored::*;
-use error::UserError;
-use messages::{debug, info, status};
 use romloader::sources::FileIo;
 use crate::ctx::Context;
 
@@ -60,13 +45,7 @@ static BANNER: &str = r#"
  \____|\__,_|___/_| |_| |_|  \___/ \___/ \___/   /_/
 "#;
 
-use crate::ast::AstNodeRef;
-use crate::ctx::WriteBin;
 use crate::error::*;
-use crate::item::{Item, Node};
-use crate::messages::Messageize;
-
-use assemble::Assembler;
 
 fn assemble(ctx: &mut Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
     use assemble::Assembler;
@@ -85,22 +64,8 @@ fn assemble(ctx: &mut Context) -> Result<assemble::Assembled, Box<dyn std::error
     Ok(ret)
 }
 
-fn print_tree(tree: &ast::AstNodeRef, depth: usize) {
-    let dstr = " ".repeat(depth * 4);
-
-    println!("{}{:?}", dstr, tree.value().item);
-
-    for n in tree.children() {
-        print_tree(&n, depth + 1);
-    }
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
-
-    use clap::Parser;
-    use item::Item;
-    use messages::*;
 
     let mut ctx: ctx::Context = cli::parse().into();
 

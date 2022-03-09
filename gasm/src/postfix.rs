@@ -1,7 +1,4 @@
 use romloader::Stack;
-use std::collections::{HashMap, VecDeque};
-use std::hash::Hash;
-use std::os::unix::prelude::OpenOptionsExt;
 
 pub trait GetPriotity {
     fn priority(&self) -> Option<usize>;
@@ -13,7 +10,6 @@ pub trait GetPriotity {
 #[derive(Debug, Clone)]
 pub struct PostFixer<I: Clone + GetPriotity> {
     opstack: Stack<I>,
-    input: Vec<I>,
     ret: Vec<I>,
 }
 
@@ -21,7 +17,6 @@ impl<I: Clone + GetPriotity + std::fmt::Debug> PostFixer<I> {
     pub fn new() -> Self {
         Self {
             opstack: Stack::new(),
-            input: Default::default(),
             ret: vec![],
         }
     }

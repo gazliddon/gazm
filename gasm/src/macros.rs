@@ -1,25 +1,21 @@
 use std::collections::HashMap;
 
-use crate::expr::parse_expr;
-use crate::labels::{get_just_label, parse_just_label};
+use crate::labels::get_just_label;
 use crate::locate::{Span, matched_span, span_to_pos};
-use crate::util::{self, get_block, sep_list1, sep_list0,wrapped_chars, ws};
+use crate::util::{get_block, sep_list0,wrapped_chars, ws};
 
 use nom::multi::separated_list0;
 use nom::{
-    branch::alt,
-    bytes::complete::{is_a, is_not, tag, take_until},
-    character::complete::{line_ending, multispace0, multispace1},
-    combinator::{all_consuming, eof, not, opt, recognize},
-    multi::{many0, many1},
-    sequence::{pair, preceded, separated_pair, terminated},
-    AsBytes,
+    bytes::complete::{ is_not, tag },
+    character::complete::{multispace0, multispace1},
+    combinator::recognize,
+    multi::many1,
+    sequence::separated_pair,
 };
-use romloader::sources::{LocationTrait, Position};
 
-use crate::error::{IResult, ParseError, UserError};
+use romloader::sources::Position;
 
-use crate::item::{Item, Node};
+use crate::error::{IResult, UserError};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacroDef {
@@ -72,7 +68,6 @@ impl MacroDef {
 ////////////////////////////////////////////////////////////////////////////////
 // Macros
 pub fn get_macro_def(input: Span<'_>) -> IResult<(Span, Vec<Span>, Span)> {
-    use nom::bytes::complete::tag;
     let rest = input;
     let (rest, (_, name)) = ws(separated_pair(tag("macro"), multispace1, get_just_label))(rest)?;
     let (rest, params) = wrapped_chars('(', sep_list0(get_just_label), ')')(rest)?;

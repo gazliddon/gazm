@@ -8,26 +8,24 @@ use Item::*;
 type CommandParseFn = fn(Span) -> IResult<Node>;
 
 use crate::{
-    astformat::as_string,
     item::{Item, Node},
-    labels::{get_just_label, parse_just_label},
+    labels::get_just_label,
     locate::matched_span,
-    util::{match_escaped_str, match_file_name, match_str},
+    util::{match_escaped_str, match_file_name},
 };
 
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
-    character::complete::{alpha1, anychar, multispace0, multispace1},
-    combinator::{map, opt, recognize},
-    error::ErrorKind::NoneOf,
-    multi::{many1, separated_list0, separated_list1},
+    character::complete::{alpha1, multispace0, multispace1},
+    combinator::{map, opt},
+    multi::separated_list1,
     sequence::{preceded, separated_pair, tuple},
 };
 
 use expr::parse_expr;
 
-use crate::error::{IResult, ParseError};
+use crate::error::IResult;
 use crate::locate::Span;
 
 fn parse_org_arg(input: Span) -> IResult<Node> {
@@ -197,7 +195,6 @@ lazy_static! {
 }
 
 fn command_token_function(input: Span) -> IResult<(Span, CommandParseFn)> {
-    use nom::error::Error;
 
     let (rest, matched) = alpha1(input)?;
     let token = matched.to_string().to_lowercase();

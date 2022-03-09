@@ -1,38 +1,30 @@
 use crate::{
-    cli, commands, comments,
-    expr::{self, parse_expr},
-    item,
-    labels::{get_just_label, parse_label},
+    item::{ Item, Node},
+    commands, comments,
+    labels::parse_label,
     locate::{matched_span, span_to_pos},
     macros::{parse_macro_call, parse_macro_definition},
-    messages::{self, messages},
+    messages::messages,
     opcodes,
     structs::{get_struct, parse_struct_definition},
-    util::{self, sep_list1, wrapped_chars, ws},
+    util::{self, ws},
 };
 
-use colored::*;
-use std::{
-    borrow::BorrowMut,
-    path::{Path, PathBuf},
-    vec,
-};
+use std::path::{Path, PathBuf};
 
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, take_until},
-    character::complete::{line_ending, multispace0, multispace1},
-    combinator::{all_consuming, cut, eof, not, opt, recognize},
-    multi::{many0, many1},
-    sequence::{pair, preceded, separated_pair, terminated},
-    AsBytes, Finish,
+    bytes::complete::is_not,
+    character::complete::{line_ending, multispace0 },
+    combinator::{all_consuming, cut, opt, recognize},
+    multi::many0,
+    sequence::{preceded, terminated},
 };
 use romloader::sources::Position;
 
 use crate::error::{IResult, ParseError, UserError, UserErrors};
-use crate::item::{Item, Node};
 use crate::locate::Span;
-use romloader::sources::{AsmSource, FileIo, SourceFileLoader, Sources};
+use romloader::sources::AsmSource;
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
@@ -41,11 +33,6 @@ fn get_line(input: Span) -> IResult<Span> {
     ))(input)?;
 
     Ok((rest, line))
-}
-
-struct Token {
-    text: String,
-    tokens: Vec<item::Node>,
 }
 
 pub fn tokenize_file_from_str<'a>(
@@ -63,7 +50,7 @@ pub fn tokenize_file_from_str<'a>(
 }
 
 fn mk_pc_equate(node: Node) -> Node {
-    use item::{Item::*, Node};
+    use Item::*;
     let pos = node.ctx().clone();
 
     match &node.item {
@@ -75,8 +62,6 @@ fn mk_pc_equate(node: Node) -> Node {
 
 struct Tokens<'a> {
     tokens: Vec<Node>,
-    macro_stack: Vec<String>,
-    errors: Vec<ParseError>,
     ctx: &'a crate::ctx::Context,
 }
 
@@ -84,8 +69,6 @@ impl<'a> Tokens<'a> {
     fn new(ctx: &'a crate::ctx::Context) -> Self {
         Self {
             tokens: vec![],
-            macro_stack: vec![],
-            errors: vec![],
             ctx,
         }
     }
@@ -178,7 +161,6 @@ impl<'a> Tokens<'a> {
         errors: &mut UserErrors,
     ) -> Result<Vec<Node>, UserError> {
         use crate::macros::MacroCall;
-        use item::{Item, Node};
 
         self.tokens = vec![];
 
@@ -215,7 +197,6 @@ impl<'a> Tokens<'a> {
             };
         }
         errors.raise_errors()?;
-
         // Expand all macros for this block of stuff
         let mut tokes = self.tokens.clone();
 
@@ -270,9 +251,8 @@ fn tokenize_file(
 ) -> anyhow::Result<Node> {
     use anyhow::Context;
 
-    use super::messages::*;
-    use item::Item::*;
-    let x = messages::messages();
+    use Item::*;
+    let x = messages();
 
     let (file_name, source, id) = ctx
         .read_source(&file)

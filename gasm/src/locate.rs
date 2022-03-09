@@ -1,9 +1,5 @@
-use std::{fmt::{Debug, DebugMap, Display}, usize};
-
 use nom_locate::LocatedSpan;
-use nom::{InputTake, Offset};
-
-use crate::commands::parse_command;
+use nom::InputTake;
 use romloader::sources::{Position, AsmSource};
 
 pub type Span<'a> = LocatedSpan<&'a str, AsmSource>;

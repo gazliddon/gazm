@@ -1,19 +1,15 @@
 use crate::locate::{ Span, matched_span };
-use super::item::{ Item,Node, IndexParseType, AddrModeParseType };
-use super::error::{IResult, ParseError};
+use super::item::{ Item,Node, IndexParseType, };
+use super::error::IResult;
 use super::register::get_reg;
 use super::expr::parse_expr;
 
-use emu::cpu::RegEnum;
 use nom::bytes::complete::{ tag, tag_no_case };
-use nom::sequence::{ pair, preceded, separated_pair, terminated, tuple};
-use nom::combinator::{ recognize, opt, all_consuming };
+use nom::sequence::{ pair, preceded, separated_pair, tuple};
 use nom::branch::alt;
 use crate::register::{ get_index_reg, get_pc_reg };
 
-use nom::character::complete::{
-    alpha1, multispace0, multispace1
-};
+use nom::character::complete::multispace0;
 
 // Addr Modes and Parsing Order
 //  ,--R    SubSub(RegEnum)         parse_pre_dec_dec
@@ -210,11 +206,8 @@ fn parse_indexed_direct(input: Span) -> IResult<Node> {
 }
 
 pub fn parse_indexed(input: Span) -> IResult<Node> {
-    use crate::util::{ wrapped_chars,ws };
     alt((parse_indexed_indirect,parse_extended_indirect,parse_indexed_direct))(input)
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests

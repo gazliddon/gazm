@@ -1,31 +1,22 @@
-use crate::{error, expr};
-use crate::expr::parse_expr;
-use crate::indexed::parse_indexed;
+use crate::expr;
 use crate::item::AddrModeParseType;
 use crate::locate::matched_span;
 use crate::register;
 
 use super::item::{Item, Node};
-use super::util;
-use emu::cpu::RegEnum;
 use emu::isa::AddrModeEnum;
 use emu::isa::{Dbase, Instruction, InstructionInfo};
 use nom::character::complete::digit0;
 
 use nom::branch::alt;
 
-// use std::ascii::AsciiExt;
-use nom::error::Error;
-use nom::error::ErrorKind::NoneOf;
-use std::collections::HashMap;
-
-use nom::character::complete::{alpha1, multispace0, multispace1};
+use nom::character::complete::{ alpha1, multispace1 };
 
 use nom::bytes::complete::tag;
-use nom::combinator::{cut, opt, recognize};
-use nom::sequence::{pair, preceded, separated_pair, terminated, tuple};
+use nom::combinator::recognize;
+use nom::sequence::{pair, preceded};
 
-use crate::error::{IResult, ParseError};
+use crate::error::IResult;
 use crate::locate::Span;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,7 +46,7 @@ pub fn opcode_token(input: Span) -> IResult<(&InstructionInfo, Span)> {
 }
 
 fn parse_immediate(input: Span) -> IResult<Node> {
-    use crate::item::AddrModeParseType::*;
+    use AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag("#"), expr::parse_expr)(input)?;
     let ret = Node::from_item_span(Operand(Immediate), input).with_child(matched);
@@ -80,8 +71,6 @@ fn parse_force_extended(input: Span) -> IResult<Node> {
 
 
 fn parse_reg_set(input: Span) -> IResult<Node> {
-    use crate::item::AddrModeParseType;
-    use nom::combinator::map;
     use Item::*;
 
     let (rest, matched) = register::parse_reg_set_1(input)?;
@@ -90,7 +79,6 @@ fn parse_reg_set(input: Span) -> IResult<Node> {
     Ok((rest, matched))
 }
 fn parse_opcode_reg_pair(input: Span) -> IResult<Node> {
-    use crate::item::AddrModeParseType;
     use nom::combinator::map;
     use Item::*;
     let reg_map = |(a, b)| Node::from_item_span(Operand(AddrModeParseType::RegisterPair(a, b)), input);
@@ -101,8 +89,7 @@ fn parse_opcode_reg_pair(input: Span) -> IResult<Node> {
 }
 
 fn parse_extended(input: Span) -> IResult<Node> {
-    use crate::item::AddrModeParseType::*;
-    use nom::combinator::map;
+    use AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = expr::parse_expr(input)?;
     let res = Node::from_item_span(Operand(Extended(false)), input).with_child(matched);
@@ -111,8 +98,6 @@ fn parse_extended(input: Span) -> IResult<Node> {
 
 fn parse_opcode_arg(input: Span) -> IResult<Node> {
     use super::indexed::parse_indexed;
-    use nom::combinator::map;
-    use Item::*;
 
     let (rest, matched) = alt((parse_indexed, parse_immediate, parse_force_dp, parse_force_extended,parse_extended))(input)?;
 
@@ -123,7 +108,6 @@ fn get_instruction<'a>(
     amode: &crate::item::AddrModeParseType,
     info: &'a InstructionInfo,
 ) -> Option<&'a Instruction> {
-    use crate::item::AddrModeParseType;
     use AddrModeEnum::*;
     let get = |amode| info.get_instruction(&amode);
 
@@ -148,7 +132,6 @@ fn get_instruction<'a>(
 }
 
 fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
-    use AddrModeEnum::*;
     use Item::*;
 
     let (rest, (info, text)) = opcode_token(input)?;
@@ -219,7 +202,6 @@ mod test {
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
-    use crate::util::tokenize_text;
 
     #[test]
     fn test_parse_misc() {

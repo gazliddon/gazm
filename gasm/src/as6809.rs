@@ -1,10 +1,11 @@
 // Load an AS6809 map file and create a binary
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use regex::Regex;
+use romloader::sources::SymbolWriter;
 
 pub struct MapFile {
-    text: String,
     pub data : Vec<Record>,
 }
 
@@ -13,10 +14,6 @@ pub fn read_to_string<P: AsRef<Path>>(path: P) -> anyhow::Result<String> {
     let ret = fs::read_to_string(path)?;
     Ok(ret)
 }
-
-use nom::AsBytes;
-use regex::Regex;
-use romloader::sources::{SymbolWriter, SymbolTable };
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Record {
@@ -64,7 +61,7 @@ impl MapFile {
     pub fn new<P: AsRef<Path>>(file_name: P) -> anyhow::Result<Self> {
         let text = read_to_string(file_name)?;
         let data = make_records(&text);
-        let ret = Self { text, data };
+        let ret = Self { data };
         Ok(ret)
     }
 }

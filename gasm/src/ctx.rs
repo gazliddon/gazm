@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 use crate::messages::Verbosity;
-use romloader::sources::{FileIo, SourceFileLoader, Sources, SymbolTable, SymbolTree};
+use romloader::sources::{FileIo, SourceFileLoader, Sources, SymbolTree};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -60,7 +60,7 @@ pub struct Context {
     pub symbols: SymbolTree,
     pub source_file_loader: SourceFileLoader,
 }
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 impl Context {
     pub fn get_source_file_loader(&self) -> &SourceFileLoader {
@@ -76,13 +76,16 @@ impl Context {
         self.source_file_loader.write(path, data)
     }
 
-    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize> { 
+    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         self.source_file_loader.get_size(path)
     }
 
-    pub fn read_source<P: AsRef<Path>>(&mut self, path : P) -> Result<(PathBuf, String, u64)> {
-        let path :PathBuf = self.vars.expand_vars(path.as_ref().to_string_lossy()).into();
+    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String, u64)> {
+        let path: PathBuf = self
+            .vars
+            .expand_vars(path.as_ref().to_string_lossy())
+            .into();
         self.source_file_loader.read_source(&path)
     }
 

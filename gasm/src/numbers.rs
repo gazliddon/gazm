@@ -1,10 +1,9 @@
 use nom::branch::alt;
 use nom::bytes::complete::{ tag, is_a };
-use nom::combinator::{ recognize, opt,  };
-use nom::multi::{many0, many1};
-use nom::sequence::{preceded, terminated, pair, tuple};
+use nom::combinator::recognize;
+use nom::multi::many1;
 
-use nom::character::complete::{alpha1, alphanumeric1, char as nom_char, one_of};
+use nom::character::complete::alphanumeric1;
 
 use crate::error::{IResult, ParseError};
 use crate::locate::Span;

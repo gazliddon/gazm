@@ -1,14 +1,7 @@
-use std::fmt::Display;
-use std::path::PathBuf;
-
-use nom::combinator::fail;
-use nom::{self, Offset};
-use nom_locate::position;
 
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::locate::span_to_pos;
 use crate::locate::Span;
-use nom::AsBytes;
 use romloader::sources::{Position, SourceInfo};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -27,9 +20,6 @@ impl ParseError {
 pub fn parse_error(err: &str, ctx: Span) -> nom::Err<ParseError> {
     nom::Err::Error(ParseError::new(err.to_string(), &ctx, false))
 }
-pub fn user_error(_err: &str, _ctx: Span) -> UserError {
-    panic!()
-}
 
 pub fn parse_failure(err: &str, ctx: Span) -> nom::Err<ParseError> {
     nom::Err::Failure(ParseError::new(err.to_string(), &ctx, true))
@@ -46,51 +36,15 @@ impl ParseError {
         }
     }
 
-    pub fn with_message(self, msg : &str) -> Self {
-        let mut ret = self;
-        ret.message = Some(msg.to_string());
-        ret
-    }
-
     pub fn set_failure(self, failure: bool) -> Self {
         let mut ret = self;
         ret.failure = failure;
         ret
     }
 
-    pub fn from_pos(message: String, pos: Position) -> Self {
-        Self {
-            message: Some(message),
-            pos,
-            failure: false,
-        }
-    }
-
-    // pub fn span(&self) -> &Span { &self.span }
-
-    pub fn line(&self) -> usize {
-        panic!()
-    }
-
-    pub fn offset(&self) -> usize {
-        panic!()
-    }
-
-    pub fn pos(&self) -> &Position {
-        &self.pos
-    }
-
-    pub fn fragment<'a>(&self, sources: &'a romloader::sources::Sources) -> &'a str {
-        sources.get_source_info(&self.pos).unwrap().fragment
-    }
     pub fn is_failure(&self) -> bool {
         self.failure
     }
-
-    // pub fn from_text(message : &str) -> Self {
-    //     Self {message: Some(message.to_string()),
-    //     pos : Default::default() }
-    // }
 }
 
 impl From<nom::Err<ParseError>> for ParseError {
@@ -215,7 +169,6 @@ impl UserError {
 
     pub fn pretty(&self) -> Result<String, Box<dyn std::error::Error>> {
         use std::fmt::Write as FmtWrite;
-        use std::io::Write as IoWrite;
 
         let mut s = String::new();
 

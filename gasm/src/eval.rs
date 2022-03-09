@@ -1,19 +1,14 @@
-use serde_json::to_string;
 
-use crate::ast::{Ast, AstNodeId, AstNodeMut, AstNodeRef, ItemWithPos, to_priority};
+use crate::ast::{AstNodeId, AstNodeRef, };
 use crate::item::Item;
 use crate::postfix::GetPriotity;
 use romloader::Stack;
 
-use std::backtrace::Backtrace;
-use std::fmt::{Display, format};
-use std::{collections::HashMap, hash::Hash};
+use std::fmt::Display;
 
-use crate::error::{AstError, UserError};
-use romloader::sources::{SymbolError, SymbolTable, Position, SymbolQuery};
+use crate::error::AstError;
+use romloader::sources::{Position, SymbolQuery};
 
-
-use crate::astformat::as_string;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -59,14 +54,6 @@ impl Display for EvalError {
 impl From<EvalError> for AstError {
     fn from(err: EvalError) -> Self {
         AstError::from_node_id(err.source.to_string(),err.node, err.pos)
-    }
-}
-
-fn number_or_error(i: Item, n: AstNodeRef) -> Result<Item, EvalError> {
-    if let Item::Number(_) = i {
-        Ok(i)
-    } else {
-        Err( EvalError::new(EvalErrorEnum::ExpectedANumber, n))
     }
 }
 

@@ -1,15 +1,6 @@
-use clap::Parser;
 use clap::{Arg, Command};
-use romloader::sources::{FileIo, SourceFileLoader, Sources, SymbolTable, SymbolTree};
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::os::unix::prelude::OpenOptionsExt;
-use std::path::{Path, PathBuf};
-use std::{usize, vec};
-
-use crate::binary::BinRef;
+use romloader::sources::SourceFileLoader;
 use crate::messages::Verbosity;
-
 use crate::ctx::Context;
 
 impl From<clap::ArgMatches> for Context {

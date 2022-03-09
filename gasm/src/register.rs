@@ -2,22 +2,16 @@ use super::item::{Item, Node};
 use super::util;
 
 use emu::cpu::RegEnum;
-use nom::branch::alt;
-use nom::bytes::complete::tag_no_case;
 use nom::character::complete::{alpha1, multispace0};
 use nom::multi::separated_list1;
 use nom::sequence::{separated_pair, tuple};
-use nom::{ExtendInto, Offset};
 
 use nom::bytes::complete::tag;
-use nom::combinator::value;
 
 use std::collections::HashSet;
 
-use crate::error::{IResult, ParseError};
+use crate::error::IResult;
 use crate::locate::Span;
-
-use nom_locate::position;
 
 // Register parsing
 
@@ -70,12 +64,6 @@ pub fn get_pc_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
     }
 }
 
-fn get_reg_list(input: Span) -> IResult<Vec<emu::cpu::RegEnum>> {
-    let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
-    let (rest, matched) = separated_list1(sep, get_reg)(input)?;
-    Ok((rest, matched))
-}
-
 pub fn get_reg_pair(input: Span) -> IResult<(emu::cpu::RegEnum, emu::cpu::RegEnum)> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let (rest, matched) = separated_pair(get_reg, sep, get_reg)(input)?;
@@ -100,26 +88,24 @@ fn get_reg_set(input: Span) -> IResult<HashSet<emu::cpu::RegEnum>> {
     Ok((rest, ret))
 }
 
-pub fn parse_reg(input: Span) -> IResult<Node> {
-    let (rest, matched) = get_reg(input)?;
-    let ret = Node::from_item_span(Item::Register(matched), input);
-    Ok((rest, ret))
-}
+// pub fn parse_reg(input: Span) -> IResult<Node> {
+//     let (rest, matched) = get_reg(input)?;
+//     let ret = Node::from_item_span(Item::Register(matched), input);
+//     Ok((rest, ret))
+// }
 
-pub fn parse_index_reg(input: Span) -> IResult<Node> {
-    let (rest, matched) = get_index_reg(input)?;
-    let ret = Node::from_item_span(Item::Register(matched), input);
-    Ok((rest, ret))
-}
+// pub fn parse_index_reg(input: Span) -> IResult<Node> {
+//     let (rest, matched) = get_index_reg(input)?;
+//     let ret = Node::from_item_span(Item::Register(matched), input);
+//     Ok((rest, ret))
+// }
 
-pub fn parse_reg_list(input: Span) -> IResult<Item> {
-    let (rest, matched) = get_reg_list(input)?;
-    Ok((rest, Item::RegisterList(matched)))
-}
+// pub fn parse_reg_list(input: Span) -> IResult<Item> {
+//     let (rest, matched) = get_reg_list(input)?;
+//     Ok((rest, Item::RegisterList(matched)))
+// }
 
 pub fn parse_reg_set_n(input: Span, n: usize) -> IResult<Node> {
-    use nom::error::Error;
-    use nom::error::ErrorKind::NoneOf;
 
     let (rest, matched) = parse_reg_set(input)?;
 

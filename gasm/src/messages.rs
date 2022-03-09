@@ -1,7 +1,6 @@
 #![allow(unused_macros)]
 
 use colored::*;
-use nom::{combinator::success, AsChar};
 
 pub trait Messageize {
     fn error(self) -> ColoredString;
@@ -127,10 +126,8 @@ impl Messages {
     }
 }
 
-use std::borrow::Borrow;
 use std::sync::{Mutex, Once};
-use std::time::Duration;
-use std::{mem::MaybeUninit, thread};
+use std::mem::MaybeUninit;
 
 struct SingletonReader {
     // Since we will be used in many threads, we need to protect
