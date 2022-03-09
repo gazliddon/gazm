@@ -42,8 +42,7 @@ impl RegEnum {
     }
 }
 
-
-use serde_derive::{ Deserialize, Serialize };
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Regs {

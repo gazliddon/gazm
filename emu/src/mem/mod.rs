@@ -1,9 +1,9 @@
 mod lmemmap;
+mod maker;
 mod memblock;
 mod memcore;
 mod memmap;
 mod region;
-mod maker;
 
 pub use lmemmap::*;
 pub use memblock::*;

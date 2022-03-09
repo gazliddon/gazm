@@ -195,7 +195,6 @@ lazy_static! {
 }
 
 fn command_token_function(input: Span) -> IResult<(Span, CommandParseFn)> {
-
     let (rest, matched) = alpha1(input)?;
     let token = matched.to_string().to_lowercase();
 

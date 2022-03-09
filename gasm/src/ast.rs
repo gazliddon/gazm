@@ -5,18 +5,17 @@ pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 
 // use std::fmt::{Debug, DebugMap};
 
-
 use crate::error::{AstError, UserError};
-use crate::eval::{ EvalErrorEnum, EvalError };
+use crate::eval::{EvalError, EvalErrorEnum};
 use crate::scopes::ScopeBuilder;
 
-use crate::item::{Item, Node};
 use crate::ctx::Context;
+use crate::item::{Item, Node};
 use romloader::sources::Position;
 
 use crate::messages::*;
 use crate::postfix;
-use romloader::sources::{SourceInfo, SymbolId, SymbolWriter, SymbolQuery};
+use romloader::sources::{SourceInfo, SymbolId, SymbolQuery, SymbolWriter};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -56,7 +55,7 @@ pub fn make_tree(node: &Node) -> AstTree {
 #[derive(Debug)]
 pub struct Ast<'a> {
     pub tree: AstTree,
-    pub ctx : &'a mut Context
+    pub ctx: &'a mut Context,
 }
 
 impl<'a> Ast<'a> {
@@ -65,11 +64,8 @@ impl<'a> Ast<'a> {
         Self::new(tree, ctx)
     }
 
-    pub fn new(tree: AstTree, ctx : &'a mut Context) -> Result<Self, UserError> {
-        let mut ret = Self {
-            tree,
-            ctx,
-        };
+    pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
+        let mut ret = Self { tree, ctx };
 
         ret.rename_locals();
 
@@ -340,15 +336,18 @@ impl<'a> Ast<'a> {
                             x.debug(&msg);
                         }
 
-                        Err(EvalError{source : EvalErrorEnum::CotainsPcReference,  ..}) => {
-                            pc_references.push((name.clone(),n.id()));
+                        Err(EvalError {
+                            source: EvalErrorEnum::CotainsPcReference,
+                            ..
+                        }) => {
+                            pc_references.push((name.clone(), n.id()));
                             let msg = format!("Marking to convert to pc reference: {}", name);
                             x.debug(&msg);
                         }
 
                         Err(e) => {
-                            let ast_err : AstError = e.into();
-                            return Err(self.node_error(&ast_err.to_string(), cnode.id(), true))
+                            let ast_err: AstError = e.into();
+                            return Err(self.node_error(&ast_err.to_string(), cnode.id(), true));
                         }
                     }
                 }
@@ -356,7 +355,7 @@ impl<'a> Ast<'a> {
 
             self.ctx.symbols = symbols;
 
-            for (name,id) in pc_references {
+            for (name, id) in pc_references {
                 let mut n = self.tree.get_mut(id).unwrap();
                 n.value().item = Item::AssignmentFromPc(name);
             }

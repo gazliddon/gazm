@@ -10,7 +10,7 @@ use nom::character::complete::digit0;
 
 use nom::branch::alt;
 
-use nom::character::complete::{ alpha1, multispace1 };
+use nom::character::complete::{alpha1, multispace1};
 
 use nom::bytes::complete::tag;
 use nom::combinator::recognize;
@@ -25,10 +25,9 @@ lazy_static::lazy_static! {
     static ref OPCODES_REC: Dbase = Dbase::new();
 }
 
-pub fn get_opcode_info(i : &Instruction) -> Option<&InstructionInfo> {
+pub fn get_opcode_info(i: &Instruction) -> Option<&InstructionInfo> {
     OPCODES_REC.get_opcode_info_from_opcode(i.opcode)
 }
-
 
 pub fn opcode_just_token(input: Span) -> IResult<Span> {
     nom::combinator::map(opcode_token, |(_, e)| e)(input)
@@ -69,7 +68,6 @@ fn parse_force_extended(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
-
 fn parse_reg_set(input: Span) -> IResult<Node> {
     use Item::*;
 
@@ -81,7 +79,8 @@ fn parse_reg_set(input: Span) -> IResult<Node> {
 fn parse_opcode_reg_pair(input: Span) -> IResult<Node> {
     use nom::combinator::map;
     use Item::*;
-    let reg_map = |(a, b)| Node::from_item_span(Operand(AddrModeParseType::RegisterPair(a, b)), input);
+    let reg_map =
+        |(a, b)| Node::from_item_span(Operand(AddrModeParseType::RegisterPair(a, b)), input);
 
     let (rest, matched) = map(register::get_reg_pair, reg_map)(input)?;
 
@@ -99,7 +98,13 @@ fn parse_extended(input: Span) -> IResult<Node> {
 fn parse_opcode_arg(input: Span) -> IResult<Node> {
     use super::indexed::parse_indexed;
 
-    let (rest, matched) = alt((parse_indexed, parse_immediate, parse_force_dp, parse_force_extended,parse_extended))(input)?;
+    let (rest, matched) = alt((
+        parse_indexed,
+        parse_immediate,
+        parse_force_dp,
+        parse_force_extended,
+        parse_extended,
+    ))(input)?;
 
     Ok((rest, matched))
 }
@@ -187,8 +192,8 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
 }
 
 pub fn parse_opcode(input: Span) -> IResult<Node> {
-    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input).map_err(|_|
-        crate::error::parse_error("Expected an opcode", input))?;
+    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)
+        .map_err(|_| crate::error::parse_error("Expected an opcode", input))?;
     Ok((rest, item))
 }
 
@@ -197,9 +202,9 @@ mod test {
 
     use std::os::unix::prelude::JoinHandleExt;
 
-    use romloader::sources::Position;
     use emu::cpu::RegEnum;
     use pretty_assertions::{assert_eq, assert_ne};
+    use romloader::sources::Position;
 
     use super::*;
 
@@ -221,7 +226,6 @@ mod test {
             ("lda d,y", "lda D,Y"),
             ("lda %1111,pc", "lda 15,PC"),
         ];
-
 
         // for (code, desired) in test {
         //     println!("{:?} -> {:?}", code, desired);

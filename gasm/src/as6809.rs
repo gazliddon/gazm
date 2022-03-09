@@ -1,12 +1,12 @@
 // Load an AS6809 map file and create a binary
 
-use std::fs;
-use std::path::Path;
 use regex::Regex;
 use romloader::sources::SymbolWriter;
+use std::fs;
+use std::path::Path;
 
 pub struct MapFile {
-    pub data : Vec<Record>,
+    pub data: Vec<Record>,
 }
 
 pub fn read_to_string<P: AsRef<Path>>(path: P) -> anyhow::Result<String> {
@@ -17,11 +17,14 @@ pub fn read_to_string<P: AsRef<Path>>(path: P) -> anyhow::Result<String> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Record {
-    pub addr : u16,
-    pub data : Vec<u8>,
+    pub addr: u16,
+    pub data: Vec<u8>,
 }
 
-pub fn add_reference_syms<P: AsRef<Path>>(file_name : P, syms : &mut dyn SymbolWriter) -> anyhow::Result<()> {
+pub fn add_reference_syms<P: AsRef<Path>>(
+    file_name: P,
+    syms: &mut dyn SymbolWriter,
+) -> anyhow::Result<()> {
     let text = read_to_string(file_name)?;
 
     let equ_rex = Regex::new(r"^(?P<label>\S+)\s*equ\s*(?P<data>[0-9]+)").unwrap();
@@ -37,7 +40,7 @@ pub fn add_reference_syms<P: AsRef<Path>>(file_name : P, syms : &mut dyn SymbolW
     Ok(())
 }
 
-fn make_records(x: &str) -> Vec<Record>{
+fn make_records(x: &str) -> Vec<Record> {
     let data_rex = Regex::new(r"^(?P<addr>[0-9A-F]{4})\s+(?P<data>[0-9A-F]{2}+)").unwrap();
 
     let mut ret = vec![];
@@ -51,10 +54,10 @@ fn make_records(x: &str) -> Vec<Record>{
                 .step_by(2)
                 .map(|x| u8::from_str_radix(&data[x..x + 2], 16).unwrap())
                 .collect();
-            ret.push(Record{addr,data})
+            ret.push(Record { addr, data })
         }
     }
-        ret
+    ret
 }
 
 impl MapFile {

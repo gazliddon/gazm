@@ -1,4 +1,3 @@
-
 ////////////////////////////////////////////////////////////////////////////////
 // Traits
 
@@ -16,18 +15,13 @@ pub trait SymbolQuery {
 }
 
 pub trait SymbolWriter {
-    fn add_symbol_with_value(
-        &mut self,
-        name: &str,
-        value: i64,
-    ) -> Result<SymbolId, SymbolError>;
+    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<SymbolId, SymbolError>;
 
     fn remove_symbol_name(&mut self, name: &str);
     fn add_symbol(&mut self, name: &str) -> Result<SymbolId, SymbolError>;
 
     fn add_reference_symbol(&mut self, name: &str, val: i64);
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
@@ -73,19 +67,19 @@ impl SymbolTree {
         self.current_scope = self.tree.root().id()
     }
 
-    pub fn set_scope_fqn(&mut self, name : &str) {
+    pub fn set_scope_fqn(&mut self, name: &str) {
         panic!("{}", name)
     }
 
     // enters the child scope below the current_scope
     // If it doesn't exist then create it
-    pub fn set_scope(&mut self, name : &str) {
+    pub fn set_scope(&mut self, name: &str) {
         let node = self.tree.get(self.current_scope).unwrap();
 
         for c in node.children() {
             if c.value().get_scope_name() == name {
                 self.current_scope = c.id();
-                return
+                return;
             }
         }
 
@@ -105,7 +99,7 @@ impl SymbolQuery for SymbolTree {
         while node.is_some() {
             if let Some(n) = node {
                 if let Ok(v) = n.value().get_symbol_info(name) {
-                    return Ok(v)
+                    return Ok(v);
                 }
             }
             node = node.and_then(|n| n.parent());
@@ -116,11 +110,7 @@ impl SymbolQuery for SymbolTree {
 }
 
 impl SymbolWriter for SymbolTree {
-    fn add_symbol_with_value(
-        &mut self,
-        name: &str,
-        value: i64,
-    ) -> Result<SymbolId, SymbolError> {
+    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<SymbolId, SymbolError> {
         let mut node = self.tree.get_mut(self.current_scope).unwrap();
         node.value().add_symbol_with_value(name, value)
     }
@@ -139,13 +129,11 @@ impl SymbolWriter for SymbolTree {
         let mut node = self.tree.get_mut(self.current_scope).unwrap();
         node.value().add_reference_symbol(name, val)
     }
-
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub type SymbolId = usize;
 /// Holds information about a symbol
@@ -192,11 +180,7 @@ impl SymbolQuery for SymbolTable {
 }
 
 impl SymbolWriter for SymbolTable {
-    fn add_symbol_with_value(
-        &mut self,
-        name: &str,
-        value: i64,
-    ) -> Result<SymbolId, SymbolError> {
+    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<SymbolId, SymbolError> {
         let nstr: String = name.into();
         let id = self.add_symbol(&nstr)?;
         self.set_value(id, value)?;
@@ -289,6 +273,4 @@ impl SymbolTable {
         self.id += 1;
         ret
     }
-
-
 }

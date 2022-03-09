@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, ops::Deref};
 #[derive(Debug, PartialEq, Clone)]
-pub struct Stack<OP: Clone > {
-    stack : VecDeque<OP>,
+pub struct Stack<OP: Clone> {
+    stack: VecDeque<OP>,
 }
 
 impl<OP: Clone> Default for Stack<OP> {
@@ -20,12 +20,12 @@ impl<A: Clone> Deref for Stack<A> {
     }
 }
 
-impl<OP: Clone > Stack<OP> {
+impl<OP: Clone> Stack<OP> {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn push(&mut self, op : OP) {
+    pub fn push(&mut self, op: OP) {
         self.stack.push_front(op)
     }
 
@@ -36,10 +36,10 @@ impl<OP: Clone > Stack<OP> {
     /// Pop top pair from stack
     /// rhs = top, lhs = next
     /// returns (rhs, lhs)
-    pub fn pop_pair(&mut self) -> (OP,OP) {
+    pub fn pop_pair(&mut self) -> (OP, OP) {
         let rhs = self.pop();
         let lhs = self.pop();
-        (rhs,lhs)
+        (rhs, lhs)
     }
 
     pub fn flush(&mut self) -> Vec<OP> {

@@ -106,7 +106,6 @@ fn get_reg_set(input: Span) -> IResult<HashSet<emu::cpu::RegEnum>> {
 // }
 
 pub fn parse_reg_set_n(input: Span, n: usize) -> IResult<Node> {
-
     let (rest, matched) = parse_reg_set(input)?;
 
     if let Item::RegisterSet(regs) = matched.item() {

@@ -1,4 +1,4 @@
-use serde_derive::{ Deserialize, Serialize };
+use serde_derive::{Deserialize, Serialize};
 
 bitflags::bitflags! {
 

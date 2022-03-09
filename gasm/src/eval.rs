@@ -1,5 +1,4 @@
-
-use crate::ast::{AstNodeId, AstNodeRef, };
+use crate::ast::{AstNodeId, AstNodeRef};
 use crate::item::Item;
 use crate::postfix::GetPriotity;
 use romloader::Stack;
@@ -29,8 +28,8 @@ pub enum EvalErrorEnum {
 
 #[derive(Error, Debug, Clone)]
 pub struct EvalError {
-    node : AstNodeId,
-    pos:   Position,
+    node: AstNodeId,
+    pos: Position,
     #[source]
     pub source: EvalErrorEnum,
 }
@@ -40,7 +39,7 @@ impl EvalError {
         Self {
             node: node.id(),
             pos: node.value().pos.clone(),
-            source
+            source,
         }
     }
 }
@@ -53,7 +52,7 @@ impl Display for EvalError {
 
 impl From<EvalError> for AstError {
     fn from(err: EvalError) -> Self {
-        AstError::from_node_id(err.source.to_string(),err.node, err.pos)
+        AstError::from_node_id(err.source.to_string(), err.node, err.pos)
     }
 }
 
@@ -87,15 +86,15 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
     let rez = match i {
         PostFixExpr => eval_postfix(symbols, n)?,
 
-        Label(name) => symbols.get_value(name).map(Item::number).map_err(|_| {
-            EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n)
-        })?,
+        Label(name) => symbols
+            .get_value(name)
+            .map(Item::number)
+            .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
 
-        Pc => {
-            symbols.get_value("*").map(Item::number).map_err(|_| {
-                EvalError::new(EvalErrorEnum::CotainsPcReference, n)
-            })?
-        }
+        Pc => symbols
+            .get_value("*")
+            .map(Item::number)
+            .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,
 
         UnaryTerm => {
             let mut c = n.children();
@@ -107,9 +106,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
 
             let num = &match ops.value().item {
                 Item::Sub => Item::Number(-num),
-                _ => {
-                    return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n))
-                }
+                _ => return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n)),
             };
 
             num.clone()
@@ -118,9 +115,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
         Number(_) => i.clone(),
 
         _ => {
-            return Err(
-                EvalError::new(EvalErrorEnum::UnableToEvaluate, n)
-                );
+            return Err(EvalError::new(EvalErrorEnum::UnableToEvaluate, n));
         }
     };
 
@@ -128,13 +123,9 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
     if let Item::Number(_) = rez {
         Ok(rez)
     } else {
-        Err(
-            EvalError::new(EvalErrorEnum::ExpectedANumber, n)
-            )
+        Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n))
     }
 }
-
-
 
 /// Evaluates a postfix expression
 fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalError> {
@@ -178,11 +169,9 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
                 };
                 Ok(res)
             })
-            .map_err(|_| 
-                { EvalError::new(EvalErrorEnum::UnableToEvaluate, *cn) })??;
+            .map_err(|_| EvalError::new(EvalErrorEnum::UnableToEvaluate, *cn))??;
 
             s.push(Number(res))
-
         } else {
             s.push(i.clone());
         }

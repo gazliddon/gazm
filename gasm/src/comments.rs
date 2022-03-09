@@ -1,17 +1,17 @@
-use crate::item::{ Item, Node };
+use crate::item::{Item, Node};
 use nom::character::complete::not_line_ending;
 
-use nom::bytes::complete::take_until ;
+use nom::bytes::complete::take_until;
 
-use nom::combinator::recognize;
 use nom::branch::alt;
-use nom::sequence::{tuple, pair};
 use nom::bytes::complete::tag;
+use nom::combinator::recognize;
+use nom::sequence::{pair, tuple};
 
 use crate::error::IResult;
 use crate::locate::Span;
 
-static COMMENT: & str = ";";
+static COMMENT: &str = ";";
 
 fn get_comment(input: Span) -> IResult<Span> {
     let comments = alt((tag(";"), tag("//")));
@@ -26,14 +26,14 @@ fn parse_comment(input: Span) -> IResult<Node> {
     use Item::*;
 
     let (rest, matched) = get_comment(input)?;
-    let ret = Node::from_item_span(Comment(matched.to_string()),input);
+    let ret = Node::from_item_span(Comment(matched.to_string()), input);
     Ok((rest, ret))
 }
 
 pub fn strip_star_comment(input: Span) -> IResult<Node> {
     use crate::util::ws;
     let (rest, matched) = ws(get_star_comment)(input)?;
-    let ret = Node::from_item_span(Item::Comment(matched.to_string()),input);
+    let ret = Node::from_item_span(Item::Comment(matched.to_string()), input);
     Ok((rest, ret))
 }
 
@@ -52,7 +52,6 @@ pub fn strip_comments(input: Span) -> IResult<Option<Node>> {
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // tests
 #[allow(unused_imports)]
@@ -62,52 +61,52 @@ mod test {
     use super::*;
     use pretty_assertions::assert_eq;
 
-//     fn test_comments(comment: &str, pre_amble: &str) {
-//         let line = format!("{}{}", pre_amble, comment);
-//         println!("comment:   {:?}", comment);
-//         println!("pre_amble: {:?}", pre_amble);
-//         println!("line:      {:?}", line.as_str());
+    //     fn test_comments(comment: &str, pre_amble: &str) {
+    //         let line = format!("{}{}", pre_amble, comment);
+    //         println!("comment:   {:?}", comment);
+    //         println!("pre_amble: {:?}", pre_amble);
+    //         println!("line:      {:?}", line.as_str());
 
-//         let start = pre_amble.len();
-//         let end = start + comment.len();
-//         let des_ctx = Position::new(start,end);
+    //         let start = pre_amble.len();
+    //         let end = start + comment.len();
+    //         let des_ctx = Position::new(start,end);
 
-//         let line = mk_span("", &line);
-//         let (rest, com) = strip_comments(line).unwrap();
-//         assert!(com.is_some());
-//         println!("{:?}", com);
-//         let des = Node::from_item(Item::Comment(comment.to_string()), line);
-//         let rest : &str = rest.as_ref();
-//         assert_eq!(rest, pre_amble);
-//         assert_eq!(des, com.unwrap());
-//     }
+    //         let line = mk_span("", &line);
+    //         let (rest, com) = strip_comments(line).unwrap();
+    //         assert!(com.is_some());
+    //         println!("{:?}", com);
+    //         let des = Node::from_item(Item::Comment(comment.to_string()), line);
+    //         let rest : &str = rest.as_ref();
+    //         assert_eq!(rest, pre_amble);
+    //         assert_eq!(des, com.unwrap());
+    //     }
 
-//     #[test]
-//     fn test_strip_comments_3() {
-//         let comment = &";lda kskjkja".to_string();
-//         let pre_amble = &"   ";
-//         test_comments(comment, pre_amble);
-//     }
+    //     #[test]
+    //     fn test_strip_comments_3() {
+    //         let comment = &";lda kskjkja".to_string();
+    //         let pre_amble = &"   ";
+    //         test_comments(comment, pre_amble);
+    //     }
 
-//     #[test]
-//     fn test_strip_comments_2() {
-//         let comment = &"; lda kskjkja".to_string();
-//         let pre_amble = &" skljk  kds lk ";
-//         test_comments(comment, pre_amble);
+    //     #[test]
+    //     fn test_strip_comments_2() {
+    //         let comment = &"; lda kskjkja".to_string();
+    //         let pre_amble = &" skljk  kds lk ";
+    //         test_comments(comment, pre_amble);
 
-//         let comment = &";;;; lda kskjkja".to_string();
-//         let pre_amble = &"skljk  kds lk ";
-//         test_comments(comment, pre_amble);
-//     }
+    //         let comment = &";;;; lda kskjkja".to_string();
+    //         let pre_amble = &"skljk  kds lk ";
+    //         test_comments(comment, pre_amble);
+    //     }
 
-//     #[test]
-//     fn test_strip_comments() {
-//         let comment = &";;; kljlkaslksa";
-//         let pre_amble = &"    ";
-//         test_comments(comment, pre_amble);
+    //     #[test]
+    //     fn test_strip_comments() {
+    //         let comment = &";;; kljlkaslksa";
+    //         let pre_amble = &"    ";
+    //         test_comments(comment, pre_amble);
 
-//         let comment = &";";
-//         let pre_amble = &"    ";
-//         test_comments(comment, pre_amble);
-//     }
+    //         let comment = &";";
+    //         let pre_amble = &"    ";
+    //         test_comments(comment, pre_amble);
+    //     }
 }

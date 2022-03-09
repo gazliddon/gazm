@@ -1,6 +1,6 @@
 use byteorder::ByteOrder;
-use serde_derive::Deserialize;
 use mem::memmap::MemMap;
+use serde_derive::Deserialize;
 
 use crate::mem;
 
@@ -18,15 +18,15 @@ pub struct MemInit {
     last: usize,
 }
 
-fn create_regions_from_str<E: ByteOrder>(input : &str) -> serde_yaml::Result<MemMap>{
+fn create_regions_from_str<E: ByteOrder>(input: &str) -> serde_yaml::Result<MemMap> {
     use mem::MemMapIO;
 
     let mut mm = mem::memmap::MemMap::new();
     let loaded: Vec<MemInit> = serde_yaml::from_str(input)?;
 
     for l in loaded.iter() {
-        let size = (l.last - l.start)+1;
-        mm.add_mem_block(&l.name,false,l.start as u16, size as u32);
+        let size = (l.last - l.start) + 1;
+        mm.add_mem_block(&l.name, false, l.start as u16, size as u32);
     }
 
     Ok(mm)
@@ -44,5 +44,3 @@ mod test {
         // assert!(false);
     }
 }
-
-

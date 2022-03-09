@@ -1,19 +1,18 @@
-
 #[derive(Clone)]
-pub struct Run<'a, A : Eq + Copy> {
-    pub run : usize,
-    pub item : &'a A,
+pub struct Run<'a, A: Eq + Copy> {
+    pub run: usize,
+    pub item: &'a A,
 }
 
-impl <'a,A: Eq + Copy> Run<'a,A> {
-    pub fn new(item : &'a A) -> Self {
-        Self {run: 1, item}
+impl<'a, A: Eq + Copy> Run<'a, A> {
+    pub fn new(item: &'a A) -> Self {
+        Self { run: 1, item }
     }
-    pub fn inc(&mut self ) {
+    pub fn inc(&mut self) {
         self.run += 1;
     }
 
-    pub fn reset(&mut self, val : &'a A) {
+    pub fn reset(&mut self, val: &'a A) {
         self.run = 1;
         self.item = val;
     }
@@ -21,17 +20,19 @@ impl <'a,A: Eq + Copy> Run<'a,A> {
 
 #[derive(Default)]
 pub struct Rle<'a, A: Eq + Copy> {
-    run : Option<Run<'a,A>>,
-    result : Vec<Run<'a,A>>
+    run: Option<Run<'a, A>>,
+    result: Vec<Run<'a, A>>,
 }
 
 impl<'a, A: Eq + Copy> Rle<'a, A> {
-
     pub fn new() -> Self {
-        Self { run : None, result : vec![] }
+        Self {
+            run: None,
+            result: vec![],
+        }
     }
 
-    fn flush(&mut self, val : Option<&'a A>) {
+    fn flush(&mut self, val: Option<&'a A>) {
         // Is there something to be flushed?
         if let Some(run) = &mut self.run {
             self.result.push(run.clone());
@@ -40,7 +41,7 @@ impl<'a, A: Eq + Copy> Rle<'a, A> {
         self.run = val.map(|item| Run::new(item));
     }
 
-    pub fn add(&mut self, val : &'a A) -> Option<Run<'a, A>> {
+    pub fn add(&mut self, val: &'a A) -> Option<Run<'a, A>> {
         if let Some(run) = &mut self.run {
             if run.item == val {
                 run.inc();
@@ -53,7 +54,7 @@ impl<'a, A: Eq + Copy> Rle<'a, A> {
         None
     }
 
-    pub fn get(&mut self) -> Vec<Run<'a,A>> {
+    pub fn get(&mut self) -> Vec<Run<'a, A>> {
         self.flush(None);
         let mut ret = vec![];
         std::mem::swap(&mut self.result, &mut ret);
@@ -70,7 +71,7 @@ impl<'a, A: Eq + Copy> Rle<'a, A> {
 //     done : bool,
 // }
 
-// impl <A:Iterator + Copy> RleIt<A> where 
+// impl <A:Iterator + Copy> RleIt<A> where
 // A::Item : Eq + Copy
 // {
 //     pub fn new(iter : A) -> Self {
@@ -99,7 +100,6 @@ impl<'a, A: Eq + Copy> Rle<'a, A> {
 
 //         // If we're not done and we don't have a current item
 //         // then get one
-        
 
 //         let next_item = self.iter.next();
 
@@ -111,7 +111,7 @@ impl<'a, A: Eq + Copy> Rle<'a, A> {
 
 //         let mut i = self.iter.skip_while(|i| {
 //             let is_same = next_item.unwrap() == *i;
-            
+
 //             if is_same {
 //                 count = count + 1
 //             }
@@ -124,4 +124,3 @@ impl<'a, A: Eq + Copy> Rle<'a, A> {
 
 //     }
 // }
-

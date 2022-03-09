@@ -1,13 +1,13 @@
-use crate::locate::{ Span, matched_span };
-use super::item::{ Item,Node, IndexParseType, };
 use super::error::IResult;
-use super::register::get_reg;
 use super::expr::parse_expr;
+use super::item::{IndexParseType, Item, Node};
+use super::register::get_reg;
+use crate::locate::{matched_span, Span};
 
-use nom::bytes::complete::{ tag, tag_no_case };
-use nom::sequence::{ pair, preceded, separated_pair, tuple};
+use crate::register::{get_index_reg, get_pc_reg};
 use nom::branch::alt;
-use crate::register::{ get_index_reg, get_pc_reg };
+use nom::bytes::complete::{tag, tag_no_case};
+use nom::sequence::{pair, preceded, separated_pair, tuple};
 
 use nom::character::complete::multispace0;
 
@@ -23,134 +23,118 @@ use nom::character::complete::multispace0;
 // n,PC     PCOffset                parse_pc_offset
 // n,R      ConstantOffset(RegEnum) parse_offset
 
-
 // Post inc / dec
 fn get_post_inc(input: Span) -> IResult<IndexParseType> {
-    let (rest, (_,_,matched,_)) = tuple((
-            tag(","),
-            multispace0,
-            get_index_reg ,
-            tag("+")))(input)?;
+    let (rest, (_, _, matched, _)) =
+        tuple((tag(","), multispace0, get_index_reg, tag("+")))(input)?;
 
     let ret = IndexParseType::Plus(matched);
-    Ok((rest,ret))
+    Ok((rest, ret))
 }
 
 fn get_post_inc_inc(input: Span) -> IResult<IndexParseType> {
-    let (rest, (_,_,matched,_)) = tuple((
-            tag(","),
-            multispace0,
-            get_index_reg ,
-            tag("++")))(input)?;
+    let (rest, (_, _, matched, _)) =
+        tuple((tag(","), multispace0, get_index_reg, tag("++")))(input)?;
     let ret = IndexParseType::PlusPlus(matched);
-    Ok((rest,ret))
+    Ok((rest, ret))
 }
 
 fn get_pre_dec_dec(input: Span) -> IResult<IndexParseType> {
-    let (rest, (_,_,_,matched)) = tuple((
-            tag(","),
-            multispace0,
-            tag("--"),
-            get_index_reg ,
-            ))(input)?;
+    let (rest, (_, _, _, matched)) =
+        tuple((tag(","), multispace0, tag("--"), get_index_reg))(input)?;
     let ret = IndexParseType::SubSub(matched);
     Ok((rest, ret))
 }
 
 fn get_pre_dec(input: Span) -> IResult<IndexParseType> {
-    let (rest, (_,_,_,matched)) = tuple((
-            tag(","),
-            multispace0,
-            tag("-"),
-            get_index_reg,
-            ))(input)?;
+    let (rest, (_, _, _, matched)) =
+        tuple((tag(","), multispace0, tag("-"), get_index_reg))(input)?;
     let ret = IndexParseType::Sub(matched);
     Ok((rest, ret))
 }
 
 fn get_zero(input: Span) -> IResult<IndexParseType> {
     let sep = pair(tag(","), multispace0);
-    let (rest, matched) = preceded(sep, get_reg )(input)?;
+    let (rest, matched) = preceded(sep, get_reg)(input)?;
     let ret = IndexParseType::Zero(matched);
     Ok((rest, ret))
 }
 
-fn get_add_a(input : Span) -> IResult<IndexParseType> {
+fn get_add_a(input: Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
-    let (rest, (_,matched)) = separated_pair(tag_no_case("a"), sep, get_index_reg)(input)?;
+    let (rest, (_, matched)) = separated_pair(tag_no_case("a"), sep, get_index_reg)(input)?;
     let ret = IndexParseType::AddA(matched);
     Ok((rest, ret))
 }
 
-fn get_add_b(input : Span) -> IResult<IndexParseType> {
+fn get_add_b(input: Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
-    let (rest, (_,matched)) = separated_pair(tag_no_case("b"), sep, get_index_reg)(input)?;
+    let (rest, (_, matched)) = separated_pair(tag_no_case("b"), sep, get_index_reg)(input)?;
     let ret = IndexParseType::AddB(matched);
     Ok((rest, ret))
 }
 
-fn get_add_d(input : Span) -> IResult<IndexParseType> {
+fn get_add_d(input: Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
-    let (rest, (_,matched)) = separated_pair(tag_no_case("d"), sep, get_index_reg)(input)?;
+    let (rest, (_, matched)) = separated_pair(tag_no_case("d"), sep, get_index_reg)(input)?;
     let ret = IndexParseType::AddD(matched);
     Ok((rest, ret))
 }
 
-fn get_no_arg_indexed(input : Span) -> IResult<IndexParseType> {
+fn get_no_arg_indexed(input: Span) -> IResult<IndexParseType> {
     let (rest, matched) = alt((
-            get_pre_dec_dec,
-            get_post_inc_inc,
-            get_pre_dec,
-            get_post_inc,
-            get_zero,
-            get_add_a,
-            get_add_b,
-            get_add_d,
-            ))(input)?;
-    Ok((rest,matched))
+        get_pre_dec_dec,
+        get_post_inc_inc,
+        get_pre_dec,
+        get_post_inc,
+        get_zero,
+        get_add_a,
+        get_add_b,
+        get_add_d,
+    ))(input)?;
+    Ok((rest, matched))
 }
-fn get_no_arg_indexed_allowed_indirect(input : Span) -> IResult<IndexParseType> {
+fn get_no_arg_indexed_allowed_indirect(input: Span) -> IResult<IndexParseType> {
     let (rest, matched) = alt((
-            get_pre_dec_dec,
-            get_post_inc_inc,
-            get_zero,
-            get_add_a,
-            get_add_b,
-            get_add_d,
-            ))(input)?;
-    Ok((rest,matched))
+        get_pre_dec_dec,
+        get_post_inc_inc,
+        get_zero,
+        get_add_a,
+        get_add_b,
+        get_add_d,
+    ))(input)?;
+    Ok((rest, matched))
 }
 
 fn parse_offset(input: Span) -> IResult<Node> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
-    let (rest,(expr,reg)) = separated_pair(parse_expr, sep, get_index_reg)(input)?;
+    let (rest, (expr, reg)) = separated_pair(parse_expr, sep, get_index_reg)(input)?;
 
     let offset = IndexParseType::ConstantOffset(reg);
     let ctx = matched_span(input, rest);
     let item = Item::operand_from_index_mode(offset, false);
 
     let matched = Node::from_item_span(item, ctx).with_child(expr);
-    Ok((rest,matched))
+    Ok((rest, matched))
 }
 
 fn parse_pc_offset(input: Span) -> IResult<Node> {
     use crate::util::ws;
 
     let sep = ws(tag(","));
-    let (rest,(expr,_)) = separated_pair(parse_expr, sep, get_pc_reg)(input)?;
+    let (rest, (expr, _)) = separated_pair(parse_expr, sep, get_pc_reg)(input)?;
 
     let offset = IndexParseType::PCOffset;
     let ctx = matched_span(input, rest);
     let item = Item::operand_from_index_mode(offset, false);
 
     let matched = Node::from_item_span(item, ctx).with_child(expr);
-    Ok((rest,matched))
+    Ok((rest, matched))
 }
 
-
 fn parse_extended_indirect(input: Span) -> IResult<Node> {
-    use crate::util::{ wrapped_chars,ws };
-    let (rest, matched) = wrapped_chars('[', ws(parse_expr),']')(input)?;
+    use crate::util::{wrapped_chars, ws};
+    let (rest, matched) = wrapped_chars('[', ws(parse_expr), ']')(input)?;
     let item = Item::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
     let ctx = matched_span(input, rest);
     let matched = Node::from_item_span(item, ctx).with_child(matched);
@@ -161,7 +145,7 @@ fn parse_no_arg_indexed(input: Span) -> IResult<Node> {
     let (rest, matched) = get_no_arg_indexed(input)?;
     let ctx = matched_span(input, rest);
     let matched = Node::from_item_span(Item::OperandIndexed(matched, false), ctx);
-    Ok((rest,matched))
+    Ok((rest, matched))
 }
 
 fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
@@ -173,26 +157,29 @@ fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
         IndexParseType::Plus(_) => {
             let err = "Post-increment indexing not valid indirectly";
             Err(parse_failure(err, ctx))
-        },
+        }
         IndexParseType::Sub(_) => {
             let err = "Pre-decrement indexing not valid indirectly";
             Err(parse_failure(err, ctx))
-        },
-        _=> {
-        let matched = Node::from_item_span(Item::OperandIndexed(matched, false), ctx);
-            Ok((rest,matched))
-        },
+        }
+        _ => {
+            let matched = Node::from_item_span(Item::OperandIndexed(matched, false), ctx);
+            Ok((rest, matched))
+        }
     }
 }
 
 fn parse_indexed_indirect(input: Span) -> IResult<Node> {
-    use crate::util::{ wrapped_chars,ws };
-    let indexed_indirect = alt((parse_no_arg_indexed_allowed_indirect,parse_pc_offset, parse_offset));
-    let (rest, mut matched) = wrapped_chars('[', ws(indexed_indirect),']')(input)?;
+    use crate::util::{wrapped_chars, ws};
+    let indexed_indirect = alt((
+        parse_no_arg_indexed_allowed_indirect,
+        parse_pc_offset,
+        parse_offset,
+    ));
+    let (rest, mut matched) = wrapped_chars('[', ws(indexed_indirect), ']')(input)?;
 
-    if let Item::OperandIndexed(amode,_) = matched.item {
+    if let Item::OperandIndexed(amode, _) = matched.item {
         matched.item = Item::OperandIndexed(amode, true);
-
     } else {
         panic!("Should not happen")
     };
@@ -201,12 +188,16 @@ fn parse_indexed_indirect(input: Span) -> IResult<Node> {
 }
 
 fn parse_indexed_direct(input: Span) -> IResult<Node> {
-    let mut indexed = alt((parse_no_arg_indexed,parse_pc_offset, parse_offset));
+    let mut indexed = alt((parse_no_arg_indexed, parse_pc_offset, parse_offset));
     indexed(input)
 }
 
 pub fn parse_indexed(input: Span) -> IResult<Node> {
-    alt((parse_indexed_indirect,parse_extended_indirect,parse_indexed_direct))(input)
+    alt((
+        parse_indexed_indirect,
+        parse_extended_indirect,
+        parse_indexed_direct,
+    ))(input)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -214,10 +205,10 @@ pub fn parse_indexed(input: Span) -> IResult<Node> {
 #[allow(unused_imports)]
 mod test {
     use super::*;
+    use emu::cpu::RegEnum::*;
+    use nom::combinator::{all_consuming, opt, recognize};
     use nom::multi::many0_count;
     use pretty_assertions::{assert_eq, assert_ne};
-    use emu::cpu::RegEnum::*;
-    use nom::combinator::{ recognize, opt, all_consuming };
 
     #[test]
     fn test_get_no_arg_indexed() {
@@ -242,12 +233,7 @@ mod test {
 
     #[test]
     fn test_fails() {
-        let to_try = vec![
-            "[,-Y]",
-            "[,Y+]",
-            "100,y+",
-            "a,100",
-        ];
+        let to_try = vec!["[,-Y]", "[,Y+]", "100,y+", "a,100"];
 
         for input in to_try {
             println!("Testing {}", input);
@@ -272,8 +258,6 @@ mod test {
             (false, "100,PC", IndexParseType::PCOffset),
             (false, "100,U", IndexParseType::ConstantOffset(U)),
             (true, "[100,U]", IndexParseType::ConstantOffset(U)),
-
-
             (true, "[,--Y]", IndexParseType::SubSub(Y)),
             (true, "[ ,Y ]", IndexParseType::Zero(Y)),
             (true, "[ A,X ]", IndexParseType::AddA(X)),
@@ -288,10 +272,10 @@ mod test {
         for (indirect, input, desired) in to_try {
             let desired = Item::operand_from_index_mode(desired, indirect);
             // println!("Testing {} -> {:?}", input, desired);
-            let res =  parse_indexed(input.into());
+            let res = parse_indexed(input.into());
             // println!("{:#?}", res);
-            let (_,matched) = res.unwrap();
-            assert_eq!(matched.item,desired);
+            let (_, matched) = res.unwrap();
+            assert_eq!(matched.item, desired);
         }
     }
 
@@ -363,5 +347,3 @@ mod test {
         assert_eq!(matched, desired);
     }
 }
-
-

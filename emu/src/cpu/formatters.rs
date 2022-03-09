@@ -18,18 +18,14 @@ impl Regs {
             self.u,
             self.s,
             self.dp,
-            self.flags)
+            self.flags
+        )
     }
 }
 
 impl fmt::Display for Regs {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}\n{}",
-            self.get_hdr(),
-            self.get_text(),
-        )
+        write!(f, "{}\n{}", self.get_hdr(), self.get_text(),)
     }
 }
 

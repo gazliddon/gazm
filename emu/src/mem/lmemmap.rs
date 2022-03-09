@@ -1,9 +1,7 @@
-use super::{MemMap, MemoryIO, MemResult};
+use super::{MemMap, MemResult, MemoryIO};
 use sha1::Sha1;
 use std::cell::RefCell;
 use std::fmt;
-
-
 
 #[derive(Debug, Clone, Default)]
 pub struct LogEntry {

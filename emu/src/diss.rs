@@ -4,8 +4,8 @@ use byteorder::ByteOrder;
 use op_table;
 
 use super::cpu::{
-    AddressLines, Direct, Extended, Immediate16, Immediate8, Indexed, Inherent,
-    InstructionDecoder, Relative, Relative16, RegisterSet, RegisterPair,
+    AddressLines, Direct, Extended, Immediate16, Immediate8, Indexed, Inherent, InstructionDecoder,
+    RegisterPair, RegisterSet, Relative, Relative16,
 };
 
 use lru_cache::LruCache;
@@ -19,11 +19,13 @@ lazy_static::lazy_static! {
     };
 }
 
-fn try_cache_or_create<F>( addr : u16, create : F) -> Dissembly where
-F : Fn() -> Dissembly {
-    let mut cache =  CACHE.lock().unwrap();
+fn try_cache_or_create<F>(addr: u16, create: F) -> Dissembly
+where
+    F: Fn() -> Dissembly,
+{
+    let mut cache = CACHE.lock().unwrap();
     if let Some(cached) = cache.get_mut(&addr).cloned() {
-        cached 
+        cached
     } else {
         let ret = create();
         cache.insert(addr, ret.clone());
@@ -39,26 +41,26 @@ struct AssemblyCache {
 }
 
 impl AssemblyCache {
-    pub fn new(cache_size : usize) -> Self {
+    pub fn new(cache_size: usize) -> Self {
         Self {
-            cache : LruCache::new(cache_size),
-            previous_instruction: HashMap::new()
+            cache: LruCache::new(cache_size),
+            previous_instruction: HashMap::new(),
         }
     }
 
-    pub fn try_cache_or_create<E : ByteOrder, F>(&mut self, addr : u16, create : F) -> Dissembly where
-        F : Fn() -> Dissembly {
-            if let Some(cached) = self.cache.get_mut(&addr).cloned() {
-                cached 
-            } else {
-                let ret = create();
-                self.cache.insert(addr, ret.clone());
-                ret
-            }
+    pub fn try_cache_or_create<E: ByteOrder, F>(&mut self, addr: u16, create: F) -> Dissembly
+    where
+        F: Fn() -> Dissembly,
+    {
+        if let Some(cached) = self.cache.get_mut(&addr).cloned() {
+            cached
+        } else {
+            let ret = create();
+            self.cache.insert(addr, ret.clone());
+            ret
         }
+    }
 }
-
-
 
 #[derive(Clone)]
 pub struct Dissembly {
@@ -77,26 +79,22 @@ impl Dissembly {
     }
 }
 
-pub struct Disassembler<'a, > {
+pub struct Disassembler<'a> {
     pub mem: &'a dyn MemoryIO,
 }
 
-impl<'a, > Disassembler<'a, > {
-    pub fn new(mem : &'a dyn MemoryIO) -> Self {
-        Self {
-            mem
-        }
+impl<'a> Disassembler<'a> {
+    pub fn new(mem: &'a dyn MemoryIO) -> Self {
+        Self { mem }
     }
 
     fn diss_op<A: AddressLines>(&self, _ins: &mut InstructionDecoder) -> String {
-        let action =&_ins.instruction_info.action;
+        let action = &_ins.instruction_info.action;
         format!("{:<5}{}", action, A::diss(self.mem, _ins))
     }
 
-    pub fn diss(&self, addr : u16) -> Dissembly {
-
+    pub fn diss(&self, addr: u16) -> Dissembly {
         try_cache_or_create(addr, || {
-
             let mut ins = InstructionDecoder::new_from_inspect_mem(addr, self.mem).unwrap();
 
             macro_rules! handle_op {

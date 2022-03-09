@@ -6,7 +6,7 @@ use std::fmt;
 pub trait MemMapIO {
     fn add_memory(&mut self, mem: Box<dyn MemoryIO>);
 
-    fn add_mem_block(&mut self, _name : &str, _read_only : bool, _start : u16, _size : u32 ) {
+    fn add_mem_block(&mut self, _name: &str, _read_only: bool, _start: u16, _size: u32) {
         todo!()
     }
 }
@@ -23,7 +23,7 @@ impl fmt::Debug for MemMap {
 
         for m in &self.all_memory {
             let r = m.get_range();
-            let msg = format!("{} : ${:04x} ${:04x}", m.get_name(),r.start, r.end - 1);
+            let msg = format!("{} : ${:04x} ${:04x}", m.get_name(), r.start, r.end - 1);
             strs.push(msg)
         }
 
@@ -38,7 +38,7 @@ impl MemoryIO for MemMap {
         }
     }
 
-    fn upload(&mut self, addr: u16, data: &[u8]) -> MemResult<()>{
+    fn upload(&mut self, addr: u16, data: &[u8]) -> MemResult<()> {
         for (i, item) in data.iter().enumerate() {
             let a = addr.wrapping_add(i as u16);
             self.store_byte(a, *item)?;
@@ -63,23 +63,23 @@ impl MemoryIO for MemMap {
         m.load_word(addr)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()>{
+    fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()> {
         let m = self.get_region(addr)?;
         m.store_byte(addr, val)
     }
 
-    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()>{
+    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()> {
         let m = self.get_region(addr)?;
-        m.store_word(addr,val)
+        m.store_word(addr, val)
     }
 }
 
 #[allow(dead_code)]
 impl MemMap {
-    fn get_region(&mut self, addr: u16 ) -> MemResult<& mut Box<dyn MemoryIO>> {
+    fn get_region(&mut self, addr: u16) -> MemResult<&mut Box<dyn MemoryIO>> {
         for m in &mut self.all_memory {
             if m.is_in_range(addr) {
-                return Ok(m)
+                return Ok(m);
             }
         }
 

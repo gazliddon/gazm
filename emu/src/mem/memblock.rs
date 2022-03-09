@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use super::{MemoryIO, Region, MemResult};
+use super::{MemResult, MemoryIO, Region};
 use byteorder::ByteOrder;
 use sha1::Sha1;
 
@@ -8,31 +8,31 @@ pub struct MemBlock<E: ByteOrder> {
     pub read_only: bool,
     pub data: Vec<u8>,
     pub name: String,
-    pub region : Region,
+    pub region: Region,
     phanton: PhantomData<E>,
 }
 
 #[allow(dead_code)]
 impl<E: ByteOrder> MemBlock<E> {
     pub fn new(name: &str, read_only: bool, base: u16, size: u32) -> MemBlock<E> {
-        let data = vec![0u8;size as usize];
-        Self::from_data(base, name, &data , read_only)
+        let data = vec![0u8; size as usize];
+        Self::from_data(base, name, &data, read_only)
     }
 
     pub fn from_data(addr: u16, name: &str, data: &[u8], read_only: bool) -> MemBlock<E> {
         let size = data.len();
 
-        let mr = Region::checked_new(addr, size ).unwrap();
+        let mr = Region::checked_new(addr, size).unwrap();
 
         MemBlock {
             read_only,
-            data : data.to_vec(),
+            data: data.to_vec(),
             name: name.to_string(),
-            region : mr,
+            region: mr,
             phanton: Default::default(),
         }
     }
-    fn to_index(&self, addr : u16) -> usize {
+    fn to_index(&self, addr: u16) -> usize {
         assert!(self.region.is_in_region(addr));
         addr as usize - self.region.addr as usize
     }
@@ -74,7 +74,6 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
         Ok(())
     }
 
-
     fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()> {
         let mut buf = [0; 2];
         E::write_u16(&mut buf, val);
@@ -85,8 +84,7 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
     fn load_word(&mut self, addr: u16) -> MemResult<u16> {
         let a = self.load_byte(addr)?;
         let b = self.load_byte(addr.wrapping_add(1))?;
-        let buf = [a,b];
+        let buf = [a, b];
         Ok(E::read_u16(&buf))
     }
 }
-

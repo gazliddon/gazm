@@ -43,7 +43,7 @@ impl Messages {
         }
     }
 
-    pub fn set_verbosity(&mut self, verbosity : &Verbosity) {
+    pub fn set_verbosity(&mut self, verbosity: &Verbosity) {
         self.verbosity = *verbosity;
     }
 
@@ -79,7 +79,7 @@ impl Messages {
         S: Into<String>,
     {
         if self.verbosity >= Verbosity::Normal {
-        println!("{}{}", self.get_indent_str(), m.into().bright_magenta());
+            println!("{}{}", self.get_indent_str(), m.into().bright_magenta());
         }
     }
 
@@ -126,8 +126,8 @@ impl Messages {
     }
 }
 
-use std::sync::{Mutex, Once};
 use std::mem::MaybeUninit;
+use std::sync::{Mutex, Once};
 
 struct SingletonReader {
     // Since we will be used in many threads, we need to protect
@@ -153,7 +153,7 @@ pub fn messages() -> &'static mut Messages {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-pub fn verbosity<F, Y>(verbosity : Verbosity, mut f: F) -> Y
+pub fn verbosity<F, Y>(verbosity: Verbosity, mut f: F) -> Y
 where
     F: FnMut(&mut super::messages::Messages) -> Y,
 {
@@ -184,7 +184,7 @@ where
 pub fn info<F, Y, S>(text: S, mut f: F) -> Y
 where
     F: FnMut(&mut super::messages::Messages) -> Y,
-    S: Into<String>
+    S: Into<String>,
 {
     let x = super::messages::messages();
     x.info(text.into());
@@ -197,7 +197,7 @@ where
 pub fn status<F, Y, S>(text: S, mut f: F) -> Y
 where
     F: FnMut(&mut super::messages::Messages) -> Y,
-    S: Into<String>
+    S: Into<String>,
 {
     let x = super::messages::messages();
     x.status(text.into());

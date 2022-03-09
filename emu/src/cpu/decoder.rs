@@ -1,7 +1,6 @@
-use super::mem::{ MemoryIO, MemResult };
-use super::{ CpuResult, CpuErr };
+use super::mem::{MemResult, MemoryIO};
+use super::{CpuErr, CpuResult};
 use crate::isa::{Dbase, Instruction};
-
 
 const RBYTE: &[u8] = include_bytes!("resources/opcodes.json");
 
@@ -29,7 +28,10 @@ pub struct InstructionDecoder {
 // means we can destructively read op code when emulating
 // or non destructively inspect for disassembly
 
-fn decode_op(addr: u16, mut read: impl FnMut(u16) -> MemResult<u8>) -> CpuResult<InstructionDecoder> {
+fn decode_op(
+    addr: u16,
+    mut read: impl FnMut(u16) -> MemResult<u8>,
+) -> CpuResult<InstructionDecoder> {
     use crate::isa::AddrModeEnum;
     // Array insrtuction bytes is copied to
     let mut data = [0, 0, 0, 0, 0];
@@ -39,11 +41,11 @@ fn decode_op(addr: u16, mut read: impl FnMut(u16) -> MemResult<u8>) -> CpuResult
     // fetch a byte from the memory reader
     // store it i the instruction array
     // and bump the read index
-    let mut fetch = || -> CpuResult<u16>{
+    let mut fetch = || -> CpuResult<u16> {
         let b = read(addr.wrapping_add(index))?;
         data[index as usize] = b;
         index += 1;
-        Ok( b as u16 )
+        Ok(b as u16)
     };
 
     // get the first byte of the opcode

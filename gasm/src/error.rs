@@ -1,4 +1,3 @@
-
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::locate::span_to_pos;
 use crate::locate::Span;
@@ -28,7 +27,7 @@ pub fn parse_failure(err: &str, ctx: Span) -> nom::Err<ParseError> {
 pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
 
 impl ParseError {
-    pub fn new(message: String, span: &Span, failure : bool) -> ParseError {
+    pub fn new(message: String, span: &Span, failure: bool) -> ParseError {
         Self {
             message: Some(message),
             pos: span_to_pos(*span),
@@ -86,11 +85,7 @@ impl AstError {
     where
         S: Into<String>,
     {
-        Self::from_node_id(
-            msg,
-            n.id(),
-            n.value().pos.clone()
-        )
+        Self::from_node_id(msg, n.id(), n.value().pos.clone())
     }
 
     pub fn from_node_id<S>(msg: S, id: AstNodeId, pos: Position) -> Self
@@ -153,7 +148,7 @@ impl UserError {
         Self::from_text(message, info, _err.failure)
     }
 
-    pub fn from_text<S>(msg: S, info: &SourceInfo, is_failure : bool) -> Self
+    pub fn from_text<S>(msg: S, info: &SourceInfo, is_failure: bool) -> Self
     where
         S: Into<String>,
     {
@@ -163,7 +158,7 @@ impl UserError {
             fragment: info.fragment.to_string(),
             line: info.line_str.to_string(),
             file: info.source_file.file.clone(),
-            failure : is_failure,
+            failure: is_failure,
         }
     }
 
@@ -196,10 +191,7 @@ impl UserError {
         Ok(s)
     }
 
-    pub fn from_parse_error(
-        err: ParseError,
-        sources: &romloader::sources::Sources,
-    ) -> Self {
+    pub fn from_parse_error(err: ParseError, sources: &romloader::sources::Sources) -> Self {
         let si = sources.get_source_info(&err.pos).unwrap();
 
         Self {
@@ -208,7 +200,7 @@ impl UserError {
             fragment: si.fragment.to_string(),
             line: si.line_str.to_string(),
             file: si.file,
-            failure: err.failure
+            failure: err.failure,
         }
     }
 }
@@ -220,7 +212,7 @@ impl UserError {
 pub struct UserErrors {
     max_errors: usize,
     errors: Vec<UserError>,
-    errors_remaining : usize,
+    errors_remaining: usize,
 }
 
 impl std::fmt::Display for UserErrors {
@@ -240,15 +232,15 @@ impl std::fmt::Debug for UserErrors {
 impl std::error::Error for UserErrors {}
 
 impl UserErrors {
-    pub fn new(max_errors : usize) -> Self {
+    pub fn new(max_errors: usize) -> Self {
         Self {
             max_errors,
-            errors_remaining : max_errors,
-            errors : vec![]
+            errors_remaining: max_errors,
+            errors: vec![],
         }
     }
 
-    pub fn add_errors(&mut self, other : Self) {
+    pub fn add_errors(&mut self, other: Self) {
         for x in other.errors.into_iter() {
             self.errors.push(x)
         }
@@ -270,7 +262,7 @@ impl UserErrors {
         }
     }
 
-    pub fn add_error(&mut self, err : UserError) -> Result<(), UserError>{
+    pub fn add_error(&mut self, err: UserError) -> Result<(), UserError> {
         let failure = err.failure;
         self.errors.push(err);
 
@@ -282,7 +274,7 @@ impl UserErrors {
         }
     }
 
-    pub fn add_ast_error(&mut self, err: AstError, info: &SourceInfo) -> Result<(),UserError>{
+    pub fn add_ast_error(&mut self, err: AstError, info: &SourceInfo) -> Result<(), UserError> {
         self.add_error(UserError::from_ast_error(err, info))
     }
 
@@ -290,11 +282,16 @@ impl UserErrors {
         &mut self,
         err: ParseError,
         sources: &romloader::sources::Sources,
-    ) -> Result<(), UserError>{
+    ) -> Result<(), UserError> {
         self.add_error(UserError::from_parse_error(err, sources))
     }
 
-    pub fn add_text_error<S>(&mut self, msg: S, info: &SourceInfo, is_failure : bool) -> Result<(),UserError>
+    pub fn add_text_error<S>(
+        &mut self,
+        msg: S,
+        info: &SourceInfo,
+        is_failure: bool,
+    ) -> Result<(), UserError>
     where
         S: Into<String>,
     {
@@ -303,5 +300,3 @@ impl UserErrors {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-

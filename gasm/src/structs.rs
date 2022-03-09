@@ -1,8 +1,8 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, tag_no_case, },
+    bytes::complete::{is_not, tag, tag_no_case},
     character::complete::multispace1,
-    combinator::{map, opt, },
+    combinator::{map, opt},
     multi::separated_list0,
     sequence::separated_pair,
 };
@@ -14,7 +14,7 @@ use crate::{
     util::{wrapped_chars, ws},
 };
 
-use crate::error::{IResult};
+use crate::error::IResult;
 use crate::item::{Item, Node, StructMemberType};
 use crate::locate::Span;
 
@@ -43,8 +43,9 @@ fn get_struct_arg_type(input: Span<'_>) -> IResult<StructMemberType> {
     Ok((rest, item_type))
 }
 
-fn get_struct_entry(input: Span<'_>) -> IResult<(Span, StructMemberType, Option<Span>, Option<Node>)> {
-
+fn get_struct_entry(
+    input: Span<'_>,
+) -> IResult<(Span, StructMemberType, Option<Span>, Option<Node>)> {
     let (input, comment) = crate::comments::strip_comments(input)?;
 
     let sep = ws(tag(":"));
@@ -73,7 +74,6 @@ fn parse_struct_entry(input: Span<'_>) -> IResult<Node> {
         Node::from_item_span(Item::Mul, input),
         Node::from_item_span(size, input),
     ]);
-    
 
     let ret = Node::from_item_span(Item::StructEntry(name.to_string()), input).with_child(expr);
 
@@ -86,7 +86,7 @@ pub fn parse_struct_definition(input: Span<'_>) -> IResult<Node> {
     let sep = ws(tag(","));
     let (spare, entries) = ws(separated_list0(sep, parse_struct_entry))(body)?;
     let sep = ws(tag(","));
-    let (spare,_) = opt(sep)(spare)?;
+    let (spare, _) = opt(sep)(spare)?;
 
     if !spare.is_empty() {
         let m = "Unexpected text in struct definition, missing comma on previous line?";

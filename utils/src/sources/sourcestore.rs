@@ -1,7 +1,6 @@
-
 use super::{AsmSource, Position, SymbolTree};
 use std::collections::HashMap;
-use std::path::{ PathBuf, Path };
+use std::path::{Path, PathBuf};
 
 pub trait LocationTrait: Clone {
     fn get_line_number(&self) -> usize;
@@ -12,7 +11,7 @@ pub trait LocationTrait: Clone {
 pub struct SourceLine<'a> {
     pub text: String,
     pub file: PathBuf,
-    pub file_id : u64,
+    pub file_id: u64,
     pub line_number: usize,
     pub mapping: Option<&'a Mapping>,
 }
@@ -124,7 +123,7 @@ pub struct SourceInfo<'a> {
     pub col: usize,
     pub source_file: &'a SourceFile,
     pub file: PathBuf,
-    pub pos : Position,
+    pub pos: Position,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -137,9 +136,9 @@ impl Sources {
         Self::default()
     }
 
-    pub fn add_source_text(&mut self, text : &str ) -> u64 {
+    pub fn add_source_text(&mut self, text: &str) -> u64 {
         let id = self.get_next_id();
-        let name = format!("macro_epxansion_{}",id);
+        let name = format!("macro_epxansion_{}", id);
         let source_file = SourceFile::new(&PathBuf::from_str(&name).unwrap(), text);
         self.id_to_source_file.insert(id, source_file);
         id
@@ -147,10 +146,10 @@ impl Sources {
 
     fn get_next_id(&self) -> u64 {
         let max = self.id_to_source_file.keys().max();
-        max.map(|x| x+1).unwrap_or(0)
+        max.map(|x| x + 1).unwrap_or(0)
     }
 
-    pub fn add_source_file(&mut self, p : &Path, text : &str) -> u64 {
+    pub fn add_source_file(&mut self, p: &Path, text: &str) -> u64 {
         let id = self.get_next_id();
         let source_file = SourceFile::new(p, text);
         self.id_to_source_file.insert(id, source_file);
@@ -158,13 +157,13 @@ impl Sources {
     }
 
     pub fn get_source_info<'a>(&'a self, pos: &Position) -> Result<SourceInfo<'a>, String> {
-
         if let AsmSource::FileId(file_id) = pos.src {
-
-            let source_file = self.id_to_source_file.get(&file_id).ok_or_else(||format!(
-                "Can't find file id {:?} {:?}",
-                file_id, self.id_to_source_file
-            ))?;
+            let source_file = self.id_to_source_file.get(&file_id).ok_or_else(|| {
+                format!(
+                    "Can't find file id {:?} {:?}",
+                    file_id, self.id_to_source_file
+                )
+            })?;
 
             let fragment = source_file.get_span(pos)?;
             let line_str = source_file.get_line(pos)?;
@@ -176,7 +175,7 @@ impl Sources {
                 fragment,
                 source_file,
                 file: source_file.file.clone(),
-                pos : pos.clone(),
+                pos: pos.clone(),
             };
 
             Ok(ret)
@@ -188,7 +187,7 @@ impl Sources {
 
 use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq,Debug, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum ItemType {
     OpCode,
     Command,
@@ -200,7 +199,7 @@ pub struct Mapping {
     pub line: usize,
     pub mem_range: std::ops::Range<usize>,
     pub physical_mem_range: std::ops::Range<usize>,
-    pub item_type : ItemType,
+    pub item_type: ItemType,
 }
 
 use crate::Stack;
@@ -218,7 +217,7 @@ impl SourceMapping {
         Self::default()
     }
 
-    pub fn start_macro(&mut self, pos : &Position) {
+    pub fn start_macro(&mut self, pos: &Position) {
         self.macro_stack.push(pos.clone())
     }
 
@@ -234,7 +233,14 @@ impl SourceMapping {
         !self.macro_stack.is_empty()
     }
 
-    pub fn add_mapping(&mut self, _sources : &Sources, physical_mem_range: std::ops::Range<usize>, mem_range: std::ops::Range<usize>, pos: &Position, item_type: ItemType) {
+    pub fn add_mapping(
+        &mut self,
+        _sources: &Sources,
+        physical_mem_range: std::ops::Range<usize>,
+        mem_range: std::ops::Range<usize>,
+        pos: &Position,
+        item_type: ItemType,
+    ) {
         let pos = self.get_macro_pos().unwrap_or(pos);
 
         if let AsmSource::FileId(file_id) = pos.src {
@@ -243,7 +249,7 @@ impl SourceMapping {
                 line: pos.line,
                 mem_range,
                 item_type,
-                physical_mem_range
+                physical_mem_range,
             };
 
             self.addr_to_mapping.push(entry.clone());
@@ -317,7 +323,8 @@ impl SourceDatabase {
         for v in &self.mappings.addr_to_mapping {
             self.range_to_mapping.insert(v.mem_range.clone(), v.clone());
             self.addr_to_mapping.insert(v.mem_range.start, v.clone());
-            self.phys_addr_to_mapping.insert(v.physical_mem_range.start, v.clone());
+            self.phys_addr_to_mapping
+                .insert(v.physical_mem_range.start, v.clone());
             let loc = (v.file_id, v.line);
             self.loc_to_mapping.insert(loc, v.clone());
         }
@@ -369,23 +376,15 @@ impl SourceDatabase {
         })
     }
 
-
     pub fn func_source_file<F, R>(&self, file_id: u64, func: F) -> Option<R>
     where
         F: Fn(&SourceFile) -> Option<R>,
     {
         self.load_source_file(file_id).unwrap();
-        self.source_files
-            .borrow()
-            .get(&file_id)
-            .and_then(func)
+        self.source_files.borrow().get(&file_id).and_then(func)
     }
 
-    pub fn get_source_line_from_file(
-        &self,
-        file_name: &Path,
-        line: usize,
-    ) -> Option<SourceLine> {
+    pub fn get_source_line_from_file(&self, file_name: &Path, line: usize) -> Option<SourceLine> {
         self.get_source_file_from_file_name(file_name)
             .and_then(|sf| sf.get_line(line))
     }

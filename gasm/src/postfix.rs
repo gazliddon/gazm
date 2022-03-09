@@ -34,7 +34,7 @@ impl<I: Clone + GetPriotity + std::fmt::Debug> PostFixer<I> {
         }
     }
 
-    fn flush(&mut self)  {
+    fn flush(&mut self) {
         let mut v = self.opstack.flush();
         self.ret.append(&mut v);
     }
@@ -68,13 +68,12 @@ impl<I: Clone + GetPriotity + std::fmt::Debug> PostFixer<I> {
 
                 let mut next_pair = || it.next().and_then(|op| it.next().map(|rhs| (op, rhs)));
 
-                let ( op,rhs ) = next_pair().unwrap();
+                let (op, rhs) = next_pair().unwrap();
                 self.emit(lhs);
                 self.emit(rhs);
                 self.push(op)?;
 
                 while let Some((op, rhs)) = next_pair() {
-
                     let top_pri = self.top_pri();
 
                     let this_pri = op.priority().ok_or_else(|| op.clone())?;
@@ -176,11 +175,11 @@ mod test {
     #[test]
     fn postix() {
         let tests = vec![
-            ("1+2*4", 1+2*4),
-            ("1/2*4", 1/2*4),
-            ( "8-1+3",  8-1+3),
-            ( "8-1<9",  8-1<<9),
-            ( "9+8>1",  9+8>>1),
+            ("1+2*4", 1 + 2 * 4),
+            ("1/2*4", 1 / 2 * 4),
+            ("8-1+3", 8 - 1 + 3),
+            ("8-1<9", 8 - 1 << 9),
+            ("9+8>1", 9 + 8 >> 1),
         ];
 
         for (test, res) in tests {

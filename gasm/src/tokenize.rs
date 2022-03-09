@@ -1,6 +1,6 @@
 use crate::{
-    item::{ Item, Node},
     commands, comments,
+    item::{Item, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos},
     macros::{parse_macro_call, parse_macro_definition},
@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use nom::{
     branch::alt,
     bytes::complete::is_not,
-    character::complete::{line_ending, multispace0 },
+    character::complete::{line_ending, multispace0},
     combinator::{all_consuming, cut, opt, recognize},
     multi::many0,
     sequence::{preceded, terminated},
@@ -217,18 +217,20 @@ impl<'a> Tokens<'a> {
 
             let input = Span::new_extra(&text, pos.src);
 
-            let new_tokens = self.convert_to_tokens(input, macros, errors).map_err(|mut e| {
-                let args: Vec<_> = macro_call
-                    .args
-                    .iter()
-                    .map(|a| self.ctx.sources().get_source_info(a))
-                    .collect();
+            let new_tokens = self
+                .convert_to_tokens(input, macros, errors)
+                .map_err(|mut e| {
+                    let args: Vec<_> = macro_call
+                        .args
+                        .iter()
+                        .map(|a| self.ctx.sources().get_source_info(a))
+                        .collect();
 
-                let err1 = format!("Macro expansion:\n {}", text);
-                let err2 = format!("Args:\n {:#?}", args);
-                e.message = format!("{}\n{}", err1, err2);
-                e
-            })?;
+                    let err1 = format!("Macro expansion:\n {}", text);
+                    let err2 = format!("Args:\n {:#?}", args);
+                    e.message = format!("{}\n{}", err1, err2);
+                    e
+                })?;
             let pos: Position = span_to_pos(input);
 
             let new_node =

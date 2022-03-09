@@ -4,10 +4,9 @@ use std::path::{Path, PathBuf};
 use super::sourcestore::Sources;
 use anyhow::{anyhow, Result};
 
-use crate::pathsearcher::{ Paths, PathSearcher, SearchError };
+use crate::pathsearcher::{PathSearcher, Paths, SearchError};
 
 use std::collections::HashSet;
-
 
 #[derive(Debug, Clone)]
 pub struct SourceFileLoader {
@@ -25,16 +24,16 @@ impl Default for SourceFileLoader {
     }
 }
 
-pub trait FileIo : PathSearcher {
-    fn mk_error(
-        &self,
-        e: crate::pathsearcher::SearchError,
-    ) -> anyhow::Error {
+pub trait FileIo: PathSearcher {
+    fn mk_error(&self, e: crate::pathsearcher::SearchError) -> anyhow::Error {
         use crate::pathsearcher::SearchError::*;
 
         let e = match e {
             FileNotFound(f, v) => {
-                let errs: Vec<String> = v.into_iter().map(|f| f.to_string_lossy().to_string()).collect();
+                let errs: Vec<String> = v
+                    .into_iter()
+                    .map(|f| f.to_string_lossy().to_string())
+                    .collect();
                 anyhow!(
                     "Can't load {}\n Tried:\n{}",
                     f.to_string_lossy(),
@@ -48,19 +47,19 @@ pub trait FileIo : PathSearcher {
         e
     }
 
-    fn add_to_files_read(&mut self, p : PathBuf);
-    fn add_to_files_written(&mut self, p : PathBuf);
+    fn add_to_files_read(&mut self, p: PathBuf);
+    fn add_to_files_written(&mut self, p: PathBuf);
 
-    fn expand_path<P: AsRef<Path>>(&self, p : P) -> PathBuf {
+    fn expand_path<P: AsRef<Path>>(&self, p: P) -> PathBuf {
         p.as_ref().to_path_buf()
     }
 
     fn get_files_written(&self) -> Vec<PathBuf>;
     fn get_files_read(&self) -> Vec<PathBuf>;
-    
-    fn read_to_string<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String)> {
 
-        let path = self.get_full_path(path.as_ref())
+    fn read_to_string<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String)> {
+        let path = self
+            .get_full_path(path.as_ref())
             .map_err(|e| self.mk_error(e))?;
 
         let ret = fs::read_to_string(path.clone())?;
@@ -120,7 +119,6 @@ pub trait FileIo : PathSearcher {
             .get_full_path(path.as_ref())
             .map_err(|e| self.mk_error(e))?;
 
-
         let md = std::fs::metadata(path.clone())
             .map_err(|e| anyhow!("Can't get size for : {}\n{}", path.to_string_lossy(), e))?;
 
@@ -142,10 +140,10 @@ impl FileIo for SourceFileLoader {
         self.files_loaded.iter().cloned().collect()
     }
 
-    fn add_to_files_read(&mut self, path : PathBuf) {
+    fn add_to_files_read(&mut self, path: PathBuf) {
         self.files_loaded.insert(path);
     }
-    fn add_to_files_written(&mut self, path : PathBuf) {
+    fn add_to_files_written(&mut self, path: PathBuf) {
         self.files_written.insert(path);
     }
 }
@@ -155,15 +153,15 @@ impl SourceFileLoader {
         Self::default()
     }
 
-    pub fn read_source(&mut self, path : &Path) -> Result<(PathBuf, String, u64)> {
+    pub fn read_source(&mut self, path: &Path) -> Result<(PathBuf, String, u64)> {
         let (path, text) = self.read_to_string(path)?;
-        let (_,_,id) = self.add_source_file(&path, &text)?;
-        Ok((path,text,id))
+        let (_, _, id) = self.add_source_file(&path, &text)?;
+        Ok((path, text, id))
     }
 
-    pub fn add_source_file(&mut self, path : &Path, text: &str) -> Result<(PathBuf, String, u64)> {
+    pub fn add_source_file(&mut self, path: &Path, text: &str) -> Result<(PathBuf, String, u64)> {
         let id = self.sources.add_source_file(path, text);
-        Ok((path.into(),text.to_string(),id))
+        Ok((path.into(), text.to_string(), id))
     }
 
     pub fn from_search_paths<P: AsRef<Path>>(paths: &[P]) -> Self {

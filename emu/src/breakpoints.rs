@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::mem::{ Region, RegionErr };
+use crate::mem::{Region, RegionErr};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
 pub enum BreakPointTypes {
@@ -45,9 +45,9 @@ pub struct BreakPoints {
 }
 
 impl Default for BreakPoints {
-     fn default() -> Self {
-         Self::new()
-     }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BreakPoints {
@@ -114,7 +114,7 @@ impl BreakPoints {
         }
     }
 
-    fn get_range(addr: u16, range: usize) -> Result<Region,RegionErr> {
+    fn get_range(addr: u16, range: usize) -> Result<Region, RegionErr> {
         Region::checked_new(addr, range)
     }
 
@@ -129,11 +129,7 @@ impl BreakPoints {
         }
     }
 
-    pub fn get_breakpoints_mut(
-        &mut self,
-        addr: u16,
-        range: usize,
-    ) -> Vec<&mut BreakPoint> {
+    pub fn get_breakpoints_mut(&mut self, addr: u16, range: usize) -> Vec<&mut BreakPoint> {
         if let Ok(r) = Self::get_range(addr, range) {
             self.break_points
                 .values_mut()

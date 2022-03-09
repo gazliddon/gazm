@@ -38,7 +38,7 @@ pub enum CpuErr {
 }
 
 // use cpu::alu;
-pub type CpuResult<T=()> = std::result::Result<T, CpuErr>;
+pub type CpuResult<T = ()> = std::result::Result<T, CpuErr>;
 
 fn get_tfr_reg(op: u8) -> RegEnum {
     match op {
@@ -1314,7 +1314,7 @@ impl<'a> Context<'a> {
 
         let ret = ret + ins.instruction_info.size as usize;
 
-        Ok(ret )
+        Ok(ret)
     }
 
     pub fn get_size(&self) -> CpuResult<usize> {

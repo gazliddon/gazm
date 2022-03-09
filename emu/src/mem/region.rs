@@ -29,7 +29,6 @@ impl Region {
         self.len() == 0
     }
 
-
     pub fn len(&self) -> usize {
         let (addr, last_addr) = self.to_usize();
         (last_addr - addr) + 1
@@ -61,7 +60,7 @@ impl Region {
     }
 
     pub fn as_range(&self) -> std::ops::Range<usize> {
-        self.addr as usize ..(self.last_addr as usize +1)
+        self.addr as usize..(self.last_addr as usize + 1)
     }
 }
 
@@ -76,7 +75,7 @@ mod tests {
     #[test]
     fn valid_regions() {
         {
-            let start : u16 = 0;
+            let start: u16 = 0;
             let size = 0x10;
 
             let mr = Region::checked_new(start, size);
@@ -91,9 +90,9 @@ mod tests {
 
             assert!(mr.is_in_region(start));
 
-            assert!(mr.is_in_region(( start as usize + size - 1 ) as u16));
+            assert!(mr.is_in_region((start as usize + size - 1) as u16));
 
-            assert!(!mr.is_in_region(( start as usize + size ) as u16));
+            assert!(!mr.is_in_region((start as usize + size) as u16));
         }
     }
 
@@ -102,7 +101,7 @@ mod tests {
         let mr = Region::checked_new(0, 0);
         assert_eq!(mr, Err(RegionErr::SizeIsZero));
     }
-#[test]
+    #[test]
     fn contains() {
         let mr = Region::checked_new(0, 0x1_0000);
         assert!(mr.is_ok());

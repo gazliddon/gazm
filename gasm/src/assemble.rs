@@ -1,11 +1,9 @@
 use emu::cpu::RegEnum;
 
-use romloader::sources::{
-    SourceInfo, SymbolError, SymbolWriter,
-};
+use romloader::sources::{SourceInfo, SymbolError, SymbolWriter};
 
-use crate::ast::AstNodeRef;
 use crate::ast::AstNodeId;
+use crate::ast::AstNodeRef;
 use crate::binary::BinRef;
 use crate::binary::{AccessType, Binary};
 use crate::error::UserError;
@@ -16,7 +14,7 @@ use crate::item::IndexParseType;
 use crate::messages::info;
 use crate::messages::messages;
 use item::Item;
-use romloader::sources::{ItemType, Position, SourceDatabase, SourceMapping, };
+use romloader::sources::{ItemType, Position, SourceDatabase, SourceMapping};
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
@@ -654,8 +652,8 @@ impl<'a> Assembler<'a> {
                 self.add_mapping(phys_range, range, pos, ItemType::Command);
             }
 
-            IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..)
-            | Rmb | StructDef(..) => (),
+            IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
+            | StructDef(..) => (),
 
             SetDp => {
                 let (dp, _) = self.eval_first_arg(id)?;
@@ -783,7 +781,6 @@ impl<'a> Assembler<'a> {
         file_name: PathBuf,
         id: AstNodeId,
     ) -> Result<std::ops::Range<usize>, UserError> {
-
         let data_len = self
             .ctx
             .get_size(file_name)
@@ -1019,8 +1016,7 @@ impl<'a> Assembler<'a> {
                 node_mut.value().item = new_item;
             }
 
-            WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) 
-            | StructDef(..) => (),
+            WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | StructDef(..) => (),
             _ => {
                 let i = &self.tree.get(id).unwrap().value().item;
                 let msg = format!("Unable to size {:?}", i);

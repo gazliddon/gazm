@@ -1,7 +1,7 @@
 use crate::as6809::Record;
-use thiserror::Error;
 use serde_derive::{Deserialize, Serialize};
 use std::path::PathBuf;
+use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum AccessType {
@@ -40,7 +40,6 @@ impl Default for Binary {
         Self::new(0x10000, AccessType::ReadWrite)
     }
 }
-
 
 #[derive(Clone)]
 pub struct MemoryLocation {
@@ -219,9 +218,7 @@ impl Binary {
 
     pub fn get_unchecked_writes(&self) -> Vec<MemoryLocation> {
         let mut x = self.unchecked_writes.clone();
-        x.sort_by(|a,b| 
-            a.logical.cmp(&b.logical)
-            );
+        x.sort_by(|a, b| a.logical.cmp(&b.logical));
         x
     }
 
@@ -305,10 +302,8 @@ impl Binary {
         }
 
         if did_check == WriteStatus::NoCheck {
-            self.unchecked_writes.push(MemoryLocation {
-                physical,
-                logical 
-            })
+            self.unchecked_writes
+                .push(MemoryLocation { physical, logical })
         }
 
         Ok(did_check)

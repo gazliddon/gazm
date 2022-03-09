@@ -3,7 +3,6 @@
 #![feature(try_blocks)]
 #![feature(backtrace)]
 
-mod ctx;
 mod as6809;
 mod assemble;
 mod ast;
@@ -12,6 +11,7 @@ mod binary;
 mod cli;
 mod commands;
 mod comments;
+mod ctx;
 mod error;
 mod eval;
 mod expr;
@@ -27,15 +27,15 @@ mod opcodes;
 mod postfix;
 mod register;
 mod scopes;
-mod structs;
 mod sections;
+mod structs;
 mod tokenize;
 mod util;
 
 use std::path::PathBuf;
 
-use romloader::sources::FileIo;
 use crate::ctx::Context;
+use romloader::sources::FileIo;
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___
@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
 
-            fs::write(deps,deps_line).with_context(|| format!("Unable to write {deps}"))?;
+            fs::write(deps, deps_line).with_context(|| format!("Unable to write {deps}"))?;
         }
     }
 

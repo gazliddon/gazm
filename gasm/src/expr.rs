@@ -1,15 +1,15 @@
 // Parse expressions
 //
 use super::item::{Item, Node};
-use nom::character::complete::{char as nom_char, multispace0};
-use nom::bytes::complete::tag;
-use nom::sequence::{preceded, separated_pair};
-use nom::branch::alt;
-use nom::multi::many0;
-use super::util;
 use super::labels::parse_label;
+use super::util;
 use crate::error::IResult;
 use crate::locate::{matched_span, Span};
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::character::complete::{char as nom_char, multispace0};
+use nom::multi::many0;
+use nom::sequence::{preceded, separated_pair};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
@@ -69,8 +69,8 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
 fn parse_unary_op(input: Span) -> IResult<'_, Node> {
     use nom::combinator::map;
     let (rest, op) = alt((
-            map(tag("-"), |_| Item::Sub),
-            map(tag(">"), |_| Item::UnaryGreaterThan),
+        map(tag("-"), |_| Item::Sub),
+        map(tag(">"), |_| Item::UnaryGreaterThan),
     ))(input)?;
 
     let matched_span = matched_span(input, rest);
@@ -85,15 +85,15 @@ fn parse_binary_op(input: Span) -> IResult<Node> {
     // let op = to_op(matched).unwrap();
 
     let (rest, op) = alt((
-            map(tag("+"), |_| Item::Add),
-            map(tag("-"), |_| Item::Sub),
-            map(tag("*"), |_| Item::Mul),
-            map(tag("/"), |_| Item::Div),
-            map(tag("|"), |_| Item::Or),
-            map(tag("&"), |_| Item::And),
-            map(tag("^"), |_| Item::Xor),
-            map(tag(">>"), |_| Item::ShiftRight),
-            map(tag("<<"), |_| Item::ShiftLeft),
+        map(tag("+"), |_| Item::Add),
+        map(tag("-"), |_| Item::Sub),
+        map(tag("*"), |_| Item::Mul),
+        map(tag("/"), |_| Item::Div),
+        map(tag("|"), |_| Item::Or),
+        map(tag("&"), |_| Item::And),
+        map(tag("^"), |_| Item::Xor),
+        map(tag(">>"), |_| Item::ShiftRight),
+        map(tag("<<"), |_| Item::ShiftLeft),
     ))(input)?;
 
     let matched_span = matched_span(input, rest);
@@ -172,7 +172,6 @@ mod test {
         assert_eq!(*rest, " ;; ");
         assert_eq!(&matched.to_string(), "*");
     }
-
 
     #[test]
     fn test_parse_pc2() {

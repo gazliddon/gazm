@@ -54,7 +54,6 @@ pub struct Instruction {
     #[serde(deserialize_with = "u16::deserialize")]
     pub operand_size: u16,
     pub subroutine: Option<bool>,
-
 }
 
 impl Instruction {
@@ -68,13 +67,13 @@ impl Instruction {
 
 #[derive(Debug, Clone)]
 pub struct InstructionInfo {
-    pub mnemomic : String,
+    pub mnemomic: String,
     pub ops: Vec<Instruction>,
-    pub addressing_modes : std::collections::HashMap<AddrModeEnum, Instruction>,
+    pub addressing_modes: std::collections::HashMap<AddrModeEnum, Instruction>,
 }
 
 impl InstructionInfo {
-    pub fn new(i : Instruction) -> Self {
+    pub fn new(i: Instruction) -> Self {
         let mut ret = Self {
             mnemomic: i.action.clone(),
             ops: vec![],
@@ -84,21 +83,21 @@ impl InstructionInfo {
         ret
     }
 
-    pub fn supports_addr_mode(&self, m : AddrModeEnum) -> bool {
+    pub fn supports_addr_mode(&self, m: AddrModeEnum) -> bool {
         self.get_instruction(&m).is_some()
     }
 
     pub fn get_immediate_mode_supported(&self) -> Option<AddrModeEnum> {
         if self.supports_addr_mode(AddrModeEnum::Immediate8) {
-            Some( AddrModeEnum::Immediate8 )
+            Some(AddrModeEnum::Immediate8)
         } else if self.supports_addr_mode(AddrModeEnum::Immediate16) {
-            Some( AddrModeEnum::Immediate16 )
+            Some(AddrModeEnum::Immediate16)
         } else {
             None
         }
     }
 
-    pub fn get_instruction(&self, amode : &AddrModeEnum) -> Option<&Instruction> {
+    pub fn get_instruction(&self, amode: &AddrModeEnum) -> Option<&Instruction> {
         self.addressing_modes.get(amode)
     }
 
@@ -119,10 +118,9 @@ pub struct Dbase {
     #[serde(skip)]
     lookup: Vec<Instruction>,
     #[serde(skip)]
-    name_to_ins : HashMap<String, InstructionInfo>,
+    name_to_ins: HashMap<String, InstructionInfo>,
     #[serde(skip)]
-    opcode_to_ins : HashMap<u16, InstructionInfo>,
-
+    opcode_to_ins: HashMap<u16, InstructionInfo>,
 }
 
 fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
@@ -136,8 +134,7 @@ fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
 }
 
 impl Dbase {
-
-    pub fn from_text(json_str : &str) -> Self {
+    pub fn from_text(json_str: &str) -> Self {
         let loaded: Dbase = serde_json::from_str(json_str).unwrap();
         Self::from_data(loaded.instructions, loaded.unknown)
     }
@@ -201,15 +198,15 @@ impl Dbase {
         let op = input.to_string().to_lowercase();
         self.name_to_ins.get(&op)
     }
-    pub fn get_opcode_info_from_opcode(&self, opcode : u16) -> Option<&InstructionInfo> {
+    pub fn get_opcode_info_from_opcode(&self, opcode: u16) -> Option<&InstructionInfo> {
         self.opcode_to_ins.get(&opcode)
     }
 
     pub fn new() -> Self {
         Self::default()
-            // let json_str = include_str!("../cpu/resources/opcodes.json");
-            // let loaded: Dbase = serde_json::from_str(json_str).unwrap();
-            // Self::from_data(loaded.instructions, loaded.unknown)
+        // let json_str = include_str!("../cpu/resources/opcodes.json");
+        // let loaded: Dbase = serde_json::from_str(json_str).unwrap();
+        // Self::from_data(loaded.instructions, loaded.unknown)
     }
 
     pub fn get(&self, opcode: u16) -> &Instruction {
@@ -219,7 +216,6 @@ impl Dbase {
     pub fn all_instructions(&self) -> &Vec<Instruction> {
         &self.instructions
     }
-
 }
 
 impl Default for Dbase {
@@ -236,30 +232,28 @@ impl fmt::Display for Instruction {
             f,
             "0x{:04x} => handle_op!({:?}, {}, 0x{:04x}, {}, {}),",
             self.opcode, self.addr_mode, self.action, self.opcode, self.cycles, self.size
-            )
+        )
     }
 }
 
 impl fmt::Display for Dbase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let header = 
-            r#"#[macro_export]
+        let header = r#"#[macro_export]
 macro_rules! op_table {
     ($op:expr, $fail:block) => {
         match $op {"#;
 
-            let footer = 
-                r#"
+        let footer = r#"
             _ => $fail
         }
     }
 }"#;
 
-writeln!( f, "{}", header )?;
+        writeln!(f, "{}", header)?;
 
-for i in self.instructions.iter() {
-    writeln!(f, "\t\t{}", i)?
-}
-writeln!( f, "{}",footer)
-}
+        for i in self.instructions.iter() {
+            writeln!(f, "\t\t{}", i)?
+        }
+        writeln!(f, "{}", footer)
+    }
 }

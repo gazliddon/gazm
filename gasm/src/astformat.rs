@@ -35,12 +35,8 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
         let to_string = |n: AstNodeRef| -> String {
             let x: DisplayWrapper = n.into();
             x.to_string()
-
         };
-        let child_item = |n: usize| {
-            node.children().nth(n).map(|x| &x.value().item)
-        };
-
+        let child_item = |n: usize| node.children().nth(n).map(|x| &x.value().item);
 
         let child_string = |n: usize| {
             let v = node.children().nth(n).unwrap();
@@ -59,7 +55,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Pc => "*".to_string(),
 
-            Label(name)  => format!("Label: {name}"),
+            Label(name) => format!("Label: {name}"),
             LocalLabel(name) => format!("LocalLable: {name}"),
 
             Comment(comment) => comment.clone(),
@@ -70,7 +66,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             //     let vec: Vec<_> = vec.iter().map(|r| r.to_string()).collect();
             //     vec.join(",")
             // }
-
             LocalAssignment(name) | Assignment(name) => {
                 format!("{} equ {}", name, child_string(0))
             }
@@ -83,7 +78,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Number(n) => n.to_string(),
             // UnaryMinus => "-".to_string(),
-
             UnaryTerm => {
                 format!("!{:?} {:?}", child_item(0), child_item(1))
             }
@@ -115,19 +109,15 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             StructDef(name) => {
                 let body = join_kids(",\n");
                 format!("struct {name} {{\n {body}\n}}")
-            },
+            }
 
             StructEntry(name) => {
-                format!("{name} : {}", child_string(0) )
-            },
-
-            ShiftRight => {
-                ">>".into()
-            },
-
-            ShiftLeft => {
-                "<<".into()
+                format!("{name} : {}", child_string(0))
             }
+
+            ShiftRight => ">>".into(),
+
+            ShiftLeft => "<<".into(),
 
             OpCode(ins, amode) => {
                 use item::AddrModeParseType::*;
@@ -147,14 +137,11 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                     Indexed(imode, indirect) => {
                         use item::IndexParseType::*;
                         match imode {
-                            ConstantByteOffset(r, v)
-                            | Constant5BitOffset(r, v) => {
+                            ConstantByteOffset(r, v) | Constant5BitOffset(r, v) => {
                                 ind(format!("{},{}", v, r), indirect)
                             }
 
-                            ConstantWordOffset(r, v) => {
-                                ind(format!("{},{}", v, r), indirect)
-                            }
+                            ConstantWordOffset(r, v) => ind(format!("{},{}", v, r), indirect),
 
                             PcOffsetWord(v) => ind(format!("{},PC", v), indirect),
                             PcOffsetByte(v) => ind(format!("{},PC", v), indirect),

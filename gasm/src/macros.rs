@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use crate::labels::get_just_label;
-use crate::locate::{Span, matched_span, span_to_pos};
-use crate::util::{get_block, sep_list0,wrapped_chars, ws};
+use crate::locate::{matched_span, span_to_pos, Span};
+use crate::util::{get_block, sep_list0, wrapped_chars, ws};
 
 use nom::multi::separated_list0;
 use nom::{
-    bytes::complete::{ is_not, tag },
+    bytes::complete::{is_not, tag},
     character::complete::{multispace0, multispace1},
     combinator::recognize,
     multi::many1,
@@ -43,13 +43,18 @@ impl MacroDef {
     /// Expands this macro
     /// args = a vec of positions of the arguments
     /// returns a string of the expanded macro and the position of the original macro text
-    pub fn expand(&self, sources: &romloader::sources::Sources, args: Vec<Position>) -> (Position, String) {
-
+    pub fn expand(
+        &self,
+        sources: &romloader::sources::Sources,
+        args: Vec<Position>,
+    ) -> (Position, String) {
         if args.len() != self.params.len() {
             panic!("Wrong number of args")
         }
 
-        let args = args.iter().map(|pos| sources.get_source_info(pos).unwrap().fragment);
+        let args = args
+            .iter()
+            .map(|pos| sources.get_source_info(pos).unwrap().fragment);
 
         let x = sources.get_source_info(&self.pos).unwrap();
 
@@ -98,10 +103,10 @@ fn parse_raw_args(input: Span<'_>) -> IResult<Vec<Span<'_>>> {
     Ok((rest, matched))
 }
 
-#[derive( Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MacroCall {
-    pub name : Position,
-    pub args : Vec<Position>,
+    pub name: Position,
+    pub args: Vec<Position>,
 }
 
 pub fn parse_macro_call(input: Span) -> IResult<MacroCall> {
@@ -111,9 +116,7 @@ pub fn parse_macro_call(input: Span) -> IResult<MacroCall> {
     let args = args.into_iter().map(span_to_pos).collect();
     let name = span_to_pos(name);
 
-    let ret = MacroCall {
-        name, args
-    };
+    let ret = MacroCall { name, args };
 
     Ok((rest, ret))
 }
@@ -138,8 +141,11 @@ impl Macros {
     /// Expands a macro and returns a position of the macro body text
     /// an expanded version of the macro ready to tokenize
     /// returns an the position of the original macro definition and the expanded macro
-    pub fn expand_macro(&self, sources: &Sources, macro_call : MacroCall) -> Result<(Position, String ), UserError> {
-
+    pub fn expand_macro(
+        &self,
+        sources: &Sources,
+        macro_call: MacroCall,
+    ) -> Result<(Position, String), UserError> {
         let si = sources.get_source_info(&macro_call.name).unwrap();
         let name = si.fragment;
 

@@ -1,9 +1,8 @@
-#![allow(dead_code)] 
-pub mod sources;
-pub mod rle;
+#![allow(dead_code)]
 mod location;
-mod stack;
 mod pathsearcher;
+pub mod rle;
+pub mod sources;
+mod stack;
 pub use location::*;
 pub use stack::*;
-

@@ -1,13 +1,13 @@
 use std::fmt::Display;
 use std::{collections::HashSet, path::PathBuf};
 
+use crate::locate::span_to_pos;
+use crate::locate::Span;
+use crate::macros::MacroCall;
+use crate::node::{BaseNode, CtxTrait};
 use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
-use crate::locate::Span;
-use crate::node::{BaseNode, CtxTrait};
 use romloader::sources::Position;
-use crate::locate::span_to_pos;
-use crate::macros::MacroCall;
 
 impl<'a> CtxTrait for Span<'a> {}
 
@@ -59,7 +59,7 @@ fn add_ind(bits: u8, ind: bool) -> u8 {
 }
 
 impl IndexParseType {
-    pub fn get_index_byte(&self, indirect : bool) -> u8 {
+    pub fn get_index_byte(&self, indirect: bool) -> u8 {
         use IndexParseType::*;
 
         match *self {
@@ -157,11 +157,11 @@ impl IndexParseType {
     }
 }
 
-#[derive(PartialEq,Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum AddrModeParseType {
     Indexed(IndexParseType, bool),
     Direct,
-    Extended(bool),    // if set then extended mode was forced, do not opt for DP
+    Extended(bool), // if set then extended mode was forced, do not opt for DP
     Relative,
     Inherent,
     Immediate,
@@ -179,7 +179,6 @@ pub enum StructMemberType {
 }
 
 impl StructMemberType {
-
     pub fn to_size_item(&self) -> Item {
         use Item::*;
         match self {
@@ -187,14 +186,14 @@ impl StructMemberType {
             Self::Word => Number(2),
             Self::DWord => Number(4),
             Self::QWord => Number(8),
-            Self::UserType(name) => Label(format!("{}.size", name))
+            Self::UserType(name) => Label(format!("{}.size", name)),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct StructEntry {
-    pub name : String,
+    pub name: String,
     pub item_type: StructMemberType,
 }
 
@@ -208,7 +207,6 @@ pub enum Item {
 
     MacroCall(MacroCall),
     // MacroDef(MacroDef),
-
     StructDef(String),
     StructEntry(String),
 
@@ -239,7 +237,10 @@ pub enum Item {
     IncBin(PathBuf),
     IncBinRef(PathBuf),
     GrabMem,
-    IncBinResolved{ file: PathBuf, r : std::ops::Range<usize> },
+    IncBinResolved {
+        file: PathBuf,
+        r: std::ops::Range<usize>,
+    },
 
     WriteBin(PathBuf),
 
@@ -271,7 +272,7 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn operand_from_index_mode(imode: IndexParseType, indirect : bool) -> Self {
+    pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> Self {
         Self::OperandIndexed(imode, indirect)
     }
 
@@ -327,22 +328,20 @@ impl Item {
     // }
 }
 
-impl<> BaseNode<Item, Position> {
+impl BaseNode<Item, Position> {
     // pub fn is_empty_comment(&self) -> bool {
     //     match self.item() {
     //         Item::Comment(text) => text.is_empty(),
     //         _ => false,
     //     }
     // }
-    pub fn from_item_pos(item: Item, p: Position) -> Self
-        {
-            Self::new(item, vec![], p)
-        }
+    pub fn from_item_pos(item: Item, p: Position) -> Self {
+        Self::new(item, vec![], p)
+    }
 
-    pub fn from_item_span(item: Item, sp: Span) -> Self
-        {
-            Self::new(item, vec![], span_to_pos(sp))
-        }
+    pub fn from_item_span(item: Item, sp: Span) -> Self {
+        Self::new(item, vec![], span_to_pos(sp))
+    }
 
     pub fn from_number(n: i64, sp: Span) -> Self {
         Self::from_item_span(Item::Number(n), sp)
@@ -373,10 +372,10 @@ impl<> BaseNode<Item, Position> {
     // pub fn is_include_file(&self) -> bool {
     //     self.get_include_file().is_some()
     // }
-    pub fn with_span(self, sp : Span) -> Self {
-            let mut ret = self;
-            ret.ctx = span_to_pos(sp);
-            ret
+    pub fn with_span(self, sp: Span) -> Self {
+        let mut ret = self;
+        ret.ctx = span_to_pos(sp);
+        ret
     }
 }
 
@@ -406,7 +405,6 @@ impl<'a> Display for BaseNode<Item, Position> {
             // Register(r) => r.to_string(),
 
             // RegisterList(vec) => join_vec(vec, ","),
-
             LocalAssignment(name) | Assignment(name) => {
                 format!("{} equ {}", name, self.children[0])
             }
@@ -433,9 +431,9 @@ impl<'a> Display for BaseNode<Item, Position> {
                 format!("({})", join_children(""))
             }
 
-            OpCode(ins,addr_type) => {
+            OpCode(ins, addr_type) => {
                 format!("{} {:?}", ins.action, addr_type)
-            },
+            }
 
             TokenizedFile(file, _) => {
                 let header = format!("; included file {}", file.to_string_lossy());

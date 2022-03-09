@@ -1,5 +1,5 @@
 use nom::branch::alt;
-use nom::bytes::complete::{ tag, is_a };
+use nom::bytes::complete::{is_a, tag};
 use nom::combinator::recognize;
 use nom::multi::many1;
 
@@ -8,18 +8,18 @@ use nom::character::complete::alphanumeric1;
 use crate::error::{IResult, ParseError};
 use crate::locate::Span;
 
-fn num_get(input : Span) -> IResult<Span> {
+fn num_get(input: Span) -> IResult<Span> {
     recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
 }
 
-fn num_parse_err(input : Span, radix : &str, e : std::num::ParseIntError ) -> nom::Err<ParseError> {
-    let e = format!("Parsing {}: {}",radix, e);
+fn num_parse_err(input: Span, radix: &str, e: std::num::ParseIntError) -> nom::Err<ParseError> {
+    let e = format!("Parsing {}: {}", radix, e);
     nom::Err::Error(ParseError::new(e, &input, true))
 }
 
 pub fn parse_hex(input: Span) -> IResult<i64> {
-    let (rest,_) = alt(( tag("0x"), tag("0X"), tag("$") ))(input)?;
-    let (rest,num_str) = num_get(rest)?;
+    let (rest, _) = alt((tag("0x"), tag("0X"), tag("$")))(input)?;
+    let (rest, num_str) = num_get(rest)?;
 
     let num = i64::from_str_radix(&num_str.replace('_', ""), 16)
         .map_err(|e| num_parse_err(num_str, "hex", e))?;
@@ -28,9 +28,9 @@ pub fn parse_hex(input: Span) -> IResult<i64> {
 }
 
 fn parse_binary(input: Span) -> IResult<i64> {
-    let (rest,_) = alt(( tag("%"),tag("0b"), tag("0B") ))(input)?;
-    let (rest,num_str) = num_get(rest)?;
-    let num = i64::from_str_radix(&num_str.replace( '_', ""), 2)
+    let (rest, _) = alt((tag("%"), tag("0b"), tag("0B")))(input)?;
+    let (rest, num_str) = num_get(rest)?;
+    let num = i64::from_str_radix(&num_str.replace('_', ""), 2)
         .map_err(|e| num_parse_err(num_str, "binary", e))?;
 
     Ok((rest, num))
@@ -39,7 +39,9 @@ fn parse_binary(input: Span) -> IResult<i64> {
 fn parse_dec(input: Span) -> IResult<i64> {
     let (rest, num_str) = num_get(input)?;
 
-    let num = num_str.replace( '_', "").parse::<i64>()
+    let num = num_str
+        .replace('_', "")
+        .parse::<i64>()
         .map_err(|e| num_parse_err(num_str, "Decimal", e))?;
 
     Ok((rest, num))
@@ -89,22 +91,22 @@ mod test {
         };
     }
 
-    fn test_nums<F>(arr: &[ (&'static str, i64) ], func: F)
-        where
-            F: Fn(Span) -> IResult<i64>,
-        {
-            for (input, desired) in arr.iter() {
-                let res = func(( *input ).into());
-                println!("Testing: {:?}", input);
+    fn test_nums<F>(arr: &[(&'static str, i64)], func: F)
+    where
+        F: Fn(Span) -> IResult<i64>,
+    {
+        for (input, desired) in arr.iter() {
+            let res = func((*input).into());
+            println!("Testing: {:?}", input);
 
-                if let Ok(( _, number )) = res {
-                    assert_eq!(number, *desired)
-                } else {
-                    println!("Could not parse {} {:?}", input, res);
-                    assert!(res.is_ok())
-                }
+            if let Ok((_, number)) = res {
+                assert_eq!(number, *desired)
+            } else {
+                println!("Could not parse {} {:?}", input, res);
+                assert!(res.is_ok())
             }
         }
+    }
 
     #[test]
     fn test_bin() {

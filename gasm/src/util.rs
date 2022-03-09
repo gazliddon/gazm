@@ -1,35 +1,25 @@
-
-use crate::item::{ Item, Node };
-use crate::numbers;
-use crate::labels;
 use crate::expr::parse_expr;
+use crate::item::{Item, Node};
+use crate::labels;
+use crate::numbers;
 
 use crate::error::{IResult, ParseError};
-use crate::locate::{Span, matched_span, };
+use crate::locate::{matched_span, Span};
 
-use nom::bytes::complete::{
-    escaped,
-    tag,
-    tag_no_case,
-    take_while,
-    is_not,
-};
+use nom::bytes::complete::{escaped, is_not, tag, tag_no_case, take_while};
 
-use nom::character::complete::{
-    char as nom_char, multispace0, multispace1,
-    one_of, 
-};
-use nom::multi::{ separated_list1, separated_list0 };
-use nom::sequence::{preceded, separated_pair, terminated, tuple};
+use nom::character::complete::{char as nom_char, multispace0, multispace1, one_of};
 use nom::combinator::cut;
+use nom::multi::{separated_list0, separated_list1};
+use nom::sequence::{preceded, separated_pair, terminated, tuple};
 
-pub static LIST_SEP: & str = ",";
+pub static LIST_SEP: &str = ",";
 
-pub fn ws<'a,F,O>(mut inner : F) -> impl FnMut(Span<'a>) -> IResult<O>
+pub fn ws<'a, F, O>(mut inner: F) -> impl FnMut(Span<'a>) -> IResult<O>
 where
-  F: nom::Parser<Span<'a>, O,ParseError>
+    F: nom::Parser<Span<'a>, O, ParseError>,
 {
-    move |input : Span| -> IResult<O>{
+    move |input: Span| -> IResult<O> {
         let (input, _) = multispace0(input)?;
         let (input, matched) = inner.parse(input)?;
         let (input, _) = multispace0(input)?;
@@ -40,58 +30,55 @@ where
 pub fn wrapped_chars<'a, O, F>(
     open: char,
     mut inner: F,
-    close : char,
-    ) -> impl FnMut(Span<'a>) -> IResult<O>
+    close: char,
+) -> impl FnMut(Span<'a>) -> IResult<O>
 where
-F: nom::Parser<Span<'a>, O,ParseError>
+    F: nom::Parser<Span<'a>, O, ParseError>,
 {
     move |input: Span| {
-        let (input,_) = nom_char(open)(input)?;
-        let (input,matched) = inner.parse(input)?;
-        let (input,_) = nom_char(close)(input)?;
+        let (input, _) = nom_char(open)(input)?;
+        let (input, matched) = inner.parse(input)?;
+        let (input, _) = nom_char(close)(input)?;
         Ok((input, matched))
     }
 }
 
-pub fn sep_list1<'a, F, O>(
-    inner: F
-    ) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
+pub fn sep_list1<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
 where
-F: nom::Parser<Span<'a>, O,ParseError> + Copy {
+    F: nom::Parser<Span<'a>, O, ParseError> + Copy,
+{
     move |input: Span| {
         let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
         separated_list1(sep, inner)(input)
     }
 }
 
-pub fn sep_list0<'a, F, O>(
-    inner: F
-    ) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
+pub fn sep_list0<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
 where
-F: nom::Parser<Span<'a>, O,ParseError> + Copy {
+    F: nom::Parser<Span<'a>, O, ParseError> + Copy,
+{
     move |input: Span| {
         let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
         separated_list0(sep, inner)(input)
     }
 }
 
-pub fn parse_assignment(input: Span) -> IResult< Node> {
+pub fn parse_assignment(input: Span) -> IResult<Node> {
     use labels::parse_label;
 
-    let sep = tuple((multispace1,tag_no_case("equ"), multispace1));
+    let sep = tuple((multispace1, tag_no_case("equ"), multispace1));
 
-    let (rest, (label,arg)) = ws(separated_pair(parse_label, sep, parse_expr))(input)?;
+    let (rest, (label, arg)) = ws(separated_pair(parse_label, sep, parse_expr))(input)?;
 
     let matched_span = matched_span(input, rest);
 
     let item = match label.item {
         Item::Label(name) => Item::Assignment(name),
-        Item::LocalLabel(name ) => Item::LocalAssignment(name),
-        _ => panic!()
+        Item::LocalLabel(name) => Item::LocalAssignment(name),
+        _ => panic!(),
     };
 
-    let ret = Node::from_item_span(item, matched_span)
-        .with_child(arg);
+    let ret = Node::from_item_span(item, matched_span).with_child(arg);
 
     Ok((rest, ret))
 }
@@ -116,9 +103,9 @@ pub fn match_file_name(input: Span) -> IResult<Span> {
 ////////////////////////////////////////////////////////////////////////////////
 // Number
 
-pub fn parse_number(input: Span) -> IResult< Node> {
+pub fn parse_number(input: Span) -> IResult<Node> {
     let (rest, num) = numbers::number_token(input)?;
-    let matched = super::locate::matched_span(input,rest);
+    let matched = super::locate::matched_span(input, rest);
     let ret = Node::from_number(num, matched);
     Ok((rest, ret))
 }
@@ -180,7 +167,7 @@ mod test {
     use pretty_assertions::{assert_eq, assert_ne};
     #[test]
     fn test_byte_sizes() {
-        let x : i64 = 7;
+        let x: i64 = 7;
         let y = x.byte_size();
         assert_eq!(y, ByteSizes::Bits5(7))
     }
@@ -188,7 +175,7 @@ mod test {
     #[test]
     fn test_parse_number() {
         let input = Span::new_extra("1000 ;; ", AsmSource::FromStr);
-        let (rest,matched) = parse_number(input).unwrap();
+        let (rest, matched) = parse_number(input).unwrap();
         assert_eq!(*rest, " ;; ");
         assert_eq!(&matched.to_string(), "1000");
     }
@@ -196,15 +183,14 @@ mod test {
     #[test]
     fn test_assignment() {
         let input = Span::new_extra("hello equ $1000", AsmSource::FromStr);
-        let (_,matched) = parse_assignment(input).unwrap();
+        let (_, matched) = parse_assignment(input).unwrap();
         assert_eq!(&matched.to_string(), "hello equ 4096");
 
         let input = Span::new_extra("hello equ * ;;", AsmSource::FromStr);
-        let (rest,matched) = parse_assignment(input).unwrap();
+        let (rest, matched) = parse_assignment(input).unwrap();
         println!("original: {:?}", *input);
         println!("Rest: {:?}", rest);
         println!("Po: {:?}", matched.ctx);
-        assert_eq!(&matched.to_string(),"hello equ *");
+        assert_eq!(&matched.to_string(), "hello equ *");
     }
 }
-
