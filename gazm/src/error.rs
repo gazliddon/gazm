@@ -191,12 +191,12 @@ impl UserError {
         Ok(s)
     }
 
-    pub fn from_parse_error(err: ParseError, sources: &utils::sources::Sources) -> Self {
+    pub fn from_parse_error(err: &ParseError, sources: &utils::sources::Sources) -> Self {
         let si = sources.get_source_info(&err.pos).unwrap();
 
         Self {
             message: err.message(),
-            pos: err.pos,
+            pos: err.pos.clone(),
             fragment: si.fragment.to_string(),
             line: si.line_str.to_string(),
             file: si.file,
@@ -276,14 +276,6 @@ impl UserErrors {
 
     pub fn add_ast_error(&mut self, err: AstError, info: &SourceInfo) -> Result<(), UserError> {
         self.add_error(UserError::from_ast_error(err, info))
-    }
-
-    pub fn add_parse_error(
-        &mut self,
-        err: ParseError,
-        sources: &utils::sources::Sources,
-    ) -> Result<(), UserError> {
-        self.add_error(UserError::from_parse_error(err, sources))
     }
 
     pub fn add_text_error<S>(

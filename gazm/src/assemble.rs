@@ -1,5 +1,6 @@
 use emu::cpu::RegEnum;
 
+use emu::isa::Instruction;
 use utils::sources::{
     ItemType, Position, SourceDatabase, SourceInfo, SourceMapping, SymbolError, SymbolWriter,
 };
@@ -153,6 +154,10 @@ impl<'a> Assembler<'a> {
             self.direct_page = Some(dp as u64 as u8)
         }
     }
+    fn get_source_info_id(&self, id : AstNodeId) -> Result<SourceInfo, String> {
+        let pos = &self.tree.get(id).unwrap().value().pos;
+        self.ctx.sources().get_source_info(pos)
+    }
 
     fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, String> {
         self.ctx.sources().get_source_info(pos)
@@ -248,25 +253,25 @@ impl<'a> Assembler<'a> {
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
         self.assemble_node(self.tree.root().id())?;
 
-        let x = self.binary.get_unchecked_writes();
 
         let database = SourceDatabase::new(&self.source_map, self.ctx.sources(), &self.ctx.symbols);
 
-        for uc in x {
-            let text = if let Some(si) = database.get_source_info_from_physical_address(uc.physical)
-            {
-                format!(
-                    "{} {} {}",
-                    si.file.to_string_lossy(),
-                    si.line_number,
-                    si.text
-                )
-            } else {
-                "no info!".to_string()
-            };
+        // let x = self.binary.get_unchecked_writes();
+        // for uc in x {
+        //     let text = if let Some(si) = database.get_source_info_from_physical_address(uc.physical)
+        //     {
+        //         format!(
+        //             "{} {} {}",
+        //             si.file.to_string_lossy(),
+        //             si.line_number,
+        //             si.text
+        //         )
+        //     } else {
+        //         "no info!".to_string()
+        //     };
 
-            println!("{:05X?} {}", uc, text);
-        }
+        //     println!("{:05X?} {}", uc, text);
+        // }
 
         let ret = Assembled {
             mem: self.binary.data.clone(),
@@ -331,11 +336,12 @@ impl<'a> Assembler<'a> {
         &mut self,
         phys_range: std::ops::Range<usize>,
         range: std::ops::Range<usize>,
-        pos: &Position,
+        id: AstNodeId,
         i: ItemType,
     ) {
+        let pos = self.tree.get(id).unwrap().value().pos.clone();
         self.source_map
-            .add_mapping(self.ctx.sources(), phys_range, range, pos, i);
+            .add_mapping(self.ctx.sources(), phys_range, range, &pos, i);
     }
 
     /// Returns ranges from current_pc -> pc
@@ -355,6 +361,202 @@ impl<'a> Assembler<'a> {
         self.binary.get_write_address()
     }
 
+    fn grab_mem(&mut self, id: AstNodeId) -> Result<(), UserError> {
+        let args = self.eval_n_args(id, 2)?;
+        let source = args[0];
+        let size = args[1];
+
+        let bytes = self
+            .binary
+            .get_bytes(source as usize, size as usize)
+            .to_vec();
+
+        self.binary
+            .write_bytes(&bytes)
+            .map_err(|e| self.binary_error(id, e))?;
+
+        Ok(())
+    }
+
+    fn write_bin(&mut self, id: AstNodeId, file_name: &Path) -> Result<(), UserError> {
+        let (addr, size) = self.eval_two_args(id)?;
+        let mem = self.binary.get_bytes(addr as usize, size as usize);
+        let p = self.ctx.write(file_name, mem);
+        messages().info(format!(
+            "Write mem: {} {addr:05X} {size:05X}",
+            p.to_string_lossy()
+        ));
+        Ok(())
+    }
+
+    fn inc_bin_ref(&mut self, id: AstNodeId, file_name: &Path) -> Result<(), UserError> {
+        let data = self.get_binary(file_name, id)?;
+        let dest = self.binary.get_write_location().physical;
+
+        let bin_ref = BinRef {
+            file: file_name.to_path_buf(),
+            start: 0,
+            size: data.len(),
+            dest,
+        };
+
+        self.binary.bin_reference(&bin_ref, &data);
+        let file_name = file_name.to_string_lossy();
+
+        messages().info(format!(
+            "Adding binary reference {file_name} for {:05X} - {:05X}",
+            dest,
+            dest + data.len()
+        ));
+        Ok(())
+    }
+
+    fn opcode(
+        &mut self,
+        id: AstNodeId,
+        ins: &Instruction,
+        amode: &AddrModeParseType,
+    ) -> Result<(), UserError> {
+        let x = messages();
+        let pc = self.get_pc() as i64;
+
+        use emu::isa::AddrModeEnum::*;
+        let ins_amode = ins.addr_mode;
+
+        if ins.opcode > 0xff {
+            self.binary
+                .write_word(ins.opcode)
+                .map_err(|e| self.binary_error(id, e))?;
+        } else {
+            self.binary
+                .write_byte(ins.opcode as u8)
+                .map_err(|e| self.binary_error(id, e))?;
+        }
+
+        match ins_amode {
+            Indexed => {
+                if let AddrModeParseType::Indexed(imode, indirect) = amode {
+                    self.assemble_indexed(id, *imode, *indirect)?;
+                }
+            }
+
+            Immediate8 | Direct => {
+                let (arg, id) = self.eval_first_arg(id)?;
+                self.binary
+                    .write_byte_check_size(arg)
+                    .map_err(|e| self.binary_error(id, e))?;
+            }
+
+            Extended | Immediate16 => {
+                let (arg, id) = self.eval_first_arg(id)?;
+
+                self.binary
+                    .write_word_check_size(arg)
+                    .map_err(|e| self.binary_error(id, e))?;
+            }
+
+            Relative => {
+                let (arg, id) = self.eval_first_arg(id)?;
+                let val = arg - (pc + ins.size as i64);
+                // offset is from PC after Instruction and operand has been fetched
+                use crate::binary::BinaryError::*;
+                let res = self
+                    .binary
+                    .write_ibyte_check_size(val)
+                    .map_err(|x| match x {
+                        DoesNotFit { .. } => self.relative_error(id, val, 8),
+                        DoesNotMatchReference { .. } => self.binary_error(id, x),
+                        _ => self.user_error(format!("{:?}", x), id, true),
+                    });
+
+                match &res {
+                    Ok(_) => (),
+                    Err(e) => {
+                        if self.ctx.ignore_relative_offset_errors {
+                            x.warning(e.pretty().unwrap());
+                            x.warning("Skipping writing relative offset");
+                            self.binary.write_ibyte_check_size(0).unwrap();
+                        } else {
+                            res?;
+                        }
+                    }
+                }
+            }
+
+            Relative16 => {
+                use crate::binary::BinaryError::*;
+
+                let (arg, id) = self.eval_first_arg(id)?;
+
+                let val = ( arg - (pc + ins.size as i64) ) & 0xffff;
+                // offset is from PC after Instruction and operand has been fetched
+                let res = self.binary.write_word_check_size(val);
+
+                res.map_err(|x| match x {
+                    DoesNotFit { .. } => self.relative_error(id, val, 16),
+                    DoesNotMatchReference { .. } => self.binary_error(id, x),
+                    _ => self.user_error(format!("{:?}", x), id, true),
+                })?;
+            }
+
+            Inherent => {}
+
+            RegisterPair => {
+                if let AddrModeParseType::RegisterPair(a, b) = amode {
+                    self.binary
+                        .write_byte(reg_pair_to_flags(*a, *b))
+                        .map_err(|e| self.binary_error(id, e))?;
+                } else {
+                    panic!("Whut!")
+                }
+            }
+
+            RegisterSet => {
+                let node = self.tree.get(id).unwrap();
+                let rset = &node.first_child().unwrap().value().item;
+
+                if let Item::RegisterSet(regs) = rset {
+                    self.binary
+                        .write_byte(registers_to_flags(regs))
+                        .map_err(|e| self.binary_error(id, e))?;
+                } else {
+                    panic!("Whut!")
+                }
+            }
+        };
+
+
+        let (phys_range, range) = self.get_range(pc);
+
+        self.add_mapping(phys_range, range, id, ItemType::OpCode);
+        Ok(())
+    }
+
+    fn incbin_resolved(
+        &mut self,
+        id: AstNodeId,
+        file: &Path,
+        r: &std::ops::Range<usize>,
+    ) -> Result<(), UserError> {
+        let msg = format!(
+            "Including Binary {} :  offset: {:04X} len: {:04X}",
+            file.to_string_lossy(),
+            r.start,
+            r.len()
+        );
+
+        messages().status(msg);
+
+        let bin = self.get_binary_chunk(file.to_path_buf(), id, r.clone())?;
+
+        for val in bin {
+            self.binary
+                .write_byte(val)
+                .map_err(|e| self.binary_error(id, e))?;
+        }
+        Ok(())
+    }
+
     fn assemble_node(&mut self, id: AstNodeId) -> Result<(), UserError> {
         use item::Item::*;
         let x = super::messages::messages();
@@ -362,311 +564,176 @@ impl<'a> Assembler<'a> {
         let node = self.tree.get(id).unwrap();
         let id = node.id();
         let i = &node.value().item.clone();
-        let pos = &node.value().pos.clone();
 
         let pc = self.get_pc() as i64;
 
-        match i {
-            Scope(opt) => {
-                self.set_scope(opt);
-            }
-
-            GrabMem => {
-                let args = self.eval_n_args(id, 2)?;
-                let source = args[0];
-                let size = args[1];
-                let bytes = self
-                    .binary
-                    .get_bytes(source as usize, size as usize)
-                    .to_vec();
-                self.binary
-                    .write_bytes(&bytes)
-                    .map_err(|e| self.binary_error(id, e))?;
-            }
-
-            WriteBin(file_name) => {
-                let (addr, size) = self.eval_two_args(id)?;
-                let mem = self.binary.get_bytes(addr as usize, size as usize);
-                let p = self.ctx.write(file_name, mem);
-                messages().info(format!(
-                    "Write mem: {} {addr:05X} {size:05X}",
-                    p.to_string_lossy()
-                ));
-            }
-
-            IncBinRef(file_name) => {
-                let data = self.get_binary(file_name, id)?;
-                let dest = self.binary.get_write_location().physical;
-
-                let bin_ref = BinRef {
-                    file: file_name.to_path_buf(),
-                    start: 0,
-                    size: data.len(),
-                    dest,
-                };
-
-                self.binary.bin_reference(&bin_ref, &data);
-                let file_name = file_name.to_string_lossy();
-
-                messages().info(format!(
-                    "Adding binary reference {file_name} for {:05X} - {:05X}",
-                    dest,
-                    dest + data.len()
-                ));
-            }
-
-            IncBinResolved { file, r } => {
-                let msg = format!(
-                    "Including Binary {} :  offset: {:04X} len: {:04X}",
-                    file.to_string_lossy(),
-                    r.start,
-                    r.len()
-                );
-
-                messages().status(msg);
-
-                let bin = self.get_binary_chunk(file.to_path_buf(), id, r.clone())?;
-
-                for val in bin {
-                    self.binary
-                        .write_byte(val)
-                        .map_err(|e| self.binary_error(id, e))?;
-                }
-            }
-
-            Skip(skip) => {
-                self.binary.skip(*skip);
-            }
-
-            SetPc(pc) => {
-                self.binary.set_write_address(*pc as usize, 0);
-                x.debug(format!("Set PC to {:02X}", *pc));
-            }
-
-            SetPutOffset(offset) => {
-                x.debug(format!("Set put offset to {}", offset));
-                self.binary.set_write_offset(*offset);
-            }
-
-            OpCode(ins, amode) => {
-                use emu::isa::AddrModeEnum::*;
-                let ins_amode = ins.addr_mode;
-
-                if ins.opcode > 0xff {
-                    self.binary
-                        .write_word(ins.opcode)
-                        .map_err(|e| self.binary_error(id, e))?;
-                } else {
-                    self.binary
-                        .write_byte(ins.opcode as u8)
-                        .map_err(|e| self.binary_error(id, e))?;
+        let res: Result<(), UserError> = try {
+            match i {
+                Scope(opt) => {
+                    self.set_scope(opt);
                 }
 
-                match ins_amode {
-                    Indexed => {
-                        if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                            self.assemble_indexed(id, *imode, *indirect)?;
+                GrabMem => self.grab_mem(id)?,
+                WriteBin(file_name) => self.write_bin(id, file_name)?,
+
+                IncBinRef(file_name) => {
+                    self.inc_bin_ref(id, file_name)?;
+                }
+
+                IncBinResolved { file, r } => {
+                    self.incbin_resolved(id, file, r)?;
+                }
+
+                Skip(skip) => {
+                    self.binary.skip(*skip);
+                }
+
+                SetPc(pc) => {
+                    self.binary.set_write_address(*pc as usize, 0);
+                    x.debug(format!("Set PC to {:02X}", *pc));
+                }
+
+                SetPutOffset(offset) => {
+                    x.debug(format!("Set put offset to {}", offset));
+                    self.binary.set_write_offset(*offset);
+                }
+
+                OpCode(ins, amode) => {
+                    self.opcode(id, ins, amode)?;
+                }
+
+                ExpandedMacro(mcall) => {
+                    // We need to tell the source mapper we're expanding a macro so the file / line for
+                    // everything expanded by the macro will point to the line that instantiated the
+                    //
+                    let si = self.get_source_info(&mcall.name).unwrap();
+                    let frag = si.fragment.to_string();
+                    self.source_map.start_macro(&mcall.name);
+
+                    let children: Vec<_> = node.children().map(|n| n.id()).collect();
+                    for c in children {
+                        let mut res = self.assemble_node(c);
+
+                        if let Err(ref mut err) = res {
+                            err.message = format!("expanding macro : {}\n{}", frag, err.message);
                         }
+
+                        res?;
                     }
 
-                    Immediate8 | Direct => {
-                        let (arg, id) = self.eval_first_arg(id)?;
+                    self.source_map.stop_macro();
+                }
+
+                Block | TokenizedFile(..) => {
+                    let children: Vec<_> = node.children().map(|n| n.id()).collect();
+                    for c in children {
+                        self.assemble_node(c)?;
+                    }
+                }
+
+                Fdb(..) => {
+                    for n in node.children() {
+                        let x = self.eval_node(n)?;
                         self.binary
-                            .write_byte_check_size(arg)
+                            .write_word_check_size(x)
+                            .map_err(|e| self.binary_error(n.id(), e))?;
+                    }
+
+                    let (phys_range, range) = self.get_range(pc);
+                    self.add_mapping(phys_range, range, id, ItemType::Command);
+                }
+
+                Fcb(..) => {
+                    for n in node.children() {
+                        let x = self.eval_node(n)?;
+                        self.binary
+                            .write_byte_check_size(x)
+                            .map_err(|e| self.binary_error(n.id(), e))?;
+                    }
+                    let (phys_range, range) = self.get_range(pc);
+                    self.add_mapping(phys_range, range, id, ItemType::Command);
+                }
+
+                Fcc(text) => {
+                    for c in text.as_bytes() {
+                        self.binary
+                            .write_byte(*c)
+                            .map_err(|e| self.binary_error(id, e))?;
+                    }
+                    let (phys_range, range) = self.get_range(pc);
+                    self.add_mapping(phys_range, range, id, ItemType::Command);
+                }
+
+                Zmb => {
+                    let (bytes, _) = self.eval_first_arg(id)?;
+                    for _ in 0..bytes {
+                        self.binary
+                            .write_byte(0)
+                            .map_err(|e| self.binary_error(id, e))?;
+                    }
+                    let (phys_range, range) = self.get_range(pc);
+                    self.add_mapping(phys_range, range, id, ItemType::Command);
+                }
+
+                Zmd => {
+                    let (words, _) = self.eval_first_arg(id)?;
+                    for _ in 0..words {
+                        self.binary
+                            .write_word(0)
                             .map_err(|e| self.binary_error(id, e))?;
                     }
 
-                    Extended | Immediate16 => {
-                        let (arg, id) = self.eval_first_arg(id)?;
+                    let (phys_range, range) = self.get_range(pc);
+                    self.add_mapping(phys_range, range, id, ItemType::Command);
+                }
 
+                Fill => {
+                    let (byte, size) = self.eval_two_args(id)?;
+
+                    for _ in 0..size {
                         self.binary
-                            .write_word_check_size(arg)
+                            .write_ubyte_check_size(byte)
                             .map_err(|e| self.binary_error(id, e))?;
                     }
 
-                    Relative => {
-                        let (arg, id) = self.eval_first_arg(id)?;
-                        let val = arg - (pc + ins.size as i64);
-                        // offset is from PC after Instruction and operand has been fetched
-                        use crate::binary::BinaryError::*;
-                        let res = self
-                            .binary
-                            .write_ibyte_check_size(val)
-                            .map_err(|x| match x {
-                                DoesNotFit { .. } => self.relative_error(id, val, 8),
-                                DoesNotMatchReference { .. } => self.binary_error(id, x),
-                                _ => self.user_error(format!("{:?}", x), id, true),
-                            });
-
-                        match &res {
-                            Ok(_) => (),
-                            Err(e) => {
-                                if self.ctx.ignore_relative_offset_errors {
-                                    x.warning(e.pretty().unwrap());
-                                    x.warning("Skipping writing relative offset");
-                                    self.binary.write_ibyte_check_size(0).unwrap();
-                                } else {
-                                    res?;
-                                }
-                            }
-                        }
-                    }
-
-                    Relative16 => {
-                        use crate::binary::BinaryError::*;
-                        let (arg, id) = self.eval_first_arg(id)?;
-                        let val = arg - (pc + ins.size as i64);
-                        // offset is from PC after Instruction and operand has been fetched
-                        let res = self.binary.write_iword_check_size(val);
-
-                        res.map_err(|x| match x {
-                            DoesNotFit { .. } => self.relative_error(id, val, 16),
-                            DoesNotMatchReference { .. } => self.binary_error(id, x),
-                            _ => self.user_error(format!("{:?}", x), id, true),
-                        })?;
-                    }
-
-                    Inherent => {}
-
-                    RegisterPair => {
-                        if let AddrModeParseType::RegisterPair(a, b) = amode {
-                            self.binary
-                                .write_byte(reg_pair_to_flags(*a, *b))
-                                .map_err(|e| self.binary_error(id, e))?;
-                        } else {
-                            panic!("Whut!")
-                        }
-                    }
-
-                    RegisterSet => {
-                        let rset = &node.first_child().unwrap().value().item;
-
-                        if let Item::RegisterSet(regs) = rset {
-                            self.binary
-                                .write_byte(registers_to_flags(regs))
-                                .map_err(|e| self.binary_error(id, e))?;
-                        } else {
-                            panic!("Whut!")
-                        }
-                    }
-                };
-
-                let (phys_range, range) = self.get_range(pc);
-                self.add_mapping(phys_range, range, pos, ItemType::OpCode);
-            }
-
-            ExpandedMacro(mcall) => {
-                // We need to tell the source mapper we're expanding a macro so the file / line for
-                // everything expanded by the macro will point to the line that instantiated the
-                //
-                let si = self.get_source_info(&mcall.name).unwrap();
-                let frag = si.fragment.to_string();
-                self.source_map.start_macro(&mcall.name);
-
-                let children: Vec<_> = node.children().map(|n| n.id()).collect();
-                for c in children {
-                    let mut res = self.assemble_node(c);
-
-                    if let Err(ref mut err) = res {
-                        err.message = format!("expanding macro : {}\n{}", frag, err.message);
-                    }
-
-                    res?;
+                    let (phys_range, range) = self.get_range(pc);
+                    self.add_mapping(phys_range, range, id, ItemType::Command);
                 }
 
-                self.source_map.stop_macro();
-            }
 
-            Block | TokenizedFile(..) => {
-                let children: Vec<_> = node.children().map(|n| n.id()).collect();
-                for c in children {
-                    self.assemble_node(c)?;
-                }
-            }
-
-            Fdb(..) => {
-                for n in node.children() {
-                    let x = self.eval_node(n)?;
-                    self.binary
-                        .write_word_check_size(x)
-                        .map_err(|e| self.binary_error(n.id(), e))?;
+                SetDp => {
+                    let (dp, _) = self.eval_first_arg(id)?;
+                    self.set_dp(dp);
                 }
 
-                let (phys_range, range) = self.get_range(pc);
-                self.add_mapping(phys_range, range, pos, ItemType::Command);
-            }
+                IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
+                | StructDef(..) => (),
 
-            Fcb(..) => {
-                for n in node.children() {
-                    let x = self.eval_node(n)?;
-                    self.binary
-                        .write_byte_check_size(x)
-                        .map_err(|e| self.binary_error(n.id(), e))?;
+                _ => {
+                    panic!("Unable to assemble {:?}", i);
                 }
-                let (phys_range, range) = self.get_range(pc);
-                self.add_mapping(phys_range, range, pos, ItemType::Command);
             }
+        };
 
-            Fcc(text) => {
-                for c in text.as_bytes() {
-                    self.binary
-                        .write_byte(*c)
-                        .map_err(|e| self.binary_error(id, e))?;
-                }
-                let (phys_range, range) = self.get_range(pc);
-                self.add_mapping(phys_range, range, pos, ItemType::Command);
-            }
+        let (phys_range, _) = self.get_range(pc);
 
-            Zmb => {
-                let (bytes, _) = self.eval_first_arg(id)?;
-                for _ in 0..bytes {
-                    self.binary
-                        .write_byte(0)
-                        .map_err(|e| self.binary_error(id, e))?;
-                }
-                let (phys_range, range) = self.get_range(pc);
-                self.add_mapping(phys_range, range, pos, ItemType::Command);
-            }
+        if phys_range.len() !=  0 {
+        if let Ok(si) = self.get_source_info_id(id) {
+            let m_pc = format!("{:04X} {:02X?} ", pc, self.binary.get_bytes(phys_range.start, phys_range.len()));
 
-            Zmd => {
-                let (words, _) = self.eval_first_arg(id)?;
-                for _ in 0..words {
-                    self.binary
-                        .write_word(0)
-                        .map_err(|e| self.binary_error(id, e))?;
-                }
-
-                let (phys_range, range) = self.get_range(pc);
-                self.add_mapping(phys_range, range, pos, ItemType::Command);
-            }
-
-            Fill => {
-                let (byte, size) = self.eval_two_args(id)?;
-
-                for _ in 0..size {
-                    self.binary
-                        .write_ubyte_check_size(byte)
-                        .map_err(|e| self.binary_error(id, e))?;
-                }
-
-                let (phys_range, range) = self.get_range(pc);
-                self.add_mapping(phys_range, range, pos, ItemType::Command);
-            }
-
-            IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
-            | StructDef(..) => (),
-
-            SetDp => {
-                let (dp, _) = self.eval_first_arg(id)?;
-                self.set_dp(dp);
-            }
-
-            _ => {
-                panic!("Unable to assemble {:?}", i);
+            let m = format!("{:50}{}", m_pc, si.line_str);
+            if m.len() < 100 {
+                messages().debug(m);
             }
         }
 
-        Ok(())
+        }
+
+
+        match res {
+            Ok(()) => Ok(()),
+            Err(e) => self.ctx.add_error(e),
+        }
     }
 
     fn size_indexed(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {

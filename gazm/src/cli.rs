@@ -3,6 +3,7 @@ use std::path::Path;
 use crate::messages::Verbosity;
 use clap::{Arg, Command};
 use utils::sources::SourceFileLoader;
+use crate::error::UserErrors;
 
 impl From<clap::ArgMatches> for Context {
     fn from(m: clap::ArgMatches) -> Self {
@@ -44,10 +45,12 @@ impl From<clap::ArgMatches> for Context {
         }
 
         if m.is_present("max-errors") {
-            ret.max_errors = m
+            let max_errors =  m
                 .value_of("max-errors")
                 .map(|s| s.parse::<usize>().unwrap())
                 .unwrap();
+            ret.max_errors = max_errors;
+            ret.errors = UserErrors::new(max_errors)
         }
 
         if !ret.files.is_empty() {

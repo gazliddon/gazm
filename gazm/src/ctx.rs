@@ -1,3 +1,4 @@
+use crate::error::{ParseError, UserError, UserErrors};
 use crate::messages::Verbosity;
 use utils::sources::{FileIo, SourceFileLoader, Sources, SymbolTree};
 use std::collections::HashMap;
@@ -59,6 +60,7 @@ pub struct Context {
     pub vars: Vars,
     pub symbols: SymbolTree,
     pub source_file_loader: SourceFileLoader,
+    pub errors : UserErrors,
 }
 use anyhow::Result;
 
@@ -97,6 +99,14 @@ impl Context {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         self.source_file_loader.read_binary_chunk(path, r)
     }
+
+    pub fn add_parse_error(&mut self, pe : &ParseError ) -> Result<(), UserError>{
+        let ue = UserError::from_parse_error(pe, self.sources());
+        self.errors.add_error(ue)
+    }
+    pub fn add_error(&mut self, ue : UserError ) -> Result<(), UserError>{
+        self.errors.add_error(ue)
+    }
 }
 
 impl Default for Context {
@@ -116,6 +126,7 @@ impl Default for Context {
             symbols: SymbolTree::new(),
             source_file_loader: SourceFileLoader::new(),
             deps_file: None,
+            errors: UserErrors::new(5),
         }
     }
 }

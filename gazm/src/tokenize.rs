@@ -38,12 +38,11 @@ fn get_line(input: Span) -> IResult<Span> {
 pub fn tokenize_file_from_str<'a>(
     file: &Path,
     input: &str,
-    errors: &mut UserErrors,
     ctx: &'a mut crate::ctx::Context,
 ) -> Result<Node, UserError> {
     let span = Span::new_extra(input, AsmSource::FromStr);
     let mut macros = Macros::new();
-    let matched = Tokens::new(ctx).convert_to_tokens(span, &mut macros, errors)?;
+    let matched = Tokens::new(ctx).convert_to_tokens(span, &mut macros)?;
     let item = Item::TokenizedFile(file.into(), file.into());
     let file_node = Node::from_item_span(item, span).with_children(matched);
     Ok(file_node)
@@ -62,11 +61,11 @@ fn mk_pc_equate(node: Node) -> Node {
 
 struct Tokens<'a> {
     tokens: Vec<Node>,
-    ctx: &'a crate::ctx::Context,
+    ctx: &'a mut crate::ctx::Context,
 }
 
 impl<'a> Tokens<'a> {
-    fn new(ctx: &'a crate::ctx::Context) -> Self {
+    fn new(ctx: &'a mut crate::ctx::Context) -> Self {
         Self {
             tokens: vec![],
             ctx,
@@ -158,7 +157,6 @@ impl<'a> Tokens<'a> {
         &mut self,
         input: Span,
         macros: &mut Macros,
-        errors: &mut UserErrors,
     ) -> Result<Vec<Node>, UserError> {
         use crate::macros::MacroCall;
 
@@ -192,11 +190,13 @@ impl<'a> Tokens<'a> {
             match &res {
                 Ok(..) => (),
                 Err(pe) => {
-                    errors.add_parse_error(pe.clone(), self.ctx.sources())?;
+                    self.ctx.add_parse_error(pe)?;
                 }
             };
         }
-        errors.raise_errors()?;
+
+        self.ctx.errors.raise_errors()?;
+
         // Expand all macros for this block of stuff
         let mut tokes = self.tokens.clone();
 
@@ -218,7 +218,7 @@ impl<'a> Tokens<'a> {
             let input = Span::new_extra(&text, pos.src);
 
             let new_tokens = self
-                .convert_to_tokens(input, macros, errors)
+                .convert_to_tokens(input, macros)
                 .map_err(|mut e| {
                     let args: Vec<_> = macro_call
                         .args
@@ -249,7 +249,6 @@ fn tokenize_file(
     file: &std::path::Path,
     parent: &std::path::Path,
     macros: &mut Macros,
-    errors: &mut UserErrors,
 ) -> anyhow::Result<Node> {
     use anyhow::Context;
 
@@ -271,13 +270,13 @@ fn tokenize_file(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = Tokens::new(ctx).convert_to_tokens(input, macros, errors)?;
+    let mut tokes = Tokens::new(ctx).convert_to_tokens(input, macros)?;
 
     // Tokenize includes
     for n in tokes.iter_mut() {
         if let Include(inc_file) = &n.item {
             x.indent();
-            *n = tokenize_file(depth + 1, ctx, inc_file, file, macros, errors)?;
+            *n = tokenize_file(depth + 1, ctx, inc_file, file, macros)?;
             x.deindent();
         };
     }
@@ -295,19 +294,18 @@ pub fn tokenize(ctx: &mut crate::ctx::Context) -> anyhow::Result<Node> {
     let parent = PathBuf::new();
 
     let mut all_tokens = vec![];
-    let mut errors = UserErrors::new(ctx.max_errors);
     let files = ctx.files.clone();
 
     for file in files {
         let msg = format!("Reading {}", file.to_string_lossy());
         messages().status(msg);
 
-        let res = tokenize_file(0, ctx, &file, &parent, &mut macros, &mut errors);
+        let res = tokenize_file(0, ctx, &file, &parent, &mut macros);
 
         match res {
             Err(e) => {
-                if errors.has_errors() {
-                    return Err(anyhow::Error::new(errors));
+                if ctx.errors.has_errors() {
+                    return Err(anyhow::Error::new(ctx.errors.clone()));
                 } else {
                     return Err(e);
                 }

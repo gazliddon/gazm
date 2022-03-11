@@ -69,8 +69,8 @@ pub enum BinaryError {
     DoesNotMatchReference {
         addr: usize,
         logical_addr: usize,
-        val: u8,
-        expected: u8,
+        val: usize,
+        expected: usize,
     },
     #[error("Tried to write to {0:X?}")]
     InvalidWriteAddress(usize),
@@ -294,8 +294,8 @@ impl Binary {
                     return Err(BinaryError::DoesNotMatchReference {
                         addr: physical,
                         logical_addr: logical,
-                        expected,
-                        val,
+                        expected : expected as usize,
+                        val: val as usize,
                     });
                 }
             }
@@ -337,7 +337,25 @@ impl Binary {
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {
         let hi = val >> 8;
         let lo = val & 0xff;
-        self.write_byte(hi as u8)?;
-        self.write_byte(lo as u8)
+        let x = self.get_write_location();
+        let r = self.write_byte(hi as u8).and_then(|_| self.write_byte(lo as u8));
+
+        if let Err(BinaryError::DoesNotMatchReference{..}) = r {
+
+            let hi = self.data[x.physical];
+            let lo = self.data[x.physical + 1];
+            let expected = lo as u16 + (hi as u16) <<  8;
+
+            Err(BinaryError::DoesNotMatchReference {
+                logical_addr: x.logical,
+                addr : x.physical,
+                val : val as usize,
+                expected : expected as usize,
+            })
+
+        } else {
+            r
+        }
+
     }
 }
