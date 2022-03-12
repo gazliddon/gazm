@@ -228,12 +228,12 @@ impl<'a> Context<'a> {
         func: fn(&mut Flags, u8, u32) -> u8,
     ) -> CpuResult<u8> {
         let ea = self.ea::<A>()?;
-        let b = self.mem.load_byte(ea)?;
+        let b = self.mem.load_byte(ea.into())?;
 
         let v = u32::from(b);
         let r = func(&mut self.regs.flags, write_mask, v);
 
-        self.mem.store_byte(ea, r)?;
+        self.mem.store_byte(ea.into(), r)?;
 
         Ok(r)
     }
@@ -282,52 +282,52 @@ impl<'a> Context<'a> {
 impl<'a> Context<'a> {
     fn pushu_byte(&mut self, v: u8) -> CpuResult<()> {
         let u = self.regs.u.wrapping_sub(1);
-        self.mem.store_byte(u, v)?;
+        self.mem.store_byte(u.into(), v)?;
         self.regs.u = u;
         Ok(())
     }
 
     fn pushu_word(&mut self, v: u16) -> CpuResult<()> {
         let u = self.regs.u.wrapping_sub(2);
-        self.mem.store_word(u, v)?;
+        self.mem.store_word(u.into(), v)?;
         self.regs.u = u;
         Ok(())
     }
 
     fn popu_byte(&mut self) -> CpuResult<u8> {
-        let r = self.mem.load_byte(self.regs.u)?;
+        let r = self.mem.load_byte(self.regs.u.into())?;
         self.regs.u = self.regs.u.wrapping_add(1);
         Ok(r)
     }
 
     fn popu_word(&mut self) -> CpuResult<u16> {
-        let r = self.mem.load_word(self.regs.u)?;
+        let r = self.mem.load_word(self.regs.u.into())?;
         self.regs.u = self.regs.u.wrapping_add(2);
         Ok(r)
     }
 
     fn pushs_byte(&mut self, v: u8) -> CpuResult<()> {
         let s = self.regs.s.wrapping_sub(1);
-        self.mem.store_byte(s, v)?;
+        self.mem.store_byte(s.into(), v)?;
         self.regs.s = s;
         Ok(())
     }
 
     fn pushs_word(&mut self, v: u16) -> CpuResult<()> {
         let s = self.regs.s.wrapping_sub(2);
-        self.mem.store_word(s, v)?;
+        self.mem.store_word(s.into(), v)?;
         self.regs.s = s;
         Ok(())
     }
 
     fn pops_byte(&mut self) -> CpuResult<u8> {
-        let r = self.mem.load_byte(self.regs.s)?;
+        let r = self.mem.load_byte(self.regs.s.into())?;
         self.regs.s = self.regs.s.wrapping_add(1);
         Ok(r)
     }
 
     fn pops_word(&mut self) -> CpuResult<u16> {
-        let r = self.mem.load_word(self.regs.s)?;
+        let r = self.mem.load_word(self.regs.s.into())?;
         self.regs.s = self.regs.s.wrapping_add(2);
         Ok(r)
     }
@@ -1206,7 +1206,7 @@ impl<'a> Context<'a> {
 
         push8!(self.regs.flags.bits());
 
-        let pc = self.mem.load_word(vec)?;
+        let pc = self.mem.load_word(vec.into())?;
         self.set_pc(pc);
         Ok(())
     }
@@ -1305,7 +1305,7 @@ impl<'a> Context<'a> {
 
     pub fn opcode_size<A: AddressLines>(&self, ins: &InstructionDecoder) -> CpuResult<usize> {
         let ret = if A::get_addr_mode() == AddrModeEnum::Indexed {
-            let index_mode_id = self.mem.inspect_byte(ins.next_addr)?;
+            let index_mode_id = self.mem.inspect_byte(ins.next_addr.into())?;
             let index_mode = super::indexed::IndexedFlags::new(index_mode_id);
             index_mode.get_index_type().get_size() + 1
         } else {
@@ -1341,8 +1341,9 @@ impl<'a> Context<'a> {
                 self.$action::<$addr>()
             }};
         }
+        let opcode =self.ins.instruction_info.opcode;
 
-        op_table!(self.ins.instruction_info.opcode, { self.unimplemented() })?;
+        op_table!(opcode, { self.unimplemented() })?;
 
         self.regs.pc = self.ins.next_addr;
 

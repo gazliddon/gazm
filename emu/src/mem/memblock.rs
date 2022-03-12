@@ -14,12 +14,12 @@ pub struct MemBlock<E: ByteOrder> {
 
 #[allow(dead_code)]
 impl<E: ByteOrder> MemBlock<E> {
-    pub fn new(name: &str, read_only: bool, base: u16, size: u32) -> MemBlock<E> {
+    pub fn new(name: &str, read_only: bool, base: usize, size: usize) -> MemBlock<E> {
         let data = vec![0u8; size as usize];
         Self::from_data(base, name, &data, read_only)
     }
 
-    pub fn from_data(addr: u16, name: &str, data: &[u8], read_only: bool) -> MemBlock<E> {
+    pub fn from_data(addr: usize, name: &str, data: &[u8], read_only: bool) -> MemBlock<E> {
         let size = data.len();
 
         let mr = Region::checked_new(addr, size).unwrap();
@@ -32,7 +32,7 @@ impl<E: ByteOrder> MemBlock<E> {
             phanton: Default::default(),
         }
     }
-    fn to_index(&self, addr: u16) -> usize {
+    fn to_index(&self, addr: usize) -> usize {
         assert!(self.region.is_in_region(addr));
         addr as usize - self.region.addr as usize
     }
@@ -40,17 +40,23 @@ impl<E: ByteOrder> MemBlock<E> {
 
 #[allow(dead_code)]
 impl<E: ByteOrder> MemoryIO for MemBlock<E> {
-    fn inspect_byte(&self, addr: u16) -> MemResult<u8> {
+    fn inspect_byte(&self, addr: usize) -> MemResult<u8> {
         let i = self.to_index(addr);
         let d = self.data[i];
         Ok(d)
+    }
+
+    fn inspect_word(&self, addr: usize) -> MemResult<u16> {
+        let i = self.to_index(addr);
+        let ab = &self.data[i..i+2];
+        Ok(E::read_u16(ab))
     }
 
     fn update_sha1(&self, digest: &mut Sha1) {
         digest.update(&self.data);
     }
 
-    fn upload(&mut self, _addr: u16, _data: &[u8]) -> MemResult<()> {
+    fn upload(&mut self, _addr: usize, _data: &[u8]) -> MemResult<()> {
         panic!("not done")
     }
 
@@ -62,26 +68,26 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
         self.region.as_range()
     }
 
-    fn load_byte(&mut self, addr: u16) -> MemResult<u8> {
+    fn load_byte(&mut self, addr: usize) -> MemResult<u8> {
         let i = self.to_index(addr);
         let v = self.data[i];
         Ok(v)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()> {
+    fn store_byte(&mut self, addr: usize, val: u8) -> MemResult<()> {
         let idx = self.to_index(addr);
         self.data[idx] = val;
         Ok(())
     }
 
-    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()> {
+    fn store_word(&mut self, addr: usize, val: u16) -> MemResult<()> {
         let mut buf = [0; 2];
         E::write_u16(&mut buf, val);
         self.store_byte(addr, buf[0])?;
         self.store_byte(addr.wrapping_add(1), buf[1])
     }
 
-    fn load_word(&mut self, addr: u16) -> MemResult<u16> {
+    fn load_word(&mut self, addr: usize) -> MemResult<u16> {
         let a = self.load_byte(addr)?;
         let b = self.load_byte(addr.wrapping_add(1))?;
         let buf = [a, b];

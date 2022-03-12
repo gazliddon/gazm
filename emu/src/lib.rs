@@ -1,4 +1,7 @@
+#![allow(unused_imports)]
 #![allow(dead_code)]
+#![feature(try_blocks)]
+#![feature(backtrace)]
 
 #[macro_use]
 pub mod cpu;

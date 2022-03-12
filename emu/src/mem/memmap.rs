@@ -38,9 +38,9 @@ impl MemoryIO for MemMap {
         }
     }
 
-    fn upload(&mut self, addr: u16, data: &[u8]) -> MemResult<()> {
+    fn upload(&mut self, addr: usize, data: &[u8]) -> MemResult<()> {
         for (i, item) in data.iter().enumerate() {
-            let a = addr.wrapping_add(i as u16);
+            let a = addr.wrapping_add(i );
             self.store_byte(a, *item)?;
         }
         Ok(())
@@ -54,21 +54,21 @@ impl MemoryIO for MemMap {
         0..0x1_0000
     }
 
-    fn load_byte(&mut self, addr: u16) -> MemResult<u8> {
+    fn load_byte(&mut self, addr: usize) -> MemResult<u8> {
         let m = self.get_region(addr)?;
         m.load_byte(addr)
     }
-    fn load_word(&mut self, addr: u16) -> MemResult<u16> {
+    fn load_word(&mut self, addr: usize) -> MemResult<u16> {
         let m = self.get_region(addr)?;
         m.load_word(addr)
     }
 
-    fn store_byte(&mut self, addr: u16, val: u8) -> MemResult<()> {
+    fn store_byte(&mut self, addr: usize, val: u8) -> MemResult<()> {
         let m = self.get_region(addr)?;
         m.store_byte(addr, val)
     }
 
-    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()> {
+    fn store_word(&mut self, addr: usize, val: u16) -> MemResult<()> {
         let m = self.get_region(addr)?;
         m.store_word(addr, val)
     }
@@ -76,7 +76,7 @@ impl MemoryIO for MemMap {
 
 #[allow(dead_code)]
 impl MemMap {
-    fn get_region(&mut self, addr: u16) -> MemResult<&mut Box<dyn MemoryIO>> {
+    fn get_region(&mut self, addr: usize) -> MemResult<&mut Box<dyn MemoryIO>> {
         for m in &mut self.all_memory {
             if m.is_in_range(addr) {
                 return Ok(m);

@@ -167,7 +167,7 @@ impl<'a> Assembler<'a> {
         let n = self.tree.get(n).unwrap();
         let info = &self.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
-        UserError::from_text(msg, info, true)
+        UserError::from_text(msg, info, false)
     }
 
     fn relative_error(&self, n: AstNodeId, val: i64, bits: usize) -> UserError {
@@ -252,7 +252,6 @@ impl<'a> Assembler<'a> {
 
     pub fn assemble(&mut self) -> Result<Assembled, UserError> {
         self.assemble_node(self.tree.root().id())?;
-
 
         let database = SourceDatabase::new(&self.source_map, self.ctx.sources(), &self.ctx.symbols);
 
@@ -425,7 +424,7 @@ impl<'a> Assembler<'a> {
 
         if ins.opcode > 0xff {
             self.binary
-                .write_word(ins.opcode)
+                .write_word(ins.opcode as u16)
                 .map_err(|e| self.binary_error(id, e))?;
         } else {
             self.binary
@@ -466,7 +465,7 @@ impl<'a> Assembler<'a> {
                     .map_err(|x| match x {
                         DoesNotFit { .. } => self.relative_error(id, val, 8),
                         DoesNotMatchReference { .. } => self.binary_error(id, x),
-                        _ => self.user_error(format!("{:?}", x), id, true),
+                        _ => self.user_error(format!("{:?}", x), id, false),
                     });
 
                 match &res {
@@ -527,8 +526,8 @@ impl<'a> Assembler<'a> {
 
 
         let (phys_range, range) = self.get_range(pc);
-
         self.add_mapping(phys_range, range, id, ItemType::OpCode);
+
         Ok(())
     }
 
@@ -715,7 +714,7 @@ impl<'a> Assembler<'a> {
             }
         };
 
-        let (phys_range, _) = self.get_range(pc);
+        let (_, phys_range) = self.get_range(pc);
 
         if phys_range.len() !=  0 {
         if let Ok(si) = self.get_source_info_id(id) {
@@ -728,7 +727,6 @@ impl<'a> Assembler<'a> {
         }
 
         }
-
 
         match res {
             Ok(()) => Ok(()),

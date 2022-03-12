@@ -5,9 +5,9 @@ use std::vec::Vec;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MemErrorTypes {
-    IllegalAddress(u16),
-    IllegalWrite(u16),
-    IllegalRead(u16),
+    IllegalAddress(usize),
+    IllegalWrite(usize),
+    IllegalRead(usize),
 }
 
 pub type MemResult<T> = std::result::Result<T, MemErrorTypes>;
@@ -17,7 +17,7 @@ pub fn build_addr_to_region<X: Copy>(illegal: X, mem_tab: &[(X, &dyn MemoryIO)])
 
     for (i, id) in ret.iter_mut().enumerate() {
         for &(this_id, mem) in mem_tab {
-            if mem.is_in_range(i as u16) {
+            if mem.is_in_range(i ) {
                 *id = this_id;
             }
         }
@@ -32,30 +32,30 @@ fn to_mem_range(address: u16, size: u16) -> Range<u32> {
 }
 
 pub trait CheckedMemoryIo {
-    fn inspect_byte(&self, _addr: u16) -> MemResult<u16>;
-    fn load_byte(&mut self, _addr: u16) -> MemResult<u8>;
-    fn store_byte(&mut self, _addr: u16, _val: u8) -> MemResult<()>;
+    fn inspect_byte(&self, _addr: usize) -> MemResult<u16>;
+    fn load_byte(&mut self, _addr: usize) -> MemResult<u8>;
+    fn store_byte(&mut self, _addr: usize, _val: u8) -> MemResult<()>;
 }
 
 pub trait MemoryIO {
-    fn inspect_word(&self, _addr: u16) -> MemResult<u16> {
-        todo!()
-    }
-
-    // Min implementation
-    fn inspect_byte(&self, _addr: u16) -> MemResult<u8> {
+    fn inspect_word(&self, _addr: usize) -> MemResult<u16> {
         panic!("TBD")
     }
 
-    fn upload(&mut self, _addr: u16, _data: &[u8]) -> MemResult<()>;
+    // Min implementation
+    fn inspect_byte(&self, _addr: usize) -> MemResult<u8> {
+        panic!("TBD")
+    }
+
+    fn upload(&mut self, _addr: usize, _data: &[u8]) -> MemResult<()>;
 
     fn get_range(&self) -> std::ops::Range<usize>;
 
     fn update_sha1(&self, _digest: &mut Sha1);
 
-    fn load_byte(&mut self, _addr: u16) -> MemResult<u8>;
+    fn load_byte(&mut self, _addr: usize) -> MemResult<u8>;
 
-    fn store_byte(&mut self, _addr: u16, _val: u8) -> MemResult<()>;
+    fn store_byte(&mut self, _addr: usize, _val: u8) -> MemResult<()>;
 
     // Min implementation end
 
@@ -63,7 +63,7 @@ pub trait MemoryIO {
         "default".to_string()
     }
 
-    fn is_valid_addr(&self, addr: u16) -> bool {
+    fn is_valid_addr(&self, addr: usize) -> bool {
         self.is_in_range(addr)
     }
 
@@ -73,19 +73,19 @@ pub trait MemoryIO {
         m.digest().to_string()
     }
 
-    fn is_in_range(&self, addr: u16) -> bool {
-        self.get_range().contains(&(addr as usize))
+    fn is_in_range(&self, addr: usize) -> bool {
+        self.get_range().contains(&addr)
     }
 
-    fn store_word(&mut self, addr: u16, val: u16) -> MemResult<()>;
+    fn store_word(&mut self, addr: usize, val: u16) -> MemResult<()>;
 
-    fn load_word(&mut self, addr: u16) -> MemResult<u16>;
+    fn load_word(&mut self, addr: usize) -> MemResult<u16>;
 
     fn get_mem_as_str(&self, range: &std::ops::Range<usize>, sep: &str) -> String {
         let mut v: Vec<String> = Vec::new();
 
         for a in range.clone() {
-            let b = self.inspect_byte(a as u16).unwrap();
+            let b = self.inspect_byte(a).unwrap();
             let t = format!("{:02X}", b);
             v.push(t);
         }

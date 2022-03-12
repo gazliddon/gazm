@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct Region {
-    pub addr: u16,
-    pub last_addr: u16,
+    pub addr: usize,
+    pub last_addr: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -11,7 +11,7 @@ pub enum RegionErr {
 }
 
 impl Region {
-    pub fn checked_new(addr: u16, size: usize) -> Result<Self, RegionErr> {
+    pub fn checked_new(addr: usize, size: usize) -> Result<Self, RegionErr> {
         if size == 0 {
             return Err(RegionErr::SizeIsZero);
         }
@@ -22,7 +22,7 @@ impl Region {
             return Err(RegionErr::RegionToLargeToFit(addr, last_addr));
         }
 
-        Ok(Self::new(addr as u16, size))
+        Ok(Self::new(addr , size))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -34,7 +34,7 @@ impl Region {
         (last_addr - addr) + 1
     }
 
-    pub fn new(addr: u16, mut size: usize) -> Self {
+    pub fn new(addr: usize, mut size: usize) -> Self {
         if size == 0 {
             size = 1;
         }
@@ -46,25 +46,25 @@ impl Region {
         }
 
         Self {
-            addr: addr as u16,
-            last_addr: last_addr as u16,
+            addr,
+            last_addr,
         }
     }
 
-    pub fn is_in_region(&self, addr: u16) -> bool {
-        addr >= self.addr && addr <= self.last_addr
+    pub fn is_in_region(&self, addr: usize) -> bool {
+        self.as_range().contains(&addr)
     }
 
     fn to_usize(&self) -> (usize, usize) {
-        (self.addr as usize, self.last_addr as usize)
+        (self.addr as usize, self.last_addr )
     }
 
     pub fn as_range(&self) -> std::ops::Range<usize> {
-        self.addr as usize..(self.last_addr as usize + 1)
+        self.addr as usize..(self.last_addr + 1)
     }
 }
 
-fn calc_addr_last(addr: u16, size: usize) -> (usize, usize) {
+fn calc_addr_last(addr: usize, size: usize) -> (usize, usize) {
     (addr as usize, addr as usize + size as usize - 1)
 }
 

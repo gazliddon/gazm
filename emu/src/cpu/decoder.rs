@@ -90,33 +90,33 @@ impl InstructionDecoder {
     }
 
     pub fn fetch_inspect_word(&mut self, mem: &dyn MemoryIO) -> Result<u16, CpuErr> {
-        let w = mem.inspect_word(self.addr.wrapping_add(self.index))?;
+        let w = mem.inspect_word(self.addr.wrapping_add(self.index).into())?;
         self.index = self.index.wrapping_add(2);
         Ok(w)
     }
 
     pub fn fetch_inspecte_byte(&mut self, mem: &dyn MemoryIO) -> Result<u8, CpuErr> {
-        let b = mem.inspect_byte(self.addr.wrapping_add(self.index))?;
+        let b = mem.inspect_byte(self.addr.wrapping_add(self.index.into()).into())?;
         self.index = self.index.wrapping_add(1);
         Ok(b)
     }
 
     pub fn new_from_inspect_mem(addr: u16, mem: &dyn MemoryIO) -> CpuResult<Self> {
-        decode_op(addr, |addr| mem.inspect_byte(addr))
+        decode_op(addr, |addr| mem.inspect_byte(addr.into()))
     }
 
     pub fn new_from_read_mem(addr: u16, mem: &mut dyn MemoryIO) -> CpuResult<Self> {
-        decode_op(addr, |addr| mem.load_byte(addr))
+        decode_op(addr, |addr| mem.load_byte(addr.into()))
     }
 
     pub fn fetch_byte(&mut self, mem: &mut dyn MemoryIO) -> u8 {
-        let b = mem.load_byte(self.addr.wrapping_add(self.index)).unwrap();
+        let b = mem.load_byte(self.addr.wrapping_add(self.index).into()).unwrap();
         self.index = self.index.wrapping_add(1);
         b
     }
 
     pub fn fetch_word(&mut self, mem: &mut dyn MemoryIO) -> Result<u16, CpuErr> {
-        let w = mem.load_word(self.addr.wrapping_add(self.index))?;
+        let w = mem.load_word(self.addr.wrapping_add(self.index).into())?;
         self.index = self.index.wrapping_add(2);
         Ok(w)
     }

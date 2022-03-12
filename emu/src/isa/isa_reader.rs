@@ -12,12 +12,12 @@ use serde::Deserialize;
 // use std::collections::HashMap;
 
 // Custome deserializers
-fn hex_str_to_num<'de, D>(deserializer: D) -> Result<u16, D::Error>
+fn hex_str_to_num<'de, D>(deserializer: D) -> Result<usize, D::Error>
 where
     D: Deserializer<'de>,
 {
     let hex_string = String::deserialize(deserializer)?;
-    let z = u16::from_str_radix(&hex_string, 16).expect("Convert from hex str to u16");
+    let z = usize::from_str_radix(&hex_string, 16).expect("Convert from hex str to u16");
     Ok(z)
 }
 
@@ -42,17 +42,14 @@ pub enum InstructionType {
 pub struct Instruction {
     // pub display : Option<String>,
     pub addr_mode: AddrModeEnum,
-    #[serde(deserialize_with = "u16::deserialize")]
-    pub cycles: u16,
+    pub cycles: usize,
     #[serde(deserialize_with = "fixup_action")]
     pub action: String,
     #[serde(deserialize_with = "hex_str_to_num")]
-    pub opcode: u16,
-    #[serde(deserialize_with = "u16::deserialize")]
-    pub size: u16,
+    pub opcode: usize,
+    pub size: usize,
     #[serde(default)]
-    #[serde(deserialize_with = "u16::deserialize")]
-    pub operand_size: u16,
+    pub operand_size: usize,
     pub subroutine: Option<bool>,
 }
 
@@ -120,7 +117,7 @@ pub struct Dbase {
     #[serde(skip)]
     name_to_ins: HashMap<String, InstructionInfo>,
     #[serde(skip)]
-    opcode_to_ins: HashMap<u16, InstructionInfo>,
+    opcode_to_ins: HashMap<usize, InstructionInfo>,
 }
 
 fn split_opcodes(_input: &str) -> Option<(&str, &str)> {
@@ -154,11 +151,11 @@ impl Dbase {
         }
 
         for (i, o) in lookup.iter_mut().enumerate() {
-            o.opcode = i as u16;
+            o.opcode = i ;
         }
 
         let mut name_to_ins: HashMap<String, InstructionInfo> = HashMap::new();
-        let mut opcode_to_ins: HashMap<u16, InstructionInfo> = HashMap::new();
+        let mut opcode_to_ins: HashMap<usize, InstructionInfo> = HashMap::new();
 
         let mut add = |name: &str, i: &Instruction| {
             let name = String::from(name).to_ascii_lowercase();
@@ -198,7 +195,7 @@ impl Dbase {
         let op = input.to_string().to_lowercase();
         self.name_to_ins.get(&op)
     }
-    pub fn get_opcode_info_from_opcode(&self, opcode: u16) -> Option<&InstructionInfo> {
+    pub fn get_opcode_info_from_opcode(&self, opcode: usize) -> Option<&InstructionInfo> {
         self.opcode_to_ins.get(&opcode)
     }
 

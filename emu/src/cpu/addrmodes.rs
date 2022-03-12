@@ -100,7 +100,7 @@ impl AddressLines for Direct {
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        let b = mem.load_byte(ea)?;
+        let b = mem.load_byte(ea.into())?;
         Ok(b)
     }
 
@@ -110,7 +110,7 @@ impl AddressLines for Direct {
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        let w = mem.load_word(ea)?;
+        let w = mem.load_word(ea.into())?;
         Ok(w)
     }
 
@@ -121,7 +121,7 @@ impl AddressLines for Direct {
         val: u8,
     ) -> Result<u16, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        mem.store_byte(ea, val)?;
+        mem.store_byte(ea.into(), val)?;
         Ok(ea)
     }
 
@@ -132,7 +132,7 @@ impl AddressLines for Direct {
         val: u16,
     ) -> Result<u16, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        mem.store_word(ea, val)?;
+        mem.store_word(ea.into(), val)?;
         Ok(ea)
     }
 
@@ -163,7 +163,7 @@ impl AddressLines for Extended {
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
         let addr = Self::ea(mem, regs, ins)?;
-        let b = mem.load_byte(addr)?;
+        let b = mem.load_byte(addr.into())?;
         Ok(b)
     }
 
@@ -173,7 +173,7 @@ impl AddressLines for Extended {
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
         let addr = Self::ea(mem, regs, ins)?;
-        let b = mem.load_word(addr)?;
+        let b = mem.load_word(addr.into())?;
         Ok(b)
     }
 
@@ -184,7 +184,7 @@ impl AddressLines for Extended {
         val: u8,
     ) -> Result<u16, CpuErr> {
         let addr = Self::ea(mem, regs, ins)?;
-        mem.store_byte(addr, val)?;
+        mem.store_byte(addr.into(), val)?;
         Ok(addr)
     }
 
@@ -195,7 +195,7 @@ impl AddressLines for Extended {
         val: u16,
     ) -> Result<u16, CpuErr> {
         let addr = Self::ea(mem, regs, ins)?;
-        mem.store_word(addr, val)?;
+        mem.store_word(addr.into(), val)?;
         Ok(addr)
     }
 
@@ -503,7 +503,7 @@ impl AddressLines for Indexed {
         let (ea, index_mode) = Indexed::get_index_mode(mem, regs, ins)?;
 
         let ea = if index_mode.is_indirect() {
-            mem.load_word(ea)?
+            mem.load_word(ea.into())?
         } else {
             ea
         };
@@ -517,7 +517,7 @@ impl AddressLines for Indexed {
         ins: &mut InstructionDecoder,
     ) -> Result<u8, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        let b = mem.load_byte(ea)?;
+        let b = mem.load_byte(ea.into())?;
         Ok(b)
     }
 
@@ -527,7 +527,7 @@ impl AddressLines for Indexed {
         ins: &mut InstructionDecoder,
     ) -> Result<u16, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        let w = mem.load_word(ea)?;
+        let w = mem.load_word(ea.into())?;
         Ok(w)
     }
 
@@ -538,7 +538,7 @@ impl AddressLines for Indexed {
         val: u8,
     ) -> Result<u16, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        mem.store_byte(ea, val)?;
+        mem.store_byte(ea.into(), val)?;
         Ok(ea)
     }
 
@@ -549,7 +549,7 @@ impl AddressLines for Indexed {
         val: u16,
     ) -> Result<u16, CpuErr> {
         let ea = Self::ea(mem, regs, ins)?;
-        mem.store_word(ea, val)?;
+        mem.store_word(ea.into(), val)?;
         Ok(ea)
     }
 }
