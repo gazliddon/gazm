@@ -1,4 +1,5 @@
 use crate::as6809::Record;
+use emu::mem::CheckedMemoryIo;
 use serde_derive::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -246,6 +247,23 @@ impl Binary {
         }
     }
 
+    fn get_expected_byte(&self, physical: usize) -> Option<u8> {
+        for x in &self.bin_refs {
+            if x.physical_range.contains(&physical) {
+                 return Some(x.ref_data[physical - x.physical_range.start]);
+            }
+        }
+
+        None
+    }
+
+    fn get_expected_word(&self, phys_addr : usize) -> Option<u16> {
+        self.get_expected_byte(phys_addr).and_then(
+            |hi| 
+            self.get_expected_word(phys_addr+1).map(|lo| (hi as u16) + (lo as u16) << 8)
+        )
+    }
+
     pub fn write_byte(&mut self, val: u8) -> Result<WriteStatus, BinaryError> {
         let loc = self.get_write_location();
 
@@ -337,25 +355,36 @@ impl Binary {
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {
         let hi = val >> 8;
         let lo = val & 0xff;
-        let x = self.get_write_location();
-        let r = self.write_byte(hi as u8).and_then(|_| self.write_byte(lo as u8));
 
-        if let Err(BinaryError::DoesNotMatchReference{..}) = r {
+        let addr = self.get_write_location();
 
-            let hi = self.data[x.physical];
-            let lo = self.data[x.physical + 1];
-            let expected = lo as u16 + (hi as u16) <<  8;
+        let res = try {
+            self.write_byte(hi as u8)?;
+            self.write_byte(lo as u8)?
+        };
+
+        if let Err(BinaryError::DoesNotMatchReference{..}) = res {
+
+            println!("checking for {:04X}", addr.physical);
+
+            let mut expected = 0;
+
+            if let Some(hi) = self.get_expected_byte(addr.physical) {
+                expected = ( hi as usize ) << 8;
+            }
+
+            if let Some(lo) = self.get_expected_byte(addr.physical+1) {
+                expected += lo as usize ;
+            }
 
             Err(BinaryError::DoesNotMatchReference {
-                logical_addr: x.logical,
-                addr : x.physical,
+                logical_addr : addr.logical,
+                addr: addr.physical,
                 val : val as usize,
-                expected : expected as usize,
+                expected
             })
-
         } else {
-            r
+            res
         }
-
     }
 }

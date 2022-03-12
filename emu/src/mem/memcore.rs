@@ -38,14 +38,10 @@ pub trait CheckedMemoryIo {
 }
 
 pub trait MemoryIO {
-    fn inspect_word(&self, _addr: usize) -> MemResult<u16> {
-        panic!("TBD")
-    }
+    fn inspect_word(&self, _addr: usize) -> MemResult<u16>;
 
     // Min implementation
-    fn inspect_byte(&self, _addr: usize) -> MemResult<u8> {
-        panic!("TBD")
-    }
+    fn inspect_byte(&self, _addr: usize) -> MemResult<u8>;
 
     fn upload(&mut self, _addr: usize, _data: &[u8]) -> MemResult<()>;
 

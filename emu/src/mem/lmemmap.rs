@@ -106,6 +106,13 @@ impl LoggingMemMap {
 }
 
 impl MemoryIO for LoggingMemMap {
+    fn inspect_word(&self, _addr: usize) -> MemResult<u16> {
+        panic!()
+    }
+
+    fn inspect_byte(&self, _addr: usize) -> MemResult<u8> {
+        panic!()
+    }
     fn update_sha1(&self, digest: &mut Sha1) {
         self.mem_map.update_sha1(digest)
     }

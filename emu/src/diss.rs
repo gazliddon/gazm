@@ -13,13 +13,13 @@ use lru_cache::LruCache;
 use std::sync::Mutex;
 
 lazy_static::lazy_static! {
-    static ref CACHE : Mutex<LruCache<u16,Dissembly>> = {
+    static ref CACHE : Mutex<LruCache<usize,Dissembly>> = {
         let ret = LruCache::new(10000);
         Mutex::new(ret)
     };
 }
 
-fn try_cache_or_create<F>(addr: u16, create: F) -> Dissembly
+fn try_cache_or_create<F>(addr: usize, create: F) -> Dissembly
 where
     F: Fn() -> Dissembly,
 {
@@ -65,8 +65,8 @@ impl AssemblyCache {
 #[derive(Clone)]
 pub struct Dissembly {
     pub text: String,
-    pub addr: u16,
-    pub next_instruction_addr: Option<u16>,
+    pub addr: usize,
+    pub next_instruction_addr: Option<usize>,
     instruction: InstructionDecoder,
 }
 
@@ -80,11 +80,11 @@ impl Dissembly {
 }
 
 pub struct Disassembler<'a> {
-    pub mem: &'a dyn MemoryIO,
+    pub mem: &'a mut dyn MemoryIO,
 }
 
 impl<'a> Disassembler<'a> {
-    pub fn new(mem: &'a dyn MemoryIO) -> Self {
+    pub fn new(mem: &'a mut dyn MemoryIO) -> Self {
         Self { mem }
     }
 
@@ -93,33 +93,7 @@ impl<'a> Disassembler<'a> {
         format!("{:<5}{}", action, A::diss(self.mem, _ins))
     }
 
-    pub fn diss(&self, addr: u16) -> Dissembly {
-        try_cache_or_create(addr, || {
-            let mut ins = InstructionDecoder::new_from_inspect_mem(addr, self.mem).unwrap();
-
-            macro_rules! handle_op {
-                ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
-                    self.diss_op::<$addr>(&mut ins)
-                }};
-            }
-
-            let text = op_table!(ins.instruction_info.opcode, { "".into() });
-
-            // Now work out the address of the next instruction
-            // None for adddresses that are invalid
-
-            let next_instruction_addr = if self.mem.is_in_range(ins.next_addr.into()) {
-                Some(ins.next_addr)
-            } else {
-                None
-            };
-
-            Dissembly {
-                text,
-                addr,
-                next_instruction_addr,
-                instruction: ins,
-            }
-        })
+    pub fn diss(&mut self, _addr: usize) -> Dissembly {
+        panic!()
     }
 }

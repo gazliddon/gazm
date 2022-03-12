@@ -3,5 +3,4 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 pub mod diss;
-pub mod memreader;
 

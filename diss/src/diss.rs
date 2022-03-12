@@ -1,19 +1,15 @@
-use crate::memreader::MemReader;
+use emu::mem::MemReader;
 use anyhow::Context;
 use clap::{Arg, Command};
-use emu::cpu::{IndexModes, IndexedFlags};
+use emu::cpu::{IndexModes, IndexedFlags, InstructionDecoder};
 use emu::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo, InstructionType};
 use emu::mem::*;
 use std::path::PathBuf;
 
 pub struct Disassembly {
     pub text: String,
-    pub ins: Instruction,
-    pub addr: usize,
-    pub size: usize,
-    pub cycles: usize,
     pub index_mode: Option<IndexedFlags>,
-    pub bytes: Vec<u8>,
+    pub decoded : InstructionDecoder,
 }
 
 pub struct DissCtx {
@@ -44,29 +40,27 @@ lazy_static::lazy_static! {
     static ref OPCODES_REC: Dbase = Dbase::new();
 }
 
-pub struct Diss<'a, M: MemoryIO> {
-    reader: MemReader<'a, M>,
+pub struct Diss<'a> {
+    reader: MemReader<'a>,
 }
 
 use byteorder::ByteOrder;
 use emu::mem::{MemBlock, MemMap};
 
-impl<'a, M: MemoryIO> Diss<'a, M> {
-    pub fn new(mem: &'a mut M) -> Self {
+impl<'a> Diss<'a> {
+    pub fn new(mem: &'a mut dyn MemoryIO) -> Self {
         let reader = MemReader::new(mem);
         Diss { reader }
     }
 
-    fn diss_indexed(&mut self) -> (IndexedFlags, String, usize) {
-        let cycles = 0;
-        let x = self.reader.next_byte().unwrap();
+    fn diss_indexed(&mut self) -> (IndexedFlags, String) {
         use emu::cpu::{IndexModes, IndexedFlags};
 
-        let flags = IndexedFlags::new(x);
+        let flags = IndexedFlags::new(self.reader.next_byte().unwrap());
 
         let mut operand = match flags.get_index_type() {
             IndexModes::ROff(r, off) => {
-                format!("{off},{r}")
+                format!("${off:02X},{r}")
             }
             IndexModes::RPlus(r) => {
                 format!(",{r}+")
@@ -95,7 +89,7 @@ impl<'a, M: MemoryIO> Diss<'a, M> {
             }
             IndexModes::RAddi16(r) => {
                 let w = self.reader.next_word().unwrap() as i16;
-                format!("{w},{r}")
+                format!("${w:04X},{r}")
             }
 
             IndexModes::RAddD(r) => {
@@ -104,16 +98,16 @@ impl<'a, M: MemoryIO> Diss<'a, M> {
 
             IndexModes::PCAddi8 => {
                 let b = self.reader.next_byte().unwrap() as i8;
-                format!("{b},PC")
+                format!("${b:02X},PC")
             }
             IndexModes::PCAddi16 => {
                 let w = self.reader.next_word().unwrap() as i16;
-                format!("{w},PC")
+                format!("${w:04X},PC")
             }
-            IndexModes::Illegal => "???".to_string(),
+            IndexModes::Illegal => "ILLEGAL".to_string(),
 
             IndexModes::Ea => {
-                panic!()
+                format!("EA")
             }
         };
 
@@ -121,7 +115,7 @@ impl<'a, M: MemoryIO> Diss<'a, M> {
             operand = format!("[{operand}]");
         }
 
-        (flags, operand, cycles)
+        (flags, operand)
     }
 
     pub fn diss(&mut self, addr: usize) -> Disassembly {
@@ -134,39 +128,31 @@ impl<'a, M: MemoryIO> Diss<'a, M> {
 
     pub fn diss_next(&mut self) -> Disassembly {
         use emu::isa::Instruction;
-        let addr = self.reader.get_addr();
 
-        let x = self.reader.peek_word().unwrap();
+        let x = emu::cpu::InstructionDecoder::new_from_reader(&mut self.reader).unwrap();
 
-        let opcode = if x > 0xff {
-            self.reader.next_word().unwrap()
-        } else {
-            self.reader.next_byte().unwrap() as u16
-        };
+        self.reader.set_addr(x.operand_addr);
 
+        let mut text = format!("{}", x.instruction_info.action);
         let mut index_mode = None;
-
-        let ins = OPCODES_REC.get(opcode).clone();
-        let mut cycles = ins.cycles as usize;
 
         use emu::isa::AddrModeEnum::*;
 
-        let operand = match ins.addr_mode {
+        let operand = match x.instruction_info.addr_mode {
             Indexed => {
-                let (flags, text, icycles) = self.diss_indexed();
+                let (flags, text) = self.diss_indexed();
                 index_mode = Some(flags);
-                cycles += icycles;
                 text
             }
 
             Direct => {
                 let b = self.reader.next_byte().unwrap();
-                format!(">{b}")
+                format!(">${b:02X}")
             }
 
             Extended => {
                 let w = self.reader.next_word().unwrap();
-                format!("{w}")
+                format!("${w:04X?}")
             }
 
             Inherent => {
@@ -175,12 +161,12 @@ impl<'a, M: MemoryIO> Diss<'a, M> {
 
             Immediate8 => {
                 let b = self.reader.next_byte().unwrap();
-                format!("#{b}")
+                format!("#${b:02X}")
             }
 
             Immediate16 => {
                 let w = self.reader.next_word().unwrap();
-                format!("#{w}")
+                format!("#${w:04X?}")
             }
 
             RegisterSet => {
@@ -189,46 +175,33 @@ impl<'a, M: MemoryIO> Diss<'a, M> {
             }
 
             RegisterPair => {
-                let _r = self.reader.next_byte().unwrap();
-                format!("RegisterPair TBD!")
+                let r = self.reader.next_byte().unwrap();
+                let (a,b) = emu::cpu::get_tfr_regs(r);
+                format!("{a},{b}")
             }
 
             Relative => {
-                let _b = self.reader.next_byte().unwrap();
-                format!("Relative TBD!")
+                let _b = self.reader.next_byte().unwrap() as i8 as isize;
+                let pc = x.addr as isize + _b + 2;
+                format!("${pc:04X}")
             }
             Relative16 => {
-                let _w = self.reader.next_byte().unwrap();
-                format!("Relative16 TBD")
+                let _w = self.reader.next_byte().unwrap() as i16 as isize;
+                let pc = x.addr as isize + _w + 2;
+                format!("${pc:04X}")
             }
         };
 
-        let text = if operand.is_empty() {
-            format!("{}", ins.action)
-        } else {
-            format!("{} {operand}", ins.action)
-        };
+        if !operand.is_empty() {
+            text = format!("{} {operand}", text); 
+        }
 
-        let r = addr..self.reader.get_addr();
-        let size = r.len();
-        let bytes = r
-            .clone()
-            .map(|i| {
-                self.reader
-                    .get_mem()
-                    .inspect_byte(i.try_into().unwrap())
-                    .unwrap()
-            })
-            .collect();
+        self.reader.set_addr(x.next_addr);
 
         Disassembly {
-            ins,
-            addr,
+            decoded: x,
             index_mode,
-            cycles,
             text,
-            bytes,
-            size,
         }
     }
 }

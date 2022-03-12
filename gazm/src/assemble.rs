@@ -167,7 +167,7 @@ impl<'a> Assembler<'a> {
         let n = self.tree.get(n).unwrap();
         let info = &self.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
-        UserError::from_text(msg, info, false)
+        UserError::from_text(msg, info, true)
     }
 
     fn relative_error(&self, n: AstNodeId, val: i64, bits: usize) -> UserError {
@@ -276,6 +276,8 @@ impl<'a> Assembler<'a> {
             mem: self.binary.data.clone(),
             database,
         };
+
+        self.ctx.errors.raise_errors()?;
 
         Ok(ret)
     }
@@ -717,9 +719,9 @@ impl<'a> Assembler<'a> {
         let (_, phys_range) = self.get_range(pc);
 
         if phys_range.len() !=  0 {
-        if let Ok(si) = self.get_source_info_id(id) {
-            let m_pc = format!("{:04X} {:02X?} ", pc, self.binary.get_bytes(phys_range.start, phys_range.len()));
 
+        if let Ok(si) = self.get_source_info_id(id) {
+            let m_pc = format!("{:05X} {:04X} {:02X?} ", phys_range.start, pc, self.binary.get_bytes(phys_range.start, phys_range.len()));
             let m = format!("{:50}{}", m_pc, si.line_str);
             if m.len() < 100 {
                 messages().debug(m);
@@ -728,10 +730,11 @@ impl<'a> Assembler<'a> {
 
         }
 
-        match res {
+        let _ =match res {
             Ok(()) => Ok(()),
             Err(e) => self.ctx.add_error(e),
-        }
+        };
+        self.ctx.errors.raise_errors()
     }
 
     fn size_indexed(&mut self, mut pc: u64, id: AstNodeId) -> Result<u64, UserError> {
@@ -983,6 +986,7 @@ impl<'a> Assembler<'a> {
                                 }
                             }
                         }
+
                         pc += size as u64;
                     }
 

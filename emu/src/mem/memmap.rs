@@ -32,6 +32,13 @@ impl fmt::Debug for MemMap {
 }
 
 impl MemoryIO for MemMap {
+    fn inspect_byte(&self, _addr: usize) -> MemResult<u8> {
+       panic!() 
+    }
+
+    fn inspect_word(&self, _addr: usize) -> MemResult<u16> {
+        panic!()
+    }
     fn update_sha1(&self, digest: &mut Sha1) {
         for m in &self.all_memory {
             m.update_sha1(digest);

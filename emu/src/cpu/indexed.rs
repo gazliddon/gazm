@@ -2,7 +2,7 @@ use super::RegEnum;
 
 #[derive(Debug)]
 pub enum IndexModes {
-    ROff(RegEnum, u16), //
+    ROff(RegEnum, u16), //        (+/-) 4 bit offset,R    2 0 |
     RPlus(RegEnum),     //               ,R+              2 0 |
     RPlusPlus(RegEnum), //               ,R++             3 0 |
     RSub(RegEnum),      //               ,-R              2 0 |
@@ -26,7 +26,7 @@ impl IndexModes {
 
     pub fn get_size(&self) -> usize {
         match self {
-            Self::ROff(_, _) => 2,
+            Self::ROff(_, _) => 0,
             Self::RPlus(_) => 0,
             Self::RPlusPlus(_) => 0,
             Self::RSub(_) => 0,
@@ -34,8 +34,8 @@ impl IndexModes {
             Self::RZero(_) => 0,
             Self::RAddB(_) => 0,
             Self::RAddA(_) => 0,
-            Self::RAddi8(_) => 0,
-            Self::RAddi16(_) => 0,
+            Self::RAddi8(_) => 1,
+            Self::RAddi16(_) => 2,
             Self::RAddD(_) => 0,
             Self::PCAddi8 => 1,
             Self::PCAddi16 => 2,

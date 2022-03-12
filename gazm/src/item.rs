@@ -145,6 +145,7 @@ impl IndexParseType {
                 bits = add_ind(bits, indirect);
                 bits
             }
+
             ConstantWordOffset(r, _) => {
                 let mut bits = 0b1000_1001;
                 bits = add_reg(bits, r);

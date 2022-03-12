@@ -3,7 +3,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 mod diss;
-mod memreader;
 
 // use anyhow::Context;
 
@@ -37,9 +36,14 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = diss::DissCtx::from_matches(m)?;
     let mut diss = diss::Diss::new(&mut ctx.data);
 
+    for _ in 0..1000 {
     let x = diss.diss_next();
 
-    println!("{}", x.text);
+    let hex_str : Vec<_> = x.decoded.data.iter().map(|b| format!("{b:02X}")).collect();
+
+    println!("{:04X}   {:30} {}", x.decoded.addr, hex_str.join(" "), x.text);
+
+    }
 
     Ok(())
 }

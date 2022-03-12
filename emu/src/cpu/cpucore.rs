@@ -59,7 +59,7 @@ fn get_tfr_reg(op: u8) -> RegEnum {
     }
 }
 
-fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
+pub fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
     (get_tfr_reg(op >> 4), get_tfr_reg(op & 0xf))
 }
 
@@ -73,16 +73,16 @@ pub struct Context<'a> {
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
 impl<'a> Context<'a> {
-    fn set_pc(&mut self, v: u16) {
-        self.ins.next_addr = v;
+    fn set_pc(&mut self, v: usize) {
+        self.ins.next_addr = v & 0xffff;
     }
 
-    pub fn get_pc(&self) -> u16 {
-        self.ins.next_addr
+    pub fn get_pc(&self) -> usize {
+        self.ins.next_addr & 0xffff
     }
 
     fn set_pc_rel(&mut self, v: i16) {
-        let pc = self.ins.next_addr.wrapping_add(v as u16);
+        let pc = self.ins.next_addr.wrapping_add(v as usize);
         self.set_pc(pc)
     }
 
@@ -469,14 +469,14 @@ impl<'a> Context<'a> {
 
     fn rts<A: AddressLines>(&mut self) -> CpuResult<()> {
         let pc = self.pops_word()?;
-        self.set_pc(pc);
+        self.set_pc(pc as usize);
         Ok(())
     }
 
     fn bsr<A: AddressLines>(&mut self) -> CpuResult<()> {
         let offset = self.fetch_byte_as_i16::<A>()?;
         let next_op = self.get_pc();
-        self.pushs_word(next_op)?;
+        self.pushs_word(( next_op &0xfff ) as u16)?;
         self.set_pc_rel(offset);
         Ok(())
     }
@@ -757,9 +757,9 @@ impl<'a> Context<'a> {
 
     fn jsr<A: AddressLines>(&mut self) -> CpuResult<()> {
         let dest = self.ea::<A>()?;
-        let next_op = self.get_pc();
+        let next_op = ( self.get_pc() & 0xffff ) as u16;
         self.pushs_word(next_op)?;
-        self.set_pc(dest);
+        self.set_pc(dest as usize);
         Ok(())
     }
 
@@ -767,7 +767,7 @@ impl<'a> Context<'a> {
 
     fn lbsr<A: AddressLines>(&mut self) -> CpuResult<()> {
         let offset = self.fetch_word_as_i16::<A>()?;
-        let next_op = self.get_pc();
+        let next_op = (self.get_pc() &0xffff) as u16;
         self.pushs_word(next_op)?;
         self.set_pc_rel(offset);
         Ok(())
@@ -939,14 +939,14 @@ impl<'a> Context<'a> {
 
         if sf.contains(StackFlags::PC) {
             let i0 = self.pops_word()?;
-            self.set_pc(i0);
+            self.set_pc(i0 as usize);
         }
         Ok(())
     }
 
     fn psh_nostack<A: AddressLines>(&mut self, sf: StackFlags) -> CpuResult<()> {
         if sf.contains(StackFlags::PC) {
-            let i0 = self.get_pc();
+            let i0 = self.get_pc() as u16;
             self.pushu_word(i0)?;
         }
 
@@ -1189,7 +1189,7 @@ impl<'a> Context<'a> {
         macro_rules! push16 {
             ($val:expr) => {{
                 let i0 = $val;
-                self.pushs_word(i0)?
+                self.pushs_word(i0 as u16)?
             }};
         }
 
@@ -1207,7 +1207,7 @@ impl<'a> Context<'a> {
         push8!(self.regs.flags.bits());
 
         let pc = self.mem.load_word(vec.into())?;
-        self.set_pc(pc);
+        self.set_pc(pc as usize);
         Ok(())
     }
 
@@ -1232,7 +1232,7 @@ impl<'a> Context<'a> {
 
     fn jmp<A: AddressLines>(&mut self) -> CpuResult<()> {
         let a = self.ea::<A>()?;
-        self.set_pc(a);
+        self.set_pc(a as usize);
         Ok(())
     }
 
@@ -1273,7 +1273,7 @@ impl<'a> Context<'a> {
 
         let pc = pop16!();
 
-        self.set_pc(pc);
+        self.set_pc(pc as usize);
         Ok(())
     }
 
@@ -1293,7 +1293,7 @@ impl<'a> Context<'a> {
 #[allow(unused_variables, unused_mut)]
 impl<'a> Context<'a> {
     pub fn new(mem: &'a mut dyn MemoryIO, regs: &'a mut Regs) -> CpuResult<Context<'a>> {
-        let ins = InstructionDecoder::new_from_read_mem(regs.pc, mem)?;
+        let ins = InstructionDecoder::new_from_read_mem(regs.pc as usize, mem)?;
         let ret = Context {
             regs,
             mem,
@@ -1318,23 +1318,25 @@ impl<'a> Context<'a> {
     }
 
     pub fn get_size(&self) -> CpuResult<usize> {
-        let ins = InstructionDecoder::new_from_inspect_mem(self.regs.pc, self.mem)?;
+        panic!()
+        // let ins = InstructionDecoder::new_from_inspect_mem(self.regs.pc as usize, self.mem)?;
 
-        macro_rules! handle_op {
-            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
-                self.opcode_size::<$addr>(&ins)
-            }};
-        }
+        // macro_rules! handle_op {
+        //     ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
+        //         self.opcode_size::<$addr>(&ins)
+        //     }};
+        // }
 
-        op_table!(ins.instruction_info.opcode, { Err(CpuErr::Unimplemented) })
+        // op_table!(ins.instruction_info.opcode, { Err(CpuErr::Unimplemented) })
     }
 
     pub fn peek_op(&self) -> CpuResult<InstructionDecoder> {
-        InstructionDecoder::new_from_inspect_mem(self.regs.pc, self.mem)
+        panic!()
+        // InstructionDecoder::new_from_inspect_mem(self.regs.pc as usize, self.mem)
     }
 
     pub fn step(&mut self) -> CpuResult<()> {
-        self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc, self.mem)?;
+        self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc as usize, self.mem)?;
 
         macro_rules! handle_op {
             ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
@@ -1345,7 +1347,7 @@ impl<'a> Context<'a> {
 
         op_table!(opcode, { self.unimplemented() })?;
 
-        self.regs.pc = self.ins.next_addr;
+        self.regs.pc = self.ins.next_addr as u16;
 
         Ok(())
     }

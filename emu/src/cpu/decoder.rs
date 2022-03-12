@@ -1,6 +1,11 @@
+use std::io::Read;
+
+use itertools::Itertools;
+
 use super::mem::{MemResult, MemoryIO};
 use super::{CpuErr, CpuResult};
 use crate::isa::{Dbase, Instruction};
+use crate::mem::{MemErrorTypes, MemReader};
 
 const RBYTE: &[u8] = include_bytes!("resources/opcodes.json");
 
@@ -13,14 +18,14 @@ lazy_static::lazy_static! {
 
 #[derive(Debug, Clone)]
 pub struct InstructionDecoder {
-    index: u16,
     pub op_code: u16,
     pub cycles: usize,
-    pub addr: u16,
-    pub data: [u8; 5],
-    pub next_addr: u16,
+    pub addr: usize,
+    pub data: Vec<u8>,
+    pub next_addr: usize,
     pub instruction_info: &'static Instruction,
     pub size: usize,
+    pub operand_addr: usize,
 }
 
 // Decode an op
@@ -29,58 +34,54 @@ pub struct InstructionDecoder {
 // or non destructively inspect for disassembly
 
 fn decode_op(
-    addr: u16,
-    mut read: impl FnMut(u16) -> MemResult<u8>,
+    reader : &mut MemReader
 ) -> CpuResult<InstructionDecoder> {
+
+    let addr = reader.get_addr();
+    let mut index_size = 0;
+
     use crate::isa::AddrModeEnum;
-    // Array insrtuction bytes is copied to
-    let mut data = [0, 0, 0, 0, 0];
-    // fetch index
-    let mut index = 0;
 
-    // fetch a byte from the memory reader
-    // store it i the instruction array
-    // and bump the read index
-    let mut fetch = || -> CpuResult<u16> {
-        let b = read(addr.wrapping_add(index))?;
-        data[index as usize] = b;
-        index += 1;
-        Ok(b as u16)
-    };
-
-    // get the first byte of the opcode
-    let a = fetch()?;
+    let a = reader.next_byte()? as u16;
 
     // Fetch the next byte if it's an extended opcode
     let op_code = match a {
-        0x10 | 0x11 => (a << 8) + fetch()?,
+        0x10 | 0x11 => (a << 8) + reader.next_byte()? as u16,
         _ => a,
     };
+
+    let operand_addr = reader.get_addr();
 
     // Fetch a reference to the extended infomation about this
     // opcode
     let instruction_info = DBASE.get(op_code);
 
-    let mut size = instruction_info.size as usize;
-
     if instruction_info.addr_mode == AddrModeEnum::Indexed {
-        let index_mode_id = fetch()?;
+        let index_mode_id = reader.peek_byte()?;
         let index_mode = super::indexed::IndexedFlags::new(index_mode_id as u8);
-        size += index_mode.get_index_type().get_size();
-    };
+        index_size = index_mode.get_index_type().get_size();
+    } 
+
+    let size = instruction_info.size + index_size;
+
+    reader.set_addr(addr);
+    reader.skip_bytes(size);
+
+    let range = reader.get_taken_range();
+    let data = reader.get_taken_bytes();
 
     // Create the decoded instruction
-
     let ret = InstructionDecoder {
-        size,
-        next_addr: addr.wrapping_add(size as u16),
-        index,
+        size : range.len(),
+        next_addr: range.end,
         addr,
         op_code,
         instruction_info,
         cycles: instruction_info.cycles as usize,
         data,
+        operand_addr,
     };
+
     Ok(ret)
 }
 
@@ -89,43 +90,54 @@ impl InstructionDecoder {
         panic!()
     }
 
-    pub fn fetch_inspect_word(&mut self, mem: &dyn MemoryIO) -> Result<u16, CpuErr> {
-        let w = mem.inspect_word(self.addr.wrapping_add(self.index).into())?;
-        self.index = self.index.wrapping_add(2);
-        Ok(w)
+    pub fn fetch_inspect_word(&mut self, _mem: &dyn MemoryIO) -> Result<u16, CpuErr> {
+        panic!()
+        // let w = mem.inspect_word(self.addr.wrapping_add(self.index).into())?;
+        // self.index = self.index.wrapping_add(2);
+        // Ok(w)
     }
 
-    pub fn fetch_inspecte_byte(&mut self, mem: &dyn MemoryIO) -> Result<u8, CpuErr> {
-        let b = mem.inspect_byte(self.addr.wrapping_add(self.index.into()).into())?;
-        self.index = self.index.wrapping_add(1);
-        Ok(b)
+    pub fn fetch_inspecte_byte(&mut self, _mem: &dyn MemoryIO) -> Result<u8, CpuErr> {
+        panic!()
+        // let b = mem.inspect_byte(self.addr.wrapping_add(self.index.into()).into())?;
+        // self.index = self.index.wrapping_add(1);
+        // Ok(b)
+    }
+    pub fn new_from_reader(mem: &mut MemReader) -> CpuResult<Self> { 
+        decode_op(mem)
     }
 
-    pub fn new_from_inspect_mem(addr: u16, mem: &dyn MemoryIO) -> CpuResult<Self> {
-        decode_op(addr, |addr| mem.inspect_byte(addr.into()))
+    pub fn new_from_inspect_mem(_addr: usize, _mem: &mut dyn MemoryIO) -> CpuResult<Self> {
+        panic!();
+        // mecode_op(addr, mem)
     }
 
-    pub fn new_from_read_mem(addr: u16, mem: &mut dyn MemoryIO) -> CpuResult<Self> {
-        decode_op(addr, |addr| mem.load_byte(addr.into()))
+    pub fn new_from_read_mem(_addr: usize, _mem: &mut dyn MemoryIO) -> CpuResult<Self> {
+        panic!();
+        // decode_op(addr, mem)
     }
 
-    pub fn fetch_byte(&mut self, mem: &mut dyn MemoryIO) -> u8 {
-        let b = mem.load_byte(self.addr.wrapping_add(self.index).into()).unwrap();
-        self.index = self.index.wrapping_add(1);
-        b
+    pub fn fetch_byte(&mut self, _mem: &mut dyn MemoryIO) -> u8 {
+        panic!()
+        // let b = mem.load_byte(self.addr.wrapping_add(self.index).into()).unwrap();
+        // self.index = self.index.wrapping_add(1);
+        // b
     }
 
-    pub fn fetch_word(&mut self, mem: &mut dyn MemoryIO) -> Result<u16, CpuErr> {
-        let w = mem.load_word(self.addr.wrapping_add(self.index).into())?;
-        self.index = self.index.wrapping_add(2);
-        Ok(w)
+    pub fn fetch_word(&mut self, _mem: &mut dyn MemoryIO) -> Result<u16, CpuErr> {
+        panic!()
+        // let w = mem.load_word(self.addr.wrapping_add(self.index))?;
+        // self.index = self.index.wrapping_add(2);
+        // Ok(w)
     }
 
-    pub fn fetch_byte_as_i8(&mut self, mem: &mut dyn MemoryIO) -> i8 {
-        self.fetch_byte(mem) as i8
+    pub fn fetch_byte_as_i8(&mut self, _mem: &mut dyn MemoryIO) -> i8 {
+        panic!()
+        // self.fetch_byte(mem) as i8
     }
 
-    pub fn fetch_byte_as_i16(&mut self, mem: &mut dyn MemoryIO) -> i16 {
-        i16::from(self.fetch_byte_as_i8(mem))
+    pub fn fetch_byte_as_i16(&mut self, _mem: &mut dyn MemoryIO) -> i16 {
+        panic!()
+        // i16::from(self.fetch_byte_as_i8(mem))
     }
 }
