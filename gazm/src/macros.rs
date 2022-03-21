@@ -16,19 +16,21 @@ use nom::{
 use utils::sources::{ Sources, Position };
 
 use crate::error::{IResult, UserError};
+use crate::item::Node;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacroDef {
     pub name: String,
     pub params: Vec<String>,
     pub pos: Position,
+    pub nodes : Vec<Node>,
 }
 
 use regex::Regex;
 
 impl MacroDef {
-    pub fn new(name: String, params: Vec<String>, pos: Position) -> Self {
-        Self { name, params, pos }
+    pub fn new(name: String, params: Vec<String>, pos: Position, nodes : Vec<Node>) -> Self {
+        Self { name, params, pos, nodes }
     }
     fn mk_regex(&self) -> Vec<Regex> {
         let to_regex = |v: &String| {
@@ -72,27 +74,14 @@ impl MacroDef {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Macros
+/// Gets the strings for a macro definition
+/// returns (name, array of args, macro body)
 pub fn get_macro_def(input: Span<'_>) -> IResult<(Span, Vec<Span>, Span)> {
     let rest = input;
     let (rest, (_, name)) = ws(separated_pair(tag("macro"), multispace1, get_just_label))(rest)?;
     let (rest, params) = wrapped_chars('(', sep_list0(get_just_label), ')')(rest)?;
     let (rest, body) = get_block(rest)?;
     Ok((rest, (name, params, body)))
-}
-
-pub fn parse_macro_definition(input: Span<'_>) -> IResult<MacroDef> {
-    let (rest, (name, params, body)) = get_macro_def(input)?;
-
-    let _matched_span = matched_span(input, rest);
-
-    let pos = crate::locate::span_to_pos(body);
-
-    let name = name.to_string();
-    let params = params.iter().map(|x| x.to_string()).collect();
-
-    let def = MacroDef::new(name, params, pos);
-
-    Ok((rest, def))
 }
 
 fn parse_raw_args(input: Span<'_>) -> IResult<Vec<Span<'_>>> {
@@ -109,19 +98,25 @@ pub struct MacroCall {
     pub args: Vec<Position>,
 }
 
-pub fn parse_macro_call(input: Span) -> IResult<MacroCall> {
+pub fn parse_macro_call(input: Span) -> IResult<Node> {
+    use crate::expr::parse_expr;
+    use crate::util::sep_list1;
+    use crate::item::Item;
+    let sep = ws(tag(","));
+
     let rest = input;
-    let (rest, (name, args)) = separated_pair(get_just_label, multispace0, parse_raw_args)(rest)?;
+    let (rest,name) = get_just_label(rest)?;
+    let (rest, args) = ws(wrapped_chars('(', ws(separated_list0(sep, parse_expr)), ')'))(rest)?;
 
-    let args = args.into_iter().map(span_to_pos).collect();
-    let name = span_to_pos(name);
-
-    let ret = MacroCall { name, args };
+    let ret = Node::from_item_span(
+        Item::MacroCall(name.to_string())
+        , input).with_children(args);
 
     Ok((rest, ret))
 }
 
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Macros {
     macro_defs: HashMap<String, MacroDef>,
 }

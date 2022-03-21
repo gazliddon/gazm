@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::{collections::HashSet, path::PathBuf};
 
+use crate::ast::AstNodeId;
 use crate::locate::span_to_pos;
 use crate::locate::Span;
 use crate::macros::MacroCall;
@@ -206,21 +207,26 @@ pub enum Item {
     AssignmentFromPc(String),
     LocalAssignmentFromPc(String),
 
-    MacroCall(MacroCall),
-    // MacroDef(MacroDef),
+    MacroCall(String),
+
+    MacroCallProcessed{ scope: String, macro_id: AstNodeId },
+
+    MacroDef(String, Vec<String>),
+
     StructDef(String),
     StructEntry(String),
 
-    SetPc(u16),
+    SetPc(usize),
     SetPutOffset(isize),
+
     Scope(String),
+    PopScope,
 
     Expr,
     PostFixExpr,
     BracketedExpr,
     Pc,
     Block,
-    ExpandedMacro(MacroCall),
 
     UnaryTerm,
 

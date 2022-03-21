@@ -31,8 +31,15 @@ mod sections;
 mod structs;
 mod tokenize;
 mod util;
+mod sizer;
+mod compile;
+mod gasm;
+mod evaluator;
+mod asmctx;
+mod fixerupper;
 
 use std::path::PathBuf;
+use crate::gasm::{ GResult, Gasm };
 
 use crate::ctx::Context;
 use utils::sources::FileIo;
@@ -47,46 +54,42 @@ static BANNER: &str = r#"
 
 use crate::error::*;
 
-fn assemble(ctx: &mut Context) -> Result<assemble::Assembled, Box<dyn std::error::Error>> {
-    use assemble::Assembler;
-    use ast::Ast;
+use anyhow::Result;
 
-    let tokens = tokenize::tokenize(ctx)?;
 
-    let ast = Ast::from_nodes(tokens, ctx)?;
 
-    let mut asm = Assembler::new(ast)?;
 
-    asm.size()?;
 
-    let ret = asm.assemble()?;
-
-    Ok(ret)
-}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
 
-    let mut ctx: ctx::Context = cli::parse().into();
+    let ctx: ctx::Context = cli::parse().into();
+    let opts: ctx::Opts = cli::parse().into();
+    use crate::messages::Verbosity;
 
     let x = messages::messages();
-    x.set_verbosity(&ctx.verbose);
+    x.set_verbosity(&opts.verbose);
+
+    if opts.verbose != Verbosity::Silent {
+        let m = format!("Verboisty: {:?}", opts.verbose);
+        x.status(m)
+    };
 
     // x.status(BANNER);
     // x.status("GASM 6809 Assembler\n");
 
     x.indent();
 
-    let ret = assemble(&mut ctx)?;
 
     use std::fs;
 
-    if let Some(sym_file) = &ctx.syms_file {
-        x.status(format!("Writing symbols: {}", sym_file));
-        let j = serde_json::to_string_pretty(&ret.database).expect("Unable to serialize to json");
-        fs::write(sym_file, j).with_context(|| format!("Unable to write {sym_file}"))?;
+    if let Some(sym_file) = &opts.syms_file {
+        // x.status(format!("Writing symbols: {}", sym_file));
+        // let j = serde_json::to_string_pretty(&ret.database).expect("Unable to serialize to json");
+        // fs::write(sym_file, j).with_context(|| format!("Unable to write {sym_file}"))?;
 
-        if let Some(deps) = &ctx.deps_file {
+        if let Some(deps) = &opts.deps_file {
             x.status(format!("Writing deps file : {deps}"));
 
             let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };

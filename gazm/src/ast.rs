@@ -5,6 +5,9 @@ pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 
 // use std::fmt::{Debug, DebugMap};
 
+use std::slice::SliceIndex;
+use std::vec;
+
 use crate::error::{AstError, UserError};
 use crate::eval::{EvalError, EvalErrorEnum};
 use crate::scopes::ScopeBuilder;
@@ -12,11 +15,15 @@ use crate::scopes::ScopeBuilder;
 use crate::ctx::Context;
 use crate::item::{Item, Node};
 
-use crate::messages::*;
 use crate::postfix;
-use utils::sources::{Position, SourceInfo, SymbolId, SymbolQuery, SymbolWriter};
+use crate::{messages::*, node};
+use utils::sources::{Position, SourceInfo, SymbolQuery, SymbolWriter};
 
 ////////////////////////////////////////////////////////////////////////////////
+
+fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
+    tree.get(id).unwrap().children().map(|c| c.id()).collect()
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ItemWithPos {
@@ -58,15 +65,18 @@ pub struct Ast<'a> {
 }
 
 impl<'a> Ast<'a> {
-    pub fn from_nodes(node: Node, ctx: &'a mut Context) -> Result<Self, UserError> {
+    pub fn from_nodes(ctx: &'a mut Context, node: Node ) -> Result<AstTree, UserError> {
         let tree = make_tree(&node);
-        Self::new(tree, ctx)
+        let r =  Self::new(tree, ctx)?;
+        Ok(r.tree)
     }
 
     pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
         let mut ret = Self { tree, ctx };
 
         ret.rename_locals();
+
+        ret.process_macros()?;
 
         ret.postfix_expressions()?;
 
@@ -75,6 +85,64 @@ impl<'a> Ast<'a> {
         ret.evaluate_assignments()?;
 
         Ok(ret)
+    }
+
+    pub fn process_macros(&mut self) -> Result<(), UserError> {
+        // TODO should be written in a way that can detect
+        // redefinitions of a macro
+        use std::collections::HashMap;
+        use Item::*;
+
+        // Make a hash of macro definitions
+        // longer term this needs scoping
+        let mdefs = self
+            .tree
+            .nodes()
+            .filter_map(|n| match &n.value().item {
+                MacroDef(name, ..) => Some((name.to_string(), n.id())),
+                _ => None,
+            })
+            .collect::<HashMap<_, _>>();
+
+        // and a vec of macro calls
+        let mcalls = self
+            .tree
+            .nodes()
+            .enumerate()
+            .filter_map(|(i, n)| {
+                let val = &n.value();
+                match &val.item {
+                    MacroCall(name) => Some((i, name.to_string(), n.id(), val.pos.clone())),
+                    _ => None,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
+        for (caller_num, name, caller_id, pos) in mcalls.into_iter() {
+            // TODO need a failure case if we can't find the macro definition
+            let macro_id = mdefs.get(&name).ok_or_else(|| {
+                let mess = format!("Can't find macro definition for {name}");
+                self.user_error(mess, caller_id)
+            })?;
+
+            let caller_scope = format!("%MACRO%_{name}_{caller_num}");
+
+            let item = MacroCallProcessed {
+                macro_id: *macro_id,
+                scope: caller_scope,
+            };
+
+            let mut new_node = self.tree.orphan(ItemWithPos { pos, item });
+            new_node.reparent_from_id_append(caller_id);
+            nodes_to_change.push((caller_id, new_node.id()));
+        }
+
+        for (from_id, to_id) in nodes_to_change {
+            self.tree.get_mut(from_id).unwrap().insert_id_after(to_id);
+        }
+
+        Ok(())
     }
 
     pub fn get_tree(&self) -> &AstTree {
@@ -103,7 +171,6 @@ impl<'a> Ast<'a> {
 
             // Expand all local labels to have a scoped name
             // and change all locals to globals
-
             for v in self.tree.values_mut() {
                 match &v.item {
                     AssignmentFromPc(name) => {
@@ -236,38 +303,37 @@ impl<'a> Ast<'a> {
         UserError::from_text(msg, si, is_failure)
     }
 
-    fn eval_node_child(&self, symbols: &dyn SymbolQuery, id: AstNodeId) -> Result<i64, UserError> {
+    fn eval_node(&self, id: AstNodeId) -> Result<i64, UserError> {
         use super::eval::eval;
         let node = self.tree.get(id).unwrap();
-
+        let item = &node.value().item;
         let err = |m| self.node_error(m, id, true);
 
-        let first_child = node
-            .first_child()
-            .ok_or_else(|| err("Can't find a child node"))?;
-
-        let child_item = &first_child.value().item;
-
-        if let Item::PostFixExpr = child_item {
-            eval(symbols, first_child).map_err(|e| self.convert_error(e.into()))
+        if let Item::PostFixExpr = item {
+            eval(&self.ctx.symbols, node).map_err(|e| self.convert_error(e.into()))
         } else {
             Err(err(&format!(
-                "Incorrect item type for evalulation : {child_item:?}"
+                "Incorrect item type for evalulation : {item:?}"
             )))
         }
     }
 
-    pub fn add_symbol<S>(
-        &self,
-        symbols: &mut dyn SymbolWriter,
-        value: i64,
-        name: S,
-        id: AstNodeId,
-    ) -> Result<SymbolId, UserError>
+    fn eval_node_child(&self, id: AstNodeId) -> Result<i64, UserError> {
+        let err = |m| self.node_error(m, id, true);
+        let node = self.tree.get(id).unwrap();
+        let first_child = node
+            .first_child()
+            .ok_or_else(|| err("Can't find a child node"))?;
+
+        self.eval_node(first_child.id())
+    }
+
+    pub fn add_symbol<S>(&mut self, value: i64, name: S, id: AstNodeId) -> Result<u64, UserError>
     where
         S: Into<String>,
     {
-        symbols
+        self.ctx
+            .symbols
             .add_symbol_with_value(&name.into(), value)
             .map_err(|e| {
                 let msg = format!("Symbol error {:?}", e);
@@ -278,35 +344,35 @@ impl<'a> Ast<'a> {
     fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
         info("Generating symbols for struct definitions", |x| {
             use Item::*;
-
-            let mut symbols = self.ctx.symbols.clone();
+            let ids: Vec<_> = self.tree.nodes().map(|n| n.id()).collect();
 
             // let mut symbols = self.symbols.clone();
-            for n in self.tree.nodes() {
-                let item = &n.value().item;
+            for id in ids {
+                let item = &self.tree.get(id).unwrap().value().item.clone();
 
                 if let StructDef(name) = item {
                     let mut current = 0;
                     x.info(format!("Generating symbols for {name}"));
 
-                    for c in n.children() {
-                        if let StructEntry(entry_name) = &c.value().item {
-                            let id = c.id();
-                            let value = self.eval_node_child(&self.ctx.symbols, id)?;
+                    let kids_ids = get_kids_ids(&self.tree, id);
+
+                    for c_id in kids_ids {
+                        let i = &self.tree.get(c_id).unwrap().value().item;
+
+                        if let StructEntry(entry_name) = i {
+                            let value = self.eval_node_child(c_id)?;
                             let scoped_name = format!("{}.{}", name, entry_name);
-                            self.add_symbol(&mut symbols, current, &scoped_name, id)?;
+                            self.add_symbol(current, &scoped_name, c_id)?;
                             x.info(format!("Struct: Set {scoped_name} to {current}"));
                             current += value;
                         }
                     }
 
                     let scoped_name = format!("{name}.size");
-
-                    self.add_symbol(&mut symbols, current, &scoped_name, n.id())?;
+                    self.add_symbol(current, &scoped_name, id)?;
                 }
             }
 
-            self.ctx.symbols = symbols;
             Ok(())
         })
     }
@@ -316,43 +382,54 @@ impl<'a> Ast<'a> {
             use super::eval::eval;
             use Item::*;
 
-            let mut symbols = self.ctx.symbols.clone();
-
             let mut pc_references = vec![];
 
-            for n in self.tree.nodes() {
-                if let Assignment(name) = &n.value().item {
-                    // let id = n.id();
+            let ids: Vec<_> = self.tree.nodes().map(|n| n.id()).collect();
 
-                    let cnode = n.first_child().unwrap();
+            for id in ids {
+                let item = self.tree.get(id).unwrap().value().item.clone();
 
-                    let res = eval(&symbols, cnode);
-
-                    match res {
-                        Ok(value) => {
-                            self.add_symbol(&mut symbols, value, name, cnode.id())?;
-                            let msg = format!("{} = {}", name.clone(), value);
-                            x.debug(&msg);
-                        }
-
-                        Err(EvalError {
-                            source: EvalErrorEnum::CotainsPcReference,
-                            ..
-                        }) => {
-                            pc_references.push((name.clone(), n.id()));
-                            let msg = format!("Marking to convert to pc reference: {}", name);
-                            x.debug(&msg);
-                        }
-
-                        Err(e) => {
-                            let ast_err: AstError = e.into();
-                            return Err(self.node_error(&ast_err.to_string(), cnode.id(), true));
+                match &item {
+                    Scope(scope) => {
+                        self.ctx.symbols.set_root();
+                        if scope != "root" {
+                            println!("***SETTING SCOPE {scope}");
+                            self.ctx.symbols.set_scope(&scope);
                         }
                     }
+
+                    Assignment(name) => {
+                        let n = self.tree.get(id).unwrap();
+                        let cn = n.first_child().unwrap();
+                        let res = eval(&self.ctx.symbols, cn);
+                        let c_id = cn.id();
+
+                        match res {
+                            Ok(value) => {
+                                self.add_symbol(value, name, c_id)?;
+                                let msg = format!("{} = {}", name.clone(), value);
+                                x.debug(&msg);
+                            }
+
+                            Err(EvalError {
+                                source: EvalErrorEnum::CotainsPcReference,
+                                ..
+                            }) => {
+                                pc_references.push((name.clone(), n.id()));
+                                let msg = format!("Marking to convert to pc reference: {}", name);
+                                x.debug(&msg);
+                            }
+
+                            Err(e) => {
+                                let ast_err: AstError = e.into();
+                                let msg = format!("Evaluating assignments: {}", ast_err);
+                                return Err(self.node_error(&msg, c_id, true));
+                            }
+                        }
+                    }
+                    _ => (),
                 }
             }
-
-            self.ctx.symbols = symbols;
 
             for (name, id) in pc_references {
                 let mut n = self.tree.get_mut(id).unwrap();

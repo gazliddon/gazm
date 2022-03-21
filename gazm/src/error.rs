@@ -1,7 +1,17 @@
+
 use crate::ast::{AstNodeId, AstNodeRef};
+use crate::gasm::{self, GasmError};
 use crate::locate::span_to_pos;
 use crate::locate::Span;
+use serde::de::Error;
+use thiserror::Error;
 use utils::sources::{Position, SourceInfo};
+use crate::gasm::GResult;
+
+
+// Anyhow, don't care what the error type is.
+// application should use this
+// thiserror = typed errors, gasmlib
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ParseError {
@@ -111,7 +121,6 @@ impl std::fmt::Display for AstError {
     }
 }
 
-impl std::error::Error for AstError {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // User Error
@@ -162,7 +171,7 @@ impl UserError {
         }
     }
 
-    pub fn pretty(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn pretty(&self) -> GResult<String> {
         use std::fmt::Write as FmtWrite;
 
         let mut s = String::new();
@@ -176,7 +185,7 @@ impl UserError {
         let bar = format!("{}|", spaces).info();
         let bar_line = format!("{} |", line_num).info();
 
-        writeln!(&mut s, "{}", self.message.bold())?;
+        writeln!(&mut s, "{}", self.message.bold()).expect("kj");
         writeln!(
             &mut s,
             "   {} {}:{}:{}",
@@ -184,10 +193,10 @@ impl UserError {
             self.file.to_string_lossy(),
             line,
             col
-        )?;
-        writeln!(s, "{}", bar)?;
-        writeln!(s, "{} {}", bar_line, self.line)?;
-        writeln!(s, "{}{}^", bar, " ".repeat(self.pos.col))?;
+        ).expect("kj");
+        writeln!(s, "{}", bar).expect("kj");
+        writeln!(s, "{} {}", bar_line, self.line).expect("kj");
+        writeln!(s, "{}{}^", bar, " ".repeat(self.pos.col)).expect("kj");
         Ok(s)
     }
 
@@ -208,14 +217,13 @@ impl UserError {
 ////////////////////////////////////////////////////////////////////////////////
 // UserErrors Collection
 
-#[derive(PartialEq, Clone)]
-pub struct UserErrors {
+pub struct ErrorCollector {
     max_errors: usize,
-    errors: Vec<UserError>,
+    errors: Vec<GasmError>,
     errors_remaining: usize,
 }
 
-impl std::fmt::Display for UserErrors {
+impl std::fmt::Display for ErrorCollector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for x in &self.errors {
             write!(f, "{}", x)?;
@@ -223,15 +231,16 @@ impl std::fmt::Display for UserErrors {
         Ok(())
     }
 }
-impl std::fmt::Debug for UserErrors {
+impl std::fmt::Debug for ErrorCollector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
     }
 }
 
-impl std::error::Error for UserErrors {}
+impl std::error::Error for ErrorCollector {}
 
-impl UserErrors {
+
+impl ErrorCollector {
     pub fn new(max_errors: usize) -> Self {
         Self {
             max_errors,
@@ -254,28 +263,33 @@ impl UserErrors {
         self.num_of_errors() != 0
     }
 
-    pub fn raise_errors(&self) -> Result<(), UserError> {
+    pub fn raise_errors(&self) -> GResult<()> {
         if self.has_errors() {
-            Err(self.errors.last().unwrap().clone())
+            Err(GasmError::TooManyErrors)
         } else {
             Ok(())
         }
     }
 
-    pub fn add_error(&mut self, err: UserError) -> Result<(), UserError> {
+    pub fn add_user_error(&mut self, err: UserError) -> GResult<()> {
         let failure = err.failure;
-        self.errors.push(err);
+        let err = GasmError::UserError(err);
+        self.add_error(err, failure)
+    }
+
+    pub fn add_error(&mut self, err: GasmError, failure : bool) -> GResult<()> {
+        self.errors.push(err.clone());
 
         if self.errors_remaining == 0 || failure {
-            Err(self.errors.last().unwrap().clone())
+            Err(err)
         } else {
             self.errors_remaining -= 1;
             Ok(())
         }
     }
 
-    pub fn add_ast_error(&mut self, err: AstError, info: &SourceInfo) -> Result<(), UserError> {
-        self.add_error(UserError::from_ast_error(err, info))
+    pub fn add_ast_error(&mut self, err: AstError, info: &SourceInfo) -> GResult<()> {
+        self.add_user_error(UserError::from_ast_error(err, info))
     }
 
     pub fn add_text_error<S>(
@@ -283,11 +297,11 @@ impl UserErrors {
         msg: S,
         info: &SourceInfo,
         is_failure: bool,
-    ) -> Result<(), UserError>
+    ) -> GResult<()>
     where
         S: Into<String>,
     {
-        self.add_error(UserError::from_text(msg, info, is_failure))
+        self.add_user_error(UserError::from_text(msg, info, is_failure))
     }
 }
 

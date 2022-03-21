@@ -19,4 +19,17 @@ d000 Select bank (c000-cfff)
       3 = BANK 3 - roms 7 10
       7 = BANK 4 - roms 6 ??
 
+```
+fn test(x) {
+    x + 1
+}
+    let x = 10;
+
+    if x == 100 {
+        lda #200
+    } else {
+        lda #1
+    }
+
+```
 

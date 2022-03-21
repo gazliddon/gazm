@@ -40,7 +40,8 @@ pub fn opcode_token(input: Span) -> IResult<(&InstructionInfo, Span)> {
     if let Some(op_code) = OPCODES_REC.get_opcode(&matched) {
         Ok((rest, (op_code, matched)))
     } else {
-        Err(parse_error("Expected an opcode", input))
+        let m  = format!("I wanted an opcode, got !{matched}!");
+        Err(parse_error(&m, input))
     }
 }
 
@@ -192,8 +193,12 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
 }
 
 pub fn parse_opcode(input: Span) -> IResult<Node> {
+
     let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)
-        .map_err(|_| crate::error::parse_error("Expected an opcode", input))?;
+        .map_err(|_| {
+            let msg = format!("Expected op code : got {}", input);
+            crate::error::parse_error(&msg, input) }
+            )?;
     Ok((rest, item))
 }
 

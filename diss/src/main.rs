@@ -37,14 +37,17 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut diss = diss::Diss::new(&mut ctx.data);
 
     for _ in 0..1000 {
-    let x = diss.diss_next();
+        let x = diss.diss_next();
 
-    let hex_str : Vec<_> = x.decoded.data.iter().map(|b| format!("{b:02X}")).collect();
+        let hex_str: Vec<_> = x.decoded.data.iter().map(|b| format!("{b:02X}")).collect();
 
-    println!("{:04X}   {:30} {}", x.decoded.addr, hex_str.join(" "), x.text);
-
+        println!(
+            "{:04X}   {:30} {}",
+            x.decoded.addr,
+            hex_str.join(" "),
+            x.text
+        );
     }
 
     Ok(())
 }
-

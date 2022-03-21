@@ -1,8 +1,11 @@
-use crate::error::{ParseError, UserError, UserErrors};
+use crate::error::{ParseError, UserError, ErrorCollector};
+use crate::macros::Macros;
 use crate::messages::Verbosity;
 use utils::sources::{FileIo, SourceFileLoader, Sources, SymbolTree};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+use crate::gasm::{Gasm, GasmError, GResult};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -43,26 +46,47 @@ impl Vars {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Settings {}
-
 #[derive(Debug, Clone)]
-pub struct Context {
+pub struct Opts {
     pub verbose: Verbosity,
-    pub files: Vec<PathBuf>,
     pub syms_file: Option<String>,
     pub trailing_comments: bool,
     pub star_comments: bool,
-    pub max_errors: usize,
     pub ignore_relative_offset_errors: bool,
     pub as6809_lst: Option<String>,
     pub as6809_sym: Option<String>,
     pub deps_file: Option<String>,
     pub memory_image_size: usize,
-    pub vars: Vars,
+}
+
+impl Default for Opts {
+    fn default() -> Self {
+        Self {
+            verbose: Verbosity::Silent,
+            syms_file: None,
+            trailing_comments: false,
+            star_comments: false,
+            ignore_relative_offset_errors: false,
+            as6809_lst: None,
+            as6809_sym: None,
+            deps_file: None,
+            memory_image_size: 65536,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Context {
     pub symbols: SymbolTree,
     pub source_file_loader: SourceFileLoader,
-    pub errors : UserErrors,
+    pub errors : ErrorCollector,
+    pub vars: Vars,
+    pub files: Vec<PathBuf>,
 }
-use anyhow::Result;
+
+fn to_gasm(e : anyhow::Error) -> GasmError {
+    GasmError::Misc(e.to_string())
+}
 
 impl Context {
     pub fn get_source_file_loader(&self) -> &SourceFileLoader {
@@ -78,34 +102,38 @@ impl Context {
         self.source_file_loader.write(path, data)
     }
 
-    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize> {
+    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GasmError> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        self.source_file_loader.get_size(path)
+        let ret = self.source_file_loader.get_size(path).map_err(to_gasm)?;
+        Ok(ret)
     }
 
-    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String, u64)> {
+    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String, u64), GasmError> {
         let path: PathBuf = self
             .vars
             .expand_vars(path.as_ref().to_string_lossy())
             .into();
-        self.source_file_loader.read_source(&path)
+        let ret = self.source_file_loader.read_source(&path).map_err(to_gasm)?;
+        Ok(ret)
     }
 
     pub fn read_binary_chunk<P: AsRef<Path>>(
         &mut self,
         path: P,
         r: std::ops::Range<usize>,
-    ) -> Result<(PathBuf, Vec<u8>)> {
+    ) -> Result<(PathBuf, Vec<u8>), GasmError> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        self.source_file_loader.read_binary_chunk(path, r)
+        let ret = self.source_file_loader.read_binary_chunk(path, r).map_err(to_gasm)?;
+        Ok(ret)
     }
 
-    pub fn add_parse_error(&mut self, pe : &ParseError ) -> Result<(), UserError>{
-        let ue = UserError::from_parse_error(pe, self.sources());
-        self.errors.add_error(ue)
+    pub fn add_parse_error(&mut self, pe : ParseError ) -> GResult<()> {
+        let ue = UserError::from_parse_error(&pe, self.sources());
+        self.errors.add_user_error(ue)
     }
-    pub fn add_error(&mut self, ue : UserError ) -> Result<(), UserError>{
-        self.errors.add_error(ue)
+
+    pub fn add_user_error(&mut self, e : UserError) -> GResult<()>{
+        self.errors.add_user_error(e)
     }
 }
 
@@ -113,20 +141,10 @@ impl Default for Context {
     fn default() -> Self {
         Self {
             files: Default::default(),
-            verbose: Verbosity::Silent,
-            syms_file: None,
-            trailing_comments: false,
-            star_comments: false,
-            max_errors: 5,
-            ignore_relative_offset_errors: false,
-            as6809_lst: None,
-            as6809_sym: None,
-            memory_image_size: 0x10000,
             vars: Vars::new(),
             symbols: SymbolTree::new(),
             source_file_loader: SourceFileLoader::new(),
-            deps_file: None,
-            errors: UserErrors::new(5),
+            errors: ErrorCollector::new(5),
         }
     }
 }

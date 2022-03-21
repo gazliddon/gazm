@@ -1,13 +1,13 @@
-use crate::ctx::Context;
+use crate::ctx::{ Context, Opts };
 use std::path::Path;
 use crate::messages::Verbosity;
 use clap::{Arg, Command};
 use utils::sources::SourceFileLoader;
-use crate::error::UserErrors;
+use crate::error::ErrorCollector;
 
-impl From<clap::ArgMatches> for Context {
+impl From<clap::ArgMatches> for Opts {
     fn from(m: clap::ArgMatches) -> Self {
-        let mut ret = Self {
+        let mut opts = Opts {
             deps_file: m.value_of("deps").map(|f| f.to_string()),
             syms_file: m.value_of("symbol-file").map(|f| f.to_string()),
             as6809_lst: m.value_of("as6809-lst").map(|f| f.to_string()),
@@ -17,6 +17,37 @@ impl From<clap::ArgMatches> for Context {
             ignore_relative_offset_errors: m.is_present("ignore-relative-offset-errors"),
             ..Default::default()
         };
+        opts.verbose = match m.occurrences_of("verbose") {
+            0 => Verbosity::Silent,
+            1 => Verbosity::Normal,
+            2 => Verbosity::Info,
+            3 => Verbosity::Interesting,
+            _ => Verbosity::Debug,
+        };
+        if m.is_present("mem-size") {
+            opts.memory_image_size = m
+                .value_of("mem-size")
+                .map(|s| s.parse::<usize>().unwrap())
+                .unwrap();
+        }
+
+        opts
+    }
+}
+
+impl From<clap::ArgMatches> for Context {
+    fn from(m: clap::ArgMatches) -> Self {
+
+        let mut ret = Self {
+            ..Default::default()
+        };
+        if m.is_present("max-errors") {
+            let max_errors =  m
+                .value_of("max-errors")
+                .map(|s| s.parse::<usize>().unwrap())
+                .unwrap();
+            ret.errors = ErrorCollector::new(max_errors);
+        }
 
         if let Some(mut it) = m.values_of("set") {
             while let Some((var, value)) = it.next().and_then(|var| it.next().map(|val| (var, val)))
@@ -25,32 +56,8 @@ impl From<clap::ArgMatches> for Context {
             }
         }
 
-        ret.verbose = match m.occurrences_of("verbose") {
-            0 => Verbosity::Silent,
-            1 => Verbosity::Normal,
-            2 => Verbosity::Info,
-            3 => Verbosity::Interesting,
-            _ => Verbosity::Debug,
-        };
-
         if let Some(it) = m.values_of("file") {
             ret.files = it.map(|x| x.into()).collect();
-        }
-
-        if m.is_present("mem-size") {
-            ret.memory_image_size = m
-                .value_of("mem-size")
-                .map(|s| s.parse::<usize>().unwrap())
-                .unwrap();
-        }
-
-        if m.is_present("max-errors") {
-            let max_errors =  m
-                .value_of("max-errors")
-                .map(|s| s.parse::<usize>().unwrap())
-                .unwrap();
-            ret.max_errors = max_errors;
-            ret.errors = UserErrors::new(max_errors)
         }
 
         if !ret.files.is_empty() {

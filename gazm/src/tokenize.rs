@@ -1,14 +1,18 @@
 use crate::{
     commands, comments,
+    gasm::Gasm,
     item::{Item, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos},
-    macros::{parse_macro_call, parse_macro_definition},
+    macros::{get_macro_def, parse_macro_call},
     messages::messages,
     opcodes,
     structs::{get_struct, parse_struct_definition},
     util::{self, ws},
+    ctx::Opts,
 };
+
+use crate::gasm::GasmError;
 
 use std::path::{Path, PathBuf};
 
@@ -20,11 +24,14 @@ use nom::{
     multi::many0,
     sequence::{preceded, terminated},
 };
+use petgraph::visit::GraphRef;
 use utils::sources::Position;
 
-use crate::error::{IResult, ParseError, UserError, UserErrors};
+use crate::error::{ErrorCollector, IResult, ParseError, UserError};
 use crate::locate::Span;
 use utils::sources::AsmSource;
+
+use crate::gasm::GResult;
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
@@ -39,12 +46,14 @@ pub fn tokenize_file_from_str<'a>(
     file: &Path,
     input: &str,
     ctx: &'a mut crate::ctx::Context,
-) -> Result<Node, UserError> {
+    opts : Opts,
+) -> GResult<Node> {
     let span = Span::new_extra(input, AsmSource::FromStr);
-    let mut macros = Macros::new();
-    let matched = Tokens::new(ctx).convert_to_tokens(span, &mut macros)?;
+    let mut tokes = Tokens::new(ctx, &opts);
+    tokes.add_tokens(span)?;
+    let tokes = tokes.to_tokens();
     let item = Item::TokenizedFile(file.into(), file.into());
-    let file_node = Node::from_item_span(item, span).with_children(matched);
+    let file_node = Node::from_item_span(item, span).with_children(tokes);
     Ok(file_node)
 }
 
@@ -62,13 +71,15 @@ fn mk_pc_equate(node: Node) -> Node {
 struct Tokens<'a> {
     tokens: Vec<Node>,
     ctx: &'a mut crate::ctx::Context,
+    opts: Opts,
 }
 
 impl<'a> Tokens<'a> {
-    fn new(ctx: &'a mut crate::ctx::Context) -> Self {
+    fn new(ctx: &'a mut crate::ctx::Context, opts: &Opts) -> Self {
         Self {
             tokens: vec![],
             ctx,
+            opts: opts.clone(),
         }
     }
 
@@ -89,7 +100,7 @@ impl<'a> Tokens<'a> {
 
     fn handle_trailing_text(&mut self, rest: Span) -> Result<(), ParseError> {
         if !rest.is_empty() {
-            if self.ctx.trailing_comments {
+            if self.opts.trailing_comments {
                 self.add_comment(rest);
             } else {
                 let message = "Unexpected characters";
@@ -104,7 +115,7 @@ impl<'a> Tokens<'a> {
         use opcodes::parse_opcode;
         use util::parse_assignment;
 
-        if self.ctx.star_comments {
+        if self.opts.star_comments {
             if let Ok((_rest, matched)) = comments::strip_star_comment(line) {
                 self.add_node(matched);
                 return Ok(());
@@ -121,16 +132,14 @@ impl<'a> Tokens<'a> {
         // An equate
         if let Ok((rest, equate)) = ws(parse_assignment)(input) {
             self.add_node(equate);
-            self.handle_trailing_text(rest)?;
-            return Ok(());
+            return self.handle_trailing_text(rest);
         }
 
-        if let Ok((rest, mcall)) = ws(parse_macro_call)(input) {
-            let span = matched_span(input, rest);
-            let node = Node::from_item_span(Item::MacroCall(mcall), span);
+        let res = ws(parse_macro_call)(input);
+
+        if let Ok((rest, node)) = res {
             self.add_node(node);
-            self.handle_trailing_text(rest)?;
-            return Ok(());
+            return self.handle_trailing_text(rest);
         }
 
         if let Ok((_, label)) = all_consuming(ws(parse_label))(input) {
@@ -153,41 +162,48 @@ impl<'a> Tokens<'a> {
         Ok(())
     }
 
-    fn convert_to_tokens(
-        &mut self,
-        input: Span,
-        macros: &mut Macros,
-    ) -> Result<Vec<Node>, UserError> {
-        use crate::macros::MacroCall;
+    pub fn to_tokens(self) -> Vec<Node> {
+        self.tokens
+    }
 
-        self.tokens = vec![];
+    fn add_tokens(&mut self, input: Span) -> GResult<()> {
+        use crate::macros::MacroCall;
 
         // let ret = Node::from_item_span(Item::Block, input.clone());
 
         let mut source = input;
 
         while !source.is_empty() {
-            let res: Result<(), ParseError> = try {
-                if let Ok(..) = get_struct(source) {
-                    let (rest, matched) = parse_struct_definition(source)?;
-                    self.add_node(matched);
-                    source = rest;
-                    continue;
-                }
+            if let Ok((rest, (name, params, body))) = get_macro_def(source) {
+                let mut macro_tokes = Tokens::new(self.ctx, &self.opts);
+                macro_tokes.add_tokens(body).unwrap();
+                let macro_tokes = macro_tokes.to_tokens();
 
-                if let Ok((rest, def)) = parse_macro_definition(source) {
-                    macros.add_def(def);
+                let pos = crate::locate::span_to_pos(body);
+                let name = name.to_string();
+                let params = params.iter().map(|x| x.to_string()).collect();
+
+                let macro_def = Node::from_item_pos(Item::MacroDef(name, params), pos)
+                    .with_children(macro_tokes);
+                self.add_node(macro_def);
+                source = rest;
+                continue;
+            }
+
+            let res: Result<(), ParseError> = try {
+                if let Ok((rest, _)) = get_struct(source) {
+                    let (_, matched) = parse_struct_definition(source)?;
+                    self.add_node(matched);
                     source = rest;
                     continue;
                 }
 
                 let (rest, line) = get_line(source)?;
                 source = rest;
-
                 self.tokenize_line(line)?;
             };
 
-            match &res {
+            match res {
                 Ok(..) => (),
                 Err(pe) => {
                     self.ctx.add_parse_error(pe)?;
@@ -195,69 +211,23 @@ impl<'a> Tokens<'a> {
             };
         }
 
-        self.ctx.errors.raise_errors()?;
-
-        // Expand all macros for this block of stuff
-        let mut tokes = self.tokens.clone();
-
-        self.tokens = vec![];
-
-        let mcalls: Vec<(&mut Node, MacroCall)> = tokes
-            .iter_mut()
-            .filter_map(|x| match x.item.clone() {
-                Item::MacroCall(mcall) => Some((x, mcall)),
-                _ => None,
-            })
-            .collect();
-
-        // Expand all macro calls
-        //
-        for (node, macro_call) in mcalls {
-            let (pos, text) = macros.expand_macro(self.ctx.sources(), macro_call.clone())?;
-
-            let input = Span::new_extra(&text, pos.src);
-
-            let new_tokens = self
-                .convert_to_tokens(input, macros)
-                .map_err(|mut e| {
-                    let args: Vec<_> = macro_call
-                        .args
-                        .iter()
-                        .map(|a| self.ctx.sources().get_source_info(a))
-                        .collect();
-
-                    let err1 = format!("Macro expansion:\n {}", text);
-                    let err2 = format!("Args:\n {:#?}", args);
-                    e.message = format!("{}\n{}", err1, err2);
-                    e
-                })?;
-            let pos: Position = span_to_pos(input);
-
-            let new_node =
-                Node::from_item_pos(Item::ExpandedMacro(macro_call), pos).with_children(new_tokens);
-
-            *node = new_node;
-        }
-
-        Ok(tokes)
+        Ok(())
     }
 }
 
 fn tokenize_file(
     depth: usize,
     ctx: &mut crate::ctx::Context,
+    opts: &Opts,
     file: &std::path::Path,
     parent: &std::path::Path,
-    macros: &mut Macros,
-) -> anyhow::Result<Node> {
+) -> GResult<Node> {
     use anyhow::Context;
 
     use Item::*;
     let x = messages();
 
-    let (file_name, source, id) = ctx
-        .read_source(&file)
-        .with_context(|| format!("Failed to load file: {}", file.to_string_lossy()))?;
+    let (file_name, source, id) = ctx.read_source(&file)?;
 
     let action = if depth == 0 {
         "Tokenizing"
@@ -270,13 +240,15 @@ fn tokenize_file(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = Tokens::new(ctx).convert_to_tokens(input, macros)?;
+    let mut tokes = Tokens::new(ctx, &opts);
+    tokes.add_tokens(input)?;
+    let mut tokes = tokes.to_tokens();
 
     // Tokenize includes
     for n in tokes.iter_mut() {
         if let Include(inc_file) = &n.item {
             x.indent();
-            *n = tokenize_file(depth + 1, ctx, inc_file, file, macros)?;
+            *n = tokenize_file(depth + 1, ctx, &opts,inc_file, file)?;
             x.deindent();
         };
     }
@@ -288,33 +260,21 @@ fn tokenize_file(
 
 use crate::macros::Macros;
 
-pub fn tokenize(ctx: &mut crate::ctx::Context) -> anyhow::Result<Node> {
-    let mut macros = Macros::new();
+pub enum TokenizeError {}
 
+pub fn tokenize(ctx: &mut crate::ctx::Context, opts: &Opts) -> GResult<Node> {
     let parent = PathBuf::new();
 
-    let mut all_tokens = vec![];
+    let all_tokens = vec![];
     let files = ctx.files.clone();
 
     for file in files {
         let msg = format!("Reading {}", file.to_string_lossy());
         messages().status(msg);
 
-        let res = tokenize_file(0, ctx, &file, &parent, &mut macros);
+        tokenize_file(0, ctx, &opts, &file, &parent)?;
 
-        match res {
-            Err(e) => {
-                if ctx.errors.has_errors() {
-                    return Err(anyhow::Error::new(ctx.errors.clone()));
-                } else {
-                    return Err(e);
-                }
-            }
-
-            Ok(node) => {
-                all_tokens.push(node);
-            }
-        };
+        ctx.errors.raise_errors()?;
     }
 
     let block = Node::from_item(Item::Block, Position::default()).with_children(all_tokens);

@@ -235,7 +235,6 @@ impl SourceMapping {
 
     pub fn add_mapping(
         &mut self,
-        _sources: &Sources,
         physical_mem_range: std::ops::Range<usize>,
         mem_range: std::ops::Range<usize>,
         pos: &Position,
