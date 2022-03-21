@@ -37,6 +37,7 @@ mod gasm;
 mod evaluator;
 mod asmctx;
 mod fixerupper;
+mod regutils;
 
 use std::path::PathBuf;
 use crate::gasm::{ GResult, Gasm };
