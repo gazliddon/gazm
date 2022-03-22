@@ -32,13 +32,6 @@ pub struct Sizer<'a> {
 }
 
 impl<'a> Sizer<'a> {
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // Node retrieval
-    fn get_node(&self, id: AstNodeId) -> AstNodeRef {
-        self.tree.get(id).expect("Internal error: unable to get node")
-    }
-
     pub fn new(tree: &'a AstTree) -> Self {
         Self {
             offset: 0,
@@ -56,21 +49,18 @@ impl<'a> Sizer<'a> {
     }
 
     fn size_indexed(
-        &'a self,
-        ctx_mut: &'a mut AsmCtx,
+        &self,
+        ctx_mut: &mut AsmCtx,
         mut pc: usize,
         id: AstNodeId,
     ) -> GResult<usize> {
 
         let eval = &ctx_mut.eval;
-        let fixer_upper = &mut ctx_mut.fixer_upper;
 
-        let this_i = &self.get_node(id).value().item;
-
-        let i = fixer_upper.get_fixup_or_default(pc, id, this_i);
+        let ( node, i ) = self.get_node_item(ctx_mut,id);
 
         if let OpCode(ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
-            let this_pc = pc;
+            let _this_pc = pc;
 
             pc += ins.size as usize;
             use item::IndexParseType::*;
@@ -86,7 +76,6 @@ impl<'a> Sizer<'a> {
                 | Constant5BitOffset(..) => {}
 
                 ConstantOffset(r) => {
-                    let node = self.get_node(id);
                     let (v, _) = eval.eval_first_arg(node)?;
 
                     let mut bs = v.byte_size();
@@ -114,11 +103,12 @@ impl<'a> Sizer<'a> {
 
                     let new_item =
                         OpCode(ins.clone(), AddrModeParseType::Indexed(new_amode, indirect));
-                    fixer_upper.add_fixup(this_pc, id, new_item);
+
+                    ctx_mut.add_fixup(id, new_item);
                 }
 
                 PCOffset => {
-                    let (v, id) = eval.eval_first_arg(self.get_node(id))?;
+                    let (v, _) = eval.eval_first_arg(node)?;
                     pc += 1;
 
                     let new_amode = match v.byte_size() {
@@ -132,7 +122,8 @@ impl<'a> Sizer<'a> {
 
                     let new_item =
                         OpCode(ins.clone(), AddrModeParseType::Indexed(new_amode, indirect));
-                    fixer_upper.add_fixup(this_pc, id, new_item);
+
+                    ctx_mut.add_fixup(id, new_item);
                 }
 
                 ExtendedIndirect => pc += 2,
@@ -142,6 +133,7 @@ impl<'a> Sizer<'a> {
         panic!()
     }
 
+
     fn size_node(
         &self,
         ctx: &mut AsmCtx,
@@ -150,13 +142,12 @@ impl<'a> Sizer<'a> {
     ) -> GResult<usize> {
         use item::Item::*;
 
-        let i = self.get_node(id).value().item.clone();
+        let ( node, i ) = self.get_node_item(ctx,id);
 
         match &i {
             MacroCallProcessed { scope, macro_id } => {
-                let kids: Vec<_> = self
-                    .get_node(*macro_id)
-                    .children()
+                let kids: Vec<_> = 
+                    node.children()
                     .map(|n| n.id())
                     .collect();
 
@@ -174,36 +165,33 @@ impl<'a> Sizer<'a> {
             }
 
             GrabMem => {
-                let node = self.get_node(id);
                 let args = ctx.eval.eval_n_args(node, 2)?;
                 let size = args[1];
                 pc += size as usize;
             }
 
             Org => {
-                let res = ctx.eval.eval_first_arg(self.get_node(id));
+                let res = ctx.eval.eval_first_arg(node);
                 if let Err(_) = res {
                     panic!();
                 };
 
                 let (value, _) = res?;
                 pc = value as usize;
-                ctx.fixer_upper.add_fixup(pc, id, Item::SetPc(pc));
+                ctx.add_fixup(id, Item::SetPc(pc));
             }
 
             SetPc(val) => pc = *val,
 
             Put => {
-                let (value, _) = ctx.eval.eval_first_arg(self.get_node(id))?;
+                let (value, _) = ctx.eval.eval_first_arg(node)?;
                 let offset = (value - pc as i64) as isize;
-                ctx.fixer_upper
-                    .add_fixup(pc, id, Item::SetPutOffset(offset));
+                ctx.add_fixup(id, Item::SetPutOffset(offset));
             }
 
             SetPutOffset(_offset) => {}
 
             Rmb => {
-                let node = self.get_node(id);
                 let (bytes, _) = ctx.eval.eval_first_arg(node)?;
 
                 if bytes < 0 {
@@ -213,8 +201,7 @@ impl<'a> Sizer<'a> {
                         .into());
                 };
 
-                ctx.fixer_upper
-                    .add_fixup(pc, id, Item::Skip(bytes as usize));
+                ctx.add_fixup(id, Item::Skip(bytes as usize));
 
                 pc += bytes as usize;
             }
@@ -239,7 +226,7 @@ impl<'a> Sizer<'a> {
                             .and_then(|ins| ctx.direct_page.map(|dp| (ins, dp)));
 
                         if let Some((new_ins, dp)) = dp_info {
-                            if let Ok((value, _)) = ctx.eval.eval_first_arg(self.get_node(id)) {
+                            if let Ok((value, _)) = ctx.eval.eval_first_arg(node) {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
                                 if top_byte == dp {
@@ -247,7 +234,7 @@ impl<'a> Sizer<'a> {
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
                                     let new_item = OpCode(new_ins, AddrModeParseType::Direct);
-                                    ctx.fixer_upper.add_fixup(pc, id, new_item);
+                                    ctx.add_fixup(id, new_item);
                                 }
                             }
                         }
@@ -266,12 +253,8 @@ impl<'a> Sizer<'a> {
             }
 
             AssignmentFromPc(name) => {
-                let node = self.get_node(id);
-
                 let pcv = if let Some(_) = node.first_child() {
                     ctx.set_pc_symbol(pc).unwrap();
-
-                    let node = self.get_node(id);
                     let (ret, _) = ctx.eval.eval_first_arg(node)?;
                     ctx.remove_pc_symbol();
                     ret
@@ -288,12 +271,12 @@ impl<'a> Sizer<'a> {
                     } else {
                         format!("{:?}", e)
                     };
-                    ctx.eval.user_error(err, self.get_node(id), false)
+                    ctx.eval.user_error(err, node, false)
                 })?;
             }
 
             Block | TokenizedFile(..) => {
-                for c in ctx.eval.get_children(self.get_node(id)) {
+                for c in ctx.eval.get_children(node) {
                     pc = self.size_node(ctx, pc, c)?;
                 }
             }
@@ -311,46 +294,44 @@ impl<'a> Sizer<'a> {
             }
 
             Zmb => {
-                let (v, _) = ctx.eval.eval_first_arg(self.get_node(id))?;
+                let (v, _) = ctx.eval.eval_first_arg(node)?;
                 assert!(v >= 0);
                 pc += v as usize;
             }
 
             Zmd => {
-                let (v, _) = ctx.eval.eval_first_arg(self.get_node(id))?;
+                let (v, _) = ctx.eval.eval_first_arg(node)?;
                 assert!(v >= 0);
                 pc += (v * 2) as usize;
             }
 
             Fill => {
-                let (_, c) = ctx.eval.eval_two_args(self.get_node(id))?;
+                let (_, c) = ctx.eval.eval_two_args(node)?;
                 assert!(c >= 0);
                 pc += c as usize;
             }
 
             SetDp => {
-                let (dp, _) = ctx.eval.eval_first_arg(self.get_node(id))?;
+                let (dp, _) = ctx.eval.eval_first_arg(node)?;
                 ctx.set_dp(dp);
             }
 
             IncBin(file_name) => {
                 let r = ctx
                     .eval
-                    .get_binary_extents(file_name.to_path_buf(), self.get_node(id))?;
+                    .get_binary_extents(file_name.to_path_buf(), node)?;
                 let new_item = IncBinResolved {
                     file: file_name.to_path_buf(),
                     r: r.clone(),
                 };
 
-                ctx.fixer_upper.add_fixup(pc, id, new_item);
+                ctx.add_fixup(id, new_item);
                 pc += r.len();
             }
 
             WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | StructDef(..)
             | MacroDef(..) | MacroCall(..) => (),
             _ => {
-                let node = self.get_node(id);
-                let i = &node.value().item;
                 let msg = format!("Unable to size {:?}", i);
                 return Err(ctx.eval.user_error(msg, node, true).into());
             }
@@ -359,4 +340,15 @@ impl<'a> Sizer<'a> {
         Ok(pc)
     }
 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Helper Functions
+impl<'a> Sizer<'a> {
+    fn get_node_item(&self, ctx : &AsmCtx, id : AstNodeId) -> (AstNodeRef, Item) {
+        let node = self.tree.get(id).unwrap();
+        let this_i = &node.value().item;
+        let i  = ctx.get_fixup_or_default(id, this_i);
+        (node, i)
+    }
 }

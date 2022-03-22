@@ -50,7 +50,7 @@ impl SymbolTree {
         self.current_scope = self.tree.root().id()
     }
 
-    pub fn get_current_scope(&self) -> Vec<SymbolNodeId> {
+    pub fn get_current_scope_chain(&self) -> Vec<SymbolNodeId> {
         let mut cscope = self.tree.get(self.current_scope).unwrap();
         let mut ret = vec![cscope.id()];
 
@@ -62,13 +62,16 @@ impl SymbolTree {
         ret.reverse();
         ret
     }
+    pub fn get_current_scope(&self) -> SymbolNodeId {
+        self.current_scope
+    }
 
     pub fn get_current_scope_symbols(&self) -> &SymbolTable {
         self.tree.get(self.current_scope).unwrap().value()
     }
 
     pub fn get_current_scope_fqn(&self) -> String {
-        let scopes = self.get_current_scope();
+        let scopes = self.get_current_scope_chain();
         let v: Vec<_> = scopes
             .into_iter()
             .map(|id| self.tree.get(id).unwrap().value().get_scope_name())

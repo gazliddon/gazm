@@ -95,6 +95,18 @@ pub struct Watch {
 }
 
 impl Binary {
+
+    /// Returns ranges from from -> current write
+    /// ( physical range, logical_range )
+
+    pub fn range_to_write_address(&self, pc: usize) -> (std::ops::Range<usize>, std::ops::Range<usize>) {
+        let start = pc;
+        let end = self.get_write_address();
+        let pstart = self.logical_to_physical(start);
+        let pend = self.logical_to_physical(end);
+
+        (start..end, pstart..pend)
+    }
     pub fn add_watch(&mut self, range: std::ops::Range<usize>) {
         self.watches.push(Watch { range })
     }

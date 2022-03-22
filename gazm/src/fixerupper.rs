@@ -1,11 +1,12 @@
-use crate::ast::{ AstNodeId };
 use crate::item::Item;
+use crate::ast::AstNodeId;
 use std::collections::HashMap;
+use utils::sources::SymbolNodeId;
 
 #[derive(Hash, PartialEq, Eq)]
 pub struct FixKey {
-    pc: usize,
-    id: AstNodeId,
+    scope: SymbolNodeId,
+    id: SymbolNodeId,
 }
 pub struct FixerUpper {
     fixups: HashMap<FixKey, Item>,
@@ -25,15 +26,15 @@ impl FixerUpper {
         Self::default()
     }
 
-    pub fn add_fixup(&mut self, pc: usize, id: AstNodeId, v: Item) {
-        let k = FixKey { id, pc };
+    pub fn add_fixup(&mut self, scope: SymbolNodeId, id: AstNodeId, v: Item) {
+        let k = FixKey { id, scope };
         self.fixups.insert(k, v);
     }
-    fn get_fixup(&self, pc: usize, id: AstNodeId) -> Option<&Item> {
-        self.fixups.get(&FixKey { pc, id })
+    fn get_fixup(&self, scope: SymbolNodeId, id: AstNodeId) -> Option<&Item> {
+        self.fixups.get(&FixKey { scope, id })
     }
 
-    pub fn get_fixup_or_default(&self, pc: usize, id: AstNodeId, i : &Item) -> Item {
-        self.get_fixup(pc, id).unwrap_or(i).clone()
+    pub fn get_fixup_or_default(&self, scope: SymbolNodeId, id: AstNodeId, i : &Item) -> Item {
+        self.get_fixup(scope, id).unwrap_or(i).clone()
     }
 }

@@ -1,6 +1,6 @@
 use utils::sources::{SymbolQuery, SymbolTree, SymbolWriter};
 
-use crate::ast::{AstNodeId, AstNodeRef };
+use crate::ast::{AstNodeId, AstNodeRef, AstTree };
 use crate::error::UserError;
 use crate::eval::eval;
 use crate::gasm::GResult;
