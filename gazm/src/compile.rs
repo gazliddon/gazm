@@ -13,7 +13,7 @@ use crate::error::UserError;
 use emu::isa::Instruction;
 
 use crate::ctx::Opts;
-use crate::gasm::{GResult, GasmError};
+use crate::error::{GasmError, GResult };
 
 use crate::regutils::*;
 

@@ -11,34 +11,13 @@ use utils::sources::Position;
 use thiserror::Error;
 
 use crate::error::UserError;
+use crate::error::{GasmError, GResult };
 
 pub struct Gasm {
     ctx: Context,
     opts: Opts,
 }
 
-pub type GResult<T> = Result<T, GasmError>;
-
-#[derive(Error, Debug, Clone)]
-pub enum GasmError {
-    #[error(transparent)]
-    UserError(#[from] UserError),
-    #[error("Misc: {0}")]
-    Misc(String),
-    #[error("Too Many Errors")]
-    TooManyErrors,
-}
-
-impl From<String> for GasmError {
-    fn from(x: String) -> Self {
-        GasmError::Misc(x)
-    }
-}
-impl From<anyhow::Error> for GasmError {
-    fn from(x: anyhow::Error) -> Self {
-        GasmError::Misc(x.to_string())
-    }
-}
 
 impl Gasm {
     pub fn new(ctx: Context, opts: Opts) -> Self {

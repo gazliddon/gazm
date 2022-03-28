@@ -40,7 +40,8 @@ mod fixerupper;
 mod regutils;
 
 use std::path::PathBuf;
-use crate::gasm::{ GResult, Gasm };
+use crate::error::{GasmError, GResult };
+use crate::gasm::Gasm;
 
 use crate::ctx::Context;
 use utils::sources::FileIo;

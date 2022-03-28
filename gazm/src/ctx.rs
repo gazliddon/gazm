@@ -1,11 +1,11 @@
-use crate::error::{ParseError, UserError, ErrorCollector};
+use crate::error::{ParseError, UserError, ErrorCollector, GasmError, GResult};
 use crate::macros::Macros;
 use crate::messages::Verbosity;
 use utils::sources::{FileIo, SourceFileLoader, Sources, SymbolTree};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::gasm::{Gasm, GasmError, GResult};
+use crate::gasm::Gasm;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {

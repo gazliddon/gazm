@@ -12,8 +12,8 @@ use crate::{
     util::{self, ws},
 };
 
-use crate::gasm::GasmError;
 
+use crate::error::{GasmError, GResult };
 use std::path::{Path, PathBuf};
 
 use nom::{
@@ -31,7 +31,6 @@ use crate::error::{ErrorCollector, IResult, ParseError, UserError};
 use crate::locate::Span;
 use utils::sources::AsmSource;
 
-use crate::gasm::GResult;
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(

@@ -1,13 +1,34 @@
 
 use crate::ast::{AstNodeId, AstNodeRef};
-use crate::gasm::{self, GasmError};
+use crate::gasm;
 use crate::locate::span_to_pos;
 use crate::locate::Span;
 use serde::de::Error;
 use thiserror::Error;
 use utils::sources::{Position, SourceInfo};
-use crate::gasm::GResult;
 
+pub type GResult<T> = Result<T, GasmError>;
+
+#[derive(Error, Debug, Clone)]
+pub enum GasmError {
+    #[error(transparent)]
+    UserError(#[from] UserError),
+    #[error("Misc: {0}")]
+    Misc(String),
+    #[error("Too Many Errors")]
+    TooManyErrors(Vec<Box<GasmError>>),
+}
+
+impl From<String> for GasmError {
+    fn from(x: String) -> Self {
+        GasmError::Misc(x)
+    }
+}
+impl From<anyhow::Error> for GasmError {
+    fn from(x: anyhow::Error) -> Self {
+        GasmError::Misc(x.to_string())
+    }
+}
 
 // Anyhow, don't care what the error type is.
 // application should use this
@@ -266,7 +287,7 @@ impl ErrorCollector {
 
     pub fn raise_errors(&self) -> GResult<()> {
         if self.has_errors() {
-            Err(GasmError::TooManyErrors)
+            Err(GasmError::TooManyErrors(vec![]))
         } else {
             Ok(())
         }

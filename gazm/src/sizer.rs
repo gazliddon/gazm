@@ -16,7 +16,7 @@ use crate::evaluator::{self, Evaluator};
 use emu::cpu::RegEnum;
 use emu::isa::Instruction;
 
-use crate::gasm::GResult;
+use crate::error::{GasmError, GResult };
 use crate::util::{ByteSize, ByteSizes};
 use item::Item::*;
 use crate::fixerupper::FixerUpper;

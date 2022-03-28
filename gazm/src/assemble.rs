@@ -29,8 +29,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::vec;
 
+use crate::error::{GasmError, GResult };
 
-use crate::gasm::{GResult, Gasm};
+use crate::gasm::Gasm;
 
 // use serde::{Deserialize, Serialize};
 // use serde_json::json;
@@ -56,7 +57,6 @@ pub struct Assembler<'a> {
     source_map : SourceMapping,
 }
 
-use crate::gasm::GasmError;
 
 impl<'a> Assembler<'a> {
 
