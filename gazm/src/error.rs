@@ -217,6 +217,7 @@ impl UserError {
 ////////////////////////////////////////////////////////////////////////////////
 // UserErrors Collection
 
+#[derive(Clone)]
 pub struct ErrorCollector {
     max_errors: usize,
     errors: Vec<GasmError>,

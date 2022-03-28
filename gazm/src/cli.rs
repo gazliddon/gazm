@@ -15,6 +15,7 @@ impl From<clap::ArgMatches> for Opts {
             trailing_comments: m.is_present("trailing-comments"),
             star_comments: m.is_present("star-comments"),
             ignore_relative_offset_errors: m.is_present("ignore-relative-offset-errors"),
+            project_file: m.value_of("project-file").unwrap().into(),
             ..Default::default()
         };
         opts.verbose = match m.occurrences_of("verbose") {
@@ -39,6 +40,7 @@ impl From<clap::ArgMatches> for Context {
     fn from(m: clap::ArgMatches) -> Self {
 
         let mut ret = Self {
+
             ..Default::default()
         };
         if m.is_present("max-errors") {
@@ -56,18 +58,6 @@ impl From<clap::ArgMatches> for Context {
             }
         }
 
-        if let Some(it) = m.values_of("file") {
-            ret.files = it.map(|x| x.into()).collect();
-        }
-
-        if !ret.files.is_empty() {
-            let file = ret.files[0].clone();
-            if let Some(dir) = file.parent() {
-                let cdir = Path::new(".");
-                ret.source_file_loader = SourceFileLoader::from_search_paths(&[cdir, dir]);
-            }
-        }
-
         ret
     }
 }
@@ -78,10 +68,9 @@ pub fn parse() -> clap::ArgMatches {
         .author("gazaxian")
         .version("0.1")
         .arg(
-            Arg::new("file")
-                .multiple_values(true)
+            Arg::new("project-file")
+                .multiple_values(false)
                 .index(1)
-                .use_value_delimiter(false)
                 .required(true),
         )
         .arg(

@@ -3,13 +3,15 @@ use crate::ast::AstNodeId;
 use std::collections::HashMap;
 use utils::sources::SymbolNodeId;
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Debug,Hash, PartialEq, Eq)]
 pub struct FixKey {
     scope: SymbolNodeId,
     id: SymbolNodeId,
 }
+
+#[derive(Debug)]
 pub struct FixerUpper {
-    fixups: HashMap<FixKey, Item>,
+    pub fixups: HashMap<FixKey, Item>,
 }
 
 impl Default for FixerUpper {
@@ -30,7 +32,7 @@ impl FixerUpper {
         let k = FixKey { id, scope };
         self.fixups.insert(k, v);
     }
-    fn get_fixup(&self, scope: SymbolNodeId, id: AstNodeId) -> Option<&Item> {
+    pub fn get_fixup(&self, scope: SymbolNodeId, id: AstNodeId) -> Option<&Item> {
         self.fixups.get(&FixKey { scope, id })
     }
 

@@ -57,6 +57,7 @@ pub struct Opts {
     pub as6809_sym: Option<String>,
     pub deps_file: Option<String>,
     pub memory_image_size: usize,
+    pub project_file : PathBuf,
 }
 
 impl Default for Opts {
@@ -71,17 +72,17 @@ impl Default for Opts {
             as6809_sym: None,
             deps_file: None,
             memory_image_size: 65536,
+            project_file: "lol".to_owned().into(),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Context {
     pub symbols: SymbolTree,
     pub source_file_loader: SourceFileLoader,
     pub errors : ErrorCollector,
     pub vars: Vars,
-    pub files: Vec<PathBuf>,
 }
 
 fn to_gasm(e : anyhow::Error) -> GasmError {
@@ -140,7 +141,6 @@ impl Context {
 impl Default for Context {
     fn default() -> Self {
         Self {
-            files: Default::default(),
             vars: Vars::new(),
             symbols: SymbolTree::new(),
             source_file_loader: SourceFileLoader::new(),

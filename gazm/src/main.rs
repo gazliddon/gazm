@@ -59,9 +59,6 @@ use anyhow::Result;
 
 
 
-
-
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
 
@@ -82,8 +79,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     x.indent();
 
-
     use std::fs;
+    
+    let mut a = Gasm::new(ctx.clone(), opts.clone());
+
+    a.assemble_file(&opts.project_file)?;
 
     if let Some(sym_file) = &opts.syms_file {
         // x.status(format!("Writing symbols: {}", sym_file));

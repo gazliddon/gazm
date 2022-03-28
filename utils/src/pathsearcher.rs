@@ -7,6 +7,9 @@ pub enum SearchError {
 
 pub trait PathSearcher {
     fn get_full_path(&self, file: &Path) -> Result<PathBuf, SearchError>;
+    fn get_search_paths(&self) -> &Vec<PathBuf>;
+    fn add_search_path(&mut self, path : &Path);
+    fn set_search_paths(&mut self, paths: Vec<PathBuf>);
 }
 
 #[derive(Debug, Clone, Default)]
@@ -31,6 +34,18 @@ impl Paths {
 }
 
 impl PathSearcher for Paths {
+    fn get_search_paths(&self) -> &Vec<PathBuf> {
+        &self.paths
+    }
+
+    fn add_search_path(&mut self, path: &Path) {
+        self.paths.push(path.to_path_buf())
+    }
+
+    fn set_search_paths(&mut self, paths: Vec<PathBuf>) {
+        self.paths = paths
+    }
+
     fn get_full_path(&self, file_name: &Path) -> Result<PathBuf, SearchError> {
         let mut tried: Vec<_> = vec![file_name.to_path_buf()];
 

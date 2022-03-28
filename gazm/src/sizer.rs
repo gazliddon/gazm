@@ -1,8 +1,9 @@
 use crate::assemble::{Assembled, Assembler};
 use crate::binary::{AccessType, BinRef, Binary, BinaryError};
 use ego_tree::iter::Children;
+use serde_json::ser::Formatter;
 use std::collections::{HashMap, HashSet};
-use utils::sources::{ItemType, SourceDatabase, SourceMapping, Sources, SymbolError, SymbolWriter};
+use utils::sources::{ItemType, SourceDatabase, SourceMapping, Sources, SymbolError, SymbolQuery, SymbolWriter};
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::item::{self, AddrModeParseType, IndexParseType, Item, Node};
@@ -44,6 +45,7 @@ impl<'a> Sizer<'a> {
         ctx: &mut AsmCtx,
         id: AstNodeId,
     ) -> GResult<()> {
+        ctx.set_root_scope();
         let _ = self.size_node(ctx, 0, id)?;
         Ok(())
     }
@@ -146,12 +148,16 @@ impl<'a> Sizer<'a> {
 
         match &i {
             MacroCallProcessed { scope, macro_id } => {
+                ctx.eval_macro_args(scope, id, *macro_id, &self.tree);
+
+                ctx.set_scope(scope);
+
+                let ( m_node, _ ) = self.get_node_item(ctx, *macro_id);
+
                 let kids: Vec<_> = 
-                    node.children()
+                    m_node.children()
                     .map(|n| n.id())
                     .collect();
-
-                ctx.eval_macro_args(scope, id, *macro_id, &self.tree);
 
                 for c in kids {
                     pc = self.size_node(ctx, pc, c)?;
@@ -161,7 +167,10 @@ impl<'a> Sizer<'a> {
             }
 
             Scope(opt) => {
-                ctx.set_scope(opt);
+                ctx.set_root_scope();
+                if opt != "root" {
+                    ctx.set_scope(&opt);
+                }
             }
 
             GrabMem => {
@@ -188,8 +197,6 @@ impl<'a> Sizer<'a> {
                 let offset = (value - pc as i64) as isize;
                 ctx.add_fixup(id, Item::SetPutOffset(offset));
             }
-
-            SetPutOffset(_offset) => {}
 
             Rmb => {
                 let (bytes, _) = ctx.eval.eval_first_arg(node)?;
@@ -253,6 +260,9 @@ impl<'a> Sizer<'a> {
             }
 
             AssignmentFromPc(name) => {
+                let scope = ctx.get_scope_fqn();
+                let msg = format!("trying to assign {scope}::{name}");
+                messages().debug(msg);
                 let pcv = if let Some(_) = node.first_child() {
                     ctx.set_pc_symbol(pc).unwrap();
                     let (ret, _) = ctx.eval.eval_first_arg(node)?;
@@ -269,7 +279,9 @@ impl<'a> Sizer<'a> {
                             expected, pcv
                         )
                     } else {
-                        format!("{:?}", e)
+                        let z = ctx.eval.get_symbols().get_symbol_info(name).unwrap().clone();
+                        let scope = ctx.get_scope_fqn();
+                        format!("Scope: {scope} {z:#?} - {:?}", e)
                     };
                     ctx.eval.user_error(err, node, false)
                 })?;
@@ -317,9 +329,8 @@ impl<'a> Sizer<'a> {
             }
 
             IncBin(file_name) => {
-                let r = ctx
-                    .eval
-                    .get_binary_extents(file_name.to_path_buf(), node)?;
+                let r = self
+                    .get_binary_extents(ctx,file_name.to_path_buf(), node)?;
                 let new_item = IncBinResolved {
                     file: file_name.to_path_buf(),
                     r: r.clone(),
@@ -329,7 +340,7 @@ impl<'a> Sizer<'a> {
                 pc += r.len();
             }
 
-            WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | StructDef(..)
+            PostFixExpr | WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | StructDef(..)
             | MacroDef(..) | MacroCall(..) => (),
             _ => {
                 let msg = format!("Unable to size {:?}", i);
@@ -339,6 +350,48 @@ impl<'a> Sizer<'a> {
 
         Ok(pc)
     }
+
+
+   pub fn get_binary_extents(
+        &self,
+        ctx: &mut AsmCtx,
+        file_name: PathBuf,
+        node: AstNodeRef,
+    ) -> GResult<std::ops::Range<usize>> {
+
+        use utils::sources::FileIo;
+        let data_len = 
+            ctx
+            .get_file_size(&file_name)?;
+
+        let mut r = 0..data_len;
+
+        let mut c = node.children();
+
+        let offset_size = c
+            .next()
+            .and_then(|offset| c.next().map(|size| (offset, size)));
+
+        if let Some((offset, size)) = offset_size {
+            let offset = ctx.eval.eval_node(offset)?;
+            let size = ctx.eval.eval_node(size)?;
+            let offset = offset as usize;
+            let size = size as usize;
+            let last = (offset + size) - 1;
+
+            if !(r.contains(&offset) && r.contains(&last)) {
+                let msg =
+                    format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
+                return Err( ctx.eval.user_error(msg, node, true).into());
+            };
+
+            r.start = offset;
+            r.end = offset + size;
+        }
+
+        Ok(r)
+    }
+
 
 }
 

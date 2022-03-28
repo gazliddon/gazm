@@ -364,6 +364,7 @@ impl Binary {
         &self.data[r]
     }
 
+
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {
         let hi = val >> 8;
         let lo = val & 0xff;

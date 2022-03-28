@@ -393,12 +393,12 @@ impl<'a> Ast<'a> {
                     Scope(scope) => {
                         self.ctx.symbols.set_root();
                         if scope != "root" {
-                            println!("***SETTING SCOPE {scope}");
                             self.ctx.symbols.set_scope(&scope);
                         }
                     }
 
                     Assignment(name) => {
+
                         let n = self.tree.get(id).unwrap();
                         let cn = n.first_child().unwrap();
                         let res = eval(&self.ctx.symbols, cn);
@@ -407,7 +407,9 @@ impl<'a> Ast<'a> {
                         match res {
                             Ok(value) => {
                                 self.add_symbol(value, name, c_id)?;
-                                let msg = format!("{} = {}", name.clone(), value);
+                                let si = self.get_source_info_from_node_id(id).unwrap();
+                                let scope = self.ctx.symbols.get_current_scope_fqn();
+                                let msg = format!("{scope}::{} = {} :  {} {}", name.clone(), value, si.file.to_string_lossy(),si.line_str);
                                 x.debug(&msg);
                             }
 

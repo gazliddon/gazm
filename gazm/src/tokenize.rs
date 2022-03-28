@@ -1,5 +1,6 @@
 use crate::{
     commands, comments,
+    ctx::Opts,
     gasm::Gasm,
     item::{Item, Node},
     labels::parse_label,
@@ -9,7 +10,6 @@ use crate::{
     opcodes,
     structs::{get_struct, parse_struct_definition},
     util::{self, ws},
-    ctx::Opts,
 };
 
 use crate::gasm::GasmError;
@@ -46,7 +46,7 @@ pub fn tokenize_file_from_str<'a>(
     file: &Path,
     input: &str,
     ctx: &'a mut crate::ctx::Context,
-    opts : Opts,
+    opts: Opts,
 ) -> GResult<Node> {
     let span = Span::new_extra(input, AsmSource::FromStr);
     let mut tokes = Tokens::new(ctx, &opts);
@@ -248,7 +248,7 @@ fn tokenize_file(
     for n in tokes.iter_mut() {
         if let Include(inc_file) = &n.item {
             x.indent();
-            *n = tokenize_file(depth + 1, ctx, &opts,inc_file, file)?;
+            *n = tokenize_file(depth + 1, ctx, &opts, inc_file, file)?;
             x.deindent();
         };
     }
@@ -262,22 +262,15 @@ use crate::macros::Macros;
 
 pub enum TokenizeError {}
 
-pub fn tokenize(ctx: &mut crate::ctx::Context, opts: &Opts) -> GResult<Node> {
+pub fn tokenize(ctx: &mut crate::ctx::Context, opts: &Opts, file: &Path) -> GResult<Node> {
     let parent = PathBuf::new();
 
-    let all_tokens = vec![];
-    let files = ctx.files.clone();
+    let msg = format!("Reading {}", file.to_string_lossy());
+    messages().status(msg);
 
-    for file in files {
-        let msg = format!("Reading {}", file.to_string_lossy());
-        messages().status(msg);
+    let block = tokenize_file(0, ctx, &opts, &file, &parent)?;
 
-        tokenize_file(0, ctx, &opts, &file, &parent)?;
-
-        ctx.errors.raise_errors()?;
-    }
-
-    let block = Node::from_item(Item::Block, Position::default()).with_children(all_tokens);
+    ctx.errors.raise_errors()?;
 
     Ok(block)
 }

@@ -38,8 +38,8 @@ use serde::{Deserialize, Serialize};
 pub struct SymbolInfo {
     /// Symbol Name
     pub name: String,
-    /// Unique Symbol Id
-    pub id: u64,
+    // /// Unique Symbol Id
+    // pub x_id: u64,
     /// Value, if any
     pub value: Option<i64>,
 }

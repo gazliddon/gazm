@@ -1,16 +1,22 @@
+
+use crate::ctx::Vars;
+use crate::gasm::GResult;
 use crate::{binary, fixerupper::FixerUpper};
 use crate::evaluator::Evaluator;
-use utils::sources::{ SymbolError,SymbolWriter };
+use utils::sources::{FileIo, SourceFileLoader, SymbolError, SymbolNodeId, SymbolWriter};
 use crate::ast::{ AstNodeRef, AstTree, AstNodeId };
 use utils::sources::SourceMapping;
 use crate::item::Item;
+use std::path::Path;
+use std::path::PathBuf;
 
 pub struct AsmCtx<'a> {
-    pub fixer_upper: &'a mut FixerUpper,
-    pub eval: &'a mut Evaluator<'a>,
+    pub fixer_upper: FixerUpper,
+    pub eval: Evaluator<'a>,
     pub direct_page: Option<u8>,
-    pub source_map: SourceMapping,
-    pub binary : binary::Binary,
+    pub source_map: &'a mut SourceMapping,
+    pub binary : &'a mut binary::Binary,
+    pub vars : &'a Vars,
 }
 
 impl<'a> AsmCtx<'a> {
@@ -19,9 +25,10 @@ impl<'a> AsmCtx<'a> {
         &mut self,
         id : AstNodeId,
         v : Item
-    ) {
+    ) -> (SymbolNodeId, AstNodeId){
         let scope = self.eval.symbols.get_current_scope();
-        self.fixer_upper.add_fixup(scope, id, v)
+        self.fixer_upper.add_fixup(scope, id, v);
+        (scope,id)
     }
 
 
@@ -48,8 +55,9 @@ impl<'a> AsmCtx<'a> {
             self.direct_page = Some(dp as u64 as u8)
         }
     }
-    pub fn set_root(&mut self) {
-        panic!()
+
+    pub fn set_root_scope(&mut self) {
+        self.eval.get_symbols_mut().set_root();
     }
 
     pub fn pop_scope(&mut self) {
@@ -58,6 +66,10 @@ impl<'a> AsmCtx<'a> {
 
     pub fn set_scope(&mut self, name: &str) {
         self.eval.get_symbols_mut().set_scope(name)
+    }
+
+    pub fn get_scope_fqn(&mut self) -> String {
+        self.eval.get_symbols().get_current_scope_fqn()
     }
 
     pub fn add_symbol_with_value(&mut self,name : &str,val: usize) -> Result<u64, SymbolError> {
@@ -72,6 +84,16 @@ impl<'a> AsmCtx<'a> {
         self.eval.get_symbols_mut().remove_symbol_name("*")
     }
 
+    pub fn loader(&mut self) -> &mut SourceFileLoader {
+        &mut self.eval.source_file_loader
+    }
+
+
+    pub fn write_bin_file<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
+        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        self.loader().write(path, data)
+    }
+
     pub fn eval_macro_args(
         &mut self,
         scope: &String,
@@ -83,4 +105,25 @@ impl<'a> AsmCtx<'a> {
         let macro_node = tree.get(macro_id).unwrap();
         self.eval.eval_macro_args(scope, node, macro_node);
     }
+
+    pub fn get_file_size(&self, path: &Path) -> GResult<usize> {
+        use utils::sources::FileIo;
+        let path = self.vars.expand_vars(path.to_string_lossy());
+        let ret = self.eval.source_file_loader.get_size(path)?;
+        Ok(ret)
+    }
+
+    pub fn read_binary(&mut self, path : &Path) -> GResult<(PathBuf, Vec<u8> )> {
+        let path = self.vars.expand_vars(path.to_string_lossy());
+        let ret = self.eval.source_file_loader.read_binary(path)?;
+        Ok(ret)
+    }
+
+    pub fn read_binary_chunk(&mut self, path : &Path,  r : std::ops::Range<usize>) -> GResult<(PathBuf, Vec<u8> )> {
+        let path = self.vars.expand_vars(path.to_string_lossy());
+        let ret = self.eval.source_file_loader.read_binary_chunk(path, r)?;
+        Ok(ret)
+    }
+
+
 }

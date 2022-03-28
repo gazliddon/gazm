@@ -1,7 +1,7 @@
 use crate::asmctx::AsmCtx;
 use crate::fixerupper::FixerUpper;
 use std::collections::{HashMap, HashSet};
-use utils::sources::ItemType;
+use utils::sources::{FileIo, ItemType};
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::item::{self, AddrModeParseType, IndexParseType, Item, Node};
@@ -23,38 +23,43 @@ pub struct Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    fn get_node_item(&self, ctx : &AsmCtx, id : AstNodeId) -> (AstNodeRef, Item) {
+    fn get_node_item(&self, ctx: &AsmCtx, id: AstNodeId) -> (AstNodeRef, Item) {
         let node = self.tree.get(id).unwrap();
         let this_i = &node.value().item;
-        let i  = ctx.get_fixup_or_default(id, this_i);
+        let i = ctx.get_fixup_or_default(id, this_i);
         (node, i)
     }
 
-    pub fn new(ctx: &'a mut AsmCtx, opts: Opts, tree: &'a AstTree) -> GResult<Self> {
-        if let Some(file) = &opts.as6809_lst {
-            messages().status(format!("Loading map file {}", file));
-            let m = crate::as6809::MapFile::new(&file)?;
-            ctx.binary.addr_reference(m);
-        }
+    pub fn new(opts: Opts, tree: &'a AstTree) -> GResult<Self> {
+        // if let Some(file) = &opts.as6809_lst {
+        //     messages().status(format!("Loading map file {}", file));
+        //     let m = crate::as6809::MapFile::new(&file)?;
+        //     ctx.binary.addr_reference(m);
+        // }
 
-        if let Some(file) = &opts.as6809_sym {
-            crate::as6809::add_reference_syms(file, &mut ctx.eval.symbols)?;
-        }
+        // if let Some(file) = &opts.as6809_sym {
+        //     crate::as6809::add_reference_syms(file, &mut ctx.eval.symbols)?;
+        // }
 
         let ret = Self { tree, opts };
 
         Ok(ret)
     }
 
-    fn binary_error(&self, ctx: &AsmCtx, id: AstNodeId, e: crate::binary::BinaryError) -> GasmError {
-        let (n,_) = self.get_node_item(ctx,id);
+    fn binary_error(
+        &self,
+        ctx: &AsmCtx,
+        id: AstNodeId,
+        e: crate::binary::BinaryError,
+    ) -> GasmError {
+        let (n, _) = self.get_node_item(ctx, id);
         let info = &ctx.eval.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
         UserError::from_text(msg, info, true).into()
     }
 
     fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GasmError {
-        let (n,_) = self.get_node_item(ctx,id);
+        let (n, _) = self.get_node_item(ctx, id);
         let p = 1 << (bits - 1);
 
         let message = if val < 0 {
@@ -69,6 +74,7 @@ impl<'a> Compiler<'a> {
     }
 
     pub fn compile(&self, ctx: &mut AsmCtx) -> GResult<()> {
+        ctx.set_root_scope();
         self.compile_node(ctx, self.tree.root().id())?;
         Ok(())
     }
@@ -81,7 +87,7 @@ impl<'a> Compiler<'a> {
         indirect: bool,
     ) -> GResult<()> {
         let idx_byte = imode.get_index_byte(indirect);
-        let (node,_) = self.get_node_item(ctx, id);
+        let (node, _) = self.get_node_item(ctx, id);
 
         let si = ctx.eval.get_source_info(&node.value().pos).unwrap();
 
@@ -132,14 +138,13 @@ impl<'a> Compiler<'a> {
         id: AstNodeId,
         i: ItemType,
     ) {
-
-        let pos = self.get_node_item(ctx,id).0.value().pos.clone();
+        let pos = self.get_node_item(ctx, id).0.value().pos.clone();
         ctx.source_map.add_mapping(phys_range, range, &pos, i);
     }
 
     /// Grab memory and copy it the PC
     fn grab_mem(&self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
-        let (n,_) = self.get_node_item(ctx, id);
+        let (n, _) = self.get_node_item(ctx, id);
         let args = ctx.eval.eval_n_args(n, 2)?;
         let source = args[0];
         let size = args[1];
@@ -157,40 +162,47 @@ impl<'a> Compiler<'a> {
     }
 
     /// Write out a slice of memory
-    fn write_bin(&self, ctx: &mut AsmCtx, id: AstNodeId, _file_name: &Path) -> GResult<()> {
-        let (node,_) = self.get_node_item(ctx, id);
-        let (addr, size) = ctx.eval.eval_two_args(node)?;
-        let _mem = ctx.binary.get_bytes(addr as usize, size as usize);
-        // let p = .ctx.ctx.write(file_name, mem);
-        // messages().info(format!(
-        //     "Write mem: {} {addr:05X} {size:05X}",
-        //     p.to_string_lossy()
-        // ));
-        // Ok(())
-        panic!()
+    fn write_bin(&self, ctx: &mut AsmCtx, id: AstNodeId, path: &Path) -> GResult<()> {
+        let (node, _) = self.get_node_item(ctx, id);
+        let (physical_address, count) = ctx.eval.eval_two_args(node)?;
+
+        let data = ctx
+            .binary
+            .get_bytes(physical_address as usize, count as usize)
+            .to_vec();
+
+        let p = ctx.write_bin_file(path, data);
+
+        messages().info(format!(
+            "Write mem: {} {physical_address:05X} {count:05X}",
+            p.to_string_lossy()
+        ));
+        Ok(())
     }
 
-    fn inc_bin_ref(&self, _ctx: &mut AsmCtx, _id: AstNodeId, _file_name: &Path) -> GResult<()> {
-        panic!()
-        // let data = self.ctx.get_binary(file_name, id)?;
-        // let dest = self.binary.get_write_location().physical;
+    fn inc_bin_ref(&self, ctx: &mut AsmCtx, file_name: &Path) -> GResult<()> {
+        use crate::binary::BinRef;
 
-        // let bin_ref = BinRef {
-        //     file: file_name.to_path_buf(),
-        //     start: 0,
-        //     size: data.len(),
-        //     dest,
-        // };
+        let (.., data) = ctx.read_binary(file_name)?;
 
-        // self.binary.bin_reference(&bin_ref, &data);
-        // let file_name = file_name.to_string_lossy();
+        let dest = ctx.binary.get_write_location().physical;
 
-        // messages().info(format!(
-        //     "Adding binary reference {file_name} for {:05X} - {:05X}",
-        //     dest,
-        //     dest + data.len()
-        // ));
-        // Ok(())
+        let bin_ref = BinRef {
+            file: file_name.to_path_buf(),
+            start: 0,
+            size: data.len(),
+            dest,
+        };
+
+        ctx.binary.bin_reference(&bin_ref, &data);
+        let file_name = file_name.to_string_lossy();
+
+        messages().info(format!(
+            "Adding binary reference {file_name} for {:05X} - {:05X}",
+            dest,
+            dest + data.len()
+        ));
+        Ok(())
     }
 
     fn opcode(
@@ -200,7 +212,7 @@ impl<'a> Compiler<'a> {
         ins: &Instruction,
         amode: &AddrModeParseType,
     ) -> GResult<()> {
-        let (node,_) = self.get_node_item(ctx, id);
+        let (node, _) = self.get_node_item(ctx, id);
 
         let x = messages();
         let pc = ctx.binary.get_write_address();
@@ -249,7 +261,7 @@ impl<'a> Compiler<'a> {
 
             Relative => {
                 let (arg, arg_id) = ctx.eval.eval_first_arg(node)?;
-                let ( arg_n, _ ) = self.get_node_item(ctx, arg_id);
+                let (arg_n, _) = self.get_node_item(ctx, arg_id);
                 let val = arg - (pc as i64 + ins.size as i64);
                 // offset is from PC after Instruction and operand has been fetched
                 use crate::binary::BinaryError::*;
@@ -277,7 +289,7 @@ impl<'a> Compiler<'a> {
                 use crate::binary::BinaryError::*;
 
                 let (arg, arg_id) = ctx.eval.eval_first_arg(node)?;
-                let ( arg_n, _ ) = self.get_node_item(ctx,arg_id);
+                let (arg_n, _) = self.get_node_item(ctx, arg_id);
 
                 let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
                 // offset is from PC after Instruction and operand has been fetched
@@ -324,8 +336,8 @@ impl<'a> Compiler<'a> {
 
     fn incbin_resolved(
         &self,
-        _ctx: &mut AsmCtx,
-        _id: AstNodeId,
+        ctx: &mut AsmCtx,
+        id: AstNodeId,
         file: &Path,
         r: &std::ops::Range<usize>,
     ) -> GResult<()> {
@@ -337,20 +349,19 @@ impl<'a> Compiler<'a> {
         );
 
         messages().status(msg);
-        panic!()
 
-        // let bin = ctx.get_binary_chunk(file.to_path_buf(), id, r.clone())?;
+        let (.., bin) = ctx.read_binary_chunk(file, r.clone())?;
 
-        // for val in bin {
-        //     binary
-        //         .write_byte(val)
-        //         .map_err(|e| self.binary_error(ctx,id, e))?;
-        // }
-        // Ok(())
+        for val in bin {
+            ctx.binary
+                .write_byte(val)
+                .map_err(|e| self.binary_error(ctx, id, e))?;
+        }
+        Ok(())
     }
 
     fn assemble_children(&self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
-        let (node,_) = self.get_node_item(ctx, id);
+        let (node, _) = self.get_node_item(ctx, id);
         for c in node.children() {
             self.compile_node(ctx, c.id())?;
         }
@@ -369,9 +380,9 @@ impl<'a> Compiler<'a> {
         let res: Result<(), GasmError> = try {
             match i {
                 Scope(opt) => {
-                    ctx.eval.symbols.set_root();
+                    ctx.set_root_scope();
                     if opt != "root" {
-                        ctx.eval.symbols.set_scope(&opt);
+                        ctx.set_scope(&opt);
                     }
                 }
 
@@ -380,7 +391,7 @@ impl<'a> Compiler<'a> {
                 WriteBin(file_name) => self.write_bin(ctx, id, &file_name)?,
 
                 IncBinRef(file_name) => {
-                    self.inc_bin_ref(ctx, id, &file_name)?;
+                    self.inc_bin_ref(ctx, &file_name)?;
                 }
 
                 IncBinResolved { file, r } => {
@@ -407,29 +418,29 @@ impl<'a> Compiler<'a> {
 
                 MacroCallProcessed { scope, macro_id } => {
                     let si = ctx.eval.get_source_info(&pos).unwrap();
+
                     let m = format!(
                         "{} {pos} : Expanding macro with scope {scope}",
                         si.file.to_string_lossy()
                     );
 
                     messages().debug(m);
-                    let ( m_node, _ ) = self.get_node_item(ctx,macro_id);
 
-                    ctx.eval.eval_macro_args(&scope, node, m_node);
+                    let (m_node, _) = self.get_node_item(ctx, macro_id);
+
+                    let ret = ctx.eval.eval_macro_args(&scope, node, m_node);
+
+                    if !ret {
+                        let si = ctx.eval.get_source_info(&pos).unwrap();
+                        return Err(UserError::from_text("Couldn't evaluate all macro args",&si, true).into());
+                    }
 
                     ctx.set_scope(&scope);
 
-                    let x = ctx.eval.symbols.get_current_scope_symbols();
-
-                    if x.info.is_empty() {
-                        println!("EMPTY");
+                    for c_node in m_node.children() {
+                        self.compile_node(ctx, c_node.id())?;
                     }
 
-                    for s in x.info.values() {
-                        println!("   {} {}", s.name, s.value.unwrap());
-                    }
-
-                    self.assemble_children(ctx, macro_id)?;
                     ctx.pop_scope();
                 }
 
@@ -510,7 +521,7 @@ impl<'a> Compiler<'a> {
                 | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp => (),
 
                 _ => {
-                    panic!("Unable to assemble {:?}", i);
+                    panic!("Can't compile {:?}", i);
                 }
             }
 
@@ -532,14 +543,13 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        let ret = match res {
-            Ok(_) => Ok(()),
-            Err(_e) => {
-                panic!();
-                // self.ctx.ctx.errors.add_error(e, false);
-            }
-        };
+        // let ret = match res {
+        //     Ok(_) => Ok(()),
+        //     Err(_e) => {
 
-        ret
+        //     }
+        // };
+
+        res
     }
 }

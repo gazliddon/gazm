@@ -19,7 +19,7 @@ pub struct SourceFileLoader {
 
 impl Default for SourceFileLoader {
     fn default() -> Self {
-        let vec: Vec<&str> = vec![];
+        let vec: Vec<&str> = vec!["."];
         Self::from_search_paths(&vec)
     }
 }
@@ -86,7 +86,7 @@ pub trait FileIo: PathSearcher {
 
     fn write<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
         let path = self.expand_path(path);
-        std::fs::write(&path, data).expect("Can't write bin file");
+        std::fs::write(&path, data).expect(&format!( "Can't write bin file {}", path.to_string_lossy() ));
         self.add_to_files_written(path.clone());
         path
     }
@@ -129,6 +129,18 @@ pub trait FileIo: PathSearcher {
 impl PathSearcher for SourceFileLoader {
     fn get_full_path(&self, file: &Path) -> Result<PathBuf, SearchError> {
         self.source_search_paths.get_full_path(file)
+    }
+
+    fn get_search_paths(&self) -> &Vec<PathBuf> {
+        self.source_search_paths.get_search_paths()
+    }
+
+    fn add_search_path(&mut self, path : &Path) {
+        self.source_search_paths.add_path(path)
+    }
+
+    fn set_search_paths(&mut self, paths: Vec<PathBuf>) {
+        self.source_search_paths.set_search_paths(paths)
     }
 }
 
