@@ -4,6 +4,7 @@ use nom::combinator::recognize;
 use nom::multi::many1;
 
 use nom::character::complete::alphanumeric1;
+use utils::sources::AsmSource;
 
 use crate::error::{IResult, ParseError};
 use crate::locate::Span;
@@ -17,7 +18,7 @@ fn num_parse_err(input: Span, radix: &str, e: std::num::ParseIntError) -> nom::E
     nom::Err::Error(ParseError::new(e, &input, true))
 }
 
-pub fn parse_hex(input: Span) -> IResult<i64> {
+fn get_hex(input: Span) -> IResult<i64> {
     let (rest, _) = alt((tag("0x"), tag("0X"), tag("$")))(input)?;
     let (rest, num_str) = num_get(rest)?;
 
@@ -27,7 +28,7 @@ pub fn parse_hex(input: Span) -> IResult<i64> {
     Ok((rest, num))
 }
 
-fn parse_binary(input: Span) -> IResult<i64> {
+fn get_binary(input: Span) -> IResult<i64> {
     let (rest, _) = alt((tag("%"), tag("0b"), tag("0B")))(input)?;
     let (rest, num_str) = num_get(rest)?;
     let num = i64::from_str_radix(&num_str.replace('_', ""), 2)
@@ -36,7 +37,7 @@ fn parse_binary(input: Span) -> IResult<i64> {
     Ok((rest, num))
 }
 
-fn parse_dec(input: Span) -> IResult<i64> {
+fn get_dec(input: Span) -> IResult<i64> {
     let (rest, num_str) = num_get(input)?;
 
     let num = num_str
@@ -47,8 +48,28 @@ fn parse_dec(input: Span) -> IResult<i64> {
     Ok((rest, num))
 }
 
-pub fn number_token(input: Span) -> IResult<i64> {
-    alt((parse_hex, parse_binary, parse_dec))(input)
+pub fn get_number(input: Span) -> IResult<i64> {
+    alt((get_hex, get_binary, get_dec))(input)
+}
+
+pub fn get_number_err(input : &str) -> Result<isize,String> {
+    let x = AsmSource::FromStr;
+    let s = Span::new_extra(input, x);
+    let n = get_number(s);
+
+    match n {
+        Err(_) => Err(format!("Couldn't parse {input} as a number")),
+        Ok((_,num)) => Ok(num as isize)
+    }
+}
+
+pub fn get_number_err_usize(input : &str) -> Result<usize,String> {
+    let x = get_number_err(input)?;
+    if x < 0 {
+        Err(format!("{} doesn't map to a usize", x))
+    } else {
+        Ok(x.try_into().unwrap())
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

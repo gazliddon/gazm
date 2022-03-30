@@ -1,6 +1,6 @@
 
 use crate::ctx::Vars;
-use crate::error::{GasmError, GResult };
+use crate::error::{ErrorCollector, GResult, GasmError};
 use crate::{binary, fixerupper::FixerUpper};
 use crate::evaluator::Evaluator;
 use utils::sources::{FileIo, SourceFileLoader, SymbolError, SymbolNodeId, SymbolWriter};
@@ -9,6 +9,7 @@ use utils::sources::SourceMapping;
 use crate::item::Item;
 use std::path::Path;
 use std::path::PathBuf;
+use crate::ctx::Opts;
 
 pub struct AsmCtx<'a> {
     pub fixer_upper: FixerUpper,
@@ -17,6 +18,8 @@ pub struct AsmCtx<'a> {
     pub source_map: &'a mut SourceMapping,
     pub binary : &'a mut binary::Binary,
     pub vars : &'a Vars,
+    pub errors: &'a mut ErrorCollector,
+    pub opts: &'a Opts,
 }
 
 impl<'a> AsmCtx<'a> {
@@ -106,21 +109,21 @@ impl<'a> AsmCtx<'a> {
         self.eval.eval_macro_args(scope, node, macro_node);
     }
 
-    pub fn get_file_size(&self, path: &Path) -> GResult<usize> {
+    pub fn get_file_size<P : AsRef<Path>>(&self, path: P) -> GResult<usize> {
         use utils::sources::FileIo;
-        let path = self.vars.expand_vars(path.to_string_lossy());
+        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.source_file_loader.get_size(path)?;
         Ok(ret)
     }
 
-    pub fn read_binary(&mut self, path : &Path) -> GResult<(PathBuf, Vec<u8> )> {
-        let path = self.vars.expand_vars(path.to_string_lossy());
+    pub fn read_binary<P: AsRef<Path>>(&mut self, path : P) -> GResult<(PathBuf, Vec<u8> )> {
+        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.source_file_loader.read_binary(path)?;
         Ok(ret)
     }
 
-    pub fn read_binary_chunk(&mut self, path : &Path,  r : std::ops::Range<usize>) -> GResult<(PathBuf, Vec<u8> )> {
-        let path = self.vars.expand_vars(path.to_string_lossy());
+    pub fn read_binary_chunk<P: AsRef<Path>>(&mut self, path : P,  r : std::ops::Range<usize>) -> GResult<(PathBuf, Vec<u8> )> {
+        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.source_file_loader.read_binary_chunk(path, r)?;
         Ok(ret)
     }

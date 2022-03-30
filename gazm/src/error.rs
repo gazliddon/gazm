@@ -1,6 +1,7 @@
 
 use crate::ast::{AstNodeId, AstNodeRef};
-use crate::gasm;
+use crate::gasm::Gasm;
+use crate::{binary, gasm};
 use crate::locate::span_to_pos;
 use crate::locate::Span;
 use serde::de::Error;
@@ -16,7 +17,15 @@ pub enum GasmError {
     #[error("Misc: {0}")]
     Misc(String),
     #[error("Too Many Errors")]
-    TooManyErrors(Vec<Box<GasmError>>),
+    TooManyErrors(ErrorCollector),
+    #[error(transparent)]
+    BinaryError(binary::BinaryError),
+}
+
+impl From<binary::BinaryError> for GasmError {
+    fn from(x: binary::BinaryError) -> Self {
+        GasmError::BinaryError(x)
+    }
 }
 
 impl From<String> for GasmError {
@@ -287,7 +296,7 @@ impl ErrorCollector {
 
     pub fn raise_errors(&self) -> GResult<()> {
         if self.has_errors() {
-            Err(GasmError::TooManyErrors(vec![]))
+            Err(GasmError::TooManyErrors(self.clone()))
         } else {
             Ok(())
         }

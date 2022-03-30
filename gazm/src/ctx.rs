@@ -1,7 +1,8 @@
+use crate::binary;
 use crate::error::{ParseError, UserError, ErrorCollector, GasmError, GResult};
 use crate::macros::Macros;
 use crate::messages::Verbosity;
-use utils::sources::{FileIo, SourceFileLoader, Sources, SymbolTree};
+use utils::sources::{FileIo, SourceFileLoader, SourceMapping, Sources, SymbolTree};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -83,6 +84,8 @@ pub struct Context {
     pub source_file_loader: SourceFileLoader,
     pub errors : ErrorCollector,
     pub vars: Vars,
+    pub binary : binary::Binary,
+    pub source_map : SourceMapping,
 }
 
 fn to_gasm(e : anyhow::Error) -> GasmError {
@@ -145,6 +148,8 @@ impl Default for Context {
             symbols: SymbolTree::new(),
             source_file_loader: SourceFileLoader::new(),
             errors: ErrorCollector::new(5),
+            binary: binary::Binary::new(65536,binary::AccessType::ReadWrite),
+            source_map : SourceMapping::new(),
         }
     }
 }

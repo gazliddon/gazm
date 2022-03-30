@@ -7,6 +7,7 @@ mod diss;
 // use anyhow::Context;
 
 use clap::{Arg, Command};
+use gazm::numbers::*;
 
 pub fn parse() -> clap::ArgMatches {
     Command::new("diss")
@@ -26,7 +27,15 @@ pub fn parse() -> clap::ArgMatches {
                 .default_value("0")
                 .help("load address")
                 .takes_value(true)
-                .validator(|s| s.parse::<usize>()),
+                .validator(get_number_err_usize),
+        )
+        .arg(
+            Arg::new("diss-addr")
+                .long("diss-addr")
+                .default_value("0")
+                .help("disassembly address")
+                .takes_value(true)
+                .validator(get_number_err_usize),
         )
         .get_matches()
 }
@@ -34,11 +43,18 @@ pub fn parse() -> clap::ArgMatches {
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let m = parse();
     let mut ctx = diss::DissCtx::from_matches(m)?;
-    let mut diss = diss::Diss::new(&mut ctx.data);
 
-    for _ in 0..1000 {
-        let x = diss.diss_next();
+    let mut addr = ctx.diss_addr;
 
+    let mut i = std::iter::from_fn(move || {
+        let diss = diss::Diss::new();
+        let x = diss.diss(&mut ctx.data,addr);
+        addr = x.decoded.next_addr;
+        Some(x)
+    });
+
+    for _ in 0..30 {
+        let x = i.next().unwrap();
         let hex_str: Vec<_> = x.decoded.data.iter().map(|b| format!("{b:02X}")).collect();
 
         println!(

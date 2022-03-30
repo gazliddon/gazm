@@ -4,7 +4,6 @@
 #![feature(backtrace)]
 
 mod as6809;
-mod assemble;
 mod ast;
 mod astformat;
 mod binary;

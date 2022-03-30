@@ -64,7 +64,7 @@ impl std::fmt::Debug for MemoryLocation {
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum BinaryError {
     #[error("${addr:04X?} (${logical_addr:05X})(expected ${expected:02X?}, found ${val:02X?})")]
     DoesNotMatchReference {
@@ -377,9 +377,6 @@ impl Binary {
         };
 
         if let Err(BinaryError::DoesNotMatchReference{..}) = res {
-
-            println!("checking for {:04X}", addr.physical);
-
             let mut expected = 0;
 
             if let Some(hi) = self.get_expected_byte(addr.physical) {

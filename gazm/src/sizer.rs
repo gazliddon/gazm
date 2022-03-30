@@ -1,14 +1,15 @@
-use crate::assemble::{Assembled, Assembler};
 use crate::binary::{AccessType, BinRef, Binary, BinaryError};
 use ego_tree::iter::Children;
 use serde_json::ser::Formatter;
 use std::collections::{HashMap, HashSet};
-use utils::sources::{ItemType, SourceDatabase, SourceMapping, Sources, SymbolError, SymbolQuery, SymbolWriter};
+use utils::sources::{
+    ItemType, SourceDatabase, SourceMapping, Sources, SymbolError, SymbolQuery, SymbolWriter,
+};
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::item::{self, AddrModeParseType, IndexParseType, Item, Node};
 use crate::messages::{info, messages};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::error::UserError;
 
@@ -16,50 +17,43 @@ use crate::evaluator::{self, Evaluator};
 use emu::cpu::RegEnum;
 use emu::isa::Instruction;
 
-use crate::error::{GasmError, GResult };
+use crate::asmctx::AsmCtx;
+use crate::error::{GResult, GasmError};
+use crate::fixerupper::FixerUpper;
 use crate::util::{ByteSize, ByteSizes};
 use item::Item::*;
-use crate::fixerupper::FixerUpper;
-use crate::asmctx::AsmCtx;
 
 /// Ast tree sizer
 /// gets the size of everything
 /// assigns values to labels that
 /// are defined by value of PC
-
-pub struct Sizer<'a> {
+struct Sizer<'a> {
     offset: isize,
     tree: &'a AstTree,
 }
 
+pub fn size_tree(ctx: &mut AsmCtx, id: AstNodeId, tree : &AstTree) -> GResult<()> {
+    let sizer = Sizer::new(tree);
+    ctx.set_root_scope();
+    let _ = sizer.size_node(ctx, 0, id)?;
+    Ok(())
+}
+
 impl<'a> Sizer<'a> {
     pub fn new(tree: &'a AstTree) -> Self {
-        Self {
-            offset: 0,
-            tree,
-        }
+        Self { offset: 0, tree }
     }
 
-    pub fn size(
-        &self,
-        ctx: &mut AsmCtx,
-        id: AstNodeId,
-    ) -> GResult<()> {
+    pub fn size(&self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
         ctx.set_root_scope();
         let _ = self.size_node(ctx, 0, id)?;
         Ok(())
     }
 
-    fn size_indexed(
-        &self,
-        ctx_mut: &mut AsmCtx,
-        mut pc: usize,
-        id: AstNodeId,
-    ) -> GResult<usize> {
-
+    fn size_indexed(&self, ctx_mut: &mut AsmCtx, mut pc: usize, id: AstNodeId) -> GResult<usize> {
         let eval = &ctx_mut.eval;
 
-        let ( node, i ) = self.get_node_item(ctx_mut,id);
+        let (node, i) = self.get_node_item(ctx_mut, id);
 
         if let OpCode(ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
             let _this_pc = pc;
@@ -135,16 +129,10 @@ impl<'a> Sizer<'a> {
         panic!()
     }
 
-
-    fn size_node(
-        &self,
-        ctx: &mut AsmCtx,
-        mut pc: usize,
-        id: AstNodeId,
-    ) -> GResult<usize> {
+    fn size_node(&self, ctx: &mut AsmCtx, mut pc: usize, id: AstNodeId) -> GResult<usize> {
         use item::Item::*;
 
-        let ( node, i ) = self.get_node_item(ctx,id);
+        let (node, i) = self.get_node_item(ctx, id);
 
         match &i {
             MacroCallProcessed { scope, macro_id } => {
@@ -152,12 +140,9 @@ impl<'a> Sizer<'a> {
 
                 ctx.set_scope(scope);
 
-                let ( m_node, _ ) = self.get_node_item(ctx, *macro_id);
+                let (m_node, _) = self.get_node_item(ctx, *macro_id);
 
-                let kids: Vec<_> = 
-                    m_node.children()
-                    .map(|n| n.id())
-                    .collect();
+                let kids: Vec<_> = m_node.children().map(|n| n.id()).collect();
 
                 for c in kids {
                     pc = self.size_node(ctx, pc, c)?;
@@ -260,18 +245,27 @@ impl<'a> Sizer<'a> {
             }
 
             AssignmentFromPc(name) => {
-                let scope = ctx.get_scope_fqn();
-                let msg = format!("trying to assign {scope}::{name}");
-                messages().debug(msg);
+                // TODO should two types of item rather than this
+                // conditional
                 let pcv = if let Some(_) = node.first_child() {
+                    // Assign this label
+                    // If the label has a child it means
+                    // assignment is from an expr containing the current PC
+                    // so lets evaluate it!
                     ctx.set_pc_symbol(pc).unwrap();
                     let (ret, _) = ctx.eval.eval_first_arg(node)?;
                     ctx.remove_pc_symbol();
                     ret
                 } else {
+                    // Otherwise it's just the current PC
                     pc as i64
                 };
 
+                let scope = ctx.get_scope_fqn();
+                let msg = format!("Setting {scope}::{name} to ${pc:04X} ({pc})");
+                messages().debug(msg);
+
+                // Add the symbol
                 ctx.add_symbol_with_value(name, pcv as usize).map_err(|e| {
                     let err = if let SymbolError::Mismatch { expected } = e {
                         format!(
@@ -279,7 +273,12 @@ impl<'a> Sizer<'a> {
                             expected, pcv
                         )
                     } else {
-                        let z = ctx.eval.get_symbols().get_symbol_info(name).unwrap().clone();
+                        let z = ctx
+                            .eval
+                            .get_symbols()
+                            .get_symbol_info(name)
+                            .unwrap()
+                            .clone();
                         let scope = ctx.get_scope_fqn();
                         format!("Scope: {scope} {z:#?} - {:?}", e)
                     };
@@ -329,8 +328,7 @@ impl<'a> Sizer<'a> {
             }
 
             IncBin(file_name) => {
-                let r = self
-                    .get_binary_extents(ctx,file_name.to_path_buf(), node)?;
+                let r = self.get_binary_extents(ctx, file_name, node)?;
                 let new_item = IncBinResolved {
                     file: file_name.to_path_buf(),
                     r: r.clone(),
@@ -340,8 +338,8 @@ impl<'a> Sizer<'a> {
                 pc += r.len();
             }
 
-            PostFixExpr | WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..) | StructDef(..)
-            | MacroDef(..) | MacroCall(..) => (),
+            PostFixExpr | WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..)
+            | StructDef(..) | MacroDef(..) | MacroCall(..) => (),
             _ => {
                 let msg = format!("Unable to size {:?}", i);
                 return Err(ctx.eval.user_error(msg, node, true).into());
@@ -351,18 +349,14 @@ impl<'a> Sizer<'a> {
         Ok(pc)
     }
 
-
-   pub fn get_binary_extents(
+    fn get_binary_extents<P: AsRef<Path>>(
         &self,
         ctx: &mut AsmCtx,
-        file_name: PathBuf,
+        file_name: P,
         node: AstNodeRef,
     ) -> GResult<std::ops::Range<usize>> {
-
         use utils::sources::FileIo;
-        let data_len = 
-            ctx
-            .get_file_size(&file_name)?;
+        let data_len = ctx.get_file_size(file_name.as_ref())?;
 
         let mut r = 0..data_len;
 
@@ -382,7 +376,7 @@ impl<'a> Sizer<'a> {
             if !(r.contains(&offset) && r.contains(&last)) {
                 let msg =
                     format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
-                return Err( ctx.eval.user_error(msg, node, true).into());
+                return Err(ctx.eval.user_error(msg, node, true).into());
             };
 
             r.start = offset;
@@ -392,16 +386,11 @@ impl<'a> Sizer<'a> {
         Ok(r)
     }
 
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Helper Functions
-impl<'a> Sizer<'a> {
-    fn get_node_item(&self, ctx : &AsmCtx, id : AstNodeId) -> (AstNodeRef, Item) {
+    fn get_node_item(&self, ctx: &AsmCtx, id: AstNodeId) -> (AstNodeRef, Item) {
         let node = self.tree.get(id).unwrap();
         let this_i = &node.value().item;
-        let i  = ctx.get_fixup_or_default(id, this_i);
+        let i = ctx.get_fixup_or_default(id, this_i);
         (node, i)
     }
 }
+

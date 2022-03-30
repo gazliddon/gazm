@@ -1,4 +1,4 @@
-use crate::ctx::{ Context, Opts };
+use crate::{binary::{ AccessType, Binary }, ctx::{ Context, Opts }};
 use std::path::Path;
 use crate::messages::Verbosity;
 use clap::{Arg, Command};
@@ -43,12 +43,21 @@ impl From<clap::ArgMatches> for Context {
 
             ..Default::default()
         };
+
         if m.is_present("max-errors") {
             let max_errors =  m
                 .value_of("max-errors")
                 .map(|s| s.parse::<usize>().unwrap())
                 .unwrap();
             ret.errors = ErrorCollector::new(max_errors);
+        }
+
+        if m.is_present("mem-size") {
+            let mem_size =  m
+                .value_of("mem-size")
+                .map(|s| s.parse::<usize>().unwrap())
+                .unwrap();
+            ret.binary = Binary::new(mem_size, AccessType::ReadWrite);
         }
 
         if let Some(mut it) = m.values_of("set") {

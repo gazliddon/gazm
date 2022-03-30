@@ -34,7 +34,7 @@ pub struct InstructionDecoder {
 // or non destructively inspect for disassembly
 
 fn decode_op(
-    reader : &mut MemReader
+    reader: &mut MemReader
 ) -> CpuResult<InstructionDecoder> {
 
     let addr = reader.get_addr();
@@ -102,6 +102,9 @@ impl InstructionDecoder {
         // let b = mem.inspect_byte(self.addr.wrapping_add(self.index.into()).into())?;
         // self.index = self.index.wrapping_add(1);
         // Ok(b)
+    }
+    pub fn new_from_reader_mut(mem: &mut MemReader) -> CpuResult<Self> { 
+        decode_op(mem)
     }
     pub fn new_from_reader(mem: &mut MemReader) -> CpuResult<Self> { 
         decode_op(mem)
