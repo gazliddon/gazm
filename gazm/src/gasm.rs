@@ -23,11 +23,11 @@ impl Gasm {
         Self { ctx, opts }
     }
 
-    pub fn assemble_file(&mut self, x: &Path) -> GResult<()> {
+    pub fn assemble_file<P: AsRef<Path>>(&mut self, x: P) -> GResult<()> {
         use utils::PathSearcher;
         let paths = self.ctx.source_file_loader.get_search_paths().clone();
 
-        if let Some(dir) = x.parent() {
+        if let Some(dir) = x.as_ref().parent() {
             self.ctx.source_file_loader.add_search_path(dir);
         }
 

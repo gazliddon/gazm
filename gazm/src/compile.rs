@@ -3,6 +3,7 @@ use crate::fixerupper::FixerUpper;
 use crate::gasm::Gasm;
 use petgraph::visit::GraphRef;
 use std::collections::{HashMap, HashSet};
+use std::os::unix::prelude::AsRawFd;
 use utils::sources::{FileIo, ItemType};
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
@@ -165,7 +166,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Write out a slice of memory
-    fn write_bin(&self, ctx: &mut AsmCtx, id: AstNodeId, path: &Path) -> GResult<()> {
+    fn write_bin<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, id: AstNodeId, path: P) -> GResult<()> {
         let (node, _) = self.get_node_item(ctx, id);
         let (physical_address, count) = ctx.eval.eval_two_args(node)?;
 
@@ -183,22 +184,22 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn inc_bin_ref(&self, ctx: &mut AsmCtx, file_name: &Path) -> GResult<()> {
+    fn inc_bin_ref<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, file_name: P) -> GResult<()> {
         use crate::binary::BinRef;
 
-        let (.., data) = ctx.read_binary(file_name)?;
+        let (.., data) = ctx.read_binary(file_name.as_ref().clone())?;
 
         let dest = ctx.binary.get_write_location().physical;
 
         let bin_ref = BinRef {
-            file: file_name.to_path_buf(),
+            file: file_name.as_ref().to_path_buf(),
             start: 0,
             size: data.len(),
             dest,
         };
 
         ctx.binary.bin_reference(&bin_ref, &data);
-        let file_name = file_name.to_string_lossy();
+        let file_name = file_name.as_ref().to_string_lossy();
 
         messages().info(format!(
             "Adding binary reference {file_name} for {:05X} - {:05X}",
@@ -337,16 +338,16 @@ impl<'a> Compiler<'a> {
         res
     }
 
-    fn incbin_resolved(
+    fn incbin_resolved<P: AsRef<Path>>(
         &self,
         ctx: &mut AsmCtx,
         id: AstNodeId,
-        file: &Path,
+        file: P,
         r: &std::ops::Range<usize>,
     ) -> GResult<()> {
         let msg = format!(
             "Including Binary {} :  offset: {:04X} len: {:04X}",
-            file.to_string_lossy(),
+            file.as_ref().to_string_lossy(),
             r.start,
             r.len()
         );

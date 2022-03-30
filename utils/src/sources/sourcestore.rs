@@ -64,11 +64,11 @@ pub struct SourceFileInfo {
 }
 
 impl SourceFile {
-    pub fn new(file: &Path, source: &str) -> Self {
+    pub fn new<P: AsRef<Path>>(file: P, source: &str) -> Self {
         let lines = source.lines().map(|x| x.to_string()).collect();
         Self {
             lines,
-            file: file.to_path_buf(),
+            file: file.as_ref().to_path_buf(),
             source: source.to_string(),
         }
     }
@@ -101,7 +101,6 @@ impl SourceFile {
     }
 }
 use std::fmt::Debug;
-use std::str::FromStr;
 
 impl Debug for SourceFile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -139,7 +138,7 @@ impl Sources {
     pub fn add_source_text(&mut self, text: &str) -> u64 {
         let id = self.get_next_id();
         let name = format!("macro_epxansion_{}", id);
-        let source_file = SourceFile::new(&PathBuf::from_str(&name).unwrap(), text);
+        let source_file = SourceFile::new(name, text);
         self.id_to_source_file.insert(id, source_file);
         id
     }
@@ -149,7 +148,7 @@ impl Sources {
         max.map(|x| x + 1).unwrap_or(0)
     }
 
-    pub fn add_source_file(&mut self, p: &Path, text: &str) -> u64 {
+    pub fn add_source_file<P: AsRef<Path>>(&mut self, p: P, text: &str) -> u64 {
         let id = self.get_next_id();
         let source_file = SourceFile::new(p, text);
         self.id_to_source_file.insert(id, source_file);
@@ -347,12 +346,13 @@ impl SourceDatabase {
         Ok(())
     }
 
-    pub fn get_source_file_from_file_name<'a>(
+    pub fn get_source_file_from_file_name<'a, P>(
         &'a self,
-        file_name: &Path,
-    ) -> Option<SourceFileAccess<'a>> {
+        file_name: P,
+    )  -> Option<SourceFileAccess<'a>> 
+    where P : AsRef<Path>{
         self.source_file_to_id
-            .get(file_name)
+            .get(file_name.as_ref().into())
             .and_then(|file_id| self.get_source_file(*file_id))
     }
 
@@ -383,7 +383,7 @@ impl SourceDatabase {
         self.source_files.borrow().get(&file_id).and_then(func)
     }
 
-    pub fn get_source_line_from_file(&self, file_name: &Path, line: usize) -> Option<SourceLine> {
+    pub fn get_source_line_from_file<P: AsRef<Path>>(&self, file_name: P, line: usize) -> Option<SourceLine> {
         self.get_source_file_from_file_name(file_name)
             .and_then(|sf| sf.get_line(line))
     }

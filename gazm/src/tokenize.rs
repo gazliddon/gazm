@@ -41,17 +41,20 @@ fn get_line(input: Span) -> IResult<Span> {
     Ok((rest, line))
 }
 
-pub fn tokenize_file_from_str<'a>(
-    file: &Path,
+pub fn tokenize_file_from_str<'a, P>(
+    file: P,
     input: &str,
     ctx: &'a mut crate::ctx::Context,
     opts: Opts,
-) -> GResult<Node> {
+) -> GResult<Node> 
+where P : AsRef<Path>
+{
+    let pb : PathBuf = file.as_ref().into();
     let span = Span::new_extra(input, AsmSource::FromStr);
     let mut tokes = Tokens::new(ctx, &opts);
     tokes.add_tokens(span)?;
     let tokes = tokes.to_tokens();
-    let item = Item::TokenizedFile(file.into(), file.into());
+    let item = Item::TokenizedFile(pb.clone(),pb.clone());
     let file_node = Node::from_item_span(item, span).with_children(tokes);
     Ok(file_node)
 }
@@ -214,12 +217,13 @@ impl<'a> Tokens<'a> {
     }
 }
 
-fn tokenize_file(
+
+fn tokenize_file<P : AsRef<Path>, PP : AsRef<Path>>(
     depth: usize,
     ctx: &mut crate::ctx::Context,
     opts: &Opts,
-    file: &std::path::Path,
-    parent: &std::path::Path,
+    file: P,
+    parent: PP,
 ) -> GResult<Node> {
     use anyhow::Context;
 
@@ -243,16 +247,18 @@ fn tokenize_file(
     tokes.add_tokens(input)?;
     let mut tokes = tokes.to_tokens();
 
+
     // Tokenize includes
     for n in tokes.iter_mut() {
+        let parent = file.as_ref().to_path_buf().clone();
         if let Include(inc_file) = &n.item {
             x.indent();
-            *n = tokenize_file(depth + 1, ctx, &opts, inc_file, file)?;
+            *n = tokenize_file(depth + 1, ctx, &opts, inc_file, &parent)?;
             x.deindent();
         };
     }
 
-    let item = TokenizedFile(file.to_path_buf(), parent.to_path_buf());
+    let item = TokenizedFile(file.as_ref().into(), parent.as_ref().into());
     let node = Node::from_item_span(item, input).with_children(tokes);
     Ok(node)
 }
@@ -261,10 +267,10 @@ use crate::macros::Macros;
 
 pub enum TokenizeError {}
 
-pub fn tokenize(ctx: &mut crate::ctx::Context, opts: &Opts, file: &Path) -> GResult<Node> {
+pub fn tokenize<P: AsRef<Path>>(ctx: &mut crate::ctx::Context, opts: &Opts, file: P) -> GResult<Node> {
     let parent = PathBuf::new();
 
-    let msg = format!("Reading {}", file.to_string_lossy());
+    let msg = format!("Reading {}", file.as_ref().to_string_lossy());
     messages().status(msg);
 
     let block = tokenize_file(0, ctx, &opts, &file, &parent)?;

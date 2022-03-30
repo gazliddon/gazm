@@ -75,7 +75,7 @@ pub trait FileIo: PathSearcher {
         let path = self.expand_path(path);
 
         let path = self
-            .get_full_path(path.as_ref())
+            .get_full_path(path)
             .map_err(|e| self.mk_error(e))?;
 
         let mut file = File::open(path.clone())?;
@@ -116,7 +116,7 @@ pub trait FileIo: PathSearcher {
     fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize> {
         let path = self.expand_path(path);
         let path = self
-            .get_full_path(path.as_ref())
+            .get_full_path(path)
             .map_err(|e| self.mk_error(e))?;
 
         let md = std::fs::metadata(path.clone())
@@ -127,7 +127,7 @@ pub trait FileIo: PathSearcher {
 }
 
 impl PathSearcher for SourceFileLoader {
-    fn get_full_path(&self, file: &Path) -> Result<PathBuf, SearchError> {
+    fn get_full_path<P: AsRef<Path>>(&self, file: P) -> Result<PathBuf, SearchError> {
         self.source_search_paths.get_full_path(file)
     }
 
@@ -135,7 +135,7 @@ impl PathSearcher for SourceFileLoader {
         self.source_search_paths.get_search_paths()
     }
 
-    fn add_search_path(&mut self, path : &Path) {
+    fn add_search_path<P: AsRef<Path>>(&mut self, path : P) {
         self.source_search_paths.add_path(path)
     }
 
@@ -165,15 +165,15 @@ impl SourceFileLoader {
         Self::default()
     }
 
-    pub fn read_source(&mut self, path: &Path) -> Result<(PathBuf, String, u64)> {
+    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String, u64)> {
         let (path, text) = self.read_to_string(path)?;
         let (_, _, id) = self.add_source_file(&path, &text)?;
         Ok((path, text, id))
     }
 
-    pub fn add_source_file(&mut self, path: &Path, text: &str) -> Result<(PathBuf, String, u64)> {
-        let id = self.sources.add_source_file(path, text);
-        Ok((path.into(), text.to_string(), id))
+    pub fn add_source_file<P: AsRef<Path>>(&mut self, path: P, text: &str) -> Result<(PathBuf, String, u64)> {
+        let id = self.sources.add_source_file(&path, text);
+        Ok((path.as_ref().into(), text.to_string(), id))
     }
 
     pub fn from_search_paths<P: AsRef<Path>>(paths: &[P]) -> Self {
