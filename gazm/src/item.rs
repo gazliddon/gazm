@@ -283,41 +283,11 @@ impl Item {
         Self::OperandIndexed(imode, indirect)
     }
 
-    // pub fn is_empty_comment(&self) -> bool {
-    //     if let Item::Comment(com) = &*self {
-    //         com.is_empty()
-    //     } else {
-    //         false
-    //     }
-    // }
 
-    // pub fn zero() -> Self {
-    //     Self::number(0)
-    // }
 
     pub fn number(n: i64) -> Self {
         Item::Number(n)
     }
-
-    // pub fn get_my_tokenized_file(&self) -> Option<(&PathBuf, &PathBuf)> {
-    //     if let Item::TokenizedFile(file, parent) = self {
-    //         Some((file, parent))
-    //     } else {
-    //         None
-    //     }
-    // }
-
-    // pub fn am_i_tokenized_file(&self) -> bool {
-    //     self.get_my_tokenized_file().is_some()
-    // }
-
-    // pub fn is_tokenized_file(i: &Item) -> bool {
-    //     i.am_i_tokenized_file()
-    // }
-
-    // pub fn get_tokenized_file(i: &Item) -> Option<(&PathBuf, &PathBuf)> {
-    //     i.get_my_tokenized_file()
-    // }
 
     pub fn get_number(&self) -> Option<i64> {
         if let Item::Number(n) = self {
@@ -326,22 +296,10 @@ impl Item {
             None
         }
     }
-    // pub fn label_name(&self) -> Option<&String> {
-    //     if let Item::Label(n) = self {
-    //         Some(n)
-    //     } else {
-    //         None
-    //     }
-    // }
+
 }
 
 impl BaseNode<Item, Position> {
-    // pub fn is_empty_comment(&self) -> bool {
-    //     match self.item() {
-    //         Item::Comment(text) => text.is_empty(),
-    //         _ => false,
-    //     }
-    // }
     pub fn from_item_pos(item: Item, p: Position) -> Self {
         Self::new(item, vec![], p)
     }
@@ -354,31 +312,6 @@ impl BaseNode<Item, Position> {
         Self::from_item_span(Item::Number(n), sp)
     }
 
-    // pub fn to_label(txt: &str, ctx: Position) -> Self {
-    //     Self::from_item(Item::Label(txt.to_string()), ctx)
-    // }
-    // pub fn to_local_label(txt: &str, ctx: Position) -> Self {
-    //     Self::from_item(Item::LocalLabel(txt.to_string()), ctx)
-    // }
-
-    // pub fn get_label_name(&self) -> Option<&String> {
-    //     if let Item::Label(name) = self.item() {
-    //         Some(name)
-    //     } else {
-    //         None
-    //     }
-    // }
-
-    // pub fn get_include_file(&self) -> Option<&PathBuf> {
-    //     match self.item() {
-    //         Item::Include(name) => Some(name),
-    //         _ => None,
-    //     }
-    // }
-
-    // pub fn is_include_file(&self) -> bool {
-    //     self.get_include_file().is_some()
-    // }
     pub fn with_span(self, sp: Span) -> Self {
         let mut ret = self;
         ret.ctx = span_to_pos(sp);
