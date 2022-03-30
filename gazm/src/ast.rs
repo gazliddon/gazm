@@ -119,6 +119,7 @@ impl<'a> Ast<'a> {
             .collect::<Vec<_>>();
 
         let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
+
         for (caller_num, name, caller_id, pos) in mcalls.into_iter() {
             // TODO need a failure case if we can't find the macro definition
             let macro_id = mdefs.get(&name).ok_or_else(|| {
@@ -393,7 +394,7 @@ impl<'a> Ast<'a> {
                     Scope(scope) => {
                         self.ctx.symbols.set_root();
                         if scope != "root" {
-                            self.ctx.symbols.set_scope(&scope);
+                            self.ctx.symbols.set_scope(scope);
                         }
                     }
 

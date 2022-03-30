@@ -26,7 +26,7 @@ impl Default for SymbolTree {
     }
 }
 
-fn split_fqn<'a>(text: &'a str) -> Vec<&'a str> {
+fn split_fqn(text: &str) -> Vec<&str> {
     text.split("::").collect()
 }
 
@@ -161,7 +161,7 @@ pub fn display_tree(out: &mut std::fmt::Formatter<'_>, node : SymbolNodeRef, dep
 
     let depth = depth + 1;
     for x in node.children() {
-        writeln!(out,"")?;
+        writeln!(out)?;
         display_tree(out, x, depth)?;
     }
 

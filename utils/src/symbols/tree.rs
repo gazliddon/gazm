@@ -31,12 +31,11 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
     fn get_scope_walker(&self, id: ScopeId) -> impl Iterator<Item = ScopeId> + '_ {
         let mut current_node = self.get(id);
 
-        let walker = std::iter::from_fn(move || {
+        std::iter::from_fn(move || {
             let id = current_node?.id();
             current_node = current_node.unwrap().parent();
             Some(id)
-        });
-        walker
+        })
     }
 
     pub fn get_scope_abs_fqn(&self, id: ScopeId) -> Option<String> {
@@ -91,11 +90,11 @@ impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
         Err("whoops".to_owned())
     }
 
-    fn navigate_relative(&mut self, _path: &Vec<String>) -> Result<ScopeId, String> {
+    fn navigate_relative(&mut self, _path: &[String]) -> Result<ScopeId, String> {
         panic!();
     }
 
-    fn navigate_abs(&mut self, path: &Vec<String>) -> Result<ScopeId, String> {
+    fn navigate_abs(&mut self, path: &[String]) -> Result<ScopeId, String> {
         // Save current_scope
         let old_scope = self.current_scope;
         self.current_scope = self.scopes.root_id;

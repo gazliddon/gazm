@@ -13,12 +13,19 @@ pub struct PostFixer<I: Clone + GetPriotity> {
     ret: Vec<I>,
 }
 
-impl<I: Clone + GetPriotity + std::fmt::Debug> PostFixer<I> {
-    pub fn new() -> Self {
+impl<I: Clone + GetPriotity + std::fmt::Debug> Default for PostFixer<I> { 
+    fn default() -> Self {
         Self {
             opstack: Stack::new(),
             ret: vec![],
         }
+        
+    }
+}
+
+impl<I: Clone + GetPriotity + std::fmt::Debug> PostFixer<I> {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     fn emit(&mut self, i: &I) {

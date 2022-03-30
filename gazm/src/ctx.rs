@@ -15,16 +15,15 @@ pub struct WriteBin {
     pub size: usize,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Vars {
     vars: HashMap<String, String>,
 }
 
+
 impl Vars {
     pub fn new() -> Self {
-        Self {
-            vars: Default::default(),
-        }
+        Self::default()
     }
 
     pub fn set_var<V: Into<String>>(&mut self, var: V, val: V) {

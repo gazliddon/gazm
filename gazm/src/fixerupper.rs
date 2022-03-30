@@ -9,18 +9,9 @@ pub struct FixKey {
     id: SymbolNodeId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FixerUpper {
     pub fixups: HashMap<FixKey, Item>,
-}
-
-impl Default for FixerUpper {
-    fn default() -> Self {
-        Self {
-            fixups: HashMap::new()
-        }
-    }
-
 }
 
 impl FixerUpper {

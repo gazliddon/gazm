@@ -86,7 +86,10 @@ pub trait FileIo: PathSearcher {
 
     fn write<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
         let path = self.expand_path(path);
-        std::fs::write(&path, data).expect(&format!( "Can't write bin file {}", path.to_string_lossy() ));
+        std::fs::write(&path, data).unwrap_or_else(|_| 
+            panic!(
+             "Can't write bin file {}", path.to_string_lossy() 
+                ));
         self.add_to_files_written(path.clone());
         path
     }

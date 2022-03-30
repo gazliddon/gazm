@@ -41,10 +41,10 @@ fn get_line(input: Span) -> IResult<Span> {
     Ok((rest, line))
 }
 
-pub fn tokenize_file_from_str<'a, P>(
+pub fn tokenize_file_from_str<P>(
     file: P,
     input: &str,
-    ctx: &'a mut crate::ctx::Context,
+    ctx: &mut crate::ctx::Context,
     opts: Opts,
 ) -> GResult<Node> 
 where P : AsRef<Path>
@@ -54,7 +54,7 @@ where P : AsRef<Path>
     let mut tokes = Tokens::new(ctx, &opts);
     tokes.add_tokens(span)?;
     let tokes = tokes.to_tokens();
-    let item = Item::TokenizedFile(pb.clone(),pb.clone());
+    let item = Item::TokenizedFile(pb.clone(),pb);
     let file_node = Node::from_item_span(item, span).with_children(tokes);
     Ok(file_node)
 }
@@ -243,17 +243,16 @@ fn tokenize_file<P : AsRef<Path>, PP : AsRef<Path>>(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = Tokens::new(ctx, &opts);
+    let mut tokes = Tokens::new(ctx, opts);
     tokes.add_tokens(input)?;
     let mut tokes = tokes.to_tokens();
-
 
     // Tokenize includes
     for n in tokes.iter_mut() {
         let parent = file.as_ref().to_path_buf().clone();
         if let Include(inc_file) = &n.item {
             x.indent();
-            *n = tokenize_file(depth + 1, ctx, &opts, inc_file, &parent)?;
+            *n = tokenize_file(depth + 1, ctx, opts, inc_file, &parent)?;
             x.deindent();
         };
     }
@@ -265,15 +264,13 @@ fn tokenize_file<P : AsRef<Path>, PP : AsRef<Path>>(
 
 use crate::macros::Macros;
 
-pub enum TokenizeError {}
-
 pub fn tokenize<P: AsRef<Path>>(ctx: &mut crate::ctx::Context, opts: &Opts, file: P) -> GResult<Node> {
     let parent = PathBuf::new();
 
     let msg = format!("Reading {}", file.as_ref().to_string_lossy());
     messages().status(msg);
 
-    let block = tokenize_file(0, ctx, &opts, &file, &parent)?;
+    let block = tokenize_file(0, ctx, opts, &file, &parent)?;
 
     ctx.errors.raise_errors()?;
 

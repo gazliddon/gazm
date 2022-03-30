@@ -38,7 +38,7 @@ impl<'a> Evaluator<'a> {
 
     pub fn eval_macro_args(
         &mut self,
-        scope: &String,
+        scope: &str,
         node: AstNodeRef,
         macro_node: AstNodeRef,
     ) -> bool {
@@ -83,11 +83,11 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn get_symbols_mut(&mut self) -> &mut SymbolTree {
-        &mut self.symbols
+        self.symbols
     }
 
     pub fn get_symbols(&self) -> &SymbolTree {
-        &self.symbols
+        self.symbols
     }
 
     pub fn get_children(&self, node: AstNodeRef) -> Vec<AstNodeId> {

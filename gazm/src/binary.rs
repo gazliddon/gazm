@@ -272,7 +272,7 @@ impl Binary {
     fn get_expected_word(&self, phys_addr : usize) -> Option<u16> {
         self.get_expected_byte(phys_addr).and_then(
             |hi| 
-            self.get_expected_word(phys_addr+1).map(|lo| (hi as u16) + (lo as u16) << 8)
+            self.get_expected_word(phys_addr+1).map(|lo| (hi as u16) + ( (lo as u16) << 8 ))
         )
     }
 

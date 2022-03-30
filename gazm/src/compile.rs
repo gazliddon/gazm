@@ -187,12 +187,12 @@ impl<'a> Compiler<'a> {
     fn inc_bin_ref<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, file_name: P) -> GResult<()> {
         use crate::binary::BinRef;
 
-        let (.., data) = ctx.read_binary(file_name.as_ref().clone())?;
+        let (.., data) = ctx.read_binary(&file_name)?;
 
         let dest = ctx.binary.get_write_location().physical;
 
         let bin_ref = BinRef {
-            file: file_name.as_ref().to_path_buf(),
+            file: file_name.as_ref().into(),
             start: 0,
             size: data.len(),
             dest,
@@ -330,12 +330,11 @@ impl<'a> Compiler<'a> {
 
         self.add_mapping(ctx, phys_range, range, id, ItemType::OpCode);
 
-        let res = match res {
+        match res {
             Err(GasmError::BinaryError(b)) => Err(self.binary_error(ctx, id, b)),
             _ => res
-        };
+        }
 
-        res
     }
 
     fn incbin_resolved<P: AsRef<Path>>(
@@ -524,7 +523,7 @@ impl<'a> Compiler<'a> {
 
             let (_, phys_range) = ctx.binary.range_to_write_address(pc);
 
-            if phys_range.len() != 0 {
+            if phys_range.is_empty() {
                 if let Ok(si) = ctx.eval.get_source_info(&node.value().pos) {
                     let m_pc = format!(
                         "{:05X} {:04X} {:02X?} ",

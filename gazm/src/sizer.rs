@@ -61,7 +61,7 @@ impl<'a> Sizer<'a> {
             pc += ins.size as usize;
             use item::IndexParseType::*;
 
-            match pmode.clone() {
+            match pmode {
                 Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..) | Sub(..)
                 | SubSub(..) => (),
 
@@ -98,7 +98,7 @@ impl<'a> Sizer<'a> {
                     };
 
                     let new_item =
-                        OpCode(ins.clone(), AddrModeParseType::Indexed(new_amode, indirect));
+                        OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -117,7 +117,7 @@ impl<'a> Sizer<'a> {
                     };
 
                     let new_item =
-                        OpCode(ins.clone(), AddrModeParseType::Indexed(new_amode, indirect));
+                        OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -136,7 +136,7 @@ impl<'a> Sizer<'a> {
 
         match &i {
             MacroCallProcessed { scope, macro_id } => {
-                ctx.eval_macro_args(scope, id, *macro_id, &self.tree);
+                ctx.eval_macro_args(scope, id, *macro_id, self.tree);
 
                 ctx.set_scope(scope);
 
@@ -154,7 +154,7 @@ impl<'a> Sizer<'a> {
             Scope(opt) => {
                 ctx.set_root_scope();
                 if opt != "root" {
-                    ctx.set_scope(&opt);
+                    ctx.set_scope(opt);
                 }
             }
 
@@ -166,7 +166,7 @@ impl<'a> Sizer<'a> {
 
             Org => {
                 let res = ctx.eval.eval_first_arg(node);
-                if let Err(_) = res {
+                if res.is_err() {
                     panic!();
                 };
 
@@ -247,7 +247,7 @@ impl<'a> Sizer<'a> {
             AssignmentFromPc(name) => {
                 // TODO should two types of item rather than this
                 // conditional
-                let pcv = if let Some(_) = node.first_child() {
+                let pcv = if node.first_child().is_some() {
                     // Assign this label
                     // If the label has a child it means
                     // assignment is from an expr containing the current PC

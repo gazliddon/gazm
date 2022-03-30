@@ -35,12 +35,19 @@ pub struct Messages {
     verbosity: Verbosity,
 }
 
-impl Messages {
-    pub fn new() -> Self {
+impl Default for Messages {
+    fn default() -> Self {
         Self {
             indent: 0,
-            verbosity: Verbosity::Normal,
+            verbosity: Verbosity::Normal
         }
+    }
+
+}
+
+impl Messages {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn set_verbosity(&mut self, verbosity: &Verbosity) {

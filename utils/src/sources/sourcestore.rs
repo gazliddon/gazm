@@ -346,13 +346,13 @@ impl SourceDatabase {
         Ok(())
     }
 
-    pub fn get_source_file_from_file_name<'a, P>(
-        &'a self,
+    pub fn get_source_file_from_file_name<P>(
+        &self,
         file_name: P,
-    )  -> Option<SourceFileAccess<'a>> 
+    )  -> Option<SourceFileAccess> 
     where P : AsRef<Path>{
         self.source_file_to_id
-            .get(file_name.as_ref().into())
+            .get(file_name.as_ref())
             .and_then(|file_id| self.get_source_file(*file_id))
     }
 

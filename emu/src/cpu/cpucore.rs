@@ -1305,7 +1305,7 @@ impl<'a> Context<'a> {
 
     pub fn opcode_size<A: AddressLines>(&self, ins: &InstructionDecoder) -> CpuResult<usize> {
         let ret = if A::get_addr_mode() == AddrModeEnum::Indexed {
-            let index_mode_id = self.mem.inspect_byte(ins.next_addr.into())?;
+            let index_mode_id = self.mem.inspect_byte(ins.next_addr)?;
             let index_mode = super::indexed::IndexedFlags::new(index_mode_id);
             index_mode.get_index_type().get_size() + 1
         } else {

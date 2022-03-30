@@ -58,7 +58,7 @@ impl<T> StackTree<T> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct ScopeStore {
     scope_id: ScopeId,
     scopes: Vec<ScopeEntry>,
@@ -66,10 +66,7 @@ pub struct ScopeStore {
 
 impl ScopeStore {
     pub fn new() -> Self {
-        Self {
-            scope_id: 0,
-            scopes: Default::default(),
-        }
+        Self::default()
     }
 
     pub fn get(&self, id: ScopeId) -> Option<&ScopeEntry> {
@@ -102,11 +99,17 @@ impl ScopeStore {
 pub struct ScopeBuilder {
     scope_tree: StackTree<String>,
 }
+impl Default for ScopeBuilder {
+    fn default() -> Self {
+        let scope_tree = StackTree::new("".to_string());
+        Self { scope_tree }
+        
+    }
+}
 
 impl ScopeBuilder {
     pub fn new() -> Self {
-        let scope_tree = StackTree::new("".to_string());
-        Self { scope_tree }
+        Self::default()
     }
 
     pub fn get_current_scope(&self) -> ego_tree::NodeId {

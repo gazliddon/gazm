@@ -4,6 +4,7 @@ use emu::cpu::{IndexModes, IndexedFlags, InstructionDecoder};
 use emu::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo, InstructionType};
 use emu::mem::MemReader;
 use emu::mem::*;
+use serde_json::to_string;
 use std::path::PathBuf;
 
 pub struct Disassembly {
@@ -48,10 +49,13 @@ lazy_static::lazy_static! {
     static ref OPCODES_REC: Dbase = Dbase::new();
 }
 
+#[derive(Default)]
 pub struct Diss {}
 
 use byteorder::ByteOrder;
 use emu::mem::{MemBlock, MemMap};
+
+
 
 struct DissIt<'a> {
     addr: usize,
@@ -74,7 +78,7 @@ impl<'a> DissIt<'a> {
 
 impl Diss {
     pub fn new() -> Self {
-        Self {}
+        Self::default() 
     }
 
     fn diss_indexed(&self, reader: &mut MemReader) -> (IndexedFlags, String) {
@@ -131,7 +135,7 @@ impl Diss {
             IndexModes::Illegal => "ILLEGAL".to_string(),
 
             IndexModes::Ea => {
-                format!("EA")
+                "EA".to_string()
             }
         };
 
@@ -149,7 +153,7 @@ impl Diss {
 
         let x = emu::cpu::InstructionDecoder::new_from_reader(&mut reader).unwrap();
 
-        let mut text = format!("{}", x.instruction_info.action);
+        let mut text = x.instruction_info.action.to_string();
         let mut index_mode = None;
 
         use emu::isa::AddrModeEnum::*;
@@ -172,7 +176,7 @@ impl Diss {
             }
 
             Inherent => {
-                format!("")
+                "".to_string()
             }
 
             Immediate8 => {
@@ -187,7 +191,7 @@ impl Diss {
 
             RegisterSet => {
                 let _r = reader.next_byte().unwrap();
-                format!("RegisterSet SET TBD!")
+                "RegisterSet SET TBD!".to_owned()
             }
 
             RegisterPair => {

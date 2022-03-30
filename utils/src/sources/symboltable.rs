@@ -148,7 +148,7 @@ mod new {
                 ScopePath::ThisScope(split[0].to_owned())
             } else {
                 let split: Vec<_> = split.into_iter().map(|s| s.to_owned()).collect();
-                if split[0] == "root" || split[0] == "" {
+                if split[0] == "root" || split[0].is_empty() {
                     ScopePath::Abs(split)
                 } else {
                     ScopePath::Relative(split)
@@ -172,12 +172,11 @@ mod new {
         fn get_scope_walker(&self, id: ScopeId) -> impl Iterator<Item = ScopeId> + '_ {
             let mut current_node = self.get(id);
 
-            let walker = std::iter::from_fn(move || {
+            std::iter::from_fn(move || {
                 let id = current_node?.id();
                 current_node = current_node.unwrap().parent();
                 Some(id)
-            });
-            walker
+            })
         }
 
         pub fn get_scope_abs_fqn(&self, id: ScopeId) -> Option<String> {
@@ -228,11 +227,11 @@ mod new {
             Err("whoops".to_owned())
         }
 
-        fn navigate_relative(&mut self, _path : &Vec<String> ) -> Result<ScopeId, String> {
+        fn navigate_relative(&mut self, _path : &[String] ) -> Result<ScopeId, String> {
             panic!();
         }
 
-        fn navigate_abs(&mut self, path : &Vec<String>) -> Result<ScopeId,String> {
+        fn navigate_abs(&mut self, path : &[String]) -> Result<ScopeId,String> {
             // Save current_scope
             let old_scope = self.current_scope;
             self.current_scope = self.scopes.root_id;
@@ -304,7 +303,7 @@ impl Display for SymbolTable {
         writeln!(f, "Scope: {}",self.scope)?;
 
         for (name, id) in &self.name_to_id {
-            let val = self.info.get(&id).unwrap();
+            let val = self.info.get(id).unwrap();
             match &val.value {
                 Some(val) => writeln!(f,"{name} = {:04X} ({})",val,val)?,
                 _ => writeln!(f, "{name} = undefined", )?,

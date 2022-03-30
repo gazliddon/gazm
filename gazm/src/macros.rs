@@ -116,16 +116,15 @@ pub fn parse_macro_call(input: Span) -> IResult<Node> {
 }
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Macros {
     macro_defs: HashMap<String, MacroDef>,
 }
 
+
 impl Macros {
     pub fn new() -> Self {
-        Self {
-            macro_defs: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn add_def(&mut self, def: MacroDef) {

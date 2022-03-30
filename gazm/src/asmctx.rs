@@ -88,7 +88,7 @@ impl<'a> AsmCtx<'a> {
     }
 
     pub fn loader(&mut self) -> &mut SourceFileLoader {
-        &mut self.eval.source_file_loader
+        self.eval.source_file_loader
     }
 
 
@@ -99,7 +99,7 @@ impl<'a> AsmCtx<'a> {
 
     pub fn eval_macro_args(
         &mut self,
-        scope: &String,
+        scope: &str,
         args_id: AstNodeId,
         macro_id: AstNodeId,
         tree: &AstTree,
