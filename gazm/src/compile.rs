@@ -40,16 +40,6 @@ impl<'a> Compiler<'a> {
     }
 
     pub fn new(opts: Opts, tree: &'a AstTree) -> GResult<Self> {
-        // if let Some(file) = &opts.as6809_lst {
-        //     messages().status(format!("Loading map file {}", file));
-        //     let m = crate::as6809::MapFile::new(&file)?;
-        //     ctx.binary.addr_reference(m);
-        // }
-
-        // if let Some(file) = &opts.as6809_sym {
-        //     crate::as6809::add_reference_syms(file, &mut ctx.eval.symbols)?;
-        // }
-
         let ret = Self { tree, opts };
 
         Ok(ret)
@@ -101,8 +91,7 @@ impl<'a> Compiler<'a> {
 
         messages().debug(format!("{} {:?}", si.line_str, imode));
 
-        ctx.binary
-            .write_byte(idx_byte)?;
+        ctx.binary.write_byte(idx_byte)?;
 
         use item::IndexParseType::*;
 
@@ -113,18 +102,15 @@ impl<'a> Compiler<'a> {
 
             ExtendedIndirect => {
                 let (val, _) = ctx.eval.eval_first_arg(node)?;
-                ctx.binary
-                    .write_uword_check_size(val)?;
+                ctx.binary.write_uword_check_size(val)?;
             }
 
             ConstantWordOffset(_, val) | PcOffsetWord(val) => {
-                ctx.binary
-                    .write_iword_check_size(val as i64)?;
+                ctx.binary.write_iword_check_size(val as i64)?;
             }
 
             ConstantByteOffset(_, val) | PcOffsetByte(val) => {
-                ctx.binary
-                    .write_ibyte_check_size(val as i64)?;
+                ctx.binary.write_ibyte_check_size(val as i64)?;
             }
             _ => (),
         }
@@ -209,6 +195,7 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
+    /// Compile an opcode
     fn opcode(
         &self,
         ctx: &mut AsmCtx,
@@ -228,8 +215,7 @@ impl<'a> Compiler<'a> {
             if ins.opcode > 0xff {
                 ctx.binary.write_word(ins.opcode as u16)?;
             } else {
-                ctx.binary
-                    .write_byte(ins.opcode as u8)?;
+                ctx.binary.write_byte(ins.opcode as u8)?;
             }
 
             match ins_amode {
@@ -241,21 +227,17 @@ impl<'a> Compiler<'a> {
 
                 Immediate8 => {
                     let (arg, _) = ctx.eval.eval_first_arg(node)?;
-                    ctx.binary
-                        .write_byte_check_size(arg)?;
+                    ctx.binary.write_byte_check_size(arg)?;
                 }
 
                 Direct => {
                     let (arg, _) = ctx.eval.eval_first_arg(node)?;
-                    ctx.binary
-                        .write_byte_check_size(arg & 0xff)?;
+                    ctx.binary.write_byte_check_size(arg & 0xff)?;
                 }
 
                 Extended | Immediate16 => {
                     let (arg, _) = ctx.eval.eval_first_arg(node)?;
-
-                    ctx.binary
-                        .write_word_check_size(arg)?;
+                    ctx.binary.write_word_check_size(arg)?;
                 }
 
                 Relative => {
@@ -305,8 +287,7 @@ impl<'a> Compiler<'a> {
 
                 RegisterPair => {
                     if let AddrModeParseType::RegisterPair(a, b) = amode {
-                        ctx.binary
-                            .write_byte(reg_pair_to_flags(*a, *b))?;
+                        ctx.binary.write_byte(reg_pair_to_flags(*a, *b))?;
                     } else {
                         panic!("Whut!")
                     }
@@ -317,8 +298,7 @@ impl<'a> Compiler<'a> {
 
                     if let Item::RegisterSet(regs) = rset {
                         let flags = registers_to_flags(regs);
-                        ctx.binary
-                            .write_byte(flags)?;
+                        ctx.binary.write_byte(flags)?;
                     } else {
                         panic!("Whut!")
                     }
@@ -326,15 +306,12 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        let (phys_range, range) = ctx.binary.range_to_write_address(pc);
 
+        // Add memory to source code mapping for this opcode
+        let (phys_range, range) = ctx.binary.range_to_write_address(pc);
         self.add_mapping(ctx, phys_range, range, id, ItemType::OpCode);
 
-        match res {
-            Err(GasmError::BinaryError(b)) => Err(self.binary_error(ctx, id, b)),
-            _ => res
-        }
-
+        res
     }
 
     fn incbin_resolved<P: AsRef<Path>>(
@@ -377,10 +354,12 @@ impl<'a> Compiler<'a> {
         let (node, i) = self.get_node_item(ctx, id);
 
         let x = super::messages::messages();
-        let pc = ctx.binary.get_write_address();
+        let mut pc = ctx.binary.get_write_address();
         let pos = node.value().pos.clone();
+        let mut no_mapping = false;
 
         let res: Result<(), GasmError> = try {
+
             match i {
                 Scope(opt) => {
                     ctx.set_root_scope();
@@ -405,8 +384,9 @@ impl<'a> Compiler<'a> {
                     ctx.binary.skip(skip);
                 }
 
-                SetPc(pc) => {
-                    ctx.binary.set_write_address(pc, 0);
+                SetPc(new_pc) => {
+                    ctx.binary.set_write_address(new_pc, 0);
+                    pc = new_pc;
                     x.debug(format!("Set PC to {:02X}", pc));
                 }
 
@@ -420,14 +400,8 @@ impl<'a> Compiler<'a> {
                 }
 
                 MacroCallProcessed { scope, macro_id } => {
-                    let si = ctx.eval.get_source_info(&pos).unwrap();
-
-                    let m = format!(
-                        "{} {pos} : Expanding macro with scope {scope}",
-                        si.file.to_string_lossy()
-                    );
-
-                    messages().debug(m);
+                    no_mapping = true;
+                    // let si = ctx.eval.get_source_info(&pos).unwrap();
 
                     let (m_node, _) = self.get_node_item(ctx, macro_id);
 
@@ -515,7 +489,6 @@ impl<'a> Compiler<'a> {
 
                 IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
                 | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp => (),
-
                 _ => {
                     panic!("Can't compile {:?}", i);
                 }
@@ -523,15 +496,24 @@ impl<'a> Compiler<'a> {
 
             let (_, phys_range) = ctx.binary.range_to_write_address(pc);
 
-            if phys_range.is_empty() {
+            if !no_mapping{
                 if let Ok(si) = ctx.eval.get_source_info(&node.value().pos) {
+
+                    let mem_text = if phys_range.is_empty() {
+                        "".to_owned()
+                    } else {
+                        format!("{:02X?}", ctx.binary.get_bytes_range(phys_range.clone()))
+                    };
+
                     let m_pc = format!(
-                        "{:05X} {:04X} {:02X?} ",
+                        "{:05X} {:04X} {} ",
                         phys_range.start,
                         pc,
-                        ctx.binary.get_bytes(phys_range.start, phys_range.len())
+                        mem_text
                     );
+
                     let m = format!("{:50}{}", m_pc, si.line_str);
+
                     if m.len() < 100 {
                         messages().debug(m);
                     }
@@ -539,10 +521,16 @@ impl<'a> Compiler<'a> {
             }
         };
 
+        for b in ctx.binary.flush_errors() {
+            ctx.errors.add_error(self.binary_error(ctx, id, b), false)?;
+        }
+
         match res {
-            Err(GasmError::BinaryError(b)) => ctx.errors.add_error(self.binary_error(ctx, id, b), false),
+            Err(GasmError::BinaryError(_)) => {
+                Ok(())
+            }
             Err(e) => ctx.errors.add_error(e, false),
-            _ => res
+            _ => res,
         }
     }
 }

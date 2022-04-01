@@ -52,18 +52,18 @@ pub fn get_number(input: Span) -> IResult<i64> {
     alt((get_hex, get_binary, get_dec))(input)
 }
 
-pub fn get_number_err(input : &str) -> Result<isize,String> {
+pub fn get_number_err(input: &str) -> Result<isize, String> {
     let x = AsmSource::FromStr;
     let s = Span::new_extra(input, x);
     let n = get_number(s);
 
     match n {
         Err(_) => Err(format!("Couldn't parse {input} as a number")),
-        Ok((_,num)) => Ok(num as isize)
+        Ok((_, num)) => Ok(num as isize),
     }
 }
 
-pub fn get_number_err_usize(input : &str) -> Result<usize,String> {
+pub fn get_number_err_usize(input: &str) -> Result<usize, String> {
     let x = get_number_err(input)?;
     if x < 0 {
         Err(format!("{} doesn't map to a usize", x))
@@ -131,21 +131,21 @@ mod test {
 
     #[test]
     fn test_bin() {
-        test_nums(&TEST_BIN, parse_binary);
+        test_nums(&TEST_BIN, get_binary);
     }
 
     #[test]
     fn text_hex() {
-        test_nums(&TEST_HEX, parse_hex);
+        test_nums(&TEST_HEX, get_hex);
     }
     #[test]
     fn test_dec() {
         println!("Testing decimal");
-        test_nums(&TEST_DEC, parse_dec);
+        test_nums(&TEST_DEC, get_dec);
     }
 
     #[test]
     fn test_all() {
-        test_nums(&TEST_ALL, number_token);
+        test_nums(&TEST_ALL, get_number);
     }
 }

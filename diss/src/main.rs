@@ -2,14 +2,17 @@
 #![allow(dead_code)]
 #![allow(dead_code)]
 #![allow(unused_imports)]
+mod commands;
 mod diss;
 
 // use anyhow::Context;
 
-use clap::{Arg, Command};
-use gazm::numbers::*;
+use emu::mem::MemReader;
+use gazm::{commands::parse_command, numbers::*};
+use nom_locate::LocatedSpan;
 
 pub fn parse() -> clap::ArgMatches {
+    use clap::{Arg, Command};
     Command::new("diss")
         .about("6809 diss")
         .author("gazaxian")
@@ -40,30 +43,113 @@ pub fn parse() -> clap::ArgMatches {
         .get_matches()
 }
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let m = parse();
-    let mut ctx = diss::DissCtx::from_matches(m)?;
-
-    let mut addr = ctx.diss_addr;
-
-    let mut i = std::iter::from_fn(move || {
+fn mk_diss_it(ctx : &mut diss::DissCtx, addr : usize) -> impl Iterator<Item=diss::Disassembly> + '_ {
+    let mut addr = addr;
+    let mut _i = std::iter::from_fn(move || {
         let diss = diss::Diss::new();
-        let x = diss.diss(&mut ctx.data,addr);
+        let x = diss.diss(&mut ctx.data, addr);
         addr = x.decoded.next_addr;
         Some(x)
     });
+    _i
+}
 
-    for _ in 0..30 {
-        let x = i.next().unwrap();
-        let hex_str: Vec<_> = x.decoded.data.iter().map(|b| format!("{b:02X}")).collect();
+fn to_hex_str(mem : &[u8]) -> String {
+    let v : Vec<_> = mem.iter().map(|b| format!("{:02X}",b)).collect();
+    v.join(" ")
+}
 
-        println!(
-            "{:04X}   {:30} {}",
-            x.decoded.addr,
-            hex_str.join(" "),
-            x.text
-        );
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    use rustyline::error::ReadlineError;
+    use rustyline::Editor;
+    use commands::parse_command;
+
+    let m = parse();
+    let mut ctx = diss::DissCtx::from_matches(m)?;
+
+    let mut rl = Editor::<()>::new();
+
+    if rl.load_history("history.txt").is_err() {
+        println!("No previous history.");
     }
 
+    let mut addr = 0;
+
+    loop {
+        use commands::Command;
+        let readline = rl.readline("> ");
+        match readline {
+            Ok(line) => {
+                let x = parse_command(LocatedSpan::new(&line));
+
+                if let Ok((_, x)) = x {
+                    match &x {
+                        Command::Diss(d_addr) => {
+
+                            addr = d_addr.unwrap_or(addr);
+
+                            let mut i = mk_diss_it(&mut ctx, addr as usize);
+
+                            for _ in 0..10 {
+                                if let Some(ins) = i.next() {
+                                    let mem = to_hex_str(&ins.decoded.data);
+                                    println!(" {:04X}  {mem:15} {}",addr, ins.text);
+                                    addr = ins.decoded.next_addr as isize;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+
+                        Command::Mem(d_addr) => {
+                            addr = d_addr.unwrap_or(addr);
+                            let mut i = MemReader::new(&mut ctx.data);
+                            i.set_addr(addr as usize);
+
+                            for _ in 0..8 {
+                                print!(" {:04X} ",i.get_addr());
+                                for _ in 0..8 {
+                                    if let Ok(b) = i.next_byte() {
+                                        print!("{b:02X} ");
+                                    } else {
+                                        print!("?? ");
+                                    }
+                                }
+                                print!("\n");
+                            }
+
+                            addr = i.get_addr() as isize;
+                        }
+
+                        Command::Quit => {
+                            break;
+                        },
+
+                        _ => {
+                            println!("Unexpected command {line}")
+                        } 
+                    }
+                } else {
+                    println!("Syntax error {line}")
+                }
+
+                rl.add_history_entry(line.as_str());
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
+        }
+    }
+
+    rl.save_history("history.txt").unwrap();
     Ok(())
 }

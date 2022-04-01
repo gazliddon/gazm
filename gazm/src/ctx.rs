@@ -143,12 +143,12 @@ impl Context {
 impl Default for Context {
     fn default() -> Self {
         Self {
-            vars: Vars::new(),
-            symbols: SymbolTree::new(),
-            source_file_loader: SourceFileLoader::new(),
             errors: ErrorCollector::new(5),
             binary: binary::Binary::new(65536,binary::AccessType::ReadWrite),
-            source_map : SourceMapping::new(),
+            source_map: Default::default(),
+            source_file_loader: Default::default(),
+            vars: Default::default(),
+            symbols: Default::default(),
         }
     }
 }

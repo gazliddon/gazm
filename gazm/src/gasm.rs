@@ -12,14 +12,14 @@ use thiserror::Error;
 use crate::error::UserError;
 use crate::error::{GasmError, GResult };
 
-pub struct Gasm {
-    ctx: Context,
+pub struct Gasm<'a> {
+    ctx: &'a mut Context,
     opts: Opts,
 }
 
 
-impl Gasm {
-    pub fn new(ctx: Context, opts: Opts) -> Self {
+impl<'a> Gasm<'a> {
+    pub fn new(ctx: &'a mut Context, opts: Opts) -> Self {
         Self { ctx, opts }
     }
 
@@ -32,10 +32,10 @@ impl Gasm {
         }
 
         let tokens = tokenize(&mut self.ctx, &self.opts, x)?;
-        let ret = self.assemble_tokens(tokens);
+        self.assemble_tokens(tokens)?;
 
         self.ctx.source_file_loader.set_search_paths(paths);
-        ret
+        self.ctx.errors.raise_errors()
     }
 
     fn assemble_tokens(&mut self, tokens: Node) -> GResult<()> {
@@ -62,7 +62,6 @@ impl Gasm {
 
         size_tree( &mut asm_ctx,id, &tree)?;
         compile(&mut asm_ctx, &tree)?;
-
-        self.ctx.errors.raise_errors()
+        Ok(())
     }
 }

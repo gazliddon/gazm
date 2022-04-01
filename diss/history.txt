@@ -1,0 +1,16 @@
+#V2
+helkldkslkdw
+d 100
+j
+d 0x100
+d 100
+d
+d 100
+d 0x1000
+d 0x1000 0x1030
+d 1000
+d
+d 100
+d
+m
+d

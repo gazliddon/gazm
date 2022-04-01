@@ -62,7 +62,7 @@ use anyhow::Result;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
 
-    let ctx: ctx::Context = cli::parse().into();
+    let mut ctx: ctx::Context = cli::parse().into();
     let opts: ctx::Opts = cli::parse().into();
     use crate::messages::Verbosity;
 
@@ -81,9 +81,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     use std::fs;
     
-    let mut a = Gasm::new(ctx.clone(), opts.clone());
+    let mut a = Gasm::new(&mut ctx, opts.clone());
 
-    a.assemble_file(&opts.project_file)?;
+    let res = a.assemble_file(&opts.project_file);
+
+    println!("num of errors = {}", ctx.errors.num_of_errors());
+    ctx.errors.raise_errors()?;
+
+    res?;
 
     if let Some(sym_file) = &opts.syms_file {
         // x.status(format!("Writing symbols: {}", sym_file));

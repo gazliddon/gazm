@@ -34,6 +34,7 @@ pub struct Binary {
     access_type: AccessType,
     bin_refs: Vec<BinRefChunk>,
     unchecked_writes: Vec<MemoryLocation>,
+    errors: Vec<BinaryError>,
 }
 
 impl Default for Binary {
@@ -95,11 +96,13 @@ pub struct Watch {
 }
 
 impl Binary {
-
     /// Returns ranges from from -> current write
     /// ( physical range, logical_range )
 
-    pub fn range_to_write_address(&self, pc: usize) -> (std::ops::Range<usize>, std::ops::Range<usize>) {
+    pub fn range_to_write_address(
+        &self,
+        pc: usize,
+    ) -> (std::ops::Range<usize>, std::ops::Range<usize>) {
         let start = pc;
         let end = self.get_write_address();
         let pstart = self.logical_to_physical(start);
@@ -140,6 +143,7 @@ impl Binary {
             access_type,
             bin_refs: vec![],
             unchecked_writes: vec![],
+            errors: vec![],
         }
     }
 
@@ -179,6 +183,11 @@ impl Binary {
         (addr as isize + self.write_offset) as usize
     }
 
+    fn ret_err<T>(&mut self, err: BinaryError) -> Result<T, BinaryError> {
+        self.errors.push(err.clone());
+        Err(err)
+    }
+
     fn write_byte_check(
         &mut self,
         val: i64,
@@ -188,7 +197,7 @@ impl Binary {
         if r.contains(&val) {
             self.write_byte(val as u8)
         } else {
-            Err(BinaryError::DoesNotFit {
+            self.ret_err(BinaryError::DoesNotFit {
                 dest_type: dest_type.to_string(),
                 val,
             })
@@ -222,7 +231,7 @@ impl Binary {
         if r.contains(&val) {
             self.write_word(val as u16)
         } else {
-            Err(BinaryError::DoesNotFit {
+            self.ret_err(BinaryError::DoesNotFit {
                 dest_type: dest_type.to_string(),
                 val,
             })
@@ -259,31 +268,32 @@ impl Binary {
         }
     }
 
-    fn get_expected_byte(&self, physical: usize) -> Option<u8> {
-        for x in &self.bin_refs {
-            if x.physical_range.contains(&physical) {
-                 return Some(x.ref_data[physical - x.physical_range.start]);
-            }
-        }
-
+    fn get_expected_byte(&self, _physical: usize) -> Option<u8> {
         None
+        // for x in &self.bin_refs {
+        //     if x.physical_range.contains(&physical) {
+        //         return Some(x.ref_data[physical - x.physical_range.start]);
+        //     }
+        // }
+
+        // None
     }
 
-    fn get_expected_word(&self, phys_addr : usize) -> Option<u16> {
-        self.get_expected_byte(phys_addr).and_then(
-            |hi| 
-            self.get_expected_word(phys_addr+1).map(|lo| (hi as u16) + ( (lo as u16) << 8 ))
-        )
+    fn get_expected_word(&self, _phys_addr: usize) -> Option<u16> {
+        None
+        // self.get_expected_byte(phys_addr).and_then(|hi| {
+        //     self.get_expected_word(phys_addr + 1)
+        //         .map(|lo| (hi as u16) + ((lo as u16) << 8))
+        // })
     }
 
     pub fn write_byte(&mut self, val: u8) -> Result<WriteStatus, BinaryError> {
         let loc = self.get_write_location();
 
         let physical = loc.physical;
-        let logical = loc.logical;
 
         if self.access_type == AccessType::ReadOnly {
-            return Err(BinaryError::IllegalWrite(loc));
+            return self.ret_err(BinaryError::IllegalWrite(loc));
         }
 
         if let Some((mut low, mut high)) = self.range {
@@ -307,36 +317,14 @@ impl Binary {
         for r in &self.watches {
             if r.range.contains(&physical) {
                 let x = BinaryError::Halt(loc);
-                return Err(x);
+                return self.ret_err(x)
             }
         }
 
         self.data[physical] = val;
         self.write_address += 1;
 
-        let mut did_check = WriteStatus::NoCheck;
-
-        for x in &self.bin_refs {
-            if x.physical_range.contains(&physical) {
-                did_check = WriteStatus::Checked;
-                let expected = x.ref_data[physical - x.physical_range.start];
-                if expected != val {
-                    return Err(BinaryError::DoesNotMatchReference {
-                        addr: physical,
-                        logical_addr: logical,
-                        expected : expected as usize,
-                        val: val as usize,
-                    });
-                }
-            }
-        }
-
-        if did_check == WriteStatus::NoCheck {
-            self.unchecked_writes
-                .push(MemoryLocation { physical, logical })
-        }
-
-        Ok(did_check)
+        Ok(WriteStatus::Checked)
     }
 
     pub fn fill(&mut self, count: usize, byte: u8) -> Result<(), BinaryError> {
@@ -360,10 +348,26 @@ impl Binary {
     // Get bytes from memory
     // address is the physical_address
     pub fn get_bytes(&self, physical_address: usize, count: usize) -> &[u8] {
+        if count == 0 {
+            panic!("Amount is zero!");
+        }
         let r = physical_address..(physical_address + count);
         &self.data[r]
     }
 
+    pub fn get_bytes_range(&self, r: std::ops::Range<usize>) -> &[u8] {
+        if r.is_empty() {
+            panic!("Internal error, asked for a zero byte range")
+        } else {
+            &self.data[r]
+        }
+    }
+
+    pub fn flush_errors(&mut self) -> Vec<BinaryError> {
+        let ret = self.errors.clone();
+        self.errors = vec![];
+        ret
+    }
 
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {
         let hi = val >> 8;
@@ -376,22 +380,22 @@ impl Binary {
             self.write_byte(lo as u8)?
         };
 
-        if let Err(BinaryError::DoesNotMatchReference{..}) = res {
+        if let Err(BinaryError::DoesNotMatchReference { .. }) = res {
             let mut expected = 0;
 
             if let Some(hi) = self.get_expected_byte(addr.physical) {
-                expected = ( hi as usize ) << 8;
+                expected = (hi as usize) << 8;
             }
 
-            if let Some(lo) = self.get_expected_byte(addr.physical+1) {
-                expected += lo as usize ;
+            if let Some(lo) = self.get_expected_byte(addr.physical + 1) {
+                expected += lo as usize;
             }
 
-            Err(BinaryError::DoesNotMatchReference {
-                logical_addr : addr.logical,
+            self.ret_err(BinaryError::DoesNotMatchReference {
+                logical_addr: addr.logical,
                 addr: addr.physical,
-                val : val as usize,
-                expected
+                val: val as usize,
+                expected,
             })
         } else {
             res

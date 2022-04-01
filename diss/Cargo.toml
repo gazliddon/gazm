@@ -23,6 +23,9 @@ serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"
 serde_json = "*"
 serde_derive = "*"
+rustyline = "9.1.0"
+nom = "*"
+nom_locate = "*"
 
 [lib]
 name= "disslib"

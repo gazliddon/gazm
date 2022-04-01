@@ -257,7 +257,7 @@ pub struct ErrorCollector {
 impl std::fmt::Display for ErrorCollector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for x in &self.errors {
-            write!(f, "{}", x)?;
+            writeln!(f, "{}", x)?;
         }
         Ok(())
     }
@@ -280,6 +280,15 @@ impl ErrorCollector {
         }
     }
 
+
+    pub fn check_errs<T,F>(&mut self, mut f : F) -> GResult<()> 
+        where F : FnMut() -> GResult<T> {
+            if let Err(e) = f() {
+                self.add_error(e, false)?;
+            }
+            Ok(())
+    }
+
     pub fn add_errors(&mut self, other: Self) {
         for x in other.errors.into_iter() {
             self.errors.push(x)
@@ -297,6 +306,13 @@ impl ErrorCollector {
     pub fn raise_errors(&self) -> GResult<()> {
         if self.has_errors() {
             Err(GasmError::TooManyErrors(self.clone()))
+        } else {
+            Ok(())
+        }
+    }
+    pub fn add_result<T>(&mut self, e : GResult<T> ) -> GResult<()> {
+        if let Err(err) = e {
+            self.add_error(err, false)
         } else {
             Ok(())
         }
