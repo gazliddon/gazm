@@ -6,7 +6,7 @@ use utils::sources::{
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::error::UserError;
 use crate::eval::eval;
-use crate::error::{GasmError, GResult };
+use crate::error::{GazmError, GResult };
 use crate::item::Item::*;
 
 use crate::ctx::Context;

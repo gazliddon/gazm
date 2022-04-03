@@ -32,7 +32,7 @@ pub mod tokenize;
 pub mod util;
 pub mod sizer;
 pub mod compile;
-pub mod gasm;
+pub mod gazm;
 pub mod evaluator;
 pub mod asmctx;
 pub mod fixerupper;

@@ -1,12 +1,12 @@
 use crate::binary;
-use crate::error::{ParseError, UserError, ErrorCollector, GasmError, GResult};
+use crate::error::{ParseError, UserError, ErrorCollector, GazmError, GResult};
 use crate::macros::Macros;
 use crate::messages::Verbosity;
 use utils::sources::{FileIo, SourceFileLoader, SourceMapping, Sources, SymbolTree};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::gasm::Gasm;
+use crate::gazm::Gazm;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -87,8 +87,8 @@ pub struct Context {
     pub source_map : SourceMapping,
 }
 
-fn to_gasm(e : anyhow::Error) -> GasmError {
-    GasmError::Misc(e.to_string())
+fn to_gazm(e : anyhow::Error) -> GazmError {
+    GazmError::Misc(e.to_string())
 }
 
 impl Context {
@@ -105,18 +105,18 @@ impl Context {
         self.source_file_loader.write(path, data)
     }
 
-    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GasmError> {
+    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GazmError> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.source_file_loader.get_size(path).map_err(to_gasm)?;
+        let ret = self.source_file_loader.get_size(path).map_err(to_gazm)?;
         Ok(ret)
     }
 
-    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String, u64), GasmError> {
+    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String, u64), GazmError> {
         let path: PathBuf = self
             .vars
             .expand_vars(path.as_ref().to_string_lossy())
             .into();
-        let ret = self.source_file_loader.read_source(&path).map_err(to_gasm)?;
+        let ret = self.source_file_loader.read_source(&path).map_err(to_gazm)?;
         Ok(ret)
     }
 
@@ -124,9 +124,9 @@ impl Context {
         &mut self,
         path: P,
         r: std::ops::Range<usize>,
-    ) -> Result<(PathBuf, Vec<u8>), GasmError> {
+    ) -> Result<(PathBuf, Vec<u8>), GazmError> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.source_file_loader.read_binary_chunk(path, r).map_err(to_gasm)?;
+        let ret = self.source_file_loader.read_binary_chunk(path, r).map_err(to_gazm)?;
         Ok(ret)
     }
 

@@ -1,17 +1,17 @@
 
 use crate::ast::{AstNodeId, AstNodeRef};
-use crate::gasm::Gasm;
-use crate::{binary, gasm};
+use crate::gazm::Gazm;
+use crate::{binary, gazm};
 use crate::locate::span_to_pos;
 use crate::locate::Span;
 use serde::de::Error;
 use thiserror::Error;
 use utils::sources::{Position, SourceInfo};
 
-pub type GResult<T> = Result<T, GasmError>;
+pub type GResult<T> = Result<T, GazmError>;
 
 #[derive(Error, Debug, Clone)]
-pub enum GasmError {
+pub enum GazmError {
     #[error(transparent)]
     UserError(#[from] UserError),
     #[error("Misc: {0}")]
@@ -22,20 +22,20 @@ pub enum GasmError {
     BinaryError(binary::BinaryError),
 }
 
-impl From<binary::BinaryError> for GasmError {
+impl From<binary::BinaryError> for GazmError {
     fn from(x: binary::BinaryError) -> Self {
-        GasmError::BinaryError(x)
+        GazmError::BinaryError(x)
     }
 }
 
-impl From<String> for GasmError {
+impl From<String> for GazmError {
     fn from(x: String) -> Self {
-        GasmError::Misc(x)
+        GazmError::Misc(x)
     }
 }
-impl From<anyhow::Error> for GasmError {
+impl From<anyhow::Error> for GazmError {
     fn from(x: anyhow::Error) -> Self {
-        GasmError::Misc(x.to_string())
+        GazmError::Misc(x.to_string())
     }
 }
 
@@ -250,7 +250,7 @@ impl UserError {
 #[derive(Clone)]
 pub struct ErrorCollector {
     max_errors: usize,
-    errors: Vec<GasmError>,
+    errors: Vec<GazmError>,
     errors_remaining: usize,
 }
 
@@ -305,7 +305,7 @@ impl ErrorCollector {
 
     pub fn raise_errors(&self) -> GResult<()> {
         if self.has_errors() {
-            Err(GasmError::TooManyErrors(self.clone()))
+            Err(GazmError::TooManyErrors(self.clone()))
         } else {
             Ok(())
         }
@@ -320,11 +320,11 @@ impl ErrorCollector {
 
     pub fn add_user_error(&mut self, err: UserError) -> GResult<()> {
         let failure = err.failure;
-        let err = GasmError::UserError(err);
+        let err = GazmError::UserError(err);
         self.add_error(err, failure)
     }
 
-    pub fn add_error(&mut self, err: GasmError, failure : bool) -> GResult<()> {
+    pub fn add_error(&mut self, err: GazmError, failure : bool) -> GResult<()> {
         self.errors.push(err.clone());
 
         if self.errors_remaining == 0 || failure {

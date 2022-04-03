@@ -18,7 +18,7 @@ use emu::cpu::RegEnum;
 use emu::isa::Instruction;
 
 use crate::asmctx::AsmCtx;
-use crate::error::{GResult, GasmError};
+use crate::error::{GResult, GazmError};
 use crate::fixerupper::FixerUpper;
 use crate::util::{ByteSize, ByteSizes};
 use item::Item::*;

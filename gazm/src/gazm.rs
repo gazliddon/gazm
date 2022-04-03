@@ -3,22 +3,21 @@ use std::path::{Path, PathBuf};
 
 use crate::ast::Ast;
 use crate::item::Node;
-use crate::tokenize::{tokenize, tokenize_file_from_str};
+use crate::tokenize::tokenize ;
 
 use utils::sources::Position;
 
 use thiserror::Error;
 
 use crate::error::UserError;
-use crate::error::{GasmError, GResult };
+use crate::error::{GazmError, GResult };
 
-pub struct Gasm<'a> {
+pub struct Gazm<'a> {
     ctx: &'a mut Context,
     opts: Opts,
 }
 
-
-impl<'a> Gasm<'a> {
+impl<'a> Gazm<'a> {
     pub fn new(ctx: &'a mut Context, opts: Opts) -> Self {
         Self { ctx, opts }
     }

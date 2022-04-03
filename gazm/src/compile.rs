@@ -1,6 +1,6 @@
 use crate::asmctx::AsmCtx;
 use crate::fixerupper::FixerUpper;
-use crate::gasm::Gasm;
+use crate::gazm::Gazm;
 use petgraph::visit::GraphRef;
 use std::collections::{HashMap, HashSet};
 use std::os::unix::prelude::AsRawFd;
@@ -16,7 +16,7 @@ use crate::error::UserError;
 use emu::isa::Instruction;
 
 use crate::ctx::Opts;
-use crate::error::{GResult, GasmError};
+use crate::error::{GResult, GazmError};
 
 use crate::regutils::*;
 
@@ -50,14 +50,14 @@ impl<'a> Compiler<'a> {
         ctx: &AsmCtx,
         id: AstNodeId,
         e: crate::binary::BinaryError,
-    ) -> GasmError {
+    ) -> GazmError {
         let (n, _) = self.get_node_item(ctx, id);
         let info = &ctx.eval.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
         UserError::from_text(msg, info, true).into()
     }
 
-    fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GasmError {
+    fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GazmError {
         let (n, _) = self.get_node_item(ctx, id);
         let p = 1 << (bits - 1);
 
@@ -358,7 +358,7 @@ impl<'a> Compiler<'a> {
         let pos = node.value().pos.clone();
         let mut no_mapping = false;
 
-        let res: Result<(), GasmError> = try {
+        let res: Result<(), GazmError> = try {
 
             match i {
                 Scope(opt) => {
@@ -526,7 +526,7 @@ impl<'a> Compiler<'a> {
         }
 
         match res {
-            Err(GasmError::BinaryError(_)) => {
+            Err(GazmError::BinaryError(_)) => {
                 Ok(())
             }
             Err(e) => ctx.errors.add_error(e, false),

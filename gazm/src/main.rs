@@ -32,15 +32,15 @@ mod tokenize;
 mod util;
 mod sizer;
 mod compile;
-mod gasm;
+mod gazm;
 mod evaluator;
 mod asmctx;
 mod fixerupper;
 mod regutils;
 
 use std::path::PathBuf;
-use crate::error::{GasmError, GResult };
-use crate::gasm::Gasm;
+use crate::error::{GazmError, GResult };
+use crate::gazm::Gazm;
 
 use crate::ctx::Context;
 use utils::sources::FileIo;
@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     use std::fs;
     
-    let mut a = Gasm::new(&mut ctx, opts.clone());
+    let mut a = Gazm::new(&mut ctx, opts.clone());
 
     let res = a.assemble_file(&opts.project_file);
 

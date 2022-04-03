@@ -1,7 +1,7 @@
 use crate::{
     commands, comments,
     ctx::Opts,
-    gasm::Gasm,
+    gazm::Gazm,
     item::{Item, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos},
@@ -13,7 +13,7 @@ use crate::{
 };
 
 
-use crate::error::{GasmError, GResult };
+use crate::error::{GazmError, GResult };
 use std::path::{Path, PathBuf};
 
 use nom::{
@@ -218,7 +218,7 @@ impl<'a> Tokens<'a> {
 }
 
 
-fn tokenize_file<P : AsRef<Path>, PP : AsRef<Path>>(
+fn tokenize_file<P : AsRef<Path>, PP : AsRef<Path> >(
     depth: usize,
     ctx: &mut crate::ctx::Context,
     opts: &Opts,

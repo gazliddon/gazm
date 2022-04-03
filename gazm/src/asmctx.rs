@@ -1,6 +1,6 @@
 
 use crate::ctx::Vars;
-use crate::error::{ErrorCollector, GResult, GasmError};
+use crate::error::{ErrorCollector, GResult, GazmError};
 use crate::{binary, fixerupper::FixerUpper};
 use crate::evaluator::Evaluator;
 use utils::sources::{FileIo, SourceFileLoader, SymbolError, SymbolNodeId, SymbolWriter};
