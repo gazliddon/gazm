@@ -22,10 +22,16 @@ fn get_star_comment(input: Span) -> IResult<Span> {
     recognize(pair(comments, not_line_ending))(input)
 }
 
-fn parse_comment(input: Span) -> IResult<Node> {
+pub fn parse_comment(input: Span) -> IResult<Node> {
     use Item::*;
 
     let (rest, matched) = get_comment(input)?;
+    let ret = Node::from_item_span(Comment(matched.to_string()), input);
+    Ok((rest, ret))
+}
+pub fn parse_star_comment(input: Span) -> IResult<Node> {
+    use Item::*;
+    let (rest, matched) = get_star_comment(input)?;
     let ret = Node::from_item_span(Comment(matched.to_string()), input);
     Ok((rest, ret))
 }

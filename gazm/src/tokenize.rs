@@ -12,15 +12,14 @@ use crate::{
     util::{self, ws},
 };
 
-
-use crate::error::{GazmError, GResult };
+use crate::error::{GResult, GazmError};
 use std::path::{Path, PathBuf};
 
 use nom::{
     branch::alt,
     bytes::complete::is_not,
     character::complete::{line_ending, multispace0},
-    combinator::{all_consuming, cut, opt, recognize},
+    combinator::{all_consuming, cut, not, opt, recognize},
     multi::many0,
     sequence::{preceded, terminated},
 };
@@ -31,7 +30,6 @@ use crate::error::{ErrorCollector, IResult, ParseError, UserError};
 use crate::locate::Span;
 use utils::sources::AsmSource;
 
-
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
         multispace0,
@@ -41,20 +39,50 @@ fn get_line(input: Span) -> IResult<Span> {
     Ok((rest, line))
 }
 
+fn parse_comments(stars: bool, input: Span) -> IResult<Node> {
+    if stars {
+        if let Ok((rest, comment)) = comments::parse_star_comment(input) {
+            return Ok((rest, comment));
+        }
+    }
+    comments::parse_comment(input)
+}
+
+fn parse_trailing_line_text<'a>(opts: &Opts, input: Span<'a>) -> IResult<'a, Node> {
+    if let Ok((rest, matched)) = parse_comments(opts.star_comments, input) {
+        return Ok((rest, matched));
+    } else {
+        if opts.trailing_comments {
+            let node = Node::from_item_span(Item::Comment(input.to_string()), input);
+            Ok((input, node))
+        } else {
+            let message = "Unexpected characters";
+            let pe = ParseError::new(message.to_string(), &input, false);
+            return Err(nom::Err::Error(pe));
+        }
+    }
+}
+
+fn parse_label_not_macro(input: Span) -> IResult<Node> {
+    let (_, _) = not(parse_macro_call)(input)?;
+    parse_label(input)
+}
+
 pub fn tokenize_file_from_str<P>(
     file: P,
     input: &str,
     ctx: &mut crate::ctx::Context,
     opts: Opts,
-) -> GResult<Node> 
-where P : AsRef<Path>
+) -> GResult<Node>
+where
+    P: AsRef<Path>,
 {
-    let pb : PathBuf = file.as_ref().into();
+    let pb: PathBuf = file.as_ref().into();
     let span = Span::new_extra(input, AsmSource::FromStr);
     let mut tokes = Tokens::new(ctx, &opts);
     tokes.add_tokens(span)?;
     let tokes = tokes.to_tokens();
-    let item = Item::TokenizedFile(pb.clone(),pb);
+    let item = Item::TokenizedFile(pb.clone(), pb);
     let file_node = Node::from_item_span(item, span).with_children(tokes);
     Ok(file_node)
 }
@@ -100,75 +128,57 @@ impl<'a> Tokens<'a> {
         self.add_node(node)
     }
 
-    fn handle_trailing_text(&mut self, rest: Span) -> Result<(), ParseError> {
-        if !rest.is_empty() {
-            if self.opts.trailing_comments {
-                self.add_comment(rest);
-            } else {
-                let message = "Unexpected characters";
-                return Err(ParseError::new(message.to_string(), &rest, false));
-            }
+    fn trailing_text(&mut self, input: Span<'a>) -> IResult<()> {
+        if !input.is_empty() {
+            let (rest, node) = parse_trailing_line_text(&self.opts, input)?;
+            self.add_node(node);
+            Ok((rest, ()))
+        } else {
+            Ok((input, ()))
         }
-        Ok(())
     }
 
-    fn tokenize_line(&mut self, line: Span) -> Result<(), ParseError> {
+    fn tokenize_line(&mut self, line: Span<'a>) -> IResult<()> {
         use commands::parse_command;
         use opcodes::parse_opcode;
         use util::parse_assignment;
 
-        if self.opts.star_comments {
-            if let Ok((_rest, matched)) = comments::strip_star_comment(line) {
-                self.add_node(matched);
-                return Ok(());
-            }
+        let mut input = line;
+
+        if let Ok((rest, node)) = parse_comments(self.opts.star_comments, input) {
+            self.add_node(node);
+            return self.trailing_text(rest);
         }
 
-        let (mut input, comment) = comments::strip_comments(line)?;
-        self.add_some_node(comment);
-
-        if input.is_empty() {
-            return Ok(());
-        }
-
-        // An equate
+        // If we find an equate, parse and return
         if let Ok((rest, equate)) = ws(parse_assignment)(input) {
             self.add_node(equate);
-            return self.handle_trailing_text(rest);
+            return self.trailing_text(rest);
         }
 
-        let res = ws(parse_macro_call)(input);
-
-        if let Ok((rest, node)) = res {
-            self.add_node(node);
-            return self.handle_trailing_text(rest);
-        }
-
-        if let Ok((_, label)) = all_consuming(ws(parse_label))(input) {
-            let node = mk_pc_equate(label);
-            self.add_node(node);
-            return Ok(());
-        }
-
-        if let Ok((rest, label)) = ws(parse_label)(input) {
+        // If this is a label, add the label and carry on
+        if let Ok((rest, label)) = ws(parse_label_not_macro)(input) {
             let node = mk_pc_equate(label);
             self.add_node(node);
             input = rest;
         }
 
-        let (rest, body) = alt((ws(parse_command), ws(parse_opcode)))(input)?;
+        // if this is an opcode parse and return
+        if let Ok((rest, body)) = 
+            alt((ws(parse_command), ws(parse_opcode), ws(parse_macro_call)))(input)
+        {
+            self.add_node(body);
+            return self.trailing_text(rest);
+        }
 
-        self.handle_trailing_text(rest)?;
-        self.add_node(body);
-
-        Ok(())
+        Ok((input, ()))
     }
 
     pub fn to_tokens(self) -> Vec<Node> {
         self.tokens
     }
 
-    fn add_tokens(&mut self, input: Span) -> GResult<()> {
+    fn add_tokens(&mut self, input: Span<'a>) -> GResult<()> {
         use crate::macros::MacroCall;
 
         // let ret = Node::from_item_span(Item::Block, input.clone());
@@ -193,6 +203,7 @@ impl<'a> Tokens<'a> {
             }
 
             let res: Result<(), ParseError> = try {
+
                 if let Ok((rest, _)) = get_struct(source) {
                     let (_, matched) = parse_struct_definition(source)?;
                     self.add_node(matched);
@@ -202,7 +213,9 @@ impl<'a> Tokens<'a> {
 
                 let (rest, line) = get_line(source)?;
                 source = rest;
-                self.tokenize_line(line)?;
+
+                let _ = self.tokenize_line(line)?;
+                ()
             };
 
             match res {
@@ -217,8 +230,7 @@ impl<'a> Tokens<'a> {
     }
 }
 
-
-fn tokenize_file<P : AsRef<Path>, PP : AsRef<Path> >(
+fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     depth: usize,
     ctx: &mut crate::ctx::Context,
     opts: &Opts,
@@ -264,7 +276,11 @@ fn tokenize_file<P : AsRef<Path>, PP : AsRef<Path> >(
 
 use crate::macros::Macros;
 
-pub fn tokenize<P: AsRef<Path>>(ctx: &mut crate::ctx::Context, opts: &Opts, file: P) -> GResult<Node> {
+pub fn tokenize<P: AsRef<Path>>(
+    ctx: &mut crate::ctx::Context,
+    opts: &Opts,
+    file: P,
+) -> GResult<Node> {
     let parent = PathBuf::new();
 
     let msg = format!("Reading {}", file.as_ref().to_string_lossy());

@@ -16,6 +16,7 @@ impl From<clap::ArgMatches> for Opts {
             star_comments: m.is_present("star-comments"),
             ignore_relative_offset_errors: m.is_present("ignore-relative-offset-errors"),
             project_file: m.value_of("project-file").unwrap().into(),
+            lst_file : m.value_of("lst-file").map(|f| f.to_string()),
             ..Default::default()
         };
         opts.verbose = match m.occurrences_of("verbose") {
@@ -149,6 +150,14 @@ pub fn parse() -> clap::ArgMatches {
                 .use_value_delimiter(false)
                 .validator(|s| s.parse::<usize>())
                 .short('m'),
+        )
+        .arg(
+            Arg::new("lst-file")
+                .help("Output a list file")
+                .long("lst-file")
+                .short('l')
+                .takes_value(true)
+                .use_value_delimiter(false)
         )
         .arg(
             Arg::new("mem-size")

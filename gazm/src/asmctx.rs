@@ -1,5 +1,5 @@
 
-use crate::ctx::Vars;
+use crate::ctx::{LstFile, Vars};
 use crate::error::{ErrorCollector, GResult, GazmError};
 use crate::{binary, fixerupper::FixerUpper};
 use crate::evaluator::Evaluator;
@@ -20,6 +20,7 @@ pub struct AsmCtx<'a> {
     pub vars : &'a Vars,
     pub errors: &'a mut ErrorCollector,
     pub opts: &'a Opts,
+    pub lst_file: &'a mut LstFile,
 }
 
 impl<'a> AsmCtx<'a> {

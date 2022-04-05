@@ -1,15 +1,27 @@
-use nom::{InputTake, branch::alt, bytes::complete::*, character::complete::*, combinator::recognize, combinator::{opt, rest}, multi::many1, sequence::{preceded, separated_pair}};
+use nom::{
+    branch::alt,
+    bytes::complete::*,
+    character::complete::*,
+    combinator::recognize,
+    combinator::{opt, rest},
+    multi::many1,
+    sequence::{preceded, separated_pair},
+    InputTake,
+};
 
+use nom::combinator::map;
 use nom_locate::LocatedSpan;
 
 pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError<'a>>;
-pub type Span<'a> = LocatedSpan<&'a str, ()>;
+pub type Span<'a> = LocatedSpan<&'a str, bool>;
 
 pub enum Command {
     Diss(Option<isize>),
     Mem(Option<isize>),
     Help,
     Quit,
+    Hex,
+    Dec,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -79,13 +91,17 @@ fn num_get(input: Span) -> IResult<Span> {
     recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
 }
 
-fn get_hex(input: Span) -> IResult<isize> {
-    let (rest, _) = alt((tag("0x"), tag("0X"), tag("$")))(input)?;
-    let (rest, num_str) = num_get(rest)?;
+fn get_hex_no_tag(input: Span) -> IResult<isize> {
+    let (rest, num_str) = num_get(input)?;
     let num = isize::from_str_radix(&num_str.replace('_', ""), 16)
         .map_err(|e| num_parse_err(num_str, "hex", e))?;
 
     Ok((rest, num))
+}
+
+fn get_hex(input: Span) -> IResult<isize> {
+    let (rest, _) = alt((tag("0x"), tag("0X"), tag("$")))(input)?;
+    get_hex_no_tag(rest)
 }
 
 fn get_binary(input: Span) -> IResult<isize> {
@@ -109,31 +125,36 @@ fn get_dec(input: Span) -> IResult<isize> {
 }
 
 pub fn get_number(input: Span) -> IResult<isize> {
-    alt((get_hex, get_binary, get_dec))(input)
+    if input.extra {
+        alt((get_hex, get_hex_no_tag, get_dec))(input)
+    } else {
+        alt((get_hex, get_binary, get_dec))(input)
+    }
 }
 
 fn parse_diss(input: Span) -> IResult<Command> {
     let arg = preceded(many1(char(' ')), get_number);
-    let (rest, matched) = preceded( tag("d"),opt(arg))(input)?;
+    let (rest, matched) = preceded(tag("d"), opt(arg))(input)?;
     Ok((rest, Command::Diss(matched)))
 }
 
 fn parse_mem(input: Span) -> IResult<Command> {
     let arg = preceded(many1(char(' ')), get_number);
-    let (rest, matched) = preceded( tag("m"),opt(arg))(input)?;
+    let (rest, matched) = preceded(tag("m"), opt(arg))(input)?;
     Ok((rest, Command::Mem(matched)))
 }
 
-fn parse_quit(input: Span) -> IResult<Command> {
-    let (rest,_) = tag("h")(input)?;
-    Ok((rest, Command::Quit ))
+fn parse_single(input: Span) -> IResult<Command> {
+    alt((
+        map(tag("hex"), |_| Command::Hex),
+        map(tag("dec"), |_| Command::Dec),
+        map(tag("h"), |_| Command::Help),
+        map(tag("q"), |_| Command::Quit),
+
+    ))(input)
 }
 
-fn parse_help(input: Span) -> IResult<Command> {
-    let (rest,_) = tag("q")(input)?;
-    Ok((rest, Command::Quit ))
-}
-
-pub fn parse_command(input: Span) -> IResult<Command> {
-    alt((parse_diss, parse_mem, parse_quit, parse_help))(input)
+pub fn parse_command(input: &str, default_hex : bool) -> IResult<Command> {
+    let sp = Span::new_extra(input, default_hex);
+    alt((parse_diss, parse_mem, parse_single))(sp)
 }

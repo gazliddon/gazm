@@ -153,6 +153,8 @@ impl Diss {
 
         let x = emu::cpu::InstructionDecoder::new_from_reader(&mut reader).unwrap();
 
+        reader.set_addr(x.operand_addr);
+
         let mut text = x.instruction_info.action.to_string();
         let mut index_mode = None;
 

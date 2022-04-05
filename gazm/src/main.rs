@@ -82,13 +82,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::fs;
     
     let mut a = Gazm::new(&mut ctx, opts.clone());
+    a.assemble_file(&opts.project_file)?;
 
-    let res = a.assemble_file(&opts.project_file);
+    for (addr,count) in ctx.binary.check_against_referece() {
+        println!("{addr:04X} {count}");
+    }
 
-    println!("num of errors = {}", ctx.errors.num_of_errors());
-    ctx.errors.raise_errors()?;
-
-    res?;
+    if let Some(lst_file) = &opts.lst_file {
+        let text = ctx.lst_file.lines.join("\n");
+        fs::write(lst_file, text).with_context(|| format!("Unable to write list file {lst_file}"))?;
+        x.status(format!("Written lst file {lst_file}"))
+    }
 
     if let Some(sym_file) = &opts.syms_file {
         // x.status(format!("Writing symbols: {}", sym_file));

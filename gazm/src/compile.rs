@@ -1,4 +1,5 @@
 use crate::asmctx::AsmCtx;
+use crate::astformat::as_string;
 use crate::fixerupper::FixerUpper;
 use crate::gazm::Gazm;
 use petgraph::visit::GraphRef;
@@ -17,6 +18,7 @@ use emu::isa::Instruction;
 
 use crate::ctx::Opts;
 use crate::error::{GResult, GazmError};
+use crate::messages::debug_mess;
 
 use crate::regutils::*;
 
@@ -88,8 +90,7 @@ impl<'a> Compiler<'a> {
         let (node, _) = self.get_node_item(ctx, id);
 
         let si = ctx.eval.get_source_info(&node.value().pos).unwrap();
-
-        messages().debug(format!("{} {:?}", si.line_str, imode));
+        debug_mess!("{} {:?}", si.line_str, imode);
 
         ctx.binary.write_byte(idx_byte)?;
 
@@ -306,7 +307,6 @@ impl<'a> Compiler<'a> {
             }
         };
 
-
         // Add memory to source code mapping for this opcode
         let (phys_range, range) = ctx.binary.range_to_write_address(pc);
         self.add_mapping(ctx, phys_range, range, id, ItemType::OpCode);
@@ -353,13 +353,11 @@ impl<'a> Compiler<'a> {
 
         let (node, i) = self.get_node_item(ctx, id);
 
-        let x = super::messages::messages();
         let mut pc = ctx.binary.get_write_address();
         let pos = node.value().pos.clone();
-        let mut no_mapping = false;
+        let mut dont_map = false;
 
         let res: Result<(), GazmError> = try {
-
             match i {
                 Scope(opt) => {
                     ctx.set_root_scope();
@@ -387,11 +385,11 @@ impl<'a> Compiler<'a> {
                 SetPc(new_pc) => {
                     ctx.binary.set_write_address(new_pc, 0);
                     pc = new_pc;
-                    x.debug(format!("Set PC to {:02X}", pc));
+                    debug_mess!("Set PC to {:02X}", pc);
                 }
 
                 SetPutOffset(offset) => {
-                    x.debug(format!("Set put offset to {}", offset));
+                    debug_mess!("Set put offset to {}", offset);
                     ctx.binary.set_write_offset(offset);
                 }
 
@@ -400,8 +398,8 @@ impl<'a> Compiler<'a> {
                 }
 
                 MacroCallProcessed { scope, macro_id } => {
-                    no_mapping = true;
                     // let si = ctx.eval.get_source_info(&pos).unwrap();
+                    dont_map = true;
 
                     let (m_node, _) = self.get_node_item(ctx, macro_id);
 
@@ -494,41 +492,28 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            let (_, phys_range) = ctx.binary.range_to_write_address(pc);
+            if !dont_map {
+                let (_, phys_range) = ctx.binary.range_to_write_address(pc);
 
-            if !no_mapping{
                 if let Ok(si) = ctx.eval.get_source_info(&node.value().pos) {
-
                     let mem_text = if phys_range.is_empty() {
                         "".to_owned()
                     } else {
                         format!("{:02X?}", ctx.binary.get_bytes_range(phys_range.clone()))
                     };
 
-                    let m_pc = format!(
-                        "{:05X} {:04X} {} ",
-                        phys_range.start,
-                        pc,
-                        mem_text
-                    );
+                    let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, pc, mem_text);
 
                     let m = format!("{:50}{}", m_pc, si.line_str);
-
-                    if m.len() < 100 {
-                        messages().debug(m);
+                    if !mem_text.is_empty() {
+                        ctx.lst_file.add(&m);
                     }
                 }
             }
         };
 
-        for b in ctx.binary.flush_errors() {
-            ctx.errors.add_error(self.binary_error(ctx, id, b), false)?;
-        }
-
         match res {
-            Err(GazmError::BinaryError(_)) => {
-                Ok(())
-            }
+            Err(GazmError::BinaryError(_)) => Ok(()),
             Err(e) => ctx.errors.add_error(e, false),
             _ => res,
         }

@@ -54,6 +54,10 @@ impl Messages {
         self.verbosity = *verbosity;
     }
 
+    pub fn get_verbosity(&self) -> Verbosity {
+        self.verbosity
+    }
+
     pub fn indent(&mut self) {
         self.indent += 1;
     }
@@ -213,3 +217,18 @@ where
     x.deindent();
     r
 }
+
+
+#[macro_export]
+macro_rules! debug_mess {
+    ($($arg:tt)*) => {{
+        let m = messages();
+        if m.get_verbosity() == $crate::messages::Verbosity::Debug {
+        let res = std::fmt::format(std::format_args!($($arg)*));
+        m.debug(res)
+        }
+    }}
+}
+pub(crate) use debug_mess;
+
+

@@ -57,6 +57,7 @@ impl<'a> Gazm<'a> {
             vars: &self.ctx.vars,
             errors: &mut self.ctx.errors,
             opts: &self.opts,
+            lst_file : &mut self.ctx.lst_file,
         };
 
         size_tree( &mut asm_ctx,id, &tree)?;

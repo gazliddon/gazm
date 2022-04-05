@@ -5,6 +5,7 @@ use crate::messages::Verbosity;
 use utils::sources::{FileIo, SourceFileLoader, SourceMapping, Sources, SymbolTree};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::vec;
 
 use crate::gazm::Gazm;
 
@@ -58,6 +59,7 @@ pub struct Opts {
     pub deps_file: Option<String>,
     pub memory_image_size: usize,
     pub project_file : PathBuf,
+    pub lst_file: Option<String>,
 }
 
 impl Default for Opts {
@@ -73,6 +75,7 @@ impl Default for Opts {
             deps_file: None,
             memory_image_size: 65536,
             project_file: "lol".to_owned().into(),
+            lst_file : None,
         }
     }
 }
@@ -85,7 +88,26 @@ pub struct Context {
     pub vars: Vars,
     pub binary : binary::Binary,
     pub source_map : SourceMapping,
+    pub lst_file : LstFile,
 }
+
+#[derive(Debug, Clone)]
+pub struct LstFile {
+    pub lines: Vec<String>
+}
+
+impl LstFile {
+    pub fn new() -> Self {
+        Self {
+            lines : vec![]
+        }
+    }
+
+    pub fn add(&mut self, line : &str) {
+        self.lines.push(line.to_string())
+    }
+}
+
 
 fn to_gazm(e : anyhow::Error) -> GazmError {
     GazmError::Misc(e.to_string())
@@ -100,11 +122,6 @@ impl Context {
         &self.source_file_loader.sources
     }
 
-    pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
-        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        self.source_file_loader.write(path, data)
-    }
-
     pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GazmError> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.source_file_loader.get_size(path).map_err(to_gazm)?;
@@ -117,16 +134,6 @@ impl Context {
             .expand_vars(path.as_ref().to_string_lossy())
             .into();
         let ret = self.source_file_loader.read_source(&path).map_err(to_gazm)?;
-        Ok(ret)
-    }
-
-    pub fn read_binary_chunk<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        r: std::ops::Range<usize>,
-    ) -> Result<(PathBuf, Vec<u8>), GazmError> {
-        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.source_file_loader.read_binary_chunk(path, r).map_err(to_gazm)?;
         Ok(ret)
     }
 
@@ -149,6 +156,7 @@ impl Default for Context {
             source_file_loader: Default::default(),
             vars: Default::default(),
             symbols: Default::default(),
+            lst_file : LstFile::new()
         }
     }
 }

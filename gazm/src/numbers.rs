@@ -1,9 +1,11 @@
+use nom::AsBytes;
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, tag};
 use nom::combinator::recognize;
 use nom::multi::many1;
 
-use nom::character::complete::alphanumeric1;
+use nom::character::complete::{ alphanumeric1, anychar };
+use nom::sequence::preceded;
 use utils::sources::AsmSource;
 
 use crate::error::{IResult, ParseError};
@@ -37,6 +39,16 @@ fn get_binary(input: Span) -> IResult<i64> {
     Ok((rest, num))
 }
 
+fn get_char(input: Span) -> IResult<i64> {
+    let (rest,matched) = preceded(tag("'"), anychar)(input)?;
+    let (rest,_) = tag("'")(rest)?;
+    let mut s = String::new();
+    s.push(matched);
+    let num_bytes = s.as_bytes();
+    let ret = num_bytes[0];
+    Ok((rest,ret as i64))
+}
+
 fn get_dec(input: Span) -> IResult<i64> {
     let (rest, num_str) = num_get(input)?;
 
@@ -49,7 +61,7 @@ fn get_dec(input: Span) -> IResult<i64> {
 }
 
 pub fn get_number(input: Span) -> IResult<i64> {
-    alt((get_hex, get_binary, get_dec))(input)
+    alt((get_hex, get_binary, get_dec, get_char))(input)
 }
 
 pub fn get_number_err(input: &str) -> Result<isize, String> {

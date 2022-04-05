@@ -261,9 +261,9 @@ impl<'a> Sizer<'a> {
                     pc as i64
                 };
 
-                let scope = ctx.get_scope_fqn();
-                let msg = format!("Setting {scope}::{name} to ${pc:04X} ({pc})");
-                messages().debug(msg);
+                // let scope = ctx.get_scope_fqn();
+                // let msg = format!("Setting {scope}::{name} to ${pc:04X} ({pc})");
+                // messages().debug(msg);
 
                 // Add the symbol
                 ctx.add_symbol_with_value(name, pcv as usize).map_err(|e| {

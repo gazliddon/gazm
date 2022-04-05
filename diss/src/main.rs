@@ -74,20 +74,29 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut addr = 0;
+    let mut default_hex = false;
 
     loop {
         use commands::Command;
         let readline = rl.readline("> ");
         match readline {
             Ok(line) => {
-                let x = parse_command(LocatedSpan::new(&line));
+                let x = parse_command(&line, default_hex);
 
                 if let Ok((_, x)) = x {
                     match &x {
+                        Command::Hex => {
+                            println!("Default radix : Hex");
+                            default_hex = true;
+                        },
+                        Command::Dec => {
+                            println!("Default radix : Decimal");
+                            default_hex = false;
+                        }
+
                         Command::Diss(d_addr) => {
-
                             addr = d_addr.unwrap_or(addr);
-
+                            println!("Disassembling {addr:04X}");
                             let mut i = mk_diss_it(&mut ctx, addr as usize);
 
                             for _ in 0..10 {
