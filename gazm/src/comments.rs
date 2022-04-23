@@ -6,7 +6,7 @@ use nom::bytes::complete::take_until;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::recognize;
-use nom::sequence::{pair, tuple};
+use nom::sequence::{pair, preceded, tuple};
 
 use crate::error::IResult;
 use crate::locate::Span;
@@ -15,11 +15,12 @@ static COMMENT: &str = ";";
 
 fn get_comment(input: Span) -> IResult<Span> {
     let comments = alt((tag(";"), tag("//")));
-    recognize(pair(comments, not_line_ending))(input)
+    preceded(comments, recognize(not_line_ending))(input)
 }
+
 fn get_star_comment(input: Span) -> IResult<Span> {
     let comments = tag("*");
-    recognize(pair(comments, not_line_ending))(input)
+    preceded(comments, recognize(not_line_ending))(input)
 }
 
 pub fn parse_comment(input: Span) -> IResult<Node> {

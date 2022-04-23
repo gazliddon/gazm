@@ -157,12 +157,7 @@ impl<'a> Compiler<'a> {
         let (node, _) = self.get_node_item(ctx, id);
         let (physical_address, count) = ctx.eval.eval_two_args(node)?;
 
-        let data = ctx
-            .binary
-            .get_bytes(physical_address as usize, count as usize)
-            .to_vec();
-
-        let p = ctx.write_bin_file(path, data);
+        let p = ctx.write_bin_file(path, physical_address as usize..( physical_address+count ) as usize);
 
         messages().info(format!(
             "Write mem: {} {physical_address:05X} {count:05X}",
@@ -484,6 +479,11 @@ impl<'a> Compiler<'a> {
                     let (phys_range, range) = ctx.binary.range_to_write_address(pc);
                     self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
                 }
+
+                Exec => {
+                    let (exec_addr,_) = ctx.eval.eval_first_arg(node)?;
+                    ctx.set_exec_addr(exec_addr as usize);
+                },
 
                 IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
                 | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp => (),

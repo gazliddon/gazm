@@ -43,7 +43,7 @@ use crate::error::{GazmError, GResult };
 use crate::gazm::Gazm;
 
 use crate::ctx::Context;
-use utils::sources::FileIo;
+use utils::sources::{FileIo, SourceDatabase};
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___
@@ -95,9 +95,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if let Some(sym_file) = &opts.syms_file {
-        // x.status(format!("Writing symbols: {}", sym_file));
-        // let j = serde_json::to_string_pretty(&ret.database).expect("Unable to serialize to json");
-        // fs::write(sym_file, j).with_context(|| format!("Unable to write {sym_file}"))?;
+
+        let sd : SourceDatabase = ( &ctx ).into();
+
+        x.status(format!("Writing symbols: {}", sym_file));
+        let j = serde_json::to_string_pretty(&sd).expect("Unable to serialize to json");
+        fs::write(sym_file, j).with_context(|| format!("Unable to write {sym_file}"))?;
 
         if let Some(deps) = &opts.deps_file {
             x.status(format!("Writing deps file : {deps}"));

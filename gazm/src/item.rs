@@ -201,6 +201,7 @@ pub struct StructEntry {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
+    BlankLine,
     Skip(usize),
     LocalAssignment(String),
     Assignment(String),
@@ -232,6 +233,8 @@ pub enum Item {
 
     RegisterSet(HashSet<RegEnum>),
 
+    ScopedSymbol(u64),
+
     Label(String),
     LocalLabel(String),
     Comment(String),
@@ -253,6 +256,7 @@ pub enum Item {
 
     TokenizedFile(PathBuf, PathBuf),
 
+    Exec,
     Org,
     Put,
 

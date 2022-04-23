@@ -1,8 +1,5 @@
-
 use super::*;
-
 use std::collections::HashMap;
-
 
 // #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy)]
 // pub struct SymbolId(u64);
@@ -13,6 +10,36 @@ use std::collections::HashMap;
 //     }
 // }
 
+#[derive(Debug)]
+struct ScopedSymbol<'a> {
+    path: Vec<&'a str>,
+    symbol: &'a str,
+}
+
+impl<'a> ScopedSymbol<'a> {
+    pub fn new(fqn : &'a str) -> Self {
+         let mut path : Vec<_>  = fqn.split("::").collect();
+         assert!(path.len() > 0 );
+         let symbol = path.last().unwrap().clone();
+         path.resize(path.len() - 1, "");
+         Self {
+             symbol, path
+         }
+    }
+    pub fn get_symbol(&self) -> &str {
+        self.symbol
+    }
+
+    pub fn get_fqn(&self) -> String {
+        if self.path.is_empty() {
+            self.symbol.to_string()
+        } else {
+            format!("{}::{}", self.path.join("::"), self.symbol)
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct SymbolTable<V : super::ValueTraits, ID : IdTraits> {
     scope: String,
     name_to_id: HashMap<String, ID>,

@@ -2,7 +2,7 @@ use crate::binary;
 use crate::error::{ParseError, UserError, ErrorCollector, GazmError, GResult};
 use crate::macros::Macros;
 use crate::messages::Verbosity;
-use utils::sources::{FileIo, SourceFileLoader, SourceMapping, Sources, SymbolTree};
+use utils::sources::{FileIo, SourceDatabase, SourceFileLoader, SourceMapping, Sources, SymbolTree};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::vec;
@@ -60,6 +60,8 @@ pub struct Opts {
     pub memory_image_size: usize,
     pub project_file : PathBuf,
     pub lst_file: Option<String>,
+    pub encode_blank_lines: bool,
+    pub cwd : PathBuf,
 }
 
 impl Default for Opts {
@@ -76,11 +78,15 @@ impl Default for Opts {
             memory_image_size: 65536,
             project_file: "lol".to_owned().into(),
             lst_file : None,
+            encode_blank_lines : false,
+            cwd : std::env::current_dir().unwrap(),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+use utils::sources::nsym;
+
+#[derive(Debug)]
 pub struct Context {
     pub symbols: SymbolTree,
     pub source_file_loader: SourceFileLoader,
@@ -89,6 +95,9 @@ pub struct Context {
     pub binary : binary::Binary,
     pub source_map : SourceMapping,
     pub lst_file : LstFile,
+    pub symbols2 : nsym::Symbols,
+    pub exec_addr : Option<usize>,
+    pub bin_chunks : Vec<BinWritten>,
 }
 
 #[derive(Debug, Clone)]
@@ -147,6 +156,23 @@ impl Context {
     }
 }
 
+impl From<&Context> for SourceDatabase {
+    fn from(c: &Context) -> Self {
+        SourceDatabase::new(
+            &c.source_map,
+            &c.sources(),
+            &c.symbols
+        )
+    }
+}
+
+/// Record of a written binary chunk
+#[derive(Debug)]
+pub struct BinWritten {
+    pub file : PathBuf,
+    pub addr : std::ops::Range<usize>,
+}
+
 impl Default for Context {
     fn default() -> Self {
         Self {
@@ -156,7 +182,11 @@ impl Default for Context {
             source_file_loader: Default::default(),
             vars: Default::default(),
             symbols: Default::default(),
-            lst_file : LstFile::new()
+            lst_file : LstFile::new(),
+            symbols2: nsym::Symbols::new(),
+            exec_addr : None,
+            bin_chunks: vec![],
+
         }
     }
 }

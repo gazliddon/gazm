@@ -1,4 +1,4 @@
-
+use std::collections::HashMap;
 
 use super::table::SymbolTable;
 use super::{IdTraits, SymbolError, ValueTraits};
@@ -8,7 +8,13 @@ pub type ScopeRef<'a, V, ID> = ego_tree::NodeRef<'a, SymbolTable<V, ID>>;
 pub type ScopeMut<'a, V, ID> = ego_tree::NodeMut<'a, SymbolTable<V, ID>>;
 pub type ScopeId = ego_tree::NodeId;
 
-struct Scopes<V: ValueTraits, ID: IdTraits> {
+pub struct ScopeNode<V : ValueTraits, ID : IdTraits> {
+    symbols: SymbolTable<V,ID>,
+    aliases : HashMap<String, ScopeId>
+}
+
+#[derive(Debug)]
+pub struct Scopes<V: ValueTraits, ID: IdTraits> {
     scopes: ego_tree::Tree<SymbolTable<V, ID>>,
     root_id: ego_tree::NodeId,
 }
@@ -24,6 +30,7 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
     pub fn get(&self, id: ScopeId) -> Option<ScopeRef<'_, V, ID>> {
         self.scopes.get(id)
     }
+
     pub fn get_mut(&mut self, id: ScopeId) -> Option<ScopeMut<'_, V, ID>> {
         self.scopes.get_mut(id)
     }
@@ -59,18 +66,31 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         let id = scope.append(SymbolTable::new(name)).id();
         Ok(id)
     }
+
+    pub fn cursor(&mut self, s : ScopeId) -> ScopeCursor<V,ID> { 
+        ScopeCursor { scopes: self, current_scope: s }
+    }
+
+    pub fn root_cursor(&mut self) -> ScopeCursor<V,ID> {
+        self.cursor(self.scopes.root().id())
+    }
+
+    pub fn get_symbol_id(&self, _name : &str) -> Option<ScopedSymbolId<ID>> {
+        None
+    }
 }
 
-struct ScopeCursor<'a, V: ValueTraits, ID: IdTraits> {
+pub struct ScopeCursor<'a, V: ValueTraits, ID: IdTraits> {
     scopes: &'a mut Scopes<V, ID>,
     current_scope: ScopeId,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct ScopedSymbolId<ID: IdTraits> {
+pub struct ScopedSymbolId<ID: IdTraits> {
     pub scope: ScopeId,
     pub symbol: ID,
 }
+
 
 impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
     pub fn get_current_scope_id(&self) -> ScopeId {
@@ -116,6 +136,7 @@ impl<'a, V: ValueTraits, ID: IdTraits> SymbolReader<V, ID> for ScopeCursor<'a, V
         let scope = self.scopes.get(self.current_scope)?;
         scope.value().get_symbol_id(name)
     }
+
     fn get_symbol(&self, id: ID) -> Option<&V> {
         let scope = self.scopes.get(self.current_scope)?;
         scope.value().get_symbol(id)

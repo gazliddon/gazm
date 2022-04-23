@@ -108,9 +108,11 @@ pub fn parse_macro_call(input: Span) -> IResult<Node> {
     let (rest,name) = get_just_label(rest)?;
     let (rest, args) = ws(wrapped_chars('(', ws(separated_list0(sep, parse_expr)), ')'))(rest)?;
 
+    let matched_span = matched_span(input, rest);
+
     let ret = Node::from_item_span(
         Item::MacroCall(name.to_string())
-        , input).with_children(args);
+        , matched_span).with_children(args);
 
     Ok((rest, ret))
 }

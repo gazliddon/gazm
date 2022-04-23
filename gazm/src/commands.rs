@@ -34,6 +34,13 @@ fn parse_org_arg(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
+fn parse_exec_arg(input: Span) -> IResult<Node> {
+    let (rest, matched) = parse_expr(input)?;
+    let ret = Node::from_item_span(Exec, input).with_child(matched);
+    Ok((rest, ret))
+}
+
+
 fn parse_fcc_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = util::wrapped_chars('"', is_not("\""), '"')(input)?;
     let ret = Node::from_item_span(Fcc(matched.to_string()), input);
@@ -189,6 +196,7 @@ lazy_static! {
             ("rmb", parse_rmb_arg),
             ("org", parse_org_arg),
             ("include", parse_include_arg),
+            ("exec", parse_exec_arg),
         ];
         v.into_iter().collect()
     };

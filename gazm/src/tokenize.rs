@@ -33,7 +33,7 @@ use utils::sources::AsmSource;
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
         multispace0,
-        terminated(recognize(many0(is_not("\n"))), opt(line_ending)),
+        terminated(recognize(many0(is_not("\r\n"))), opt(line_ending)),
     ))(input)?;
 
     Ok((rest, line))
@@ -98,14 +98,14 @@ fn mk_pc_equate(node: Node) -> Node {
     }
 }
 
-struct Tokens<'a> {
+pub struct Tokens<'a> {
     tokens: Vec<Node>,
     ctx: &'a mut crate::ctx::Context,
     opts: Opts,
 }
 
 impl<'a> Tokens<'a> {
-    fn new(ctx: &'a mut crate::ctx::Context, opts: &Opts) -> Self {
+    pub fn new(ctx: &'a mut crate::ctx::Context, opts: &Opts) -> Self {
         Self {
             tokens: vec![],
             ctx,
@@ -145,6 +145,12 @@ impl<'a> Tokens<'a> {
 
         let mut input = line;
 
+        if line.is_empty() && self.opts.encode_blank_lines {
+            let node = Node::from_item_span(Item::BlankLine, line);
+            self.add_node(node);
+            return Ok((input,()))
+        }
+
         if let Ok((rest, node)) = parse_comments(self.opts.star_comments, input) {
             self.add_node(node);
             return self.trailing_text(rest);
@@ -178,7 +184,7 @@ impl<'a> Tokens<'a> {
         self.tokens
     }
 
-    fn add_tokens(&mut self, input: Span<'a>) -> GResult<()> {
+    pub fn add_tokens(&mut self, input: Span<'a>) -> GResult<()> {
         use crate::macros::MacroCall;
 
         // let ret = Node::from_item_span(Item::Block, input.clone());
@@ -186,6 +192,7 @@ impl<'a> Tokens<'a> {
         let mut source = input;
 
         while !source.is_empty() {
+
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
                 let mut macro_tokes = Tokens::new(self.ctx, &self.opts);
                 macro_tokes.add_tokens(body).unwrap();
@@ -201,6 +208,8 @@ impl<'a> Tokens<'a> {
                 source = rest;
                 continue;
             }
+
+
 
             let res: Result<(), ParseError> = try {
 

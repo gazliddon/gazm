@@ -58,6 +58,8 @@ impl<'a> Gazm<'a> {
             errors: &mut self.ctx.errors,
             opts: &self.opts,
             lst_file : &mut self.ctx.lst_file,
+            bin_chunks : &mut self.ctx.bin_chunks,
+            exec_addr : &mut self.ctx.exec_addr,
         };
 
         size_tree( &mut asm_ctx,id, &tree)?;

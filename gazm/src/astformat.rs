@@ -36,11 +36,16 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             let x: DisplayWrapper = n.into();
             x.to_string()
         };
+
         let child_item = |n: usize| node.children().nth(n).map(|x| &x.value().item);
 
         let child_string = |n: usize| {
-            let v = node.children().nth(n).unwrap();
-            to_string(v)
+            
+            if let Some(v) = node.children().nth(n) {
+                to_string(v)
+            } else {
+                format!("ERR {:?}", node.value().item)
+            }
         };
 
         let join_kids = |sep| {
@@ -55,10 +60,14 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Pc => "*".to_string(),
 
-            Label(name) => format!("Label: {name}"),
-            LocalLabel(name) => format!("LocalLable: {name}"),
+            Label(name) => name.clone(),
+            LocalLabel(name) => format!("!{name}"),
 
-            Comment(comment) => comment.clone(),
+            Comment(comment) => format!("; {comment}"),
+
+            Block =>  {
+                join_kids("\n")
+            }
 
             // QuotedString(test) => format!("\"{}\"", test),
             // Register(r) => r.to_string(),
@@ -70,7 +79,10 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{} equ {}", name, child_string(0))
             }
 
-            Expr => join_kids(""),
+            Expr => {
+                println!("EXPR");
+                join_kids("")
+            }
 
             PostFixExpr => join_kids(" "),
 
@@ -91,6 +103,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             Xor => "^".to_string(),
 
             Org => {
+                println!("org");
                 format!("org {}", child_string(0))
             }
 
@@ -118,6 +131,11 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             ShiftRight => ">>".into(),
 
             ShiftLeft => "<<".into(),
+            Fcc(text) => format!("{text:?}"),
+            Fdb(_) | 
+            Fcb(_) => {
+                format!("fcb {}", join_kids(","))
+            }
 
             OpCode(ins, amode) => {
                 use item::AddrModeParseType::*;

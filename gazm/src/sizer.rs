@@ -3,7 +3,7 @@ use ego_tree::iter::Children;
 use serde_json::ser::Formatter;
 use std::collections::{HashMap, HashSet};
 use utils::sources::{
-    ItemType, SourceDatabase, SourceMapping, Sources, SymbolError, SymbolQuery, SymbolWriter,
+    ItemType, SourceMapping, Sources, SymbolError, SymbolQuery, SymbolWriter,
 };
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};

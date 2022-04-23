@@ -1,5 +1,7 @@
 mod table;
 mod tree;
+pub use table::*;
+pub use tree::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SymbolError<ID> {
@@ -8,11 +10,10 @@ pub enum SymbolError<ID> {
     NotFound,
 }
 use std::hash::Hash;
-
 pub trait IdTraits : From<usize> + Clone + PartialEq + Eq + Hash + Copy {
 }
 
-pub trait ValueTraits : Default + Clone + Copy { }
+pub trait ValueTraits : Default + Clone { }
 
 pub trait SymbolReader<V : ValueTraits, ID : IdTraits> {
     fn get_symbol_from_name(&self, name: &str) -> Option<&V> {

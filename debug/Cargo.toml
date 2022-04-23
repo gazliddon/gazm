@@ -1,0 +1,29 @@
+[package]
+name = "glht"
+version = "0.1.0"
+authors = ["Gaz Liddon MBP19 <gaz@gazaxian.com>"]
+edition = "2021"
+
+[dependencies]
+emu = { path = "../emu" }
+utils = { path = "../utils" }
+vector2d="*"
+
+imgui-glium-renderer="0.7.0"
+imgui-winit-support="0.7.0"
+glium = { version = "0.29", default-features = true }
+
+cgmath="*"
+num="*"
+lazy_static = "*"
+byteorder="*"
+
+serde = { version = "*", features = ["derive"] }
+serde_yaml = "*"
+serde_json = "*"
+serde_derive = "*"
+log="*"
+env_logger="*"
+notify = "*"
+itertools = "*"
+clap = "*"
