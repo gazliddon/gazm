@@ -196,7 +196,7 @@ lazy_static! {
             ("rmb", parse_rmb_arg),
             ("org", parse_org_arg),
             ("include", parse_include_arg),
-            ("exec", parse_exec_arg),
+            ("exec_addr", parse_exec_arg),
         ];
         v.into_iter().collect()
     };

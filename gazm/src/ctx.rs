@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::vec;
 
 use crate::gazm::Gazm;
+use utils::sources::BinWritten;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -61,7 +62,6 @@ pub struct Opts {
     pub project_file : PathBuf,
     pub lst_file: Option<String>,
     pub encode_blank_lines: bool,
-    pub cwd : PathBuf,
 }
 
 impl Default for Opts {
@@ -79,7 +79,6 @@ impl Default for Opts {
             project_file: "lol".to_owned().into(),
             lst_file : None,
             encode_blank_lines : false,
-            cwd : std::env::current_dir().unwrap(),
         }
     }
 }
@@ -98,6 +97,7 @@ pub struct Context {
     pub symbols2 : nsym::Symbols,
     pub exec_addr : Option<usize>,
     pub bin_chunks : Vec<BinWritten>,
+    pub cwd : PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -161,16 +161,12 @@ impl From<&Context> for SourceDatabase {
         SourceDatabase::new(
             &c.source_map,
             &c.sources(),
-            &c.symbols
+            &c.symbols,
+            &c.bin_chunks,
+            c.exec_addr,
+            &c.cwd,
         )
     }
-}
-
-/// Record of a written binary chunk
-#[derive(Debug)]
-pub struct BinWritten {
-    pub file : PathBuf,
-    pub addr : std::ops::Range<usize>,
 }
 
 impl Default for Context {
@@ -186,6 +182,7 @@ impl Default for Context {
             symbols2: nsym::Symbols::new(),
             exec_addr : None,
             bin_chunks: vec![],
+            cwd : std::env::current_dir().unwrap(),
 
         }
     }

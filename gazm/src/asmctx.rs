@@ -9,7 +9,8 @@ use utils::sources::SourceMapping;
 use crate::item::Item;
 use std::path::Path;
 use std::path::PathBuf;
-use crate::ctx::{Opts,BinWritten};
+use crate::ctx::Opts;
+use utils::sources::BinWritten;
 
 pub struct AsmCtx<'a> {
     pub fixer_upper: FixerUpper,
@@ -119,7 +120,7 @@ impl<'a> AsmCtx<'a> {
         // Save a record of the file Written
         // this goes into the written sym file eventually
         let bw = BinWritten {
-            file: path.as_ref().to_path_buf(),
+            file: ret.clone(),
             addr:range
         };
 

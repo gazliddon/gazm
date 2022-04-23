@@ -259,10 +259,21 @@ impl SourceMapping {
 }
 use std::cell::RefCell;
 
+/// Record of a written binary chunk
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BinWritten {
+    pub file : PathBuf,
+    pub addr : std::ops::Range<usize>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SourceDatabase {
     id_to_source_file: HashMap<u64, PathBuf>,
     mappings: SourceMapping,
+    bin_written: Vec<BinWritten>,
+    exec_addr: Option<usize>,
+    cwd: PathBuf,
+
     #[serde(skip)]
     symbols: SymbolTree,
     #[serde(skip)]
@@ -286,7 +297,7 @@ pub struct SourceLineInfo<'a> {
 }
 
 impl SourceDatabase {
-    pub fn new(mappings: &SourceMapping, sources: &Sources, symbols: &SymbolTree) -> Self {
+    pub fn new<P: AsRef<Path>>(mappings: &SourceMapping, sources: &Sources, symbols: &SymbolTree, written: &Vec<BinWritten>, exec_addr : Option<usize>, cwd: P) -> Self {
         let mut id_to_source_file = HashMap::new();
 
         for (k, v) in &sources.id_to_source_file {
@@ -303,6 +314,9 @@ impl SourceDatabase {
             addr_to_mapping: Default::default(),
             phys_addr_to_mapping: Default::default(),
             loc_to_mapping: Default::default(),
+            bin_written: written.clone().to_vec(),
+            exec_addr,
+            cwd: cwd.as_ref().into(),
         };
 
         ret.post_deserialize();
