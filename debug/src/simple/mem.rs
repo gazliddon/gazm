@@ -24,97 +24,20 @@ use byteorder::ByteOrder;
 use emu::mem::{MemErrorTypes, MemResult, MemoryIO};
 use imgui_glium_renderer::imgui::sys::{igIsRectVisibleVec2, igIsWindowAppearing};
 use io::*;
+use super::region::*;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Extend breakpoint to be initialisable from gdb bp descriptions
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Memory map
-const ROM_LO_SCREEN: std::ops::Range<usize> = 0..0x9000;
-const RAM_LO: std::ops::Range<usize> = 0x9000..0xc000;
-const PALETTE: std::ops::Range<usize> = 0xc000..0xc010;
-const PIA0: std::ops::Range<usize> = 0xc804..0xc808;
-const PIA1: std::ops::Range<usize> = 0xc80c..0xc810;
-const NVRAM: std::ops::Range<usize> = 0xc900..0xca00;
-const COUNTER: std::ops::Range<usize> = 0xcb00..0xcc00;
-const WATCHDOG: std::ops::Range<usize> = 0xcbff..0xcc00;
-const RAM_HI: std::ops::Range<usize> = 0xcc00..0xd000;
-const ROM_HI: std::ops::Range<usize> = 0xd000..0x1_0000;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)]
-pub enum MemRegion {
-    Illegal,
-    Ram,
-    IO,
-    Screen,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Region {
-    RomLo,
-    RamLo,
-    Palette,
-    Pia0,
-    Pia1,
-    NVRAM,
-    Counter,
-    Watchdog,
-    RomHi,
-    RamHi,
-    Illegal,
-}
-
-fn get_region(addr: usize) -> Region {
-    if ROM_LO_SCREEN.contains(&addr) {
-        return Region::RamLo;
-    }
-    if RAM_LO.contains(&addr) {
-        return Region::RamLo;
-    }
-
-    if PALETTE.contains(&addr) {
-        return Region::Palette;
-    }
-
-    if PIA0.contains(&addr) {
-        return Region::Pia0;
-    }
-
-    if PIA1.contains(&addr) {
-        return Region::Pia1;
-    }
-
-    if NVRAM.contains(&addr) {
-        return Region::NVRAM;
-    }
-
-    if COUNTER.contains(&addr) {
-        return Region::Counter;
-    }
-
-    if WATCHDOG.contains(&addr) {
-        return Region::Watchdog;
-    }
-
-    if ROM_HI.contains(&addr) {
-        return Region::RomHi;
-    }
-
-    if RAM_HI.contains(&addr) {
-        return Region::RamHi;
-    }
-
-    Region::Illegal
-}
-
-/// Get what Region this write would go to depending on the mapping
+/// Find the Region this write would go to depending on the mapping
 /// register
 fn get_region_write(addr: usize, _mapping: &Mapping) -> Region {
-    let r = get_region(addr);
+    let r = Region::new(addr);
     // Can't write to RomHi or palette
     match r {
         Region::RomHi => Region::Illegal,
@@ -123,17 +46,18 @@ fn get_region_write(addr: usize, _mapping: &Mapping) -> Region {
         _ => r,
     }
 }
-/// Get what Region this read would come from taking into account the mapping
+
+/// Find the Region reading addr would come from taking into account the mapping
 /// register
 fn get_region_read(addr: usize, mapping: &Mapping) -> Region {
-    let r = get_region(addr);
+    let r = Region::new(addr);
 
     match r {
         // Can't read from watchdog
         Region::Watchdog => Region::Illegal,
 
         // Region read comes from dependings on the mapping reg
-        Region::RamLo => match mapping {
+        Region::RomLo => match mapping {
             Mapping::RomRead => Region::RomLo,
             Mapping::RamRead => Region::RamLo,
         },
@@ -184,9 +108,9 @@ impl<E: ByteOrder> Default for SimpleMem<E> {
         let io = Io::new();
 
         let rom_lo = MemBlock::new("rom_lo", true, &ROM_LO_SCREEN);
-        let ram_lo = MemBlock::new("rom_lo", false, &ROM_LO_SCREEN);
-        let rom_hi = MemBlock::new("rom_lo", true, &RAM_HI);
-        let ram_hi = MemBlock::new("rom_lo", false, &ROM_HI);
+        let ram_lo = MemBlock::new("ram_lo", false, &ROM_LO_SCREEN);
+        let rom_hi = MemBlock::new("rom_hi", true, &ROM_HI);
+        let ram_hi = MemBlock::new("ram_hi", false, &RAM_HI);
         let palette = MemBlock::new("palette", false, &PALETTE);
 
         SimpleMem {
@@ -218,7 +142,13 @@ impl<E: ByteOrder> SimpleMem<E> {
 
     pub fn upload_rom(&mut self, addr: usize, data: &[u8]) -> MemResult<()> {
         for (i, b) in data.iter().enumerate() {
-            self.upload_rom_byte(i + addr, *b)?;
+            let a = addr + i;
+            let res = self.upload_rom_byte(a, *b);
+
+            if !res.is_ok() {
+                println!("Cannot write {b} to 0x{a:04X}")
+            }
+            res?;
         }
         Ok(())
     }
@@ -240,7 +170,7 @@ impl<E: ByteOrder> SimpleMem<E> {
             Region::RomLo => &mut self.rom_lo,
             Region::RamLo => &mut self.ram_lo,
             Region::RomHi => &mut self.rom_hi,
-            Region::RamHi => &mut self.rom_hi,
+            Region::RamHi => &mut self.ram_hi,
             Region::Palette => &mut self.palette,
             _ => panic!("Fucked"),
         }
@@ -251,7 +181,7 @@ impl<E: ByteOrder> SimpleMem<E> {
             Region::RomLo => &self.rom_lo,
             Region::RamLo => &self.ram_lo,
             Region::RomHi => &self.rom_hi,
-            Region::RamHi => &self.rom_hi,
+            Region::RamHi => &self.ram_hi,
             _ => panic!("Fucked"),
         }
     }

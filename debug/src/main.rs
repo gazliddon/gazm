@@ -113,7 +113,7 @@ fn make_mesh(system: &System) -> Box<Mesh<Vertex, u16>> {
     Box::new(Mesh::new(system, vertex_buffer, index_buffer))
 }
 
-fn load_binary(filename : &str) -> Vec<u8> {
+fn load_binary_file<P: AsRef<std::path::Path>>(filename : P) -> Vec<u8> {
     use std::fs::File;
     use std::io::Read;
     let mut f = File::open(&filename).expect("no file found");
@@ -175,15 +175,24 @@ impl MyApp {
         use utils::sources::SourceDatabase;
         use emu::breakpoints::{BreakPoint, BreakPointTypes};
 
-        let bin_file = "./out/a.bin";
-
+        // Load the symbol file, also contains
+        // a list of saved binary chunks
+        info!("Loading symbol file: {}", &ctx.sym_file.to_string_lossy());
         let sd = SourceDatabase::from_json(&ctx.sym_file);
 
-        let bin_data = load_binary(bin_file);
-
-        let slice = &bin_data[0x9900..];
+        // Create the memory map for stargate
         let mut mem = SimpleMem::default();
-        mem.upload(0x9900, slice).expect("couldn't upload");
+
+        // Go through the vec of binary chunks that were 
+        // saved during the assembly process
+        // and upload them to the game's ROM
+        for bin in &sd.bin_written {
+            let data = load_binary_file(&bin.file);
+            info!("Loading: {}: 0x{:X} bytes to 0x{:04X}", bin.file.file_name().unwrap().to_string_lossy(), bin.addr.len(), bin.addr.start );
+            mem.upload_rom(bin.addr.start, &data).expect("Can't upload rom file");
+        }
+
+        // Construct the machine from the memory and source database
         let mut machine = SimpleMachine::new(mem,sd);
         machine.reset().unwrap();
 

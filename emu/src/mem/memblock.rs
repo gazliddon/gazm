@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use crate::mem::MemErrorTypes;
+
 use super::{MemResult, MemoryIO, Region};
 use byteorder::ByteOrder;
 use sha1::Sha1;
@@ -32,22 +34,26 @@ impl<E: ByteOrder> MemBlock<E> {
             phanton: Default::default(),
         }
     }
-    fn to_index(&self, addr: usize) -> usize {
-        assert!(self.region.is_in_region(addr));
-        addr as usize - self.region.addr as usize
+    fn to_index(&self, addr: usize) -> MemResult<usize> {
+        if self.region.is_in_region(addr) {
+            Ok( addr as usize - self.region.addr as usize )
+
+        } else {
+            Err(MemErrorTypes::IllegalAddress(addr))
+        }
     }
 }
 
 #[allow(dead_code)]
 impl<E: ByteOrder> MemoryIO for MemBlock<E> {
     fn inspect_byte(&self, addr: usize) -> MemResult<u8> {
-        let i = self.to_index(addr);
+        let i = self.to_index(addr)?;
         let d = self.data[i];
         Ok(d)
     }
 
     fn inspect_word(&self, addr: usize) -> MemResult<u16> {
-        let i = self.to_index(addr);
+        let i = self.to_index(addr)?;
         let ab = &self.data[i..i+2];
         Ok(E::read_u16(ab))
     }
@@ -69,13 +75,13 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
     }
 
     fn load_byte(&mut self, addr: usize) -> MemResult<u8> {
-        let i = self.to_index(addr);
+        let i = self.to_index(addr)?;
         let v = self.data[i];
         Ok(v)
     }
 
     fn store_byte(&mut self, addr: usize, val: u8) -> MemResult<()> {
-        let idx = self.to_index(addr);
+        let idx = self.to_index(addr)?;
         self.data[idx] = val;
         Ok(())
     }

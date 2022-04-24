@@ -294,7 +294,7 @@ impl< M: MemoryIO> SimpleMachine<M> {
     pub fn new(mem: M, source_database: SourceDatabase) -> Self {
 
         let path = std::env::current_dir().expect("getting dir");
-        info!("Creatning Simple 6809 machine");
+        info!("Creating Simple 6809 machine");
         info!("cd = {}", path.display());
 
         let clock = cpu::StandardClock::new(2_000_000);
