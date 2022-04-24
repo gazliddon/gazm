@@ -39,10 +39,9 @@ impl Default for Messages {
     fn default() -> Self {
         Self {
             indent: 0,
-            verbosity: Verbosity::Normal
+            verbosity: Verbosity::Normal,
         }
     }
-
 }
 
 impl Messages {
@@ -217,18 +216,27 @@ where
     x.deindent();
     r
 }
-
+#[macro_export]
+macro_rules! status_mess {
+    ($($arg:tt)*) => {{
+        let m = messages();
+        if m.get_verbosity() >= $crate::messages::Verbosity::Normal {
+            let res = std::fmt::format(std::format_args!($($arg)*));
+            m.debug(res)
+        }
+    }}
+}
 
 #[macro_export]
 macro_rules! debug_mess {
     ($($arg:tt)*) => {{
         let m = messages();
-        if m.get_verbosity() == $crate::messages::Verbosity::Debug {
-        let res = std::fmt::format(std::format_args!($($arg)*));
-        m.debug(res)
+        if m.get_verbosity() >= $crate::messages::Verbosity::Debug {
+            let res = std::fmt::format(std::format_args!($($arg)*));
+            m.debug(res)
         }
     }}
 }
+
 pub(crate) use debug_mess;
-
-
+pub(crate) use status_mess;

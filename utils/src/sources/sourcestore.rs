@@ -270,9 +270,9 @@ pub struct BinWritten {
 pub struct SourceDatabase {
     id_to_source_file: HashMap<u64, PathBuf>,
     mappings: SourceMapping,
-    bin_written: Vec<BinWritten>,
-    exec_addr: Option<usize>,
-    cwd: PathBuf,
+    pub bin_written: Vec<BinWritten>,
+    pub exec_addr: Option<usize>,
+    pub cwd: PathBuf,
 
     #[serde(skip)]
     symbols: SymbolTree,
@@ -324,7 +324,7 @@ impl SourceDatabase {
         ret
     }
 
-    pub fn from_json(sym_file: &str) -> Self {
+    pub fn from_json<P: AsRef<Path>>(sym_file: P) -> Self {
         let symstr = std::fs::read_to_string(sym_file).unwrap();
         let mut sd: SourceDatabase = serde_json::from_str(&symstr).unwrap();
         sd.post_deserialize();
@@ -343,6 +343,12 @@ impl SourceDatabase {
 
         for (k, v) in &self.id_to_source_file {
             self.source_file_to_id.insert(v.clone(), *k);
+        }
+
+        // Make all of the files written path absolute by adding cwd when the sym file was saved
+        for x in &mut self.bin_written {
+            let y = format!("{}/{}", self.cwd.to_string_lossy(), x.file.to_string_lossy());
+            x.file = y.into();
         }
     }
 

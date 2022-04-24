@@ -20,7 +20,7 @@ use crate::ctx::Opts;
 use crate::error::{GResult, GazmError};
 use crate::messages::debug_mess;
 
-use crate::regutils::*;
+use crate::{regutils::*, status_mess};
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
     let compiler = Compiler::new(ctx.opts.clone(), tree)?;
@@ -159,10 +159,12 @@ impl<'a> Compiler<'a> {
 
         let p = ctx.write_bin_file(path, physical_address as usize..( physical_address+count ) as usize);
 
-        messages().info(format!(
-            "Write mem: {} {physical_address:05X} {count:05X}",
+        status_mess!(
+            "Written binary: {} ${physical_address:x} ${count:x}",
             p.to_string_lossy()
-        ));
+
+        );
+
         Ok(())
     }
 

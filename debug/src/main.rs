@@ -17,7 +17,8 @@ mod text;
 mod textscreen;
 mod v2;
 
-struct Ctx {
+#[derive(Clone)]
+pub struct Ctx {
     pub sym_file: PathBuf,
 }
 
@@ -69,6 +70,7 @@ struct MyApp {
     machine: SimpleMachine<SimpleMem<BigEndian>>,
     // dbgwin: dbgwin::DbgWin,
     sourcewin: sourcewin::SourceWin,
+    ctx: Ctx,
 }
 
 #[derive(Copy, Clone)]
@@ -168,17 +170,17 @@ impl MyApp {
         });
     }
 
-    pub fn new(system: &System) -> Self {
+    pub fn new(system: &System, ctx: Ctx) -> Self {
         use emu::mem::MemoryIO;
         use utils::sources::SourceDatabase;
         use emu::breakpoints::{BreakPoint, BreakPointTypes};
 
         let bin_file = "./out/a.bin";
-        let sym_file = "./out/a.syms.json";
 
-        let sd = SourceDatabase::from_json(sym_file);
+        let sd = SourceDatabase::from_json(&ctx.sym_file);
 
         let bin_data = load_binary(bin_file);
+
         let slice = &bin_data[0x9900..];
         let mut mem = SimpleMem::default();
         mem.upload(0x9900, slice).expect("couldn't upload");
@@ -197,6 +199,7 @@ impl MyApp {
             running: true,
             frame_time: FrameTime::default(),
             sourcewin: sourcewin::SourceWin::new(),
+            ctx : ctx.clone()
         }
     }
 }
@@ -360,11 +363,13 @@ impl App<events::Events> for MyApp {
 fn main() {
     use std::env;
 
+    let x = parse();
+
     env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     let system = System::new();
-    let app = MyApp::new(&system);
+    let app = MyApp::new(&system, x.into());
 
     system.main_loop(app);
 }

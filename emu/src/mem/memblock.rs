@@ -14,9 +14,9 @@ pub struct MemBlock<E: ByteOrder> {
 
 #[allow(dead_code)]
 impl<E: ByteOrder> MemBlock<E> {
-    pub fn new(name: &str, read_only: bool, base: usize, size: usize) -> MemBlock<E> {
-        let data = vec![0u8; size as usize];
-        Self::from_data(base, name, &data, read_only)
+    pub fn new(name: &str, read_only: bool, r : &std::ops::Range<usize>) -> MemBlock<E> {
+        let data = vec![0u8; r.len()];
+        Self::from_data(r.start, name, &data, read_only)
     }
 
     pub fn from_data(addr: usize, name: &str, data: &[u8], read_only: bool) -> MemBlock<E> {
