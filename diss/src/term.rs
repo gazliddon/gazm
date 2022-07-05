@@ -1,4 +1,4 @@
-use std::sync::mpsc::{self, TryRecvError};
+use std::sync::mpsc::TryRecvError;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 
@@ -10,29 +10,42 @@ pub enum TermOutput {
     CtrlD,
 }
 
+#[derive(Debug, Clone)]
+enum TermControl {
+    Quit,
+    SetPrompt(String)
+}
+
 pub struct Term {
     rx: Receiver<TermOutput>,
-    command_tx: Sender<bool>,
+    control_tx: Sender<TermControl>,
     pub output: Vec<TermOutput>,
+    prompt : String,
 }
 
 impl Term {
     pub fn new() -> Self {
-        let (tx, rx) = mpsc::channel();
-        let (command_tx, command_rx) = mpsc::channel();
+
+        let prompt = "> ".to_owned();
+        let prompt_copy = prompt.clone();
+
+        let (tx, rx) = channel();
+        let (control_tx, control_rx) = channel();
+
         let _child = thread::spawn(move || {
-            Self::do_term(tx, command_rx).unwrap();
+            Self::do_term(tx, control_rx, prompt).unwrap();
         });
 
         Self {
             rx,
-            command_tx,
+            control_tx,
             output: vec![],
+            prompt: prompt_copy
         }
     }
 
     pub fn quit(&self) {
-        self.command_tx.send(true).unwrap();
+        self.control_tx.send(TermControl::Quit).unwrap();
     }
 
     pub fn update(&mut self) {
@@ -60,7 +73,8 @@ impl Term {
 
     fn do_term(
         tx: Sender<TermOutput>,
-        rx: Receiver<bool>,
+        rx: Receiver<TermControl>,
+        mut prompt: String,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use rustyline::error::ReadlineError;
         use rustyline::Editor;
@@ -71,16 +85,17 @@ impl Term {
             println!("No previous history.");
         }
 
-        let _sources: Option<utils::sources::SourceDatabase> = None;
-
         loop {
             let has_quit = rx.try_recv();
 
-            if let Ok(_) = has_quit {
-                break;
+            match has_quit {
+                Ok(TermControl::Quit) => break,
+                Ok(TermControl::SetPrompt(new_prompt)) => prompt = new_prompt,
+                Err(TryRecvError::Empty) => (),
+                _ => panic!("{:?}", has_quit)
             }
 
-            let readline = rl.readline("> ");
+            let readline = rl.readline(&prompt);
 
             match readline {
                 Ok(line) => {
@@ -107,4 +122,3 @@ impl Term {
         Ok(())
     }
 }
-
