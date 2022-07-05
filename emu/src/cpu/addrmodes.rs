@@ -74,12 +74,6 @@ pub trait AddressLines {
 ////////////////////////////////////////////////////////////////////////////////
 pub struct Direct {}
 
-impl From<MemErrorTypes> for CpuErr {
-    fn from(m: MemErrorTypes) -> CpuErr {
-        CpuErr::Memory(m)
-    }
-}
-
 impl AddressLines for Direct {
     fn get_addr_mode() -> AddrModeEnum {
         AddrModeEnum::Direct

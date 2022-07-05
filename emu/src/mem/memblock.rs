@@ -63,7 +63,12 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
     }
 
     fn upload(&mut self, _addr: usize, _data: &[u8]) -> MemResult<()> {
-        panic!("not done")
+        let mut addr = _addr;
+        for b in _data {
+            self.store_byte(addr, *b)?;
+            addr = addr + 1;
+        }
+        Ok(())
     }
 
     fn get_name(&self) -> String {

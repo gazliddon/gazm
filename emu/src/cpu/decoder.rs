@@ -1,6 +1,7 @@
 use std::io::Read;
 
 use itertools::Itertools;
+use num::traits::{WrappingAdd, WrappingNeg};
 
 use super::mem::{MemResult, MemoryIO};
 use super::{CpuErr, CpuResult};
@@ -28,11 +29,19 @@ pub struct InstructionDecoder {
     pub operand_addr: usize,
 }
 
+fn decode_op_mem(
+    addr : usize,
+    reader: &mut dyn MemoryIO
+) -> CpuResult<InstructionDecoder> {
+    let mut reader = MemReader::new(reader);
+    reader.set_addr(addr);
+    decode_op(&mut reader)
+}
+
 // Decode an op
 // Takes memory read as closure
 // means we can destructively read op code when emulating
 // or non destructively inspect for disassembly
-
 fn decode_op(
     reader: &mut MemReader
 ) -> CpuResult<InstructionDecoder> {
@@ -103,44 +112,40 @@ impl InstructionDecoder {
         // self.index = self.index.wrapping_add(1);
         // Ok(b)
     }
+
     pub fn new_from_reader_mut(mem: &mut MemReader) -> CpuResult<Self> { 
         decode_op(mem)
     }
+
     pub fn new_from_reader(mem: &mut MemReader) -> CpuResult<Self> { 
         decode_op(mem)
     }
 
     pub fn new_from_inspect_mem(_addr: usize, _mem: &mut dyn MemoryIO) -> CpuResult<Self> {
         panic!();
-        // mecode_op(addr, mem)
     }
 
-    pub fn new_from_read_mem(_addr: usize, _mem: &mut dyn MemoryIO) -> CpuResult<Self> {
-        panic!();
-        // decode_op(addr, mem)
+    pub fn new_from_read_mem(addr: usize, _mem: &mut dyn MemoryIO) -> CpuResult<Self> {
+        decode_op_mem(addr, _mem)
     }
 
-    pub fn fetch_byte(&mut self, _mem: &mut dyn MemoryIO) -> u8 {
-        panic!()
-        // let b = mem.load_byte(self.addr.wrapping_add(self.index).into()).unwrap();
-        // self.index = self.index.wrapping_add(1);
-        // b
+    pub fn fetch_byte(&mut self, mem: &mut dyn MemoryIO) -> u8 {
+        let b = mem.load_byte(self.operand_addr).unwrap();
+        self.operand_addr += 1;
+        b
     }
 
-    pub fn fetch_word(&mut self, _mem: &mut dyn MemoryIO) -> Result<u16, CpuErr> {
-        panic!()
-        // let w = mem.load_word(self.addr.wrapping_add(self.index))?;
-        // self.index = self.index.wrapping_add(2);
-        // Ok(w)
+    pub fn fetch_word(&mut self, mem: &mut dyn MemoryIO) -> Result<u16, CpuErr> {
+        let w = mem.load_word(self.operand_addr)?;
+        self.operand_addr += 1;
+        Ok(w)
     }
 
-    pub fn fetch_byte_as_i8(&mut self, _mem: &mut dyn MemoryIO) -> i8 {
-        panic!()
-        // self.fetch_byte(mem) as i8
+    pub fn fetch_byte_as_i8(&mut self, mem: &mut dyn MemoryIO) -> i8 {
+        self.fetch_byte(mem) as i8
     }
 
-    pub fn fetch_byte_as_i16(&mut self, _mem: &mut dyn MemoryIO) -> i16 {
-        panic!()
-        // i16::from(self.fetch_byte_as_i8(mem))
+    pub fn fetch_byte_as_i16(&mut self, mem: &mut dyn MemoryIO) -> i16 {
+        i16::from(self.fetch_byte_as_i8(mem))
     }
 }

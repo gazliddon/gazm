@@ -1,85 +1,101 @@
 #V2
-helkldkslkdw
-d 100
-j
-d 0x100
-d 100
+l
+l ddsas
 d
 d 100
+lb
+ln d
+lb dkjkj
+s
+s ~/development/stargate/tmp/stargate.sym
+s kjkj
+xx kjkj
+xx ~/development/stargate/tmp/stargate.sym
+xx stargate.sym
+xx stargate
+x
+xx a
+xx a 
+xx a
+xx /Users/garyliddon/development/stargate/tmp/stargate.sym
+d 0
 d 0x1000
-d 0x1000 0x1030
-d 1000
+d 0xf000
+hex
+xx /Users/garyliddon/development/stargate/tmp/stargate.sym
+d 0
+d f000
+d e000
 d
-d 100
-d
+r
+xx /Users/garyliddon/development/stargate/tmp/stargate.sym
+r
+xx /Users/garyliddon/development/stargate/tmp/stargate.sym
+hex
+d f486
+d f4d3
+s
 m
+r
+s
+step
+s
+step
+xx /Users/garyliddon/development/stargate/tmp/stargate.sym
+regs
+reset
+regs
+reset
+load ~/development/stargate/tmp/stargate.sym
+s
+step
+load ~/development/stargate/tmp/stargate.sym
+s
+step
+step 
+hex
+dec
 d
-d 0x1000
-d 0x383c
-d 0x385e
-d 0x368d
-d 0x368c
-d 0x386c
-d 0x386b
-d 0x386a
-d 0x3860
-d 0x3847
-d 3846
-d 0x3846
-d 0x386b
-d 0x3846
+dec
 d
-d 0x3840
+dec
 d
-d 3858
-d 0x385f
-d 0x3840
-d 0x4254
-d 41d5
-d 41cd
-d 0x41cd
-d 0x41d5
-d 0x41db
-d 0x41d9
-d 0x41d8
-d 0x41d7
-d 0x41d6
-d 0x41d5
-d 0x157
+dec
+reset
 hex
 h
-d 41d8
-d 41db
-hex
-d 41db
-d 41ee
-d 41ed
-m 41ed
-d 41ed
-d 41ea
-hex
-d 6350
-d 5350
-hex
-d 6350
-m 6362
-m 535f
-m 635f
-m 636c
-d 6374
-hex
-d 6374
-d 63d1
-d 6396
-d 63d3
-d 6396
 d
-d 63ca
-d 63c5
-m 6379
-d 3934
-d 3933
-m 4168
-m 4167
-d 7383
-d 7382
+diss
+dec
+reset
+regs
+regss
+d
+dec
+load ~/development/stargate/tmp/stargate.sym
+step
+reset
+load ~/development/stargate/tmp/stargate.sym
+step
+r
+regs
+step
+regs
+load ~/development/stargate/tmp/stargate.sym
+step
+load ~/development/stargate/tmp/stargate.sym
+step
+load ~/development/stargate/tmp/stargate.sym
+step
+load ~/development/stargate/tmp/stargate.sym
+step
+load ~/development/stargate/tmp/stargate.sym
+step
+load ~/development/stargate/tmp/stargate.sym
+step
+load ~/development/stargate/tmp/stargate.sym
+step
+load ~/development/stargate/tmp/stargate.sym
+step
+load ~/development/stargate/tmp/stargate.sym
+step

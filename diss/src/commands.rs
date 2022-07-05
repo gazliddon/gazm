@@ -1,13 +1,9 @@
-use nom::{
-    branch::alt,
-    bytes::complete::*,
-    character::complete::*,
-    combinator::recognize,
-    combinator::{opt, rest},
-    multi::many1,
-    sequence::{preceded, separated_pair},
-    InputTake,
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
 };
+
+use nom::{Compare, InputTake, branch::alt, bytes::complete::*, character::complete::*, combinator::{all_consuming, eof}, combinator::recognize, combinator::{not, opt, rest, cut}, multi::many1, sequence::{preceded, separated_pair, tuple}};
 
 use nom::combinator::map;
 use nom_locate::LocatedSpan;
@@ -15,6 +11,7 @@ use nom_locate::LocatedSpan;
 pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError<'a>>;
 pub type Span<'a> = LocatedSpan<&'a str, bool>;
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Command {
     Diss(Option<isize>),
     Mem(Option<isize>),
@@ -22,6 +19,71 @@ pub enum Command {
     Quit,
     Hex,
     Dec,
+    LoadBin(PathBuf, usize),
+    LoadSym(PathBuf),
+    SetReg,
+    Regs,
+    Step,
+    Reset,
+    Go(isize),
+}
+
+////////////////////////////////////////////////////////////////////////////////
+enum CommandEnums {
+    Diss,
+    Mem,
+    Help,
+    Quit,
+    Hex,
+    Dec,
+    LoadBin,
+    LoadSym,
+}
+
+enum ArgTypes {
+    Number,
+    Text,
+    File,
+}
+
+enum ArgValues {
+    Number(usize),
+    Text(String),
+    File(PathBuf),
+}
+
+/// Definition of command
+pub struct CommandSpec {
+    command: CommandEnums,
+    /// Name for the command
+    name: String,
+    /// Abbreviation
+    short: Option<String>,
+    /// Type for each arg
+    args: Vec<ArgTypes>,
+    /// Minimum number of args needed
+    /// Args at positions >= min_args are optional
+    min_args: usize,
+}
+
+pub struct ParsedArgs {
+    args: Vec<ArgValues>,
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+use std::collections::HashMap;
+
+pub struct Help {
+    text: String,
+}
+
+lazy_static::lazy_static! {
+    pub static ref HELP : HashMap<String,Help>  = {
+        let mut m = HashMap::new();
+        m.insert("diss".to_string(), Help { text: "".to_string() });
+        m
+    };
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -133,7 +195,7 @@ pub fn get_number(input: Span) -> IResult<isize> {
 }
 
 fn parse_diss(input: Span) -> IResult<Command> {
-    let arg = preceded(many1(char(' ')), get_number);
+    let arg = preceded(space1, get_number);
     let (rest, matched) = preceded(tag("d"), opt(arg))(input)?;
     Ok((rest, Command::Diss(matched)))
 }
@@ -144,17 +206,50 @@ fn parse_mem(input: Span) -> IResult<Command> {
     Ok((rest, Command::Mem(matched)))
 }
 
+fn text_get(input: Span) -> IResult<Span> {
+    preceded(space1, recognize(many1(anychar)))(input)
+}
+
+fn file_name_get(input: Span) -> IResult<PathBuf> {
+    let (rest, matched) = text_get(input)?;
+
+    let x : &str = matched.as_ref();
+    let matched = shellexpand::tilde(x);
+
+    Ok((rest, PathBuf::from_str(&matched).unwrap()))
+}
+
+fn parse_load_bin(input: Span) -> IResult<Command> {
+    let arg = separated_pair(file_name_get, space1, get_number);
+    let (rest, (file, addr)) = preceded(tuple((tag("lb"), space1)), arg)(input)?;
+    Ok((rest, Command::LoadBin(file, addr as usize)))
+}
+
+fn parse_load_sym(input: Span) -> IResult<Command> {
+    let (rest, file) = preceded(tag("load"), file_name_get)(input)?;
+    Ok((rest, Command::LoadSym(file)))
+}
+
 fn parse_single(input: Span) -> IResult<Command> {
-    alt((
+    all_consuming(alt((
         map(tag("hex"), |_| Command::Hex),
         map(tag("dec"), |_| Command::Dec),
-        map(tag("h"), |_| Command::Help),
-        map(tag("q"), |_| Command::Quit),
-
-    ))(input)
+        map(tag("quit"), |_| Command::Quit),
+        map(tag("step"), |_| Command::Step),
+        map(tag("regs"), |_| Command::Regs),
+        map(tag("reset"), |_| Command::Reset),
+    )))(input)
 }
 
-pub fn parse_command(input: &str, default_hex : bool) -> IResult<Command> {
+pub fn parse_command(input: &str, default_hex: bool) -> IResult<Command> {
     let sp = Span::new_extra(input, default_hex);
-    alt((parse_diss, parse_mem, parse_single))(sp)
+
+    alt((
+        parse_single,
+        parse_diss,
+        parse_load_sym,
+        parse_load_bin,
+        parse_mem,
+    ))(sp)
 }
+

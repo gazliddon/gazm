@@ -46,7 +46,11 @@ pub struct BreakPoints {
 
 impl Default for BreakPoints {
     fn default() -> Self {
-        Self::new()
+        Self {
+            break_points: std::collections::HashMap::new(),
+            mem_to_bp: [None; 0x1_0000],
+            id: 0,
+        }
     }
 }
 

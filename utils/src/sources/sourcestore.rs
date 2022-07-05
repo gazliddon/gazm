@@ -290,6 +290,25 @@ pub struct SourceDatabase {
     loc_to_mapping: HashMap<(u64, usize), Mapping>,
 }
 
+impl Default for SourceDatabase {
+    fn default() -> Self {
+        Self {
+            source_files: Default::default(),
+            source_file_to_id: Default::default(),
+            mappings: Default::default(),
+            id_to_source_file : Default::default(),
+            symbols: Default::default(),
+            range_to_mapping: Default::default(),
+            addr_to_mapping: Default::default(),
+            phys_addr_to_mapping: Default::default(),
+            loc_to_mapping: Default::default(),
+            bin_written: vec![],
+            exec_addr : None,
+            cwd: PathBuf::new(),
+        }
+    }
+}
+
 pub struct SourceLineInfo<'a> {
     file: &'a String,
     line: usize,

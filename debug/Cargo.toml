@@ -1,5 +1,5 @@
 [package]
-name = "glht"
+name = "debugger"
 version = "0.1.0"
 authors = ["Gaz Liddon MBP19 <gaz@gazaxian.com>"]
 edition = "2021"

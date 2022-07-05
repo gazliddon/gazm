@@ -67,7 +67,7 @@ struct MyApp {
     mesh: Box<dyn mesh::MeshTrait>,
     running: bool,
     frame_time: FrameTime,
-    machine: SimpleMachine<SimpleMem<BigEndian>>,
+    machine: SimpleMachine,
     // dbgwin: dbgwin::DbgWin,
     sourcewin: sourcewin::SourceWin,
     ctx: Ctx,
@@ -178,14 +178,16 @@ impl MyApp {
         // Load the symbol file, also contains
         // a list of saved binary chunks
         info!("Loading symbol file: {}", &ctx.sym_file.to_string_lossy());
+
         let sd = SourceDatabase::from_json(&ctx.sym_file);
 
         // Create the memory map for stargate
-        let mut mem = SimpleMem::default();
+        let mut mem = SimpleMem::new();
 
         // Go through the vec of binary chunks that were 
         // saved during the assembly process
         // and upload them to the game's ROM
+        //
         for bin in &sd.bin_written {
             let data = load_binary_file(&bin.file);
             info!("Loading: {}: 0x{:X} bytes to 0x{:04X}", bin.file.file_name().unwrap().to_string_lossy(), bin.addr.len(), bin.addr.start );
@@ -194,11 +196,9 @@ impl MyApp {
 
         // Construct the machine from the memory and source database
         let mut machine = SimpleMachine::new(mem,sd);
-        machine.reset().unwrap();
 
-        // FIX : Remove!
-        let bps = machine.get_breakpoints_mut();
-        bps.add(0x9904, BreakPointTypes::EXEC);
+        info!("Reset!");
+        machine.reset().unwrap();
 
         let mesh = make_mesh(system);
 
@@ -375,10 +375,30 @@ fn main() {
     let x = parse();
 
     env::set_var("RUST_LOG", "info");
+
     env_logger::init();
 
-    let system = System::new();
-    let app = MyApp::new(&system, x.into());
+    {
+    let ctx : Ctx = x.clone().into();
+    let sd = SourceDatabase::from_json(&ctx.sym_file);
 
-    system.main_loop(app);
+    let mut mem = SimpleMem::new();
+        for bin in &sd.bin_written {
+            let data = load_binary_file(&bin.file);
+            info!("Loading: {}: 0x{:X} bytes to 0x{:04X}", bin.file.file_name().unwrap().to_string_lossy(), bin.addr.len(), bin.addr.start );
+            mem.upload_rom(bin.addr.start, &data).expect("Can't upload rom file");
+        }
+
+    let mut machine = SimpleMachine::new(mem,sd);
+
+    machine.reset().unwrap();
+    }
+
+
+
+    // let system = System::new();
+
+    // let app = MyApp::new(&system, x.into());
+
+    // system.main_loop(app);
 }

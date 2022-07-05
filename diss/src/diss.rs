@@ -14,31 +14,19 @@ pub struct Disassembly {
 }
 
 pub struct DissCtx {
-    pub file: PathBuf,
     pub data: MemBlock<byteorder::BigEndian>,
-    pub diss_addr: usize,
 }
+
 use gazm::numbers::*;
 
 impl DissCtx {
-    pub fn from_matches(m: clap::ArgMatches) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_matches(_m: clap::ArgMatches) -> Result<Self, Box<dyn std::error::Error>> {
         use std::fs;
-        let file = PathBuf::from(m.value_of("file").unwrap());
-        let data: Vec<u8> = fs::read(&file).context("Couldn't read file")?;
-        let base_addr = m
-            .value_of("base-addr")
-            .map(get_number_err_usize)
-            .unwrap_or(Ok(0))?;
 
-        let diss_addr = m
-            .value_of("diss-addr")
-            .map(get_number_err_usize)
-            .unwrap_or(Ok(base_addr))?;
+        let vec = vec![0;0x1_0000];
 
         let ret = Self {
-            file,
-            data: MemBlock::from_data(base_addr, "block", &data, true),
-            diss_addr,
+            data: MemBlock::from_data(0, "mem", &vec, false),
         };
 
         Ok(ret)

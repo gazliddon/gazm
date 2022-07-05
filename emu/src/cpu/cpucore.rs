@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use bitflags::bitflags;
 
 bitflags! {
@@ -29,12 +31,18 @@ use alu::GazAlu;
 // use std::cell::RefCell;
 // use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq)]
+use thiserror::Error;
+
+#[derive(Error,Debug, Clone, PartialEq)]
 pub enum CpuErr {
+    #[error("Unknown instruction")]
     UnknownInstruction,
+    #[error("Unimplemented instruction")]
     Unimplemented,
+    #[error("Illegal addressing mode")]
     IllegalAddressingMode,
-    Memory(MemErrorTypes),
+    #[error(transparent)]
+    Memory(#[from] MemErrorTypes),
 }
 
 // use cpu::alu;
@@ -73,6 +81,10 @@ pub struct Context<'a> {
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
 impl<'a> Context<'a> {
+    pub fn cycles(&self) -> usize {
+        self.cycles
+    }
+
     fn set_pc(&mut self, v: usize) {
         self.ins.next_addr = v & 0xffff;
     }

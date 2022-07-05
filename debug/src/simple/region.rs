@@ -11,7 +11,7 @@ pub const RAM_HI: std::ops::Range<usize> = 0xcc00..0xd000;
 pub const ROM_HI: std::ops::Range<usize> = 0xd000..0x1_0000;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Region {
+pub enum MemRegion {
     RomLo,
     RamLo,
     Palette,
@@ -25,60 +25,60 @@ pub enum Region {
     Illegal,
 }
 
-impl Region {
+impl MemRegion {
     pub fn new(addr : usize) -> Self {
         addr.into()
     }
 }
 
-impl Default for Region {
+impl Default for MemRegion {
     fn default() -> Self {
-        Region::Illegal
+        MemRegion::Illegal
     }
 }
 
-impl From<usize> for Region {
+impl From<usize> for MemRegion {
     fn from(addr: usize) -> Self {
         if ROM_LO_SCREEN.contains(&addr) {
-            return Region::RomLo;
+            return MemRegion::RomLo;
         }
         if RAM_LO.contains(&addr) {
-            return Region::RamLo;
+            return MemRegion::RamLo;
         }
 
         if PALETTE.contains(&addr) {
-            return Region::Palette;
+            return MemRegion::Palette;
         }
 
         if PIA0.contains(&addr) {
-            return Region::Pia0;
+            return MemRegion::Pia0;
         }
 
         if PIA1.contains(&addr) {
-            return Region::Pia1;
+            return MemRegion::Pia1;
         }
 
         if NVRAM.contains(&addr) {
-            return Region::NVRAM;
+            return MemRegion::NVRAM;
         }
 
         if COUNTER.contains(&addr) {
-            return Region::Counter;
+            return MemRegion::Counter;
         }
 
         if WATCHDOG.contains(&addr) {
-            return Region::Watchdog;
+            return MemRegion::Watchdog;
         }
 
         if ROM_HI.contains(&addr) {
-            return Region::RomHi;
+            return MemRegion::RomHi;
         }
 
         if RAM_HI.contains(&addr) {
-            return Region::RamHi;
+            return MemRegion::RamHi;
         }
 
-        Region::Illegal
+        MemRegion::Illegal
         
     }
 

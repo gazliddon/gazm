@@ -20,7 +20,7 @@ IO
 */
 
 use super::io;
-use byteorder::ByteOrder;
+use byteorder::{BigEndian, ByteOrder};
 use emu::mem::{MemErrorTypes, MemResult, MemoryIO};
 use imgui_glium_renderer::imgui::sys::{igIsRectVisibleVec2, igIsWindowAppearing};
 use io::*;
@@ -36,12 +36,13 @@ use super::region::*;
 
 /// Find the Region this write would go to depending on the mapping
 /// register
-fn get_region_write(addr: usize, _mapping: &Mapping) -> Region {
-    let r = Region::new(addr);
+fn get_region_write(addr: usize, _mapping: &Mapping) -> MemRegion {
+    let r = MemRegion::new(addr);
     // Can't write to RomHi or palette
     match r {
-        Region::RomHi => Region::Illegal,
-        Region::Counter => Region::Illegal,
+        MemRegion::RomLo => MemRegion::RamLo,
+        MemRegion::RomHi => MemRegion::Illegal,
+        MemRegion::Counter => MemRegion::Illegal,
 
         _ => r,
     }
@@ -49,17 +50,17 @@ fn get_region_write(addr: usize, _mapping: &Mapping) -> Region {
 
 /// Find the Region reading addr would come from taking into account the mapping
 /// register
-fn get_region_read(addr: usize, mapping: &Mapping) -> Region {
-    let r = Region::new(addr);
+fn get_region_read(addr: usize, mapping: &Mapping) -> MemRegion {
+    let r = MemRegion::new(addr);
 
     match r {
         // Can't read from watchdog
-        Region::Watchdog => Region::Illegal,
+        MemRegion::Watchdog => MemRegion::Illegal,
 
         // Region read comes from dependings on the mapping reg
-        Region::RomLo => match mapping {
-            Mapping::RomRead => Region::RomLo,
-            Mapping::RamRead => Region::RamLo,
+        MemRegion::RomLo => match mapping {
+            Mapping::RomRead => MemRegion::RomLo,
+            Mapping::RamRead => MemRegion::RamLo,
         },
         _ => r,
     }
@@ -67,7 +68,7 @@ fn get_region_read(addr: usize, mapping: &Mapping) -> Region {
 
 /// Creates a table of memory address -> (read region, write region)
 /// for the range r with the Mapping of m
-fn make_region_tab(r: std::ops::Range<usize>, m: &Mapping) -> Vec<(Region, Region)> {
+fn make_region_tab(r: std::ops::Range<usize>, m: &Mapping) -> Vec<(MemRegion, MemRegion)> {
     let mut ret: Vec<_> = vec![];
 
     for addr in r {
@@ -85,21 +86,21 @@ pub enum Mapping {
     RamRead,
 }
 
-pub struct SimpleMem<E: ByteOrder> {
+pub struct SimpleMem {
     pub io: Io,
     name: String,
     mapping: Mapping,
-    addr_to_region_rom: Vec<(Region, Region)>,
-    addr_to_region_ram: Vec<(Region, Region)>,
+    addr_to_region_rom: Vec<(MemRegion, MemRegion)>,
+    addr_to_region_ram: Vec<(MemRegion, MemRegion)>,
 
-    ram_lo: emu::mem::MemBlock<E>,
-    rom_lo: emu::mem::MemBlock<E>,
-    rom_hi: emu::mem::MemBlock<E>,
-    ram_hi: emu::mem::MemBlock<E>,
-    palette: emu::mem::MemBlock<E>,
+    ram_lo: emu::mem::MemBlock<BigEndian>,
+    rom_lo: emu::mem::MemBlock<BigEndian>,
+    rom_hi: emu::mem::MemBlock<BigEndian>,
+    ram_hi: emu::mem::MemBlock<BigEndian>,
+    palette: emu::mem::MemBlock<BigEndian>,
 }
 
-impl<E: ByteOrder> Default for SimpleMem<E> {
+impl Default for SimpleMem {
     fn default() -> Self {
         use emu::mem::MemBlock;
         use log::info;
@@ -129,7 +130,11 @@ impl<E: ByteOrder> Default for SimpleMem<E> {
 }
 
 #[allow(dead_code)]
-impl<E: ByteOrder> SimpleMem<E> {
+impl SimpleMem {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     fn upload_rom_byte(&mut self, addr: usize, data: u8) -> MemResult<()> {
         if ROM_LO_SCREEN.contains(&addr) {
             self.rom_lo.store_byte(addr, data)
@@ -153,11 +158,11 @@ impl<E: ByteOrder> SimpleMem<E> {
         Ok(())
     }
 
-    pub fn get_screen(&self) -> &emu::mem::MemBlock<E> {
+    pub fn get_screen(&self) -> &emu::mem::MemBlock<BigEndian> {
         &self.ram_lo
     }
 
-    fn get_region_enum(&self, addr: usize) -> Option<(Region, Region)> {
+    fn get_region_enum(&self, addr: usize) -> Option<(MemRegion, MemRegion)> {
         let r = match self.mapping {
             Mapping::RomRead => self.addr_to_region_rom.get(addr),
             Mapping::RamRead => self.addr_to_region_ram.get(addr),
@@ -165,23 +170,23 @@ impl<E: ByteOrder> SimpleMem<E> {
         r.cloned()
     }
 
-    fn get_region_mut(&mut self, r: &Region) -> &mut dyn MemoryIO {
+    fn get_region_mut(&mut self, r: &MemRegion) -> &mut dyn MemoryIO {
         match r {
-            Region::RomLo => &mut self.rom_lo,
-            Region::RamLo => &mut self.ram_lo,
-            Region::RomHi => &mut self.rom_hi,
-            Region::RamHi => &mut self.ram_hi,
-            Region::Palette => &mut self.palette,
+            MemRegion::RomLo => &mut self.rom_lo,
+            MemRegion::RamLo => &mut self.ram_lo,
+            MemRegion::RomHi => &mut self.rom_hi,
+            MemRegion::RamHi => &mut self.ram_hi,
+            MemRegion::Palette => &mut self.palette,
             _ => panic!("Fucked"),
         }
     }
 
-    fn get_region(&self, r: &Region) -> &dyn MemoryIO {
+    fn get_region(&self, r: &MemRegion) -> &dyn MemoryIO {
         match r {
-            Region::RomLo => &self.rom_lo,
-            Region::RamLo => &self.ram_lo,
-            Region::RomHi => &self.rom_hi,
-            Region::RamHi => &self.ram_hi,
+            MemRegion::RomLo => &self.rom_lo,
+            MemRegion::RamLo => &self.ram_lo,
+            MemRegion::RomHi => &self.rom_hi,
+            MemRegion::RamHi => &self.ram_hi,
             _ => panic!("Fucked"),
         }
     }
@@ -206,7 +211,7 @@ impl<E: ByteOrder> SimpleMem<E> {
     }
 }
 
-impl<E: ByteOrder> MemoryIO for SimpleMem<E> {
+impl MemoryIO for SimpleMem {
     fn inspect_word(&self, addr: usize) -> MemResult<u16> {
         let reg = self.get_region_read(addr);
         reg.inspect_word(addr)

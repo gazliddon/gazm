@@ -2,11 +2,15 @@
 pub use sha1::Sha1;
 use std::ops::Range;
 use std::vec::Vec;
+use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Error,Debug, Clone, Copy, PartialEq)]
 pub enum MemErrorTypes {
+    #[error("Illegal address 0x{0:0X}")]
     IllegalAddress(usize),
+    #[error("Illegal write 0x{0:0X}")]
     IllegalWrite(usize),
+    #[error("Illegal read 0x{0:0X}")]
     IllegalRead(usize),
 }
 

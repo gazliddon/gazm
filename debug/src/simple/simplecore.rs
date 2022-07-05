@@ -20,7 +20,7 @@ IO
 */
 // use emu::cpu;
 use utils::sources::SourceDatabase;
-use byteorder::ByteOrder;
+use byteorder::{BigEndian, ByteOrder};
 // use filewatcher::FileWatcher;
 //
 use emu::{cpu, mem};
@@ -77,7 +77,6 @@ pub enum SimEvent {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Extend breakpoint to be initialisable from gdb bp descriptions
-
 const W: usize = 304;
 const H: usize = 256;
 const SCR_BYTES: usize = W * H * 3;
@@ -181,11 +180,12 @@ pub trait Machine {
 }
 
 #[allow(dead_code)]
-pub struct SimpleMachine<M: MemoryIO> {
-
+pub struct SimpleMachine {
     source_database: SourceDatabase,
     regs: Regs,
-    mem: M,
+
+    mem: SimpleMem,
+
     rc_clock: Rc<RefCell<StandardClock>>,
     watcher: Option<filewatcher::FileWatcher>,
     events: Vec<SimEvent>,
@@ -195,7 +195,7 @@ pub struct SimpleMachine<M: MemoryIO> {
     breakpoints: emu::breakpoints::BreakPoints,
 }
 
-impl< M: MemoryIO> Machine for SimpleMachine<M> {
+impl Machine for SimpleMachine {
 
     fn get_sources(&self) -> &SourceDatabase {
         &self.source_database
@@ -227,7 +227,6 @@ impl< M: MemoryIO> Machine for SimpleMachine<M> {
 
     fn inspect_instruction(&self, _addr : usize) -> CpuResult<InstructionDecoder> {
         panic!()
-        // InstructionDecoder::new_from_inspect_mem(addr, &mut self.mem)
     }
 
     fn get_context_mut(&mut self) -> CpuResult<cpu::Context> {
@@ -281,7 +280,8 @@ impl< M: MemoryIO> Machine for SimpleMachine<M> {
 }
 
 #[allow(dead_code)]
-impl< M: MemoryIO> SimpleMachine<M> {
+impl SimpleMachine {
+
     fn add_event(&mut self, event: SimEvent) {
         self.events.push(event)
     }
@@ -291,9 +291,10 @@ impl< M: MemoryIO> SimpleMachine<M> {
         self.verbose = !v;
     }
 
-    pub fn new(mem: M, source_database: SourceDatabase) -> Self {
-
+    pub fn new(mem: SimpleMem, source_database: SourceDatabase) -> Self {
+        info!("Creating Simple 6809 machine");
         let path = std::env::current_dir().expect("getting dir");
+
         info!("Creating Simple 6809 machine");
         info!("cd = {}", path.display());
 
@@ -301,6 +302,8 @@ impl< M: MemoryIO> SimpleMachine<M> {
         let rc_clock = Rc::new(RefCell::new(clock));
         let regs = Regs::new();
         let verbose = false;
+
+        let breakpoints = emu::breakpoints::BreakPoints::new();
 
         Self {
             source_database,
@@ -313,7 +316,7 @@ impl< M: MemoryIO> SimpleMachine<M> {
             events: vec![],
             dirty: false,
             state: state::State::new(SimState::Paused),
-            breakpoints: emu::breakpoints::BreakPoints::new(),
+            breakpoints,
         }
     }
 }
