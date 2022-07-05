@@ -1,3 +1,7 @@
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::mpsc::TryRecvError;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
@@ -13,34 +17,35 @@ pub enum TermOutput {
 #[derive(Debug, Clone)]
 enum TermControl {
     Quit,
-    SetPrompt(String)
+    SetPrompt(String),
 }
 
 pub struct Term {
     rx: Receiver<TermOutput>,
     control_tx: Sender<TermControl>,
     pub output: Vec<TermOutput>,
-    prompt : String,
+    prompt: String,
 }
 
 impl Term {
     pub fn new() -> Self {
-
+        let history = PathBuf::from_str("history.txt").unwrap();
         let prompt = "> ".to_owned();
+
         let prompt_copy = prompt.clone();
 
         let (tx, rx) = channel();
         let (control_tx, control_rx) = channel();
 
         let _child = thread::spawn(move || {
-            Self::do_term(tx, control_rx, prompt).unwrap();
+            Self::do_term(tx, control_rx, prompt, &history).unwrap();
         });
 
         Self {
             rx,
             control_tx,
             output: vec![],
-            prompt: prompt_copy
+            prompt: prompt_copy,
         }
     }
 
@@ -75,13 +80,11 @@ impl Term {
         tx: Sender<TermOutput>,
         rx: Receiver<TermControl>,
         mut prompt: String,
+        history: &Path,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        use rustyline::error::ReadlineError;
-        use rustyline::Editor;
-
         let mut rl = Editor::<()>::new();
 
-        if rl.load_history("history.txt").is_err() {
+        if rl.load_history(history).is_err() {
             println!("No previous history.");
         }
 
@@ -92,7 +95,7 @@ impl Term {
                 Ok(TermControl::Quit) => break,
                 Ok(TermControl::SetPrompt(new_prompt)) => prompt = new_prompt,
                 Err(TryRecvError::Empty) => (),
-                _ => panic!("{:?}", has_quit)
+                _ => panic!("{:?}", has_quit),
             }
 
             let readline = rl.readline(&prompt);
@@ -118,7 +121,7 @@ impl Term {
             }
         }
 
-        rl.save_history("history.txt").unwrap();
+        rl.save_history(history).unwrap();
         Ok(())
     }
 }
