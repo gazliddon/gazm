@@ -122,6 +122,7 @@ impl Term {
         }
 
         rl.save_history(history).unwrap();
+
         Ok(())
     }
 }

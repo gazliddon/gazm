@@ -6,7 +6,6 @@ mod commands;
 mod diss;
 mod term;
 use emu::{cpu::CpuErr, mem::MemBlock};
-use nom::error::dbg_dmp;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
@@ -139,9 +138,10 @@ use emu::{
     cpu,
     mem::{MemReader, MemoryIO},
 };
+
 use gazm::{commands::parse_command, numbers::*};
 use nom_locate::LocatedSpan;
-use utils::rle::Run;
+use emu::utils::rle::Run;
 
 pub fn parse() -> clap::ArgMatches {
     use clap::{Arg, Command};
@@ -201,7 +201,7 @@ fn do_command(dbg_ctx: &mut DebugCtx, text: &str, x: commands::Command, sg: &mut
         Command::LoadSym(file) => {
             println!("Loading {}", file.to_string_lossy());
 
-            let sd = utils::sources::SourceDatabase::from_json(file);
+            let sd = emu::utils::sources::SourceDatabase::from_json(file);
 
             for bin in &sd.bin_written {
                 let data = load_binary_file(&bin.file);

@@ -569,13 +569,8 @@ dependencies = [
  "pretty_assertions",
  "regex",
  "rustyline",
- "serde",
- "serde_derive",
- "serde_json",
- "serde_yaml",
  "shellexpand",
  "thiserror",
- "utils",
 ]
 
 [[package]]
@@ -627,7 +622,6 @@ dependencies = [
  "notify",
  "num",
  "serde",
- "serde_derive",
  "serde_json",
  "serde_yaml",
  "sha1 0.10.1",
@@ -787,7 +781,6 @@ dependencies = [
  "pretty_assertions",
  "regex",
  "serde",
- "serde_derive",
  "serde_json",
  "serde_yaml",
  "thiserror",
@@ -2065,7 +2058,6 @@ dependencies = [
  "quick-error",
  "regex",
  "serde",
- "serde_derive",
  "serde_json",
  "serde_yaml",
 ]

@@ -4,7 +4,7 @@ use emu::cpu::{IndexModes, IndexedFlags, InstructionDecoder};
 use emu::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo, InstructionType};
 use emu::mem::MemReader;
 use emu::mem::*;
-use serde_json::to_string;
+// use serde_json::to_string;
 use std::path::PathBuf;
 
 pub struct Disassembly {

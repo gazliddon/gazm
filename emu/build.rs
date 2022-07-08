@@ -7,6 +7,7 @@ use std::path::Path;
 mod isa;
 
 fn main() {
+    println!("ABOUT TO DO IT");
     let js_str = include_str!("src/cpu/resources/opcodes.json");
     let dbase = isa::Dbase::from_text(js_str);
     let source = format!("{}", dbase);

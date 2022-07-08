@@ -1,6 +1,6 @@
 use byteorder::ByteOrder;
 use mem::memmap::MemMap;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 use crate::mem;
 
