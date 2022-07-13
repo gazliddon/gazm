@@ -5,7 +5,7 @@ use crate::ast::Ast;
 use crate::item::Node;
 use crate::tokenize::tokenize ;
 
-use utils::sources::Position;
+use emu::utils::sources::Position;
 
 use thiserror::Error;
 
@@ -23,7 +23,7 @@ impl<'a> Gazm<'a> {
     }
 
     pub fn assemble_file<P: AsRef<Path>>(&mut self, x: P) -> GResult<()> {
-        use utils::PathSearcher;
+        use emu::utils::PathSearcher;
         let paths = self.ctx.source_file_loader.get_search_paths().clone();
 
         if let Some(dir) = x.as_ref().parent() {

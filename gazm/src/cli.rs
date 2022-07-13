@@ -2,7 +2,7 @@ use crate::{binary::{ AccessType, Binary }, ctx::{ Context, Opts }};
 use std::path::Path;
 use crate::messages::Verbosity;
 use clap::{Arg, Command};
-use utils::sources::SourceFileLoader;
+use emu::utils::sources::SourceFileLoader;
 use crate::error::ErrorCollector;
 
 impl From<clap::ArgMatches> for Opts {

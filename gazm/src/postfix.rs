@@ -1,4 +1,4 @@
-use utils::Stack;
+use emu::utils::Stack;
 
 pub trait GetPriotity {
     fn priority(&self) -> Option<usize>;

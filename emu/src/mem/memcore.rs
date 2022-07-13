@@ -81,6 +81,16 @@ pub trait MemoryIO {
 
     fn load_word(&mut self, addr: usize) -> MemResult<u16>;
 
+    fn get_mem(&self, range: &std::ops::Range<usize>) -> Vec<u8> {
+        let mut v: Vec<u8> = Vec::new();
+
+        for a in range.clone() {
+            let b = self.inspect_byte(a).unwrap();
+            v.push(b);
+        }
+        v
+    }
+
     fn get_mem_as_str(&self, range: &std::ops::Range<usize>, sep: &str) -> String {
         let mut v: Vec<String> = Vec::new();
 

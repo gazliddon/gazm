@@ -6,7 +6,7 @@ use nom::multi::many1;
 
 use nom::character::complete::{ alphanumeric1, anychar };
 use nom::sequence::preceded;
-use utils::sources::AsmSource;
+use emu::utils::sources::AsmSource;
 
 use crate::error::{IResult, ParseError};
 use crate::locate::Span;

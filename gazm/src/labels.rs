@@ -68,7 +68,7 @@ pub fn parse_label(input: Span) -> IResult<Node> {
 #[allow(unused_imports)]
 mod test {
     use pretty_assertions::{assert_eq, assert_ne};
-    use utils::sources::{AsmSource, Position};
+    use emu::utils::sources::{AsmSource, Position};
 
     use super::*;
 

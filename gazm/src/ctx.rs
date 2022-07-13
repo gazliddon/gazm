@@ -2,13 +2,13 @@ use crate::binary;
 use crate::error::{ParseError, UserError, ErrorCollector, GazmError, GResult};
 use crate::macros::Macros;
 use crate::messages::Verbosity;
-use utils::sources::{FileIo, SourceDatabase, SourceFileLoader, SourceMapping, Sources, SymbolTree};
+use emu::utils::sources::{FileIo, SourceDatabase, SourceFileLoader, SourceMapping, Sources, SymbolTree};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::vec;
 
 use crate::gazm::Gazm;
-use utils::sources::BinWritten;
+use emu::utils::sources::BinWritten;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -83,7 +83,7 @@ impl Default for Opts {
     }
 }
 
-use utils::sources::nsym;
+use emu::utils::sources::nsym;
 
 #[derive(Debug)]
 pub struct Context {

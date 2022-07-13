@@ -43,7 +43,7 @@ use crate::error::{GazmError, GResult };
 use crate::gazm::Gazm;
 
 use crate::ctx::Context;
-use utils::sources::{FileIo, SourceDatabase};
+use emu::utils::sources::{FileIo, SourceDatabase};
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___

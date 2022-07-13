@@ -5,8 +5,8 @@ use crate::postfix::GetPriotity;
 use std::fmt::Display;
 
 use crate::error::AstError;
-use utils::sources::{Position, SymbolQuery};
-use utils::Stack;
+use emu::utils::sources::{Position, SymbolQuery};
+use emu::utils::Stack;
 
 use thiserror::Error;
 

@@ -2,7 +2,7 @@ use crate::binary::{AccessType, BinRef, Binary, BinaryError};
 use ego_tree::iter::Children;
 use serde_json::ser::Formatter;
 use std::collections::{HashMap, HashSet};
-use utils::sources::{
+use emu::utils::sources::{
     ItemType, SourceMapping, Sources, SymbolError, SymbolQuery, SymbolWriter,
 };
 
@@ -355,7 +355,7 @@ impl<'a> Sizer<'a> {
         file_name: P,
         node: AstNodeRef,
     ) -> GResult<std::ops::Range<usize>> {
-        use utils::sources::FileIo;
+        use emu::utils::sources::FileIo;
         let data_len = ctx.get_file_size(file_name.as_ref())?;
 
         let mut r = 0..data_len;

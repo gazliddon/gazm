@@ -1,0 +1,72 @@
+{
+    "commands" : [
+        {
+            "command" : "Diss",
+            "name" : "diss",
+            "short" : "d",
+            "args" : [
+                "Number",
+                "Number"
+            ],
+            "min_args" : 0
+        },
+        {
+            "command" : "Mem",
+            "name" : "mem",
+            "short" : "m",
+            "args" : [
+                "number",
+                "number"
+
+            ],
+            "min_args" : 0
+        },
+        {
+            "command" : "help",
+            "name" : "help",
+            "short" : "h",
+            "args" : [
+                "text"
+            ],
+            "min_args" : 0
+        },
+        {
+            "command" : "Quit",
+            "name" : "quit",
+            "short" : "q",
+            "args" : [
+            ],
+            "min_args" : 0
+        },
+        {
+            "command" : "Radix",
+            "name" : "radix",
+            "short" : "r",
+            "args" : [
+                "Text"
+            ],
+            "min_args" : 0
+        },
+
+        {
+            "command" : "LoadBin",
+            "name" : "load_bin",
+            "short" : "l",
+            "args" : [
+                "File",
+                "Number",
+                "Number"
+            ],
+            "min_args" : 2
+        },
+        {
+            "command" : "LoadSym",
+            "name" : "load_sym",
+            "short" : "s",
+            "args" : [
+                "File"
+            ],
+            "min_args" : 2
+        }
+    ]
+}

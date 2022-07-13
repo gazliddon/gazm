@@ -1,7 +1,7 @@
 // Load an AS6809 map file and create a binary
 
 use regex::Regex;
-use utils::sources::SymbolWriter;
+use emu::utils::sources::SymbolWriter;
 use std::fs;
 use std::path::Path;
 

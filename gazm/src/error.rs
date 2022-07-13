@@ -6,7 +6,7 @@ use crate::locate::span_to_pos;
 use crate::locate::Span;
 use serde::de::Error;
 use thiserror::Error;
-use utils::sources::{Position, SourceInfo};
+use emu::utils::sources::{Position, SourceInfo};
 
 pub type GResult<T> = Result<T, GazmError>;
 
@@ -230,7 +230,7 @@ impl UserError {
         Ok(s)
     }
 
-    pub fn from_parse_error(err: &ParseError, sources: &utils::sources::Sources) -> Self {
+    pub fn from_parse_error(err: &ParseError, sources: &emu::utils::sources::Sources) -> Self {
         let si = sources.get_source_info(&err.pos).unwrap();
 
         Self {

@@ -3,14 +3,14 @@ use crate::ctx::{LstFile, Vars};
 use crate::error::{ErrorCollector, GResult, GazmError};
 use crate::{binary, fixerupper::FixerUpper};
 use crate::evaluator::Evaluator;
-use utils::sources::{FileIo, SourceFileLoader, SymbolError, SymbolNodeId, SymbolWriter};
+use emu::utils::sources::{FileIo, SourceFileLoader, SymbolError, SymbolNodeId, SymbolWriter};
 use crate::ast::{ AstNodeRef, AstTree, AstNodeId };
-use utils::sources::SourceMapping;
+use emu::utils::sources::SourceMapping;
 use crate::item::Item;
 use std::path::Path;
 use std::path::PathBuf;
 use crate::ctx::Opts;
-use utils::sources::BinWritten;
+use emu::utils::sources::BinWritten;
 
 pub struct AsmCtx<'a> {
     pub fixer_upper: FixerUpper,
@@ -150,7 +150,7 @@ impl<'a> AsmCtx<'a> {
     }
 
     pub fn get_file_size<P : AsRef<Path>>(&self, path: P) -> GResult<usize> {
-        use utils::sources::FileIo;
+        use emu::utils::sources::FileIo;
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.source_file_loader.get_size(path)?;
         Ok(ret)

@@ -24,11 +24,11 @@ use nom::{
     sequence::{preceded, terminated},
 };
 use petgraph::visit::GraphRef;
-use utils::sources::Position;
+use emu::utils::sources::Position;
 
 use crate::error::{ErrorCollector, IResult, ParseError, UserError};
 use crate::locate::Span;
-use utils::sources::AsmSource;
+use emu::utils::sources::AsmSource;
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(

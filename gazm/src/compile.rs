@@ -5,7 +5,7 @@ use crate::gazm::Gazm;
 use petgraph::visit::GraphRef;
 use std::collections::{HashMap, HashSet};
 use std::os::unix::prelude::AsRawFd;
-use utils::sources::{FileIo, ItemType};
+use emu::utils::sources::{FileIo, ItemType};
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::item::{self, AddrModeParseType, IndexParseType, Item, Node};

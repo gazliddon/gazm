@@ -4,4 +4,5 @@
 #![allow(unused_imports)]
 pub mod diss;
 pub mod term;
+pub mod commands;
 

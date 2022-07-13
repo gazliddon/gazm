@@ -13,7 +13,7 @@ use nom::{
     sequence::separated_pair,
 };
 
-use utils::sources::{ Sources, Position };
+use emu::utils::sources::{ Sources, Position };
 
 use crate::error::{IResult, UserError};
 use crate::item::Node;
@@ -47,7 +47,7 @@ impl MacroDef {
     /// returns a string of the expanded macro and the position of the original macro text
     pub fn expand(
         &self,
-        sources: &utils::sources::Sources,
+        sources: &Sources,
         args: Vec<Position>,
     ) -> (Position, String) {
         if args.len() != self.params.len() {

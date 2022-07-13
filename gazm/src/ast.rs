@@ -17,7 +17,7 @@ use crate::item::{Item, Node};
 
 use crate::postfix;
 use crate::{messages::*, node};
-use utils::sources::{Position, SourceInfo, SymbolQuery, SymbolWriter};
+use emu::utils::sources::{Position, SourceInfo, SymbolQuery, SymbolWriter};
 
 ////////////////////////////////////////////////////////////////////////////////
 
