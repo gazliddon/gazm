@@ -262,17 +262,17 @@ use std::cell::RefCell;
 /// Record of a written binary chunk
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BinWritten {
-    pub file : PathBuf,
-    pub addr : std::ops::Range<usize>,
+    pub file: PathBuf,
+    pub addr: std::ops::Range<usize>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SourceDatabase {
     id_to_source_file: HashMap<u64, PathBuf>,
     mappings: SourceMapping,
     pub bin_written: Vec<BinWritten>,
     pub exec_addr: Option<usize>,
-    pub cwd: PathBuf,
+    pub file_name: PathBuf,
 
     #[serde(skip)]
     symbols: SymbolTree,
@@ -296,15 +296,15 @@ impl Default for SourceDatabase {
             source_files: Default::default(),
             source_file_to_id: Default::default(),
             mappings: Default::default(),
-            id_to_source_file : Default::default(),
+            id_to_source_file: Default::default(),
             symbols: Default::default(),
             range_to_mapping: Default::default(),
             addr_to_mapping: Default::default(),
             phys_addr_to_mapping: Default::default(),
             loc_to_mapping: Default::default(),
             bin_written: vec![],
-            exec_addr : None,
-            cwd: PathBuf::new(),
+            exec_addr: None,
+            file_name : PathBuf::new(),
         }
     }
 }
@@ -314,9 +314,68 @@ pub struct SourceLineInfo<'a> {
     line: usize,
     mem_range: std::ops::Range<u64>,
 }
+use std::fs;
+
+use path_clean::PathClean;
+
+fn abs_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, base: P2) -> PathBuf {
+    let path = path.as_ref();
+    let base = base.as_ref().to_path_buf();
+
+    let abs = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        base.join(path)
+    }
+    .clean();
+
+    abs
+}
+
+fn rel_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, base: P2) -> Option<PathBuf> {
+    pathdiff::diff_paths(&path,&base)
+}
+
 
 impl SourceDatabase {
-    pub fn new<P: AsRef<Path>>(mappings: &SourceMapping, sources: &Sources, symbols: &SymbolTree, written: &Vec<BinWritten>, exec_addr : Option<usize>, cwd: P) -> Self {
+    pub fn write_json<P: AsRef<Path>>(&self, file: P) -> std::io::Result<()> {
+            let mut copy: SourceDatabase = self.clone();
+        {
+            let cwd = std::env::current_dir()?;
+            let abs_file = abs_path(&file, &cwd);
+            copy.file_name = abs_file.clone();
+            let mut abs_dir = abs_file.clone();
+            abs_dir.pop();
+            println!("Abs file {}", abs_file.to_string_lossy());
+            println!("Abs dir {}", abs_dir.to_string_lossy());
+
+            // Make all the source files relative
+            for (_, v) in &mut copy.id_to_source_file {
+                let v2 = abs_path(&v, &cwd);
+                let rel_path = rel_path(&v2,&abs_dir).unwrap();
+                println!("{} -> {}", v2.to_string_lossy(), rel_path.to_string_lossy());
+                *v = rel_path;
+            }
+
+            for b in &mut copy.bin_written {
+                let v2 = abs_path(&b.file, &cwd);
+                let rel_path = rel_path(&v2,&abs_dir).unwrap();
+                b.file = rel_path;
+            }
+        }
+
+        let j = serde_json::to_string_pretty(&copy).expect("Unable to serialize to json");
+
+        fs::write(file, j)
+    }
+
+    pub fn new(
+        mappings: &SourceMapping,
+        sources: &Sources,
+        symbols: &SymbolTree,
+        written: &Vec<BinWritten>,
+        exec_addr: Option<usize>
+    ) -> Self {
         let mut id_to_source_file = HashMap::new();
 
         for (k, v) in &sources.id_to_source_file {
@@ -335,22 +394,24 @@ impl SourceDatabase {
             loc_to_mapping: Default::default(),
             bin_written: written.clone().to_vec(),
             exec_addr,
-            cwd: cwd.as_ref().into(),
+            file_name : PathBuf::new(),
         };
 
         ret.post_deserialize();
-
         ret
     }
 
     pub fn from_json<P: AsRef<Path>>(sym_file: P) -> Self {
-        let symstr = std::fs::read_to_string(sym_file).unwrap();
+        let symstr = std::fs::read_to_string(&sym_file).unwrap();
         let mut sd: SourceDatabase = serde_json::from_str(&symstr).unwrap();
         sd.post_deserialize();
         sd
     }
 
     fn post_deserialize(&mut self) {
+        let mut file_dir = self.file_name.to_path_buf();
+        file_dir.pop();
+
         for v in &self.mappings.addr_to_mapping {
             self.range_to_mapping.insert(v.mem_range.clone(), v.clone());
             self.addr_to_mapping.insert(v.mem_range.start, v.clone());
@@ -366,8 +427,10 @@ impl SourceDatabase {
 
         // Make all of the files written path absolute by adding cwd when the sym file was saved
         for x in &mut self.bin_written {
-            let y = format!("{}/{}", self.cwd.to_string_lossy(), x.file.to_string_lossy());
-            x.file = y.into();
+            // Adjust for being relative to cwd
+            let y = file_dir.join(x.file.as_path());
+            // Make absolute
+            x.file = y.canonicalize().expect("Cannot canonicalize");
         }
     }
 
@@ -385,11 +448,10 @@ impl SourceDatabase {
         Ok(())
     }
 
-    pub fn get_source_file_from_file_name<P>(
-        &self,
-        file_name: P,
-    )  -> Option<SourceFileAccess> 
-    where P : AsRef<Path>{
+    pub fn get_source_file_from_file_name<P>(&self, file_name: P) -> Option<SourceFileAccess>
+    where
+        P: AsRef<Path>,
+    {
         self.source_file_to_id
             .get(file_name.as_ref())
             .and_then(|file_id| self.get_source_file(*file_id))
@@ -422,7 +484,11 @@ impl SourceDatabase {
         self.source_files.borrow().get(&file_id).and_then(func)
     }
 
-    pub fn get_source_line_from_file<P: AsRef<Path>>(&self, file_name: P, line: usize) -> Option<SourceLine> {
+    pub fn get_source_line_from_file<P: AsRef<Path>>(
+        &self,
+        file_name: P,
+        line: usize,
+    ) -> Option<SourceLine> {
         self.get_source_file_from_file_name(file_name)
             .and_then(|sf| sf.get_line(line))
     }

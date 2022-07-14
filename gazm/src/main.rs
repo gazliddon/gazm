@@ -99,8 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let sd : SourceDatabase = ( &ctx ).into();
 
         x.status(format!("Writing symbols: {}", sym_file));
-        let j = serde_json::to_string_pretty(&sd).expect("Unable to serialize to json");
-        fs::write(sym_file, j).with_context(|| format!("Unable to write {sym_file}"))?;
+        sd.write_json(sym_file).with_context(||format!("Unable to write {sym_file}"))?;
 
         if let Some(deps) = &opts.deps_file {
             x.status(format!("Writing deps file : {deps}"));

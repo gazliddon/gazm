@@ -125,7 +125,6 @@ impl<'a> AsmCtx<'a> {
         };
 
         self.bin_chunks.push(bw);
-
         // return the path written to, may have been expanded
         ret
     }

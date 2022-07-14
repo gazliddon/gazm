@@ -164,7 +164,6 @@ impl From<&Context> for SourceDatabase {
             &c.symbols,
             &c.bin_chunks,
             c.exec_addr,
-            &c.cwd,
         )
     }
 }
