@@ -363,12 +363,6 @@ impl SourceDatabase {
         for (k, v) in &self.id_to_source_file {
             self.source_file_to_id.insert(v.clone(), *k);
         }
-
-        // Make all of the files written path absolute by adding cwd when the sym file was saved
-        for x in &mut self.bin_written {
-            let y = format!("{}/{}", self.cwd.to_string_lossy(), x.file.to_string_lossy());
-            x.file = y.into();
-        }
     }
 
     fn load_source_file(&self, file_id: u64) -> Result<(), ()> {
