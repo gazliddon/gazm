@@ -22,7 +22,7 @@ IO
 use super::io;
 use byteorder::{BigEndian, ByteOrder};
 use emu::mem::{MemErrorTypes, MemResult, MemoryIO};
-use imgui_glium_renderer::imgui::sys::{igIsRectVisibleVec2, igIsWindowAppearing};
+use imgui_glium_renderer::imgui::sys::{igIsRectVisible_Vec2, igIsWindowAppearing};
 use io::*;
 use super::region::*;
 

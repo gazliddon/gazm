@@ -1,15 +1,17 @@
 use super::frametime::FrameTime;
-use super::{glutin, imgui, App};
+use super::{imgui, App};
+use imgui_glium_renderer::glium;
+
 // use super::{glutin, imgui};
 //
-//
+use glium::glutin;
 use glutin::event_loop::{ControlFlow, EventLoop};
-
 use glutin::event::{Event, WindowEvent, ModifiersState};
 use imgui_glium_renderer::Renderer;
 
+use glium::backend::glutin::Display;
+
 use crate::v2::*;
-use glium::Display;
 use imgui::Context;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use std::time::Instant;
@@ -18,7 +20,7 @@ use lazy_static::*;
 
 lazy_static! {
 
-    static ref CODE_POINTS : Vec<u16> = {
+    static ref CODE_POINTS : Vec<u32> = {
         vec![
             0x2500,
             0x257f,
@@ -43,15 +45,19 @@ pub struct System {
 
 impl Default for System {
     fn default() -> Self {
-        let event_loop = EventLoop::new();
-        let wb = glutin::window::WindowBuilder::new();
+        use glutin::ContextBuilder;
+        use glutin::window::WindowBuilder;
 
-        let cb = glutin::ContextBuilder::new()
+        let event_loop = EventLoop::new();
+
+        let cb = ContextBuilder::new()
             .with_double_buffer(Some(true))
             .with_multisampling(16)
             .with_hardware_acceleration(Some(true))
             .with_srgb(true)
             .with_vsync(true);
+
+        let wb = WindowBuilder::new();
 
         let display = Display::new(wb, cb, &event_loop).expect("Building display");
 

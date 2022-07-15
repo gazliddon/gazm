@@ -1,7 +1,7 @@
-use glium::glutin;
 use glium::glutin::event;
 use event::{ ModifiersState, DeviceEvent };
 use imgui_glium_renderer::imgui;
+use imgui_glium_renderer::glium;
 
 pub mod frametime;
 pub mod sampler;

@@ -47,13 +47,14 @@ pub fn parse() -> clap::ArgMatches {
 
 use std::iter::from_fn;
 use std::path::PathBuf;
+use imgui_glium_renderer::glium;
 
 use app::{frametime::FrameTime, system::System, App};
 use byteorder::{BigEndian, ByteOrder};
 use glium::index::PrimitiveType;
 use glium::Surface;
-use glium::{glutin, implement_vertex};
-use imgui::{im_str, Condition, Ui, Window};
+use glium::implement_vertex;
+use imgui::{Condition, Ui, Window};
 use imgui_glium_renderer::imgui;
 use log::info;
 use mesh::Mesh;
@@ -220,7 +221,7 @@ pub fn sin01(x: f64) -> f64 {
     (x.sin() / 2.0) + 0.5
 }
 
-use glutin::event::VirtualKeyCode;
+use glium::glutin::event::VirtualKeyCode;
 
 #[allow(dead_code)]
 enum KeyPress {
@@ -261,11 +262,11 @@ impl App<events::Events> for MyApp {
 
     fn handle_key(
         &mut self,
-        _code: glutin::event::VirtualKeyCode,
-        mstate: glutin::event::ModifiersState,
+        _code: glium::glutin::event::VirtualKeyCode,
+        mstate: glium::glutin::event::ModifiersState,
     ) -> Option<events::Events> {
         use events::Events::*;
-        use glutin::event::VirtualKeyCode as Vk;
+        use glium::glutin::event::VirtualKeyCode as Vk;
         use simple::Machine;
 
         let target = &mut self.sourcewin;
@@ -356,7 +357,7 @@ impl App<events::Events> for MyApp {
 
         let pos = V2::new(0.0, 0.0);
 
-        Window::new(im_str!("Hello world"))
+        Window::new("Hello world")
             .bg_alpha(0.9)
             .size(dims.as_f32s().as_array(), Condition::Always)
             .no_decoration()

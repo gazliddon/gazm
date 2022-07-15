@@ -9,14 +9,14 @@ emu = { path = "../emu" }
 utils = { path = "../utils" }
 vector2d="*"
 
-imgui-glium-renderer="0.7.0"
-imgui-winit-support="0.7.0"
-glium = { version = "0.29", default-features = true }
-
+glium = { version = "0.29.1", default-features = true }
+winit="0.25"
 cgmath="*"
 num="*"
 lazy_static = "*"
 byteorder="*"
+imgui-glium-renderer="0.8.2"
+imgui-winit-support="0.8.2"
 
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"
