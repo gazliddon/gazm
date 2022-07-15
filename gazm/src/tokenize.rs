@@ -15,6 +15,7 @@ use crate::{
 use crate::error::{GResult, GazmError};
 use std::path::{Path, PathBuf};
 
+use emu::utils::sources::Position;
 use nom::{
     branch::alt,
     bytes::complete::is_not,
@@ -24,7 +25,6 @@ use nom::{
     sequence::{preceded, terminated},
 };
 use petgraph::visit::GraphRef;
-use emu::utils::sources::Position;
 
 use crate::error::{ErrorCollector, IResult, ParseError, UserError};
 use crate::locate::Span;
@@ -113,19 +113,8 @@ impl<'a> Tokens<'a> {
         }
     }
 
-    fn add_some_node(&mut self, node: Option<Node>) {
-        if let Some(node) = node {
-            self.add_node(node)
-        }
-    }
-
     fn add_node(&mut self, node: Node) {
         self.tokens.push(node)
-    }
-
-    fn add_comment(&mut self, text: Span) {
-        let node = Node::from_item_span(Item::Comment(text.to_string()), text);
-        self.add_node(node)
     }
 
     fn trailing_text(&mut self, input: Span<'a>) -> IResult<()> {
@@ -148,7 +137,7 @@ impl<'a> Tokens<'a> {
         if line.is_empty() && self.opts.encode_blank_lines {
             let node = Node::from_item_span(Item::BlankLine, line);
             self.add_node(node);
-            return Ok((input,()))
+            return Ok((input, ()));
         }
 
         if let Ok((rest, node)) = parse_comments(self.opts.star_comments, input) {
@@ -170,15 +159,14 @@ impl<'a> Tokens<'a> {
         }
 
         // if this is an opcode parse and return
-        if let Ok((rest, body)) = 
+        if let Ok((rest, body)) =
             alt((ws(parse_command), ws(parse_opcode), ws(parse_macro_call)))(input)
         {
             self.add_node(body);
-            return self.trailing_text(rest);
+            self.trailing_text(rest)
         } else {
+            self.trailing_text(input)
         }
-
-        self.trailing_text(input)
     }
 
     pub fn to_tokens(self) -> Vec<Node> {
@@ -193,7 +181,6 @@ impl<'a> Tokens<'a> {
         let mut source = input;
 
         while !source.is_empty() {
-
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
                 let mut macro_tokes = Tokens::new(self.ctx, &self.opts);
                 macro_tokes.add_tokens(body).unwrap();
@@ -210,10 +197,7 @@ impl<'a> Tokens<'a> {
                 continue;
             }
 
-
-
             let res: Result<(), ParseError> = try {
-
                 if let Ok((rest, _)) = get_struct(source) {
                     let (_, matched) = parse_struct_definition(source)?;
                     self.add_node(matched);
@@ -222,6 +206,7 @@ impl<'a> Tokens<'a> {
                 }
 
                 let (rest, line) = get_line(source)?;
+
                 source = rest;
 
                 let _ = self.tokenize_line(line)?;
