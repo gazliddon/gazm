@@ -1,26 +1,26 @@
-use crate::asmctx::AsmCtx;
-use crate::astformat::as_string;
-use crate::fixerupper::FixerUpper;
-use crate::gazm::Gazm;
-use petgraph::visit::GraphRef;
 use std::collections::{HashMap, HashSet};
 use std::os::unix::prelude::AsRawFd;
-use emu::utils::sources::{FileIo, ItemType};
-
-use crate::ast::{AstNodeId, AstNodeRef, AstTree};
-use crate::item::{self, AddrModeParseType, IndexParseType, Item, Node};
-use crate::messages::{info, messages};
 use std::path::Path;
 
-use crate::error::UserError;
+use crate::{
+    asmctx::AsmCtx,
+    ast::{AstNodeId, AstNodeRef, AstTree},
+    astformat::as_string,
+    ctx::Opts,
+    error::{GResult, GazmError, UserError},
+    fixerupper::FixerUpper,
+    gazm::Gazm,
+    item::{self, AddrModeParseType, IndexParseType, Item, Node},
+    messages::debug_mess,
+    messages::{info, messages},
+    regutils::*,
+    status_mess,
+};
 
-use emu::isa::Instruction;
-
-use crate::ctx::Opts;
-use crate::error::{GResult, GazmError};
-use crate::messages::debug_mess;
-
-use crate::{regutils::*, status_mess};
+use emu::{
+    isa::Instruction,
+    utils::sources::{FileIo, ItemType},
+};
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
     let compiler = Compiler::new(ctx.opts.clone(), tree)?;
@@ -157,12 +157,14 @@ impl<'a> Compiler<'a> {
         let (node, _) = self.get_node_item(ctx, id);
         let (physical_address, count) = ctx.eval.eval_two_args(node)?;
 
-        let p = ctx.write_bin_file(path, physical_address as usize..( physical_address+count ) as usize);
+        let p = ctx.write_bin_file(
+            path,
+            physical_address as usize..(physical_address + count) as usize,
+        );
 
         status_mess!(
             "Written binary: {} ${physical_address:x} ${count:x}",
             p.to_string_lossy()
-
         );
 
         Ok(())
@@ -483,9 +485,9 @@ impl<'a> Compiler<'a> {
                 }
 
                 Exec => {
-                    let (exec_addr,_) = ctx.eval.eval_first_arg(node)?;
+                    let (exec_addr, _) = ctx.eval.eval_first_arg(node)?;
                     ctx.set_exec_addr(exec_addr as usize);
-                },
+                }
 
                 IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
                 | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp => (),

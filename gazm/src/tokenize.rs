@@ -1,21 +1,3 @@
-use crate::{
-    commands, comments,
-    ctx::Opts,
-    gazm::Gazm,
-    item::{Item, Node},
-    labels::parse_label,
-    locate::{matched_span, span_to_pos},
-    macros::{get_macro_def, parse_macro_call},
-    messages::messages,
-    opcodes,
-    structs::{get_struct, parse_struct_definition},
-    util::{self, ws},
-};
-
-use crate::error::{GResult, GazmError};
-use std::path::{Path, PathBuf};
-
-use emu::utils::sources::Position;
 use nom::{
     branch::alt,
     bytes::complete::is_not,
@@ -24,11 +6,25 @@ use nom::{
     multi::many0,
     sequence::{preceded, terminated},
 };
-use petgraph::visit::GraphRef;
 
-use crate::error::{ErrorCollector, IResult, ParseError, UserError};
-use crate::locate::Span;
-use emu::utils::sources::AsmSource;
+use std::path::{Path, PathBuf};
+
+use crate::{
+    commands, comments,
+    ctx::Opts,
+    error::{ErrorCollector, GResult, GazmError, IResult, ParseError, UserError},
+    gazm::Gazm,
+    item::{Item, Node},
+    labels::parse_label,
+    locate::{matched_span, span_to_pos, Span},
+    macros::{get_macro_def, parse_macro_call},
+    messages::messages,
+    opcodes,
+    structs::{get_struct, parse_struct_definition},
+    util::{self, ws},
+};
+
+use emu::utils::sources::{AsmSource, Position};
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
