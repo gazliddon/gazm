@@ -3,14 +3,14 @@ use std::path::{Path, PathBuf};
 
 use crate::ast::Ast;
 use crate::item::Node;
-use crate::tokenize::tokenize ;
+use crate::tokenize::tokenize;
 
 use emu::utils::sources::Position;
 
 use thiserror::Error;
 
 use crate::error::UserError;
-use crate::error::{GazmError, GResult };
+use crate::error::{GResult, GazmError};
 
 pub struct Gazm<'a> {
     ctx: &'a mut Context,
@@ -31,39 +31,43 @@ impl<'a> Gazm<'a> {
         }
 
         let tokens = tokenize(&mut self.ctx, &self.opts, x)?;
-        self.assemble_tokens(tokens)?;
+        self.assemble_tokens(&tokens)?;
+
+        self.ctx.tokens.push(tokens);
 
         self.ctx.source_file_loader.set_search_paths(paths);
         self.ctx.errors.raise_errors()
     }
 
-    fn assemble_tokens(&mut self, tokens: Node) -> GResult<()> {
+    fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
         use crate::asmctx::AsmCtx;
-        use crate::fixerupper::FixerUpper;
         use crate::evaluator::Evaluator;
+        use crate::fixerupper::FixerUpper;
+
         let tree = Ast::from_nodes(&mut self.ctx, tokens)?;
 
-        use crate::sizer::size_tree;
         use crate::compile::compile;
+        use crate::sizer::size_tree;
 
         let id = tree.root().id();
 
         let mut asm_ctx = AsmCtx {
             fixer_upper: FixerUpper::new(),
             eval: Evaluator::new(&mut self.ctx.symbols, &mut self.ctx.source_file_loader),
-            direct_page: None, 
+            direct_page: None,
             source_map: &mut self.ctx.source_map,
             binary: &mut self.ctx.binary,
             vars: &self.ctx.vars,
             errors: &mut self.ctx.errors,
             opts: &self.opts,
-            lst_file : &mut self.ctx.lst_file,
-            bin_chunks : &mut self.ctx.bin_chunks,
-            exec_addr : &mut self.ctx.exec_addr,
+            lst_file: &mut self.ctx.lst_file,
+            bin_chunks: &mut self.ctx.bin_chunks,
+            exec_addr: &mut self.ctx.exec_addr,
         };
 
-        size_tree( &mut asm_ctx,id, &tree)?;
+        size_tree(&mut asm_ctx, id, &tree)?;
         compile(&mut asm_ctx, &tree)?;
+        self.ctx.ast = Some(tree);
         Ok(())
     }
 }

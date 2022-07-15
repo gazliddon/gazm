@@ -337,9 +337,10 @@ impl<'a> Display for BaseNode<Item, Position> {
         let join_children = |sep| join_vec(&self.children, sep);
 
         let ret: String = match item {
-            LocalAssignmentFromPc(name) | AssignmentFromPc(name) => {
-                format!("{} equ {}", name, self.children[0])
+            AssignmentFromPc(name) | LocalAssignmentFromPc(name) => { 
+                format!("{} equ *", name)
             }
+
             Pc => "*".to_string(),
 
             Label(name) | LocalLabel(name) => name.clone(),

@@ -6,6 +6,8 @@ use emu::utils::sources::{FileIo, SourceDatabase, SourceFileLoader, SourceMappin
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::vec;
+use crate::item::Node;
+use crate::ast::AstTree;
 
 use crate::gazm::Gazm;
 use emu::utils::sources::BinWritten;
@@ -62,6 +64,7 @@ pub struct Opts {
     pub project_file : PathBuf,
     pub lst_file: Option<String>,
     pub encode_blank_lines: bool,
+    pub ast_file: Option<PathBuf>,
 }
 
 impl Default for Opts {
@@ -79,6 +82,7 @@ impl Default for Opts {
             project_file: "lol".to_owned().into(),
             lst_file : None,
             encode_blank_lines : false,
+            ast_file : None,
         }
     }
 }
@@ -98,6 +102,8 @@ pub struct Context {
     pub exec_addr : Option<usize>,
     pub bin_chunks : Vec<BinWritten>,
     pub cwd : PathBuf,
+    pub tokens: Vec<Node>,
+    pub ast: Option<AstTree>,
 }
 
 #[derive(Debug, Clone)]
@@ -182,7 +188,8 @@ impl Default for Context {
             exec_addr : None,
             bin_chunks: vec![],
             cwd : std::env::current_dir().unwrap(),
-
+            tokens: vec![],
+            ast : None,
         }
     }
 }

@@ -75,8 +75,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // x.status(BANNER);
-    // x.status("GASM 6809 Assembler\n");
-
+    
+    status_mess!("GASM 6809 Assembler\n");
+    
     x.indent();
 
     use std::fs;
@@ -91,18 +92,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(lst_file) = &opts.lst_file {
         let text = ctx.lst_file.lines.join("\n");
         fs::write(lst_file, text).with_context(|| format!("Unable to write list file {lst_file}"))?;
-        x.status(format!("Written lst file {lst_file}"))
+        status_mess!("Written lst file {lst_file}");
+    }
+
+    if let Some(ast_file) = &opts.ast_file {
+        status_mess!("Writing ast: {}", ast_file.to_string_lossy());
+        status_err!("Not done!");
+        if let Some(ast) = &ctx.ast {
+
+            let x = astformat::as_string(ast.root());
+            println!("{x}");
+
+        } else {
+            status_err!("No AST file to write");
+        }
     }
 
     if let Some(sym_file) = &opts.syms_file {
 
         let sd : SourceDatabase = ( &ctx ).into();
 
-        x.status(format!("Writing symbols: {}", sym_file));
+        status_mess!("Writing symbols: {}", sym_file);
+
         sd.write_json(sym_file).with_context(||format!("Unable to write {sym_file}"))?;
 
         if let Some(deps) = &opts.deps_file {
-            x.status(format!("Writing deps file : {deps}"));
+            status_mess!("Writing deps file : {deps}");
 
             let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
 
@@ -120,7 +135,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .collect();
 
             let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
-
             let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
 
             fs::write(deps, deps_line).with_context(|| format!("Unable to write {deps}"))?;
@@ -128,7 +142,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     x.deindent();
-
     x.info("");
 
     Ok(())

@@ -219,19 +219,30 @@ where
 #[macro_export]
 macro_rules! status_mess {
     ($($arg:tt)*) => {{
-        let m = messages();
-        if m.get_verbosity() >= $crate::messages::Verbosity::Normal {
+        use $crate::messages;
+        let m = messages::messages();
+        if m.get_verbosity() >= messages::Verbosity::Normal {
             let res = std::fmt::format(std::format_args!($($arg)*));
-            m.debug(res)
+            m.status(res)
         }
+    }}
+}
+#[macro_export]
+macro_rules! status_err {
+    ($($arg:tt)*) => {{
+        use $crate::messages;
+        let m = messages::messages();
+            let res = std::fmt::format(std::format_args!($($arg)*));
+            m.error(res)
     }}
 }
 
 #[macro_export]
 macro_rules! debug_mess {
     ($($arg:tt)*) => {{
-        let m = messages();
-        if m.get_verbosity() >= $crate::messages::Verbosity::Debug {
+        use $crate::messages;
+        let m = messages::messages();
+        if m.get_verbosity() >= messages::Verbosity::Debug {
             let res = std::fmt::format(std::format_args!($($arg)*));
             m.debug(res)
         }
