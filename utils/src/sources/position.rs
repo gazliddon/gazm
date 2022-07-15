@@ -4,7 +4,7 @@ impl std::fmt::Display for Position {
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Debug, Copy)]
 pub enum AsmSource {
     FromStr,
     FileId(u64),
@@ -35,7 +35,7 @@ impl Position {
     }
 }
 
-impl<'a> Default for Position {
+impl Default for Position {
     fn default() -> Self {
         Self {
             line: 0,

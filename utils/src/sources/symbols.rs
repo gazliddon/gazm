@@ -34,7 +34,7 @@ pub trait SymbolWriter {
 ////////////////////////////////////////////////////////////////////////////////
 use serde::{Deserialize, Serialize};
 /// Holds information about a symbol
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SymbolInfo {
     /// Symbol Name
     pub name: String,
@@ -44,7 +44,7 @@ pub struct SymbolInfo {
     pub value: Option<i64>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbolError {
     AlreadyDefined(u64),
     Mismatch { expected: i64 },

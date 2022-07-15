@@ -19,6 +19,12 @@ pub struct Scopes<V: ValueTraits, ID: IdTraits> {
     root_id: ego_tree::NodeId,
 }
 
+impl<V: ValueTraits, ID: IdTraits> Default for Scopes<V, ID> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
     pub fn new() -> Self {
         let syms = SymbolTable::new("root");
@@ -85,7 +91,7 @@ pub struct ScopeCursor<'a, V: ValueTraits, ID: IdTraits> {
     current_scope: ScopeId,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ScopedSymbolId<ID: IdTraits> {
     pub scope: ScopeId,
     pub symbol: ID,

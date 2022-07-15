@@ -5,7 +5,7 @@ use std::{collections::HashMap, fmt::Display};
 mod new {
     use std::collections::HashMap;
 
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum SymbolError {
         AlreadyDefined(SymbolId),
         Mismatch { expected: i64 },

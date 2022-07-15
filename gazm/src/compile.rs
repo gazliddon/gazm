@@ -309,7 +309,6 @@ impl<'a> Compiler<'a> {
         // Add memory to source code mapping for this opcode
         let (phys_range, range) = ctx.binary.range_to_write_address(pc);
         self.add_mapping(ctx, phys_range, range, id, ItemType::OpCode);
-
         res
     }
 
