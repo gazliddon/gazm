@@ -175,9 +175,10 @@ impl<'a> Tokens<'a> {
         {
             self.add_node(body);
             return self.trailing_text(rest);
+        } else {
         }
 
-        Ok((input, ()))
+        self.trailing_text(input)
     }
 
     pub fn to_tokens(self) -> Vec<Node> {
