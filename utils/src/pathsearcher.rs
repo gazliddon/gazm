@@ -54,7 +54,8 @@ impl PathSearcher for Paths {
             for i in &self.paths {
                 let x = i.join(file_name);
                 if x.exists() {
-                    return Ok(x);
+                    let ret = crate::fileutils::abs_path_from_cwd(x);
+                    return Ok(ret);
                 } else {
                     tried.push(x.clone());
                 }

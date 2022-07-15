@@ -116,16 +116,14 @@ impl<'a> AsmCtx<'a> {
         // TODO This all needs produce errors if appropriate
         let ret = self.write_bin_file_data(&path, data);
 
-
         // Save a record of the file Written
         // this goes into the written sym file eventually
         let bw = BinWritten {
-            file: ret.clone(),
+            file:ret.clone(), 
             addr:range
         };
 
         self.bin_chunks.push(bw);
-
         // return the path written to, may have been expanded
         ret
     }
@@ -133,6 +131,7 @@ impl<'a> AsmCtx<'a> {
 
     fn write_bin_file_data<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+let path = emu::utils::fileutils::abs_path_from_cwd(path);
         let path = self.loader().write(path, data);
         path
     }

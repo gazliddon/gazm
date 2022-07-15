@@ -12,6 +12,8 @@ anyhow="*"
 log="*"
 env_logger="*"
 ego-tree="*"
+pathdiff="*"
+path-clean="*"
 
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"
