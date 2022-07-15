@@ -65,8 +65,8 @@ pub struct Ast<'a> {
 }
 
 impl<'a> Ast<'a> {
-    pub fn from_nodes(ctx: &'a mut Context, node: Node ) -> Result<AstTree, UserError> {
-        let tree = make_tree(&node);
+    pub fn from_nodes(ctx: &'a mut Context, node: &Node ) -> Result<AstTree, UserError> {
+        let tree = make_tree(node);
         let r =  Self::new(tree, ctx)?;
         Ok(r.tree)
     }

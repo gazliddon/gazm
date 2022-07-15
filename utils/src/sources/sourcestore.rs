@@ -186,7 +186,7 @@ impl Sources {
 
 use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Debug, Eq, Serialize, Deserialize, Clone)]
 pub enum ItemType {
     OpCode,
     Command,
@@ -322,14 +322,13 @@ fn abs_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, base: P2) -> PathBuf {
     let path = path.as_ref();
     let base = base.as_ref().to_path_buf();
 
-    let abs = if path.is_absolute() {
+    if path.is_absolute() {
         path.to_path_buf()
     } else {
         base.join(path)
     }
-    .clean();
+    .clean()
 
-    abs
 }
 
 fn rel_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, base: P2) -> Option<PathBuf> {
@@ -349,7 +348,7 @@ impl SourceDatabase {
         mappings: &SourceMapping,
         sources: &Sources,
         symbols: &SymbolTree,
-        written: &Vec<BinWritten>,
+        written: &[BinWritten],
         exec_addr: Option<usize>
     ) -> Self {
         let mut id_to_source_file = HashMap::new();

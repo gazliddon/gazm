@@ -3,7 +3,7 @@ mod tree;
 pub use table::*;
 pub use tree::*;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbolError<ID> {
     AlreadyDefined(ID),
     Mismatch { expected: i64 },

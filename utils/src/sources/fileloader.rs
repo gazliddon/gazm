@@ -28,7 +28,7 @@ pub trait FileIo: PathSearcher {
     fn mk_error(&self, e: crate::pathsearcher::SearchError) -> anyhow::Error {
         use crate::pathsearcher::SearchError::*;
 
-        let e = match e {
+        match e {
             FileNotFound(f, v) => {
                 let errs: Vec<String> = v
                     .into_iter()
@@ -43,8 +43,7 @@ pub trait FileIo: PathSearcher {
             _ => {
                 panic!()
             }
-        };
-        e
+        }
     }
 
     fn add_to_files_read(&mut self, p: PathBuf);

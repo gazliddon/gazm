@@ -55,7 +55,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
         let ret: String = match item {
             LocalAssignmentFromPc(name) | AssignmentFromPc(name) => {
-                format!("{} equ {}", name, child_string(0))
+                format!("{name} equ *")
             }
 
             Pc => "*".to_string(),

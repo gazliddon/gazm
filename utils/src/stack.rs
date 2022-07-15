@@ -1,5 +1,5 @@
 use std::{collections::VecDeque, ops::Deref};
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Stack<OP: Clone> {
     stack: VecDeque<OP>,
 }

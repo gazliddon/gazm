@@ -1,9 +1,12 @@
-use crate::{binary::{ AccessType, Binary }, ctx::{ Context, Opts }};
-use std::path::Path;
+use crate::error::ErrorCollector;
 use crate::messages::Verbosity;
+use crate::{
+    binary::{AccessType, Binary},
+    ctx::{Context, Opts},
+};
 use clap::{Arg, Command};
 use emu::utils::sources::SourceFileLoader;
-use crate::error::ErrorCollector;
+use std::path::{Path, PathBuf};
 
 impl From<clap::ArgMatches> for Opts {
     fn from(m: clap::ArgMatches) -> Self {
@@ -16,7 +19,8 @@ impl From<clap::ArgMatches> for Opts {
             star_comments: m.is_present("star-comments"),
             ignore_relative_offset_errors: m.is_present("ignore-relative-offset-errors"),
             project_file: m.value_of("project-file").unwrap().into(),
-            lst_file : m.value_of("lst-file").map(|f| f.to_string()),
+            lst_file: m.value_of("lst-file").map(|f| f.to_string()),
+            ast_file: m.value_of("ast-file").map(|f| PathBuf::from(f.to_string())),
             ..Default::default()
         };
         opts.verbose = match m.occurrences_of("verbose") {
@@ -39,14 +43,12 @@ impl From<clap::ArgMatches> for Opts {
 
 impl From<clap::ArgMatches> for Context {
     fn from(m: clap::ArgMatches) -> Self {
-
         let mut ret = Self {
-
             ..Default::default()
         };
 
         if m.is_present("max-errors") {
-            let max_errors =  m
+            let max_errors = m
                 .value_of("max-errors")
                 .map(|s| s.parse::<usize>().unwrap())
                 .unwrap();
@@ -54,7 +56,7 @@ impl From<clap::ArgMatches> for Context {
         }
 
         if m.is_present("mem-size") {
-            let mem_size =  m
+            let mem_size = m
                 .value_of("mem-size")
                 .map(|s| s.parse::<usize>().unwrap())
                 .unwrap();
@@ -152,12 +154,19 @@ pub fn parse() -> clap::ArgMatches {
                 .short('m'),
         )
         .arg(
+            Arg::new("ast-file")
+                .help("Output AST")
+                .long("ast-file")
+                .takes_value(true)
+                .use_value_delimiter(false),
+        )
+        .arg(
             Arg::new("lst-file")
-                .help("Output a list file")
+                .help("Output list file")
                 .long("lst-file")
                 .short('l')
                 .takes_value(true)
-                .use_value_delimiter(false)
+                .use_value_delimiter(false),
         )
         .arg(
             Arg::new("mem-size")
