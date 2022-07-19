@@ -35,6 +35,7 @@ trait Computer {
 struct Stargate {
     pub regs: emu::cpu::Regs,
     pub mem: emu::mem::MemBlock<BigEndian>,
+    pub pins: emu::cpu::Pins,
 }
 
 fn load_binary_file<P: AsRef<std::path::Path>>(filename: P) -> Vec<u8> {
@@ -53,10 +54,12 @@ impl Stargate {
         Self {
             regs: Default::default(),
             mem,
+            pins: Default::default(),
         }
     }
+
     fn make_ctx<'a>(&'a mut self) -> cpu::Context<'a> {
-        cpu::Context::new(&mut self.mem, &mut self.regs).unwrap()
+        cpu::Context::new(&mut self.mem, &mut self.regs, &mut self.pins).unwrap()
     }
 }
 

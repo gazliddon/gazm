@@ -1,6 +1,8 @@
-use std::fmt::Display;
+use std::{fmt::Display, ops::BitOr, path::is_separator};
 
 use bitflags::bitflags;
+use num::{traits::WrappingNeg, Float};
+use utils::Stack;
 
 bitflags! {
     pub struct StackFlags: u8 {
@@ -15,6 +17,14 @@ bitflags! {
     const CC = 0x01;
     }
 }
+// 6809 vectors
+pub const VEC_SWI3: usize = 0xfff2;
+pub const VEC_SWI2: usize = 0xfff4;
+pub const VEC_FIRQ: usize = 0xfff6;
+pub const VEC_IRQ: usize = 0xfff8;
+pub const VEC_SWI: usize = 0xfffa;
+pub const VEC_NMI: usize = 0xfffc;
+pub const VEC_RESET: usize = 0xfffE;
 
 // Handles CPU emulation
 use super::{
@@ -33,7 +43,7 @@ use alu::GazAlu;
 
 use thiserror::Error;
 
-#[derive(Error,Debug, Clone, PartialEq)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum CpuErr {
     #[error("Unknown instruction")]
     UnknownInstruction,
@@ -71,11 +81,32 @@ pub fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
     (get_tfr_reg(op >> 4), get_tfr_reg(op & 0xf))
 }
 
+pub struct Pins {
+    // pins are active LOW
+    irq : bool,
+    nmi : bool,
+    reset : bool,
+}
+
+impl Default for Pins {
+    fn default() -> Self {
+        Self {
+            irq: true,
+            nmi: true,
+            reset: true,
+        }
+    }
+}
+
 pub struct Context<'a> {
     regs: &'a mut Regs,
     mem: &'a mut dyn MemoryIO,
-    cycles: usize,
+    pins : &'a mut Pins,
     ins: InstructionDecoder,
+    /// Cycles executed
+    cycles : usize,
+    /// Instructions executed
+    instructions: usize,
 }
 
 // use serde::Deserializer;
@@ -83,6 +114,10 @@ pub struct Context<'a> {
 impl<'a> Context<'a> {
     pub fn cycles(&self) -> usize {
         self.cycles
+    }
+
+    pub fn instructions(&self) -> usize {
+        self.instructions
     }
 
     fn set_pc(&mut self, v: usize) {
@@ -292,55 +327,52 @@ impl<'a> Context<'a> {
 // Stakc functions
 
 impl<'a> Context<'a> {
-    fn pushu_byte(&mut self, v: u8) -> CpuResult<()> {
-        let u = self.regs.u.wrapping_sub(1);
-        self.mem.store_byte(u.into(), v)?;
-        self.regs.u = u;
+    fn get_stack(&self, is_system: bool) -> u16 {
+        if is_system {
+            self.regs.s
+        } else {
+            self.regs.u
+        }
+    }
+
+    fn set_stack(&mut self, v: u16, is_system: bool) {
+        if is_system {
+            self.regs.s = v
+        } else {
+            self.regs.u = v
+        }
+    }
+
+    fn push_byte(&mut self, v: u8, is_system: bool) -> CpuResult<()> {
+        let sp = self.get_stack(is_system);
+        let sp = sp.wrapping_sub(1);
+        self.mem.store_byte(sp.into(), v)?;
+        self.set_stack(sp, is_system);
         Ok(())
     }
 
-    fn pushu_word(&mut self, v: u16) -> CpuResult<()> {
-        let u = self.regs.u.wrapping_sub(2);
-        self.mem.store_word(u.into(), v)?;
-        self.regs.u = u;
+    fn push_word(&mut self, v: u16, is_system: bool) -> CpuResult<()> {
+        let sp = self.get_stack(is_system);
+        let sp = sp.wrapping_sub(1);
+        self.mem.store_word(sp.into(), v)?;
+        self.set_stack(sp, is_system);
         Ok(())
     }
 
-    fn popu_byte(&mut self) -> CpuResult<u8> {
-        let r = self.mem.load_byte(self.regs.u.into())?;
-        self.regs.u = self.regs.u.wrapping_add(1);
+    fn pop_byte(&mut self, is_system: bool) -> CpuResult<u8> {
+        let sp = self.get_stack(is_system);
+        let r = self.mem.load_byte(sp as usize)?;
+        self.set_stack(sp.wrapping_add(1), is_system);
         Ok(r)
     }
 
-    fn popu_word(&mut self) -> CpuResult<u16> {
-        let r = self.mem.load_word(self.regs.u.into())?;
-        self.regs.u = self.regs.u.wrapping_add(2);
-        Ok(r)
-    }
+    fn pop_word(&mut self, is_system: bool) -> CpuResult<u16> {
+        let sp = self.get_stack(is_system);
 
-    fn pushs_byte(&mut self, v: u8) -> CpuResult<()> {
-        let s = self.regs.s.wrapping_sub(1);
-        self.mem.store_byte(s.into(), v)?;
-        self.regs.s = s;
-        Ok(())
-    }
+        let r = self.mem.load_word(sp as usize)?;
 
-    fn pushs_word(&mut self, v: u16) -> CpuResult<()> {
-        let s = self.regs.s.wrapping_sub(2);
-        self.mem.store_word(s.into(), v)?;
-        self.regs.s = s;
-        Ok(())
-    }
+        self.set_stack(sp.wrapping_add(2), is_system);
 
-    fn pops_byte(&mut self) -> CpuResult<u8> {
-        let r = self.mem.load_byte(self.regs.s.into())?;
-        self.regs.s = self.regs.s.wrapping_add(1);
-        Ok(r)
-    }
-
-    fn pops_word(&mut self) -> CpuResult<u16> {
-        let r = self.mem.load_word(self.regs.s.into())?;
-        self.regs.s = self.regs.s.wrapping_add(2);
         Ok(r)
     }
 }
@@ -480,7 +512,7 @@ impl<'a> Context<'a> {
     }
 
     fn rts<A: AddressLines>(&mut self) -> CpuResult<()> {
-        let pc = self.pops_word()?;
+        let pc = self.pop_word(true)?;
         self.set_pc(pc as usize);
         Ok(())
     }
@@ -488,7 +520,7 @@ impl<'a> Context<'a> {
     fn bsr<A: AddressLines>(&mut self) -> CpuResult<()> {
         let offset = self.fetch_byte_as_i16::<A>()?;
         let next_op = self.get_pc();
-        self.pushs_word(( next_op &0xfff ) as u16)?;
+        self.push_word((next_op & 0xfff) as u16, true)?;
         self.set_pc_rel(offset);
         Ok(())
     }
@@ -769,8 +801,8 @@ impl<'a> Context<'a> {
 
     fn jsr<A: AddressLines>(&mut self) -> CpuResult<()> {
         let dest = self.ea::<A>()?;
-        let next_op = ( self.get_pc() & 0xffff ) as u16;
-        self.pushs_word(next_op)?;
+        let next_op = (self.get_pc() & 0xffff) as u16;
+        self.push_word(next_op, true)?;
         self.set_pc(dest as usize);
         Ok(())
     }
@@ -779,8 +811,8 @@ impl<'a> Context<'a> {
 
     fn lbsr<A: AddressLines>(&mut self) -> CpuResult<()> {
         let offset = self.fetch_word_as_i16::<A>()?;
-        let next_op = (self.get_pc() &0xffff) as u16;
-        self.pushs_word(next_op)?;
+        let next_op = (self.get_pc() & 0xffff) as u16;
+        self.push_word(next_op, true)?;
         self.set_pc_rel(offset);
         Ok(())
     }
@@ -918,78 +950,92 @@ impl<'a> Context<'a> {
     // }}}
 
     ////////////////////////////////////////////////////////////////////////////////
-    fn pul_nostack<A: AddressLines>(&mut self, sf: StackFlags) -> CpuResult<()> {
+
+    fn pop_regs(&mut self, sf: StackFlags, is_system: bool) -> CpuResult<()> {
         if sf.contains(StackFlags::CC) {
-            let i0 = self.pops_byte()?;
+            let i0 = self.pop_byte(is_system)?;
             self.regs.flags.set_flags(i0);
         }
 
         if sf.contains(StackFlags::A) {
-            let i0 = self.pops_byte()?;
+            let i0 = self.pop_byte(is_system)?;
             self.regs.a = i0;
         }
 
         if sf.contains(StackFlags::B) {
-            let i0 = self.pops_byte()?;
+            let i0 = self.pop_byte(is_system)?;
             self.regs.b = i0;
         }
 
         if sf.contains(StackFlags::DP) {
-            let i0 = self.pops_byte()?;
+            let i0 = self.pop_byte(is_system)?;
             self.regs.dp = i0;
         }
 
         if sf.contains(StackFlags::X) {
-            let i0 = self.pops_word()?;
+            let i0 = self.pop_word(is_system)?;
             self.regs.x = i0;
         }
 
         if sf.contains(StackFlags::Y) {
-            let i0 = self.pops_word()?;
+            let i0 = self.pop_word(is_system)?;
             self.regs.y = i0;
         }
 
+        if sf.contains(StackFlags::STACK) {
+            let v = self.pop_word(is_system)?;
+            // Set the other stack pointer
+            self.set_stack(v, !is_system)
+        }
+
         if sf.contains(StackFlags::PC) {
-            let i0 = self.pops_word()?;
+            let i0 = self.pop_word(is_system)?;
             self.set_pc(i0 as usize);
         }
+
         Ok(())
     }
 
-    fn psh_nostack<A: AddressLines>(&mut self, sf: StackFlags) -> CpuResult<()> {
+    fn push_regs(&mut self, sf: StackFlags, is_system: bool) -> CpuResult<()> {
         if sf.contains(StackFlags::PC) {
             let i0 = self.get_pc() as u16;
-            self.pushu_word(i0)?;
+            self.push_word(i0, is_system)?;
+        }
+
+        if sf.contains(StackFlags::STACK) {
+            // Get the other stack pointer
+            let sp = self.get_stack(!is_system);
+            self.push_word(sp, is_system)?;
         }
 
         if sf.contains(StackFlags::Y) {
             let i0 = self.regs.y;
-            self.pushu_word(i0)?;
+            self.push_word(i0, is_system)?;
         }
 
         if sf.contains(StackFlags::X) {
             let i0 = self.regs.x;
-            self.pushu_word(i0)?;
+            self.push_word(i0, is_system)?;
         }
 
         if sf.contains(StackFlags::DP) {
             let i0 = self.regs.dp;
-            self.pushu_byte(i0)?;
+            self.push_byte(i0, is_system)?;
         }
 
         if sf.contains(StackFlags::B) {
             let i0 = self.regs.b;
-            self.pushu_byte(i0)?;
+            self.push_byte(i0, is_system)?;
         }
 
         if sf.contains(StackFlags::A) {
             let i0 = self.regs.a;
-            self.pushu_byte(i0)?;
+            self.push_byte(i0, is_system)?;
         }
 
         if sf.contains(StackFlags::CC) {
             let i0 = self.regs.flags.bits();
-            self.pushu_byte(i0)?;
+            self.push_byte(i0, is_system)?;
         }
         Ok(())
     }
@@ -997,52 +1043,26 @@ impl<'a> Context<'a> {
     fn pshs<A: AddressLines>(&mut self) -> CpuResult<()> {
         let op = self.fetch_byte::<A>()?;
         let sf = StackFlags::from_bits(op).unwrap();
-        self.psh_nostack::<A>(sf)?;
-
-        if sf.contains(StackFlags::STACK) {
-            let i0 = self.regs.u;
-            self.pushs_word(i0)?;
-        }
-
-        Ok(())
+        self.push_regs(sf, true)
     }
 
     fn pshu<A: AddressLines>(&mut self) -> CpuResult<()> {
         let op = self.fetch_byte::<A>()?;
         let sf = StackFlags::from_bits(op).unwrap();
-        self.psh_nostack::<A>(sf)?;
-
-        if sf.contains(StackFlags::STACK) {
-            let i0 = self.regs.s;
-            self.pushu_word(i0)?;
-        }
-
-        Ok(())
+        self.push_regs(sf, false)
     }
 
     fn puls<A: AddressLines>(&mut self) -> CpuResult<()> {
         let op = self.fetch_byte::<A>()?;
         let sf = StackFlags::from_bits(op).unwrap();
-        self.pul_nostack::<A>(sf)?;
-
-        if sf.contains(StackFlags::STACK) {
-            let i0 = self.pops_word()?;
-            self.regs.u = i0;
-        }
-
+        self.pop_regs(sf, true)?;
         Ok(())
     }
 
     fn pulu<A: AddressLines>(&mut self) -> CpuResult<()> {
         let op = self.fetch_byte::<A>()?;
         let sf = StackFlags::from_bits(op).unwrap();
-        self.pul_nostack::<A>(sf)?;
-
-        if sf.contains(StackFlags::STACK) {
-            let i0 = self.pops_word()?;
-            self.regs.s = i0;
-        }
-
+        self.pop_regs(sf, false)?;
         Ok(())
     }
 
@@ -1190,18 +1210,18 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    fn swi_base<A: AddressLines>(&mut self, vec: u16, flags: Flags) -> CpuResult<()> {
+    fn swi_base<A: AddressLines>(&mut self, vec: usize, flags: Flags) -> CpuResult<()> {
         macro_rules! push8 {
             ($val:expr) => {{
                 let i0 = $val;
-                self.pushs_byte(i0)?
+                self.push_byte(i0, true)?
             }};
         }
 
         macro_rules! push16 {
             ($val:expr) => {{
                 let i0 = $val;
-                self.pushs_word(i0 as u16)?
+                self.push_word(i0 as u16, true)?
             }};
         }
 
@@ -1224,15 +1244,15 @@ impl<'a> Context<'a> {
     }
 
     fn swi<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.swi_base::<A>(0xfffa, Flags::E | Flags::F)
+        self.swi_base::<A>(VEC_SWI, Flags::E | Flags::F)
     }
 
     fn swi2<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.swi_base::<A>(0xfff4, Flags::E)
+        self.swi_base::<A>(VEC_SWI2, Flags::E)
     }
 
     fn swi3<A: AddressLines>(&mut self) -> CpuResult<()> {
-        self.swi_base::<A>(0xfff2, Flags::E)
+        self.swi_base::<A>(VEC_SWI2, Flags::E)
     }
 
     fn subd<A: AddressLines>(&mut self) -> CpuResult<()> {
@@ -1249,43 +1269,25 @@ impl<'a> Context<'a> {
     }
 
     fn rti<A: AddressLines>(&mut self) -> CpuResult<()> {
-        macro_rules! pop8 {
-            () => {
-                self.pops_byte()?
-            };
+        // Get the flags
 
-            ($val:expr) => {{
-                let i0 = pop8!();
-                $val = i0
-            }};
+        let cc = self.pop_byte(true)?;
+
+        // pop saved regs if E flag is set
+        if self.regs.flags.contains(Flags::E) {
+            let sf = StackFlags::A
+                | StackFlags::B
+                | StackFlags::DP
+                | StackFlags::X
+                | StackFlags::Y
+                | StackFlags::STACK;
+
+            self.pop_regs(sf, true)?;
         }
-
-        macro_rules! pop16 {
-            () => {
-                self.pops_word()?
-            };
-            ($val:expr) => {{
-                let i0 = pop16!();
-                $val = i0
-            }};
-        }
-
-        let cc = pop8!();
 
         self.regs.flags.set_flags(cc);
+        self.regs.pc = self.pop_word(true)?;
 
-        if self.regs.flags.contains(Flags::E) {
-            pop8!(self.regs.a);
-            pop8!(self.regs.b);
-            pop8!(self.regs.dp);
-            pop16!(self.regs.x);
-            pop16!(self.regs.y);
-            pop16!(self.regs.u);
-        }
-
-        let pc = pop16!();
-
-        self.set_pc(pc as usize);
         Ok(())
     }
 
@@ -1304,14 +1306,9 @@ impl<'a> Context<'a> {
 
 #[allow(unused_variables, unused_mut)]
 impl<'a> Context<'a> {
-    pub fn new(mem: &'a mut dyn MemoryIO, regs: &'a mut Regs) -> CpuResult<Context<'a>> {
+    pub fn new(mem: &'a mut dyn MemoryIO, regs: &'a mut Regs, pins : &'a mut Pins) -> CpuResult<Context<'a>> {
         let ins = InstructionDecoder::new_from_read_mem(regs.pc as usize, mem)?;
-        let ret = Context {
-            regs,
-            mem,
-            cycles: 0,
-            ins,
-        };
+        let ret = Context { regs, mem, ins, pins, cycles: 0, instructions: 0};
         Ok(ret)
     }
 
@@ -1332,7 +1329,6 @@ impl<'a> Context<'a> {
     pub fn get_size(&self) -> CpuResult<usize> {
         panic!()
         // let ins = InstructionDecoder::new_from_inspect_mem(self.regs.pc as usize, self.mem)?;
-
         // macro_rules! handle_op {
         //     ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
         //         self.opcode_size::<$addr>(&ins)
@@ -1355,23 +1351,83 @@ impl<'a> Context<'a> {
                 self.$action::<$addr>()
             }};
         }
-        let opcode =self.ins.instruction_info.opcode;
+        let opcode = self.ins.instruction_info.opcode;
 
         op_table!(opcode, { self.unimplemented() })?;
 
         self.regs.pc = self.ins.next_addr as u16;
+        self.cycles += self.ins.cycles;
+        self.instructions += 1;
 
         Ok(())
     }
 
-    pub fn reset(&mut self) {
-        let pc = self.mem.load_word(0xfffe).unwrap();
+    pub fn gen_irq(&mut self, irq_flag: Flags, save_regs: bool, vector: usize) -> CpuResult<()> {
+        // Is this IRQ disabled?
+        // TODO should be moved into the IRQ line sensing code
+        // https://github.com/elmerucr/MC6809/blob/master/src/mc6809.cpp
+        if !self.regs.flags.contains(irq_flag) {
+            // Save pc and stack
+            self.push_regs(StackFlags::PC | StackFlags::STACK, true)?;
+
+            // Save the regs if we're savig regs to the system stack
+            if save_regs {
+                self.push_regs(
+                    StackFlags::Y | StackFlags::X | StackFlags::DP | StackFlags::B | StackFlags::A,
+                    true,
+                )?;
+            }
+            // Disable this IRQ
+            self.regs.flags.set(irq_flag, true);
+            self.push_regs(StackFlags::CC, true)?;
+
+            self.regs.flags.set(irq_flag, true);
+            // Get the irq vector
+            let pc = self.mem.load_word(vector)? as usize;
+            // set the PC
+            self.set_pc(pc);
+        }
+
+        Ok(())
+    }
+
+    pub fn irq(&mut self) -> CpuResult<()> {
+        let r = self.gen_irq(Flags::I, true, 0xfff8);
+        self.ins.cycles +=19;
+        r
+    }
+
+    pub fn firq(&mut self) -> CpuResult<()> {
+        let r = self.gen_irq(Flags::F, false, 0xfff6);
+        self.ins.cycles += 10;
+        r
+    }
+
+    pub fn nmi(&mut self) -> CpuResult<()> {
+        self.push_regs(StackFlags::PC | StackFlags::STACK, true)?;
+        self.push_regs(
+            StackFlags::Y | StackFlags::X | StackFlags::DP | StackFlags::B | StackFlags::A,
+            true,
+        )?;
+        self.regs.flags.set(Flags::E, true);
+        self.push_regs(StackFlags::CC, true)?;
+        self.regs.flags.set(Flags::I | Flags::F, true);
+        self.ins.cycles+=19;
+        Ok(())
+    }
+
+    pub fn reset(&mut self) -> CpuResult<()> {
+        let pc = self.mem.load_word(VEC_RESET)?;
+
         log::info!("PC IS {:04x}", pc);
+
         *self.regs = Regs {
             pc,
+            dp: 0,
             flags: Flags::I | Flags::F,
             ..Default::default()
         };
+        Ok(())
     }
 }
 
