@@ -956,42 +956,51 @@ impl<'a> Context<'a> {
         if sf.contains(StackFlags::CC) {
             let i0 = self.pop_byte(is_system)?;
             self.regs.flags.set_flags(i0);
+            self.cycles += 1;
         }
 
         if sf.contains(StackFlags::A) {
             let i0 = self.pop_byte(is_system)?;
             self.regs.a = i0;
+            self.cycles += 1;
         }
+
 
         if sf.contains(StackFlags::B) {
             let i0 = self.pop_byte(is_system)?;
             self.regs.b = i0;
+            self.cycles += 1;
         }
 
         if sf.contains(StackFlags::DP) {
             let i0 = self.pop_byte(is_system)?;
             self.regs.dp = i0;
+            self.cycles += 1;
         }
 
         if sf.contains(StackFlags::X) {
             let i0 = self.pop_word(is_system)?;
             self.regs.x = i0;
+            self.cycles += 2;
         }
 
         if sf.contains(StackFlags::Y) {
             let i0 = self.pop_word(is_system)?;
             self.regs.y = i0;
+            self.cycles += 2;
         }
 
         if sf.contains(StackFlags::STACK) {
             let v = self.pop_word(is_system)?;
             // Set the other stack pointer
-            self.set_stack(v, !is_system)
+            self.set_stack(v, !is_system);
+            self.cycles += 2;
         }
 
         if sf.contains(StackFlags::PC) {
             let i0 = self.pop_word(is_system)?;
             self.set_pc(i0 as usize);
+            self.cycles += 2;
         }
 
         Ok(())
@@ -1001,42 +1010,50 @@ impl<'a> Context<'a> {
         if sf.contains(StackFlags::PC) {
             let i0 = self.get_pc() as u16;
             self.push_word(i0, is_system)?;
+            self.cycles += 2;
         }
 
         if sf.contains(StackFlags::STACK) {
             // Get the other stack pointer
             let sp = self.get_stack(!is_system);
             self.push_word(sp, is_system)?;
+            self.cycles += 2;
         }
 
         if sf.contains(StackFlags::Y) {
             let i0 = self.regs.y;
             self.push_word(i0, is_system)?;
+            self.cycles += 2;
         }
 
         if sf.contains(StackFlags::X) {
             let i0 = self.regs.x;
             self.push_word(i0, is_system)?;
+            self.cycles += 2;
         }
 
         if sf.contains(StackFlags::DP) {
             let i0 = self.regs.dp;
             self.push_byte(i0, is_system)?;
+            self.cycles += 1;
         }
 
         if sf.contains(StackFlags::B) {
             let i0 = self.regs.b;
             self.push_byte(i0, is_system)?;
+            self.cycles += 1;
         }
 
         if sf.contains(StackFlags::A) {
             let i0 = self.regs.a;
             self.push_byte(i0, is_system)?;
+            self.cycles += 1;
         }
 
         if sf.contains(StackFlags::CC) {
             let i0 = self.regs.flags.bits();
             self.push_byte(i0, is_system)?;
+            self.cycles += 1;
         }
         Ok(())
     }
