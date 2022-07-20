@@ -82,31 +82,32 @@ pub fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
 }
 
 pub struct Pins {
-    // pins are active LOW
-    irq : bool,
-    nmi : bool,
-    reset : bool,
+    pub firq: bool,
+    pub irq: bool,
+    pub nmi: bool,
+    pub reset: bool,
 }
 
 impl Default for Pins {
     fn default() -> Self {
         Self {
-            irq: true,
-            nmi: true,
-            reset: true,
+            firq: false,
+            irq: false,
+            nmi: false,
+            reset: false,
         }
     }
 }
 
 pub struct Context<'a> {
-    regs: &'a mut Regs,
-    mem: &'a mut dyn MemoryIO,
-    pins : &'a mut Pins,
-    ins: InstructionDecoder,
+    pub regs: &'a mut Regs,
+    pub mem: &'a mut dyn MemoryIO,
+    pub pins: &'a mut Pins,
+    pub ins: InstructionDecoder,
     /// Cycles executed
-    cycles : usize,
+    pub cycles: usize,
     /// Instructions executed
-    instructions: usize,
+    pub instructions: usize,
 }
 
 // use serde::Deserializer;
@@ -1296,7 +1297,19 @@ impl<'a> Context<'a> {
     }
 
     fn sync<A: AddressLines>(&mut self) -> CpuResult<()> {
-        Ok(())
+        // are any of the interrupts disabled or any interrupts asserting?
+        if self.regs.flags.intersects(Flags::I | Flags::F)
+            || self.pins.irq
+            || self.pins.firq
+            || self.pins.nmi
+        {
+            Ok(())
+        } else {
+            // No interrupts pending and interrrupts are enabled
+            // so set the next addr to be this addr
+            self.ins.next_addr = self.ins.addr;
+            Ok(())
+        }
     }
 
     fn unimplemented(&mut self) -> CpuResult<()> {
@@ -1306,9 +1319,20 @@ impl<'a> Context<'a> {
 
 #[allow(unused_variables, unused_mut)]
 impl<'a> Context<'a> {
-    pub fn new(mem: &'a mut dyn MemoryIO, regs: &'a mut Regs, pins : &'a mut Pins) -> CpuResult<Context<'a>> {
+    pub fn new(
+        mem: &'a mut dyn MemoryIO,
+        regs: &'a mut Regs,
+        pins: &'a mut Pins,
+    ) -> CpuResult<Context<'a>> {
         let ins = InstructionDecoder::new_from_read_mem(regs.pc as usize, mem)?;
-        let ret = Context { regs, mem, ins, pins, cycles: 0, instructions: 0};
+        let ret = Context {
+            regs,
+            mem,
+            ins,
+            pins,
+            cycles: 0,
+            instructions: 0,
+        };
         Ok(ret)
     }
 
@@ -1351,6 +1375,7 @@ impl<'a> Context<'a> {
                 self.$action::<$addr>()
             }};
         }
+
         let opcode = self.ins.instruction_info.opcode;
 
         op_table!(opcode, { self.unimplemented() })?;
@@ -1366,6 +1391,7 @@ impl<'a> Context<'a> {
         // Is this IRQ disabled?
         // TODO should be moved into the IRQ line sensing code
         // https://github.com/elmerucr/MC6809/blob/master/src/mc6809.cpp
+        
         if !self.regs.flags.contains(irq_flag) {
             // Save pc and stack
             self.push_regs(StackFlags::PC | StackFlags::STACK, true)?;
@@ -1393,7 +1419,7 @@ impl<'a> Context<'a> {
 
     pub fn irq(&mut self) -> CpuResult<()> {
         let r = self.gen_irq(Flags::I, true, 0xfff8);
-        self.ins.cycles +=19;
+        self.ins.cycles += 19;
         r
     }
 
@@ -1412,7 +1438,7 @@ impl<'a> Context<'a> {
         self.regs.flags.set(Flags::E, true);
         self.push_regs(StackFlags::CC, true)?;
         self.regs.flags.set(Flags::I | Flags::F, true);
-        self.ins.cycles+=19;
+        self.ins.cycles += 19;
         Ok(())
     }
 
