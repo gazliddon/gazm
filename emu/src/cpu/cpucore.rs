@@ -86,6 +86,7 @@ pub struct Pins {
     pub irq: bool,
     pub nmi: bool,
     pub reset: bool,
+    pub waiting_for_irq: bool,
 }
 
 impl Default for Pins {
@@ -95,38 +96,28 @@ impl Default for Pins {
             irq: false,
             nmi: false,
             reset: false,
+            waiting_for_irq: false,
         }
     }
 }
 
 pub struct Context<'a> {
     pub regs: &'a mut Regs,
-    pub mem: &'a mut dyn MemoryIO,
     pub pins: &'a mut Pins,
     pub ins: InstructionDecoder,
     /// Cycles executed
     pub cycles: usize,
     /// Instructions executed
     pub instructions: usize,
+
+    pub mem: &'a mut dyn MemoryIO,
 }
 
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
 impl<'a> Context<'a> {
-    pub fn cycles(&self) -> usize {
-        self.cycles
-    }
-
-    pub fn instructions(&self) -> usize {
-        self.instructions
-    }
-
     fn set_pc(&mut self, v: usize) {
         self.ins.next_addr = v & 0xffff;
-    }
-
-    pub fn get_pc(&self) -> usize {
-        self.ins.next_addr & 0xffff
     }
 
     fn set_pc_rel(&mut self, v: i16) {
@@ -965,7 +956,6 @@ impl<'a> Context<'a> {
             self.cycles += 1;
         }
 
-
         if sf.contains(StackFlags::B) {
             let i0 = self.pop_byte(is_system)?;
             self.regs.b = i0;
@@ -1315,13 +1305,10 @@ impl<'a> Context<'a> {
 
     fn sync<A: AddressLines>(&mut self) -> CpuResult<()> {
         // are any of the interrupts disabled or any interrupts asserting?
-        if self.regs.flags.intersects(Flags::I | Flags::F)
-            || self.pins.irq
-            || self.pins.firq
-            || self.pins.nmi
-        {
+        if self.regs.flags.intersects(Flags::I | Flags::F) || !self.pins.waiting_for_irq {
             Ok(())
         } else {
+            self.pins.waiting_for_irq = true;
             // No interrupts pending and interrrupts are enabled
             // so set the next addr to be this addr
             self.ins.next_addr = self.ins.addr;
@@ -1334,81 +1321,14 @@ impl<'a> Context<'a> {
     }
 }
 
-#[allow(unused_variables, unused_mut)]
+// Interrupts / reset
+#[allow(unused_variables)]
 impl<'a> Context<'a> {
-    pub fn new(
-        mem: &'a mut dyn MemoryIO,
-        regs: &'a mut Regs,
-        pins: &'a mut Pins,
-    ) -> CpuResult<Context<'a>> {
-        let ins = InstructionDecoder::new_from_read_mem(regs.pc as usize, mem)?;
-        let ret = Context {
-            regs,
-            mem,
-            ins,
-            pins,
-            cycles: 0,
-            instructions: 0,
-        };
-        Ok(ret)
-    }
-
-    pub fn opcode_size<A: AddressLines>(&self, ins: &InstructionDecoder) -> CpuResult<usize> {
-        let ret = if A::get_addr_mode() == AddrModeEnum::Indexed {
-            let index_mode_id = self.mem.inspect_byte(ins.next_addr)?;
-            let index_mode = super::indexed::IndexedFlags::new(index_mode_id);
-            index_mode.get_index_type().get_size() + 1
-        } else {
-            0
-        };
-
-        let ret = ret + ins.instruction_info.size as usize;
-
-        Ok(ret)
-    }
-
-    pub fn get_size(&self) -> CpuResult<usize> {
-        panic!()
-        // let ins = InstructionDecoder::new_from_inspect_mem(self.regs.pc as usize, self.mem)?;
-        // macro_rules! handle_op {
-        //     ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
-        //         self.opcode_size::<$addr>(&ins)
-        //     }};
-        // }
-
-        // op_table!(ins.instruction_info.opcode, { Err(CpuErr::Unimplemented) })
-    }
-
-    pub fn peek_op(&self) -> CpuResult<InstructionDecoder> {
-        panic!()
-        // InstructionDecoder::new_from_inspect_mem(self.regs.pc as usize, self.mem)
-    }
-
-    pub fn step(&mut self) -> CpuResult<()> {
-        self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc as usize, self.mem)?;
-
-        macro_rules! handle_op {
-            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
-                self.$action::<$addr>()
-            }};
-        }
-
-        let opcode = self.ins.instruction_info.opcode;
-
-        op_table!(opcode, { self.unimplemented() })?;
-
-        self.regs.pc = self.ins.next_addr as u16;
-        self.cycles += self.ins.cycles;
-        self.instructions += 1;
-
-        Ok(())
-    }
-
-    pub fn gen_irq(&mut self, irq_flag: Flags, save_regs: bool, vector: usize) -> CpuResult<()> {
+    fn gen_irq(&mut self, irq_flag: Flags, save_regs: bool, vector: usize) -> CpuResult<()> {
         // Is this IRQ disabled?
         // TODO should be moved into the IRQ line sensing code
         // https://github.com/elmerucr/MC6809/blob/master/src/mc6809.cpp
-        
+
         if !self.regs.flags.contains(irq_flag) {
             // Save pc and stack
             self.push_regs(StackFlags::PC | StackFlags::STACK, true)?;
@@ -1434,19 +1354,19 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    pub fn irq(&mut self) -> CpuResult<()> {
+    fn irq(&mut self) -> CpuResult<()> {
         let r = self.gen_irq(Flags::I, true, 0xfff8);
         self.ins.cycles += 19;
         r
     }
 
-    pub fn firq(&mut self) -> CpuResult<()> {
+    fn firq(&mut self) -> CpuResult<()> {
         let r = self.gen_irq(Flags::F, false, 0xfff6);
         self.ins.cycles += 10;
         r
     }
 
-    pub fn nmi(&mut self) -> CpuResult<()> {
+    fn nmi(&mut self) -> CpuResult<()> {
         self.push_regs(StackFlags::PC | StackFlags::STACK, true)?;
         self.push_regs(
             StackFlags::Y | StackFlags::X | StackFlags::DP | StackFlags::B | StackFlags::A,
@@ -1456,6 +1376,70 @@ impl<'a> Context<'a> {
         self.push_regs(StackFlags::CC, true)?;
         self.regs.flags.set(Flags::I | Flags::F, true);
         self.ins.cycles += 19;
+        Ok(())
+    }
+}
+
+// Public interface
+#[allow(unused_variables)]
+impl<'a> Context<'a> {
+    pub fn cycles(&self) -> usize {
+        self.cycles
+    }
+
+    pub fn instructions(&self) -> usize {
+        self.instructions
+    }
+
+    pub fn get_pc(&self) -> usize {
+        self.ins.next_addr & 0xffff
+    }
+
+    pub fn new(
+        mem: &'a mut dyn MemoryIO,
+        regs: &'a mut Regs,
+        pins: &'a mut Pins,
+    ) -> CpuResult<Context<'a>> {
+        let ins = InstructionDecoder::new_from_read_mem(regs.pc as usize, mem)?;
+        let ret = Context {
+            regs,
+            mem,
+            ins,
+            pins,
+            cycles: 0,
+            instructions: 0,
+        };
+        Ok(ret)
+    }
+
+    pub fn step(&mut self) -> CpuResult<()> {
+        if self.pins.irq {
+            self.irq()?;
+            self.pins.waiting_for_irq = false;
+        } else if self.pins.firq {
+            self.firq()?;
+            self.pins.waiting_for_irq = false;
+        } else if self.pins.nmi {
+            self.nmi()?;
+            self.pins.waiting_for_irq = false;
+        }
+
+        self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc as usize, self.mem)?;
+
+        macro_rules! handle_op {
+            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
+                self.$action::<$addr>()
+            }};
+        }
+
+        let opcode = self.ins.instruction_info.opcode;
+
+        op_table!(opcode, { self.unimplemented() })?;
+
+        self.regs.pc = self.ins.next_addr as u16;
+        self.cycles += self.ins.cycles;
+        self.instructions += 1;
+
         Ok(())
     }
 
