@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolTable, SymbolWriter};
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
@@ -119,6 +121,15 @@ impl SymbolTree {
         let new_tab = SymbolTable::new_with_scope(name);
         let new_node = node_mut.append(new_tab);
         self.current_scope = new_node.id();
+    }
+
+    pub fn to_json(&self) {
+        let mut hm = HashMap::<String,&SymbolTable >::new();
+
+        for n in self.tree.nodes() {
+            let name = n.value().get_scope_name();
+            hm.insert(name.to_string(), n.value());
+        }
     }
 }
 

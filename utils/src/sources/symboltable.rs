@@ -271,9 +271,10 @@ mod new {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+use serde::{Deserialize, Serialize};
 
 /// Holds information about symbols
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SymbolTable {
     scope: String,
     pub info: HashMap<u64, SymbolInfo>,
