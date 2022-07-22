@@ -15,8 +15,16 @@ bitflags! {
     const B = 0x04;
     const A = 0x02;
     const CC = 0x01;
+    const INT_FLAGS =
+          Self::X.bits()
+        | Self::Y.bits()
+        | Self::A.bits()
+        | Self::B.bits()
+        | Self::DP.bits()
+        | Self::STACK.bits() ;
     }
 }
+
 // 6809 vectors
 pub const VEC_SWI3: usize = 0xfff2;
 pub const VEC_SWI2: usize = 0xfff4;
@@ -47,8 +55,8 @@ use thiserror::Error;
 pub enum CpuErr {
     #[error("Unknown instruction")]
     UnknownInstruction,
-    #[error("Unimplemented instruction")]
-    Unimplemented,
+    #[error("Unimplemented instruction {0}")]
+    Unimplemented(usize),
     #[error("Illegal addressing mode")]
     IllegalAddressingMode,
     #[error(transparent)]
@@ -116,13 +124,13 @@ pub struct Context<'a> {
 // use serde::Deserializer;
 #[allow(unused_variables, unused_mut)]
 impl<'a> Context<'a> {
-    fn set_pc(&mut self, v: usize) {
+    fn set_next_pc(&mut self, v: usize) {
         self.ins.next_addr = v & 0xffff;
     }
 
-    fn set_pc_rel(&mut self, v: i16) {
+    fn set_next_pc_rel(&mut self, v: i16) {
         let pc = self.ins.next_addr.wrapping_add(v as usize);
-        self.set_pc(pc)
+        self.set_next_pc(pc)
     }
 
     fn fetch_byte_as_i16<A: AddressLines>(&mut self) -> CpuResult<i16> {
@@ -281,7 +289,7 @@ impl<'a> Context<'a> {
         let offset = self.fetch_byte_as_i16::<A>()?;
 
         if v {
-            self.set_pc_rel(offset)
+            self.set_next_pc_rel(offset)
         }
         Ok(())
     }
@@ -290,7 +298,7 @@ impl<'a> Context<'a> {
         let offset = self.fetch_word_as_i16::<A>()?;
 
         if v {
-            self.set_pc_rel(offset)
+            self.set_next_pc_rel(offset)
         }
         Ok(())
     }
@@ -345,7 +353,7 @@ impl<'a> Context<'a> {
 
     fn push_word(&mut self, v: u16, is_system: bool) -> CpuResult<()> {
         let sp = self.get_stack(is_system);
-        let sp = sp.wrapping_sub(1);
+        let sp = sp.wrapping_sub(2);
         self.mem.store_word(sp.into(), v)?;
         self.set_stack(sp, is_system);
         Ok(())
@@ -505,7 +513,7 @@ impl<'a> Context<'a> {
 
     fn rts<A: AddressLines>(&mut self) -> CpuResult<()> {
         let pc = self.pop_word(true)?;
-        self.set_pc(pc as usize);
+        self.set_next_pc(pc as usize);
         Ok(())
     }
 
@@ -513,7 +521,7 @@ impl<'a> Context<'a> {
         let offset = self.fetch_byte_as_i16::<A>()?;
         let next_op = self.get_pc();
         self.push_word((next_op & 0xfff) as u16, true)?;
-        self.set_pc_rel(offset);
+        self.set_next_pc_rel(offset);
         Ok(())
     }
 
@@ -795,7 +803,7 @@ impl<'a> Context<'a> {
         let dest = self.ea::<A>()?;
         let next_op = (self.get_pc() & 0xffff) as u16;
         self.push_word(next_op, true)?;
-        self.set_pc(dest as usize);
+        self.set_next_pc(dest as usize);
         Ok(())
     }
 
@@ -805,7 +813,7 @@ impl<'a> Context<'a> {
         let offset = self.fetch_word_as_i16::<A>()?;
         let next_op = (self.get_pc() & 0xffff) as u16;
         self.push_word(next_op, true)?;
-        self.set_pc_rel(offset);
+        self.set_next_pc_rel(offset);
         Ok(())
     }
 
@@ -989,7 +997,7 @@ impl<'a> Context<'a> {
 
         if sf.contains(StackFlags::PC) {
             let i0 = self.pop_word(is_system)?;
-            self.set_pc(i0 as usize);
+            self.set_next_pc(i0 as usize);
             self.cycles += 2;
         }
 
@@ -1247,7 +1255,7 @@ impl<'a> Context<'a> {
         push8!(self.regs.flags.bits());
 
         let pc = self.mem.load_word(vec.into())?;
-        self.set_pc(pc as usize);
+        self.set_next_pc(pc as usize);
         Ok(())
     }
 
@@ -1272,35 +1280,32 @@ impl<'a> Context<'a> {
 
     fn jmp<A: AddressLines>(&mut self) -> CpuResult<()> {
         let a = self.ea::<A>()?;
-        self.set_pc(a as usize);
+        self.set_next_pc(a as usize);
         Ok(())
     }
 
     fn rti<A: AddressLines>(&mut self) -> CpuResult<()> {
-        // Get the flags
-
+        // pop CC
+        // regs if E flag is set
+        // PC
         let cc = self.pop_byte(true)?;
+        self.regs.flags.set_flags(cc);
 
         // pop saved regs if E flag is set
         if self.regs.flags.contains(Flags::E) {
-            let sf = StackFlags::A
-                | StackFlags::B
-                | StackFlags::DP
-                | StackFlags::X
-                | StackFlags::Y
-                | StackFlags::STACK;
-
-            self.pop_regs(sf, true)?;
+            self.pop_regs(StackFlags::INT_FLAGS, true)?;
+            self.cycles += 9;
         }
 
-        self.regs.flags.set_flags(cc);
-        self.regs.pc = self.pop_word(true)?;
+        let pc = self.pop_word(true)? as usize;
+
+        self.set_next_pc(pc);
 
         Ok(())
     }
 
     fn cwai<A: AddressLines>(&mut self) -> CpuResult<()> {
-        Err(CpuErr::Unimplemented)
+        self.unimplemented()
     }
 
     fn sync<A: AddressLines>(&mut self) -> CpuResult<()> {
@@ -1317,7 +1322,7 @@ impl<'a> Context<'a> {
     }
 
     fn unimplemented(&mut self) -> CpuResult<()> {
-        Err(CpuErr::Unimplemented)
+        Err(CpuErr::Unimplemented(self.get_pc()))
     }
 }
 
@@ -1330,25 +1335,26 @@ impl<'a> Context<'a> {
         // https://github.com/elmerucr/MC6809/blob/master/src/mc6809.cpp
 
         if !self.regs.flags.contains(irq_flag) {
-            // Save pc and stack
-            self.push_regs(StackFlags::PC | StackFlags::STACK, true)?;
+            // Save PC
+            // Regs if needed
+            // CC
+            // Save pc
+            self.push_word(self.regs.pc, true)?;
 
-            // Save the regs if we're savig regs to the system stack
             if save_regs {
-                self.push_regs(
-                    StackFlags::Y | StackFlags::X | StackFlags::DP | StackFlags::B | StackFlags::A,
-                    true,
-                )?;
+                self.regs.flags.set(Flags::E, true);
+                self.push_regs(StackFlags::INT_FLAGS, true)?;
             }
-            // Disable this IRQ
-            self.regs.flags.set(irq_flag, true);
-            self.push_regs(StackFlags::CC, true)?;
 
+            // Save cc
+            self.push_byte(self.regs.flags.bits(), true)?;
+
+            // Disable this IRQ
             self.regs.flags.set(irq_flag, true);
             // Get the irq vector
             let pc = self.mem.load_word(vector)? as usize;
             // set the PC
-            self.set_pc(pc);
+            self.set_next_pc(pc);
         }
 
         Ok(())
@@ -1412,29 +1418,37 @@ impl<'a> Context<'a> {
         Ok(ret)
     }
 
+    fn clear_pending_irq(&mut self) {
+        self.pins.waiting_for_irq = false;
+    }
+
+    fn is_pending_irq(&self) -> bool {
+        self.pins.waiting_for_irq
+    }
+
     pub fn step(&mut self) -> CpuResult<()> {
         if self.pins.irq {
             self.irq()?;
-            self.pins.waiting_for_irq = false;
+            self.clear_pending_irq();
         } else if self.pins.firq {
             self.firq()?;
-            self.pins.waiting_for_irq = false;
+            self.clear_pending_irq();
         } else if self.pins.nmi {
             self.nmi()?;
-            self.pins.waiting_for_irq = false;
+            self.clear_pending_irq();
+        } else {
+            self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc as usize, self.mem)?;
+
+            macro_rules! handle_op {
+                ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
+                    self.$action::<$addr>()
+                }};
+            }
+
+            let opcode = self.ins.instruction_info.opcode;
+
+            op_table!(opcode, { self.unimplemented() })?;
         }
-
-        self.ins = InstructionDecoder::new_from_read_mem(self.regs.pc as usize, self.mem)?;
-
-        macro_rules! handle_op {
-            ($addr:ident, $action:ident, $opcode:expr, $cycles:expr, $size:expr) => {{
-                self.$action::<$addr>()
-            }};
-        }
-
-        let opcode = self.ins.instruction_info.opcode;
-
-        op_table!(opcode, { self.unimplemented() })?;
 
         self.regs.pc = self.ins.next_addr as u16;
         self.cycles += self.ins.cycles;
