@@ -227,7 +227,5 @@ mod test {
 
         let scope_fqn = st.get_current_scope_fqn();
         println!("SCOPE is {scope_fqn}");
-
-        assert!(false);
     }
 }

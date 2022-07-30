@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::collections::HashMap;
+
 use crate::mem::{Region, RegionErr};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
@@ -40,15 +42,15 @@ impl BreakPoint {
 #[derive(Clone, Debug)]
 pub struct BreakPoints {
     break_points: std::collections::HashMap<usize, BreakPoint>,
-    mem_to_bp: [Option<BreakPoint>; 0x1_0000],
+    mem_to_bp: HashMap<usize,usize>,
     id: usize,
 }
 
 impl Default for BreakPoints {
     fn default() -> Self {
         Self {
-            break_points: std::collections::HashMap::new(),
-            mem_to_bp: [None; 0x1_0000],
+            break_points: HashMap::new(),
+            mem_to_bp: HashMap::new(),
             id: 0,
         }
     }
@@ -56,11 +58,7 @@ impl Default for BreakPoints {
 
 impl BreakPoints {
     pub fn new() -> BreakPoints {
-        Self {
-            break_points: std::collections::HashMap::new(),
-            mem_to_bp: [None; 0x1_0000],
-            id: 0,
-        }
+        Self::default()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -160,18 +158,18 @@ mod tests {
     // TODO! write tests
     #[test]
     fn count() {
-        let addr: u16 = 0x0000;
+        let addr = 0;
 
         let mut bp = BreakPoints::new();
         assert_eq!(bp.len(), 0);
 
-        bp.add(addr, BreakPointTypes::READ);
+        bp.add(addr as usize, BreakPointTypes::READ);
 
         let matched = bp.get_breakpoints(addr, 1);
+
         assert_eq!(matched.len(), 1);
 
         assert!(bp.has_breakpoint(addr, BreakPointTypes::READ));
-
         assert_eq!(bp.len(), 1);
 
         bp.add(addr, BreakPointTypes::READ);

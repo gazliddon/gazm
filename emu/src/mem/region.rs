@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn valid_regions() {
         {
-            let start: u16 = 0;
+            let start= 0;
             let size = 0x10;
 
             let mr = Region::checked_new(start, size);
@@ -90,9 +90,9 @@ mod tests {
 
             assert!(mr.is_in_region(start));
 
-            assert!(mr.is_in_region((start as usize + size - 1) as u16));
+            assert!(mr.is_in_region(start + size - 1 ));
 
-            assert!(!mr.is_in_region((start as usize + size) as u16));
+            assert!(!mr.is_in_region(start +size ));
         }
     }
 

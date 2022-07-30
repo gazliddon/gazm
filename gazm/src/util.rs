@@ -15,43 +15,84 @@ use nom::sequence::{preceded, separated_pair, terminated, tuple};
 
 pub static LIST_SEP: &str = ",";
 
-pub fn ws<'a, F, O>(mut inner: F) -> impl FnMut(Span<'a>) -> IResult<O>
-where
-    F: nom::Parser<Span<'a>, O, ParseError>,
-{
-    move |input: Span| -> IResult<O> {
-        let (input, _) = multispace0(input)?;
-        let (input, matched) = inner.parse(input)?;
-        let (input, _) = multispace0(input)?;
-        Ok((input, matched))
+pub use p2::{wrapped_chars, ws};
+
+mod p2 {
+    use nom::bytes::complete::{tag, is_not};
+    use nom::character::complete::char as nom_char;
+    use nom::character::complete::multispace0;
+    use nom::combinator::not;
+    use nom::combinator::recognize;
+    use nom::error::ParseError;
+    use nom::multi::many0;
+    use nom::multi::{separated_list0, separated_list1};
+    use nom::sequence::{separated_pair, tuple};
+    use nom::AsChar;
+    use nom::FindToken;
+    use nom::IResult;
+    use nom::InputIter;
+    use nom::InputLength;
+    use nom::InputTake;
+    use nom::InputTakeAtPosition;
+    use nom::Parser;
+    use nom::Slice;
+    use nom::UnspecializedInput;
+    use std::ops::{RangeFrom, RangeTo};
+
+    pub fn sep_list1<'a, F, I, O, E>(inner: F) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
+    where
+        F: Parser<I, O, E> + Copy,
+        E: ParseError<I>,
+        I: Clone,
+        I: Slice<RangeFrom<usize>> + InputIter + InputTakeAtPosition + InputLength,
+        <I as InputIter>::Item: AsChar,
+        <I as InputTakeAtPosition>::Item: AsChar + Clone,
+    {
+        move |input: I| {
+            let sep = tuple((multispace0, nom_char(','), multispace0));
+            separated_list1(sep, inner)(input)
+        }
     }
+
+    // Chars
+    pub fn wrapped_chars<I, F, O, E: ParseError<I>>(
+        open: char,
+        mut inner: F,
+        close: char,
+    ) -> impl FnMut(I) -> IResult<I, O, E>
+    where
+        F: Parser<I, O, E>,
+        I: Slice<RangeFrom<usize>> + InputIter,
+        I: InputTakeAtPosition,
+        <I as InputTakeAtPosition>::Item: AsChar + Clone,
+        <I as InputIter>::Item: AsChar,
+    {
+        move |input: I| {
+            let (input, _) = nom_char(open)(input)?;
+            let (input, matched) = inner.parse(input)?;
+                let (input, _) = nom_char(close)(input)?;
+            Ok((input, matched))
+        }
+    }
+
+    pub fn ws<'a, F, I, O, E: ParseError<I>>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
+    where
+        F: Parser<I, O, E>,
+        I: InputTakeAtPosition,
+        <I as InputTakeAtPosition>::Item: AsChar + Clone,
+    {
+        move |input: I| {
+            let (input, _) = multispace0(input)?;
+            let (input, matched) = inner.parse(input)?;
+            let (input, _) = multispace0(input)?;
+            Ok((input, matched))
+        }
+    }
+
+
 }
 
-pub fn wrapped_chars<'a, O, F>(
-    open: char,
-    mut inner: F,
-    close: char,
-) -> impl FnMut(Span<'a>) -> IResult<O>
-where
-    F: nom::Parser<Span<'a>, O, ParseError>,
-{
-    move |input: Span| {
-        let (input, _) = nom_char(open)(input)?;
-        let (input, matched) = inner.parse(input)?;
-        let (input, _) = nom_char(close)(input)?;
-        Ok((input, matched))
-    }
-}
-
-pub fn sep_list1<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
-where
-    F: nom::Parser<Span<'a>, O, ParseError> + Copy,
-{
-    move |input: Span| {
-        let sep = tuple((multispace0, tag(LIST_SEP), multispace0));
-        separated_list1(sep, inner)(input)
-    }
-}
+pub use p2::sep_list1;
 
 pub fn sep_list0<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Vec<O>>
 where
@@ -113,6 +154,7 @@ pub fn parse_number(input: Span) -> IResult<Node> {
 // Compile a string as a fake file
 
 pub fn get_block(input: Span<'_>) -> IResult<Span> {
+    // p2::get_block(input)
     ws(wrapped_chars('{', is_not("}"), '}'))(input)
 }
 

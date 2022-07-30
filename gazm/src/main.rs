@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(sym_file) = &opts.syms_file {
 
-        let syms = ctx.symbols.clone();
+        let _syms = ctx.symbols.clone();
 
         let sd : SourceDatabase = ( &ctx ).into();
 
