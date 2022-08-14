@@ -6,7 +6,7 @@ use crate::locate::span_to_pos;
 use crate::locate::Span;
 use serde::de::Error;
 use thiserror::Error;
-use emu::utils::sources::{Position, SourceInfo};
+use emu::utils::sources::{Position, SourceInfo, AsmSource};
 
 pub type GResult<T> = Result<T, GazmError>;
 
@@ -96,7 +96,6 @@ impl From<nom::Err<ParseError>> for ParseError {
     }
 }
 
-// That's what makes it nom-compatible.
 impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
     fn from_error_kind(input: Span<'a>, kind: nom::error::ErrorKind) -> Self {
         Self::new(format!("parse error {:?}", kind), &input, false)
@@ -111,6 +110,7 @@ impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
     }
 }
 
+// That's what makes it nom-compatible.
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstError {

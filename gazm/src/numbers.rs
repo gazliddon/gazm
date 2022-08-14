@@ -1,18 +1,91 @@
-use nom::AsBytes;
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, tag};
 use nom::combinator::recognize;
 use nom::multi::many1;
+use nom::AsBytes;
 
-use nom::character::complete::{ alphanumeric1, anychar };
-use nom::sequence::preceded;
 use emu::utils::sources::AsmSource;
+use nom::character::complete::{alphanumeric1, anychar};
+use nom::sequence::preceded;
 
 use crate::error::{IResult, ParseError};
 use crate::locate::Span;
 
+// pub fn tag<T, Input, Error: ParseError<Input>>(
+// tag: T,
+// ) -> impl Fn(Input) -> IResult<Input, Input, Error>
+// where
+// Input: InputTake + Compare<T>,
+// T: InputLength + Clone,
+// {
+// move |i: Input| {
+//     let tag_len = tag.input_len();
+//     let t = tag.clone();
+//     let res: IResult<_, _, Error> = match i.compare(t) {
+//     CompareResult::Ok => Ok(i.take_split(tag_len)),
+//     _ => {
+//         let e: ErrorKind = ErrorKind::Tag;
+//         Err(Err::Error(Error::from_error_kind(i, e)))
+//     }
+//     };
+//     res
+// }
+// }
+
+// pub fn separated_list1<I, O, O2, E, F, G>(
+//     mut sep: G,
+//     mut f: F,
+// ) -> impl FnMut(I) -> nom::IResult<I, Vec<O>, E>
+// where
+//     I: Clone + nom::InputLength,
+//     F: nom::Parser<I, O, E>,
+//     G: nom::Parser<I, O2, E>,
+//     E: nom::error::ParseError<I>,
+// {
+//     panic!()
+// }
+
+// pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
+
+// fn num_get(input: Span) -> IResult<Span> {
+//     recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
+// }
+
+mod newp {
+    use super::*;
+    use nom_locate::LocatedSpan;
+
+    type Span<'a, X> = LocatedSpan<&'a str, X>;
+    type IResult<'a, O, X, E> = nom::IResult<Span<'a, X>, O, E>;
+    use nom::error::ParseError;
+
+
+    pub fn num_get<'a, X,E>(input: Span<'a, X>) -> IResult<'a, Span<X>, X,E>
+    where
+        E: nom::error::ParseError<Span<'a, X>>,
+        X: Clone,
+    {
+        recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
+    }
+
+    pub fn get_char<'a, X, E>(input: Span<'a, X>) -> IResult<'a, i64, X, E>
+    where
+        E: nom::error::ParseError<Span<'a, X>>,
+        X: Clone,
+    {
+        let (rest, matched) = preceded(tag("'"), anychar)(input)?;
+        let (rest, _) = tag("'")(rest)?;
+        let mut s = String::new();
+        s.push(matched);
+        let num_bytes = s.as_bytes();
+        let ret = num_bytes[0];
+        Ok((rest, ret as i64))
+    }
+}
+
 fn num_get(input: Span) -> IResult<Span> {
-    recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
+    newp::num_get(input)
+    // recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
 }
 
 fn num_parse_err(input: Span, radix: &str, e: std::num::ParseIntError) -> nom::Err<ParseError> {
@@ -40,13 +113,13 @@ fn get_binary(input: Span) -> IResult<i64> {
 }
 
 fn get_char(input: Span) -> IResult<i64> {
-    let (rest,matched) = preceded(tag("'"), anychar)(input)?;
-    let (rest,_) = tag("'")(rest)?;
+    let (rest, matched) = preceded(tag("'"), anychar)(input)?;
+    let (rest, _) = tag("'")(rest)?;
     let mut s = String::new();
     s.push(matched);
     let num_bytes = s.as_bytes();
     let ret = num_bytes[0];
-    Ok((rest,ret as i64))
+    Ok((rest, ret as i64))
 }
 
 fn get_dec(input: Span) -> IResult<i64> {

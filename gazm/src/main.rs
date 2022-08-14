@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 #![feature(try_blocks)]
-#![feature(backtrace)]
 
 mod as6809;
 mod ast;
@@ -110,7 +109,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(sym_file) = &opts.syms_file {
 
-        let syms = ctx.symbols.clone();
+        // let syms = ctx.symbols.clone();
 
         let sd : SourceDatabase = ( &ctx ).into();
 
