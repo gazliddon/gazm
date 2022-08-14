@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 #![feature(try_blocks)]
-#![feature(backtrace)]
 
 pub mod as6809;
 pub mod ast;
