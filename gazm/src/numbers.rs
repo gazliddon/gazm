@@ -2,7 +2,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{is_a, tag};
 use nom::combinator::recognize;
 use nom::multi::many1;
-use nom::AsBytes;
+use nom::{AsBytes, UnspecializedInput};
 
 use emu::utils::sources::AsmSource;
 use nom::character::complete::{alphanumeric1, anychar};
@@ -13,223 +13,73 @@ use crate::locate::Span;
 
 mod new {
 
+    pub enum Literal {
+        Int(NumberLiteral),
+        QuotedString(String),
+        Character(char),
+    }
+
+
     use nom::branch::alt;
-    use nom::bytes::complete::{is_a, tag};
+    use nom::bytes::complete::{is_a, tag, tag_no_case};
     use nom::character::complete::{alphanumeric1, anychar, hex_digit0, hex_digit1};
     use nom::character::is_hex_digit;
     use nom::combinator::recognize;
-    use nom::error::ErrorKind;
-    use nom::error::ParseError;
     use nom::error::context;
     use nom::error::ContextError;
+    use nom::error::ErrorKind;
+    use nom::error::ParseError;
     use nom::multi::many1;
     use nom::sequence::preceded;
-    use nom::AsChar;
-    use nom::Compare;
-    use nom::CompareResult;
-    use nom::Err;
-    use nom::FindToken;
-    use nom::IResult;
-    use nom::InputIter;
-    use nom::InputLength;
     use nom::InputTake;
-    use nom::InputTakeAtPosition;
-    use nom::Offset;
-    use nom::Slice;
-    use nom::UnspecializedInput;
+    use nom_locate::LocatedSpan;
 
-    use std::ops::{RangeFrom, RangeTo};
+    pub type Span<'a, X = ()> = LocatedSpan<&'a str, X>;
+    pub type IResult<'a, X, O> = nom::IResult<Span<'a,X>, O>;
 
-    pub fn is_ok_char<T, E>(input: T, ok_chars: &str) -> IResult<T, T, E>
-    where
-        T: InputTakeAtPosition,
-        <T as InputTakeAtPosition>::Item: AsChar,
-        E: ParseError<T>,
-    {
-        input.split_at_position1_complete(
-            |item| {
-                let c = item.as_char();
-
-                for ok_c in ok_chars.chars() {
-                    if c == ok_c {
-                        return true;
-                    }
-                }
-                false
-            },
-            ErrorKind::Fail,
-        )
-    }
-    fn is_one_of_these<I,E>(input: &str) -> impl Fn(I) -> IResult<I, I, E>
-        where
-        E: ParseError<I>,
-        I: ITrait<I>,
-        // I: for<'a> Compare<&'a str>,
-        <I as InputIter>::Item: AsChar,
-    { 
-        let cmp = String::from(input);
-
-        move |input : I| {
-            is_ok_char(input, &cmp)
-        }
-    }
-
-    pub fn char_2<T, I, Error: ParseError<I>>(c: T) -> impl Fn(I) -> IResult<I, char, Error>
-    where
-        T: AsChar + Clone,
-        I: Slice<RangeFrom<usize>> + InputIter,
-        <I as InputIter>::Item: AsChar,
-    {
-        let to_match = c.as_char();
-
-        move |i: I| match (i).iter_elements().next().map(|t| {
-            let b = t.as_char() == to_match;
-            (&to_match, b)
-        }) {
-            Some((c, true)) => Ok((i.slice(c.len()..), c.as_char())),
-            _ => Err(Err::Error(Error::from_char(i, to_match))),
-        }
-    }
-
-    pub fn is_num_char<T, E: ParseError<T>>(input: T) -> IResult<T, T, E>
-    where
-        T: InputTakeAtPosition,
-        <T as InputTakeAtPosition>::Item: AsChar,
-    {
-        is_ok_char(input, "0123456789abcdef_")
-    }
-
-    trait ITrait<I>:
-        Slice<RangeTo<usize>>
-        + Offset
-        + Clone
-        + UnspecializedInput
-        + InputTake
-        + InputIter
-        + InputLength
-    {
-    }
-
-    #[derive(Copy, Clone, Debug)]
-    enum NumberLiteralKind {
-        Hex,
+    #[derive(Clone, Debug)]
+    pub enum NumberLiteralKind {
         Decimal,
+        Hexadecimal,
         Binary,
     }
 
-    impl NumberLiteralKind {
-        fn base(&self) -> usize {
-            match self {
-                Self::Hex => 16, 
-                Self::Decimal => 10,
-                Self::Binary => 2,
-            }
-        }
-        fn valid_chars(&self) -> &'static str {
-            match self {
-                Self::Hex => "abcdefABCDEF0123456789_", 
-                Self::Decimal => "0123456789_",
-                Self::Binary => "01_",
-            }
-        }
+    #[derive(Clone, Debug)]
+    pub struct NumberLiteral {
+        pub kind: NumberLiteralKind,
+        pub val: i64,
     }
 
-    struct Number<I> {
-        kind: NumberLiteralKind,
-        val: i64,
-        prefix_text : I,
-        number_text: I,
+    fn num_get<X: Clone>(input: Span<X>) -> IResult<X, Span<X>> {
+        recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
     }
 
-    impl<I: Clone> Number<I> {
-        pub fn new(kind: NumberLiteralKind, val : i64, prefix_text : &I, number_text : &I) -> Self {
-            Number {
-                kind,
-                val,
-                prefix_text: prefix_text.clone(), 
-                number_text: number_text.clone(),
-            }
-        }
+    fn get_hex<X: Clone>(input: Span<X>) -> IResult<X, (NumberLiteralKind, i64)> {
+        let (rest, _) = alt((tag("0x"), tag("$")))(input)?;
+        let (rest, num_str) = num_get(rest)?;
+        let num = i64::from_str_radix(&num_str.replace('_', ""), 16).map_err(|_| panic!())?;
+
+        Ok((rest, (NumberLiteralKind::Hexadecimal, num)))
     }
 
-    // Num getter
-    // prefix parser
-    // conversion routine
-    // kind
-
-    fn hex_get<I,E>() -> impl Fn(I) -> IResult<I, Number<I>, E>
-        where
-        E: ContextError<I> + ParseError<I>,
-        I: ITrait<I>,
-        I: for<'a> Compare<&'a str>,
-        <I as InputIter>::Item: AsChar,
-    {
-        move | input : I| {
-
-            let p = is_one_of_these("0123456789abcdefABCDEF_");
-
-            let (input, prefix) = alt((tag("0x"), tag("$")))(input)?;
-            let (input, matched) = context("hex digits", p)(input)?;
-
-            let mut res : i64 = 0;
-
-            for c in matched.iter_elements().map(|i| i.as_char()).filter(|c| *c == '-') {
-                if let Some(v) = c.to_digit(16) {
-                    res = ( res << 8 ) + v as i64;
-                } else {
-                    panic!()
-                }
-            }
-
-            let ret  = Number::new(NumberLiteralKind::Hex, res, &prefix, &matched);
-            Ok((input,ret))
-        }
+    fn get_bin<X: Clone>(input: Span<X>) -> IResult<X, ( NumberLiteralKind , i64)> {
+        let (rest, _) = alt((tag("0b"), tag("%")))(input)?;
+        let (rest, num_str) = num_get(rest)?;
+        let num = i64::from_str_radix(&num_str.replace('_', ""), 2).map_err(|_| panic!())?;
+        Ok((rest, (NumberLiteralKind::Binary, num)))
     }
 
-    fn to_radix<I,E>(input : I, r : NumberLiteralKind) -> IResult<I, i64, E> 
-        where
-        E: ContextError<I> + ParseError<I>,
-        I: ITrait<I>,
-        I: for<'a> Compare<&'a str>,
-        <I as InputIter>::Item: AsChar,
-
-    {
-            let base = r.base() as i64;
-            let mut res : i64 = 0;
-
-            for c in input.iter_elements().map(|i| i.as_char()).filter(|c| *c == '_') {
-                if let Some(v) = c.to_digit(base as u32) {
-                    res = ( res * base ) + v as i64;
-                } else {
-                    panic!()
-                }
-            }
-
-            Ok((input,res))
+    fn get_dec<X: Clone>(input: Span<X>) -> IResult<X, (NumberLiteralKind, i64)> {
+        let (rest, num_str) = num_get(input)?;
+        let num = i64::from_str_radix(&num_str.replace('_', ""), 10).map_err(|_| panic!())?;
+        Ok((rest, (NumberLiteralKind::Decimal, num)))
     }
 
-    fn num_get<I,E>(lit : NumberLiteralKind) -> impl Fn(I) -> IResult<I, Number<I>, E>
-        where
-        E: ContextError<I> + ParseError<I>,
-        I: ITrait<I>,
-        I: for<'a> Compare<&'a str>,
-        <I as InputIter>::Item: AsChar,
-    {
-        move | input : I| {
-            let mut prefix_chars_p = match lit {
-                NumberLiteralKind::Decimal => alt((tag(""), tag(""))),
-                NumberLiteralKind::Hex => alt((tag("0x"), tag("%"))),
-                NumberLiteralKind::Binary => alt((tag("0b"), tag("%"))),
-            };
-
-            let num_chars_p = is_one_of_these(lit.valid_chars());
-
-            let (input, prefix) = prefix_chars_p(input)?;
-            let (input, matched) = context("digits", num_chars_p)(input)?;
-            let (input,res) = to_radix(input,lit)?;
-            let ret  = Number::new(lit, res, &prefix, &matched);
-            Ok((input,ret))
-        }
+    /// Parse a span into a NumberLiteral
+    pub fn parse_number<X: Clone>(input: Span<X>) -> IResult<X, (Span<X>, NumberLiteral )> {
+        let (rest, (kind, val)) = alt((get_hex, get_bin, get_dec))(input.clone())?;
+        let span = input.take(input.len() - rest.len());
+        Ok((rest, (span, NumberLiteral { val, kind  })))
     }
 }
 
@@ -308,7 +158,6 @@ pub fn get_number_err_usize(input: &str) -> Result<usize, String> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
-
 #[allow(unused_imports)]
 mod test {
 
@@ -381,5 +230,23 @@ mod test {
     #[test]
     fn test_all() {
         test_nums(&TEST_ALL, get_number);
+    }
+    struct Test {}
+
+    fn test_it(txt: &str, expected: i64) {
+        use new::*;
+
+        let span = Span::new(txt);
+        let (_, (sp, lit )) = parse_number(span).expect("Parse failure");
+        assert_eq!(lit.val, expected);
+        assert_eq!(&sp.to_string(), txt);
+    }
+
+    #[test]
+    fn test_new() {
+        test_it("$101010", 0x101010);
+        test_it("%101010", 0b101010);
+        test_it("0b101010", 0b101010);
+        test_it("$ff", 255);
     }
 }
