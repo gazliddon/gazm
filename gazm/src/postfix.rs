@@ -1,6 +1,6 @@
 use emu::utils::Stack;
 
-pub trait GetPriotity {
+pub trait GetPriority {
     fn priority(&self) -> Option<usize>;
     fn is_op(&self) -> bool {
         self.priority().is_some()
@@ -8,12 +8,12 @@ pub trait GetPriotity {
 }
 
 #[derive(Debug, Clone)]
-pub struct PostFixer<I: Clone + GetPriotity> {
+pub struct PostFixer<I: Clone + GetPriority> {
     opstack: Stack<I>,
     ret: Vec<I>,
 }
 
-impl<I: Clone + GetPriotity + std::fmt::Debug> Default for PostFixer<I> { 
+impl<I: Clone + GetPriority + std::fmt::Debug> Default for PostFixer<I> { 
     fn default() -> Self {
         Self {
             opstack: Stack::new(),
@@ -23,7 +23,7 @@ impl<I: Clone + GetPriotity + std::fmt::Debug> Default for PostFixer<I> {
     }
 }
 
-impl<I: Clone + GetPriotity + std::fmt::Debug> PostFixer<I> {
+impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -108,7 +108,7 @@ mod test {
         String::from_iter(vs.iter())
     }
 
-    impl GetPriotity for char {
+    impl GetPriority for char {
         fn priority(&self) -> Option<usize> {
             match self {
                 '/' => Some(5),

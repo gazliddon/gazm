@@ -1,6 +1,6 @@
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::item::Item;
-use crate::postfix::GetPriotity;
+use crate::postfix::GetPriority;
 
 use std::fmt::Display;
 
@@ -56,7 +56,7 @@ impl From<EvalError> for AstError {
     }
 }
 
-impl GetPriotity for Item {
+impl GetPriority for Item {
     fn priority(&self) -> Option<usize> {
         match self {
             Item::Mul => Some(5),

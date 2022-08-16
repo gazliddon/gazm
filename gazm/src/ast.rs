@@ -452,7 +452,7 @@ struct Term {
     priority: Option<usize>,
 }
 
-impl postfix::GetPriotity for Term {
+impl postfix::GetPriority for Term {
     fn priority(&self) -> Option<usize> {
         self.priority
     }
