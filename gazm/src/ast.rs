@@ -210,14 +210,16 @@ impl<'a> Ast<'a> {
         let args: Vec<_> = node.children().map(|n| Term::new(&n)).collect();
 
         let mut pfix: PostFixer<Term> = postfix::PostFixer::new();
+
         let ret = pfix.get_postfix(args.clone()).map_err(|s| {
             let args: Vec<String> = args
                 .iter()
                 .map(|a| format!("{:?}", self.tree.get(a.node).unwrap().value().item))
                 .collect();
             format!(
-                "\n{:?}\n {}",
-                self.tree.get(s.node).unwrap().value(),
+                "\n{:?} {:?}\n {}",
+                s,
+                node.value(),
                 args.join("\n")
             )
         })?;

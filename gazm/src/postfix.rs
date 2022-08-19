@@ -1,4 +1,13 @@
 use emu::utils::Stack;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum PostfixerErrorKind {
+    #[error("Expected an operator, got {0}")]
+    ExpectedOperator(String),
+    #[error("Expected an odd number of args, got {0}")]
+    NeedOddAmountOfArgs(usize),
+}
 
 pub trait GetPriority {
     fn priority(&self) -> Option<usize>;
@@ -13,13 +22,12 @@ pub struct PostFixer<I: Clone + GetPriority> {
     ret: Vec<I>,
 }
 
-impl<I: Clone + GetPriority + std::fmt::Debug> Default for PostFixer<I> { 
+impl<I: Clone + GetPriority + std::fmt::Debug> Default for PostFixer<I> {
     fn default() -> Self {
         Self {
             opstack: Stack::new(),
             ret: vec![],
         }
-        
     }
 }
 
@@ -32,12 +40,12 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
         self.ret.push(i.clone())
     }
 
-    fn push(&mut self, op: &I) -> Result<(), I> {
+    fn push(&mut self, op: &I) -> Result<(), PostfixerErrorKind> {
         if op.is_op() {
             self.opstack.push(op.clone());
             Ok(())
         } else {
-            Err(op.clone())
+            Err(PostfixerErrorKind::ExpectedOperator(format!("{:?}", op)))
         }
     }
 
@@ -59,11 +67,11 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
         }
     }
 
-    pub fn get_postfix(&mut self, ops: Vec<I>) -> Result<Vec<I>, I> {
+    pub fn get_postfix(&mut self, ops: Vec<I>) -> Result<Vec<I>, PostfixerErrorKind> {
         let len = ops.len();
 
         if len % 2 == 0 && len != 0 {
-            panic!()
+            return Err(PostfixerErrorKind::NeedOddAmountOfArgs(len));
         }
 
         match len {
@@ -83,7 +91,9 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
                 while let Some((op, rhs)) = next_pair() {
                     let top_pri = self.top_pri();
 
-                    let this_pri = op.priority().ok_or_else(|| op.clone())?;
+                    let this_pri = op.priority().ok_or_else(|| {
+                        PostfixerErrorKind::ExpectedOperator(format!("{:?}", op))
+                    })?;
 
                     if top_pri >= this_pri {
                         self.flush();
