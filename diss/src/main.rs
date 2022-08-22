@@ -142,9 +142,9 @@ use emu::{
     mem::{MemReader, MemoryIO},
 };
 
+use emu::utils::rle::Run;
 use gazm::{commands::parse_command, numbers::*};
 use nom_locate::LocatedSpan;
-use emu::utils::rle::Run;
 
 pub fn parse() -> clap::ArgMatches {
     use clap::{Arg, Command};
@@ -206,20 +206,27 @@ fn do_command(dbg_ctx: &mut DebugCtx, text: &str, x: commands::Command, sg: &mut
 
             let sd = emu::utils::sources::SourceDatabase::from_json(file);
 
-            for bin in &sd.bin_written {
-                let data = load_binary_file(&bin.file);
-                sg.mem_mut()
-                    .upload(bin.addr.start, &data)
-                    .expect("Can't upload rom file");
-                println!(
-                    "Loading: {}: 0x{:X} bytes to 0x{:04X}",
-                    bin.file.file_name().unwrap().to_string_lossy(),
-                    bin.addr.len(),
-                    bin.addr.start
-                );
+            match sd {
+                Ok(sd) => {
+                    for bin in &sd.bin_written {
+                        let data = load_binary_file(&bin.file);
+                        sg.mem_mut()
+                            .upload(bin.addr.start, &data)
+                            .expect("Can't upload rom file");
+                        println!(
+                            "Loading: {}: 0x{:X} bytes to 0x{:04X}",
+                            bin.file.file_name().unwrap().to_string_lossy(),
+                            bin.addr.len(),
+                            bin.addr.start
+                        );
+                    }
+                    sg.reset();
+                    println!("{}", sg.regs);
+                }
+                Err(e) => {
+                    println!("{}",e)
+                }
             }
-            sg.reset();
-            println!("{}", sg.regs);
         }
 
         Command::Step => {

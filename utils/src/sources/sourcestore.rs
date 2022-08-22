@@ -7,6 +7,27 @@ pub trait LocationTrait: Clone {
     fn get_file(&self) -> &PathBuf;
 }
 
+use std::io;
+
+#[derive(thiserror::Error, Debug)]
+pub enum SourceErrorType {
+    #[error("Sort this out gaz")]
+    Misc,
+    #[error("File not found: {0}")]
+    FileNotFound(String),
+    #[error(transparent)]
+    Io {
+        #[from]
+        source: io::Error,
+    },
+
+    #[error(transparent)]
+    Json {
+        #[from]
+        source: serde_json::Error,
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SourceLine<'a> {
     pub text: String,
@@ -304,7 +325,7 @@ impl Default for SourceDatabase {
             loc_to_mapping: Default::default(),
             bin_written: vec![],
             exec_addr: None,
-            file_name : PathBuf::new(),
+            file_name: PathBuf::new(),
         }
     }
 }
@@ -328,13 +349,11 @@ fn abs_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, base: P2) -> PathBuf {
         base.join(path)
     }
     .clean()
-
 }
 
 fn rel_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, base: P2) -> Option<PathBuf> {
-    pathdiff::diff_paths(&path,&base)
+    pathdiff::diff_paths(&path, &base)
 }
-
 
 impl SourceDatabase {
     pub fn write_json<P: AsRef<Path>>(&self, file: P) -> std::io::Result<()> {
@@ -349,7 +368,7 @@ impl SourceDatabase {
         sources: &Sources,
         symbols: &SymbolTree,
         written: &[BinWritten],
-        exec_addr: Option<usize>
+        exec_addr: Option<usize>,
     ) -> Self {
         let mut id_to_source_file = HashMap::new();
 
@@ -369,18 +388,25 @@ impl SourceDatabase {
             loc_to_mapping: Default::default(),
             bin_written: written.clone().to_vec(),
             exec_addr,
-            file_name : PathBuf::new(),
+            file_name: PathBuf::new(),
         };
 
         ret.post_deserialize();
         ret
     }
 
-    pub fn from_json<P: AsRef<Path>>(sym_file: P) -> Self {
-        let symstr = std::fs::read_to_string(&sym_file).unwrap();
-        let mut sd: SourceDatabase = serde_json::from_str(&symstr).unwrap();
+    pub fn from_json<P: AsRef<Path>>(sym_file: P) -> Result<Self, SourceErrorType> {
+        use std::io::ErrorKind;
+        let file_name = sym_file.as_ref().to_string_lossy();
+
+        let symstr = std::fs::read_to_string(&sym_file).map_err(|e| match e.kind() {
+            ErrorKind::NotFound => SourceErrorType::FileNotFound(file_name.to_string()),
+            _ => SourceErrorType::from(e),
+        })?;
+
+        let mut sd: SourceDatabase = serde_json::from_str(&symstr)?;
         sd.post_deserialize();
-        sd
+        Ok(sd)
     }
 
     fn post_deserialize(&mut self) {
