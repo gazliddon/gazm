@@ -98,9 +98,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             Div => "/".to_string(),
             Add => "+".to_string(),
             Sub => "-".to_string(),
-            And => "&".to_string(),
-            Or => "|".to_string(),
-            Xor => "^".to_string(),
+            BitAnd => "&".to_string(),
+            BitOr => "|".to_string(),
+            BitXor => "^".to_string(),
 
             Org => {
                 println!("org");

@@ -199,6 +199,7 @@ pub struct StructEntry {
     pub item_type: StructMemberType,
 }
 
+///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
     BlankLine,
@@ -274,9 +275,9 @@ pub enum Item {
     Div,
     Add,
     Sub,
-    And,
-    Or,
-    Xor,
+    BitAnd,
+    BitOr,
+    BitXor,
     ShiftRight,
     ShiftLeft,
     UnaryGreaterThan,
@@ -365,9 +366,9 @@ impl<'a> Display for BaseNode<Item, Position> {
             Div => "/".to_string(),
             Add => "+".to_string(),
             Sub => "-".to_string(),
-            And => "&".to_string(),
-            Or => "|".to_string(),
-            Xor => "^".to_string(),
+            BitAnd => "&".to_string(),
+            BitOr => "|".to_string(),
+            BitXor => "^".to_string(),
             Org => {
                 format!("org {}", self.children[0])
             }

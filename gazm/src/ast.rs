@@ -463,15 +463,16 @@ impl postfix::GetPriority for Term {
 pub fn to_priority(i: &Item) -> Option<usize> {
     use Item::*;
     match i {
-        Div => Some(5),
-        Mul => Some(5),
-        Add => Some(4),
-        Sub => Some(4),
-        And => Some(2),
-        Or => Some(2),
-        Xor => Some(2),
-        ShiftLeft => Some(1),
-        ShiftRight => Some(1),
+
+            Div => Some(12),
+            Mul => Some(12),
+            Add => Some(11),
+            Sub => Some(11),
+            ShiftLeft => Some(10),
+            ShiftRight => Some(10),
+            BitAnd => Some(9),
+            BitXor => Some(8),
+            BitOr => Some(7),
         _ => None,
     }
 }

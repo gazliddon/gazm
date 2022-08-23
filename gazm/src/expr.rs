@@ -84,14 +84,15 @@ fn parse_binary_op(input: Span) -> IResult<Node> {
     // let (rest, matched) = one_of(ops)(input)?;
     // let op = to_op(matched).unwrap();
 
+
     let (rest, op) = alt((
         map(tag("+"), |_| Item::Add),
         map(tag("-"), |_| Item::Sub),
         map(tag("*"), |_| Item::Mul),
         map(tag("/"), |_| Item::Div),
-        map(tag("|"), |_| Item::Or),
-        map(tag("&"), |_| Item::And),
-        map(tag("^"), |_| Item::Xor),
+        map(tag("|"), |_| Item::BitOr),
+        map(tag("&"), |_| Item::BitAnd),
+        map(tag("^"), |_| Item::BitXor),
         map(tag(">>"), |_| Item::ShiftRight),
         map(tag("<<"), |_| Item::ShiftLeft),
     ))(input)?;

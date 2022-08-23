@@ -58,15 +58,19 @@ impl From<EvalError> for AstError {
 
 impl GetPriority for Item {
     fn priority(&self) -> Option<usize> {
+        use Item::*;
         match self {
-            Item::Mul => Some(5),
-            Item::Div => Some(5),
-            Item::Add => Some(4),
-            Item::Sub => Some(4),
-            Item::And => Some(3),
-            Item::Xor => Some(3),
-            Item::ShiftRight => Some(2),
-            Item::ShiftLeft => Some(2),
+
+            Div => Some(12),
+            Mul => Some(12),
+            Add => Some(11),
+            Sub => Some(11),
+            ShiftLeft => Some(10),
+            ShiftRight => Some(10),
+            BitAnd => Some(9),
+            BitXor => Some(8),
+            BitOr => Some(7),
+
             _ => None,
         }
     }
@@ -163,8 +167,9 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
                     Div => lhs / rhs,
                     Add => lhs + rhs,
                     Sub => lhs - rhs,
-                    And => lhs & rhs,
-                    Xor => lhs ^ rhs,
+                    BitAnd => lhs & rhs,
+                    BitXor => lhs ^ rhs,
+                    BitOr => lhs | rhs,
                     ShiftLeft => lhs << (rhs as u64),
                     ShiftRight => lhs >> (rhs as u64),
                     _ => return Err(EvalError::new(EvalErrorEnum::UnexpectedOp, *cn)),
