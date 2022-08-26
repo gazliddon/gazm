@@ -155,27 +155,21 @@ mod test {
                 let (rhs, lhs) = s.pop_pair();
                 let res = match i {
                     '*' => {
-                        println!("{} * {}", lhs, rhs);
                         lhs * rhs
                     }
                     '<' => {
-                        println!("{} << {}", lhs, rhs);
                         lhs << rhs
                     }
                     '>' => {
-                        println!("{} > {}", lhs, rhs);
                         lhs >> rhs
                     }
                     '/' => {
-                        println!("{} / {}", lhs, rhs);
                         lhs / rhs
                     }
                     '+' => {
-                        println!("{} + {}", lhs, rhs);
                         lhs + rhs
                     }
                     '-' => {
-                        println!("{} - {}", lhs, rhs);
                         lhs - rhs
                     }
                     _ => panic!(),
