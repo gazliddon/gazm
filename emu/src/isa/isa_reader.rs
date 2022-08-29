@@ -163,7 +163,7 @@ impl Dbase {
                 let info = InstructionInfo::new(i.clone());
                 name_to_ins.insert(name.to_string(), info);
             }
-            let x = name_to_ins.get(&name.to_string()).unwrap().clone();
+            let x = name_to_ins.get(name.as_str()).unwrap().clone();
             opcode_to_ins.insert(i.opcode, x);
         };
 

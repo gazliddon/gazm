@@ -386,7 +386,7 @@ impl SourceDatabase {
             addr_to_mapping: Default::default(),
             phys_addr_to_mapping: Default::default(),
             loc_to_mapping: Default::default(),
-            bin_written: written.clone().to_vec(),
+            bin_written: written.to_vec(),
             exec_addr,
             file_name: PathBuf::new(),
         };

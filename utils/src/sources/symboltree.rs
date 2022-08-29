@@ -9,7 +9,7 @@ pub type SymbolNodeRef<'a> = ego_tree::NodeRef<'a, SymbolTable>;
 pub type SymbolNodeId = ego_tree::NodeId;
 pub type SymbolNodeMut<'a> = ego_tree::NodeMut<'a, SymbolTable>;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq,Eq, Clone)]
 pub struct SymbolTree {
     tree: ego_tree::Tree<SymbolTable>,
     current_scope: SymbolNodeId,

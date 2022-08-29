@@ -16,7 +16,7 @@ impl Default for AsmSource {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Position {
     pub line: usize,
     pub col: usize,

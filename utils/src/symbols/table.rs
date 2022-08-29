@@ -21,14 +21,14 @@ impl<'a> ScopedSymbol<'a> {
          let mut path : Vec<_>  = fqn.split("::").collect();
          assert!(!path.is_empty());
 
-         let symbol = path.last().unwrap().clone();
-
+         let symbol = &path.last().unwrap().clone();
          path.resize(path.len() - 1, "");
 
          Self {
              symbol, path
          }
     }
+
     pub fn get_symbol(&self) -> &str {
         self.symbol
     }
