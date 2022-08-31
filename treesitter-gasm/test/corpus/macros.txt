@@ -1,0 +1,16 @@
+================
+Structs
+==================
+
+    macro write_rom(id,size) {
+
+    }
+
+---
+(source_file
+      (macro_def
+        (label)
+        (macro_args
+          (label)
+          (label))
+        (macro_body)))

@@ -1,0 +1,21 @@
+================
+Exprs
+==================
+    fcb $0^3,0^$3
+    fcb $0^3
+
+---
+(source_file
+      (command
+        (binary_expression
+          (hex_num)
+          (dec_num))
+        (binary_expression
+          (dec_num)
+          (hex_num)))
+      (command
+        (binary_expression
+          (hex_num)
+          (dec_num))
+        )
+          )

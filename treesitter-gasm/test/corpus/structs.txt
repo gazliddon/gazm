@@ -1,0 +1,36 @@
+==================
+Structs
+==================
+
+struct smap {
+    sx : byte,
+    sy : byte,
+    scol : byte,
+    pad : byte[20],
+}
+
+
+struct gmap {
+}
+---
+
+(source_file
+ (struct_def
+  (label)
+  (struct_elem
+   (label)
+   (elem_type))
+  (struct_elem
+   (label)
+   (elem_type))
+  (struct_elem
+   (label)
+   (elem_type))
+  (struct_elem
+   (label)
+   (elem_type
+    (array
+     (dec_num)))))
+ (struct_def (label))
+
+ )

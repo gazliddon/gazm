@@ -1,0 +1,28 @@
+{
+  "name": "treesitter-gasm",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bindings/node",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tree-sitter generate && node-gyp build"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nan": "^2.15.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.8.0",
+    "tree-sitter-cli": "^0.20.4"
+  },
+
+  "tree-sitter": [
+    {
+      "scope": "source.gasm",
+      "file-types": [
+        "68"
+      ]
+    }
+  ]
+}

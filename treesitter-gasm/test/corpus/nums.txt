@@ -1,0 +1,21 @@
+==================
+Nums
+==================
+
+lda 1234
+lda 1___234
+lda %101010011
+lda 0b1010101
+lda $ff
+lda 0xff
+
+---
+    (source_file
+     (opcode (mnemonic) (extended (dec_num)))
+     (opcode (mnemonic) (extended (dec_num)))
+     (opcode (mnemonic) (extended (bin_num)))
+     (opcode (mnemonic) (extended (bin_num)))
+     (opcode (mnemonic) (extended (hex_num)))
+     (opcode (mnemonic) (extended (hex_num)))
+     )
+

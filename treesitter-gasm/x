@@ -1,0 +1,29 @@
+defstruct Label {
+    x rmb 1
+    y rmb 2
+}
+
+    org 100
+test struct Label {
+    x fdb 10
+    y fcb 1
+}
+
+Label.x = 0
+Label.y = 1
+
+test = 100
+test.x = 100
+test.y = 102
+
+
+
+
+
+
+
+
+ 
+
+
+

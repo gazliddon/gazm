@@ -1,0 +1,14 @@
+
+==================
+Example
+==================
+
+    tfr y,x
+    tfr x,cc
+
+---
+    (source_file
+     (opcode (mnemonic) (reg_xfer (y) (x)))
+     (opcode (mnemonic) (reg_xfer (x) (cc)))
+    )
+

@@ -1,0 +1,13 @@
+==================
+Comments
+==================
+
+; Hello
+// Hello
+/* These are all comments! */
+
+---
+(source_file
+    (comment)
+    (comment)
+    (comment))

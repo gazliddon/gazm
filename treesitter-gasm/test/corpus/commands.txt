@@ -1,0 +1,47 @@
+
+==================
+Example
+==================
+    gaz equ 10
+    scope hello
+    grabmem 1,2
+    put 1+2*3
+    writebin "file" , 1,2
+    incbin "file" , 1,2
+    incbinref "file" , 1,2
+    bsz label
+    bsz label,10
+    org 10
+
+---
+(source_file
+
+    (equate (label) (dec_num))
+
+ (command (label))
+
+ (command (dec_num) (dec_num))
+
+ (command
+  (binary_expression
+   (dec_num)
+   (binary_expression
+    (dec_num)
+    (dec_num))))
+
+ (command (string_literal)
+  (dec_num) (dec_num))
+
+ (command (string_literal) (dec_num) (dec_num))
+
+ (command (string_literal) (dec_num) (dec_num))
+
+ (command (label))
+ (command (label) (dec_num))
+ (command (dec_num))
+
+
+)
+
+
+

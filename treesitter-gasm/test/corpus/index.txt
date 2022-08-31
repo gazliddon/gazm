@@ -1,0 +1,37 @@
+==================
+Index
+==================
+// Hello!
+
+lda 20,y
+sta 100,x
+sta @label,s
+sta label,U
+sta ,Y
+sta ,y++
+sta ,y+
+sta ,--y
+sta ,-y // PHew!
+sta aaa,pc
+sta @aaa,pcr
+lda [ 20,y ]
+
+---
+    (source_file
+     (comment)
+
+     (opcode (mnemonic) (constant_offset (dec_num) (y)))
+     (opcode (mnemonic) (constant_offset (dec_num) (x)))
+     (opcode (mnemonic) (constant_offset (local_label) (s)))
+     (opcode (mnemonic) (constant_offset (label) (u)))
+     (opcode (mnemonic) (zero_index  (y)))
+     (opcode (mnemonic) (post_inc_inc  (y)))
+     (opcode (mnemonic) (post_inc  (y)))
+     (opcode (mnemonic) (pre_dec_dec  (y)))
+     (opcode (mnemonic) (pre_dec  (y)))
+     (comment)
+     (opcode (mnemonic) (pc_offset (label)) )
+     (opcode (mnemonic) (pc_offset_rel (local_label)) )
+     (opcode (mnemonic) (indirect (constant_offset (dec_num) (y)) ))
+    )
+

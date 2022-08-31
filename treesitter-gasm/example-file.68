@@ -1,0 +1,44 @@
+@loop
+
+    lda #$55
+    tfr a,cc
+    lds #stack_top
+
+    jsr clear_screen
+
+    lda #0
+    sync
+
+    ;; copy the palette over
+
+    lda #255
+    sta PALETTE+3
+    lda #127
+    sta PALETTE+4
+    lda #0
+    sta PALETTE+5
+
+@loop1
+    inc PALETTE+15*3
+    inc PALETTE+15*3
+    inc PALETTE+15*3
+    lda PALETTE+15
+    lsra
+    sta PALETTE+15*3+1
+    ldx #0
+    bsr draw_box
+    jsr print_a
+    sync
+    nop
+    nop
+    bra @loop1
+
+clear_screen
+    ldy #SCREEN
+    ldd #0
+@loop2
+    std ,y++
+    cmpy #SCREEN+SCREEN_SIZE_BYTES
+    bne @loop2
+    rts
+font
