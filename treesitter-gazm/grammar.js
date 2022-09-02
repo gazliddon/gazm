@@ -50,7 +50,7 @@ const OPCODE_TABLE = getCommands('./opcodes.json')
 const MNEMONICS_REGEX = arrayToRegex(OPCODE_TABLE.map(i => i.action))
 
 module.exports = grammar({
-    name: "gasm",
+    name: "gazm",
 
     rules: {
         source_file: $ =>
@@ -62,55 +62,54 @@ module.exports = grammar({
                 $._line
             )),
 
+        scope: $ => seq(asRegex( 'scope' ), $._identifier),
+        put: $ => seq(asRegex( 'put' ), $._expression),
+        grabmem: $ => seq(asRegex( 'grabmem' ), field('addr', $._expression), ',', field('size', $._expression)),
 
-        scope: $ => seq('scope', $._identifier),
-        put: $ => seq('put', $._expression),
-        grabmem: $ => seq('grabmem', field('addr', $._expression), ',', field('size', $._expression)),
-
-        writebin: $ => seq('writebin',
+        writebin: $ => seq(asRegex( 'writebin' ),
             field('file', $.string_literal), ',',
             field('addr', $._expression),
             optional(seq(',', field('len', $._expression)))
         ),
 
-        incbin: $ => seq('incbin',
+        incbin: $ => seq(asRegex('incbin'),
             field('file', $.string_literal),
             optional($._incbinargs)
         ),
 
-        incbinref: $ => seq('incbinref',
+        incbinref: $ => seq(asRegex( 'incbinref' ),
             field('file', $.string_literal),
             optional($._incbinargs)
         ),
 
-        bsz: $ => seq('bsz',
+        bsz: $ => seq(asRegex( 'bsz' ),
             field('count', $._expression),
-            optional(seq(',', field('value',$._expression)))),
+            optional(seq(',', field('value', $._expression)))),
 
-        fill: $ => seq('fill',
+        fill: $ => seq(asRegex( 'fill' ),
             field('count', $._expression),
-            seq(',', field('value',$._expression))),
+            seq(',', field('value', $._expression))),
 
-        fdb: $ => seq('fdb', commaSep1($._expression)),
-        fcb: $ => seq('fcb', commaSep1($._expression)),
-        fcc: $ => seq('fcc', commaSep1($.string_literal)),
+        fdb: $ => seq(asRegex( 'fdb' ), commaSep1($._expression)),
+        fcb: $ => seq(asRegex( 'fcb' ), commaSep1($._expression)),
+        fcc: $ => seq(asRegex( 'fcc' ), commaSep1($.string_literal)),
 
-        zmb : $=> seq('zmb', $._expression),
-        zmd : $=> seq('zmd', $._expression),
-        rmb : $=> seq('rmb', $._expression),
+        zmb: $ => seq(asRegex( 'zmb' ), $._expression),
+        zmd: $ => seq(asRegex( 'zmd' ), $._expression),
+        rmb: $ => seq(asRegex( 'rmb' ), $._expression),
+
+        setdp: $ => seq(asRegex( 'setdp' ), $._expression),
+
+        org: $ => seq(asRegex( 'org' ), $._expression),
+
+        exec_addr: $ => seq(asRegex( 'exec_addr' ), $._expression),
+        include: $ => seq(asRegex( 'include' ), $.string_literal),
 
         _incbinargs: $ =>
             choice(
                 seq(',', field('len', $._expression)),
                 seq(',', field('offset', $._expression), ',', field('len', $._expression))
             ),
-
-        setdp: $ => seq('setdp', $._expression),
-
-        org: $ => seq('org', $._expression),
-
-        exec_addr: $ => seq('exec_addr', $._expression),
-        include: $ => seq('include', $.string_literal),
 
         _command: $ => choice(
             $.scope,
@@ -184,6 +183,7 @@ module.exports = grammar({
             $._identifier,
             $.opcode,
         ),
+
         _command_label: $ => seq(
             $._identifier,
             $._command,
@@ -201,7 +201,6 @@ module.exports = grammar({
                     )
                 )
             }));
-
         },
 
         unary_expression: $ => prec.left(PREC.UNARY, seq(
@@ -430,3 +429,4 @@ function mnemonicRegex(addr_mode) {
     let opcodes = OPCODE_TABLE.filter(i => i.addr_mode == addr_mode).map(i => i.action)
     return arrayToRegex(opcodes)
 }
+

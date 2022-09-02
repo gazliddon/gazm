@@ -11,7 +11,7 @@ Example
 
     writebin "file" , 1,2
     incbinref "file" , 1,2
-    incbin "file" , 1,2
+    INCBIN "file" , 1,2
     incbin "file"
     org 10
 

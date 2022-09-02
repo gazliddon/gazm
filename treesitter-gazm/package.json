@@ -1,5 +1,5 @@
 {
-  "name": "treesitter-gasm",
+  "name": "treesitter-gazm",
   "version": "1.0.0",
   "description": "",
   "main": "bindings/node",
@@ -19,7 +19,7 @@
 
   "tree-sitter": [
     {
-      "scope": "source.gasm",
+      "scope": "source.gazm",
       "file-types": [
         "68"
       ]
