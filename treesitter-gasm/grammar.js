@@ -62,6 +62,77 @@ module.exports = grammar({
                 $._line
             )),
 
+
+        scope: $ => seq('scope', $._identifier),
+        put: $ => seq('put', $._expression),
+        grabmem: $ => seq('grabmem', field('addr', $._expression), ',', field('size', $._expression)),
+
+        writebin: $ => seq('writebin',
+            field('file', $.string_literal), ',',
+            field('addr', $._expression),
+            optional(seq(',', field('len', $._expression)))
+        ),
+
+        incbin: $ => seq('incbin',
+            field('file', $.string_literal),
+            optional($._incbinargs)
+        ),
+
+        incbinref: $ => seq('incbinref',
+            field('file', $.string_literal),
+            optional($._incbinargs)
+        ),
+
+        bsz: $ => seq('bsz',
+            field('count', $._expression),
+            optional(seq(',', field('value',$._expression)))),
+
+        fill: $ => seq('fill',
+            field('count', $._expression),
+            seq(',', field('value',$._expression))),
+
+        fdb: $ => seq('fdb', commaSep1($._expression)),
+        fcb: $ => seq('fcb', commaSep1($._expression)),
+        fcc: $ => seq('fcc', commaSep1($.string_literal)),
+
+        zmb : $=> seq('zmb', $._expression),
+        zmd : $=> seq('zmd', $._expression),
+        rmb : $=> seq('rmb', $._expression),
+
+        _incbinargs: $ =>
+            choice(
+                seq(',', field('len', $._expression)),
+                seq(',', field('offset', $._expression), ',', field('len', $._expression))
+            ),
+
+        setdp: $ => seq('setdp', $._expression),
+
+        org: $ => seq('org', $._expression),
+
+        exec_addr: $ => seq('exec_addr', $._expression),
+        include: $ => seq('include', $.string_literal),
+
+        _command: $ => choice(
+            $.scope,
+            $.grabmem,
+            $.put,
+            $.writebin,
+            $.incbin,
+            $.incbinref,
+            $.setdp,
+            $.org,
+            $.include,
+            $.exec_addr,
+            $.bsz,
+            $.fill,
+            $.fdb,
+            $.fcb,
+            $.fcc,
+            $.zmb,
+            $.zmd,
+            $.rmb,
+        ),
+
         struct_def: $ => seq("struct", $._identifier, '{', commaSep($.struct_elem), optional(','), '}'),
         struct_elem: $ => seq($._identifier, ':', $.elem_type),
         elem_type: $ => seq(choice('byte', 'word', 'dword', 'qword'), optional($.array)),
@@ -87,18 +158,20 @@ module.exports = grammar({
             )
         )),
 
-        command: $ => makeCommands($),
-
         free_comment: $ => seq(
             '/*',
             /[^*]*\*+([^/*][^*]*\*+)*/,
             '/'
         ),
 
+        expr_list1: $ => commaSep1($._expression),
+        expr_list: $ => commaSep($._expression),
+
+
         _line: $ => seq(choice(
                 $.equate,
                 $.macro,
-                $.command,
+                $._command,
                 $._command_label,
                 $.opcode,
                 $._opcode_label,
@@ -113,7 +186,7 @@ module.exports = grammar({
         ),
         _command_label: $ => seq(
             $._identifier,
-            $.command,
+            $._command,
         ),
 
         pc_expr: $ => '*',
@@ -327,32 +400,6 @@ function strOptExprs($, name) {
     return seq($.string_literal, optional(seq(",", commaSep1($._expression))))
 }
 
-function makeCommands($) {
-    const commands_tab = [
-        ["scope", $._identifier],
-        ["grabmem", commaSep1($._expression)],
-        ["put", $._expression],
-        ["writebin", strOptExprs($)],
-        ["incbin", strOptExprs($)],
-        ["incbinref", strOptExprs($)],
-        ["setdp", $._expression],
-        ["bsz", commaSep1($._expression)],
-        ["fill", commaSep1($._expression)],
-        ["fdb", commaSep1($._expression)],
-        ["fcc", commaSep1($.string_literal)],
-        ["fcb", seq($._expression, repeat(seq(',', $._expression)))],
-        ["zmb", commaSep1($._expression)],
-        ["zmd", commaSep1($._expression)],
-        ["rmb", commaSep1($._expression)],
-        ["org", $._expression],
-        ["include", $.string_literal],
-        ["exec_addr", $._expression],
-    ];
-
-    return choice(...commands_tab.map(([name, action]) => {
-        return seq(asRegex(name), action);
-    }))
-}
 
 function loadJSON(fileName) {
     return fs.readFileSync(fileName, 'utf8');

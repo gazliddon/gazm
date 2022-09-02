@@ -6,42 +6,88 @@ Example
     scope hello
     grabmem 1,2
     put 1+2*3
+
+    setdp 10
+
     writebin "file" , 1,2
-    incbin "file" , 1,2
     incbinref "file" , 1,2
-    bsz label
-    bsz label,10
+    incbin "file" , 1,2
+    incbin "file"
     org 10
+
+    include "ksjkjska"
+
+    exec_addr $ff
+
+    /*
+
+
+        ["incbinref", strOptExprs($)],
+        ["bsz", commaSep1($._expression)],
+        ["fill", commaSep1($._expression)],
+        ["fdb", commaSep1($._expression)],
+        ["fcc", commaSep1($.string_literal)],
+        ["fcb", seq($._expression, repeat(seq(',', $._expression)))],
+        ["zmb", commaSep1($._expression)],
+        ["zmd", commaSep1($._expression)],
+        ["rmb", commaSep1($._expression)],
+    */
 
 ---
 (source_file
 
-    (equate (label) (dec_num))
+ (equate (label) (dec_num))
 
- (command (label))
+ (scope (label))
 
- (command (dec_num) (dec_num))
 
- (command
+ (grabmem
+  addr: (dec_num) size: (dec_num))
+
+ (put
   (binary_expression
-   (dec_num)
-   (binary_expression
-    (dec_num)
-    (dec_num))))
+   left: (dec_num)
+   right: (binary_expression
+       left: (dec_num)
+       right: (dec_num))))
 
- (command (string_literal)
-  (dec_num) (dec_num))
-
- (command (string_literal) (dec_num) (dec_num))
-
- (command (string_literal) (dec_num) (dec_num))
-
- (command (label))
- (command (label) (dec_num))
- (command (dec_num))
+ (setdp
+  (dec_num) )
 
 
-)
+ (writebin
+  file: (string_literal)
+  addr: (dec_num)
+  len: (dec_num))
+
+ (incbinref
+  file: (string_literal)
+  offset: (dec_num)
+  len: (dec_num))
+
+
+ (incbin
+  file: (string_literal)
+  offset: (dec_num)
+  len: (dec_num))
+
+
+ (incbin
+  file: (string_literal))
+
+(org (dec_num))
+
+(include (string_literal))
+
+
+(exec_addr (hex_num))
+
+(comment)
+
+    )
+
+
+
 
 
 

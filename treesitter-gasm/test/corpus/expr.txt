@@ -6,16 +6,16 @@ Exprs
 
 ---
 (source_file
-      (command
-        (binary_expression
-          (hex_num)
-          (dec_num))
-        (binary_expression
-          (dec_num)
-          (hex_num)))
-      (command
-        (binary_expression
-          (hex_num)
-          (dec_num))
-        )
-          )
+ (fcb 
+  (binary_expression
+   (hex_num)
+   (dec_num))
+  (binary_expression
+   (dec_num)
+   (hex_num)))
+ (fcb
+  (binary_expression
+   (hex_num)
+   (dec_num))
+ )
+ )
