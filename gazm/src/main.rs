@@ -57,13 +57,12 @@ use crate::error::*;
 
 use anyhow::Result;
 
-
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
 
-    let mut ctx: ctx::Context = cli::parse().into();
     let opts: ctx::Opts = cli::parse().into();
+    let mut ctx: ctx::Context = opts.clone().into();
+
     use crate::messages::Verbosity;
 
     let x = messages::messages();

@@ -6,6 +6,7 @@ use crate::{
 };
 use clap::{Arg, Command};
 use emu::utils::sources::SourceFileLoader;
+use nom::ErrorConvert;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
@@ -48,46 +49,13 @@ impl From<clap::ArgMatches> for Opts {
         }
 
         if let Some(mut it) = m.values_of("set") {
-            let mut x : Vec<_> = vec![];
-            while let Some((var, value)) = it.next().and_then(|var| it.next().map(|val| (var, val))) {
-                x.push(( var.to_string(), value.to_string() ));
+            while let Some((var, value)) = it.next().and_then(|var| it.next().map(|val| (var, val)))
+            {
+                opts.vars.push((var.to_string(), value.to_string()));
             }
         }
 
         opts
-    }
-}
-
-impl From<clap::ArgMatches> for Context {
-    fn from(m: clap::ArgMatches) -> Self {
-        let mut ret = Self {
-            ..Default::default()
-        };
-
-        if m.is_present("max-errors") {
-            let max_errors = m
-                .value_of("max-errors")
-                .map(|s| s.parse::<usize>().unwrap())
-                .unwrap();
-            ret.errors = ErrorCollector::new(max_errors);
-        }
-
-        if m.is_present("mem-size") {
-            let mem_size = m
-                .value_of("mem-size")
-                .map(|s| s.parse::<usize>().unwrap())
-                .unwrap();
-            ret.binary = Binary::new(mem_size, AccessType::ReadWrite);
-        }
-
-        if let Some(mut it) = m.values_of("set") {
-            while let Some((var, value)) = it.next().and_then(|var| it.next().map(|val| (var, val)))
-            {
-                ret.vars.set_var(var.to_string(), value.to_string());
-            }
-        }
-
-        ret
     }
 }
 

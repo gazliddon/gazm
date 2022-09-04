@@ -2,6 +2,7 @@ use crate::binary;
 use crate::error::{ParseError, UserError, ErrorCollector, GazmError, GResult};
 use crate::macros::Macros;
 use crate::messages::Verbosity;
+use crate::binary::{AccessType, Binary};
 use emu::utils::sources::{FileIo, SourceDatabase, SourceFileLoader, SourceMapping, Sources, SymbolTree};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -23,7 +24,6 @@ pub struct WriteBin {
 pub struct Vars {
     vars: HashMap<String, String>,
 }
-
 
 impl Vars {
     pub fn new() -> Self {
@@ -182,6 +182,7 @@ impl From<&Context> for SourceDatabase {
     }
 }
 
+/// Default settings for Context
 impl Default for Context {
     fn default() -> Self {
         Self {
@@ -201,3 +202,22 @@ impl Default for Context {
         }
     }
 }
+
+/// Create a Context from the command line Opts
+impl From<Opts> for Context {
+    fn from(m: Opts) -> Self {
+        let mut ret = Self {
+            ..Default::default()
+        };
+
+        ret.errors = ErrorCollector::new(m.max_errors);
+        ret.binary = Binary::new(m.mem_size, AccessType::ReadWrite);
+
+        for (k,v) in m.vars {
+            ret.vars.set_var(k.to_string(), v.to_string());
+        }
+
+        ret
+    }
+}
+
