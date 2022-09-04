@@ -36,6 +36,7 @@ mod evaluator;
 mod asmctx;
 mod fixerupper;
 mod regutils;
+mod config;
 
 use std::path::PathBuf;
 use crate::error::{GazmError, GResult };
@@ -66,6 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use crate::messages::Verbosity;
 
     let x = messages::messages();
+
     x.set_verbosity(&opts.verbose);
 
     if opts.verbose != Verbosity::Silent {

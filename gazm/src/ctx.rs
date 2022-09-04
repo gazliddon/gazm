@@ -47,10 +47,14 @@ impl Vars {
         ret
     }
 }
+use serde::Deserialize;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Settings {}
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all="kebab-case")]
 pub struct Opts {
     pub verbose: Verbosity,
     pub syms_file: Option<String>,
@@ -60,11 +64,13 @@ pub struct Opts {
     pub as6809_lst: Option<String>,
     pub as6809_sym: Option<String>,
     pub deps_file: Option<String>,
-    pub memory_image_size: usize,
+    pub mem_size: usize,
     pub project_file : PathBuf,
     pub lst_file: Option<String>,
     pub encode_blank_lines: bool,
     pub ast_file: Option<PathBuf>,
+    pub max_errors: usize,
+    pub vars: Vec<(String, String)>,
 }
 
 impl Default for Opts {
@@ -78,11 +84,13 @@ impl Default for Opts {
             as6809_lst: None,
             as6809_sym: None,
             deps_file: None,
-            memory_image_size: 65536,
+            mem_size: 65536,
             project_file: "lol".to_owned().into(),
             lst_file : None,
             encode_blank_lines : false,
             ast_file : None,
+            max_errors: 10,
+            vars: Default::default(),
         }
     }
 }

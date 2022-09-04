@@ -1,12 +1,26 @@
+#![allow(dead_code)]
 use serde_json::Value;
-use tower_lsp::jsonrpc::{ Result, Error };
+use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server, };
-use log::{ error,info };
+use log::info;
 
 #[derive(Debug)]
 struct Backend {
     client: Client,
+}
+
+struct GazmLsp {
+}
+
+impl GazmLsp {
+    pub fn new() -> Self {
+        Self {
+        }
+    }
+
+    pub fn did_open(&mut self, _file: String, _workspace_folder : String) {
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -46,34 +60,40 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
+        info!("initialized");
         self.client
             .log_message(MessageType::INFO, "initialized!")
             .await;
     }
 
     async fn shutdown(&self) -> Result<()> {
+        info!("shutdown");
         Ok(())
     }
 
     async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
+        info!("did_change_workspace_folders");
         self.client
             .log_message(MessageType::INFO, "workspace folders changed!")
             .await;
     }
 
     async fn did_change_configuration(&self, _: DidChangeConfigurationParams) {
+        info!("did_change_configuration");
         self.client
             .log_message(MessageType::INFO, "configuration changed!")
             .await;
     }
 
     async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {
+        info!("did_change_watched_files");
         self.client
             .log_message(MessageType::INFO, "watched files have changed!")
             .await;
     }
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> Result<Option<Value>> {
+        info!("execute_command");
         self.client
             .log_message(MessageType::INFO, "command executed!")
             .await;
@@ -88,43 +108,66 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, _: DidOpenTextDocumentParams) {
+        info!("did_open");
         self.client
             .log_message(MessageType::INFO, "file opened!")
             .await;
     }
 
     async fn did_change(&self, _: DidChangeTextDocumentParams) {
+        info!("did_change");
         self.client
             .log_message(MessageType::INFO, "file changed!")
             .await;
     }
 
     async fn did_save(&self, _: DidSaveTextDocumentParams) {
+        info!("did_save");
         self.client
             .log_message(MessageType::INFO, "file saved!")
             .await;
     }
 
     async fn did_close(&self, _: DidCloseTextDocumentParams) {
+        info!("did_close");
         self.client
             .log_message(MessageType::INFO, "file closed!")
             .await;
     }
 
     async fn completion(&self, _: CompletionParams) -> Result<Option<CompletionResponse>> {
+        info!("completion");
         Ok(Some(CompletionResponse::Array(vec![
             CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
             CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
         ])))
     }
 
-
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-        info!("Request for hover");
-        info!("{:#?}", params);
+        info!("hover");
+        info!("{}", params.text_document_position_params.text_document.uri.path());
+
+        let x = vec![];
+
+        let xx = self.client.configuration(x).await;
+
+        if let Ok(xx) = xx {
+                for f in xx {
+                    info!("item: {}", f)
+                }
+        }
+
         let _ = params;
-        error!("Wanker Got a textDocument/hover request, but it is not implemented");
-        Err(Error::method_not_found())
+
+        let reply = Some(Hover {
+            contents: HoverContents::Markup(MarkupContent{
+                kind: MarkupKind::Markdown,
+                value: "# You Are A\nWanker".to_string(),
+            }),
+            range: None,
+        });
+
+        Ok(reply)
     }
 }
 
@@ -133,7 +176,7 @@ async fn main() {
 
     use log::LevelFilter;
 
-    simple_logging::log_to_file("/Users/garyliddon/development/glsp/log.log", LevelFilter::Info).unwrap();
+    simple_logging::log_to_file("/Users/garyliddon/development/gazm/glsp/log.log", LevelFilter::Info).unwrap();
 
     info!("Starting up gazm lsp");
 

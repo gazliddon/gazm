@@ -6,6 +6,8 @@ use crate::{
 };
 use clap::{Arg, Command};
 use emu::utils::sources::SourceFileLoader;
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
 impl From<clap::ArgMatches> for Opts {
@@ -30,11 +32,26 @@ impl From<clap::ArgMatches> for Opts {
             3 => Verbosity::Interesting,
             _ => Verbosity::Debug,
         };
+
         if m.is_present("mem-size") {
-            opts.memory_image_size = m
+            opts.mem_size = m
                 .value_of("mem-size")
                 .map(|s| s.parse::<usize>().unwrap())
                 .unwrap();
+        }
+
+        if m.is_present("max-errors") {
+            opts.max_errors = m
+                .value_of("mem-size")
+                .map(|s| s.parse::<usize>().unwrap())
+                .unwrap();
+        }
+
+        if let Some(mut it) = m.values_of("set") {
+            let mut x : Vec<_> = vec![];
+            while let Some((var, value)) = it.next().and_then(|var| it.next().map(|val| (var, val))) {
+                x.push(( var.to_string(), value.to_string() ));
+            }
         }
 
         opts

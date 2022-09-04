@@ -1,13 +1,14 @@
 #![allow(unused_macros)]
 
 use colored::*;
+use serde::Deserialize;
 
 pub trait Messageize {
     fn error(self) -> ColoredString;
     fn info(self) -> ColoredString;
     fn success(self) -> ColoredString;
 }
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize)]
 pub enum Verbosity {
     Silent = 0,
     Normal = 1,
