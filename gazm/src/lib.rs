@@ -36,4 +36,5 @@ pub mod evaluator;
 pub mod asmctx;
 pub mod fixerupper;
 pub mod regutils;
+pub mod config;
 

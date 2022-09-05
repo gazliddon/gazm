@@ -496,20 +496,23 @@ impl<'a> Compiler<'a> {
             }
 
             if !dont_map {
-                let (_, phys_range) = ctx.binary.range_to_write_address(pc);
+                if ctx.opts.lst_file.is_some() {
+                    let (_, phys_range) = ctx.binary.range_to_write_address(pc);
 
-                if let Ok(si) = ctx.eval.get_source_info(&node.value().pos) {
-                    let mem_text = if phys_range.is_empty() {
-                        "".to_owned()
-                    } else {
-                        format!("{:02X?}", ctx.binary.get_bytes_range(phys_range.clone()))
-                    };
+                    if let Ok(si) = ctx.eval.get_source_info(&node.value().pos) {
+                        let mem_text = if phys_range.is_empty() {
+                            "".to_owned()
+                        } else {
+                            format!("{:02X?}", ctx.binary.get_bytes_range(phys_range.clone()))
+                        };
 
-                    let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, pc, mem_text);
+                        let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, pc, mem_text);
 
-                    let m = format!("{:50}{}", m_pc, si.line_str);
-                    if !mem_text.is_empty() {
-                        ctx.lst_file.add(&m);
+                        let m = format!("{:50}{}", m_pc, si.line_str);
+
+                        if !mem_text.is_empty() {
+                            ctx.lst_file.add(&m);
+                        }
                     }
                 }
             }

@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     commands, comments,
     ctx::Opts,
-    error::{ErrorCollector, GResult, GazmError, IResult, ParseError, UserError},
+    error::{ErrorCollector, GResult, GazmError, IResult, ParseError, UserError, parse_error},
     gazm::Gazm,
     item::{Item, Node},
     labels::parse_label,
@@ -96,16 +96,31 @@ fn mk_pc_equate(node: Node) -> Node {
 
 pub struct Tokens<'a> {
     tokens: Vec<Node>,
-    ctx: &'a mut crate::ctx::Context,
+    x_ctx: &'a mut crate::ctx::Context,
     opts: Opts,
+    tok_ctx: TokenizeContext,
+    parse_errors : Vec<ParseError>,
+}
+
+pub struct TokenizeContext {
+    errors: ErrorCollector,
+    opts : Opts,
 }
 
 impl<'a> Tokens<'a> {
     pub fn new(ctx: &'a mut crate::ctx::Context, opts: &Opts) -> Self {
+
+        let tok_ctx = TokenizeContext {
+            errors: ErrorCollector::new(100),
+            opts: opts.clone(),
+        };
+
         Self {
             tokens: vec![],
-            ctx,
+            x_ctx : ctx,
             opts: opts.clone(),
+            tok_ctx,
+            parse_errors: vec![],
         }
     }
 
@@ -177,8 +192,9 @@ impl<'a> Tokens<'a> {
         let mut source = input;
 
         while !source.is_empty() {
+
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
-                let mut macro_tokes = Tokens::new(self.ctx, &self.opts);
+                let mut macro_tokes = Tokens::new(self.x_ctx, &self.opts);
                 macro_tokes.add_tokens(body).unwrap();
                 let macro_tokes = macro_tokes.to_tokens();
 
@@ -194,6 +210,7 @@ impl<'a> Tokens<'a> {
             }
 
             let res: Result<(), ParseError> = try {
+
                 if let Ok((rest, _)) = get_struct(source) {
                     let (_, matched) = parse_struct_definition(source)?;
                     self.add_node(matched);
@@ -205,14 +222,14 @@ impl<'a> Tokens<'a> {
 
                 source = rest;
 
-                let _ = self.tokenize_line(line)?;
-                ()
+                self.tokenize_line(line)?;
             };
 
             match res {
                 Ok(..) => (),
                 Err(pe) => {
-                    self.ctx.add_parse_error(pe)?;
+                    self.x_ctx.add_parse_error(pe.clone())?;
+                    self.parse_errors.push(pe);
                 }
             };
         }

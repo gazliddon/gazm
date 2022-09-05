@@ -199,7 +199,7 @@ lazy_static! {
             ("exec_addr", parse_exec_arg),
         ];
         v.into_iter().collect()
-    };
+   };
 }
 
 fn command_token_function(input: Span) -> IResult<(Span, CommandParseFn)> {

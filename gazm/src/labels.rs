@@ -28,11 +28,12 @@ pub fn get_just_label(input: Span) -> IResult<Span> {
 
     // make sure it's not a command or opcode
     if all_consuming(alt((command_token, opcode_just_token)))(matched).is_ok() {
-        let msg = format!(
-            "{} is a reserved keyword and cannot be used as a label",
-            matched
-        );
-        Err(parse_error(&msg, matched))
+        // let msg = format!(
+        //     "{} is a reserved keyword and cannot be used as a label",
+        //     matched
+        // );
+        let msg = "Keyword";
+        Err(parse_error(msg, matched))
     } else {
         Ok((rest, matched))
     }
@@ -40,12 +41,13 @@ pub fn get_just_label(input: Span) -> IResult<Span> {
 
 fn get_local_label(input: Span) -> IResult<Span> {
     let loc_tags = is_a(LOCAL_LABEL_PREFIX);
-    let prefix_parse = recognize(pair(loc_tags, get_just_label));
+    let mut prefix_parse = recognize(pair(loc_tags, get_just_label));
 
-    let loc_tags = is_a(LOCAL_LABEL_PREFIX);
-    let postfix_parse = recognize(pair(get_just_label, loc_tags));
+    // let loc_tags = is_a(LOCAL_LABEL_PREFIX);
+    // let postfix_parse = recognize(pair(get_just_label, loc_tags));
 
-    alt((postfix_parse, prefix_parse))(input)
+    // alt((postfix_parse, prefix_parse))(input)
+    prefix_parse(input)
 }
 
 pub fn parse_just_label(input: Span) -> IResult<Node> {

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct YamlConfig {
-    opts : Opts,
+    pub opts : Opts,
     vars: HashMap<String,String>,
     project: Project,
 }
@@ -18,18 +18,29 @@ pub struct Project {
 impl YamlConfig {
     pub fn new() -> Self {
         use toml::Value;
-        let config_dir = "/Users/garyliddon/development/stargate";
+        let config_file = format!("./gazm.toml");
+        Self::new_from_file(config_file)
+    }
 
-        let config_file = format!("{config_dir}/gazm.toml");
-
+    pub fn new_from_file(file : String) -> Self {
+        use toml::Value;
+        let config_file = file;
         let f = std::fs::read_to_string(config_file).expect("can't read");
-        let val : Self = toml::from_str(&f).unwrap();
+        let mut val : Self = toml::from_str(&f).unwrap();
 
-        println!("{:#?}", val);
+
+        let vars : Vec<_> = val.vars.clone().into_iter().map(|z| z).collect();
+        val.opts.vars = vars;
 
         val
     }
+
+    fn get_toml_file() -> Option<PathBuf> {
+        panic!()
+    }
 }
+
+
 
 #[allow(unused_imports)]
 mod test {
@@ -38,7 +49,7 @@ mod test {
     #[test]
     fn yaml_test() {
         let _y = YamlConfig::new();
-
+        print!("{:#?}", _y);
         assert!(false)
     }
 }
