@@ -21,9 +21,9 @@ fn main() {
 
     let src = std::fs::read_to_string(file).expect("Can't load file");
 
-    let mut ctx = Context::default();
+    let _ctx = Context::default();
 
-    let mut t = Tokens::new(&mut ctx, &opts);
+    let mut t = Tokens::new(&opts);
     let text = Span::new_extra(&src, AsmSource::FromStr);
     t.add_tokens(text).expect("Can't tokenize");
     let x = t.to_tokens();

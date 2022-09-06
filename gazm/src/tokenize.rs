@@ -64,24 +64,24 @@ fn parse_label_not_macro(input: Span) -> IResult<Node> {
     parse_label(input)
 }
 
-pub fn tokenize_file_from_str<P>(
-    file: P,
-    input: &str,
-    ctx: &mut crate::ctx::Context,
-    opts: Opts,
-) -> GResult<Node>
-where
-    P: AsRef<Path>,
-{
-    let pb: PathBuf = file.as_ref().into();
-    let span = Span::new_extra(input, AsmSource::FromStr);
-    let mut tokes = Tokens::new(ctx, &opts);
-    tokes.add_tokens(span)?;
-    let tokes = tokes.to_tokens();
-    let item = Item::TokenizedFile(pb.clone(), pb);
-    let file_node = Node::from_item_span(item, span).with_children(tokes);
-    Ok(file_node)
-}
+// pub fn tokenize_file_from_str<P>(
+//     file: P,
+//     input: &str,
+//     ctx: &mut crate::ctx::Context,
+//     opts: Opts,
+// ) -> GResult<Node>
+// where
+//     P: AsRef<Path>,
+// {
+//     let pb: PathBuf = file.as_ref().into();
+//     let span = Span::new_extra(input, AsmSource::FromStr);
+//     let mut tokes = Tokens::new(ctx, &opts);
+//     tokes.add_tokens(span)?;
+//     let tokes = tokes.to_tokens();
+//     let item = Item::TokenizedFile(pb.clone(), pb);
+//     let file_node = Node::from_item_span(item, span).with_children(tokes);
+//     Ok(file_node)
+// }
 
 fn mk_pc_equate(node: Node) -> Node {
     use Item::*;
@@ -94,12 +94,11 @@ fn mk_pc_equate(node: Node) -> Node {
     }
 }
 
-pub struct Tokens<'a> {
+pub struct Tokens {
     tokens: Vec<Node>,
-    x_ctx: &'a mut crate::ctx::Context,
     opts: Opts,
     tok_ctx: TokenizeContext,
-    parse_errors : Vec<ParseError>,
+    pub parse_errors : Vec<ParseError>,
 }
 
 pub struct TokenizeContext {
@@ -107,9 +106,8 @@ pub struct TokenizeContext {
     opts : Opts,
 }
 
-impl<'a> Tokens<'a> {
-    pub fn new(ctx: &'a mut crate::ctx::Context, opts: &Opts) -> Self {
-
+impl Tokens {
+    pub fn new(opts: &Opts) -> Self {
         let tok_ctx = TokenizeContext {
             errors: ErrorCollector::new(100),
             opts: opts.clone(),
@@ -117,7 +115,6 @@ impl<'a> Tokens<'a> {
 
         Self {
             tokens: vec![],
-            x_ctx : ctx,
             opts: opts.clone(),
             tok_ctx,
             parse_errors: vec![],
@@ -128,7 +125,7 @@ impl<'a> Tokens<'a> {
         self.tokens.push(node)
     }
 
-    fn trailing_text(&mut self, input: Span<'a>) -> IResult<()> {
+    fn trailing_text<'a>(&'a mut self, input: Span<'a>) -> IResult<()> {
         if !input.is_empty() {
             let (rest, node) = parse_trailing_line_text(&self.opts, input)?;
             self.add_node(node);
@@ -138,7 +135,7 @@ impl<'a> Tokens<'a> {
         }
     }
 
-    fn tokenize_line(&mut self, line: Span<'a>) -> IResult<()> {
+    fn tokenize_line<'a>(&'a mut self, line: Span<'a>) -> IResult<()> {
         use commands::parse_command;
         use opcodes::parse_opcode;
         use util::parse_assignment;
@@ -184,7 +181,7 @@ impl<'a> Tokens<'a> {
         self.tokens
     }
 
-    pub fn add_tokens(&mut self, input: Span<'a>) -> GResult<()> {
+    pub fn add_tokens(&mut self, input: Span) -> GResult<()> {
         use crate::macros::MacroCall;
 
         // let ret = Node::from_item_span(Item::Block, input.clone());
@@ -194,7 +191,7 @@ impl<'a> Tokens<'a> {
         while !source.is_empty() {
 
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
-                let mut macro_tokes = Tokens::new(self.x_ctx, &self.opts);
+                let mut macro_tokes = Tokens::new(&self.opts);
                 macro_tokes.add_tokens(body).unwrap();
                 let macro_tokes = macro_tokes.to_tokens();
 
@@ -210,7 +207,6 @@ impl<'a> Tokens<'a> {
             }
 
             let res: Result<(), ParseError> = try {
-
                 if let Ok((rest, _)) = get_struct(source) {
                     let (_, matched) = parse_struct_definition(source)?;
                     self.add_node(matched);
@@ -228,11 +224,11 @@ impl<'a> Tokens<'a> {
             match res {
                 Ok(..) => (),
                 Err(pe) => {
-                    self.x_ctx.add_parse_error(pe.clone())?;
                     self.parse_errors.push(pe);
                 }
             };
         }
+
 
         Ok(())
     }
@@ -263,7 +259,12 @@ fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = Tokens::new(ctx, opts);
+    let mut tokes = Tokens::new(opts);
+
+    for err in &tokes.parse_errors {
+        ctx.add_parse_error(err.clone())?;
+    }
+
     tokes.add_tokens(input)?;
     let mut tokes = tokes.to_tokens();
 
@@ -299,6 +300,15 @@ pub fn tokenize<P: AsRef<Path>>(
     ctx.errors.raise_errors()?;
 
     Ok(block)
+}
+
+pub struct TokenizedText {
+    tokens: Vec<Node>,
+    errors: Vec<ParseError>,
+}
+
+pub fn tokenize_text(_text :&str, _opts: &Opts) -> TokenizedText  {
+    panic!()
 }
 
 ////////////////////////////////////////////////////////////////////////////////

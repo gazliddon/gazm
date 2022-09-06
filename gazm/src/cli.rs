@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 impl From<clap::ArgMatches> for Opts {
     fn from(orig_matches: clap::ArgMatches) -> Self {
         match orig_matches.subcommand() {
-            Some(("config", m)) => {
+            Some(("build", m)) => {
 
                 let x= m.value_of("config-file").expect("no config!");
 
@@ -36,7 +36,7 @@ impl From<clap::ArgMatches> for Opts {
                 conf.opts
             }
 
-            Some(("cli", m)) => {
+            Some(("asm", m)) => {
                 let mut opts = Opts {
                     deps_file: m.value_of("deps").map(|f| f.to_string()),
                     syms_file: m.value_of("symbol-file").map(|f| f.to_string()),
@@ -96,7 +96,7 @@ pub fn parse() -> clap::ArgMatches {
         .bin_name("gazm")
         .subcommand_required(true)
         .subcommand(
-            Command::new("config").about("use the config file").arg(
+            Command::new("build").about("use the config file").arg(
                 Arg::new("config-file")
                     .help("load config file")
                     .multiple_values(false)
@@ -106,7 +106,7 @@ pub fn parse() -> clap::ArgMatches {
             ),
         )
         .subcommand(
-            Command::new("cli")
+            Command::new("asm")
                 .arg(
                     Arg::new("project-file")
                         .multiple_values(false)
