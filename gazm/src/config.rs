@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct YamlConfig {
+    #[serde(skip)]
+    pub file : PathBuf,
     pub opts : Opts,
     vars: HashMap<String,String>,
     project: Project,
@@ -20,18 +22,18 @@ impl YamlConfig {
         use toml::Value;
         let config_file = format!("./gazm.toml");
         Self::new_from_file(&config_file)
+
     }
 
     pub fn new_from_file<P: AsRef<std::path::Path>>(file : P) -> Self {
         use toml::Value;
-        let config_file = file;
-        let f = std::fs::read_to_string(config_file).expect("can't read");
+        let f = std::fs::read_to_string(&file).expect("can't read");
         let mut val : Self = toml::from_str(&f).unwrap();
 
 
         let vars : Vec<_> = val.vars.clone().into_iter().map(|z| z).collect();
         val.opts.vars = vars;
-
+        val.file = file.as_ref().to_path_buf().clone();
         val
     }
 
