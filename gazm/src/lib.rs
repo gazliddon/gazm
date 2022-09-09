@@ -28,6 +28,7 @@ pub mod scopes;
 pub mod sections;
 pub mod structs;
 pub mod tokenize;
+pub mod async_tokenize;
 pub mod util;
 pub mod sizer;
 pub mod compile;

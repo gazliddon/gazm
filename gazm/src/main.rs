@@ -28,6 +28,7 @@ mod scopes;
 mod sections;
 mod structs;
 mod tokenize;
+mod async_tokenize;
 mod util;
 mod sizer;
 mod compile;

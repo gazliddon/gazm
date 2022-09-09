@@ -20,6 +20,8 @@ pub enum GazmError {
     TooManyErrors(ErrorCollector),
     #[error(transparent)]
     BinaryError(binary::BinaryError),
+    #[error("Parse error {0}")]
+    ParseError(#[from] ParseError),
 }
 
 impl From<binary::BinaryError> for GazmError {
@@ -43,11 +45,17 @@ impl From<anyhow::Error> for GazmError {
 // application should use this
 // thiserror = typed errors, gasmlib
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Error,Debug, PartialEq, Clone)]
 pub struct ParseError {
     pub message: Option<String>,
     pub pos: Position,
     pub failure: bool,
+}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f,"Parsing! {:?}", self.message())
+    }
 }
 
 impl ParseError {

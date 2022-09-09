@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+
+#[derive(Debug, Clone)]
 pub enum SearchError {
     FileNotFound(PathBuf, Vec<PathBuf>),
     Placeholder,

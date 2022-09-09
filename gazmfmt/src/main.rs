@@ -1,6 +1,6 @@
 use gazm::ctx::{Context, Opts};
 use gazm::locate::Span;
-use gazm::tokenize::Tokens;
+use gazm::tokenize::{ tokenize_text };
 use utils::sources::AsmSource;
 use clap::{Arg, Command};
 
@@ -23,11 +23,11 @@ fn main() {
 
     let _ctx = Context::default();
 
-    let mut t = Tokens::new(&opts);
     let text = Span::new_extra(&src, AsmSource::FromStr);
-    t.add_tokens(text).expect("Can't tokenize");
-    let x = t.to_tokens();
-    let formatted = render_nodes(x, text);
+
+    let toks = tokenize_text(text, &opts).expect("Can't tokenize");
+
+    let formatted = render_nodes(toks.tokens, text);
 
     if m.is_present("overwrite") {
         std::fs::write(file, formatted).expect("Unable to write file")

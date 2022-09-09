@@ -19,10 +19,10 @@ impl YamlConfig {
     pub fn new() -> Self {
         use toml::Value;
         let config_file = format!("./gazm.toml");
-        Self::new_from_file(config_file)
+        Self::new_from_file(&config_file)
     }
 
-    pub fn new_from_file(file : String) -> Self {
+    pub fn new_from_file<P: AsRef<std::path::Path>>(file : P) -> Self {
         use toml::Value;
         let config_file = file;
         let f = std::fs::read_to_string(config_file).expect("can't read");
@@ -50,7 +50,6 @@ mod test {
     fn yaml_test() {
         let _y = YamlConfig::new();
         print!("{:#?}", _y);
-        assert!(false)
     }
 }
 

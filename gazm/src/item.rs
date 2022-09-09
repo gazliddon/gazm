@@ -6,6 +6,7 @@ use crate::locate::span_to_pos;
 use crate::locate::Span;
 use crate::macros::MacroCall;
 use crate::node::{BaseNode, CtxTrait};
+use crate::error::ParseError;
 use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
 use emu::utils::sources::Position;
@@ -255,7 +256,8 @@ pub enum Item {
 
     WriteBin(PathBuf),
 
-    TokenizedFile(PathBuf, PathBuf),
+    TokenizedFile(PathBuf, PathBuf, Option<String>),
+    Errors(Vec<ParseError>),
 
     Exec,
     Org,
@@ -297,6 +299,14 @@ impl Item {
     pub fn get_number(&self) -> Option<i64> {
         if let Item::Number(n) = self {
             Some(*n)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_include(&self) -> Option<PathBuf> {
+        if let Item::Include(n) = self {
+            Some(n.clone())
         } else {
             None
         }
@@ -381,7 +391,7 @@ impl<'a> Display for BaseNode<Item, Position> {
                 format!("{} {:?}", ins.action, addr_type)
             }
 
-            TokenizedFile(file, _) => {
+            TokenizedFile(file, _, _) => {
                 let header = format!("; included file {}", file.to_string_lossy());
                 let children: Vec<String> =
                     self.children.iter().map(|n| format!("{}", &*n)).collect();

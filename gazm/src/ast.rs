@@ -194,7 +194,7 @@ impl<'a> Ast<'a> {
                         v.item = Label(new_name);
                     }
 
-                    TokenizedFile(_, _) => {
+                    TokenizedFile(_, _, _) => {
                         scopes.pop();
                     }
 

@@ -1,3 +1,4 @@
+use futures::AsyncWriteExt;
 use nom::{
     branch::alt,
     bytes::complete::is_not,
@@ -7,12 +8,15 @@ use nom::{
     sequence::{preceded, terminated},
 };
 
-use std::path::{Path, PathBuf};
+use std::{
+    collections,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     commands, comments,
     ctx::Opts,
-    error::{ErrorCollector, GResult, GazmError, IResult, ParseError, UserError, parse_error},
+    error::{parse_error, ErrorCollector, GResult, GazmError, IResult, ParseError, UserError},
     gazm::Gazm,
     item::{Item, Node},
     labels::parse_label,
@@ -24,7 +28,10 @@ use crate::{
     util::{self, ws},
 };
 
-use emu::utils::sources::{AsmSource, Position};
+use emu::utils::{
+    sources::{AsmSource, Position},
+    PathSearcher,
+};
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
@@ -64,25 +71,6 @@ fn parse_label_not_macro(input: Span) -> IResult<Node> {
     parse_label(input)
 }
 
-// pub fn tokenize_file_from_str<P>(
-//     file: P,
-//     input: &str,
-//     ctx: &mut crate::ctx::Context,
-//     opts: Opts,
-// ) -> GResult<Node>
-// where
-//     P: AsRef<Path>,
-// {
-//     let pb: PathBuf = file.as_ref().into();
-//     let span = Span::new_extra(input, AsmSource::FromStr);
-//     let mut tokes = Tokens::new(ctx, &opts);
-//     tokes.add_tokens(span)?;
-//     let tokes = tokes.to_tokens();
-//     let item = Item::TokenizedFile(pb.clone(), pb);
-//     let file_node = Node::from_item_span(item, span).with_children(tokes);
-//     Ok(file_node)
-// }
-
 fn mk_pc_equate(node: Node) -> Node {
     use Item::*;
     let pos = node.ctx().clone();
@@ -94,31 +82,24 @@ fn mk_pc_equate(node: Node) -> Node {
     }
 }
 
-pub struct Tokens {
+struct Tokens {
     tokens: Vec<Node>,
     opts: Opts,
-    tok_ctx: TokenizeContext,
-    pub parse_errors : Vec<ParseError>,
-}
-
-pub struct TokenizeContext {
-    errors: ErrorCollector,
-    opts : Opts,
+    parse_errors: Vec<ParseError>,
 }
 
 impl Tokens {
-    pub fn new(opts: &Opts) -> Self {
-        let tok_ctx = TokenizeContext {
-            errors: ErrorCollector::new(100),
-            opts: opts.clone(),
-        };
-
-        Self {
+    fn new(text: Span, opts: &Opts) -> GResult<Self> {
+        let mut x = Self {
             tokens: vec![],
             opts: opts.clone(),
-            tok_ctx,
+            // tok_ctx,
             parse_errors: vec![],
-        }
+        };
+
+        x.add_tokens(text)?;
+
+        Ok(x)
     }
 
     fn add_node(&mut self, node: Node) {
@@ -177,11 +158,11 @@ impl Tokens {
         }
     }
 
-    pub fn to_tokens(self) -> Vec<Node> {
+    fn to_tokens(self) -> Vec<Node> {
         self.tokens
     }
 
-    pub fn add_tokens(&mut self, input: Span) -> GResult<()> {
+    fn add_tokens(&mut self, input: Span) -> GResult<()> {
         use crate::macros::MacroCall;
 
         // let ret = Node::from_item_span(Item::Block, input.clone());
@@ -189,11 +170,8 @@ impl Tokens {
         let mut source = input;
 
         while !source.is_empty() {
-
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
-                let mut macro_tokes = Tokens::new(&self.opts);
-                macro_tokes.add_tokens(body).unwrap();
-                let macro_tokes = macro_tokes.to_tokens();
+                let macro_tokes = Tokens::new(body, &self.opts)?.to_tokens();
 
                 let pos = crate::locate::span_to_pos(body);
                 let name = name.to_string();
@@ -229,22 +207,37 @@ impl Tokens {
             };
         }
 
-
         Ok(())
     }
 }
 
-fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
+pub fn get_include_files(tokes: &TokenizedText) -> Vec<(usize, PathBuf)> {
+    // Collect all of the include files
+    tokes
+        .tokens
+        .iter()
+        .enumerate()
+        .filter_map(|(i, n)| {
+            n.item()
+                .get_include()
+                .and_then(|inc_file| Some((i, inc_file)))
+        })
+        .collect()
+}
+pub fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     depth: usize,
     ctx: &mut crate::ctx::Context,
     opts: &Opts,
     file: P,
     parent: PP,
-) -> GResult<Node> {
+    ) -> GResult<Node> {
     use anyhow::Context;
 
     use Item::*;
+
     let x = messages();
+
+    let this_file = file.as_ref().to_path_buf();
 
     let (file_name, source, id) = ctx.read_source(&file)?;
 
@@ -255,44 +248,57 @@ fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     };
 
     let comp_msg = format!("{} {}", action, file_name.to_string_lossy());
+
     x.status(&comp_msg);
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = Tokens::new(opts);
+    let mut tokes = tokenize_text(input, opts)?;
 
     for err in &tokes.parse_errors {
         ctx.add_parse_error(err.clone())?;
     }
 
-    tokes.add_tokens(input)?;
-    let mut tokes = tokes.to_tokens();
+    // Collect all of the include files
+    let includes = get_include_files(&tokes);
 
-    // Tokenize includes
-    for n in tokes.iter_mut() {
-        let parent = file.as_ref().to_path_buf().clone();
-        if let Include(inc_file) = &n.item {
-            x.indent();
-            *n = tokenize_file(depth + 1, ctx, opts, inc_file, &parent)?;
-            x.deindent();
-        };
+    let res: GResult<Vec<(usize, Node)>> = includes
+        .into_iter()
+        .map(|(i, inc_file)| {
+            tokenize_file(depth + 1, ctx, opts, inc_file, &this_file).map(|n| (i, n))
+        })
+    .collect();
+
+    for (i, n) in res? {
+        tokes.tokens[i] = n
     }
 
-    let item = TokenizedFile(file.as_ref().into(), parent.as_ref().into());
-    let node = Node::from_item_span(item, input).with_children(tokes);
+    let item = TokenizedFile(this_file, parent.as_ref().into(), None);
+    let node = Node::from_item_span(item, input).with_children(tokes.tokens);
+
     Ok(node)
 }
 
-use crate::macros::Macros;
+impl From<Tokens> for TokenizedText {
+    fn from(toks: Tokens) -> Self {
+        Self {
+            tokens: toks.tokens,
+            parse_errors: toks.parse_errors,
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 pub fn tokenize<P: AsRef<Path>>(
     ctx: &mut crate::ctx::Context,
     opts: &Opts,
     file: P,
-) -> GResult<Node> {
+    ) -> GResult<Node> {
     let parent = PathBuf::new();
 
     let msg = format!("Reading {}", file.as_ref().to_string_lossy());
+
     messages().status(msg);
 
     let block = tokenize_file(0, ctx, opts, &file, &parent)?;
@@ -303,12 +309,13 @@ pub fn tokenize<P: AsRef<Path>>(
 }
 
 pub struct TokenizedText {
-    tokens: Vec<Node>,
-    errors: Vec<ParseError>,
+    pub tokens: Vec<Node>,
+    pub parse_errors: Vec<ParseError>,
 }
 
-pub fn tokenize_text(_text :&str, _opts: &Opts) -> TokenizedText  {
-    panic!()
+pub fn tokenize_text(_text: Span, _opts: &Opts) -> GResult<TokenizedText> {
+    let toks = Tokens::new(_text, _opts)?;
+    Ok(toks.into())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -318,4 +325,6 @@ mod test {
     use super::*;
     #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
+
+
 }
