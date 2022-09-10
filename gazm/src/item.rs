@@ -256,7 +256,7 @@ pub enum Item {
 
     WriteBin(PathBuf),
 
-    TokenizedFile(PathBuf, PathBuf, Option<String>),
+    TokenizedFile(PathBuf, PathBuf),
     Errors(Vec<ParseError>),
 
     Exec,
@@ -391,7 +391,7 @@ impl<'a> Display for BaseNode<Item, Position> {
                 format!("{} {:?}", ins.action, addr_type)
             }
 
-            TokenizedFile(file, _, _) => {
+            TokenizedFile(file, _) => {
                 let header = format!("; included file {}", file.to_string_lossy());
                 let children: Vec<String> =
                     self.children.iter().map(|n| format!("{}", &*n)).collect();

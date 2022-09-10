@@ -211,7 +211,7 @@ impl Tokens {
     }
 }
 
-pub fn get_include_files(tokes: &TokenizedText) -> Vec<(usize, PathBuf)> {
+fn get_include_files(tokes: &TokenizedText) -> Vec<(usize, PathBuf)> {
     // Collect all of the include files
     tokes
         .tokens
@@ -273,7 +273,7 @@ pub fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
         tokes.tokens[i] = n
     }
 
-    let item = TokenizedFile(this_file, parent.as_ref().into(), None);
+    let item = TokenizedFile(this_file, parent.as_ref().into());
     let node = Node::from_item_span(item, input).with_children(tokes.tokens);
 
     Ok(node)

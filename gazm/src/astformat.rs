@@ -115,7 +115,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("({})", join_kids(""))
             }
 
-            TokenizedFile(_, _, _) => join_kids("\n"),
+            TokenizedFile(_, _) => join_kids("\n"),
 
             OpCode(ins, item::AddrModeParseType::Inherent) => ins.action.clone(),
 

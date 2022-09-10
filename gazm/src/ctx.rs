@@ -112,6 +112,7 @@ pub struct Context {
     pub cwd : PathBuf,
     pub tokens: Vec<Node>,
     pub ast: Option<AstTree>,
+    pub opts: Opts,
 }
 
 #[derive(Debug, Clone)]
@@ -198,6 +199,7 @@ impl Default for Context {
             cwd : std::env::current_dir().unwrap(),
             tokens: vec![],
             ast : None,
+            opts: Default::default(),
         }
     }
 }
@@ -211,6 +213,7 @@ impl From<Opts> for Context {
 
         ret.errors = ErrorCollector::new(m.max_errors);
         ret.binary = Binary::new(m.mem_size, AccessType::ReadWrite);
+        ret.opts = m.clone();
 
         for (k,v) in m.vars {
             ret.vars.set_var(k.to_string(), v.to_string());
