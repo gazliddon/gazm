@@ -1,6 +1,5 @@
 
 use crate::ast::{AstNodeId, AstNodeRef};
-use crate::gazm::Gazm;
 use crate::{binary, gazm};
 use crate::locate::span_to_pos;
 use crate::locate::Span;

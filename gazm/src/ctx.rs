@@ -10,7 +10,6 @@ use std::vec;
 use crate::item::Node;
 use crate::ast::AstTree;
 
-use crate::gazm::Gazm;
 use emu::utils::sources::BinWritten;
 
 #[derive(Debug, PartialEq, Clone)]

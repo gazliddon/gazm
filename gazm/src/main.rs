@@ -41,7 +41,6 @@ mod config;
 
 use std::path::PathBuf;
 use crate::error::{GazmError, GResult };
-use crate::gazm::Gazm;
 
 use crate::ctx::Context;
 use emu::utils::sources::{FileIo, SourceDatabase};
@@ -88,8 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx_shared = Arc::new(Mutex::new(ctx));
     
-    let mut a = Gazm::new(ctx_shared.clone());
-    a.assemble_file(&project_file)?;
+    gazm::assemble_file(ctx_shared.clone(), &project_file)?;
 
     let ctx = ctx_shared.lock().unwrap();
 

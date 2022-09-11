@@ -17,7 +17,6 @@ use crate::{
     commands, comments,
     ctx::Opts,
     error::{parse_error, ErrorCollector, GResult, GazmError, IResult, ParseError, UserError},
-    gazm::Gazm,
     item::{Item, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos, Span},

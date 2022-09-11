@@ -9,7 +9,6 @@ use crate::{
     ctx::Opts,
     error::{GResult, GazmError, UserError},
     fixerupper::FixerUpper,
-    gazm::Gazm,
     item::{self, AddrModeParseType, IndexParseType, Item, Node},
     messages::debug_mess,
     messages::{info, messages},
