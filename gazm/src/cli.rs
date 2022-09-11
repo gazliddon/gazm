@@ -18,12 +18,9 @@ impl From<clap::ArgMatches> for Opts {
     fn from(orig_matches: clap::ArgMatches) -> Self {
         match orig_matches.subcommand() {
             Some(("build", m)) => {
-
-                let x= m.value_of("config-file").expect("no config!");
+                let x = m.value_of("config-file").expect("no config!");
 
                 let path = PathBuf::from(x);
-
-                println!("Path : {:?}", path);
 
                 let dir = path.parent();
 
@@ -32,7 +29,12 @@ impl From<clap::ArgMatches> for Opts {
                     env::set_current_dir(&parent).expect("Can't change dir!");
                 }
 
-                let conf = config::YamlConfig::new();
+                let mut conf = config::YamlConfig::new();
+
+                if m.is_present("async-build") {
+                    conf.opts.async_build = true;
+                }
+
                 conf.opts
             }
 
@@ -96,14 +98,24 @@ pub fn parse() -> clap::ArgMatches {
         .bin_name("gazm")
         .subcommand_required(true)
         .subcommand(
-            Command::new("build").about("use the config file").arg(
-                Arg::new("config-file")
-                    .help("load config file")
-                    .multiple_values(false)
-                    .index(1)
-                    .required(false)
-                    .default_value("gazm.toml"),
-            ),
+            Command::new("build")
+                .about("use the config file")
+                .arg(
+                    Arg::new("config-file")
+                        .help("load config file")
+                        .multiple_values(false)
+                        .index(1)
+                        .required(false)
+                        .default_value("gazm.toml"),
+                )
+                .arg(
+                    Arg::new("async-build")
+                        .help("Build asynchronously")
+                        .long("async-build")
+                        .multiple_values(false)
+                        .takes_value(false)
+                        .required(false),
+                ),
         )
         .subcommand(
             Command::new("asm")

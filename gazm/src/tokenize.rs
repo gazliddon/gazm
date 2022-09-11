@@ -10,7 +10,7 @@ use nom::{
 
 use std::{
     collections,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, ops::DerefMut,
 };
 
 use crate::{
@@ -29,7 +29,7 @@ use crate::{
 };
 
 use emu::utils::{
-    sources::{AsmSource, Position},
+    sources::{AsmSource, Position, SourceFileLoader},
     PathSearcher,
 };
 
@@ -227,10 +227,9 @@ fn get_include_files(tokes: &TokenizedText) -> Vec<(usize, PathBuf)> {
 pub fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     depth: usize,
     ctx: &mut crate::ctx::Context,
-    opts: &Opts,
     file: P,
     parent: PP,
-    ) -> GResult<Node> {
+) -> GResult<Node> {
     use anyhow::Context;
 
     use Item::*;
@@ -253,7 +252,7 @@ pub fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = tokenize_text(input, opts)?;
+    let mut tokes = tokenize_text(input, &ctx.opts)?;
 
     for err in &tokes.parse_errors {
         ctx.add_parse_error(err.clone())?;
@@ -265,9 +264,9 @@ pub fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     let res: GResult<Vec<(usize, Node)>> = includes
         .into_iter()
         .map(|(i, inc_file)| {
-            tokenize_file(depth + 1, ctx, opts, inc_file, &this_file).map(|n| (i, n))
+            tokenize_file(depth + 1, ctx, inc_file, &this_file).map(|n| (i, n))
         })
-    .collect();
+        .collect();
 
     for (i, n) in res? {
         tokes.tokens[i] = n
@@ -288,21 +287,31 @@ impl From<Tokens> for TokenizedText {
     }
 }
 
+use crate::ctx::{Context, Vars};
+
+pub struct TokenizeCtx<'a> {
+    opts: Opts,
+    source_loader: &'a mut SourceFileLoader,
+    vars: &'a Vars,
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
+use std::sync::{Mutex, Arc};
 
 pub fn tokenize<P: AsRef<Path>>(
-    ctx: &mut crate::ctx::Context,
-    opts: &Opts,
+    arc_ctx: Arc<Mutex<Context>>,
     file: P,
-    ) -> GResult<Node> {
+) -> GResult<Node> {
     let parent = PathBuf::new();
 
     let msg = format!("Reading {}", file.as_ref().to_string_lossy());
-
     messages().status(msg);
 
-    let block = tokenize_file(0, ctx, opts, &file, &parent)?;
+    let mut ctx_arc = arc_ctx.lock().unwrap();
+    let ctx = &mut ctx_arc.deref_mut();
 
+    let block = tokenize_file(0, ctx, &file, &parent)?;
     ctx.errors.raise_errors()?;
 
     Ok(block)
@@ -325,6 +334,4 @@ mod test {
     use super::*;
     #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
-
-
 }

@@ -1,10 +1,10 @@
 use crate::binary::{AccessType, BinRef, Binary, BinaryError};
 use ego_tree::iter::Children;
-use serde_json::ser::Formatter;
-use std::collections::{HashMap, HashSet};
 use emu::utils::sources::{
     ItemType, SourceMapping, Sources, SymbolError, SymbolQuery, SymbolWriter,
 };
+use serde_json::ser::Formatter;
+use std::collections::{HashMap, HashSet};
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::item::{self, AddrModeParseType, IndexParseType, Item, Node};
@@ -32,7 +32,7 @@ struct Sizer<'a> {
     tree: &'a AstTree,
 }
 
-pub fn size_tree(ctx: &mut AsmCtx, id: AstNodeId, tree : &AstTree) -> GResult<()> {
+pub fn size_tree(ctx: &mut AsmCtx, id: AstNodeId, tree: &AstTree) -> GResult<()> {
     let sizer = Sizer::new(tree);
     ctx.set_root_scope();
     let _ = sizer.size_node(ctx, 0, id)?;
@@ -97,8 +97,7 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item =
-                        OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item = OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -116,8 +115,7 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item =
-                        OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item = OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -393,4 +391,3 @@ impl<'a> Sizer<'a> {
         (node, i)
     }
 }
-

@@ -47,6 +47,7 @@ impl Vars {
         ret
     }
 }
+
 use serde::Deserialize;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -71,6 +72,7 @@ pub struct Opts {
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
     pub vars: Vec<(String, String)>,
+    pub async_build: bool,
 }
 
 impl Default for Opts {
@@ -91,6 +93,7 @@ impl Default for Opts {
             ast_file : None,
             max_errors: 10,
             vars: Default::default(),
+            async_build: false,
         }
     }
 }

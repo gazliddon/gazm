@@ -1,3 +1,4 @@
+use crate::async_tokenize;
 use crate::ctx::{Context, Opts};
 use std::path::{Path, PathBuf};
 
@@ -11,63 +12,85 @@ use thiserror::Error;
 
 use crate::error::UserError;
 use crate::error::{GResult, GazmError};
+use std::sync::{Arc, Mutex};
 
-pub struct Gazm<'a> {
-    ctx: &'a mut Context,
-    opts: Opts,
+pub struct Gazm {
+    ctx: Arc<Mutex<Context>>,
 }
 
-impl<'a> Gazm<'a> {
-    pub fn new(ctx: &'a mut Context, opts: Opts) -> Self {
-        Self { ctx, opts }
+impl Gazm {
+    pub fn new(ctx: Arc<Mutex<Context>>) -> Self {
+        Self { ctx }
     }
 
-    pub fn assemble_file<P: AsRef<Path>>(&mut self, x: P) -> GResult<()> {
+    pub fn assemble_file<P: AsRef<Path>>(&mut self, file: P) -> GResult<()> {
         use emu::utils::PathSearcher;
-        let paths = self.ctx.source_file_loader.get_search_paths().clone();
+        use super::async_tokenize::tokenize_ctx;
 
-        if let Some(dir) = x.as_ref().parent() {
-            self.ctx.source_file_loader.add_search_path(dir);
-        }
+        let (is_async, paths) = {
+            let mut ctx = self.ctx.lock().unwrap();
 
-        let tokens = tokenize(&mut self.ctx, &self.opts, x)?;
-        self.assemble_tokens(&tokens)?;
+            if let Some(dir) = file.as_ref().parent() {
+                ctx.source_file_loader.add_search_path(dir);
+            }
 
-        self.ctx.tokens.push(tokens);
+            (
+                ctx.opts.async_build,
+                ctx.source_file_loader.get_search_paths().clone(),
+            )
+        };
 
-        self.ctx.source_file_loader.set_search_paths(paths);
-        self.ctx.errors.raise_errors()
+        let arc_ctx = self.ctx.clone();
+
+        let node = if is_async {
+            tokenize_ctx(arc_ctx, file)?
+        } else {
+            tokenize(arc_ctx, file)?
+        };
+
+        self.assemble_tokens(&node)?;
+
+        let mut ctx = self.ctx.lock().unwrap();
+
+        ctx.tokens.push(node);
+        ctx.source_file_loader.set_search_paths(paths);
+        ctx.errors.raise_errors()
     }
 
     fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
         use crate::asmctx::AsmCtx;
+        use crate::compile::compile;
         use crate::evaluator::Evaluator;
         use crate::fixerupper::FixerUpper;
-
-        let tree = Ast::from_nodes(&mut self.ctx, tokens)?;
-
-        use crate::compile::compile;
         use crate::sizer::size_tree;
+        use std::ops::DerefMut;
+
+        let mut ctx_guard = self.ctx.lock().unwrap();
+        let mut ctx = ctx_guard.deref_mut();
+
+        let tree = Ast::from_nodes(&mut ctx, tokens)?;
 
         let id = tree.root().id();
 
         let mut asm_ctx = AsmCtx {
             fixer_upper: FixerUpper::new(),
-            eval: Evaluator::new(&mut self.ctx.symbols, &mut self.ctx.source_file_loader),
+            eval: Evaluator::new(&mut ctx.symbols, &mut ctx.source_file_loader),
             direct_page: None,
-            source_map: &mut self.ctx.source_map,
-            binary: &mut self.ctx.binary,
-            vars: &self.ctx.vars,
-            errors: &mut self.ctx.errors,
-            opts: &self.opts,
-            lst_file: &mut self.ctx.lst_file,
-            bin_chunks: &mut self.ctx.bin_chunks,
-            exec_addr: &mut self.ctx.exec_addr,
+            source_map: &mut ctx.source_map,
+            binary: &mut ctx.binary,
+            vars: &ctx.vars,
+            errors: &mut ctx.errors,
+            opts: &ctx.opts,
+            lst_file: &mut ctx.lst_file,
+            bin_chunks: &mut ctx.bin_chunks,
+            exec_addr: &mut ctx.exec_addr,
         };
 
         size_tree(&mut asm_ctx, id, &tree)?;
+
         compile(&mut asm_ctx, &tree)?;
-        self.ctx.ast = Some(tree);
+        ctx.ast = Some(tree);
+
         Ok(())
     }
 }

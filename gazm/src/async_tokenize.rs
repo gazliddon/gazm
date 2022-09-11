@@ -1,14 +1,14 @@
 use emu::utils::PathSearcher;
 
+use crate::ctx::Context;
 use crate::ctx::Opts;
 use crate::error::{GResult, ParseError};
 use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
 use crate::tokenize::{tokenize_text, TokenizedText};
-use std::path::{Path, PathBuf};
-use crate::ctx::Context;
-use emu::utils::sources::{AsmSource, SourceFileLoader};
 use async_std::prelude::*;
+use emu::utils::sources::{AsmSource, SourceFileLoader};
+use std::path::{Path, PathBuf};
 
 ////////////////////////////////////////////////////////////////////////////////
 struct IdResource<K, V>
@@ -72,6 +72,7 @@ where
         self.get_id(k).and_then(|id| self.get_resource(id))
     }
 }
+use std::rc::Rc;
 ////////////////////////////////////////////////////////////////////////////////
 ///
 use std::sync::{Arc, Mutex};
@@ -79,20 +80,21 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug, Clone)]
 pub struct TokenizeResult {
     pub file_id: u64,
-    pub file: PathBuf,
+    pub loaded_file: PathBuf,
+    pub requested_file: PathBuf,
     pub node: Node,
     pub errors: Vec<ParseError>,
-    pub includes: Vec<PathBuf>,
+    pub includes: Vec<(usize, PathBuf)>,
+    pub path: Vec<usize>,
 }
 
-fn get_include_files(tokes: &TokenizedText) -> Vec<PathBuf> {
+fn get_include_files(tokes: &TokenizedText) -> Vec<(usize, PathBuf)> {
     // Collect all of the include files
     tokes
         .tokens
         .iter()
-        .filter_map(|n| {
-            n.item().get_include()
-        })
+        .enumerate()
+        .filter_map(|(i, n)| n.item().get_include().map(|inc| (i, inc)))
         .collect()
 }
 
@@ -100,6 +102,7 @@ fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     ctx: Arc<Mutex<Context>>,
     requested_file: P,
     parent: PP,
+    path: Vec<usize>,
 ) -> GResult<TokenizeResult> {
     use anyhow::Context;
     use std::fs::File;
@@ -122,52 +125,89 @@ fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     let includes = get_include_files(&tokens);
 
     let file_pos = span_to_pos(input);
-    let item = TokenizedFile(requested_file, parent.as_ref().into());
+    let item = TokenizedFile(requested_file.clone(), parent.as_ref().into());
     let node = Node::from_item_pos(item, file_pos).with_children(tokens.tokens);
 
     let ret = TokenizeResult {
-        file,
+        requested_file,
+        loaded_file: file,
         file_id,
         includes,
         node,
         errors: tokens.parse_errors,
+        path,
     };
 
     Ok(ret)
 }
 
-pub fn tokenize_ctx(ctx: Arc<Mutex<Context>>) -> GResult<()> {
-    // TODO
-    // Get parent correct
-    
+pub fn tokenize_ctx<P: AsRef<Path>>(ctx: Arc<Mutex<Context>>, main_file : P) -> GResult<Node> {
     use async_std::task;
     use async_std::task::block_on;
     use futures::future::join_all;
 
-    let file = ctx.lock().unwrap().opts.project_file.clone();
+    let main_file = main_file.as_ref().to_path_buf();
 
-    let mut files_to_tokenize = vec![file];
-
-    let mut tokenized_files: Vec<TokenizeResult> = vec![];
+    let mut files_to_tokenize: Vec<(Vec<usize>, PathBuf)> = vec![(vec![], main_file.clone())];
+    let mut tokenized_files: HashMap<PathBuf, TokenizeResult> = Default::default();
 
     while !files_to_tokenize.is_empty() {
         let mut files_being_tokenized = vec![];
 
-        for inc in files_to_tokenize.iter().cloned() {
+        for (path, inc) in files_to_tokenize.iter().cloned() {
             let ctx = ctx.clone();
+            let path = path.clone();
             let tokenizing = task::spawn(async move {
-                tokenize_file(ctx, inc, "").expect("Error should be handled!")
+                tokenize_file(ctx, inc, "", path).expect("Error should be handled!")
             });
 
             files_being_tokenized.push(tokenizing)
         }
 
         let join_results = block_on(join_all(files_being_tokenized));
-        tokenized_files.extend(join_results.iter().cloned());
-        files_to_tokenize = join_results.into_iter().flat_map(|x| x.includes).collect();
+
+        for result in join_results.iter() {
+            tokenized_files.insert(result.requested_file.clone(), result.clone());
+        }
+
+        files_to_tokenize = join_results
+            .into_iter()
+            .map(|rez| {
+                let ret = rez
+                    .includes
+                    .into_iter()
+                    .map(|(_i, f)| {
+                        let mut path = rez.path.clone();
+                        path.push(_i);
+                        (path, f)
+                    })
+                    .collect::<Vec<(Vec<usize>, PathBuf)>>();
+                ret
+            })
+            .flatten()
+            .collect();
     }
 
-    Ok(())
+    let mut base_node = tokenized_files.get(&main_file).unwrap().node.clone();
+
+
+    Ok(base_node)
+}
+
+fn modify_node(node: &mut Node, path: &[usize], val: Node) {
+
+    if !path.is_empty() {
+        let mut ret = node;
+
+        for p in path.iter() {
+            ret = &mut ret.children[*p]
+        }
+
+        println!("Was {:?}", ret.item().get_include());
+
+        *ret = val;
+        println!("is {:?}", ret.item());
+    }
 }
 
 use std::collections::HashMap;
@@ -215,12 +255,15 @@ mod test {
         let config = get_config("/Users/garyliddon/development/stargate/gazm.toml");
 
         let ctx = mk_ctx(&config);
+        let project_file = ctx.opts.project_file.clone();
 
         let ctx = Arc::new(Mutex::new(ctx));
 
-        tokenize_ctx(ctx).unwrap();
+        let _ = tokenize_ctx(ctx, &project_file).unwrap();
 
-        println!("{:0.5?}", now.elapsed());
+        let elapsed = now.elapsed();
+
+        println!("{:0.5?}", elapsed);
 
         panic!("Done")
     }

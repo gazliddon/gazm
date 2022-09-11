@@ -61,42 +61,49 @@ use anyhow::Result;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
 
-    let opts: ctx::Opts = cli::parse().into();
-    let mut ctx: ctx::Context = opts.clone().into();
+    let x_opts: ctx::Opts = cli::parse().into();
+    let ctx: ctx::Context = x_opts.clone().into();
 
     use crate::messages::Verbosity;
 
     let x = messages::messages();
 
-    x.set_verbosity(&opts.verbose);
+    x.set_verbosity(&ctx.opts.verbose);
 
-    if opts.verbose != Verbosity::Silent {
-        let m = format!("Verboisty: {:?}", opts.verbose);
+    if ctx.opts.verbose != Verbosity::Silent {
+        let m = format!("Verboisty: {:?}", ctx.opts.verbose);
         x.status(m)
     };
 
     // x.status(BANNER);
-    
     status_mess!("GASM 6809 Assembler\n");
     
     x.indent();
 
     use std::fs;
+
+    use std::sync::{Arc, Mutex};
+
+    let project_file = ctx.opts.project_file.clone();
+
+    let ctx_shared = Arc::new(Mutex::new(ctx));
     
-    let mut a = Gazm::new(&mut ctx, opts.clone());
-    a.assemble_file(&opts.project_file)?;
+    let mut a = Gazm::new(ctx_shared.clone());
+    a.assemble_file(&project_file)?;
+
+    let ctx = ctx_shared.lock().unwrap();
 
     for (addr,count) in ctx.binary.check_against_referece() {
         println!("{addr:04X} {count}");
     }
 
-    if let Some(lst_file) = &opts.lst_file {
+    if let Some(lst_file) = &ctx.opts.lst_file {
         let text = ctx.lst_file.lines.join("\n");
         fs::write(lst_file, text).with_context(|| format!("Unable to write list file {lst_file}"))?;
         status_mess!("Written lst file {lst_file}");
     }
 
-    if let Some(ast_file) = &opts.ast_file {
+    if let Some(ast_file) = &ctx.opts.ast_file {
         status_mess!("Writing ast: {}", ast_file.to_string_lossy());
         status_err!("Not done!");
         if let Some(ast) = &ctx.ast {
@@ -109,39 +116,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if let Some(sym_file) = &opts.syms_file {
+    if let Some(_sym_file) = &ctx.opts.syms_file {
 
-        let _syms = ctx.symbols.clone();
+//         let _syms = ctx.symbols.clone();
 
-        let sd : SourceDatabase = ( &ctx ).into();
+//         let sd : SourceDatabase = ( &ctx ).into();
 
-        status_mess!("Writing symbols: {}", sym_file);
+//         status_mess!("Writing symbols: {}", sym_file);
 
-        sd.write_json(sym_file).with_context(||format!("Unable to write {sym_file}"))?;
+//         sd.write_json(sym_file).with_context(||format!("Unable to write {sym_file}"))?;
 
-        if let Some(deps) = &opts.deps_file {
-            status_mess!("Writing deps file : {deps}");
+//         if let Some(deps) = &opts.deps_file {
+//             status_mess!("Writing deps file : {deps}");
 
-            let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
+//             let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
 
-            let read: Vec<String> = ctx
-                .get_source_file_loader()
-                .get_files_read()
-                .iter()
-                .map(as_string)
-                .collect();
-            let written: Vec<String> = ctx
-                .get_source_file_loader()
-                .get_files_written()
-                .iter()
-                .map(as_string)
-                .collect();
+//             let read: Vec<String> = ctx
+//                 .get_source_file_loader()
+//                 .get_files_read()
+//                 .iter()
+//                 .map(as_string)
+//                 .collect();
+//             let written: Vec<String> = ctx
+//                 .get_source_file_loader()
+//                 .get_files_written()
+//                 .iter()
+//                 .map(as_string)
+//                 .collect();
 
-            let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
-            let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
+//             let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
+//             let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
 
-            fs::write(deps, deps_line).with_context(|| format!("Unable to write {deps}"))?;
-        }
+//             fs::write(deps, deps_line).with_context(|| format!("Unable to write {deps}"))?;
+//         }
     }
 
     x.deindent();
