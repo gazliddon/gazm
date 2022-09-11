@@ -71,7 +71,7 @@ pub struct Opts {
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
     pub vars: Vec<(String, String)>,
-    pub async_build: bool,
+    pub build_async: bool,
 }
 
 impl Default for Opts {
@@ -92,7 +92,7 @@ impl Default for Opts {
             ast_file : None,
             max_errors: 10,
             vars: Default::default(),
-            async_build: false,
+            build_async: false,
         }
     }
 }

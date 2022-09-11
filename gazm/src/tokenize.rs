@@ -223,11 +223,12 @@ fn get_include_files(tokes: &TokenizedText) -> Vec<(usize, PathBuf)> {
         })
         .collect()
 }
-pub fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
+
+pub fn tokenize_file<P: AsRef<Path>>(
     depth: usize,
     ctx: &mut crate::ctx::Context,
     file: P,
-    parent: PP,
+    parent: Option<PathBuf>,
 ) -> GResult<Node> {
     use anyhow::Context;
 
@@ -263,7 +264,7 @@ pub fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     let res: GResult<Vec<(usize, Node)>> = includes
         .into_iter()
         .map(|(i, inc_file)| {
-            tokenize_file(depth + 1, ctx, inc_file, &this_file).map(|n| (i, n))
+            tokenize_file(depth + 1, ctx, inc_file, Some(this_file.clone())).map(|n| (i, n))
         })
         .collect();
 
@@ -271,7 +272,7 @@ pub fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
         tokes.tokens[i] = n
     }
 
-    let item = TokenizedFile(this_file, parent.as_ref().into());
+    let item = TokenizedFile(this_file, parent);
     let node = Node::from_item_span(item, input).with_children(tokes.tokens);
 
     Ok(node)
@@ -302,7 +303,6 @@ pub fn tokenize<P: AsRef<Path>>(
     arc_ctx: &Arc<Mutex<Context>>,
     file: P,
 ) -> GResult<Node> {
-    let parent = PathBuf::new();
 
     let msg = format!("Reading {}", file.as_ref().to_string_lossy());
     messages().status(msg);
@@ -310,7 +310,7 @@ pub fn tokenize<P: AsRef<Path>>(
     let mut ctx_arc = arc_ctx.lock().unwrap();
     let ctx = &mut ctx_arc.deref_mut();
 
-    let block = tokenize_file(0, ctx, &file, &parent)?;
+    let block = tokenize_file(0, ctx, &file, None)?;
     ctx.errors.raise_errors()?;
 
     Ok(block)

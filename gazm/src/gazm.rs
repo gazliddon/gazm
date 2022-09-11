@@ -10,13 +10,12 @@ use crate::error::UserError;
 use crate::error::{GResult, GazmError};
 use std::sync::{Arc, Mutex};
 
-
 pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R {
     let state = &mut data.lock().expect("Could not lock mutex");
     f(state)
 }
 
-pub fn assemble_file<P: AsRef<Path>>(arc_ctx: Arc<Mutex<Context>>, file: P) -> GResult<()> {
+pub fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
     use emu::utils::PathSearcher;
 
     let (is_async, paths) = with_state(&arc_ctx, |ctx| {
@@ -25,16 +24,17 @@ pub fn assemble_file<P: AsRef<Path>>(arc_ctx: Arc<Mutex<Context>>, file: P) -> G
         }
         let paths = ctx.source_file_loader.get_search_paths().clone();
 
-        (ctx.opts.async_build, paths)
+        (ctx.opts.build_async, paths)
     });
 
     let node = if is_async {
         async_tokenize::tokenize(&arc_ctx, file)?
+
     } else {
         tokenize::tokenize(&arc_ctx, file)?
     };
 
-    assemble_tokens(arc_ctx.clone(), &node)?;
+    assemble_tokens(arc_ctx, &node)?;
 
     with_state(&arc_ctx, |ctx| {
         ctx.tokens.push(node);
@@ -43,7 +43,7 @@ pub fn assemble_file<P: AsRef<Path>>(arc_ctx: Arc<Mutex<Context>>, file: P) -> G
     })
 }
 
-pub fn assemble_tokens(arc_ctx: Arc<Mutex<Context>>, tokens: &Node) -> GResult<()> {
+pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<()> {
     use crate::asmctx::AsmCtx;
     use crate::compile::compile;
     use crate::evaluator::Evaluator;

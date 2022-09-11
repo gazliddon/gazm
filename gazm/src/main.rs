@@ -3,16 +3,23 @@
 #![feature(try_blocks)]
 
 mod as6809;
+mod asmctx;
 mod ast;
 mod astformat;
+mod async_tokenize;
 mod binary;
 mod cli;
 mod commands;
 mod comments;
+mod compile;
+mod config;
 mod ctx;
 mod error;
 mod eval;
+mod evaluator;
 mod expr;
+mod fixerupper;
+mod gazm;
 mod indexed;
 mod item;
 mod labels;
@@ -24,25 +31,19 @@ mod numbers;
 mod opcodes;
 mod postfix;
 mod register;
+mod regutils;
 mod scopes;
 mod sections;
+mod sizer;
 mod structs;
 mod tokenize;
-mod async_tokenize;
 mod util;
-mod sizer;
-mod compile;
-mod gazm;
-mod evaluator;
-mod asmctx;
-mod fixerupper;
-mod regutils;
-mod config;
 
+use crate::error::{GResult, GazmError};
 use std::path::PathBuf;
-use crate::error::{GazmError, GResult };
 
 use crate::ctx::Context;
+use ::gazm::gazm::with_state;
 use emu::utils::sources::{FileIo, SourceDatabase};
 
 static BANNER: &str = r#"
@@ -76,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // x.status(BANNER);
     status_mess!("GASM 6809 Assembler\n");
-    
+
     x.indent();
 
     use std::fs;
@@ -84,70 +85,68 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::sync::{Arc, Mutex};
 
     let project_file = ctx.opts.project_file.clone();
-
     let ctx_shared = Arc::new(Mutex::new(ctx));
-    
-    gazm::assemble_file(ctx_shared.clone(), &project_file)?;
 
-    let ctx = ctx_shared.lock().unwrap();
+    gazm::assemble_file(&ctx_shared, &project_file)?;
 
-    for (addr,count) in ctx.binary.check_against_referece() {
-        println!("{addr:04X} {count}");
-    }
-
-    if let Some(lst_file) = &ctx.opts.lst_file {
-        let text = ctx.lst_file.lines.join("\n");
-        fs::write(lst_file, text).with_context(|| format!("Unable to write list file {lst_file}"))?;
-        status_mess!("Written lst file {lst_file}");
-    }
-
-    if let Some(ast_file) = &ctx.opts.ast_file {
-        status_mess!("Writing ast: {}", ast_file.to_string_lossy());
-        status_err!("Not done!");
-        if let Some(ast) = &ctx.ast {
-
-            let x = astformat::as_string(ast.root());
-            println!("{x}");
-
-        } else {
-            status_err!("No AST file to write");
+    with_state(&ctx_shared, |ctx| -> GResult<()> {
+        for (addr, count) in ctx.binary.check_against_referece() {
+            println!("{addr:04X} {count}");
         }
-    }
 
-    if let Some(_sym_file) = &ctx.opts.syms_file {
+        if let Some(lst_file) = &ctx.opts.lst_file {
+            let text = ctx.lst_file.lines.join("\n");
+            fs::write(lst_file, text)
+                .with_context(|| format!("Unable to write list file {lst_file}"))?;
+            status_mess!("Written lst file {lst_file}");
+        }
 
-//         let _syms = ctx.symbols.clone();
+        if let Some(ast_file) = &ctx.opts.ast_file {
+            status_mess!("Writing ast: {}", ast_file.to_string_lossy());
+            status_err!("Not done!");
+            if let Some(ast) = &ctx.ast {
+                let x = astformat::as_string(ast.root());
+                println!("{x}");
+            } else {
+                status_err!("No AST file to write");
+            }
+        }
 
-//         let sd : SourceDatabase = ( &ctx ).into();
+        if let Some(sym_file) = &ctx.opts.syms_file {
+            let _syms = ctx.symbols.clone();
 
-//         status_mess!("Writing symbols: {}", sym_file);
+            // let sd : SourceDatabase = ctx.into();
 
-//         sd.write_json(sym_file).with_context(||format!("Unable to write {sym_file}"))?;
+            status_mess!("Writing symbols: {}", sym_file);
 
-//         if let Some(deps) = &opts.deps_file {
-//             status_mess!("Writing deps file : {deps}");
+            // sd.write_json(sym_file).with_context(||format!("Unable to write {sym_file}"))?;
 
-//             let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
+            if let Some(deps) = &ctx.opts.deps_file {
+                status_mess!("Writing deps file : {deps}");
 
-//             let read: Vec<String> = ctx
-//                 .get_source_file_loader()
-//                 .get_files_read()
-//                 .iter()
-//                 .map(as_string)
-//                 .collect();
-//             let written: Vec<String> = ctx
-//                 .get_source_file_loader()
-//                 .get_files_written()
-//                 .iter()
-//                 .map(as_string)
-//                 .collect();
+                let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
 
-//             let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
-//             let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
+                let read: Vec<String> = ctx
+                    .get_source_file_loader()
+                    .get_files_read()
+                    .iter()
+                    .map(as_string)
+                    .collect();
+                let written: Vec<String> = ctx
+                    .get_source_file_loader()
+                    .get_files_written()
+                    .iter()
+                    .map(as_string)
+                    .collect();
 
-//             fs::write(deps, deps_line).with_context(|| format!("Unable to write {deps}"))?;
-//         }
-    }
+                let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
+                let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
+
+                fs::write(deps, deps_line).with_context(|| format!("Unable to write {deps}"))?;
+            }
+        }
+        Ok(())
+    })?;
 
     x.deindent();
     x.info("");

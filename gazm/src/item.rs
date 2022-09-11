@@ -15,6 +15,7 @@ impl<'a> CtxTrait for Span<'a> {}
 
 pub type Node = BaseNode<Item, Position>;
 
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {
     ConstantOffset(RegEnum), //             arg,R
@@ -256,7 +257,7 @@ pub enum Item {
 
     WriteBin(PathBuf),
 
-    TokenizedFile(PathBuf, PathBuf),
+    TokenizedFile(PathBuf, Option<PathBuf>),
     Errors(Vec<ParseError>),
 
     Exec,

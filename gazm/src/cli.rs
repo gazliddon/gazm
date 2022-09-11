@@ -31,8 +31,8 @@ impl From<clap::ArgMatches> for Opts {
 
                 let mut conf = config::YamlConfig::new();
 
-                if m.is_present("async-build") {
-                    conf.opts.async_build = true;
+                if m.is_present("async") {
+                    conf.opts.build_async = true;
                 }
 
                 conf.opts

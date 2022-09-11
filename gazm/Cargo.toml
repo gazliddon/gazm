@@ -21,8 +21,10 @@ regex="*"
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"
 serde_json = "*"
-async-std="*"
-async-recursion="*"
+
 futures="*"
+async-std="*"
+rayon = "1.5"
+
 toml="*"
 
