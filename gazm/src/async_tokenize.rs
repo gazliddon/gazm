@@ -141,7 +141,8 @@ fn tokenize_file<P: AsRef<Path>, PP: AsRef<Path>>(
     Ok(ret)
 }
 
-pub fn tokenize_ctx<P: AsRef<Path>>(ctx: Arc<Mutex<Context>>, main_file : P) -> GResult<Node> {
+
+pub fn tokenize_ctx<P: AsRef<Path>>(ctx: &Arc<Mutex<Context>>, main_file : P) -> GResult<Node> {
     use async_std::task;
     use async_std::task::block_on;
     use futures::future::join_all;

@@ -300,7 +300,7 @@ pub struct TokenizeCtx<'a> {
 use std::sync::{Mutex, Arc};
 
 pub fn tokenize<P: AsRef<Path>>(
-    arc_ctx: Arc<Mutex<Context>>,
+    arc_ctx: &Arc<Mutex<Context>>,
     file: P,
 ) -> GResult<Node> {
     let parent = PathBuf::new();

@@ -18,43 +18,48 @@ pub struct Gazm {
     ctx: Arc<Mutex<Context>>,
 }
 
+fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R {
+    let state = &mut data.lock().expect("Could not lock mutex");
+    f(state)
+}
+
 impl Gazm {
     pub fn new(ctx: Arc<Mutex<Context>>) -> Self {
         Self { ctx }
     }
 
     pub fn assemble_file<P: AsRef<Path>>(&mut self, file: P) -> GResult<()> {
-        use emu::utils::PathSearcher;
         use super::async_tokenize::tokenize_ctx;
+        use emu::utils::PathSearcher;
 
-        let (is_async, paths) = {
-            let mut ctx = self.ctx.lock().unwrap();
-
+        let (is_async, paths) = with_state(&self.ctx, |ctx| {
             if let Some(dir) = file.as_ref().parent() {
                 ctx.source_file_loader.add_search_path(dir);
             }
+            let paths = ctx.source_file_loader.get_search_paths().clone();
 
-            (
-                ctx.opts.async_build,
-                ctx.source_file_loader.get_search_paths().clone(),
-            )
-        };
-
-        let arc_ctx = self.ctx.clone();
+            (ctx.opts.async_build, paths)
+        });
 
         let node = if is_async {
-            tokenize_ctx(arc_ctx, file)?
+            tokenize_ctx(&self.ctx, file)?
         } else {
-            tokenize(arc_ctx, file)?
+            tokenize(&self.ctx, file)?
         };
 
         self.assemble_tokens(&node)?;
 
-        let mut ctx = self.ctx.lock().unwrap();
+        with_state(&self.ctx, |ctx| {
+            ctx.tokens.push(node);
+            ctx.source_file_loader.set_search_paths(paths);
+            ctx.errors.raise_errors()
+        })
 
-        ctx.tokens.push(node);
-        ctx.source_file_loader.set_search_paths(paths);
-        ctx.errors.raise_errors()
+        // let mut ctx = self.ctx.lock().unwrap();
+
+        // ctx.tokens.push(node);
+        // ctx.source_file_loader.set_search_paths(paths);
+        // ctx.errors.raise_errors()
     }
 
     fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
