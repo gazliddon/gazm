@@ -321,8 +321,8 @@ pub struct TokenizedText {
     pub parse_errors: Vec<ParseError>,
 }
 
-pub fn tokenize_text(_text: Span, _opts: &Opts) -> GResult<TokenizedText> {
-    let toks = Tokens::new(_text, _opts)?;
+pub fn tokenize_text(text: Span, opts: &Opts) -> GResult<TokenizedText> {
+    let toks = Tokens::new(text, opts)?;
     Ok(toks.into())
 }
 

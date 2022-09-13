@@ -29,7 +29,6 @@ pub fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> 
 
     let node = if is_async {
         async_tokenize::tokenize(&arc_ctx, file)?
-
     } else {
         tokenize::tokenize(&arc_ctx, file)?
     };
