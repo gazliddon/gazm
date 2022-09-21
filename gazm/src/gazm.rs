@@ -16,12 +16,14 @@ pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R 
 }
 
 pub fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
+
     use emu::utils::PathSearcher;
 
     let (is_async, paths) = with_state(&arc_ctx, |ctx| {
         if let Some(dir) = file.as_ref().parent() {
             ctx.source_file_loader.add_search_path(dir);
         }
+
         let paths = ctx.source_file_loader.get_search_paths().clone();
 
         (ctx.opts.build_async, paths)

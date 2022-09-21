@@ -755,6 +755,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha1 0.5.0",
  "thiserror",
  "toml",
 ]

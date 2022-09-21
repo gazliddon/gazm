@@ -39,12 +39,14 @@ mod structs;
 mod tokenize;
 mod util;
 
+use crate::ctx::Context;
 use crate::error::{GResult, GazmError};
+use ::gazm::messages::messages;
+use ::gazm::{ctx::CheckSum, gazm::with_state, messages::info};
+use emu::utils::sources::{FileIo, SourceDatabase};
 use std::path::PathBuf;
 
-use crate::ctx::Context;
-use ::gazm::gazm::with_state;
-use emu::utils::sources::{FileIo, SourceDatabase};
+use sha1::{Digest, Sha1};
 
 static BANNER: &str = r#"
   ____                        __    ___   ___   ___
@@ -92,6 +94,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     with_state(&ctx_shared, |ctx| -> GResult<()> {
         for (addr, count) in ctx.binary.check_against_referece() {
             println!("{addr:04X} {count}");
+        }
+
+        // Check any checksums
+
+        for (name, csum) in &ctx.opts.checksums {
+            let mut hasher = Sha1::new();
+            let data = ctx.binary.get_bytes(csum.addr, csum.size);
+            hasher.update(data);
+            let this_hash = hasher.digest().to_string().to_lowercase();
+            let expected_hash = csum.sha1.to_lowercase();
+
+            let mess = messages::messages();
+            let old_verb = mess.get_verbosity();
+            mess.set_verbosity(&Verbosity::Info);
+
+            if this_hash != expected_hash {
+                status_mess!("{name} : ❌")
+            } else {
+                status_mess!("{name} : ✅")
+            }
+
+            mess.set_verbosity(&old_verb);
         }
 
         if let Some(lst_file) = &ctx.opts.lst_file {

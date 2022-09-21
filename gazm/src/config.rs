@@ -1,4 +1,4 @@
-use crate::ctx::Opts;
+use crate::ctx::{ Opts, CheckSum };
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -8,8 +8,10 @@ pub struct YamlConfig {
     #[serde(skip)]
     pub file : PathBuf,
     pub opts : Opts,
+
     vars: HashMap<String,String>,
     project: Project,
+    checksums: HashMap<String, CheckSum>
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -30,10 +32,9 @@ impl YamlConfig {
         let f = std::fs::read_to_string(&file).expect("can't read");
         let mut val : Self = toml::from_str(&f).unwrap();
 
-
-        let vars : Vec<_> = val.vars.clone().into_iter().map(|z| z).collect();
-        val.opts.vars = vars;
+        val.opts.vars = val.vars.clone().into_iter().collect();
         val.file = file.as_ref().to_path_buf().clone();
+        val.opts.checksums = val.checksums.clone();
         val
     }
 

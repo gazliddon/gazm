@@ -75,9 +75,13 @@ pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
 
 impl ParseError {
     pub fn new(message: String, span: &Span, failure: bool) -> ParseError {
+        Self::new_from_pos(message,&span_to_pos(*span) , failure)
+    }
+
+    pub fn new_from_pos(message: String, pos: &Position, failure: bool) -> Self {
         Self {
             message: Some(message),
-            pos: span_to_pos(*span),
+            pos: pos.clone(),
             failure,
         }
     }
@@ -222,7 +226,10 @@ impl UserError {
         let bar = format!("{}|", spaces).info();
         let bar_line = format!("{} |", line_num).info();
 
-        writeln!(&mut s, "{}", self.message.bold()).expect("kj");
+        let error = "error".bold().red();
+
+        writeln!(&mut s, "{error}: {}", self.message.bold()).expect("kj");
+
         writeln!(
             &mut s,
             "   {} {}:{}:{}",
@@ -231,6 +238,7 @@ impl UserError {
             line,
             col
         ).expect("kj");
+
         writeln!(s, "{}", bar).expect("kj");
         writeln!(s, "{} {}", bar_line, self.line).expect("kj");
         writeln!(s, "{}{}^", bar, " ".repeat(self.pos.col)).expect("kj");

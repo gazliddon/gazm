@@ -51,6 +51,12 @@ impl Vars {
 }
 
 use serde::Deserialize;
+#[derive(Debug, Clone, Deserialize)]
+pub struct CheckSum {
+    pub addr: usize,
+    pub size : usize,
+    pub sha1: String,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Settings {}
@@ -73,8 +79,12 @@ pub struct Opts {
     pub encode_blank_lines: bool,
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
+    #[serde(skip)]
     pub vars: Vec<(String, String)>,
     pub build_async: bool,
+    #[serde(skip)]
+    pub checksums: HashMap<String, CheckSum>,
+    
 }
 
 impl Default for Opts {
@@ -96,6 +106,7 @@ impl Default for Opts {
             max_errors: 10,
             vars: Default::default(),
             build_async: false,
+            checksums: Default::default(),
         }
     }
 }

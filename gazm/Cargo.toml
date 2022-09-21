@@ -17,6 +17,8 @@ ego-tree="*"
 anyhow="*"
 thiserror="*"
 regex="*"
+sha1="*"
+
 
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"

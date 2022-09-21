@@ -1,4 +1,5 @@
 use futures::AsyncWriteExt;
+
 use nom::{
     branch::alt,
     bytes::complete::is_not,
@@ -9,22 +10,23 @@ use nom::{
 };
 
 use std::{
-    collections,
-    path::{Path, PathBuf}, ops::DerefMut,
+    ops::DerefMut,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 
 use crate::{
     commands, comments,
-    ctx::Opts,
+    ctx::{Context, Opts},
     error::{parse_error, ErrorCollector, GResult, GazmError, IResult, ParseError, UserError},
     item::{Item, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos, Span},
     macros::{get_macro_def, parse_macro_call},
     messages::messages,
-    opcodes,
+    opcodes::parse_opcode,
     structs::{get_struct, parse_struct_definition},
-    util::{self, ws},
+    util::{parse_assignment, ws},
 };
 
 use emu::utils::{
@@ -117,8 +119,6 @@ impl Tokens {
 
     fn tokenize_line<'a>(&'a mut self, line: Span<'a>) -> IResult<()> {
         use commands::parse_command;
-        use opcodes::parse_opcode;
-        use util::parse_assignment;
 
         let mut input = line;
 
@@ -287,23 +287,9 @@ impl From<Tokens> for TokenizedText {
     }
 }
 
-use crate::ctx::{Context, Vars};
-
-pub struct TokenizeCtx<'a> {
-    opts: Opts,
-    source_loader: &'a mut SourceFileLoader,
-    vars: &'a Vars,
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
-use std::sync::{Mutex, Arc};
 
-pub fn tokenize<P: AsRef<Path>>(
-    arc_ctx: &Arc<Mutex<Context>>,
-    file: P,
-) -> GResult<Node> {
-
+pub fn tokenize<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<Node> {
     let msg = format!("Reading {}", file.as_ref().to_string_lossy());
     messages().status(msg);
 

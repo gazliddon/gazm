@@ -42,6 +42,10 @@ impl<OP: Clone> Stack<OP> {
         (rhs, lhs)
     }
 
+    pub fn get_deque(&self) -> &VecDeque<OP> {
+        &self.stack
+    }
+
     pub fn flush(&mut self) -> Vec<OP> {
         let ret = self.stack.iter().cloned().collect();
         self.stack = VecDeque::new();
