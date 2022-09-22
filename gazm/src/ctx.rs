@@ -49,7 +49,6 @@ impl Vars {
         ret
     }
 }
-
 use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 pub struct CheckSum {

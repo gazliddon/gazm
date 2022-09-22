@@ -29,12 +29,7 @@ impl From<clap::ArgMatches> for Opts {
                     env::set_current_dir(&parent).expect("Can't change dir!");
                 }
 
-                let mut conf = config::YamlConfig::new();
-
-                if m.is_present("async") {
-                    conf.opts.build_async = true;
-                }
-
+                let conf = config::YamlConfig::new();
                 conf.opts
             }
 
@@ -50,6 +45,7 @@ impl From<clap::ArgMatches> for Opts {
                     project_file: m.value_of("project-file").unwrap().into(),
                     lst_file: m.value_of("lst-file").map(|f| f.to_string()),
                     ast_file: m.value_of("ast-file").map(|f| PathBuf::from(f.to_string())),
+                    build_async: m.is_present("build-async"),
                     ..Default::default()
                 };
                 opts.verbose = match m.occurrences_of("verbose") {
@@ -108,14 +104,6 @@ pub fn parse() -> clap::ArgMatches {
                         .required(false)
                         .default_value("gazm.toml"),
                 )
-                .arg(
-                    Arg::new("async-build")
-                        .help("Build asynchronously")
-                        .long("async-build")
-                        .multiple_values(false)
-                        .takes_value(false)
-                        .required(false),
-                ),
         )
         .subcommand(
             Command::new("asm")
@@ -124,6 +112,14 @@ pub fn parse() -> clap::ArgMatches {
                         .multiple_values(false)
                         // .index(1)
                         .required(true),
+                )
+                .arg(
+                    Arg::new("build-async")
+                        .help("Build asynchronously")
+                        .long("async-build")
+                        .multiple_values(false)
+                        .takes_value(false)
+                        .required(false),
                 )
                 .arg(
                     Arg::new("symbol-file")
