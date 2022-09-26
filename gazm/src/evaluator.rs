@@ -1,6 +1,6 @@
 use emu::utils::sources::{
     Position, SourceFileLoader, SourceInfo, SymbolError, SymbolInfo, SymbolQuery,
-    SymbolTree, SymbolWriter,
+    SymbolTree, SymbolWriter, SourceErrorType,
 };
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
@@ -111,7 +111,7 @@ impl<'a> Evaluator<'a> {
         })
     }
 
-    pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, String> {
+    pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, SourceErrorType> {
         self.source_file_loader.sources.get_source_info(pos)
     }
 

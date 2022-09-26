@@ -1,12 +1,11 @@
 use crate::ast::AstTree;
-use crate::binary;
-use crate::binary::{AccessType, Binary};
+use crate::binary::{self, AccessType, Binary};
 use crate::error::{ErrorCollector, GResult, GazmError, ParseError, UserError};
 use crate::item::Node;
 use crate::macros::Macros;
 use crate::messages::Verbosity;
 use emu::utils::sources::{
-    FileIo, SourceDatabase, SourceFileLoader, SourceMapping, SymbolTree, Sources
+    FileIo, SourceDatabase, SourceFileLoader, SourceMapping, SourceFiles, SymbolTree,
 };
 use emu::utils::PathSearcher;
 use std::collections::HashMap;
@@ -53,7 +52,7 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 pub struct CheckSum {
     pub addr: usize,
-    pub size : usize,
+    pub size: usize,
     pub sha1: String,
 }
 
@@ -83,7 +82,6 @@ pub struct Opts {
     pub build_async: bool,
     #[serde(skip)]
     pub checksums: HashMap<String, CheckSum>,
-    
 }
 
 impl Default for Opts {
@@ -154,7 +152,7 @@ impl Context {
         &self.source_file_loader
     }
 
-    pub fn sources(&self) -> &Sources {
+    pub fn sources(&self) -> &SourceFiles {
         &self.source_file_loader.sources
     }
 

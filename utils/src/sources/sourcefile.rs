@@ -1,3 +1,5 @@
+///! In memrory representation of a source file
+
 use std::path::{Path, PathBuf};
 use std::fmt::Debug;
 use super::Position;
@@ -35,19 +37,19 @@ impl SourceFile {
         self.lines.len()
     }
 
-    pub fn get_line(&self, p: &Position) -> Result<&str, String> {
+    pub fn get_line(&self, p: &Position) -> &str {
         self.lines
             .get(p.line - 1)
             .map(|x| x.as_str())
-            .ok_or_else(|| "Out of range".to_string())
+            .expect("Out of range!")
     }
 
-    pub fn get_span(&self, p: &Position) -> Result<&str, String> {
+    pub fn get_span(&self, p: &Position) -> &str {
         // If the span is zero in length then return the single char at that position
         if p.range.is_empty() {
-            Ok(&self.source[p.range.start..p.range.start + 1])
+            &self.source[p.range.start..p.range.start + 1]
         } else {
-            Ok(&self.source[p.range.clone()])
+            &self.source[p.range.clone()]
         }
     }
 }

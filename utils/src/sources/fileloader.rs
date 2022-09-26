@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::sourcestore::Sources;
+use super::SourceFiles;
 use anyhow::{anyhow, Result};
 
 use crate::pathsearcher::{PathSearcher, Paths, SearchError};
@@ -11,7 +11,7 @@ use std::collections::HashSet;
 #[derive(Debug, Clone)]
 pub struct SourceFileLoader {
     pub source_search_paths: Paths,
-    pub sources: Sources,
+    pub sources: SourceFiles,
     id: u64,
     pub files_loaded: HashSet<PathBuf>,
     pub files_written: HashSet<PathBuf>,
@@ -188,7 +188,7 @@ impl SourceFileLoader {
         let search_paths: Vec<PathBuf> = paths.iter().map(|x| PathBuf::from(x.as_ref())).collect();
         Self {
             source_search_paths: Paths::from_paths(&search_paths),
-            sources: Sources::new(),
+            sources: SourceFiles::new(),
             id: 0,
             files_loaded: Default::default(),
             files_written: Default::default(),

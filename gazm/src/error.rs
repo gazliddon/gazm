@@ -245,7 +245,7 @@ impl UserError {
         Ok(s)
     }
 
-    pub fn from_parse_error(err: &ParseError, sources: &emu::utils::sources::Sources) -> Self {
+    pub fn from_parse_error(err: &ParseError, sources: &emu::utils::sources::SourceFiles) -> Self {
         let si = sources.get_source_info(&err.pos).unwrap();
 
         Self {

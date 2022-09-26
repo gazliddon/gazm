@@ -1,14 +1,12 @@
-use super::{AsmSource, Position, };
-use super::sourcefile::{ SourceFile, SourceInfo };
+///! In memory representation of all source file
+use super::{AsmSource, Position, SourceFile, SourceErrorType, SourceInfo};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use super::error::SourceErrorType;
-
 
 #[derive(Debug, Clone, Default)]
 pub struct SourceFiles {
-    id_to_source_file: HashMap<u64, SourceFile>,
-    path_to_id: HashMap<PathBuf, u64>,
+    pub id_to_source_file: HashMap<u64, SourceFile>,
+    pub path_to_id: HashMap<PathBuf, u64>,
 }
 
 impl SourceFiles {
@@ -39,6 +37,11 @@ impl SourceFiles {
             .ok_or_else(|| SourceErrorType::FileNotFound(p.to_string_lossy().into()))?;
         Ok(self.id_to_source_file.get(id).unwrap())
     }
+
+    pub fn get_source_id(&self, id: u64) -> Result<&SourceFile, SourceErrorType> {
+        self.id_to_source_file.get(&id).ok_or_else(|| SourceErrorType::IdNotFound(id))
+    }
+
 
     pub fn get_source_mut<P: AsRef<Path>>(&mut self, p: P) -> Result<&SourceFile, SourceErrorType> {
         let p = p.as_ref().to_path_buf();
@@ -71,17 +74,12 @@ impl SourceFiles {
         Ok(())
     }
 
-    pub fn get_source_info<'a>(&'a self, pos: &Position) -> Result<SourceInfo<'a>, String> {
+    pub fn get_source_info<'a>(&'a self, pos: &Position) -> Result<SourceInfo<'a>, SourceErrorType> {
         if let AsmSource::FileId(file_id) = pos.src {
-            let source_file = self.id_to_source_file.get(&file_id).ok_or_else(|| {
-                format!(
-                    "Can't find file id {:?} {:?}",
-                    file_id, self.id_to_source_file
-                )
-            })?;
+            let source_file = self.get_source_id(file_id)?;
 
-            let fragment = source_file.get_span(pos)?;
-            let line_str = source_file.get_line(pos)?;
+            let fragment = source_file.get_span(pos);
+            let line_str = source_file.get_line(pos);
 
             let ret = SourceInfo {
                 line_str,
@@ -95,8 +93,7 @@ impl SourceFiles {
 
             Ok(ret)
         } else {
-            Err("No file id!".to_string())
+            Err(SourceErrorType::Misc)
         }
     }
 }
-

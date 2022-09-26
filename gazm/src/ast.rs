@@ -17,7 +17,7 @@ use crate::item::{Item, Node};
 
 use crate::postfix;
 use crate::{messages::*, node};
-use emu::utils::sources::{Position, SourceInfo, SymbolQuery, SymbolWriter};
+use emu::utils::sources::{Position, SourceInfo, SymbolQuery, SymbolWriter, SourceErrorType};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -153,7 +153,7 @@ impl<'a> Ast<'a> {
         &mut self.tree
     }
 
-    fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, String> {
+    fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, SourceErrorType> {
         let n = self.tree.get(id).unwrap();
         self.ctx.sources().get_source_info(&n.value().pos)
     }
