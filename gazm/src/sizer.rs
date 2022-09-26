@@ -1,7 +1,7 @@
 use crate::binary::{AccessType, BinRef, Binary, BinaryError};
 use ego_tree::iter::Children;
 use emu::utils::sources::{
-    ItemType, SourceMapping, Sources, SymbolError, SymbolQuery, SymbolWriter,
+    ItemType, SourceMapping, SymbolError, SymbolQuery, SymbolWriter,
 };
 use serde_json::ser::Formatter;
 use std::collections::{HashMap, HashSet};

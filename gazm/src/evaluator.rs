@@ -1,5 +1,5 @@
 use emu::utils::sources::{
-    Position, SourceFileLoader, SourceInfo, Sources, SymbolError, SymbolInfo, SymbolQuery,
+    Position, SourceFileLoader, SourceInfo, SymbolError, SymbolInfo, SymbolQuery,
     SymbolTree, SymbolWriter,
 };
 

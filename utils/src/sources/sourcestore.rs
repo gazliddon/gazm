@@ -1,32 +1,14 @@
 use super::{AsmSource, Position, SymbolTree};
+use super::error::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use super::sourcefile::{ SourceFile, SourceInfo };
 
 pub trait LocationTrait: Clone {
     fn get_line_number(&self) -> usize;
     fn get_file(&self) -> &PathBuf;
 }
 
-use std::io;
-
-#[derive(thiserror::Error, Debug)]
-pub enum SourceErrorType {
-    #[error("Sort this out gaz")]
-    Misc,
-    #[error("File not found: {0}")]
-    FileNotFound(String),
-    #[error(transparent)]
-    Io {
-        #[from]
-        source: io::Error,
-    },
-
-    #[error(transparent)]
-    Json {
-        #[from]
-        source: serde_json::Error,
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct SourceLine<'a> {
@@ -71,97 +53,15 @@ impl<'a> SourceFileAccess<'a> {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-#[derive(Clone)]
-pub struct SourceFile {
-    pub file: PathBuf,
-    pub source: String,
-    pub lines: Vec<String>,
-}
-
-pub struct SourceFileInfo {
-    num_of_lines: usize,
-    file: PathBuf,
-}
-
-impl SourceFile {
-    pub fn new<P: AsRef<Path>>(file: P, source: &str) -> Self {
-        let lines = source.lines().map(|x| x.to_string()).collect();
-        Self {
-            lines,
-            file: file.as_ref().to_path_buf(),
-            source: source.to_string(),
-        }
-    }
-
-    pub fn mk_info(&self) -> SourceFileInfo {
-        SourceFileInfo {
-            file: self.file.clone(),
-            num_of_lines: self.lines.len(),
-        }
-    }
-
-    pub fn get_num_of_lines(&self) -> usize {
-        self.lines.len()
-    }
-
-    pub fn get_line(&self, p: &Position) -> Result<&str, String> {
-        self.lines
-            .get(p.line - 1)
-            .map(|x| x.as_str())
-            .ok_or_else(|| "Out of range".to_string())
-    }
-
-    pub fn get_span(&self, p: &Position) -> Result<&str, String> {
-        // If the span is zero in length then return the single char at that position
-        if p.range.is_empty() {
-            Ok(&self.source[p.range.start..p.range.start + 1])
-        } else {
-            Ok(&self.source[p.range.clone()])
-        }
-    }
-}
-use std::fmt::Debug;
-
-impl Debug for SourceFile {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut x = f.debug_struct("SourceFile");
-        x.field("file", &self.file.to_string_lossy());
-        x.finish()
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Add a source file to the hash if this is a source node
-// return true if it did
-
-#[derive(Debug, Clone)]
-pub struct SourceInfo<'a> {
-    pub fragment: &'a str,
-    pub line_str: &'a str,
-    pub line: usize,
-    pub col: usize,
-    pub source_file: &'a SourceFile,
-    pub file: PathBuf,
-    pub pos: Position,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct Sources {
     id_to_source_file: HashMap<u64, SourceFile>,
+    path_to_id: HashMap<PathBuf, u64>,
 }
 
 impl Sources {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub fn add_source_text(&mut self, text: &str) -> u64 {
-        let id = self.get_next_id();
-        let name = format!("macro_epxansion_{}", id);
-        let source_file = SourceFile::new(name, text);
-        self.id_to_source_file.insert(id, source_file);
-        id
     }
 
     fn get_next_id(&self) -> u64 {
@@ -170,10 +70,53 @@ impl Sources {
     }
 
     pub fn add_source_file<P: AsRef<Path>>(&mut self, p: P, text: &str) -> u64 {
+        let p = p.as_ref().to_path_buf();
         let id = self.get_next_id();
-        let source_file = SourceFile::new(p, text);
+        let source_file = SourceFile::new(&p, text);
         self.id_to_source_file.insert(id, source_file);
+        self.path_to_id.insert(p, id);
         id
+    }
+
+    pub fn get_source<P: AsRef<Path>>(&self, p: P) -> Result<&SourceFile, SourceErrorType> {
+        let p = p.as_ref().to_path_buf();
+
+        let id = self
+            .path_to_id
+            .get(&p)
+            .ok_or_else(|| SourceErrorType::FileNotFound(p.to_string_lossy().into()))?;
+        Ok(self.id_to_source_file.get(id).unwrap())
+    }
+
+    pub fn get_source_mut<P: AsRef<Path>>(&mut self, p: P) -> Result<&SourceFile, SourceErrorType> {
+        let p = p.as_ref().to_path_buf();
+
+        let id = self
+            .path_to_id
+            .get(&p)
+            .ok_or_else(|| SourceErrorType::FileNotFound(p.to_string_lossy().into()))?;
+        Ok(self.id_to_source_file.get_mut(id).unwrap())
+    }
+
+    pub fn remove_file<P: AsRef<Path>>(&mut self, p: P) -> Result<(), SourceErrorType> {
+        let p = p.as_ref().to_path_buf();
+
+        let id = self
+            .path_to_id
+            .get(&p)
+            .ok_or_else(|| SourceErrorType::FileNotFound(p.to_string_lossy().to_string()))?;
+        self.remove_id(*id)
+    }
+
+    pub fn remove_id(&mut self, id: u64) -> Result<(), SourceErrorType> {
+        let sf = self
+            .id_to_source_file
+            .get(&id)
+            .ok_or_else(|| SourceErrorType::IdNotFound(id))?;
+        let p = sf.file.clone();
+        self.path_to_id.remove(&p);
+        self.id_to_source_file.remove(&id);
+        Ok(())
     }
 
     pub fn get_source_info<'a>(&'a self, pos: &Position) -> Result<SourceInfo<'a>, String> {
