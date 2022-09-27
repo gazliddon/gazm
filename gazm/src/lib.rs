@@ -38,4 +38,5 @@ pub mod asmctx;
 pub mod fixerupper;
 pub mod regutils;
 pub mod config;
+pub mod lsp;
 

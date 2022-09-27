@@ -11,7 +11,11 @@ use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
 use crate::tokenize::{tokenize_text, TokenizedText};
 use async_std::prelude::*;
-use emu::utils::sources::{AsmSource, SourceFileLoader};
+
+use emu::utils::sources;
+use sources::AsmSource;
+use sources::fileloader::{FileIo, SourceFileLoader};
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::Hash;

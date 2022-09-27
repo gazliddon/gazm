@@ -22,4 +22,6 @@ pub enum SourceErrorType {
     },
 }
 
+pub type SResult<T> = Result<T,SourceErrorType>;
+
 

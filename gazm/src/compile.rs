@@ -18,7 +18,8 @@ use crate::{
 
 use emu::{
     isa::Instruction,
-    utils::sources::{FileIo, ItemType},
+    utils::sources::ItemType,
+    utils::sources::fileloader::FileIo
 };
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {

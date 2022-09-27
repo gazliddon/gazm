@@ -353,7 +353,7 @@ impl<'a> Sizer<'a> {
         file_name: P,
         node: AstNodeRef,
     ) -> GResult<std::ops::Range<usize>> {
-        use emu::utils::sources::FileIo;
+        use emu::utils::sources::fileloader::FileIo;
         let data_len = ctx.get_file_size(file_name.as_ref())?;
 
         let mut r = 0..data_len;

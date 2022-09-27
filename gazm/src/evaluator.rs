@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
 use emu::utils::sources::{
-    Position, SourceErrorType, SourceFileLoader, SourceInfo, SymbolError, SymbolInfo, SymbolQuery,
+    Position, SourceErrorType, SourceInfo, SymbolError, SymbolInfo, SymbolQuery,
     SymbolTree, SymbolWriter,
 };
+
+use emu::utils::sources::fileloader::SourceFileLoader;
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::ctx::Context;

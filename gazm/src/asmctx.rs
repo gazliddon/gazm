@@ -1,64 +1,51 @@
-
+use crate::ast::{AstNodeId, AstNodeRef, AstTree};
+use crate::ctx::Opts;
 use crate::ctx::{LstFile, Vars};
 use crate::error::{ErrorCollector, GResult, GazmError};
-use crate::{binary, fixerupper::FixerUpper};
 use crate::evaluator::Evaluator;
-use emu::utils::sources::{FileIo, SourceFileLoader, SymbolError, SymbolNodeId, SymbolWriter};
-use crate::ast::{ AstNodeRef, AstTree, AstNodeId };
-use emu::utils::sources::SourceMapping;
 use crate::item::Item;
-use std::path::Path;
-use std::path::PathBuf;
-use crate::ctx::Opts;
-use emu::utils::sources::BinWritten;
+use crate::{binary, fixerupper::FixerUpper};
+use emu::utils::sources;
+use sources::fileloader::{FileIo, SourceFileLoader};
+use sources::{BinWritten, SourceMapping, SymbolError, SymbolNodeId, SymbolWriter};
+use std::path::{ Path, PathBuf };
 
 pub struct AsmCtx<'a> {
     pub fixer_upper: FixerUpper,
     pub eval: Evaluator<'a>,
     pub direct_page: Option<u8>,
     pub source_map: &'a mut SourceMapping,
-    pub binary : &'a mut binary::Binary,
-    pub vars : &'a Vars,
+    pub binary: &'a mut binary::Binary,
+    pub vars: &'a Vars,
     /// Collected errors
     pub errors: &'a mut ErrorCollector,
     pub opts: &'a Opts,
     pub lst_file: &'a mut LstFile,
     /// Execution address
-    pub exec_addr : &'a mut Option<usize>,
+    pub exec_addr: &'a mut Option<usize>,
     /// Written binary chunks
     pub bin_chunks: &'a mut Vec<BinWritten>,
 }
 
-
 impl<'a> AsmCtx<'a> {
-
-    pub fn set_exec_addr(&mut self, addr : usize) {
+    pub fn set_exec_addr(&mut self, addr: usize) {
         *self.exec_addr = Some(addr)
     }
 
-    pub fn add_fixup(
-        &mut self,
-        id : AstNodeId,
-        v : Item
-    ) -> (SymbolNodeId, AstNodeId){
+    pub fn add_fixup(&mut self, id: AstNodeId, v: Item) -> (SymbolNodeId, AstNodeId) {
         let scope = self.eval.get_symbols().get_current_scope();
         self.fixer_upper.add_fixup(scope, id, v);
-        (scope,id)
+        (scope, id)
     }
 
-
-    pub fn get_node_item(&'a self, tree : &'a AstTree, id : AstNodeId) -> (AstNodeRef, Item) {
+    pub fn get_node_item(&'a self, tree: &'a AstTree, id: AstNodeId) -> (AstNodeRef, Item) {
         let node = tree.get(id).unwrap();
         let this_i = &node.value().item;
-        let i  = self.get_fixup_or_default(id, this_i);
+        let i = self.get_fixup_or_default(id, this_i);
         (node, i)
     }
 
-    pub fn get_fixup_or_default(
-        &self,
-        id : AstNodeId,
-        i : &Item
-    ) -> Item {
+    pub fn get_fixup_or_default(&self, id: AstNodeId, i: &Item) -> Item {
         let scope = self.eval.get_symbols().get_current_scope();
         self.fixer_upper.get_fixup_or_default(scope, id, i)
     }
@@ -87,11 +74,13 @@ impl<'a> AsmCtx<'a> {
         self.eval.get_symbols().get_current_scope_fqn()
     }
 
-    pub fn add_symbol_with_value(&mut self,name : &str,val: usize) -> Result<u64, SymbolError> {
-        self.eval.get_symbols_mut().add_symbol_with_value(name, val as i64)
+    pub fn add_symbol_with_value(&mut self, name: &str, val: usize) -> Result<u64, SymbolError> {
+        self.eval
+            .get_symbols_mut()
+            .add_symbol_with_value(name, val as i64)
     }
 
-    pub fn set_pc_symbol(&mut self,val: usize) -> Result<u64, SymbolError> {
+    pub fn set_pc_symbol(&mut self, val: usize) -> Result<u64, SymbolError> {
         self.add_symbol_with_value("*", val)
     }
 
@@ -103,7 +92,11 @@ impl<'a> AsmCtx<'a> {
         self.eval.loader_mut()
     }
 
-    pub fn write_bin_file<P: AsRef<Path>>(&mut self, path : P, range : std::ops::Range<usize>) -> PathBuf {
+    pub fn write_bin_file<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        range: std::ops::Range<usize>,
+    ) -> PathBuf {
         let physical_address = range.start;
         let count = range.len();
 
@@ -119,8 +112,8 @@ impl<'a> AsmCtx<'a> {
         // Save a record of the file Written
         // this goes into the written sym file eventually
         let bw = BinWritten {
-            file:ret.clone(), 
-            addr:range
+            file: ret.clone(),
+            addr: range,
         };
 
         self.bin_chunks.push(bw);
@@ -128,10 +121,9 @@ impl<'a> AsmCtx<'a> {
         ret
     }
 
-
     fn write_bin_file_data<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-let path = emu::utils::fileutils::abs_path_from_cwd(path);
+        let path = emu::utils::fileutils::abs_path_from_cwd(path);
         let path = self.loader_mut().write(path, data);
         path
     }
@@ -148,24 +140,26 @@ let path = emu::utils::fileutils::abs_path_from_cwd(path);
         self.eval.eval_macro_args(scope, node, macro_node);
     }
 
-    pub fn get_file_size<P : AsRef<Path>>(&self, path: P) -> GResult<usize> {
-        use emu::utils::sources::FileIo;
+    pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
+        use emu::utils::sources::fileloader::FileIo;
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.loader().get_size(path)?;
         Ok(ret)
     }
 
-    pub fn read_binary<P: AsRef<Path>>(&mut self, path : P) -> GResult<(PathBuf, Vec<u8> )> {
+    pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.loader_mut().read_binary(path)?;
         Ok(ret)
     }
 
-    pub fn read_binary_chunk<P: AsRef<Path>>(&mut self, path : P,  r : std::ops::Range<usize>) -> GResult<(PathBuf, Vec<u8> )> {
+    pub fn read_binary_chunk<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        r: std::ops::Range<usize>,
+    ) -> GResult<(PathBuf, Vec<u8>)> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.loader_mut().read_binary_chunk(path, r)?;
         Ok(ret)
     }
-
-
 }

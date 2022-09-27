@@ -381,7 +381,7 @@ impl<'a> Ast<'a> {
     }
 
     fn evaluate_assignments(&mut self) -> Result<(), UserError> {
-        status("Evaluating assignments", |x| {
+        info("Evaluating assignments", |x| {
             use super::eval::eval;
             use Item::*;
 

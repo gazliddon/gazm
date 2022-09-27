@@ -38,12 +38,14 @@ mod sizer;
 mod structs;
 mod tokenize;
 mod util;
+mod lsp;
 
 use crate::ctx::Context;
 use crate::error::{GResult, GazmError};
 use ::gazm::messages::messages;
 use ::gazm::{ctx::CheckSum, gazm::with_state, messages::info};
-use emu::utils::sources::{FileIo, SourceDatabase};
+use emu::utils::sources::fileloader::FileIo;
+use emu::utils::sources::SourceDatabase;
 use std::path::PathBuf;
 
 use sha1::{Digest, Sha1};
@@ -97,25 +99,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Check any checksums
-
-        for (name, csum) in &ctx.opts.checksums {
-            let mut hasher = Sha1::new();
-            let data = ctx.binary.get_bytes(csum.addr, csum.size);
-            hasher.update(data);
-            let this_hash = hasher.digest().to_string().to_lowercase();
-            let expected_hash = csum.sha1.to_lowercase();
-
+        //
+        if !ctx.opts.checksums.is_empty() {
             let mess = messages::messages();
             let old_verb = mess.get_verbosity();
             mess.set_verbosity(&Verbosity::Info);
 
-            if this_hash != expected_hash {
-                status_mess!("{name} : ❌")
-            } else {
-                status_mess!("{name} : ✅")
+            status_mess!("Validating checksums");
+            x.indent();
+
+            for (name, csum) in &ctx.opts.checksums {
+                let mut hasher = Sha1::new();
+                let data = ctx.binary.get_bytes(csum.addr, csum.size);
+                hasher.update(data);
+                let this_hash = hasher.digest().to_string().to_lowercase();
+                let expected_hash = csum.sha1.to_lowercase();
+
+
+
+                if this_hash != expected_hash {
+                    status_mess!("{name} : ❌")
+                } else {
+                    status_mess!("{name} : ✅")
+                }
             }
 
             mess.set_verbosity(&old_verb);
+            x.deindent();
         }
 
         if let Some(lst_file) = &ctx.opts.lst_file {

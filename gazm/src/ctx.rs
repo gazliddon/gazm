@@ -5,8 +5,10 @@ use crate::item::Node;
 use crate::macros::Macros;
 use crate::messages::Verbosity;
 use emu::utils::sources::{
-    FileIo, SourceDatabase, SourceFileLoader, SourceMapping, SourceFiles, SymbolTree,
+    SourceDatabase, SourceMapping, SourceFiles, SymbolTree,
 };
+
+use emu::utils::sources::fileloader::{FileIo, SourceFileLoader};
 use emu::utils::PathSearcher;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

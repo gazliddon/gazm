@@ -1,5 +1,5 @@
 ///! In memory representation of all source file
-use super::{AsmSource, Position, SourceFile, SourceErrorType, SourceInfo};
+use super::{AsmSource, Position, SourceFile, SourceErrorType, SourceInfo, SResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -28,7 +28,7 @@ impl SourceFiles {
         id
     }
 
-    pub fn get_source<P: AsRef<Path>>(&self, p: P) -> Result<&SourceFile, SourceErrorType> {
+    pub fn get_source<P: AsRef<Path>>(&self, p: P) -> SResult<&SourceFile> {
         let p = p.as_ref().to_path_buf();
 
         let id = self
@@ -38,12 +38,12 @@ impl SourceFiles {
         Ok(self.id_to_source_file.get(id).unwrap())
     }
 
-    pub fn get_source_id(&self, id: u64) -> Result<&SourceFile, SourceErrorType> {
+    pub fn get_source_id(&self, id: u64) -> SResult<&SourceFile> {
         self.id_to_source_file.get(&id).ok_or_else(|| SourceErrorType::IdNotFound(id))
     }
 
 
-    pub fn get_source_mut<P: AsRef<Path>>(&mut self, p: P) -> Result<&SourceFile, SourceErrorType> {
+    pub fn get_source_mut<P: AsRef<Path>>(&mut self, p: P) -> SResult<&SourceFile> {
         let p = p.as_ref().to_path_buf();
 
         let id = self
@@ -53,7 +53,7 @@ impl SourceFiles {
         Ok(self.id_to_source_file.get_mut(id).unwrap())
     }
 
-    pub fn remove_file<P: AsRef<Path>>(&mut self, p: P) -> Result<(), SourceErrorType> {
+    pub fn remove_file<P: AsRef<Path>>(&mut self, p: P) -> SResult<()> {
         let p = p.as_ref().to_path_buf();
 
         let id = self
@@ -63,7 +63,7 @@ impl SourceFiles {
         self.remove_id(*id)
     }
 
-    pub fn remove_id(&mut self, id: u64) -> Result<(), SourceErrorType> {
+    pub fn remove_id(&mut self, id: u64) -> SResult<()> {
         let sf = self
             .id_to_source_file
             .get(&id)
@@ -74,7 +74,7 @@ impl SourceFiles {
         Ok(())
     }
 
-    pub fn get_source_info<'a>(&'a self, pos: &Position) -> Result<SourceInfo<'a>, SourceErrorType> {
+    pub fn get_source_info<'a>(&'a self, pos: &Position) -> SResult<SourceInfo<'a>> {
         if let AsmSource::FileId(file_id) = pos.src {
             let source_file = self.get_source_id(file_id)?;
 

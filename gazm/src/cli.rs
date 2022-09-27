@@ -8,7 +8,7 @@ use crate::{
 use crate::config;
 
 use clap::{Arg, Command};
-use emu::utils::sources::SourceFileLoader;
+use emu::utils::sources::fileloader::SourceFileLoader;
 use nom::ErrorConvert;
 use std::collections::HashMap;
 use std::hash::Hash;

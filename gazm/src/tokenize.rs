@@ -29,10 +29,11 @@ use crate::{
     util::{parse_assignment, ws},
 };
 
-use emu::utils::{
-    sources::{AsmSource, Position, SourceFileLoader},
-    PathSearcher,
-};
+use emu::utils::sources;
+
+use sources::{AsmSource,Position};
+use sources::fileloader::SourceFileLoader;
+use emu::utils::PathSearcher;
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
