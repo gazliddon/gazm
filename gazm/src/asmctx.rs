@@ -41,7 +41,7 @@ impl<'a> AsmCtx<'a> {
         id : AstNodeId,
         v : Item
     ) -> (SymbolNodeId, AstNodeId){
-        let scope = self.eval.symbols.get_current_scope();
+        let scope = self.eval.get_symbols().get_current_scope();
         self.fixer_upper.add_fixup(scope, id, v);
         (scope,id)
     }
@@ -59,7 +59,7 @@ impl<'a> AsmCtx<'a> {
         id : AstNodeId,
         i : &Item
     ) -> Item {
-        let scope = self.eval.symbols.get_current_scope();
+        let scope = self.eval.get_symbols().get_current_scope();
         self.fixer_upper.get_fixup_or_default(scope, id, i)
     }
 
@@ -99,8 +99,8 @@ impl<'a> AsmCtx<'a> {
         self.eval.get_symbols_mut().remove_symbol_name("*")
     }
 
-    pub fn loader(&mut self) -> &mut SourceFileLoader {
-        self.eval.source_file_loader
+    pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
+        self.eval.loader_mut()
     }
 
     pub fn write_bin_file<P: AsRef<Path>>(&mut self, path : P, range : std::ops::Range<usize>) -> PathBuf {
@@ -132,7 +132,7 @@ impl<'a> AsmCtx<'a> {
     fn write_bin_file_data<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
 let path = emu::utils::fileutils::abs_path_from_cwd(path);
-        let path = self.loader().write(path, data);
+        let path = self.loader_mut().write(path, data);
         path
     }
 
@@ -151,19 +151,19 @@ let path = emu::utils::fileutils::abs_path_from_cwd(path);
     pub fn get_file_size<P : AsRef<Path>>(&self, path: P) -> GResult<usize> {
         use emu::utils::sources::FileIo;
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.eval.source_file_loader.get_size(path)?;
+        let ret = self.eval.loader().get_size(path)?;
         Ok(ret)
     }
 
     pub fn read_binary<P: AsRef<Path>>(&mut self, path : P) -> GResult<(PathBuf, Vec<u8> )> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.eval.source_file_loader.read_binary(path)?;
+        let ret = self.eval.loader_mut().read_binary(path)?;
         Ok(ret)
     }
 
     pub fn read_binary_chunk<P: AsRef<Path>>(&mut self, path : P,  r : std::ops::Range<usize>) -> GResult<(PathBuf, Vec<u8> )> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.eval.source_file_loader.read_binary_chunk(path, r)?;
+        let ret = self.eval.loader_mut().read_binary_chunk(path, r)?;
         Ok(ret)
     }
 

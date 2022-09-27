@@ -1,23 +1,22 @@
+use std::path::PathBuf;
+
 use emu::utils::sources::{
-    Position, SourceFileLoader, SourceInfo, SymbolError, SymbolInfo, SymbolQuery,
-    SymbolTree, SymbolWriter, SourceErrorType,
+    Position, SourceErrorType, SourceFileLoader, SourceInfo, SymbolError, SymbolInfo, SymbolQuery,
+    SymbolTree, SymbolWriter,
 };
 
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
-use crate::error::UserError;
-use crate::eval::eval;
-use crate::error::{GazmError, GResult };
-use crate::item::Item::*;
-
 use crate::ctx::Context;
+use crate::error::UserError;
+use crate::error::{GResult, GazmError};
+use crate::eval::eval;
+use crate::item::Item::*;
 
 /// Evaluates things
 pub struct Evaluator<'a> {
-    pub symbols: &'a mut SymbolTree,
-    pub source_file_loader: &'a mut SourceFileLoader,
+    symbols: &'a mut SymbolTree,
+    source_file_loader: &'a mut SourceFileLoader,
 }
-
-use std::path::PathBuf;
 
 impl<'a> SymbolQuery for Evaluator<'a> {
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
@@ -31,6 +30,12 @@ impl<'a> Evaluator<'a> {
             symbols,
             source_file_loader,
         }
+    }
+    pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
+        self.source_file_loader
+    }
+    pub fn loader(&self) -> &SourceFileLoader {
+        self.source_file_loader
     }
 
     /// Evaluate all macro args
@@ -66,9 +71,9 @@ impl<'a> Evaluator<'a> {
                 }
             });
 
-
             for (param, value) in assignments {
                 let res = self.symbols.add_symbol_with_value(&param, value);
+
                 if res.is_err() {
                     println!("{}", self.symbols.get_current_scope_symbols());
                     panic!();
@@ -144,35 +149,10 @@ impl<'a> Evaluator<'a> {
         Ok((args[0], args[1]))
     }
 
-    pub fn try_eval_n_args(&self, node: AstNodeRef, n: usize) -> Vec<Option<i64>> {
-        let mut ret = vec![];
-
-        for (i, node) in node.children().enumerate() {
-            if i == n {
-                break;
-            }
-            let to_push = if let Ok(v) = self.eval_node(node) {
-                Some(v)
-            } else {
-                None
-            };
-            ret.push(to_push)
-        }
-
-        ret
-    }
-
     pub fn eval_n_args(&self, node: AstNodeRef, n: usize) -> GResult<Vec<i64>> {
-        let mut ret = vec![];
-
-        for (i, node) in node.children().enumerate() {
-            if i == n {
-                break;
-            }
-            let v = self.eval_node(node)?;
-            ret.push(v)
-        }
-
-        Ok(ret)
+        node.children()
+            .take(n)
+            .map(|node| self.eval_node(node))
+            .collect()
     }
 }

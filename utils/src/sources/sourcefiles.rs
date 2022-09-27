@@ -79,7 +79,7 @@ impl SourceFiles {
             let source_file = self.get_source_id(file_id)?;
 
             let fragment = source_file.get_span(pos);
-            let line_str = source_file.get_line(pos);
+            let line_str = source_file.get_line_from_position(pos);
 
             let ret = SourceInfo {
                 line_str,

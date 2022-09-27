@@ -11,6 +11,7 @@ mod symboltree;
 mod sourcefile;
 mod sourcefiles;
 mod error;
+mod sourceinfo;
 
 pub use fileloader::*;
 pub use position::*;
@@ -21,4 +22,5 @@ pub use symboltable::*;
 pub use sourcefile::*;
 pub use sourcefiles::*;
 pub use error::*;
+pub use sourceinfo::*;
 

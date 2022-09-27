@@ -315,7 +315,7 @@ impl SourceDatabase {
 
     fn get_source_line(&self, file_id: u64, line: usize) -> Option<SourceLine> {
         self.func_source_file(file_id, |sf| {
-            sf.lines.get(line - 1).map(|text| SourceLine {
+            sf.get_line(line).map(|text| SourceLine {
                 file_id,
                 file: sf.file.clone(),
                 line_number: line,
