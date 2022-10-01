@@ -73,7 +73,6 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
             errors: &mut ctx.errors,
             opts: &ctx.opts,
             lst_file: &mut ctx.lst_file,
-            bin_chunks: &mut ctx.bin_chunks,
             exec_addr: &mut ctx.exec_addr,
             bin_to_write_chunks: &mut ctx.bin_to_write_chunks,
         };

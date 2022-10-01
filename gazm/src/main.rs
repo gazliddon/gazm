@@ -24,6 +24,7 @@ mod indexed;
 mod item;
 mod labels;
 mod locate;
+mod lsp;
 mod macros;
 mod messages;
 mod node;
@@ -38,15 +39,14 @@ mod sizer;
 mod structs;
 mod tokenize;
 mod util;
-mod lsp;
 
-use crate::ctx::{ Context, Opts, CheckSum };
+use crate::ctx::{CheckSum, Context, Opts};
 use crate::error::{GResult, GazmError};
-use lsp::do_lsp;
-use messages::messages;
 use ::gazm::{gazm::with_state, messages::info};
 use emu::utils::sources::fileloader::FileIo;
 use emu::utils::sources::SourceDatabase;
+use lsp::do_lsp;
+use messages::messages;
 use std::path::PathBuf;
 
 use sha1::{Digest, Sha1};
@@ -59,14 +59,12 @@ static BANNER: &str = r#"
  |___/
 "#;
 
-
 use crate::error::*;
 
 use anyhow::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
-
     let matches = cli::parse();
 
     let opts = Opts::from_arg_matches(matches)?;
@@ -81,14 +79,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     x.set_verbosity(&opts.verbose);
 
-
     // if ctx.opts.verbose != Verbosity::Silent {
     //     let m = format!("Verboisty: {:?}", ctx.opts.verbose);
     //     x.status(m)
     // };
 
-    // x.status(BANNER);
-    
+    status_mess!("{}", BANNER);
     status_mess!("GASM 6809 Assembler\n");
 
     x.indent();
@@ -98,13 +94,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx_shared = gazm::assemble(opts)?;
 
     with_state(&ctx_shared, |ctx| -> GResult<()> {
-
         for (addr, count) in ctx.binary.check_against_referece() {
             println!("{addr:04X} {count}");
         }
 
+        ctx.write_bin_chunks()?;
+
         // Check any checksums
-        //
         if !ctx.opts.checksums.is_empty() {
             let mess = messages::messages();
             let old_verb = mess.get_verbosity();
@@ -119,8 +115,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 hasher.update(data);
                 let this_hash = hasher.digest().to_string().to_lowercase();
                 let expected_hash = csum.sha1.to_lowercase();
-
-
 
                 if this_hash != expected_hash {
                     status_mess!("{name} : ❌")

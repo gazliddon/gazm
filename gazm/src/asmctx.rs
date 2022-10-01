@@ -24,7 +24,6 @@ pub struct AsmCtx<'a> {
     /// Execution address
     pub exec_addr: &'a mut Option<usize>,
     /// Written binary chunks
-    pub bin_chunks: &'a mut Vec<BinWriteDesc>,
     pub bin_to_write_chunks: &'a mut Vec<BinToWrite>,
 }
 
@@ -126,36 +125,6 @@ impl<'a> AsmCtx<'a> {
 
         // return the path written to, may have been expanded
         Ok(path)
-    }
-
-
-    pub fn write_bin_file<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        range: std::ops::Range<usize>,
-    ) -> PathBuf {
-        let physical_address = range.start;
-        let count = range.len();
-
-        let data = self
-            .binary
-            .get_bytes(physical_address as usize, count as usize)
-            .to_vec();
-
-        // Write the file
-        // TODO This all needs produce errors if appropriate
-        let ret = self.write_bin_file_data(&path, data);
-
-        // Save a record of the file Written
-        // this goes into the written sym file eventually
-        let bw = BinWriteDesc {
-            file: ret.clone(),
-            addr: range,
-        };
-
-        self.bin_chunks.push(bw);
-        // return the path written to, may have been expanded
-        ret
     }
 
     fn get_abs_path<P: AsRef<Path>, >(&mut self, path: P, ) -> PathBuf {

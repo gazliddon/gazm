@@ -166,25 +166,6 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-
-    /// Write out a slice of memory
-    fn write_bin<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, id: AstNodeId, path: P) -> GResult<()> {
-        let (node, _) = self.get_node_item(ctx, id);
-        let (physical_address, count) = ctx.eval.eval_two_args(node)?;
-
-        let p = ctx.write_bin_file(
-            path,
-            physical_address as usize..(physical_address + count) as usize,
-        );
-
-        status_mess!(
-            "Written binary: {} ${physical_address:x} ${count:x}",
-            p.to_string_lossy()
-        );
-
-        Ok(())
-    }
-
     fn inc_bin_ref<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, file_name: P) -> GResult<()> {
         use crate::binary::BinRef;
 
@@ -381,7 +362,7 @@ impl<'a> Compiler<'a> {
 
                 GrabMem => self.grab_mem(ctx, id)?,
 
-                WriteBin(file_name) => self.write_bin(ctx, id, &file_name)?,
+                WriteBin(file_name) => self.add_binary_to_write(ctx, id, &file_name)?,
 
                 IncBinRef(file_name) => {
                     self.inc_bin_ref(ctx, &file_name)?;

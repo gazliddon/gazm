@@ -16,6 +16,8 @@ use std::vec;
 
 use emu::utils::sources::BinWriteDesc;
 
+use crate::messages::status_mess;
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
     pub file: PathBuf,
@@ -214,6 +216,21 @@ impl Context {
 
     pub fn add_user_error(&mut self, e: UserError) -> GResult<()> {
         self.errors.add_user_error(e)
+    }
+
+    pub fn write_bin_chunks(&mut self) -> GResult<()> {
+        for bin_to_write in &self.bin_to_write_chunks {
+            let physical_address = bin_to_write.bin_desc.addr.start;
+            let count = bin_to_write.bin_desc.addr.len();
+            let p = &bin_to_write.bin_desc.file;
+
+            status_mess!(
+                "Writing binary: {} ${physical_address:x} ${count:x}",
+                p.to_string_lossy()
+            );
+            self.source_file_loader.write(p, &bin_to_write.data);
+        }
+        Ok(())
     }
 }
 
