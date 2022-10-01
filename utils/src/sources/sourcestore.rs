@@ -130,16 +130,22 @@ use std::cell::RefCell;
 
 /// Record of a written binary chunk
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BinWritten {
+pub struct BinWriteDesc {
     pub file: PathBuf,
     pub addr: std::ops::Range<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BinToWrite {
+    pub bin_desc : BinWriteDesc,
+    pub data : Vec<u8>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SourceDatabase {
     id_to_source_file: HashMap<u64, PathBuf>,
     mappings: SourceMapping,
-    pub bin_written: Vec<BinWritten>,
+    pub bin_written: Vec<BinWriteDesc>,
     pub exec_addr: Option<usize>,
     pub file_name: PathBuf,
 
@@ -215,7 +221,7 @@ impl SourceDatabase {
         mappings: &SourceMapping,
         sources: &SourceFiles,
         symbols: &SymbolTree,
-        written: &[BinWritten],
+        written: &[BinWriteDesc],
         exec_addr: Option<usize>,
     ) -> Self {
         let mut id_to_source_file = HashMap::new();

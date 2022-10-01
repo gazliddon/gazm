@@ -5,9 +5,9 @@ use crate::error::{ErrorCollector, GResult, GazmError};
 use crate::evaluator::Evaluator;
 use crate::item::Item;
 use crate::{binary, fixerupper::FixerUpper};
-use emu::utils::sources;
+use emu::utils::sources::{self, BinToWrite};
 use sources::fileloader::{FileIo, SourceFileLoader};
-use sources::{BinWritten, SourceMapping, SymbolError, SymbolNodeId, SymbolWriter};
+use sources::{BinWriteDesc, SourceMapping, SymbolError, SymbolNodeId, SymbolWriter};
 use std::path::{ Path, PathBuf };
 
 pub struct AsmCtx<'a> {
@@ -24,7 +24,8 @@ pub struct AsmCtx<'a> {
     /// Execution address
     pub exec_addr: &'a mut Option<usize>,
     /// Written binary chunks
-    pub bin_chunks: &'a mut Vec<BinWritten>,
+    pub bin_chunks: &'a mut Vec<BinWriteDesc>,
+    pub bin_to_write_chunks: &'a mut Vec<BinToWrite>,
 }
 
 impl<'a> AsmCtx<'a> {
@@ -92,6 +93,42 @@ impl<'a> AsmCtx<'a> {
         self.eval.loader_mut()
     }
 
+    pub fn add_bin_to_write<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        range: std::ops::Range<usize>,
+    ) -> PathBuf {
+        let physical_address = range.start;
+        let count = range.len();
+
+        let data = self
+            .binary
+            .get_bytes(physical_address as usize, count as usize)
+            .to_vec();
+
+        // Write the file
+        // TODO This all needs produce errors if appropriate
+        let path = self.get_abs_path(path);
+
+        // Save a record of the file Written
+        // this goes into the written sym file eventually
+        let bin_desc = BinWriteDesc {
+            file: path.clone(),
+            addr: range,
+        };
+
+        let bin_to_write = BinToWrite {
+            bin_desc,
+            data
+        };
+
+        self.bin_to_write_chunks.push(bin_to_write);
+
+        // return the path written to, may have been expanded
+        path
+    }
+
+
     pub fn write_bin_file<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -111,7 +148,7 @@ impl<'a> AsmCtx<'a> {
 
         // Save a record of the file Written
         // this goes into the written sym file eventually
-        let bw = BinWritten {
+        let bw = BinWriteDesc {
             file: ret.clone(),
             addr: range,
         };
@@ -121,11 +158,15 @@ impl<'a> AsmCtx<'a> {
         ret
     }
 
-    fn write_bin_file_data<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
+    fn get_abs_path<P: AsRef<Path>, >(&mut self, path: P, ) -> PathBuf {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let path = emu::utils::fileutils::abs_path_from_cwd(path);
-        let path = self.loader_mut().write(path, data);
         path
+    }
+
+    fn write_bin_file_data<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
+        let path = self.get_abs_path(&path);
+        self.loader_mut().write(path, data)
     }
 
     pub fn eval_macro_args(
@@ -142,7 +183,9 @@ impl<'a> AsmCtx<'a> {
 
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
         use emu::utils::sources::fileloader::FileIo;
+
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+
         let ret = self.eval.loader().get_size(path)?;
         Ok(ret)
     }

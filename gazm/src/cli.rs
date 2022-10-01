@@ -1,3 +1,4 @@
+use crate::ctx::BuildType;
 use crate::error::ErrorCollector;
 use crate::messages::Verbosity;
 use crate::{
@@ -7,30 +8,43 @@ use crate::{
 
 use crate::config;
 
-use clap::{Arg, Command};
+use clap::{Arg, ArgMatches, Command};
 use emu::utils::sources::fileloader::SourceFileLoader;
 use nom::ErrorConvert;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
+fn load_config(m: &ArgMatches) -> config::YamlConfig {
+    let x = m.value_of("config-file").expect("no config!");
+
+    let path = PathBuf::from(x);
+
+    let dir = path.parent();
+
+    if let Some(parent) = dir {
+        use std::env;
+        env::set_current_dir(&parent).expect("Can't change dir!");
+    }
+
+    config::YamlConfig::new()
+}
+
+fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> Opts {
+    let mut conf = load_config(m);
+    conf.opts.build_type = build_type;
+    conf.opts
+}
+
 impl From<clap::ArgMatches> for Opts {
     fn from(orig_matches: clap::ArgMatches) -> Self {
         match orig_matches.subcommand() {
             Some(("build", m)) => {
-                let x = m.value_of("config-file").expect("no config!");
+                load_opts_with_build_type(m, BuildType::Build)
+            }
 
-                let path = PathBuf::from(x);
-
-                let dir = path.parent();
-
-                if let Some(parent) = dir {
-                    use std::env;
-                    env::set_current_dir(&parent).expect("Can't change dir!");
-                }
-
-                let conf = config::YamlConfig::new();
-                conf.opts
+            Some(("lsp", m)) => {
+                load_opts_with_build_type(m, BuildType::LSP)
             }
 
             Some(("asm", m)) => {
@@ -48,6 +62,7 @@ impl From<clap::ArgMatches> for Opts {
                     build_async: m.is_present("build-async"),
                     ..Default::default()
                 };
+
                 opts.verbose = match m.occurrences_of("verbose") {
                     0 => Verbosity::Silent,
                     1 => Verbosity::Normal,
@@ -94,16 +109,14 @@ pub fn parse() -> clap::ArgMatches {
         .bin_name("gazm")
         .subcommand_required(true)
         .subcommand(
-            Command::new("build")
-                .about("use the config file")
-                .arg(
-                    Arg::new("config-file")
-                        .help("load config file")
-                        .multiple_values(false)
-                        .index(1)
-                        .required(false)
-                        .default_value("gazm.toml"),
-                )
+            Command::new("build").about("use the config file").arg(
+                Arg::new("config-file")
+                    .help("load config file")
+                    .multiple_values(false)
+                    .index(1)
+                    .required(false)
+                    .default_value("gazm.toml"),
+            ),
         )
         .subcommand(
             Command::new("asm")

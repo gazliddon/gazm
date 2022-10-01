@@ -5,6 +5,7 @@ use crate::ast::Ast;
 use crate::item::Node;
 use crate::tokenize;
 use emu::utils::sources::Position;
+use rayon::iter::plumbing::Consumer;
 use thiserror::Error;
 use crate::error::UserError;
 use crate::error::{GResult, GazmError};
@@ -15,7 +16,15 @@ pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R 
     f(state)
 }
 
-pub fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
+pub fn assemble(opts: Opts) -> GResult<Arc<Mutex<Context>>> {
+    let file = opts.project_file.clone();
+    let ctx = Context::from(opts);
+    let ctx = Arc::new(Mutex::new(ctx));
+    assemble_file(&ctx, file)?;
+    Ok(ctx)
+}
+
+fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
 
     use emu::utils::PathSearcher;
 
@@ -23,9 +32,7 @@ pub fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> 
         if let Some(dir) = file.as_ref().parent() {
             ctx.source_file_loader.add_search_path(dir);
         }
-
         let paths = ctx.source_file_loader.get_search_paths().clone();
-
         (ctx.opts.build_async, paths)
     });
 
@@ -68,6 +75,7 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
             lst_file: &mut ctx.lst_file,
             bin_chunks: &mut ctx.bin_chunks,
             exec_addr: &mut ctx.exec_addr,
+            bin_to_write_chunks: &mut ctx.bin_to_write_chunks,
         };
 
         size_tree(&mut asm_ctx, id, &tree)?;

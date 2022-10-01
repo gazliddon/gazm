@@ -5,7 +5,7 @@ use crate::item::Node;
 use crate::macros::Macros;
 use crate::messages::Verbosity;
 use emu::utils::sources::{
-    SourceDatabase, SourceMapping, SourceFiles, SymbolTree,
+    SourceDatabase, SourceMapping, SourceFiles, SymbolTree, BinToWrite,
 };
 
 use emu::utils::sources::fileloader::{FileIo, SourceFileLoader};
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::vec;
 
-use emu::utils::sources::BinWritten;
+use emu::utils::sources::BinWriteDesc;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -58,6 +58,13 @@ pub struct CheckSum {
     pub sha1: String,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum BuildType {
+    Build,
+    LSP,
+    Check,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Settings {}
 #[derive(Debug, Clone, Deserialize)]
@@ -84,6 +91,8 @@ pub struct Opts {
     pub build_async: bool,
     #[serde(skip)]
     pub checksums: HashMap<String, CheckSum>,
+    #[serde(skip)]
+    pub build_type : BuildType,
 }
 
 impl Default for Opts {
@@ -106,6 +115,7 @@ impl Default for Opts {
             vars: Default::default(),
             build_async: false,
             checksums: Default::default(),
+            build_type: BuildType::Build,
         }
     }
 }
@@ -123,11 +133,12 @@ pub struct Context {
     pub lst_file: LstFile,
     pub symbols2: nsym::Symbols,
     pub exec_addr: Option<usize>,
-    pub bin_chunks: Vec<BinWritten>,
+    pub bin_chunks: Vec<BinWriteDesc>,
     pub cwd: PathBuf,
     pub tokens: Vec<Node>,
     pub ast: Option<AstTree>,
     pub opts: Opts,
+    pub bin_to_write_chunks: Vec<BinToWrite>,
 }
 
 #[derive(Debug, Clone)]
@@ -233,6 +244,7 @@ impl Default for Context {
             tokens: vec![],
             ast: None,
             opts: Default::default(),
+            bin_to_write_chunks: vec![],
         }
     }
 }

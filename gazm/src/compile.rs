@@ -152,6 +152,26 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
+
+    /// Add a binary to write
+    fn add_binary_to_write<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, id: AstNodeId, path: P) -> GResult<()> {
+        let (node, _) = self.get_node_item(ctx, id);
+        let (physical_address, count) = ctx.eval.eval_two_args(node)?;
+
+        let p = ctx.write_bin_file(
+            path,
+            physical_address as usize..(physical_address + count) as usize,
+        );
+
+        status_mess!(
+            "Written binary: {} ${physical_address:x} ${count:x}",
+            p.to_string_lossy()
+        );
+
+        Ok(())
+    }
+
+
     /// Write out a slice of memory
     fn write_bin<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, id: AstNodeId, path: P) -> GResult<()> {
         let (node, _) = self.get_node_item(ctx, id);

@@ -42,7 +42,8 @@ mod lsp;
 
 use crate::ctx::Context;
 use crate::error::{GResult, GazmError};
-use ::gazm::messages::messages;
+use lsp::do_lsp;
+use messages::messages;
 use ::gazm::{ctx::CheckSum, gazm::with_state, messages::info};
 use emu::utils::sources::fileloader::FileIo;
 use emu::utils::sources::SourceDatabase;
@@ -51,12 +52,13 @@ use std::path::PathBuf;
 use sha1::{Digest, Sha1};
 
 static BANNER: &str = r#"
-  ____                        __    ___   ___   ___
- / ___| __ _ ___ _ __ ___    / /_  ( _ ) / _ \ / _ \
-| |  _ / _` / __| '_ ` _ \  | '_ \ / _ \| | | | (_) |
-| |_| | (_| \__ \ | | | | | | (_) | (_) | |_| |\__, |
- \____|\__,_|___/_| |_| |_|  \___/ \___/ \___/   /_/
+  __ _  __ _ _____ __ ___
+ / _` |/ _` |_  / '_ ` _ \
+| (_| | (_| |/ /| | | | | |
+ \__, |\__,_/___|_| |_| |_|
+ |___/
 "#;
+
 
 use crate::error::*;
 
@@ -65,35 +67,36 @@ use anyhow::Result;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
 
-    let x_opts: ctx::Opts = cli::parse().into();
-    let ctx: ctx::Context = x_opts.clone().into();
+    let opts: ctx::Opts = cli::parse().into();
+
+    if opts.build_type == ctx::BuildType::LSP {
+        lsp::do_lsp(opts.clone());
+        return Ok(());
+    }
 
     use crate::messages::Verbosity;
-
     let x = messages::messages();
 
-    x.set_verbosity(&ctx.opts.verbose);
+    x.set_verbosity(&opts.verbose);
 
-    if ctx.opts.verbose != Verbosity::Silent {
-        let m = format!("Verboisty: {:?}", ctx.opts.verbose);
-        x.status(m)
-    };
+
+    // if ctx.opts.verbose != Verbosity::Silent {
+    //     let m = format!("Verboisty: {:?}", ctx.opts.verbose);
+    //     x.status(m)
+    // };
 
     // x.status(BANNER);
+    
     status_mess!("GASM 6809 Assembler\n");
 
     x.indent();
 
     use std::fs;
 
-    use std::sync::{Arc, Mutex};
-
-    let project_file = ctx.opts.project_file.clone();
-    let ctx_shared = Arc::new(Mutex::new(ctx));
-
-    gazm::assemble_file(&ctx_shared, &project_file)?;
+    let ctx_shared = gazm::assemble(opts)?;
 
     with_state(&ctx_shared, |ctx| -> GResult<()> {
+
         for (addr, count) in ctx.binary.check_against_referece() {
             println!("{addr:04X} {count}");
         }
