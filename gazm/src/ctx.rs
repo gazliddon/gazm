@@ -127,7 +127,10 @@ pub struct Context {
     pub symbols: SymbolTree,
     pub source_file_loader: SourceFileLoader,
     pub errors: ErrorCollector,
+
+    // TODO move to opts, this is immutable
     pub vars: Vars,
+
     pub binary: binary::Binary,
     pub source_map: SourceMapping,
     pub lst_file: LstFile,

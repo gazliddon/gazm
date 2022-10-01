@@ -158,15 +158,10 @@ impl<'a> Compiler<'a> {
         let (node, _) = self.get_node_item(ctx, id);
         let (physical_address, count) = ctx.eval.eval_two_args(node)?;
 
-        let p = ctx.write_bin_file(
+        ctx.add_bin_to_write(
             path,
             physical_address as usize..(physical_address + count) as usize,
-        );
-
-        status_mess!(
-            "Written binary: {} ${physical_address:x} ${count:x}",
-            p.to_string_lossy()
-        );
+        )?;
 
         Ok(())
     }

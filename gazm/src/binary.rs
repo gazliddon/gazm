@@ -84,6 +84,8 @@ pub enum BinaryError {
     Halt(MemoryLocation),
     #[error("Write to read only memory: {0}")]
     IllegalWrite(MemoryLocation),
+    #[error("Asked for zero bytes")]
+    AskedForZeroBytes,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -349,6 +351,8 @@ impl Binary {
         }
         Ok(did_check)
     }
+
+    // TODO! Need to errorise this
 
     // Get bytes from memory
     // address is the physical_address

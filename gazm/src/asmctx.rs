@@ -97,7 +97,7 @@ impl<'a> AsmCtx<'a> {
         &mut self,
         path: P,
         range: std::ops::Range<usize>,
-    ) -> PathBuf {
+    ) -> GResult<PathBuf> {
         let physical_address = range.start;
         let count = range.len();
 
@@ -125,7 +125,7 @@ impl<'a> AsmCtx<'a> {
         self.bin_to_write_chunks.push(bin_to_write);
 
         // return the path written to, may have been expanded
-        path
+        Ok(path)
     }
 
 
