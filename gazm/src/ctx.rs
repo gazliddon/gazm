@@ -1,22 +1,20 @@
 use crate::ast::AstTree;
+use crate::astformat;
 use crate::binary::{self, AccessType, Binary};
 use crate::error::{ErrorCollector, GResult, GazmError, ParseError, UserError};
 use crate::item::Node;
 use crate::macros::Macros;
-use crate::messages::Verbosity;
+use crate::messages::{status_mess, Verbosity};
+use crate::status_err;
+use emu::utils::sources::fileloader::{FileIo, SourceFileLoader};
 use emu::utils::sources::{
-    SourceDatabase, SourceMapping, SourceFiles, SymbolTree, BinToWrite,
+    BinToWrite, BinWriteDesc, SourceDatabase, SourceFiles, SourceMapping, SymbolTree,
 };
 
-use emu::utils::sources::fileloader::{FileIo, SourceFileLoader};
 use emu::utils::PathSearcher;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::vec;
-
-use emu::utils::sources::BinWriteDesc;
-
-use crate::messages::status_mess;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -29,6 +27,8 @@ pub struct WriteBin {
 pub struct Vars {
     vars: HashMap<String, String>,
 }
+
+use anyhow::{Context as AnyContext, Result};
 
 impl Vars {
     pub fn new() -> Self {
@@ -94,7 +94,7 @@ pub struct Opts {
     #[serde(skip)]
     pub checksums: HashMap<String, CheckSum>,
     #[serde(skip)]
-    pub build_type : BuildType,
+    pub build_type: BuildType,
 }
 
 impl Default for Opts {
@@ -231,6 +231,62 @@ impl Context {
             self.source_file_loader.write(p, &bin_to_write.data);
         }
         Ok(())
+    }
+
+    pub fn write_lst_file(&mut self) -> GResult<()> {
+        use std::fs;
+
+        if let Some(lst_file) = &self.opts.lst_file {
+            let text = self.lst_file.lines.join("\n");
+            fs::write(lst_file, text)
+                .with_context(|| format!("Unable to write list file {lst_file}"))?;
+            status_mess!("Written lst file {lst_file}");
+        }
+        Ok(())
+    }
+
+    pub fn write_ast_file(&mut self) -> GResult<()> {
+        if let Some(ast_file) = &self.opts.ast_file {
+            status_mess!("Writing ast: {}", ast_file.to_string_lossy());
+            status_err!("Not done!");
+            if let Some(ast) = &self.ast {
+                let x = astformat::as_string(ast.root());
+                println!("{x}");
+            } else {
+                status_err!("No AST file to write");
+            }
+        }
+        Ok(())
+    }
+
+    pub fn checksum_report(&self) {
+        use sha1::{Digest, Sha1};
+
+        if !self.opts.checksums.is_empty() {
+            let mess = crate::messages::messages();
+            let old_verb = mess.get_verbosity();
+            mess.set_verbosity(&Verbosity::Info);
+
+            status_mess!("Validating checksums");
+            mess.indent();
+
+            for (name, csum) in &self.opts.checksums {
+                let mut hasher = Sha1::new();
+                let data = self.binary.get_bytes(csum.addr, csum.size);
+                hasher.update(data);
+                let this_hash = hasher.digest().to_string().to_lowercase();
+                let expected_hash = csum.sha1.to_lowercase();
+
+                if this_hash != expected_hash {
+                    status_mess!("{name} : ❌")
+                } else {
+                    status_mess!("{name} : ✅")
+                }
+            }
+
+            mess.set_verbosity(&old_verb);
+            mess.deindent();
+        }
     }
 }
 

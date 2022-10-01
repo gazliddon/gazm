@@ -65,8 +65,8 @@ use anyhow::Result;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
-    let matches = cli::parse();
 
+    let matches = cli::parse();
     let opts = Opts::from_arg_matches(matches)?;
 
     if opts.build_type == ctx::BuildType::LSP {
@@ -99,51 +99,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         ctx.write_bin_chunks()?;
-
-        // Check any checksums
-        if !ctx.opts.checksums.is_empty() {
-            let mess = messages::messages();
-            let old_verb = mess.get_verbosity();
-            mess.set_verbosity(&Verbosity::Info);
-
-            status_mess!("Validating checksums");
-            x.indent();
-
-            for (name, csum) in &ctx.opts.checksums {
-                let mut hasher = Sha1::new();
-                let data = ctx.binary.get_bytes(csum.addr, csum.size);
-                hasher.update(data);
-                let this_hash = hasher.digest().to_string().to_lowercase();
-                let expected_hash = csum.sha1.to_lowercase();
-
-                if this_hash != expected_hash {
-                    status_mess!("{name} : ❌")
-                } else {
-                    status_mess!("{name} : ✅")
-                }
-            }
-
-            mess.set_verbosity(&old_verb);
-            x.deindent();
-        }
-
-        if let Some(lst_file) = &ctx.opts.lst_file {
-            let text = ctx.lst_file.lines.join("\n");
-            fs::write(lst_file, text)
-                .with_context(|| format!("Unable to write list file {lst_file}"))?;
-            status_mess!("Written lst file {lst_file}");
-        }
-
-        if let Some(ast_file) = &ctx.opts.ast_file {
-            status_mess!("Writing ast: {}", ast_file.to_string_lossy());
-            status_err!("Not done!");
-            if let Some(ast) = &ctx.ast {
-                let x = astformat::as_string(ast.root());
-                println!("{x}");
-            } else {
-                status_err!("No AST file to write");
-            }
-        }
+        ctx.checksum_report();
+        ctx.write_lst_file()?;
 
         if let Some(sym_file) = &ctx.opts.syms_file {
             let _syms = ctx.symbols.clone();
