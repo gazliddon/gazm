@@ -40,11 +40,11 @@ mod tokenize;
 mod util;
 mod lsp;
 
-use crate::ctx::Context;
+use crate::ctx::{ Context, Opts, CheckSum };
 use crate::error::{GResult, GazmError};
 use lsp::do_lsp;
 use messages::messages;
-use ::gazm::{ctx::CheckSum, gazm::with_state, messages::info};
+use ::gazm::{gazm::with_state, messages::info};
 use emu::utils::sources::fileloader::FileIo;
 use emu::utils::sources::SourceDatabase;
 use std::path::PathBuf;
@@ -67,7 +67,9 @@ use anyhow::Result;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use anyhow::Context;
 
-    let opts: ctx::Opts = cli::parse().into();
+    let matches = cli::parse();
+
+    let opts = Opts::from_arg_matches(matches)?;
 
     if opts.build_type == ctx::BuildType::LSP {
         lsp::do_lsp(opts.clone());

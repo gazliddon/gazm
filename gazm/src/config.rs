@@ -7,10 +7,12 @@ use std::path::PathBuf;
 pub struct YamlConfig {
     #[serde(skip)]
     pub file : PathBuf,
+    #[serde(default)]
     pub opts : Opts,
-
+    #[serde(default)]
     vars: HashMap<String,String>,
     project: Project,
+    #[serde(default)]
     checksums: HashMap<String, CheckSum>
 }
 

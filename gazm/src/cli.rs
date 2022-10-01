@@ -12,40 +12,62 @@ use clap::{Arg, ArgMatches, Command};
 use emu::utils::sources::fileloader::SourceFileLoader;
 use nom::ErrorConvert;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
-fn load_config(m: &ArgMatches) -> config::YamlConfig {
-    let x = m.value_of("config-file").expect("no config!");
+#[derive(thiserror::Error, Clone)]
+pub enum ConfigErrorType {
+    #[error("Missing config file argument")]
+    MissingConfigArg,
+    #[error("Can't change to directory {0}")]
+    InvalidDir(PathBuf),
+    #[error("Can't find file {0}")]
+    MissingConfigFile(PathBuf)
 
+}
+
+impl std::fmt::Debug for ConfigErrorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+pub type ConfigError<T> = Result<T, ConfigErrorType>;
+
+fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
+    use std::env::set_current_dir;
+
+    let x = m.value_of("config-file").ok_or(ConfigErrorType::MissingConfigArg)?;
     let path = PathBuf::from(x);
+
+    if !path.is_file() {
+        return Err(ConfigErrorType::MissingConfigFile(path))
+    }
 
     let dir = path.parent();
 
     if let Some(parent) = dir {
-        use std::env;
-        env::set_current_dir(&parent).expect("Can't change dir!");
+        if parent.is_dir() {
+            set_current_dir(&parent).map_err(|_| ConfigErrorType::InvalidDir(parent.to_path_buf()))?;
+        }
     }
 
-    config::YamlConfig::new()
+    Ok(config::YamlConfig::new())
 }
 
-fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> Opts {
-    let mut conf = load_config(m);
+fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigError<Opts> {
+    let mut conf = load_config(m)?;
     conf.opts.build_type = build_type;
-    conf.opts
+    Ok( conf.opts )
 }
 
-impl From<clap::ArgMatches> for Opts {
-    fn from(orig_matches: clap::ArgMatches) -> Self {
-        match orig_matches.subcommand() {
-            Some(("build", m)) => {
-                load_opts_with_build_type(m, BuildType::Build)
-            }
+impl Opts {
+    pub fn from_arg_matches(orig_matches : clap::ArgMatches) -> ConfigError<Opts> {
+        let ret = match orig_matches.subcommand() {
+            Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build)?,
 
-            Some(("lsp", m)) => {
-                load_opts_with_build_type(m, BuildType::LSP)
-            }
+            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::LSP)?,
 
             Some(("asm", m)) => {
                 let mut opts = Opts {
@@ -97,7 +119,9 @@ impl From<clap::ArgMatches> for Opts {
             _ => {
                 panic!()
             }
-        }
+        };
+
+        Ok(ret)
     }
 }
 
