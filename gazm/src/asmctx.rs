@@ -17,7 +17,6 @@ pub struct AsmCtx<'a> {
     pub direct_page: Option<u8>,
     pub source_map: &'a mut SourceMapping,
     pub binary: &'a mut binary::Binary,
-    pub vars: &'a Vars,
     /// Collected errors
     pub errors: &'a mut ErrorCollector,
     pub opts: &'a Opts,
@@ -129,7 +128,7 @@ impl<'a> AsmCtx<'a> {
     }
 
     fn get_abs_path<P: AsRef<Path>, >(&mut self, path: P, ) -> PathBuf {
-        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
         let path = emu::utils::fileutils::abs_path_from_cwd(path);
         path
     }
@@ -154,14 +153,14 @@ impl<'a> AsmCtx<'a> {
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
         use emu::utils::sources::fileloader::FileIo;
 
-        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
 
         let ret = self.eval.loader().get_size(path)?;
         Ok(ret)
     }
 
     pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.loader_mut().read_binary(path)?;
         Ok(ret)
     }
@@ -171,7 +170,7 @@ impl<'a> AsmCtx<'a> {
         path: P,
         r: std::ops::Range<usize>,
     ) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.eval.loader_mut().read_binary_chunk(path, r)?;
         Ok(ret)
     }

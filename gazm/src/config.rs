@@ -31,7 +31,7 @@ impl YamlConfig {
         let f = std::fs::read_to_string(&file).expect("can't read");
         let mut val: Self = toml::from_str(&f).unwrap();
 
-        val.opts.vars = val.vars.clone().into_iter().collect();
+        val.opts.vars = val.vars.clone().into_iter().collect::<Vec<(String,String)>>().into();
         val.file = file.as_ref().to_path_buf().clone();
         val.opts.checksums = val.checksums.clone();
         val

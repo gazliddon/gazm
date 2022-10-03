@@ -111,7 +111,7 @@ impl Opts {
                     while let Some((var, value)) =
                         it.next().and_then(|var| it.next().map(|val| (var, val)))
                     {
-                        opts.vars.push((var.to_string(), value.to_string()));
+                        opts.vars.set_var(var, value)
                     }
                 }
                 opts

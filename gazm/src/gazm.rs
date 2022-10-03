@@ -80,7 +80,6 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
             direct_page: None,
             source_map: &mut ctx.source_map,
             binary: &mut ctx.binary,
-            vars: &ctx.vars,
             errors: &mut ctx.errors,
             opts: &ctx.opts,
             lst_file: &mut ctx.lst_file,

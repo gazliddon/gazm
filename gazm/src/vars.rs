@@ -5,6 +5,16 @@ pub struct Vars {
     vars: HashMap<String, String>,
 }
 
+impl From<Vec<(String, String)>> for Vars {
+    fn from(input: Vec<(String, String)>) -> Self {
+        let mut ret: Self = Default::default();
+        for (k, v) in input {
+            ret.set_var(k.to_string(), v.to_string());
+        }
+        ret
+    }
+}
+
 impl Vars {
     pub fn new() -> Self {
         Self::default()

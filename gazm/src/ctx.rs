@@ -28,7 +28,6 @@ pub struct WriteBin {
     pub size: usize,
 }
 
-
 use anyhow::{Context as AnyContext, Result};
 
 use serde::Deserialize;
@@ -67,11 +66,14 @@ pub struct Opts {
     pub encode_blank_lines: bool,
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
-    #[serde(skip)]
-    pub vars: Vec<(String, String)>,
     pub build_async: bool,
+
     #[serde(skip)]
     pub checksums: HashMap<String, CheckSum>,
+
+    #[serde(skip)]
+    pub vars: Vars,
+
     #[serde(skip)]
     pub build_type: BuildType,
 }
@@ -108,9 +110,6 @@ pub struct Context {
     pub symbols: SymbolTree,
     pub source_file_loader: SourceFileLoader,
     pub errors: ErrorCollector,
-
-    // TODO move to opts, this is immutable
-    pub vars: Vars,
     pub binary: binary::Binary,
     pub source_map: SourceMapping,
     pub lst_file: LstFile,
@@ -155,9 +154,12 @@ impl Context {
     pub fn sources(&self) -> &SourceFiles {
         &self.source_file_loader.sources
     }
+    pub fn get_vars(&self) -> &Vars {
+        &self.opts.vars
+    }
 
     pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GazmErrorType> {
-        let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
+        let path = self.get_vars().expand_vars(path.as_ref().to_string_lossy());
         let ret = self.source_file_loader.get_size(path).map_err(to_gazm)?;
         Ok(ret)
     }
@@ -167,7 +169,7 @@ impl Context {
         path: P,
     ) -> Result<(PathBuf, String, u64), GazmErrorType> {
         let path: PathBuf = self
-            .vars
+            .get_vars()
             .expand_vars(path.as_ref().to_string_lossy())
             .into();
         let ret = self
@@ -179,7 +181,7 @@ impl Context {
 
     pub fn get_full_path<P: AsRef<Path>>(&mut self, path: P) -> Result<PathBuf, GazmErrorType> {
         let path: PathBuf = self
-            .vars
+            .get_vars()
             .expand_vars(path.as_ref().to_string_lossy())
             .into();
 
@@ -299,7 +301,7 @@ impl Context {
             }
 
             if errors.is_empty() {
-                status_mess!("✅: Checksums correct")
+                status_mess!("✅: {} Checksums correct", self.opts.checksums.len())
             } else {
                 mess.error("❌ : Mismatched Checksums");
                 mess.indent();
@@ -332,7 +334,6 @@ impl Default for Context {
             binary: binary::Binary::new(65536, binary::AccessType::ReadWrite),
             source_map: Default::default(),
             source_file_loader: Default::default(),
-            vars: Default::default(),
             symbols: Default::default(),
             lst_file: LstFile::new(),
             exec_addr: None,
@@ -349,18 +350,14 @@ impl Default for Context {
 
 /// Create a Context from the command line Opts
 impl From<Opts> for Context {
-    fn from(m: Opts) -> Self {
+    fn from(opts: Opts) -> Self {
         let mut ret = Self {
             ..Default::default()
         };
 
-        ret.errors = ErrorCollector::new(m.max_errors);
-        ret.binary = Binary::new(m.mem_size, AccessType::ReadWrite);
-        ret.opts = m.clone();
-
-        for (k, v) in m.vars {
-            ret.vars.set_var(k.to_string(), v.to_string());
-        }
+        ret.errors = ErrorCollector::new(opts.max_errors);
+        ret.binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
+        ret.opts = opts.clone();
 
         ret
     }
