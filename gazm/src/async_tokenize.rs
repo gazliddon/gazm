@@ -111,7 +111,7 @@ fn tokenize_file<P: AsRef<Path>>(
 
     let requested_file = requested_file.as_ref().to_path_buf();
 
-    let (file, source, file_id, opts) = ctx.with_ctx(|ctx| {
+    let (file, source, file_id, opts) = ctx.with(|ctx| {
         ctx.read_source(&requested_file)
             .map(|(file, source, file_id)| (file, source, file_id, ctx.opts.clone()))
     })?;
@@ -138,48 +138,35 @@ fn tokenize_file<P: AsRef<Path>>(
     Ok(ret)
 }
 
-#[derive(Default)]
-struct TokenStore {
+#[derive(Default, Clone, Debug)]
+pub struct TokenStore {
     tokens: HashMap<PathBuf, Node>,
 }
 
 struct TokenizeContext {
-    token_store: Arc<Mutex<TokenStore>>,
     ctx: Arc<Mutex<Context>>,
     errors: Vec<ParseError>,
 }
 
 impl TokenizeContext {
-    pub fn new(ctx: &Arc<Mutex<Context>>, token_store: &Arc<Mutex<TokenStore>>) -> Self {
+    pub fn new(ctx: &Arc<Mutex<Context>>) -> Self {
         Self {
-            token_store: token_store.clone(),
             ctx: ctx.clone(),
             errors: vec![],
         }
     }
 
-    pub fn with<R>(&self, f: impl FnOnce(&mut Context, &mut TokenStore) -> R) -> R {
-        let mut ctx = self.ctx.lock().unwrap();
-        let mut token_store = self.token_store.lock().unwrap();
-        f(&mut ctx, &mut token_store)
-    }
-
-    pub fn with_ctx<R>(&self, f: impl FnOnce(&mut Context) -> R) -> R {
+    pub fn with<R>(&self, f: impl FnOnce(&mut Context) -> R) -> R {
         let mut ctx = self.ctx.lock().unwrap();
         f(&mut ctx)
     }
 
     pub fn get_opts(&self) -> Opts {
-        self.with_ctx(|ctx| ctx.opts.clone())
-    }
-
-    pub fn with_tokens<R>(&self, f: impl FnOnce(&mut TokenStore) -> R) -> R {
-        let mut token_store = self.token_store.lock().unwrap();
-        f(&mut token_store)
+        self.with(|ctx| ctx.opts.clone())
     }
 
     pub fn get_full_path<P: AsRef<Path>>(&self, file: P) -> GResult<PathBuf> {
-        let ret = self.with(|ctx, _| -> GResult<PathBuf> {
+        let ret = self.with(|ctx| -> GResult<PathBuf> {
             let inc_file = ctx.get_full_path(&file);
             inc_file
         });
@@ -189,9 +176,9 @@ impl TokenizeContext {
     /// Is this file in the path?
     /// Is this file already tokenized?
     pub fn get_file_info<P: AsRef<Path>>(&self, requested_file: P) -> GResult<(bool, PathBuf)> {
-        let ret = self.with(|ctx, token_store| -> GResult<(bool, PathBuf)> {
+        let ret = self.with(|ctx| -> GResult<(bool, PathBuf)> {
             let actual_file = ctx.get_full_path(&requested_file)?;
-            let has_this_file = token_store.has_tokens(&requested_file);
+            let has_this_file = ctx.token_store.has_tokens(&requested_file);
             Ok((has_this_file, actual_file))
         })?;
 
@@ -221,14 +208,12 @@ impl TokenStore {
 
 pub fn tokenize<P: AsRef<Path>>(ctx: &Arc<Mutex<Context>>, requested_file: P) -> GResult<Node> {
     let include_stack = Stack::new();
-
-    let token_ctx = TokenizeContext::new(&ctx, &Arc::new(Mutex::new(TokenStore::new())));
-
+    let token_ctx = TokenizeContext::new(&ctx );
     let file_name = tokenize_main(&token_ctx, &requested_file, None, include_stack)?;
 
-    let ret = token_ctx.with(|ctx, token_store| -> GResult<Node> {
+    let ret = token_ctx.with(|ctx| -> GResult<Node> {
         ctx.errors.raise_errors()?;
-        let toks = token_store.get_tokens(&file_name).unwrap().clone();
+        let toks = ctx.token_store.get_tokens(&file_name).unwrap().clone();
         Ok(toks)
     })?;
 
@@ -279,7 +264,7 @@ fn tokenize_main<P: AsRef<Path>>(
     if !has_this_file {
         let mut tokenized = tokenize_file(ctx, &actual_file, parent)?;
 
-        ctx.with_ctx(|ctx| -> GResult<()> {
+        ctx.with(|ctx| -> GResult<()> {
             for e in &tokenized.errors {
                 ctx.add_parse_error(e.clone())?;
             }
@@ -312,7 +297,7 @@ fn tokenize_main<P: AsRef<Path>>(
 
                 s.spawn(move |_| {
                     let res = tokenize_main(ctx, &full_path, Some(actual_file.clone()), stack);
-                    ctx.with_ctx(|ctx| {
+                    ctx.with(|ctx| {
                         let _ = ctx.errors.add_result(res);
                     })
                 });
@@ -324,21 +309,24 @@ fn tokenize_main<P: AsRef<Path>>(
         // and replace any includes with the correct tokens from the token store
         // and then add the update tokens to the token store
 
-        ctx.with(|ctx, token_store| -> GResult<()> {
+        ctx.with(|ctx| -> GResult<()> {
             ctx.errors.raise_errors()?;
 
-            let inc_nodes = tokenized.node.children.iter_mut().filter_map(|c| {
+
+            let inc_nodes : Vec<_> = tokenized.node.children.iter_mut().filter_map(|c| {
                 c.item().get_include().map(|f| {
                     let ret = (c, ctx.get_full_path(f).unwrap());
                     ret
                 })
-            });
+            }).collect();
+
+            let ts = &ctx.token_store;
 
             for (c, file) in inc_nodes {
-                *c = Box::new(token_store.get_tokens(&file).unwrap().clone());
+                *c = Box::new(ts.get_tokens(&file).unwrap().clone());
             }
 
-            token_store.add_tokens(actual_file.clone(), tokenized.node);
+            ctx.token_store.add_tokens(actual_file.clone(), tokenized.node);
 
             Ok(())
         })?;

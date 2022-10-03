@@ -10,6 +10,7 @@ use emu::utils::sources::fileloader::{FileIo, SourceFileLoader};
 use emu::utils::sources::{
     BinToWrite, BinWriteDesc, SourceDatabase, SourceFiles, SourceMapping, SymbolTree,
 };
+use crate::async_tokenize::TokenStore;
 
 use emu::utils::PathSearcher;
 use std::collections::HashMap;
@@ -132,7 +133,6 @@ pub struct Context {
 
     // TODO move to opts, this is immutable
     pub vars: Vars,
-
     pub binary: binary::Binary,
     pub source_map: SourceMapping,
     pub lst_file: LstFile,
@@ -143,6 +143,7 @@ pub struct Context {
     pub ast: Option<AstTree>,
     pub opts: Opts,
     pub bin_to_write_chunks: Vec<BinToWrite>,
+    pub token_store: TokenStore,
 }
 
 #[derive(Debug, Clone)]
@@ -168,6 +169,7 @@ impl Context {
     pub fn get_source_file_loader(&self) -> &SourceFileLoader {
         &self.source_file_loader
     }
+
 
     pub fn sources(&self) -> &SourceFiles {
         &self.source_file_loader.sources
@@ -359,6 +361,7 @@ impl Default for Context {
             ast: None,
             opts: Default::default(),
             bin_to_write_chunks: vec![],
+            token_store: TokenStore::new(),
         }
     }
 }

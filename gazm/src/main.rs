@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match opts.build_type {
         ctx::BuildType::LSP => {
-            lsp::do_lsp(opts.clone());
+            lsp::do_lsp(opts);
             Ok(())
         }
 
