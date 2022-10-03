@@ -198,105 +198,104 @@ impl<'a> Compiler<'a> {
         ins: &Instruction,
         amode: &AddrModeParseType,
     ) -> GResult<()> {
+        use emu::isa::AddrModeEnum::*;
+
         let (node, _) = self.get_node_item(ctx, id);
 
         let x = messages();
         let pc = ctx.binary.get_write_address();
 
-        use emu::isa::AddrModeEnum::*;
         let ins_amode = ins.addr_mode;
 
-        let res: GResult<()> = try {
-            if ins.opcode > 0xff {
-                ctx.binary.write_word(ins.opcode as u16)?;
-            } else {
-                ctx.binary.write_byte(ins.opcode as u8)?;
+        if ins.opcode > 0xff {
+            ctx.binary.write_word(ins.opcode as u16)?;
+        } else {
+            ctx.binary.write_byte(ins.opcode as u8)?;
+        }
+
+        match ins_amode {
+            Indexed => {
+                if let AddrModeParseType::Indexed(imode, indirect) = amode {
+                    self.compile_indexed(ctx, id, *imode, *indirect)?;
+                }
             }
 
-            match ins_amode {
-                Indexed => {
-                    if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                        self.compile_indexed(ctx, id, *imode, *indirect)?;
-                    }
-                }
+            Immediate8 => {
+                let (arg, _) = ctx.eval.eval_first_arg(node)?;
+                ctx.binary.write_byte_check_size(arg)?;
+            }
 
-                Immediate8 => {
-                    let (arg, _) = ctx.eval.eval_first_arg(node)?;
-                    ctx.binary.write_byte_check_size(arg)?;
-                }
+            Direct => {
+                let (arg, _) = ctx.eval.eval_first_arg(node)?;
+                ctx.binary.write_byte_check_size(arg & 0xff)?;
+            }
 
-                Direct => {
-                    let (arg, _) = ctx.eval.eval_first_arg(node)?;
-                    ctx.binary.write_byte_check_size(arg & 0xff)?;
-                }
+            Extended | Immediate16 => {
+                let (arg, _) = ctx.eval.eval_first_arg(node)?;
+                ctx.binary.write_word_check_size(arg)?;
+            }
 
-                Extended | Immediate16 => {
-                    let (arg, _) = ctx.eval.eval_first_arg(node)?;
-                    ctx.binary.write_word_check_size(arg)?;
-                }
+            Relative => {
+                let (arg, arg_id) = ctx.eval.eval_first_arg(node)?;
+                let (arg_n, _) = self.get_node_item(ctx, arg_id);
+                let val = arg - (pc as i64 + ins.size as i64);
+                // offset is from PC after Instruction and operand has been fetched
+                use crate::binary::BinaryError::*;
+                let res = ctx.binary.write_ibyte_check_size(val).map_err(|x| match x {
+                    DoesNotFit { .. } => self.relative_error(ctx, id, val, 8),
+                    DoesNotMatchReference { .. } => self.binary_error(ctx, id, x),
+                    _ => ctx.eval.user_error(format!("{:?}", x), arg_n, false).into(),
+                });
 
-                Relative => {
-                    let (arg, arg_id) = ctx.eval.eval_first_arg(node)?;
-                    let (arg_n, _) = self.get_node_item(ctx, arg_id);
-                    let val = arg - (pc as i64 + ins.size as i64);
-                    // offset is from PC after Instruction and operand has been fetched
-                    use crate::binary::BinaryError::*;
-                    let res = ctx.binary.write_ibyte_check_size(val).map_err(|x| match x {
-                        DoesNotFit { .. } => self.relative_error(ctx, id, val, 8),
-                        DoesNotMatchReference { .. } => self.binary_error(ctx, id, x),
-                        _ => ctx.eval.user_error(format!("{:?}", x), arg_n, false).into(),
-                    });
-
-                    match &res {
-                        Ok(_) => (),
-                        Err(_) => {
-                            if self.opts.ignore_relative_offset_errors {
-                                // x.warning(e.pretty().unwrap());
-                                x.warning("Skipping writing relative offset");
-                                ctx.binary.write_ibyte_check_size(0)?;
-                            } else {
-                                res?;
-                            }
+                match &res {
+                    Ok(_) => (),
+                    Err(_) => {
+                        if self.opts.ignore_relative_offset_errors {
+                            // x.warning(e.pretty().unwrap());
+                            x.warning("Skipping writing relative offset");
+                            ctx.binary.write_ibyte_check_size(0)?;
+                        } else {
+                            res?;
                         }
                     }
                 }
+            }
 
-                Relative16 => {
-                    use crate::binary::BinaryError::*;
+            Relative16 => {
+                use crate::binary::BinaryError::*;
 
-                    let (arg, arg_id) = ctx.eval.eval_first_arg(node)?;
-                    let (arg_n, _) = self.get_node_item(ctx, arg_id);
+                let (arg, arg_id) = ctx.eval.eval_first_arg(node)?;
+                let (arg_n, _) = self.get_node_item(ctx, arg_id);
 
-                    let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
-                    // offset is from PC after Instruction and operand has been fetched
-                    let res = ctx.binary.write_word_check_size(val);
+                let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
+                // offset is from PC after Instruction and operand has been fetched
+                let res = ctx.binary.write_word_check_size(val);
 
-                    res.map_err(|x| match x {
-                        DoesNotFit { .. } => self.relative_error(ctx, id, val, 16),
-                        DoesNotMatchReference { .. } => self.binary_error(ctx, id, x),
-                        _ => ctx.eval.user_error(format!("{:?}", x), arg_n, true).into(),
-                    })?;
+                res.map_err(|x| match x {
+                    DoesNotFit { .. } => self.relative_error(ctx, id, val, 16),
+                    DoesNotMatchReference { .. } => self.binary_error(ctx, id, x),
+                    _ => ctx.eval.user_error(format!("{:?}", x), arg_n, true).into(),
+                })?;
+            }
+
+            Inherent => {}
+
+            RegisterPair => {
+                if let AddrModeParseType::RegisterPair(a, b) = amode {
+                    ctx.binary.write_byte(reg_pair_to_flags(*a, *b))?;
+                } else {
+                    panic!("Whut!")
                 }
+            }
 
-                Inherent => {}
+            RegisterSet => {
+                let rset = &node.first_child().unwrap().value().item;
 
-                RegisterPair => {
-                    if let AddrModeParseType::RegisterPair(a, b) = amode {
-                        ctx.binary.write_byte(reg_pair_to_flags(*a, *b))?;
-                    } else {
-                        panic!("Whut!")
-                    }
-                }
-
-                RegisterSet => {
-                    let rset = &node.first_child().unwrap().value().item;
-
-                    if let Item::RegisterSet(regs) = rset {
-                        let flags = registers_to_flags(regs);
-                        ctx.binary.write_byte(flags)?;
-                    } else {
-                        panic!("Whut!")
-                    }
+                if let Item::RegisterSet(regs) = rset {
+                    let flags = registers_to_flags(regs);
+                    ctx.binary.write_byte(flags)?;
+                } else {
+                    panic!("Whut!")
                 }
             }
         };
@@ -304,7 +303,7 @@ impl<'a> Compiler<'a> {
         // Add memory to source code mapping for this opcode
         let (phys_range, range) = ctx.binary.range_to_write_address(pc);
         self.add_mapping(ctx, phys_range, range, id, ItemType::OpCode);
-        res
+        Ok(())
     }
 
     fn incbin_resolved<P: AsRef<Path>>(
@@ -348,7 +347,8 @@ impl<'a> Compiler<'a> {
 
         let mut pc = ctx.binary.get_write_address();
         let pos = node.value().pos.clone();
-        let mut dont_map = false;
+
+        let mut do_source_mapping = ctx.opts.lst_file.is_some();
 
         let res: Result<(), GazmErrorType> = try {
             match i {
@@ -391,11 +391,9 @@ impl<'a> Compiler<'a> {
                 }
 
                 MacroCallProcessed { scope, macro_id } => {
-                    // let si = ctx.eval.get_source_info(&pos).unwrap();
-                    dont_map = true;
+                    do_source_mapping = false;
 
                     let (m_node, _) = self.get_node_item(ctx, macro_id);
-
                     let ret = ctx.eval.eval_macro_args(&scope, node, m_node);
 
                     if !ret {
@@ -490,30 +488,28 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            if !dont_map {
-                if ctx.opts.lst_file.is_some() {
-                    let (_, phys_range) = ctx.binary.range_to_write_address(pc);
+            if do_source_mapping {
+                let (_, phys_range) = ctx.binary.range_to_write_address(pc);
 
-                    if let Ok(si) = ctx.eval.get_source_info(&node.value().pos) {
-                        let mem_text = if phys_range.is_empty() {
-                            "".to_owned()
-                        } else {
-                            format!("{:02X?}", ctx.binary.get_bytes_range(phys_range.clone()))
-                        };
+                if let Ok(si) = ctx.eval.get_source_info(&node.value().pos) {
+                    let mem_text = if phys_range.is_empty() {
+                        "".to_owned()
+                    } else {
+                        format!("{:02X?}", ctx.binary.get_bytes_range(phys_range.clone()))
+                    };
 
-                        let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, pc, mem_text);
+                    let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, pc, mem_text);
+                    let m = format!("{:50}{}", m_pc, si.line_str);
 
-                        let m = format!("{:50}{}", m_pc, si.line_str);
-
-                        if !mem_text.is_empty() {
-                            ctx.lst_file.add(&m);
-                        }
+                    if !mem_text.is_empty() {
+                        ctx.lst_file.add(&m);
                     }
                 }
             }
         };
 
         match res {
+            // TODO understand why we're ignoring binary errors
             Err(GazmErrorType::BinaryError(_)) => Ok(()),
             Err(e) => ctx.errors.add_error(e, false),
             _ => res,

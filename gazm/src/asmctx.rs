@@ -15,6 +15,7 @@ pub struct AsmCtx<'a> {
     pub fixer_upper: FixerUpper,
     pub eval: Evaluator<'a>,
     pub direct_page: Option<u8>,
+
     pub source_map: &'a mut SourceMapping,
     pub binary: &'a mut binary::Binary,
     /// Collected errors
@@ -154,7 +155,6 @@ impl<'a> AsmCtx<'a> {
         use emu::utils::sources::fileloader::FileIo;
 
         let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
-
         let ret = self.eval.loader().get_size(path)?;
         Ok(ret)
     }

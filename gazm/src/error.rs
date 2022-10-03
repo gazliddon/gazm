@@ -1,5 +1,6 @@
 
 use crate::ast::{AstNodeId, AstNodeRef};
+use crate::doc::ErrorDocType;
 use crate::{binary, gazm};
 use crate::locate::span_to_pos;
 use crate::locate::Span;
@@ -21,6 +22,11 @@ pub enum GazmErrorType {
     BinaryError(binary::BinaryError),
     #[error("Parse error {0}")]
     ParseError(#[from] ParseError),
+}
+
+struct GazmError {
+    pub error: GazmErrorType,
+    pub error_doc_type: Option<ErrorDocType>,
 }
 
 impl From<binary::BinaryError> for GazmErrorType {

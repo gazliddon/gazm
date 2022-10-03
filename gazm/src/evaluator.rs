@@ -148,6 +148,7 @@ impl<'a> Evaluator<'a> {
 
     pub fn eval_two_args(&self, node: AstNodeRef) -> GResult<(i64, i64)> {
         let args = self.eval_n_args(node, 2)?;
+        assert!(args.len() == 2);
         Ok((args[0], args[1]))
     }
 

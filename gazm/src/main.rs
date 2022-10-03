@@ -41,6 +41,7 @@ mod tokenize;
 mod util;
 mod token_store;
 mod vars;
+mod doc;
 
 use anyhow::{Context, Result};
 use ctx::Opts;
