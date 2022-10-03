@@ -10,6 +10,7 @@ use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
 use crate::tokenize::{tokenize_text, TokenizedText};
 use async_std::prelude::*;
+use crate::token_store::TokenStore;
 
 use emu::utils::sources;
 use sources::fileloader::{FileIo, SourceFileLoader};
@@ -138,10 +139,6 @@ fn tokenize_file<P: AsRef<Path>>(
     Ok(ret)
 }
 
-#[derive(Default, Clone, Debug)]
-pub struct TokenStore {
-    tokens: HashMap<PathBuf, Node>,
-}
 
 struct TokenizeContext {
     ctx: Arc<Mutex<Context>>,
@@ -183,26 +180,6 @@ impl TokenizeContext {
         })?;
 
         Ok(ret)
-    }
-}
-
-impl TokenStore {
-    pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
-
-    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&Node> {
-        self.tokens.get(&file.as_ref().to_path_buf())
-    }
-
-    pub fn add_tokens<P: AsRef<Path>>(&mut self, file: P, node: Node) {
-        self.tokens.insert(file.as_ref().to_path_buf(), node);
-    }
-
-    pub fn has_tokens<P: AsRef<Path>>(&self, file: P) -> bool {
-        self.get_tokens(file).is_some()
     }
 }
 

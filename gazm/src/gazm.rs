@@ -29,7 +29,7 @@ fn assemble_arc(opts: Opts) -> GResult<Arc<Mutex<Context>>> {
     Ok(ctx)
 }
 
-pub fn assemble(opts: Opts) -> GResult<Context> {
+pub fn assemble_from_opts(opts: Opts) -> GResult<Context> {
     let ctx_arc = assemble_arc(opts)?;
     let lock = Arc::try_unwrap(ctx_arc).expect("Still multiple owners");
     let ctx = lock.into_inner().expect("can't lock mutex");

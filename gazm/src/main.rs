@@ -39,15 +39,12 @@ mod sizer;
 mod structs;
 mod tokenize;
 mod util;
+mod token_store;
 
-use crate::gazm::with_state;
-use anyhow::{Context as AContext, Result};
-use ctx::{Context, Opts};
-use emu::utils::sources::{fileloader::FileIo, SourceDatabase};
-use error::{GResult, GazmErrorType};
+use anyhow::{Context, Result};
+use ctx::Opts;
 use lsp::do_lsp;
-use messages::{info, messages, Verbosity};
-use std::path::PathBuf;
+use messages::{info, messages};
 
 static BANNER: &str = r#"
   __ _  __ _ _____ __ ___
@@ -70,12 +67,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         ctx::BuildType::Build => {
-            status_mess!("{}", BANNER);
+            mess.status(BANNER);
+
             mess.indent();
 
             use std::fs;
 
-            let mut ctx = gazm::assemble(opts)?;
+            let mut ctx = gazm::assemble_from_opts(opts)?;
 
             for (addr, count) in ctx.binary.check_against_referece() {
                 println!("{addr:04X} {count}");
@@ -91,6 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(())
         }
+
         ctx::BuildType::Check => panic!("TBD"),
     }
 }

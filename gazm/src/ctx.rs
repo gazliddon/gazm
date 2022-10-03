@@ -10,7 +10,8 @@ use emu::utils::sources::fileloader::{FileIo, SourceFileLoader};
 use emu::utils::sources::{
     BinToWrite, BinWriteDesc, SourceDatabase, SourceFiles, SourceMapping, SymbolTree,
 };
-use crate::async_tokenize::TokenStore;
+
+use crate::token_store::TokenStore;
 
 use emu::utils::PathSearcher;
 use std::collections::HashMap;
@@ -170,6 +171,9 @@ impl Context {
         &self.source_file_loader
     }
 
+    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&Node> {
+        self.token_store.get_tokens(&file)
+    }
 
     pub fn sources(&self) -> &SourceFiles {
         &self.source_file_loader.sources
