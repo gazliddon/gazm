@@ -1,7 +1,7 @@
 use crate::ast::AstTree;
 use crate::astformat;
 use crate::binary::{self, AccessType, Binary};
-use crate::error::{ErrorCollector, GResult, GazmError, ParseError, UserError};
+use crate::error::{ErrorCollector, GResult, GazmErrorType, ParseError, UserError};
 use crate::item::Node;
 use crate::macros::Macros;
 use crate::messages::{status_mess, Verbosity};
@@ -161,8 +161,8 @@ impl LstFile {
     }
 }
 
-fn to_gazm(e: anyhow::Error) -> GazmError {
-    GazmError::Misc(e.to_string())
+fn to_gazm(e: anyhow::Error) -> GazmErrorType {
+    GazmErrorType::Misc(e.to_string())
 }
 
 impl Context {
@@ -175,7 +175,7 @@ impl Context {
         &self.source_file_loader.sources
     }
 
-    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GazmError> {
+    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GazmErrorType> {
         let path = self.vars.expand_vars(path.as_ref().to_string_lossy());
         let ret = self.source_file_loader.get_size(path).map_err(to_gazm)?;
         Ok(ret)
@@ -184,7 +184,7 @@ impl Context {
     pub fn read_source<P: AsRef<Path>>(
         &mut self,
         path: P,
-    ) -> Result<(PathBuf, String, u64), GazmError> {
+    ) -> Result<(PathBuf, String, u64), GazmErrorType> {
         let path: PathBuf = self
             .vars
             .expand_vars(path.as_ref().to_string_lossy())
@@ -196,7 +196,7 @@ impl Context {
         Ok(ret)
     }
 
-    pub fn get_full_path<P: AsRef<Path>>(&mut self, path: P) -> Result<PathBuf, GazmError> {
+    pub fn get_full_path<P: AsRef<Path>>(&mut self, path: P) -> Result<PathBuf, GazmErrorType> {
         let path: PathBuf = self
             .vars
             .expand_vars(path.as_ref().to_string_lossy())
@@ -204,7 +204,7 @@ impl Context {
 
         let ret = self.source_file_loader.get_full_path(&path).map_err(|_| {
             let err = format!("Can't find file {}", path.to_string_lossy());
-            GazmError::Misc(err)
+            GazmErrorType::Misc(err)
         })?;
 
         Ok(ret)

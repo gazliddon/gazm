@@ -18,7 +18,7 @@ use std::{
 use crate::{
     commands, comments,
     ctx::{Context, Opts},
-    error::{parse_error, ErrorCollector, GResult, GazmError, IResult, ParseError, UserError},
+    error::{parse_error, ErrorCollector, GResult, GazmErrorType, IResult, ParseError, UserError},
     item::{Item, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos, Span},

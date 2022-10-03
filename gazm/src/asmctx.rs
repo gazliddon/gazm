@@ -1,7 +1,7 @@
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::ctx::Opts;
 use crate::ctx::{LstFile, Vars};
-use crate::error::{ErrorCollector, GResult, GazmError};
+use crate::error::{ErrorCollector, GResult, GazmErrorType};
 use crate::evaluator::Evaluator;
 use crate::item::Item;
 use crate::{binary, fixerupper::FixerUpper};

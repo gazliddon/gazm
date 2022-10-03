@@ -7,7 +7,7 @@ use crate::{
     ast::{AstNodeId, AstNodeRef, AstTree},
     astformat::as_string,
     ctx::Opts,
-    error::{GResult, GazmError, UserError},
+    error::{GResult, GazmErrorType, UserError},
     fixerupper::FixerUpper,
     item::{self, AddrModeParseType, IndexParseType, Item, Node},
     messages::debug_mess,
@@ -52,14 +52,14 @@ impl<'a> Compiler<'a> {
         ctx: &AsmCtx,
         id: AstNodeId,
         e: crate::binary::BinaryError,
-    ) -> GazmError {
+    ) -> GazmErrorType {
         let (n, _) = self.get_node_item(ctx, id);
         let info = &ctx.eval.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
         UserError::from_text(msg, info, true).into()
     }
 
-    fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GazmError {
+    fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GazmErrorType {
         let (n, _) = self.get_node_item(ctx, id);
         let p = 1 << (bits - 1);
 
@@ -151,7 +151,6 @@ impl<'a> Compiler<'a> {
 
         Ok(())
     }
-
 
     /// Add a binary to write
     fn add_binary_to_write<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, id: AstNodeId, path: P) -> GResult<()> {
@@ -351,7 +350,7 @@ impl<'a> Compiler<'a> {
         let pos = node.value().pos.clone();
         let mut dont_map = false;
 
-        let res: Result<(), GazmError> = try {
+        let res: Result<(), GazmErrorType> = try {
             match i {
                 Scope(opt) => {
                     ctx.set_root_scope();
@@ -515,7 +514,7 @@ impl<'a> Compiler<'a> {
         };
 
         match res {
-            Err(GazmError::BinaryError(_)) => Ok(()),
+            Err(GazmErrorType::BinaryError(_)) => Ok(()),
             Err(e) => ctx.errors.add_error(e, false),
             _ => res,
         }

@@ -8,7 +8,7 @@ use emu::utils::sources::Position;
 use rayon::iter::plumbing::Consumer;
 use thiserror::Error;
 use crate::error::UserError;
-use crate::error::{GResult, GazmError};
+use crate::error::{GResult, GazmErrorType};
 use std::sync::{Arc, Mutex};
 
 pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R {

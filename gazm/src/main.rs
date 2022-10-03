@@ -44,7 +44,7 @@ use crate::gazm::with_state;
 use anyhow::{Context as AContext, Result};
 use ctx::{Context, Opts};
 use emu::utils::sources::{fileloader::FileIo, SourceDatabase};
-use error::{GResult, GazmError};
+use error::{GResult, GazmErrorType};
 use lsp::do_lsp;
 use messages::{info, messages, Verbosity};
 use std::path::PathBuf;

@@ -7,10 +7,10 @@ use serde::de::Error;
 use thiserror::Error;
 use emu::utils::sources::{Position, SourceInfo, AsmSource};
 
-pub type GResult<T> = Result<T, GazmError>;
+pub type GResult<T> = Result<T, GazmErrorType>;
 
 #[derive(Error, Debug, Clone)]
-pub enum GazmError {
+pub enum GazmErrorType {
     #[error(transparent)]
     UserError(#[from] UserError),
     #[error("Misc: {0}")]
@@ -23,20 +23,20 @@ pub enum GazmError {
     ParseError(#[from] ParseError),
 }
 
-impl From<binary::BinaryError> for GazmError {
+impl From<binary::BinaryError> for GazmErrorType {
     fn from(x: binary::BinaryError) -> Self {
-        GazmError::BinaryError(x)
+        GazmErrorType::BinaryError(x)
     }
 }
 
-impl From<String> for GazmError {
+impl From<String> for GazmErrorType {
     fn from(x: String) -> Self {
-        GazmError::Misc(x)
+        GazmErrorType::Misc(x)
     }
 }
-impl From<anyhow::Error> for GazmError {
+impl From<anyhow::Error> for GazmErrorType {
     fn from(x: anyhow::Error) -> Self {
-        GazmError::Misc(x.to_string())
+        GazmErrorType::Misc(x.to_string())
     }
 }
 
@@ -265,7 +265,7 @@ impl UserError {
 #[derive(Clone)]
 pub struct ErrorCollector {
     max_errors: usize,
-    errors: Vec<GazmError>,
+    errors: Vec<GazmErrorType>,
     errors_remaining: usize,
 }
 
@@ -320,7 +320,7 @@ impl ErrorCollector {
 
     pub fn raise_errors(&self) -> GResult<()> {
         if self.has_errors() {
-            Err(GazmError::TooManyErrors(self.clone()))
+            Err(GazmErrorType::TooManyErrors(self.clone()))
         } else {
             Ok(())
         }
@@ -335,11 +335,11 @@ impl ErrorCollector {
 
     pub fn add_user_error(&mut self, err: UserError) -> GResult<()> {
         let failure = err.failure;
-        let err = GazmError::UserError(err);
+        let err = GazmErrorType::UserError(err);
         self.add_error(err, failure)
     }
 
-    pub fn add_error(&mut self, err: GazmError, failure : bool) -> GResult<()> {
+    pub fn add_error(&mut self, err: GazmErrorType, failure : bool) -> GResult<()> {
         self.errors.push(err.clone());
 
         if self.errors_remaining == 0 || failure {

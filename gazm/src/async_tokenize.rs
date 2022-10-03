@@ -4,7 +4,7 @@ use crate::asmctx::AsmCtx;
 use crate::binary::AccessType;
 use crate::ctx::Context;
 use crate::ctx::Opts;
-use crate::error::GazmError;
+use crate::error::GazmErrorType;
 use crate::error::{GResult, ParseError};
 use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
@@ -232,12 +232,11 @@ fn check_circular<P: AsRef<Path>>(
     if include_stack.get_deque().contains(&full_path) {
         println!("Trying to include {}", full_path.to_string_lossy());
         println!("from {}", actual_file.to_string_lossy());
-
         for (i, x) in include_stack.get_deque().iter().enumerate() {
             println!("{i} - {}", x.to_string_lossy());
         }
 
-        Err(GazmError::ParseError(ParseError::new_from_pos(
+        Err(GazmErrorType::ParseError(ParseError::new_from_pos(
             "Circular include".to_string(),
             &pos,
             true,
@@ -312,7 +311,6 @@ fn tokenize_main<P: AsRef<Path>>(
         ctx.with(|ctx| -> GResult<()> {
             ctx.errors.raise_errors()?;
 
-
             let inc_nodes : Vec<_> = tokenized.node.children.iter_mut().filter_map(|c| {
                 c.item().get_include().map(|f| {
                     let ret = (c, ctx.get_full_path(f).unwrap());
@@ -327,7 +325,6 @@ fn tokenize_main<P: AsRef<Path>>(
             }
 
             ctx.token_store.add_tokens(actual_file.clone(), tokenized.node);
-
             Ok(())
         })?;
     }
