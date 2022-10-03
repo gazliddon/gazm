@@ -91,10 +91,10 @@ struct Tokens {
 }
 
 impl Tokens {
-    fn new(text: Span, opts: &Opts) -> GResult<Self> {
+    fn new(text: Span, opts: Opts) -> GResult<Self> {
         let mut x = Self {
             tokens: vec![],
-            opts: opts.clone(),
+            opts,
             // tok_ctx,
             parse_errors: vec![],
         };
@@ -171,7 +171,7 @@ impl Tokens {
 
         while !source.is_empty() {
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
-                let macro_tokes = Tokens::new(body, &self.opts)?.to_tokens();
+                let macro_tokes = Tokens::new(body, self.opts.clone())?.to_tokens();
 
                 let pos = crate::locate::span_to_pos(body);
                 let name = name.to_string();
@@ -232,7 +232,6 @@ pub fn tokenize_file<P: AsRef<Path>>(
     parent: Option<PathBuf>,
 ) -> GResult<Node> {
     use anyhow::Context;
-
     use Item::*;
 
     let x = messages();
@@ -253,7 +252,7 @@ pub fn tokenize_file<P: AsRef<Path>>(
 
     let input = Span::new_extra(&source, AsmSource::FileId(id));
 
-    let mut tokes = tokenize_text(input, &ctx.opts)?;
+    let mut tokes = tokenize_text(input, ctx.opts.clone())?;
 
     for err in &tokes.parse_errors {
         ctx.add_parse_error(err.clone())?;
@@ -308,7 +307,7 @@ pub struct TokenizedText {
     pub parse_errors: Vec<ParseError>,
 }
 
-pub fn tokenize_text(text: Span, opts: &Opts) -> GResult<TokenizedText> {
+pub fn tokenize_text(text: Span, opts: Opts) -> GResult<TokenizedText> {
     let toks = Tokens::new(text, opts)?;
     Ok(toks.into())
 }

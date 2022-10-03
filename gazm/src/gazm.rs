@@ -16,16 +16,27 @@ pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R 
     f(state)
 }
 
-pub fn assemble(opts: Opts) -> GResult<Arc<Mutex<Context>>> {
-    let file = opts.project_file.clone();
+pub fn create_ctx(opts: Opts) -> Arc<Mutex<Context>> { 
     let ctx = Context::from(opts);
     let ctx = Arc::new(Mutex::new(ctx));
+    ctx
+}
+
+fn assemble_arc(opts: Opts) -> GResult<Arc<Mutex<Context>>> {
+    let file = opts.project_file.clone();
+    let ctx = create_ctx(opts);
     assemble_file(&ctx, file)?;
     Ok(ctx)
 }
 
-fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
+pub fn assemble(opts: Opts) -> GResult<Context> {
+    let ctx_arc = assemble_arc(opts)?;
+    let lock = Arc::try_unwrap(ctx_arc).expect("Still multiple owners");
+    let ctx = lock.into_inner().expect("can't lock mutex");
+    Ok(ctx)
+}
 
+fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
     use emu::utils::PathSearcher;
 
     let (is_async, paths) = with_state(&arc_ctx, |ctx| {

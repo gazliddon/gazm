@@ -2,6 +2,10 @@
 members = ["utils", "emu","gazm", "diss", "gazmfmt", "glsp"]
 
 [profile.release]
-debug = true
+# debug = true
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
 
 

@@ -124,7 +124,7 @@ impl Default for Opts {
 
 use emu::utils::sources::nsym;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Context {
     pub symbols: SymbolTree,
     pub source_file_loader: SourceFileLoader,
@@ -136,7 +136,6 @@ pub struct Context {
     pub binary: binary::Binary,
     pub source_map: SourceMapping,
     pub lst_file: LstFile,
-    pub symbols2: nsym::Symbols,
     pub exec_addr: Option<usize>,
     pub bin_chunks: Vec<BinWriteDesc>,
     pub cwd: PathBuf,
@@ -258,17 +257,51 @@ impl Context {
         }
         Ok(())
     }
+    pub fn write_sym_file(&mut self) -> GResult<()> {
+        if let Some(sym_file) = &self.opts.syms_file {
+            let _syms = self.symbols.clone();
+
+            // let sd : SourceDatabase = ctx.into();
+
+            status_mess!("Writing symbols: {}", sym_file);
+
+            // sd.write_json(sym_file).with_context(||format!("Unable to write {sym_file}"))?;
+
+            if let Some(deps) = &self.opts.deps_file {
+                status_mess!("Writing deps file : {deps}");
+
+                let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
+
+                let read: Vec<String> = self
+                    .get_source_file_loader()
+                    .get_files_read()
+                    .iter()
+                    .map(as_string)
+                    .collect();
+                let written: Vec<String> = self
+                    .get_source_file_loader()
+                    .get_files_written()
+                    .iter()
+                    .map(as_string)
+                    .collect();
+
+                let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
+                let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
+
+                std::fs::write(deps, deps_line).with_context(|| format!("Unable to write {deps}"))?;
+            }
+        }
+        Ok(())
+    }
 
     pub fn checksum_report(&self) {
+
         use sha1::{Digest, Sha1};
 
         if !self.opts.checksums.is_empty() {
             let mess = crate::messages::messages();
-            let old_verb = mess.get_verbosity();
-            mess.set_verbosity(&Verbosity::Info);
 
-            status_mess!("Validating checksums");
-            mess.indent();
+            let mut errors = vec![];
 
             for (name, csum) in &self.opts.checksums {
                 let mut hasher = Sha1::new();
@@ -278,14 +311,20 @@ impl Context {
                 let expected_hash = csum.sha1.to_lowercase();
 
                 if this_hash != expected_hash {
-                    status_mess!("{name} : ❌")
-                } else {
-                    status_mess!("{name} : ✅")
-                }
+                    errors.push(name);
+                } 
             }
 
-            mess.set_verbosity(&old_verb);
-            mess.deindent();
+            if errors.is_empty() {
+                status_mess!("✅: Checksums correct")
+            } else {
+                mess.error("❌ : Mismatched Checksums");
+                mess.indent();
+                for name in errors {
+                    status_err!("{name} : ❌");
+                }
+                mess.deindent();
+            }
         }
     }
 }
@@ -313,7 +352,6 @@ impl Default for Context {
             vars: Default::default(),
             symbols: Default::default(),
             lst_file: LstFile::new(),
-            symbols2: nsym::Symbols::new(),
             exec_addr: None,
             bin_chunks: vec![],
             cwd: std::env::current_dir().unwrap(),

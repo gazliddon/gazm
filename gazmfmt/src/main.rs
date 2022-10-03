@@ -25,7 +25,7 @@ fn main() {
 
     let text = Span::new_extra(&src, AsmSource::FromStr);
 
-    let toks = tokenize_text(text, &opts).expect("Can't tokenize");
+    let toks = tokenize_text(text, opts.clone()).expect("Can't tokenize");
 
     let formatted = render_nodes(toks.tokens, text);
 
