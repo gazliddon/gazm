@@ -40,6 +40,7 @@ mod structs;
 mod tokenize;
 mod util;
 mod token_store;
+mod vars;
 
 use anyhow::{Context, Result};
 use ctx::Opts;

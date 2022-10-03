@@ -40,3 +40,4 @@ pub mod regutils;
 pub mod config;
 pub mod lsp;
 pub mod token_store;
+pub mod vars;

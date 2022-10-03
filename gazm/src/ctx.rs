@@ -1,3 +1,4 @@
+use emu::utils;
 use crate::ast::AstTree;
 use crate::astformat;
 use crate::binary::{self, AccessType, Binary};
@@ -6,14 +7,16 @@ use crate::item::Node;
 use crate::macros::Macros;
 use crate::messages::{status_mess, Verbosity};
 use crate::status_err;
-use emu::utils::sources::fileloader::{FileIo, SourceFileLoader};
-use emu::utils::sources::{
+use crate::token_store::TokenStore;
+use crate::vars::Vars;
+
+use utils::sources::{
+    fileloader::{FileIo, SourceFileLoader},
     BinToWrite, BinWriteDesc, SourceDatabase, SourceFiles, SourceMapping, SymbolTree,
 };
 
-use crate::token_store::TokenStore;
+use utils::PathSearcher;
 
-use emu::utils::PathSearcher;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::vec;
@@ -25,35 +28,9 @@ pub struct WriteBin {
     pub size: usize,
 }
 
-#[derive(Debug, PartialEq, Clone, Default)]
-pub struct Vars {
-    vars: HashMap<String, String>,
-}
 
 use anyhow::{Context as AnyContext, Result};
 
-impl Vars {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn set_var<V: Into<String>>(&mut self, var: V, val: V) {
-        self.vars.insert(var.into(), val.into());
-    }
-
-    pub fn get_var(&self, v: &str) -> Option<&String> {
-        self.vars.get(v)
-    }
-
-    pub fn expand_vars<P: Into<String>>(&self, val: P) -> String {
-        let mut ret = val.into();
-        for (k, to) in &self.vars {
-            let from = format!("$({k})");
-            ret = ret.replace(&from, to);
-        }
-        ret
-    }
-}
 use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 pub struct CheckSum {
@@ -294,14 +271,14 @@ impl Context {
                 let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
                 let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
 
-                std::fs::write(deps, deps_line).with_context(|| format!("Unable to write {deps}"))?;
+                std::fs::write(deps, deps_line)
+                    .with_context(|| format!("Unable to write {deps}"))?;
             }
         }
         Ok(())
     }
 
     pub fn checksum_report(&self) {
-
         use sha1::{Digest, Sha1};
 
         if !self.opts.checksums.is_empty() {
@@ -318,7 +295,7 @@ impl Context {
 
                 if this_hash != expected_hash {
                     errors.push(name);
-                } 
+                }
             }
 
             if errors.is_empty() {
