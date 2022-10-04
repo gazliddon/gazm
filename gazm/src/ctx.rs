@@ -1,4 +1,3 @@
-use emu::utils;
 use crate::ast::AstTree;
 use crate::astformat;
 use crate::binary::{self, AccessType, Binary};
@@ -9,6 +8,7 @@ use crate::messages::{status_mess, Verbosity};
 use crate::status_err;
 use crate::token_store::TokenStore;
 use crate::vars::Vars;
+use emu::utils;
 
 use utils::sources::{
     fileloader::{FileIo, SourceFileLoader},
@@ -103,29 +103,38 @@ impl Default for Opts {
     }
 }
 
-use emu::utils::sources::nsym;
-
-#[derive(Debug, Clone)]
-pub struct Context {
+#[derive(Debug, Clone, Default)]
+pub struct AsmOut {
     pub symbols: SymbolTree,
-    pub source_file_loader: SourceFileLoader,
     pub errors: ErrorCollector,
     pub binary: binary::Binary,
     pub source_map: SourceMapping,
     pub lst_file: LstFile,
     pub exec_addr: Option<usize>,
     pub bin_chunks: Vec<BinWriteDesc>,
-    pub cwd: PathBuf,
+    pub bin_to_write_chunks: Vec<BinToWrite>,
     pub tokens: Vec<Node>,
     pub ast: Option<AstTree>,
-    pub opts: Opts,
-    pub bin_to_write_chunks: Vec<BinToWrite>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Context {
     pub token_store: TokenStore,
+    pub source_file_loader: SourceFileLoader,
+    pub cwd: PathBuf,
+    pub opts: Opts,
+    pub asm_out : AsmOut,
 }
 
 #[derive(Debug, Clone)]
 pub struct LstFile {
     pub lines: Vec<String>,
+}
+
+impl Default for LstFile {
+    fn default() -> Self {
+        Self { lines: Default::default() }
+    }
 }
 
 impl LstFile {
@@ -195,15 +204,15 @@ impl Context {
 
     pub fn add_parse_error(&mut self, pe: ParseError) -> GResult<()> {
         let ue = UserError::from_parse_error(&pe, self.sources());
-        self.errors.add_user_error(ue)
+        self.asm_out.errors.add_user_error(ue)
     }
 
     pub fn add_user_error(&mut self, e: UserError) -> GResult<()> {
-        self.errors.add_user_error(e)
+        self.asm_out.errors.add_user_error(e)
     }
 
     pub fn write_bin_chunks(&mut self) -> GResult<()> {
-        for bin_to_write in &self.bin_to_write_chunks {
+        for bin_to_write in &self.asm_out.bin_to_write_chunks {
             let physical_address = bin_to_write.bin_desc.addr.start;
             let count = bin_to_write.bin_desc.addr.len();
             let p = &bin_to_write.bin_desc.file;
@@ -221,7 +230,7 @@ impl Context {
         use std::fs;
 
         if let Some(lst_file) = &self.opts.lst_file {
-            let text = self.lst_file.lines.join("\n");
+            let text = self.asm_out.lst_file.lines.join("\n");
             fs::write(lst_file, text)
                 .with_context(|| format!("Unable to write list file {lst_file}"))?;
             status_mess!("Written lst file {lst_file}");
@@ -233,7 +242,7 @@ impl Context {
         if let Some(ast_file) = &self.opts.ast_file {
             status_mess!("Writing ast: {}", ast_file.to_string_lossy());
             status_err!("Not done!");
-            if let Some(ast) = &self.ast {
+            if let Some(ast) = &self.asm_out.ast {
                 let x = astformat::as_string(ast.root());
                 println!("{x}");
             } else {
@@ -244,7 +253,7 @@ impl Context {
     }
     pub fn write_sym_file(&mut self) -> GResult<()> {
         if let Some(sym_file) = &self.opts.syms_file {
-            let _syms = self.symbols.clone();
+            let _syms = self.asm_out.symbols.clone();
 
             // let sd : SourceDatabase = ctx.into();
 
@@ -290,7 +299,7 @@ impl Context {
 
             for (name, csum) in &self.opts.checksums {
                 let mut hasher = Sha1::new();
-                let data = self.binary.get_bytes(csum.addr, csum.size);
+                let data = self.asm_out.binary.get_bytes(csum.addr, csum.size);
                 hasher.update(data);
                 let this_hash = hasher.digest().to_string().to_lowercase();
                 let expected_hash = csum.sha1.to_lowercase();
@@ -317,11 +326,11 @@ impl Context {
 impl From<&Context> for SourceDatabase {
     fn from(c: &Context) -> Self {
         SourceDatabase::new(
-            &c.source_map,
+            &c.asm_out.source_map,
             &c.sources(),
-            &c.symbols,
-            &c.bin_chunks,
-            c.exec_addr,
+            &c.asm_out.symbols,
+            &c.asm_out.bin_chunks,
+            c.asm_out.exec_addr,
         )
     }
 }
@@ -330,20 +339,11 @@ impl From<&Context> for SourceDatabase {
 impl Default for Context {
     fn default() -> Self {
         Self {
-            errors: ErrorCollector::new(5),
-            binary: binary::Binary::new(65536, binary::AccessType::ReadWrite),
-            source_map: Default::default(),
             source_file_loader: Default::default(),
-            symbols: Default::default(),
-            lst_file: LstFile::new(),
-            exec_addr: None,
-            bin_chunks: vec![],
             cwd: std::env::current_dir().unwrap(),
-            tokens: vec![],
-            ast: None,
             opts: Default::default(),
-            bin_to_write_chunks: vec![],
             token_store: TokenStore::new(),
+            asm_out : Default::default(),
         }
     }
 }
@@ -355,8 +355,8 @@ impl From<Opts> for Context {
             ..Default::default()
         };
 
-        ret.errors = ErrorCollector::new(opts.max_errors);
-        ret.binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
+        ret.asm_out.errors = ErrorCollector::new(opts.max_errors);
+        ret.asm_out.binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
         ret.opts = opts.clone();
 
         ret

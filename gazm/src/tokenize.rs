@@ -297,7 +297,7 @@ pub fn tokenize<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResu
     let ctx = &mut ctx_arc.deref_mut();
 
     let block = tokenize_file(0, ctx, &file, None)?;
-    ctx.errors.raise_errors()?;
+    ctx.asm_out.errors.raise_errors()?;
 
     Ok(block)
 }

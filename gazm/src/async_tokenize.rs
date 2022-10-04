@@ -189,7 +189,7 @@ pub fn tokenize<P: AsRef<Path>>(ctx: &Arc<Mutex<Context>>, requested_file: P) ->
     let file_name = tokenize_main(&token_ctx, &requested_file, None, include_stack)?;
 
     let ret = token_ctx.with(|ctx| -> GResult<Node> {
-        ctx.errors.raise_errors()?;
+        ctx.asm_out.errors.raise_errors()?;
         let toks = ctx.token_store.get_tokens(&file_name).unwrap().clone();
         Ok(toks)
     })?;
@@ -274,7 +274,7 @@ fn tokenize_main<P: AsRef<Path>>(
                 s.spawn(move |_| {
                     let res = tokenize_main(ctx, &full_path, Some(actual_file.clone()), stack);
                     ctx.with(|ctx| {
-                        let _ = ctx.errors.add_result(res);
+                        let _ = ctx.asm_out.errors.add_result(res);
                     })
                 });
             }
@@ -286,7 +286,7 @@ fn tokenize_main<P: AsRef<Path>>(
         // and then add the update tokens to the token store
 
         ctx.with(|ctx| -> GResult<()> {
-            ctx.errors.raise_errors()?;
+            ctx.asm_out.errors.raise_errors()?;
 
             let inc_nodes : Vec<_> = tokenized.node.children.iter_mut().filter_map(|c| {
                 c.item().get_include().map(|f| {

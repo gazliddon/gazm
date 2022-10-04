@@ -56,9 +56,9 @@ fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GRes
     assemble_tokens(arc_ctx, &node)?;
 
     with_state(&arc_ctx, |ctx| {
-        ctx.tokens.push(node);
+        ctx.asm_out.tokens.push(node);
         ctx.source_file_loader.set_search_paths(paths);
-        ctx.errors.raise_errors()
+        ctx.asm_out.errors.raise_errors()
     })
 }
 
@@ -76,21 +76,21 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
 
         let mut asm_ctx = AsmCtx {
             fixer_upper: FixerUpper::new(),
-            eval: Evaluator::new(&mut ctx.symbols, &mut ctx.source_file_loader),
+            eval: Evaluator::new(&mut ctx.asm_out.symbols, &mut ctx.source_file_loader),
             direct_page: None,
-            source_map: &mut ctx.source_map,
-            binary: &mut ctx.binary,
-            errors: &mut ctx.errors,
+            source_map: &mut ctx.asm_out.source_map,
+            binary: &mut ctx.asm_out.binary,
+            errors: &mut ctx.asm_out.errors,
             opts: &ctx.opts,
-            lst_file: &mut ctx.lst_file,
-            exec_addr: &mut ctx.exec_addr,
-            bin_to_write_chunks: &mut ctx.bin_to_write_chunks,
+            lst_file: &mut ctx.asm_out.lst_file,
+            exec_addr: &mut ctx.asm_out.exec_addr,
+            bin_to_write_chunks: &mut ctx.asm_out.bin_to_write_chunks,
         };
 
         size_tree(&mut asm_ctx, id, &tree)?;
 
         compile(&mut asm_ctx, &tree)?;
-        ctx.ast = Some(tree);
+        ctx.asm_out.ast = Some(tree);
 
         Ok(())
     })

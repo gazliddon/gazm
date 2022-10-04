@@ -158,7 +158,7 @@ impl<'a> Compiler<'a> {
         let (physical_address, count) = ctx.eval.eval_two_args(node)?;
 
         ctx.add_bin_to_write(
-            path,
+            &path,
             physical_address as usize..(physical_address + count) as usize,
         )?;
 
@@ -168,25 +168,28 @@ impl<'a> Compiler<'a> {
     fn inc_bin_ref<P: AsRef<Path>>(&self, ctx: &mut AsmCtx, file_name: P) -> GResult<()> {
         use crate::binary::BinRef;
 
+        let file = file_name.as_ref().to_path_buf();
+
         let (.., data) = ctx.read_binary(&file_name)?;
 
         let dest = ctx.binary.get_write_location().physical;
 
         let bin_ref = BinRef {
-            file: file_name.as_ref().into(),
+            file: file.clone(),
             start: 0,
             size: data.len(),
             dest,
         };
 
         ctx.binary.bin_reference(&bin_ref, &data);
-        let file_name = file_name.as_ref().to_string_lossy();
 
         messages().info(format!(
-            "Adding binary reference {file_name} for {:05X} - {:05X}",
+            "Adding binary reference {} for {:05X} - {:05X}",
+            file.to_string_lossy(),
             dest,
             dest + data.len()
         ));
+
         Ok(())
     }
 

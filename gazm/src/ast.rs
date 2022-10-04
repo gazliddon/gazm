@@ -313,7 +313,7 @@ impl<'a> Ast<'a> {
         let err = |m| self.node_error(m, id, true);
 
         if let Item::PostFixExpr = item {
-            eval(&self.ctx.symbols, node).map_err(|e| self.convert_error(e.into()))
+            eval(&self.ctx.asm_out.symbols, node).map_err(|e| self.convert_error(e.into()))
         } else {
             Err(err(&format!(
                 "Incorrect item type for evalulation : {item:?}"
@@ -335,7 +335,7 @@ impl<'a> Ast<'a> {
     where
         S: Into<String>,
     {
-        self.ctx
+        self.ctx.asm_out
             .symbols
             .add_symbol_with_value(&name.into(), value)
             .map_err(|e| {
@@ -394,9 +394,9 @@ impl<'a> Ast<'a> {
 
                 match &item {
                     Scope(scope) => {
-                        self.ctx.symbols.set_root();
+                        self.ctx.asm_out.symbols.set_root();
                         if scope != "root" {
-                            self.ctx.symbols.set_scope(scope);
+                            self.ctx.asm_out.symbols.set_scope(scope);
                         }
                     }
 
@@ -404,14 +404,14 @@ impl<'a> Ast<'a> {
 
                         let n = self.tree.get(id).unwrap();
                         let cn = n.first_child().unwrap();
-                        let res = eval(&self.ctx.symbols, cn);
+                        let res = eval(&self.ctx.asm_out.symbols, cn);
                         let c_id = cn.id();
 
                         match res {
                             Ok(value) => {
                                 self.add_symbol(value, name, c_id)?;
                                 let si = self.get_source_info_from_node_id(id).unwrap();
-                                let scope = self.ctx.symbols.get_current_scope_fqn();
+                                let scope = self.ctx.asm_out.symbols.get_current_scope_fqn();
                                 let msg = format!("{scope}::{} = {} :  {} {}", name.clone(), value, si.file.to_string_lossy(),si.line_str);
                                 x.debug(&msg);
                             }

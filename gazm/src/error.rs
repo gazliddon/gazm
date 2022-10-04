@@ -1,12 +1,11 @@
-
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::doc::ErrorDocType;
-use crate::{binary, gazm};
 use crate::locate::span_to_pos;
 use crate::locate::Span;
+use crate::{binary, gazm};
+use emu::utils::sources::{AsmSource, Position, SourceInfo};
 use serde::de::Error;
 use thiserror::Error;
-use emu::utils::sources::{Position, SourceInfo, AsmSource};
 
 pub type GResult<T> = Result<T, GazmErrorType>;
 
@@ -50,7 +49,7 @@ impl From<anyhow::Error> for GazmErrorType {
 // application should use this
 // thiserror = typed errors, gasmlib
 
-#[derive(Error,Debug, PartialEq, Clone)]
+#[derive(Error, Debug, PartialEq, Clone)]
 pub struct ParseError {
     pub message: Option<String>,
     pub pos: Position,
@@ -59,7 +58,7 @@ pub struct ParseError {
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f,"Parsing! {:?}", self.message())
+        writeln!(f, "Parsing! {:?}", self.message())
     }
 }
 
@@ -81,7 +80,7 @@ pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
 
 impl ParseError {
     pub fn new(message: String, span: &Span, failure: bool) -> ParseError {
-        Self::new_from_pos(message,&span_to_pos(*span) , failure)
+        Self::new_from_pos(message, &span_to_pos(*span), failure)
     }
 
     pub fn new_from_pos(message: String, pos: &Position, failure: bool) -> Self {
@@ -168,7 +167,6 @@ impl std::fmt::Display for AstError {
     }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // User Error
 
@@ -243,7 +241,8 @@ impl UserError {
             self.file.to_string_lossy(),
             line,
             col
-        ).expect("kj");
+        )
+        .expect("kj");
 
         writeln!(s, "{}", bar).expect("kj");
         writeln!(s, "{} {}", bar_line, self.line).expect("kj");
@@ -275,6 +274,16 @@ pub struct ErrorCollector {
     errors_remaining: usize,
 }
 
+impl Default for ErrorCollector {
+    fn default() -> Self {
+        Self {
+            max_errors: 10,
+            errors: Default::default(),
+            errors_remaining: Default::default(),
+        }
+    }
+}
+
 impl std::fmt::Display for ErrorCollector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for x in &self.errors {
@@ -291,7 +300,6 @@ impl std::fmt::Debug for ErrorCollector {
 
 impl std::error::Error for ErrorCollector {}
 
-
 impl ErrorCollector {
     pub fn new(max_errors: usize) -> Self {
         Self {
@@ -301,13 +309,14 @@ impl ErrorCollector {
         }
     }
 
-
-    pub fn check_errs<T,F>(&mut self, mut f : F) -> GResult<()> 
-        where F : FnMut() -> GResult<T> {
-            if let Err(e) = f() {
-                self.add_error(e, false)?;
-            }
-            Ok(())
+    pub fn check_errs<T, F>(&mut self, mut f: F) -> GResult<()>
+    where
+        F: FnMut() -> GResult<T>,
+    {
+        if let Err(e) = f() {
+            self.add_error(e, false)?;
+        }
+        Ok(())
     }
 
     pub fn add_errors(&mut self, other: Self) {
@@ -331,7 +340,7 @@ impl ErrorCollector {
             Ok(())
         }
     }
-    pub fn add_result<T>(&mut self, e : GResult<T> ) -> GResult<()> {
+    pub fn add_result<T>(&mut self, e: GResult<T>) -> GResult<()> {
         if let Err(err) = e {
             self.add_error(err, false)
         } else {
@@ -345,7 +354,7 @@ impl ErrorCollector {
         self.add_error(err, failure)
     }
 
-    pub fn add_error(&mut self, err: GazmErrorType, failure : bool) -> GResult<()> {
+    pub fn add_error(&mut self, err: GazmErrorType, failure: bool) -> GResult<()> {
         self.errors.push(err.clone());
 
         if self.errors_remaining == 0 || failure {
@@ -360,12 +369,7 @@ impl ErrorCollector {
         self.add_user_error(UserError::from_ast_error(err, info))
     }
 
-    pub fn add_text_error<S>(
-        &mut self,
-        msg: S,
-        info: &SourceInfo,
-        is_failure: bool,
-    ) -> GResult<()>
+    pub fn add_text_error<S>(&mut self, msg: S, info: &SourceInfo, is_failure: bool) -> GResult<()>
     where
         S: Into<String>,
     {

@@ -33,6 +33,7 @@ impl<'a> Evaluator<'a> {
             source_file_loader,
         }
     }
+
     pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
         self.source_file_loader
     }

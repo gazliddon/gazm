@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut ctx = gazm::assemble_from_opts(opts)?;
 
-            for (addr, count) in ctx.binary.check_against_referece() {
+            for (addr, count) in ctx.asm_out.binary.check_against_referece() {
                 println!("{addr:04X} {count}");
             }
 
