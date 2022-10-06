@@ -70,10 +70,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         ctx::BuildType::Build => {
             mess.status(BANNER);
-
             mess.indent();
 
             use std::fs;
+
+            // Todo move directory handling into assemble_from_opts
+            // probably as a function of Opts
+
+            let cur_dir = std::env::current_dir().unwrap();
+
+            if let Some(assemble_dir) = &opts.assemble_dir {
+                std::env::set_current_dir(assemble_dir)?;
+            }
 
             let mut ctx = gazm::assemble_from_opts(opts)?;
 
@@ -88,6 +96,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             mess.deindent();
             mess.info("");
+
+            std::env::set_current_dir(cur_dir)?;
 
             Ok(())
         }

@@ -27,13 +27,25 @@ impl YamlConfig {
     }
 
     pub fn new_from_file<P: AsRef<std::path::Path>>(file: P) -> Self {
+        let run_dir = file.as_ref().parent().and_then(|p| {
+            (p.to_string_lossy() != "")
+                .then_some(p)
+                .map(|p| p.to_path_buf())
+        });
+
         use toml::Value;
         let f = std::fs::read_to_string(&file).expect("can't read");
         let mut val: Self = toml::from_str(&f).unwrap();
 
-        val.opts.vars = val.vars.clone().into_iter().collect::<Vec<(String,String)>>().into();
+        val.opts.vars = val
+            .vars
+            .clone()
+            .into_iter()
+            .collect::<Vec<(String, String)>>()
+            .into();
         val.file = file.as_ref().to_path_buf().clone();
         val.opts.checksums = val.checksums.clone();
+        val.opts.assemble_dir = run_dir;
         val
     }
 }

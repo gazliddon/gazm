@@ -52,6 +52,7 @@ pub struct Settings {}
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct Opts {
+    pub assemble_dir: Option<PathBuf>,
     pub verbose: Verbosity,
     pub syms_file: Option<String>,
     pub trailing_comments: bool,
@@ -81,19 +82,20 @@ pub struct Opts {
 impl Default for Opts {
     fn default() -> Self {
         Self {
+            assemble_dir: Default::default(),
             verbose: Verbosity::Silent,
-            syms_file: None,
+            syms_file: Default::default(),
             trailing_comments: false,
             star_comments: false,
             ignore_relative_offset_errors: false,
-            as6809_lst: None,
-            as6809_sym: None,
-            deps_file: None,
-            mem_size: 65536,
-            project_file: "lol".to_owned().into(),
-            lst_file: None,
+            as6809_lst: Default::default(),
+            as6809_sym: Default::default(),
+            deps_file: Default::default(),
+            mem_size: 64*1024,
+            project_file: Default::default(),
+            lst_file: Default::default(),
             encode_blank_lines: false,
-            ast_file: None,
+            ast_file: Default::default(),
             max_errors: 10,
             vars: Default::default(),
             build_async: false,

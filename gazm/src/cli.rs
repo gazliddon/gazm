@@ -38,22 +38,16 @@ pub type ConfigError<T> = Result<T, ConfigErrorType>;
 fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
     use std::env::set_current_dir;
 
-    let x = m.value_of("config-file").ok_or(ConfigErrorType::MissingConfigArg)?;
+    // Get the config file or use the default gazm.toml
+    let x = m.value_of("config-file").unwrap_or("gazm.toml".into());
+
     let path = PathBuf::from(x);
 
     if !path.is_file() {
         return Err(ConfigErrorType::MissingConfigFile(path))
     }
 
-    let dir = path.parent();
-
-    if let Some(parent) = dir {
-        if parent.is_dir() {
-            set_current_dir(&parent).map_err(|_| ConfigErrorType::InvalidDir(parent.to_path_buf()))?;
-        }
-    }
-
-    Ok(config::YamlConfig::new())
+    Ok(config::YamlConfig::new_from_file(x))
 }
 
 fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigError<Opts> {
@@ -82,6 +76,7 @@ impl Opts {
                     lst_file: m.value_of("lst-file").map(|f| f.to_string()),
                     ast_file: m.value_of("ast-file").map(|f| PathBuf::from(f.to_string())),
                     build_async: m.is_present("build-async"),
+                    assemble_dir: Some(std::env::current_dir().unwrap()),
                     ..Default::default()
                 };
 
