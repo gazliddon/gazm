@@ -26,6 +26,137 @@ impl<'a> SymbolQuery for Evaluator<'a> {
     }
 }
 
+impl Context {
+    pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
+        &mut self.source_file_loader
+    }
+
+    pub fn loader(&self) -> &SourceFileLoader {
+        &self.source_file_loader
+    }
+
+    /// Evaluate all macro args
+    /// if all arguments were evaluated returns true
+
+    pub fn eval_macro_args(
+        &mut self,
+        scope: &str,
+        node: AstNodeRef,
+        macro_node: AstNodeRef,
+    ) -> bool {
+        if let MacroDef(_name, params) = &macro_node.value().item {
+            self.asm_out.symbols.set_scope(scope);
+            let mut assignments = vec![];
+
+            let mut args_evaled = 0;
+
+            let args = node.children();
+
+            args.zip(params).for_each(|(arg, param)| {
+                if !self
+                    .asm_out
+                    .symbols
+                    .get_current_scope_symbols()
+                    .symbol_exists_from_name(param)
+                {
+                    let evaled = self.eval_node(arg);
+                    if let Ok(value) = evaled {
+                        assignments.push((param.clone(), value));
+                        args_evaled += 1;
+                    }
+                } else {
+                    args_evaled += 1;
+                }
+            });
+
+            for (param, value) in assignments {
+                let res = self.asm_out.
+                    symbols.add_symbol_with_value(&param, value);
+
+                if res.is_err() {
+                    println!("{}", self.asm_out.symbols.get_current_scope_symbols());
+                    panic!();
+                }
+            }
+            self.asm_out.symbols.pop_scope();
+
+            args_evaled == params.len()
+        } else {
+            panic!()
+        }
+    }
+
+    pub fn get_symbols_mut(&mut self) -> &mut SymbolTree {
+        &mut self.asm_out.symbols
+    }
+
+    pub fn get_symbols(&self) -> &SymbolTree {
+        &self.asm_out.symbols
+    }
+
+    pub fn get_children(&self, node: AstNodeRef) -> Vec<AstNodeId> {
+        node.children().map(|n| n.id()).collect()
+    }
+
+    pub fn eval_node(&self, node: AstNodeRef) -> GResult<i64> {
+        let info = self.get_source_info(&node.value().pos).unwrap();
+        eval(&self.asm_out.symbols, node).map_err(|err| {
+            let e = match &err.source {
+                crate::eval::EvalErrorEnum::SymbolNotFoud(name) => {
+                    let scope = self.get_symbols().get_current_scope_fqn();
+                    let mut err = err.clone();
+                    err.source =
+                        crate::eval::EvalErrorEnum::SymbolNotFoud(format!("{scope}::{name}"));
+                    UserError::from_ast_error(err.into(), &info)
+                }
+                _ => UserError::from_ast_error(err.into(), &info),
+            };
+            e.into()
+        })
+    }
+
+    pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, SourceErrorType> {
+        self.source_file_loader.sources.get_source_info(pos)
+    }
+
+    pub fn eval_with_pc(&mut self, n: AstNodeRef, pc: u64) -> GResult<i64> {
+        self.asm_out.symbols.add_symbol_with_value("*", pc as i64).unwrap();
+        let ret = self.eval_node(n)?;
+        self.asm_out.symbols.remove_symbol_name("*");
+        Ok(ret)
+    }
+    pub fn user_error<S: Into<String>>(
+        &self,
+        err: S,
+        node: AstNodeRef,
+        is_failure: bool,
+    ) -> UserError {
+        let info = self.get_source_info(&node.value().pos).unwrap();
+        UserError::from_text(err, &info, is_failure)
+    }
+
+    pub fn eval_first_arg(&self, node: AstNodeRef) -> GResult<(i64, AstNodeId)> {
+        let c = node
+            .first_child()
+            .ok_or_else(|| self.user_error("Missing argument", node, true))?;
+        let v = self.eval_node(c)?;
+        Ok((v, c.id()))
+    }
+
+    pub fn eval_two_args(&self, node: AstNodeRef) -> GResult<(i64, i64)> {
+        let args = self.eval_n_args(node, 2)?;
+        assert!(args.len() == 2);
+        Ok((args[0], args[1]))
+    }
+
+    pub fn eval_n_args(&self, node: AstNodeRef, n: usize) -> GResult<Vec<i64>> {
+        node.children()
+            .take(n)
+            .map(|node| self.eval_node(node))
+            .collect()
+    }
+}
+
 impl<'a> Evaluator<'a> {
     pub fn new(symbols: &'a mut SymbolTree, source_file_loader: &'a mut SourceFileLoader) -> Self {
         Self {

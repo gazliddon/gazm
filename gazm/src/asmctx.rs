@@ -6,35 +6,37 @@ use crate::error::{ErrorCollector, GResult, GazmErrorType};
 use crate::evaluator::Evaluator;
 use crate::item::Item;
 use crate::{binary, fixerupper::FixerUpper};
-use emu::utils::sources::{self, BinToWrite};
+use emu::utils::sources::{self, BinToWrite, Position};
 use sources::fileloader::{FileIo, SourceFileLoader};
 use sources::{BinWriteDesc, SourceMapping, SymbolError, SymbolNodeId, SymbolWriter};
 use std::path::{ Path, PathBuf };
 
-pub struct AsmCtx<'a> {
-    pub fixer_upper: FixerUpper,
-    pub eval: Evaluator<'a>,
-    pub direct_page: Option<u8>,
+use crate::ctx::Context;
 
-    pub source_map: &'a mut SourceMapping,
-    pub binary: &'a mut binary::Binary,
-    /// Collected errors
-    pub errors: &'a mut ErrorCollector,
-    pub opts: &'a Opts,
-    pub lst_file: &'a mut LstFile,
-    /// Execution address
-    pub exec_addr: &'a mut Option<usize>,
-    /// Written binary chunks
-    pub bin_to_write_chunks: &'a mut Vec<BinToWrite>,
+pub struct AsmCtx<'a> {
+    pub ctx: &'a mut Context,
+    pub fixer_upper: FixerUpper,
 }
 
 impl<'a> AsmCtx<'a> {
     pub fn set_exec_addr(&mut self, addr: usize) {
-        *self.exec_addr = Some(addr)
+        self.ctx.asm_out.exec_addr = Some(addr)
+    }
+
+    pub fn ctx(&mut self) -> &mut Context {
+        self.ctx
+    }
+
+    pub fn binary(&mut self) -> &binary::Binary {
+        &mut self.ctx.asm_out.binary
+    }
+
+    pub fn binary_mut(&mut self) -> &mut binary::Binary {
+        &mut self.ctx.asm_out.binary
     }
 
     pub fn add_fixup(&mut self, id: AstNodeId, v: Item) -> (SymbolNodeId, AstNodeId) {
-        let scope = self.eval.get_symbols().get_current_scope();
+        let scope = self.ctx.get_symbols().get_current_scope();
         self.fixer_upper.add_fixup(scope, id, v);
         (scope, id)
     }
@@ -47,36 +49,36 @@ impl<'a> AsmCtx<'a> {
     }
 
     pub fn get_fixup_or_default(&self, id: AstNodeId, i: &Item) -> Item {
-        let scope = self.eval.get_symbols().get_current_scope();
+        let scope = self.ctx.get_symbols().get_current_scope();
         self.fixer_upper.get_fixup_or_default(scope, id, i)
     }
 
     pub fn set_dp(&mut self, dp: i64) {
         if dp < 0 {
-            self.direct_page = None
+            self.ctx.asm_out.direct_page = None
         } else {
-            self.direct_page = Some(dp as u64 as u8)
+            self.ctx.asm_out.direct_page  = Some(dp as u64 as u8)
         }
     }
 
     pub fn set_root_scope(&mut self) {
-        self.eval.get_symbols_mut().set_root();
+        self.ctx.get_symbols_mut().set_root();
     }
 
     pub fn pop_scope(&mut self) {
-        self.eval.get_symbols_mut().pop_scope()
+        self.ctx.get_symbols_mut().pop_scope()
     }
 
     pub fn set_scope(&mut self, name: &str) {
-        self.eval.get_symbols_mut().set_scope(name)
+        self.ctx.get_symbols_mut().set_scope(name)
     }
 
     pub fn get_scope_fqn(&mut self) -> String {
-        self.eval.get_symbols().get_current_scope_fqn()
+        self.ctx.get_symbols().get_current_scope_fqn()
     }
 
     pub fn add_symbol_with_value(&mut self, name: &str, val: usize) -> Result<u64, SymbolError> {
-        self.eval
+        self.ctx
             .get_symbols_mut()
             .add_symbol_with_value(name, val as i64)
     }
@@ -86,11 +88,11 @@ impl<'a> AsmCtx<'a> {
     }
 
     pub fn remove_pc_symbol(&mut self) {
-        self.eval.get_symbols_mut().remove_symbol_name("*")
+        self.ctx.get_symbols_mut().remove_symbol_name("*")
     }
 
     pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
-        self.eval.loader_mut()
+        self.ctx.loader_mut()
     }
 
     pub fn add_bin_to_write<P: AsRef<Path>>(
@@ -102,7 +104,7 @@ impl<'a> AsmCtx<'a> {
         let count = range.len();
 
         let data = self
-            .binary
+            .ctx.asm_out.binary
             .get_bytes(physical_address as usize, count as usize)
             .to_vec();
 
@@ -122,14 +124,14 @@ impl<'a> AsmCtx<'a> {
             data
         };
 
-        self.bin_to_write_chunks.push(bin_to_write);
+        self.ctx.asm_out.bin_to_write_chunks.push(bin_to_write);
 
         // return the path written to, may have been expanded
         Ok(path)
     }
 
     fn get_abs_path<P: AsRef<Path>, >(&mut self, path: P, ) -> PathBuf {
-        let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
+        let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
         let path = emu::utils::fileutils::abs_path_from_cwd(path);
         path
     }
@@ -148,20 +150,20 @@ impl<'a> AsmCtx<'a> {
     ) {
         let node = tree.get(args_id).unwrap();
         let macro_node = tree.get(macro_id).unwrap();
-        self.eval.eval_macro_args(scope, node, macro_node);
+        self.ctx.eval_macro_args(scope, node, macro_node);
     }
 
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
         use emu::utils::sources::fileloader::FileIo;
 
-        let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.eval.loader().get_size(path)?;
+        let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
+        let ret = self.ctx.loader().get_size(path)?;
         Ok(ret)
     }
 
     pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.eval.loader_mut().read_binary(path)?;
+        let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
+        let ret = self.ctx.loader_mut().read_binary(path)?;
         Ok(ret)
     }
 
@@ -170,8 +172,32 @@ impl<'a> AsmCtx<'a> {
         path: P,
         r: std::ops::Range<usize>,
     ) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.opts.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.eval.loader_mut().read_binary_chunk(path, r)?;
+        let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
+        let ret = self.ctx.loader_mut().read_binary_chunk(path, r)?;
         Ok(ret)
+    }
+
+    pub fn add_source_mapping(&mut self , pos: &Position, pc: usize) {
+        let (_, phys_range) = self.binary().range_to_write_address(pc);
+
+        let si = self.ctx.get_source_info(pos);
+
+        if let Ok(si) = si {
+            let mem_text = if phys_range.is_empty() {
+                "".to_owned()
+            } else {
+                format!(
+                    "{:02X?}",
+                    self.ctx.asm_out.binary.get_bytes_range(phys_range.clone())
+                )
+            };
+
+            let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, pc, mem_text);
+            let m = format!("{:50}{}", m_pc, si.line_str);
+
+            if !mem_text.is_empty() {
+                self.ctx.asm_out.lst_file.add(&m);
+            }
+        }
     }
 }

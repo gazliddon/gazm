@@ -51,7 +51,7 @@ impl<'a> Sizer<'a> {
     }
 
     fn size_indexed(&self, ctx_mut: &mut AsmCtx, mut pc: usize, id: AstNodeId) -> GResult<usize> {
-        let eval = &ctx_mut.eval;
+        // let eval = &ctx_mut.eval;
 
         let (node, i) = self.get_node_item(ctx_mut, id);
 
@@ -72,7 +72,7 @@ impl<'a> Sizer<'a> {
                 | Constant5BitOffset(..) => {}
 
                 ConstantOffset(r) => {
-                    let (v, _) = eval.eval_first_arg(node)?;
+                    let (v, _) = ctx_mut.ctx.eval_first_arg(node)?;
 
                     let mut bs = v.byte_size();
 
@@ -103,7 +103,7 @@ impl<'a> Sizer<'a> {
                 }
 
                 PCOffset => {
-                    let (v, _) = eval.eval_first_arg(node)?;
+                    let (v, _) = ctx_mut.ctx.eval_first_arg(node)?;
                     pc += 1;
 
                     let new_amode = match v.byte_size() {
@@ -157,13 +157,13 @@ impl<'a> Sizer<'a> {
             }
 
             GrabMem => {
-                let args = ctx.eval.eval_n_args(node, 2)?;
+                let args = ctx.ctx.eval_n_args(node, 2)?;
                 let size = args[1];
                 pc += size as usize;
             }
 
             Org => {
-                let res = ctx.eval.eval_first_arg(node);
+                let res = ctx.ctx.eval_first_arg(node);
                 if res.is_err() {
                     panic!();
                 };
@@ -176,17 +176,17 @@ impl<'a> Sizer<'a> {
             SetPc(val) => pc = *val,
 
             Put => {
-                let (value, _) = ctx.eval.eval_first_arg(node)?;
+                let (value, _) = ctx.ctx.eval_first_arg(node)?;
                 let offset = (value - pc as i64) as isize;
                 ctx.add_fixup(id, Item::SetPutOffset(offset));
             }
 
             Rmb => {
-                let (bytes, _) = ctx.eval.eval_first_arg(node)?;
+                let (bytes, _) = ctx.ctx.eval_first_arg(node)?;
 
                 if bytes < 0 {
                     return Err(ctx
-                        .eval
+                        .ctx
                         .user_error("Argument for RMB must be positive", node, true)
                         .into());
                 };
@@ -213,13 +213,13 @@ impl<'a> Sizer<'a> {
 
                         let dp_info = get_opcode_info(ins)
                             .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
-                            .and_then(|ins| ctx.direct_page.map(|dp| (ins, dp)));
+                            .and_then(|ins| ctx.ctx.asm_out.direct_page.map(|dp| (ins, dp)));
 
                         if let Some((new_ins, dp)) = dp_info {
-                            if let Ok((value, _)) = ctx.eval.eval_first_arg(node) {
+                            if let Ok((value, _)) = ctx.ctx.eval_first_arg(node) {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
-                                if top_byte == dp {
+                                if top_byte == dp as u8{
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
@@ -251,7 +251,7 @@ impl<'a> Sizer<'a> {
                     // assignment is from an expr containing the current PC
                     // so lets evaluate it!
                     ctx.set_pc_symbol(pc).unwrap();
-                    let (ret, _) = ctx.eval.eval_first_arg(node)?;
+                    let (ret, _) = ctx.ctx.eval_first_arg(node)?;
                     ctx.remove_pc_symbol();
                     ret
                 } else {
@@ -272,7 +272,7 @@ impl<'a> Sizer<'a> {
                         )
                     } else {
                         let z = ctx
-                            .eval
+                            .ctx
                             .get_symbols()
                             .get_symbol_info(name)
                             .unwrap()
@@ -280,12 +280,12 @@ impl<'a> Sizer<'a> {
                         let scope = ctx.get_scope_fqn();
                         format!("Scope: {scope} {z:#?} - {:?}", e)
                     };
-                    ctx.eval.user_error(err, node, false)
+                    ctx.ctx.user_error(err, node, false)
                 })?;
             }
 
             Block | TokenizedFile(..) => {
-                for c in ctx.eval.get_children(node) {
+                for c in ctx.ctx.get_children(node) {
                     pc = self.size_node(ctx, pc, c)?;
                 }
             }
@@ -303,25 +303,25 @@ impl<'a> Sizer<'a> {
             }
 
             Zmb => {
-                let (v, _) = ctx.eval.eval_first_arg(node)?;
+                let (v, _) = ctx.ctx.eval_first_arg(node)?;
                 assert!(v >= 0);
                 pc += v as usize;
             }
 
             Zmd => {
-                let (v, _) = ctx.eval.eval_first_arg(node)?;
+                let (v, _) = ctx.ctx.eval_first_arg(node)?;
                 assert!(v >= 0);
                 pc += (v * 2) as usize;
             }
 
             Fill => {
-                let (_, c) = ctx.eval.eval_two_args(node)?;
+                let (_, c) = ctx.ctx.eval_two_args(node)?;
                 assert!(c >= 0);
                 pc += c as usize;
             }
 
             SetDp => {
-                let (dp, _) = ctx.eval.eval_first_arg(node)?;
+                let (dp, _) = ctx.ctx.eval_first_arg(node)?;
                 ctx.set_dp(dp);
             }
 
@@ -340,7 +340,7 @@ impl<'a> Sizer<'a> {
             | StructDef(..) | MacroDef(..) | MacroCall(..) => (),
             _ => {
                 let msg = format!("Unable to size {:?}", i);
-                return Err(ctx.eval.user_error(msg, node, true).into());
+                return Err(ctx.ctx.user_error(msg, node, true).into());
             }
         };
 
@@ -365,8 +365,8 @@ impl<'a> Sizer<'a> {
             .and_then(|offset| c.next().map(|size| (offset, size)));
 
         if let Some((offset, size)) = offset_size {
-            let offset = ctx.eval.eval_node(offset)?;
-            let size = ctx.eval.eval_node(size)?;
+            let offset = ctx.ctx.eval_node(offset)?;
+            let size = ctx.ctx.eval_node(size)?;
             let offset = offset as usize;
             let size = size as usize;
             let last = (offset + size) - 1;
@@ -374,7 +374,7 @@ impl<'a> Sizer<'a> {
             if !(r.contains(&offset) && r.contains(&last)) {
                 let msg =
                     format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
-                return Err(ctx.eval.user_error(msg, node, true).into());
+                return Err(ctx.ctx.user_error(msg, node, true).into());
             };
 
             r.start = offset;

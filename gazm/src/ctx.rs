@@ -105,6 +105,7 @@ impl Default for Opts {
 
 #[derive(Debug, Clone, Default)]
 pub struct AsmOut {
+    pub direct_page: Option<u8>,
     pub symbols: SymbolTree,
     pub errors: ErrorCollector,
     pub binary: binary::Binary,
