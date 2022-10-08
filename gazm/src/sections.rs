@@ -18,6 +18,12 @@ struct SerializedSection {
     access: AccessType,
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+struct SectionToml {
+    addr: usize,
+    len : usize,
+}
+
 impl From<SerializedSection> for SectionDescriptor {
     fn from(x: SerializedSection) -> Self {
         let logical_range = x.start..x.start + x.size;
