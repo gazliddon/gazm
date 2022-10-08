@@ -333,8 +333,8 @@ mod test {
         let mut dir = config.file.clone();
         dir.pop();
         let mut ctx = crate::ctx::Context::from(config.opts.clone());
-        ctx.source_file_loader.add_search_path(&dir);
-        ctx.source_file_loader
+        ctx.get_source_file_loader_mut().add_search_path(&dir);
+        ctx.get_source_file_loader_mut()
             .add_search_path(format!("{}/src", dir.to_string_lossy()));
         ctx
     }

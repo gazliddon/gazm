@@ -91,7 +91,7 @@ impl Default for Opts {
             as6809_lst: Default::default(),
             as6809_sym: Default::default(),
             deps_file: Default::default(),
-            mem_size: 64*1024,
+            mem_size: 64 * 1024,
             project_file: Default::default(),
             lst_file: Default::default(),
             encode_blank_lines: false,
@@ -123,10 +123,10 @@ pub struct AsmOut {
 #[derive(Debug, Clone)]
 pub struct Context {
     pub token_store: TokenStore,
-    pub source_file_loader: SourceFileLoader,
+    source_file_loader: SourceFileLoader,
     pub cwd: PathBuf,
     pub opts: Opts,
-    pub asm_out : AsmOut,
+    pub asm_out: AsmOut,
 }
 
 #[derive(Debug, Clone)]
@@ -136,7 +136,9 @@ pub struct LstFile {
 
 impl Default for LstFile {
     fn default() -> Self {
-        Self { lines: Default::default() }
+        Self {
+            lines: Default::default(),
+        }
     }
 }
 
@@ -155,8 +157,16 @@ fn to_gazm(e: anyhow::Error) -> GazmErrorType {
 }
 
 impl Context {
+
+    pub fn reset_output(&mut self) {
+        self.asm_out = AsmOut::from(&self.opts)
+    }
+
     pub fn get_source_file_loader(&self) -> &SourceFileLoader {
         &self.source_file_loader
+    }
+    pub fn get_source_file_loader_mut(&mut self) -> &mut SourceFileLoader {
+        &mut self.source_file_loader
     }
 
     pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&Node> {
@@ -166,6 +176,7 @@ impl Context {
     pub fn sources(&self) -> &SourceFiles {
         &self.source_file_loader.sources
     }
+
     pub fn get_vars(&self) -> &Vars {
         &self.opts.vars
     }
@@ -180,15 +191,19 @@ impl Context {
         &mut self,
         path: P,
     ) -> Result<(PathBuf, String, u64), GazmErrorType> {
-        let path: PathBuf = self
-            .get_vars()
-            .expand_vars(path.as_ref().to_string_lossy())
-            .into();
-        let ret = self
-            .source_file_loader
-            .read_source(&path)
-            .map_err(to_gazm)?;
-        Ok(ret)
+
+        let path = self.get_full_path(&path)?;
+
+        // Is it in the cache?
+        if let Ok((id,sf))= self.source_file_loader.sources.get_source(&path) {
+            let ret = (sf.file.clone(),sf.source.clone(), id);
+            Ok(ret)
+        } else {
+            self
+                .source_file_loader
+                .read_source(&path)
+                .map_err(to_gazm)
+        }
     }
 
     pub fn get_full_path<P: AsRef<Path>>(&mut self, path: P) -> Result<PathBuf, GazmErrorType> {
@@ -346,7 +361,17 @@ impl Default for Context {
             cwd: std::env::current_dir().unwrap(),
             opts: Default::default(),
             token_store: TokenStore::new(),
-            asm_out : Default::default(),
+            asm_out: Default::default(),
+        }
+    }
+}
+/// Create a Context from the command line Opts
+impl From<&Opts> for AsmOut {
+    fn from(opts: &Opts) -> Self {
+        Self {
+            errors: ErrorCollector::new(opts.max_errors),
+            binary: Binary::new(opts.mem_size, AccessType::ReadWrite),
+            ..Default::default()
         }
     }
 }
@@ -354,14 +379,11 @@ impl Default for Context {
 /// Create a Context from the command line Opts
 impl From<Opts> for Context {
     fn from(opts: Opts) -> Self {
-        let mut ret = Self {
+        let asm_out = AsmOut::from(&opts);
+        Self {
+            asm_out,
+            opts,
             ..Default::default()
-        };
-
-        ret.asm_out.errors = ErrorCollector::new(opts.max_errors);
-        ret.asm_out.binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
-        ret.opts = opts.clone();
-
-        ret
+        }
     }
 }

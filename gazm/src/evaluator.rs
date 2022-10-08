@@ -27,13 +27,13 @@ impl<'a> SymbolQuery for Evaluator<'a> {
 }
 
 impl Context {
-    pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
-        &mut self.source_file_loader
-    }
+    // pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
+    //     self.get_source_file_loader_mut()
+    // }
 
-    pub fn loader(&self) -> &SourceFileLoader {
-        &self.source_file_loader
-    }
+    // pub fn loader(&self) -> &SourceFileLoader {
+    //     &self.get_source_file_loader()
+    // }
 
     /// Evaluate all macro args
     /// if all arguments were evaluated returns true
@@ -116,7 +116,7 @@ impl Context {
     }
 
     pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, SourceErrorType> {
-        self.source_file_loader.sources.get_source_info(pos)
+        self.get_source_file_loader().sources.get_source_info(pos)
     }
 
     pub fn eval_with_pc(&mut self, n: AstNodeRef, pc: u64) -> GResult<i64> {

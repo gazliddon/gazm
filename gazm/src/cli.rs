@@ -138,6 +138,16 @@ pub fn parse() -> clap::ArgMatches {
             ),
         )
         .subcommand(
+            Command::new("lsp").about("use the config file").arg(
+                Arg::new("config-file")
+                    .help("load config file")
+                    .multiple_values(false)
+                    .index(1)
+                    .required(false)
+                    .default_value("gazm.toml"),
+            ),
+        )
+        .subcommand(
             Command::new("asm")
                 .arg(
                     Arg::new("project-file")

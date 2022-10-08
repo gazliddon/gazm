@@ -28,14 +28,14 @@ impl SourceFiles {
         id
     }
 
-    pub fn get_source<P: AsRef<Path>>(&self, p: P) -> SResult<&SourceFile> {
+    pub fn get_source<P: AsRef<Path>>(&self, p: P) -> SResult<(u64, &SourceFile )> {
         let p = p.as_ref().to_path_buf();
 
         let id = self
             .path_to_id
             .get(&p)
             .ok_or_else(|| SourceErrorType::FileNotFound(p.to_string_lossy().into()))?;
-        Ok(self.id_to_source_file.get(id).unwrap())
+        Ok((*id, self.id_to_source_file.get(id).unwrap() ))
     }
 
     pub fn get_source_id(&self, id: u64) -> SResult<&SourceFile> {

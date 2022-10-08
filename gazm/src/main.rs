@@ -14,6 +14,7 @@ mod comments;
 mod compile;
 mod config;
 mod ctx;
+mod doc;
 mod error;
 mod eval;
 mod evaluator;
@@ -37,14 +38,14 @@ mod scopes;
 mod sections;
 mod sizer;
 mod structs;
+mod token_store;
 mod tokenize;
 mod util;
-mod token_store;
 mod vars;
-mod doc;
 
 use anyhow::{Context, Result};
 use ctx::Opts;
+use error::GResult;
 use lsp::do_lsp;
 use messages::{info, messages};
 
@@ -61,11 +62,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts = Opts::from_arg_matches(matches)?;
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
+    mess.status(format!( "Verbosity {:?}", &opts.verbose ));
+
+    // Todo move directory handling into assemble_from_opts
+    // probably as a function of Opts
+    let cur_dir = std::env::current_dir().unwrap();
+
+    if let Some(assemble_dir) = &opts.assemble_dir {
+        std::env::set_current_dir(assemble_dir)?;
+    }
 
     match opts.build_type {
         ctx::BuildType::LSP => {
-            lsp::do_lsp(opts);
-            Ok(())
+            mess.status("LSP");
+            lsp::do_lsp(opts)?;
         }
 
         ctx::BuildType::Build => {
@@ -73,15 +83,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             mess.indent();
 
             use std::fs;
-
-            // Todo move directory handling into assemble_from_opts
-            // probably as a function of Opts
-
-            let cur_dir = std::env::current_dir().unwrap();
-
-            if let Some(assemble_dir) = &opts.assemble_dir {
-                std::env::set_current_dir(assemble_dir)?;
-            }
 
             let mut ctx = gazm::assemble_from_opts(opts)?;
 
@@ -96,12 +97,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             mess.deindent();
             mess.info("");
-
-            std::env::set_current_dir(cur_dir)?;
-
-            Ok(())
         }
 
         ctx::BuildType::Check => panic!("TBD"),
-    }
+    };
+
+    std::env::set_current_dir(cur_dir)?;
+
+    Ok(())
 }

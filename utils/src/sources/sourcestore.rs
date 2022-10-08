@@ -298,6 +298,8 @@ impl SourceDatabase {
             let mut x = self.source_files.borrow_mut();
             x.insert(file_id, SourceFile::new(file_name, &s));
             x.get(&file_id);
+        } else {
+            println!("**** Got from cache! {}",file_name.to_string_lossy());
         }
 
         Ok(())

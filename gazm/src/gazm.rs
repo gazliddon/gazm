@@ -22,6 +22,16 @@ pub fn create_ctx(opts: Opts) -> Arc<Mutex<Context>> {
     ctx
 }
 
+pub fn reassemble_ctx(arc_ctx: &Arc<Mutex<Context>>) -> GResult<()> {
+
+    let file = with_state(arc_ctx, |ctx| -> GResult<PathBuf> {
+        ctx.reset_output();
+        Ok(ctx.opts.project_file.clone())
+    })?;
+
+    assemble_file(arc_ctx, file)
+}
+
 fn assemble_arc(opts: Opts) -> GResult<Arc<Mutex<Context>>> {
     let file = opts.project_file.clone();
     let ctx = create_ctx(opts);
@@ -41,9 +51,9 @@ fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GRes
 
     let (is_async, paths) = with_state(&arc_ctx, |ctx| {
         if let Some(dir) = file.as_ref().parent() {
-            ctx.source_file_loader.add_search_path(dir);
+            ctx.get_source_file_loader_mut().add_search_path(dir);
         }
-        let paths = ctx.source_file_loader.get_search_paths().clone();
+        let paths = ctx.get_source_file_loader_mut().get_search_paths().clone();
         (ctx.opts.build_async, paths)
     });
 
@@ -57,7 +67,7 @@ fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GRes
 
     with_state(&arc_ctx, |ctx| {
         ctx.asm_out.tokens.push(node);
-        ctx.source_file_loader.set_search_paths(paths);
+        ctx.get_source_file_loader_mut().set_search_paths(paths);
         ctx.asm_out.errors.raise_errors()
     })
 }

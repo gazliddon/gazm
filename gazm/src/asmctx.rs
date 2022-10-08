@@ -92,7 +92,7 @@ impl<'a> AsmCtx<'a> {
     }
 
     pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
-        self.ctx.loader_mut()
+        self.ctx.get_source_file_loader_mut()
     }
 
     pub fn add_bin_to_write<P: AsRef<Path>>(
@@ -157,13 +157,13 @@ impl<'a> AsmCtx<'a> {
         use emu::utils::sources::fileloader::FileIo;
 
         let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.ctx.loader().get_size(path)?;
+        let ret = self.ctx.get_source_file_loader().get_size(path)?;
         Ok(ret)
     }
 
     pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
         let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.ctx.loader_mut().read_binary(path)?;
+        let ret = self.ctx.get_source_file_loader_mut().read_binary(path)?;
         Ok(ret)
     }
 
@@ -173,7 +173,7 @@ impl<'a> AsmCtx<'a> {
         r: std::ops::Range<usize>,
     ) -> GResult<(PathBuf, Vec<u8>)> {
         let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.ctx.loader_mut().read_binary_chunk(path, r)?;
+        let ret = self.ctx.get_source_file_loader_mut().read_binary_chunk(path, r)?;
         Ok(ret)
     }
 
