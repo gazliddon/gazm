@@ -175,7 +175,7 @@ impl TokenizeContext {
     pub fn get_file_info<P: AsRef<Path>>(&self, requested_file: P) -> GResult<(bool, PathBuf)> {
         let ret = self.with(|ctx| -> GResult<(bool, PathBuf)> {
             let actual_file = ctx.get_full_path(&requested_file)?;
-            let has_this_file = ctx.token_store.has_tokens(&requested_file);
+            let has_this_file = ctx.has_tokens(&requested_file);
             Ok((has_this_file, actual_file))
         })?;
 
@@ -190,7 +190,7 @@ pub fn tokenize<P: AsRef<Path>>(ctx: &Arc<Mutex<Context>>, requested_file: P) ->
 
     let ret = token_ctx.with(|ctx| -> GResult<Node> {
         ctx.asm_out.errors.raise_errors()?;
-        let toks = ctx.token_store.get_tokens(&file_name).unwrap().clone();
+        let toks = ctx.get_tokens(&file_name).unwrap().clone();
         Ok(toks)
     })?;
 
@@ -295,13 +295,12 @@ fn tokenize_main<P: AsRef<Path>>(
                 })
             }).collect();
 
-            let ts = &ctx.token_store;
 
             for (c, file) in inc_nodes {
-                *c = Box::new(ts.get_tokens(&file).unwrap().clone());
+                *c = Box::new(ctx.get_tokens(&file).unwrap().clone());
             }
 
-            ctx.token_store.add_tokens(actual_file.clone(), tokenized.node);
+            ctx.add_tokens(actual_file.clone(), tokenized.node);
             Ok(())
         })?;
     }
