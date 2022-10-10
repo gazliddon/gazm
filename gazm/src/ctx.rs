@@ -169,6 +169,10 @@ impl Context {
         &mut self.source_file_loader
     }
 
+    pub fn get_token_store_mut(&mut self) -> &mut TokenStore {
+        &mut self.token_store
+    }
+
     pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&Node> {
         self.token_store.get_tokens(&file)
     }
@@ -183,6 +187,9 @@ impl Context {
 
     pub fn sources(&self) -> &SourceFiles {
         &self.source_file_loader.sources
+    }
+    pub fn sources_mut(&mut self) -> &mut SourceFiles {
+        &mut self.source_file_loader.sources
     }
 
     pub fn get_vars(&self) -> &Vars {
@@ -201,15 +208,13 @@ impl Context {
     ) -> Result<(PathBuf, String, u64), GazmErrorType> {
 
         let path = self.get_full_path(&path)?;
-        let path_string = path.to_string_lossy();
+        // let path_string = path.to_string_lossy();
 
         // Is it in the cache?
         if let Ok((id,sf))= self.source_file_loader.sources.get_source(&path) {
-            println!("In cache! {path_string}");
             let ret = (sf.file.clone(),sf.source.clone(), id);
             Ok(ret)
         } else {
-            println!("loading {path_string}");
             self
                 .source_file_loader
                 .read_source(&path)

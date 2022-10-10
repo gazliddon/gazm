@@ -43,7 +43,7 @@ impl SourceFiles {
     }
 
 
-    pub fn get_source_mut<P: AsRef<Path>>(&mut self, p: P) -> SResult<&SourceFile> {
+    pub fn get_source_mut<P: AsRef<Path>>(&mut self, p: P) -> SResult<&mut SourceFile> {
         let p = p.as_ref().to_path_buf();
 
         let id = self

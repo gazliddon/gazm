@@ -1,4 +1,4 @@
-use sha1::{Sha1, Digest };
+use sha1::{Digest, Sha1};
 use std::path::{Path, PathBuf};
 
 use crate::item::{Item, Node};
@@ -39,12 +39,19 @@ impl TokenStore {
         self.tokens.insert(file.as_ref().to_path_buf(), node);
     }
 
-    pub fn add_tokens_hash<P: AsRef<Path>>(&mut self, _file: P, node: Node, src : &str) {
-        let _te = TokenEntry::new(src,node);
+    pub fn add_tokens_hash<P: AsRef<Path>>(&mut self, _file: P, node: Node, src: &str) {
+        let _te = TokenEntry::new(src, node);
         // self.tokens.insert(file.as_ref().to_path_buf(), node);
     }
 
     pub fn has_tokens<P: AsRef<Path>>(&self, file: P) -> bool {
         self.get_tokens(file).is_some()
+    }
+
+    pub fn invalidate_tokens<P: AsRef<Path>>(&mut self, file: P) {
+        if self.has_tokens(&file) {
+            let file = file.as_ref().to_path_buf();
+            self.tokens.remove(&file);
+        }
     }
 }
