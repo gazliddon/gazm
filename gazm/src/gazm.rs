@@ -1,29 +1,97 @@
-use crate::async_tokenize;
-use crate::ctx::{Context, Opts};
-use std::path::{Path, PathBuf};
 use crate::ast::Ast;
-use crate::item::Node;
-use crate::tokenize;
-use emu::utils::sources::Position;
-use rayon::iter::plumbing::Consumer;
-use thiserror::Error;
+use crate::async_tokenize;
+use crate::ctx::{AsmOut, Context, Opts};
 use crate::error::UserError;
 use crate::error::{GResult, GazmErrorType};
+use crate::item::Node;
+use crate::tokenize;
+use emu::utils::sources::{Position, SourceFile};
+use rayon::iter::plumbing::Consumer;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use thiserror::Error;
+
+pub struct Assembler {
+    ctx: Arc<Mutex<Context>>,
+    opts: Opts,
+}
+
+impl Into<Context> for Assembler {
+    fn into(self) -> Context {
+        let lock = Arc::try_unwrap(self.ctx).expect("Still multiple owners");
+        let ctx = lock.into_inner().expect("can't lock mutex");
+        ctx
+    }
+}
+
+impl Assembler {
+    /// Create an Assembler
+    pub fn new(opts: Opts) -> Self {
+        let ctx = Context::from(opts.clone());
+        let ctx = Arc::new(Mutex::new(ctx));
+        Self { ctx, opts }
+    }
+
+    /// Assemble for the first time
+    pub fn assemble(&mut self) -> GResult<()> {
+        *self = Self::new(self.opts.clone());
+        self.reassemble()
+    }
+
+    /// Reassemble the project keeping the same caches
+    /// but clearing the assembly output
+    pub fn reassemble(&self) -> GResult<()> {
+        let file = self.with_inner(|ctx: &mut Context| -> GResult<PathBuf> {
+            ctx.reset_output();
+            Ok(ctx.opts.project_file.clone())
+        })?;
+
+        assemble_file(&self.ctx, file)
+    }
+
+    /// Operate on the inner Context
+    pub fn with_inner<R>(&self, f: impl FnOnce(&mut Context) -> R) -> R {
+        let ctx = &mut self.ctx.lock().expect("Could not lock mutex");
+        f(ctx)
+    }
+
+    pub fn write_outputs(&self) -> GResult<()> {
+        self.with_inner(|ctx| {
+            for (addr, count) in ctx.asm_out.binary.check_against_referece() {
+                println!("{addr:04X} {count}");
+            }
+            ctx.write_ouputs()
+        })
+    }
+
+    /// Edit a file
+    /// and invalidate the token cache
+    #[allow(unreachable_code)]
+    #[allow(unused_variables)]
+    pub fn edit_file<P: AsRef<Path>>(
+        &self,
+        file: P,
+        f: impl FnOnce(&mut SourceFile) -> GResult<()>,
+    ) -> GResult<()> {
+        self.with_inner(|_ctx| -> GResult<()> {
+            todo!("Do this!");
+            Ok(())
+        })
+    }
+}
 
 pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R {
     let state = &mut data.lock().expect("Could not lock mutex");
     f(state)
 }
 
-pub fn create_ctx(opts: Opts) -> Arc<Mutex<Context>> { 
+pub fn create_ctx(opts: Opts) -> Arc<Mutex<Context>> {
     let ctx = Context::from(opts);
     let ctx = Arc::new(Mutex::new(ctx));
     ctx
 }
 
 pub fn reassemble_ctx(arc_ctx: &Arc<Mutex<Context>>) -> GResult<()> {
-
     let file = with_state(arc_ctx, |ctx| -> GResult<PathBuf> {
         ctx.reset_output();
         Ok(ctx.opts.project_file.clone())
@@ -87,23 +155,12 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
         let mut asm_ctx = AsmCtx {
             fixer_upper: FixerUpper::new(),
             ctx,
-            // eval: Evaluator::new(&mut ctx.asm_out.symbols, &mut ctx.source_file_loader),
-            // direct_page: None,
-            // source_map: &mut ctx.asm_out.source_map,
-            // binary: &mut ctx.asm_out.binary,
-            // errors: &mut ctx.asm_out.errors,
-            // opts: &ctx.opts,
-            // lst_file: &mut ctx.asm_out.lst_file,
-            // exec_addr: &mut ctx.asm_out.exec_addr,
-            // bin_to_write_chunks: &mut ctx.asm_out.bin_to_write_chunks,
         };
 
         size_tree(&mut asm_ctx, id, &tree)?;
 
         compile(&mut asm_ctx, &tree)?;
         ctx.asm_out.ast = Some(tree);
-
         Ok(())
     })
 }
-

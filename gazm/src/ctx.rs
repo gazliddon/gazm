@@ -157,9 +157,13 @@ fn to_gazm(e: anyhow::Error) -> GazmErrorType {
 }
 
 impl Context {
-
     pub fn reset_output(&mut self) {
         self.asm_out = AsmOut::from(&self.opts)
+    }
+
+    pub fn reset_all(&mut self) {
+        let new_ctx = Context::from(self.opts.clone());
+        *self = new_ctx;
     }
 
     pub fn get_source_file_loader(&self) -> &SourceFileLoader {
@@ -191,18 +195,14 @@ impl Context {
         &mut self,
         path: P,
     ) -> Result<(PathBuf, String, u64), GazmErrorType> {
-
         let path = self.get_full_path(&path)?;
 
         // Is it in the cache?
-        if let Ok((id,sf))= self.source_file_loader.sources.get_source(&path) {
-            let ret = (sf.file.clone(),sf.source.clone(), id);
+        if let Ok((id, sf)) = self.source_file_loader.sources.get_source(&path) {
+            let ret = (sf.file.clone(), sf.source.clone(), id);
             Ok(ret)
         } else {
-            self
-                .source_file_loader
-                .read_source(&path)
-                .map_err(to_gazm)
+            self.source_file_loader.read_source(&path).map_err(to_gazm)
         }
     }
 
@@ -242,6 +242,14 @@ impl Context {
             self.source_file_loader.write(p, &bin_to_write.data);
         }
         Ok(())
+    }
+
+    /// Write any outputs that need writing
+    pub fn write_ouputs(&mut self) -> GResult<()> {
+        self.write_bin_chunks()?;
+        self.checksum_report();
+        self.write_lst_file()?;
+        self.write_sym_file()
     }
 
     pub fn write_lst_file(&mut self) -> GResult<()> {

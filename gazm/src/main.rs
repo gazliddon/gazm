@@ -59,10 +59,12 @@ static BANNER: &str = r#"
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = cli::parse();
+
     let opts = Opts::from_arg_matches(matches)?;
+
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
-    mess.status(format!( "Verbosity {:?}", &opts.verbose ));
+    mess.status(format!("Verbosity {:?}", &opts.verbose));
 
     // Todo move directory handling into assemble_from_opts
     // probably as a function of Opts
@@ -72,34 +74,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::set_current_dir(assemble_dir)?;
     }
 
+    let mut asm = gazm::Assembler::new(opts.clone());
+
     match opts.build_type {
         ctx::BuildType::LSP => {
             mess.status("LSP");
             lsp::do_lsp(opts)?;
         }
 
-        ctx::BuildType::Build => {
+        // Build of check to see if build is okay
+        ctx::BuildType::Build | ctx::BuildType::Check => {
             mess.status(BANNER);
             mess.indent();
 
-            use std::fs;
+            asm.assemble()?;
 
-            let mut ctx = gazm::assemble_from_opts(opts)?;
-
-            for (addr, count) in ctx.asm_out.binary.check_against_referece() {
-                println!("{addr:04X} {count}");
+            // Only write outputs if this is of buildtype Build
+            if opts.build_type == ctx::BuildType::Build {
+                asm.write_outputs()?;
             }
-
-            ctx.write_bin_chunks()?;
-            ctx.checksum_report();
-            ctx.write_lst_file()?;
-            ctx.write_sym_file()?;
 
             mess.deindent();
             mess.info("");
         }
-
-        ctx::BuildType::Check => panic!("TBD"),
     };
 
     std::env::set_current_dir(cur_dir)?;
