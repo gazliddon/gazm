@@ -122,7 +122,7 @@ pub struct AsmOut {
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    pub token_store: TokenStore,
+    token_store: TokenStore,
     source_file_loader: SourceFileLoader,
     pub cwd: PathBuf,
     pub opts: Opts,
@@ -173,12 +173,27 @@ impl Context {
         &mut self.source_file_loader
     }
 
+    pub fn get_token_store_mut(&mut self) -> &mut TokenStore {
+        &mut self.token_store
+    }
+
     pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&Node> {
         self.token_store.get_tokens(&file)
     }
 
+    pub fn has_tokens <P: AsRef<Path>>(&self, file: P) -> bool {
+        self.get_tokens(file).is_some()
+    }
+
+    pub fn add_tokens<P: AsRef<Path>>(&mut self, file: P, node: Node) {
+        self.token_store.add_tokens(file, node)
+    }
+
     pub fn sources(&self) -> &SourceFiles {
         &self.source_file_loader.sources
+    }
+    pub fn sources_mut(&mut self) -> &mut SourceFiles {
+        &mut self.source_file_loader.sources
     }
 
     pub fn get_vars(&self) -> &Vars {
@@ -196,6 +211,7 @@ impl Context {
         path: P,
     ) -> Result<(PathBuf, String, u64), GazmErrorType> {
         let path = self.get_full_path(&path)?;
+        // let path_string = path.to_string_lossy();
 
         // Is it in the cache?
         if let Ok((id, sf)) = self.source_file_loader.sources.get_source(&path) {
