@@ -17,6 +17,9 @@ path-clean="*"
 thiserror="*"
 sha1="*"
 
+lazy_static = "1.4.0"
+pretty_assertions="*"
+
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"
 serde_json = "*"
