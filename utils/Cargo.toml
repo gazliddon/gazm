@@ -15,6 +15,7 @@ ego-tree="*"
 pathdiff="*"
 path-clean="*"
 thiserror="*"
+sha1="*"
 
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"

@@ -12,6 +12,7 @@ mod sourcefile;
 mod sourcefiles;
 mod error;
 mod sourceinfo;
+mod textedit;
 
 pub use position::*;
 pub use sourcestore::*;
@@ -22,4 +23,5 @@ pub use sourcefile::*;
 pub use sourcefiles::*;
 pub use error::*;
 pub use sourceinfo::*;
+pub use textedit::*;
 
