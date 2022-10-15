@@ -11,8 +11,10 @@ use crate::vars::Vars;
 use emu::utils;
 
 use utils::sources::{
+    SourceFile,
     fileloader::{FileIo, SourceFileLoader},
     BinToWrite, BinWriteDesc, SourceDatabase, SourceFiles, SourceMapping, SymbolTree,
+    TextEditTrait, TextPos, TextEdit, EditResult 
 };
 
 use utils::PathSearcher;
@@ -169,8 +171,28 @@ impl Context {
     pub fn get_source_file_loader(&self) -> &SourceFileLoader {
         &self.source_file_loader
     }
+
     pub fn get_source_file_loader_mut(&mut self) -> &mut SourceFileLoader {
         &mut self.source_file_loader
+    }
+
+    pub fn with_source_file<P: AsRef<Path>>(&self, file : P, f : impl FnOnce(&SourceFile))  {
+        let (_, source )  = self.sources().get_source(&file).unwrap();
+        f(source)
+    }
+
+    pub fn edit_source_file<P: AsRef<Path>>(&mut self, file : P, f : impl FnOnce(&mut dyn TextEditTrait))  {
+        let old_hash = self.sources().get_hash(&file).unwrap();
+        let source  = self.sources_mut().get_source_mut(&file).unwrap();
+
+        f(source);
+
+        // Invalidate token cache if needed
+        let new_hash = self.sources().get_hash(&file).unwrap();
+
+        if new_hash != old_hash {
+            self.get_token_store_mut().invalidate_tokens(&file);
+        }
     }
 
     pub fn get_token_store_mut(&mut self) -> &mut TokenStore {

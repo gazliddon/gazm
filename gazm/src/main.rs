@@ -58,6 +58,8 @@ static BANNER: &str = r#"
 "#;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    use std::env::{current_dir, set_current_dir};
+
     let matches = cli::parse();
 
     let opts = Opts::from_arg_matches(matches)?;
@@ -68,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Todo move directory handling into assemble_from_opts
     // probably as a function of Opts
-    let cur_dir = std::env::current_dir().unwrap();
+    let cur_dir = current_dir().unwrap();
 
     if let Some(assemble_dir) = &opts.assemble_dir {
         std::env::set_current_dir(assemble_dir)?;
@@ -86,7 +88,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ctx::BuildType::Build | ctx::BuildType::Check => {
             mess.status(BANNER);
             mess.indent();
-
             asm.assemble()?;
 
             // Only write outputs if this is of buildtype Build
@@ -99,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    std::env::set_current_dir(cur_dir)?;
+    set_current_dir(cur_dir)?;
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-use emu::utils::sources::{TextPos, TextEdit };
+use emu::utils::sources::{TextEdit, TextEditTrait, TextPos};
 
 use super::ctx::Opts;
 
@@ -10,47 +10,59 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 pub fn do_lsp(opts: Opts) -> GResult<()> {
-    let ctx = create_ctx(opts);
+    let arc_ctx = create_ctx(opts);
 
     let start = Instant::now();
-    let res = reassemble_ctx(&ctx);
+    let res = reassemble_ctx(&arc_ctx);
     let dur = start.elapsed().as_secs_f64();
-    println!("assemble time took {:?}", dur );
+    println!("assemble time took {:?}", dur);
 
     println!("{:?}", res);
 
-    with_state(&ctx, |_ctx| {
+    with_state(&arc_ctx, |ctx| {
         let p = PathBuf::from("/Users/garyliddon/development/stargate/src/stargate.src");
 
-        let source  = _ctx.sources_mut().get_source_mut(&p).unwrap();
+        ctx.with_source_file(&p, |source| {
+            println!("Before edit");
+            for line in 0..5 {
+                println!("{}", source.get_line(line).unwrap());
+            }
+            println!("");
+        });
 
-        for line in 0..5 {
-            println!("{:?}", source.get_line(line)); 
-        }
+        ctx.edit_source_file(&p, |source| {
+            // start == end means an insert of a line
+            let start = TextPos {
+                line: 0,
+                character: 0,
+            };
+
+            let end = start.clone();
+
+            let text = "; An Extra Comment\n";
+
+            let te = TextEdit::new(start, end, text);
+
+            source.edit(&te).unwrap();
+        });
 
 
-        // start == end means an insert of a line
-        let start = TextPos { line : 0, character: 0 };
-        let end = start.clone();
-        
-        let text = "; An Extra Comment\n";
 
-        let te = TextEdit::new(start, end, text);
-
-        source.edit(&te).unwrap();
-
-        for line in 0..5 {
-            println!("{:?}", source.get_line(line)); 
-        }
-
-        _ctx.get_token_store_mut().invalidate_tokens(&p);
+        ctx.with_source_file(&p, |source| {
+            println!("After Edit");
+            for line in 0..5 {
+                println!("{}", source.get_line(line).unwrap());
+            }
+            println!("");
+        });
     });
 
     let start = Instant::now();
 
-    let res = reassemble_ctx(&ctx)?;
+    let res = reassemble_ctx(&arc_ctx)?;
     let dur = start.elapsed().as_secs_f64();
-    println!("reassemble time took {:?}", dur );
+
+    println!("reassemble time took {:?}", dur);
 
     println!("{:?}", res);
 
