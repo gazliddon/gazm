@@ -118,6 +118,7 @@ fn tokenize_file<P: AsRef<Path>>(
     })?;
 
     let input = Span::new_extra(&source, AsmSource::FileId(file_id));
+
     let tokens = tokenize_text(input, opts)?;
 
     // Collect all of the include files

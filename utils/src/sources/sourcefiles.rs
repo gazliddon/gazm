@@ -31,10 +31,7 @@ impl SourceFiles {
 
     pub fn get_hash<P: AsRef<Path>>(&self, p: P) -> SResult<sha1::Digest> {
         let (_, source ) = self.get_source(&p)?;
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(source.source.as_bytes());
-        let hash = hasher.digest();
-        Ok(hash)
+        Ok(source.source.get_hash().clone())
     }
 
     pub fn get_source<P: AsRef<Path>>(&self, p: P) -> SResult<(u64, &SourceFile )> {

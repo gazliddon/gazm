@@ -1,8 +1,9 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TextPos {
     pub line: usize,
     pub character: usize,
 }
+
 impl TextPos {
     pub fn new(line: usize, character: usize) -> Self {
         Self { line, character }
@@ -39,15 +40,25 @@ pub type EditResult<T> = Result<T, EditErrorKind>;
 
 pub trait TextEditTrait {
     fn edit(&mut self, _edit: &TextEdit) -> EditResult<()>;
-
-    fn get_line(&self, _line_number: usize) -> EditResult<&str> {
-        panic!()
-    }
+    fn get_line(&self, _line_number: usize) -> EditResult<&str>;
+    fn num_of_lines(&self) -> usize;
 
     fn delete_line(&mut self, line_number: usize) -> EditResult<()> {
+        self.replace_line(line_number, "")
+    }
+
+    fn replace_line(&mut self, line_number: usize, txt: &str) -> EditResult<()> {
         let start = TextPos::new(line_number, 0);
         let end = TextPos::new(line_number + 1, 0);
-        let text_edit = TextEdit::new(start, end, "");
+        let text_edit = TextEdit::new(start, end, txt);
+        self.edit(&text_edit)
+    }
+
+    fn insert_line(&mut self, line_number: usize, txt: &str) -> EditResult<()> {
+        let txt = &format!("{}\n", txt);
+        let start = TextPos::new(line_number, 0);
+        let end = TextPos::new(line_number, 0);
+        let text_edit = TextEdit::new(start, end, txt);
         self.edit(&text_edit)
     }
 }
@@ -62,6 +73,7 @@ fn get_range(whole_buffer: &str, part: &str) -> std::ops::Range<usize> {
     start..end
 }
 
+#[derive(Clone)]
 pub struct TextFile {
     pub source: String,
     pub line_offsets: Vec<std::ops::Range<usize>>,
@@ -91,15 +103,14 @@ impl TextEditTrait for TextFile {
     }
 
     fn get_line(&self, line_number: usize) -> EditResult<&str> {
-        if line_number >= self.get_num_of_lines() {
-            Err(EditErrorKind::LineOutOfRange(
-                line_number,
-                self.get_num_of_lines(),
-            ))
-        } else {
-            let r = self.line_offsets[line_number].clone();
-            Ok(&self.source[r])
-        }
+        self.line_offsets
+            .get(line_number)
+            .map(|r| &self.source[r.clone()])
+            .ok_or_else(|| EditErrorKind::LineOutOfRange(line_number, self.num_of_lines()))
+    }
+
+    fn num_of_lines(&self) -> usize {
+        self.line_offsets.len()
     }
 }
 
@@ -135,13 +146,9 @@ impl TextFile {
         self.hash = to_hash(&self.source)
     }
 
-    pub fn get_num_of_lines(&self) -> usize {
-        self.line_offsets.len()
-    }
-
     fn start_pos_to_index(&self, line: usize, character: usize) -> EditResult<usize> {
-        if line >= self.get_num_of_lines() {
-            return Err(EditErrorKind::LineOutOfRange(line, self.get_num_of_lines()));
+        if line >= self.num_of_lines() {
+            return Err(EditErrorKind::LineOutOfRange(line, self.num_of_lines()));
         }
 
         let line_range = &self.line_offsets[line];
@@ -162,12 +169,12 @@ impl TextFile {
     }
 
     fn end_pos_to_index(&self, line: usize, character: usize) -> EditResult<usize> {
-        if line == self.get_num_of_lines() && character == 0 {
+        if line == self.num_of_lines() && character == 0 {
             return Ok(self.source.len());
         }
 
-        if line > self.get_num_of_lines() {
-            return Err(EditErrorKind::LineOutOfRange(line, self.get_num_of_lines()));
+        if line > self.num_of_lines() {
+            return Err(EditErrorKind::LineOutOfRange(line, self.num_of_lines()));
         }
 
         let line_range = &self.line_offsets[line];
@@ -202,7 +209,7 @@ mod test {
     pub fn test_edit() {
         let mut text_file = TextFile::new(TEST_TEXT);
 
-        assert_eq!(5, text_file.get_num_of_lines());
+        assert_eq!(5, text_file.num_of_lines());
 
         // Line 0, the word 'one'
         let start = TextPos::new(0, 19);
@@ -214,7 +221,7 @@ mod test {
 
         text_file.delete_line(0).unwrap();
         assert_eq!("This is line two", text_file.get_line(0).unwrap());
-        assert_eq!(4, text_file.get_num_of_lines());
+        assert_eq!(4, text_file.num_of_lines());
 
         let start = TextPos::new(3, 0);
         let end = TextPos::new(4, 0);

@@ -185,7 +185,7 @@ impl Context {
         let old_hash = self.sources().get_hash(&file).unwrap();
         let source  = self.sources_mut().get_source_mut(&file).unwrap();
 
-        f(source);
+        f(&mut source.source);
 
         // Invalidate token cache if needed
         let new_hash = self.sources().get_hash(&file).unwrap();
@@ -228,6 +228,7 @@ impl Context {
         Ok(ret)
     }
 
+    // TODO : This needs to return a reference to the source file NOT a big old copy of it
     pub fn read_source<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -237,7 +238,7 @@ impl Context {
 
         // Is it in the cache?
         if let Ok((id, sf)) = self.source_file_loader.sources.get_source(&path) {
-            let ret = (sf.file.clone(), sf.source.clone(), id);
+            let ret = (sf.file.clone(), sf.source.source.clone(), id);
             Ok(ret)
         } else {
             self.source_file_loader.read_source(&path).map_err(to_gazm)
