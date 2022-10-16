@@ -339,30 +339,27 @@ mod test {
         ctx
     }
 
-    #[test]
-    fn test_tokens() {
-        use async_std::task;
-        use std::env;
 
-        let x = crate::messages::messages();
-        x.set_verbosity(&Verbosity::Silent);
+    // fn test_tokens( b: &mut Bencher) {
+    //     use async_std::task;
+    //     use std::env;
 
-        let now = Instant::now();
+    //     let x = crate::messages::messages();
+    //     x.set_verbosity(&Verbosity::Silent);
 
-        let config = get_config("/Users/garyliddon/development/stargate/gazm.toml");
+    //     let now = Instant::now();
 
-        let ctx = mk_ctx(&config);
-        let project_file = ctx.opts.project_file.clone();
+    //     let config = get_config("/Users/garyliddon/development/stargate/gazm.toml");
 
-        let ctx = Arc::new(Mutex::new(ctx));
+    //     let ctx = mk_ctx(&config);
+    //     let project_file = ctx.opts.project_file.clone();
 
-        let _ = tokenize(&ctx, &project_file).unwrap();
-        // let _ = crate::tokenize::tokenize(&ctx, &project_file).unwrap();
+    //     let ctx = Arc::new(Mutex::new(ctx));
 
-        let elapsed = now.elapsed();
+    //     let _ = tokenize(&ctx, &project_file).unwrap();
+    //     // let _ = crate::tokenize::tokenize(&ctx, &project_file).unwrap();
 
-        println!("{:0.5?}", elapsed);
-
-        panic!("Done")
-    }
+    //     let elapsed = now.elapsed();
+    //     // println!("{:0.5?}", elapsed);
+    // }
 }

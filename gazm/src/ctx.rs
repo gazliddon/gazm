@@ -11,10 +11,9 @@ use crate::vars::Vars;
 use emu::utils;
 
 use utils::sources::{
-    SourceFile,
     fileloader::{FileIo, SourceFileLoader},
-    BinToWrite, BinWriteDesc, SourceDatabase, SourceFiles, SourceMapping, SymbolTree,
-    TextEditTrait, TextPos, TextEdit, EditResult 
+    BinToWrite, BinWriteDesc, EditResult, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
+    SymbolTree, TextEdit, TextEditTrait, TextPos,
 };
 
 use utils::PathSearcher;
@@ -176,14 +175,18 @@ impl Context {
         &mut self.source_file_loader
     }
 
-    pub fn with_source_file<P: AsRef<Path>>(&self, file : P, f : impl FnOnce(&SourceFile))  {
-        let (_, source )  = self.sources().get_source(&file).unwrap();
+    pub fn with_source_file<P: AsRef<Path>>(&self, file: P, f: impl FnOnce(&SourceFile)) {
+        let (_, source) = self.sources().get_source(&file).unwrap();
         f(source)
     }
 
-    pub fn edit_source_file<P: AsRef<Path>>(&mut self, file : P, f : impl FnOnce(&mut dyn TextEditTrait))  {
+    pub fn edit_source_file<P: AsRef<Path>>(
+        &mut self,
+        file: P,
+        f: impl FnOnce(&mut dyn TextEditTrait),
+    ) {
         let old_hash = self.sources().get_hash(&file).unwrap();
-        let source  = self.sources_mut().get_source_mut(&file).unwrap();
+        let source = self.sources_mut().get_source_mut(&file).unwrap();
 
         f(&mut source.source);
 
@@ -203,7 +206,7 @@ impl Context {
         self.token_store.get_tokens(&file)
     }
 
-    pub fn has_tokens <P: AsRef<Path>>(&self, file: P) -> bool {
+    pub fn has_tokens<P: AsRef<Path>>(&self, file: P) -> bool {
         self.get_tokens(file).is_some()
     }
 
@@ -355,22 +358,21 @@ impl Context {
     }
 
     pub fn checksum_report(&self) {
-        use sha1::{Digest, Sha1};
 
         if !self.opts.checksums.is_empty() {
+            use utils::hash::get_hash;
             let mess = crate::messages::messages();
 
             let mut errors = vec![];
 
             for (name, csum) in &self.opts.checksums {
-                let mut hasher = Sha1::new();
                 let data = self.asm_out.binary.get_bytes(csum.addr, csum.size);
-                hasher.update(data);
-                let this_hash = hasher.digest().to_string().to_lowercase();
+                let this_hash = get_hash(data);
                 let expected_hash = csum.sha1.to_lowercase();
 
                 if this_hash != expected_hash {
-                    errors.push(name);
+                    let hash = format!("{} : {} != {}", name, this_hash, expected_hash);
+                    errors.push(hash);
                 }
             }
 

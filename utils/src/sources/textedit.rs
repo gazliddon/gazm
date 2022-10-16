@@ -4,6 +4,7 @@ pub struct TextPos {
     pub character: usize,
 }
 
+
 impl TextPos {
     pub fn new(line: usize, character: usize) -> Self {
         Self { line, character }
@@ -23,6 +24,7 @@ impl<'a> TextEdit<'a> {
         Self { start, end, text }
     }
 }
+
 
 use thiserror::Error;
 
@@ -77,7 +79,7 @@ fn get_range(whole_buffer: &str, part: &str) -> std::ops::Range<usize> {
 pub struct TextFile {
     pub source: String,
     pub line_offsets: Vec<std::ops::Range<usize>>,
-    pub hash: sha1::Digest,
+    pub hash: String,
 }
 
 impl std::fmt::Debug for TextFile {
@@ -114,12 +116,6 @@ impl TextEditTrait for TextFile {
     }
 }
 
-fn to_hash(txt: &str) -> sha1::Digest {
-    let mut hasher = sha1::Sha1::new();
-    hasher.update(txt.as_bytes());
-    let hash = hasher.digest();
-    hash
-}
 
 impl TextFile {
     pub fn new(txt: &str) -> Self {
@@ -133,7 +129,7 @@ impl TextFile {
         ret
     }
 
-    pub fn get_hash(&self) -> &sha1::Digest {
+    pub fn get_hash(&self) -> &String {
         &self.hash
     }
 
@@ -143,7 +139,7 @@ impl TextFile {
     }
 
     fn rehash(&mut self) {
-        self.hash = to_hash(&self.source)
+        self.hash = crate::hash::get_hash_from_str(&self.source)
     }
 
     fn start_pos_to_index(&self, line: usize, character: usize) -> EditResult<usize> {

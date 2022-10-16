@@ -16,6 +16,8 @@ pathdiff="*"
 path-clean="*"
 thiserror="*"
 sha1="*"
+base64ct="*"
+base16ct="*"
 
 lazy_static = "1.4.0"
 pretty_assertions="*"

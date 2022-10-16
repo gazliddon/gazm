@@ -3,7 +3,6 @@ name = "gazm"
 version = "0.9.5"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 nom = "*"
@@ -17,8 +16,6 @@ ego-tree="*"
 anyhow="*"
 thiserror="*"
 regex="*"
-sha1="*"
-
 
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"
@@ -27,6 +24,12 @@ serde_json = "*"
 futures="*"
 async-std="*"
 rayon = "1.5"
-
 toml="*"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name="tokenize"
+harness = false
 

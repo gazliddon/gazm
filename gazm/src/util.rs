@@ -18,7 +18,7 @@ pub static LIST_SEP: &str = ",";
 pub use p2::{wrapped_chars, ws};
 
 mod p2 {
-    use nom::bytes::complete::{tag, is_not};
+    use nom::bytes::complete::{is_not, tag};
     use nom::character::complete::char as nom_char;
     use nom::character::complete::multispace0;
     use nom::combinator::not;
@@ -70,7 +70,7 @@ mod p2 {
         move |input: I| {
             let (input, _) = nom_char(open)(input)?;
             let (input, matched) = inner.parse(input)?;
-                let (input, _) = nom_char(close)(input)?;
+            let (input, _) = nom_char(close)(input)?;
             Ok((input, matched))
         }
     }
@@ -88,8 +88,6 @@ mod p2 {
             Ok((input, matched))
         }
     }
-
-
 }
 
 pub use p2::sep_list1;

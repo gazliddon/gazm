@@ -55,7 +55,7 @@ mod test {
     use super::*;
     #[test]
     fn yaml_test() {
-        let _y = YamlConfig::new();
-        print!("{:#?}", _y);
+        // let _y = YamlConfig::new();
+        // print!("{:#?}", _y);
     }
 }

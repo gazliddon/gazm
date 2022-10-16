@@ -29,7 +29,7 @@ impl SourceFiles {
     }
 
 
-    pub fn get_hash<P: AsRef<Path>>(&self, p: P) -> SResult<sha1::Digest> {
+    pub fn get_hash<P: AsRef<Path>>(&self, p: P) -> SResult<String> {
         let (_, source ) = self.get_source(&p)?;
         Ok(source.source.get_hash().clone())
     }

@@ -2,6 +2,7 @@
 mod location;
 mod pathsearcher;
 mod symbols;
+pub mod hash;
 pub mod fileutils;
 pub mod rle;
 pub mod sources;
