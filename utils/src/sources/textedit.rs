@@ -1,9 +1,10 @@
+use thiserror::Error;
+
 #[derive(Clone, Debug)]
 pub struct TextPos {
     pub line: usize,
     pub character: usize,
 }
-
 
 impl TextPos {
     pub fn new(line: usize, character: usize) -> Self {
@@ -16,17 +17,33 @@ impl TextPos {
 pub struct TextEdit<'a> {
     pub start: TextPos,
     pub end: TextPos,
+    pub range: std::ops::Range<TextPos>,
     pub text: &'a str,
 }
 
 impl<'a> TextEdit<'a> {
-    pub fn new(start: TextPos, end: TextPos, text: &'a str) -> Self {
-        Self { start, end, text }
+    pub fn from_pos(start: TextPos, end: TextPos, text: &'a str) -> Self {
+        let range = start.clone()..end.clone();
+        Self {
+            start,
+            end,
+            text,
+            range,
+        }
+    }
+
+    pub fn new(
+        line_start: usize,
+        char_start: usize,
+        line_end: usize,
+        char_end: usize,
+        txt: &'a str,
+    ) -> Self {
+        let start = TextPos::new(line_start, char_start);
+        let end = TextPos::new(line_end, char_end);
+        TextEdit::from_pos(start, end, txt)
     }
 }
-
-
-use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
 pub enum EditErrorKind {
@@ -40,6 +57,12 @@ pub enum EditErrorKind {
 
 pub type EditResult<T> = Result<T, EditErrorKind>;
 
+impl EditErrorKind {
+    pub fn char_out_of_range<T>(character: usize, limit: usize) -> EditResult<T> {
+        Err(EditErrorKind::CharacterOutOfRange(character, limit))
+    }
+}
+
 pub trait TextEditTrait {
     fn edit(&mut self, _edit: &TextEdit) -> EditResult<()>;
     fn get_line(&self, _line_number: usize) -> EditResult<&str>;
@@ -50,17 +73,13 @@ pub trait TextEditTrait {
     }
 
     fn replace_line(&mut self, line_number: usize, txt: &str) -> EditResult<()> {
-        let start = TextPos::new(line_number, 0);
-        let end = TextPos::new(line_number + 1, 0);
-        let text_edit = TextEdit::new(start, end, txt);
+        let text_edit = TextEdit::new(line_number,0, line_number+1,0, txt);
         self.edit(&text_edit)
     }
 
     fn insert_line(&mut self, line_number: usize, txt: &str) -> EditResult<()> {
         let txt = &format!("{}\n", txt);
-        let start = TextPos::new(line_number, 0);
-        let end = TextPos::new(line_number, 0);
-        let text_edit = TextEdit::new(start, end, txt);
+        let text_edit = TextEdit::new(line_number,0, line_number,0, txt);
         self.edit(&text_edit)
     }
 }
@@ -116,7 +135,6 @@ impl TextEditTrait for TextFile {
     }
 }
 
-
 impl TextFile {
     pub fn new(txt: &str) -> Self {
         let mut ret = Self {
@@ -127,6 +145,12 @@ impl TextFile {
 
         ret.post_change();
         ret
+    }
+
+    pub fn text_range(&self) -> std::ops::Range<TextPos> {
+        let start = TextPos::new(0, 0);
+        let end = TextPos::new(self.num_of_lines(), 0);
+        start..end
     }
 
     pub fn get_hash(&self) -> &String {
@@ -142,19 +166,19 @@ impl TextFile {
         self.hash = crate::hash::get_hash_from_str(&self.source)
     }
 
-    fn start_pos_to_index(&self, line: usize, character: usize) -> EditResult<usize> {
-        if line >= self.num_of_lines() {
-            return Err(EditErrorKind::LineOutOfRange(line, self.num_of_lines()));
-        }
+    fn get_line_range(&self, line: usize) -> EditResult<&std::ops::Range<usize>> {
+        self.line_offsets
+            .get(line)
+            .ok_or_else(|| EditErrorKind::LineOutOfRange(line, self.num_of_lines()))
+    }
 
-        let line_range = &self.line_offsets[line];
-        let ret = line_range.start + character;
+    fn start_pos_to_index(&self, pos: &TextPos) -> EditResult<usize> {
+        let line_r = self.get_line_range(pos.line)?;
 
-        if !line_range.contains(&ret) {
-            return Err(EditErrorKind::CharacterOutOfRange(
-                character,
-                line_range.len(),
-            ));
+        let ret = line_r.start + pos.character;
+
+        if !line_r.contains(&ret) {
+            return EditErrorKind::char_out_of_range(pos.character, line_r.len());
         }
 
         if ret >= self.source.len() {
@@ -164,34 +188,48 @@ impl TextFile {
         Ok(ret)
     }
 
-    fn end_pos_to_index(&self, line: usize, character: usize) -> EditResult<usize> {
-        if line == self.num_of_lines() && character == 0 {
+    fn end_pos_to_index(&self, pos: &TextPos) -> EditResult<usize> {
+        if pos.line == self.num_of_lines() && pos.character == 0 {
             return Ok(self.source.len());
         }
 
-        if line > self.num_of_lines() {
-            return Err(EditErrorKind::LineOutOfRange(line, self.num_of_lines()));
+        let line_r = self.get_line_range(pos.line)?;
+
+        if pos.character > line_r.len() {
+            return EditErrorKind::char_out_of_range(pos.character, line_r.len());
         }
 
-        let line_range = &self.line_offsets[line];
-
-        if character > line_range.len() {
-            return Err(EditErrorKind::CharacterOutOfRange(
-                character,
-                line_range.len(),
-            ));
-        }
-
-        Ok(line_range.start + character)
+        Ok(line_r.start + pos.character)
     }
 
     fn get_range(&self, edit: &TextEdit) -> EditResult<std::ops::Range<usize>> {
-        let start_index = self.start_pos_to_index(edit.start.line, edit.start.character)?;
-        let end_index = self.end_pos_to_index(edit.end.line, edit.end.character)?;
+        let start_index = self.start_pos_to_index(&edit.start)?;
+        let end_index = self.end_pos_to_index(&edit.end)?;
         assert!(start_index <= end_index);
         Ok(start_index..end_index)
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+// Implement these traits so I can use TextPos in std::ops::Range
+impl PartialEq for TextPos {
+    fn eq(&self, other: &Self) -> bool {
+        self.line == other.line && self.character == other.character
+    }
+}
+
+impl PartialOrd for TextPos {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.line.partial_cmp(&other.line) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        self.character.partial_cmp(&other.character)
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
 
 #[allow(unused_imports)]
 mod test {
@@ -204,25 +242,43 @@ mod test {
     #[test]
     pub fn test_edit() {
         let mut text_file = TextFile::new(TEST_TEXT);
-
         assert_eq!(5, text_file.num_of_lines());
 
-        // Line 0, the word 'one'
-        let start = TextPos::new(0, 19);
-        let end = TextPos::new(0, 22);
-        let edit = TextEdit::new(start, end, "hello");
-
-        text_file.edit(&edit).unwrap();
+        let r = edit_test(&mut text_file, 0, 19, 0, 22, "hello");
+        assert!(r.is_ok());
         assert_eq!("Hello this is line hello", text_file.get_line(0).unwrap());
 
-        text_file.delete_line(0).unwrap();
-        assert_eq!("This is line two", text_file.get_line(0).unwrap());
+        let next_line = text_file.get_line(1).unwrap().to_string();
+
+        let r = text_file.delete_line(0);
+        assert!(r.is_ok());
+
+        assert_eq!(&next_line, text_file.get_line(0).unwrap());
         assert_eq!(4, text_file.num_of_lines());
 
-        let start = TextPos::new(3, 0);
-        let end = TextPos::new(4, 0);
-        let edit = TextEdit::new(start, end, "6809 rulez");
-        text_file.edit(&edit).unwrap();
+        let r = edit_test(&mut text_file, 3, 0, 4, 0, "6809 rulez");
+        assert!(r.is_ok());
         assert_eq!("6809 rulez", text_file.get_line(3).unwrap());
+
+        let num_of_lines = text_file.num_of_lines();
+        let r = text_file.insert_line(0, "A new line!");
+        assert!(r.is_ok());
+        assert_eq!(text_file.num_of_lines(), num_of_lines + 1);
+
+        let r = text_file.delete_line(0);
+        assert!(r.is_ok());
+        assert_eq!(text_file.num_of_lines(), num_of_lines);
+    }
+
+    fn edit_test(
+        file: &mut TextFile,
+        line_start: usize,
+        char_start: usize,
+        line_end: usize,
+        char_end: usize,
+        txt: &str,
+    ) -> EditResult<()> {
+        let edit = TextEdit::new(line_start, char_start, line_end, char_end, txt);
+        file.edit(&edit)
     }
 }

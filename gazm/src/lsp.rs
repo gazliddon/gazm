@@ -41,7 +41,7 @@ pub fn do_lsp(opts: Opts) -> GResult<()> {
 
             let text = "; An Extra Comment\n";
 
-            let te = TextEdit::new(start, end, text);
+            let te = TextEdit::from_pos(start, end, text);
 
             source.edit(&te).unwrap();
         });
