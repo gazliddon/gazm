@@ -845,8 +845,10 @@ dependencies = [
  "criterion",
  "ego-tree",
  "emu",
+ "env_logger",
  "futures",
  "lazy_static",
+ "log",
  "nom",
  "nom_locate",
  "pretty_assertions",
@@ -855,8 +857,12 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "simple-logging",
  "thiserror",
+ "tokio",
+ "tokio-util",
  "toml",
+ "tower-lsp",
 ]
 
 [[package]]

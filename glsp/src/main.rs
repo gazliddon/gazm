@@ -10,18 +10,6 @@ struct Backend {
     client: Client,
 }
 
-struct GazmLsp {
-}
-
-impl GazmLsp {
-    pub fn new() -> Self {
-        Self {
-        }
-    }
-
-    pub fn did_open(&mut self, _file: String, _workspace_folder : String) {
-    }
-}
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {

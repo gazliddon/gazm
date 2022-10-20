@@ -25,6 +25,13 @@ futures="*"
 async-std="*"
 rayon = "1.5"
 toml="*"
+log="*"
+env_logger="*"
+simple-logging="*"
+
+tokio-util = { version = "0.7", optional = true, features = ["codec"] }
+tokio = { version = "1.21.0", features = ["full"] }
+tower-lsp = "*"
 
 [dev-dependencies]
 criterion = "0.3"

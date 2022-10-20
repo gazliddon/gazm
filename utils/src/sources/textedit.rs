@@ -1,14 +1,22 @@
 use thiserror::Error;
 
+/// cartesian position in a text file
+/// line and character are both zero based
 #[derive(Clone, Debug)]
 pub struct TextPos {
-    pub line: usize,
-    pub character: usize,
+    line: usize,
+    character: usize,
 }
 
 impl TextPos {
     pub fn new(line: usize, character: usize) -> Self {
         Self { line, character }
+    }
+    pub fn char(&self) -> usize {
+        self.character
+    }
+    pub fn line(&self) -> usize {
+        self.line
     }
 }
 
@@ -61,6 +69,9 @@ impl EditErrorKind {
     pub fn char_out_of_range<T>(character: usize, limit: usize) -> EditResult<T> {
         Err(EditErrorKind::CharacterOutOfRange(character, limit))
     }
+    pub fn line_out_of_range<T>(line: usize, limit: usize) -> EditResult<T> {
+        Err(EditErrorKind::LineOutOfRange(line, limit))
+    }
 }
 
 pub trait TextEditTrait {
@@ -73,13 +84,13 @@ pub trait TextEditTrait {
     }
 
     fn replace_line(&mut self, line_number: usize, txt: &str) -> EditResult<()> {
-        let text_edit = TextEdit::new(line_number,0, line_number+1,0, txt);
+        let text_edit = TextEdit::new(line_number, 0, line_number + 1, 0, txt);
         self.edit(&text_edit)
     }
 
     fn insert_line(&mut self, line_number: usize, txt: &str) -> EditResult<()> {
         let txt = &format!("{}\n", txt);
-        let text_edit = TextEdit::new(line_number,0, line_number,0, txt);
+        let text_edit = TextEdit::new(line_number, 0, line_number, 0, txt);
         self.edit(&text_edit)
     }
 }
@@ -173,33 +184,30 @@ impl TextFile {
     }
 
     fn start_pos_to_index(&self, pos: &TextPos) -> EditResult<usize> {
-        let line_r = self.get_line_range(pos.line)?;
-
-        let ret = line_r.start + pos.character;
+        let line_r = self.get_line_range(pos.line())?;
+        let ret = line_r.start + pos.char();
 
         if !line_r.contains(&ret) {
-            return EditErrorKind::char_out_of_range(pos.character, line_r.len());
+            Err(EditErrorKind::CharacterOutOfRange(pos.char(), line_r.len()))
+        } else if ret >= self.source.len() {
+            Err(EditErrorKind::IndexOutOfRange(ret, self.source.len()))
+        } else {
+            Ok(ret)
         }
-
-        if ret >= self.source.len() {
-            return Err(EditErrorKind::IndexOutOfRange(ret, self.source.len()));
-        }
-
-        Ok(ret)
     }
 
     fn end_pos_to_index(&self, pos: &TextPos) -> EditResult<usize> {
-        if pos.line == self.num_of_lines() && pos.character == 0 {
-            return Ok(self.source.len());
+        if pos.line() == self.num_of_lines() && pos.char() == 0 {
+            Ok(self.source.len())
+        } else {
+            let line_r = self.get_line_range(pos.line)?;
+
+            if pos.character > line_r.len() {
+                Err(EditErrorKind::CharacterOutOfRange(pos.char(), line_r.len()))
+            } else {
+                Ok(line_r.start + pos.char())
+            }
         }
-
-        let line_r = self.get_line_range(pos.line)?;
-
-        if pos.character > line_r.len() {
-            return EditErrorKind::char_out_of_range(pos.character, line_r.len());
-        }
-
-        Ok(line_r.start + pos.character)
     }
 
     fn get_range(&self, edit: &TextEdit) -> EditResult<std::ops::Range<usize>> {
