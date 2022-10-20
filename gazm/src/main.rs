@@ -46,7 +46,6 @@ mod vars;
 use anyhow::{Context, Result};
 use ctx::Opts;
 use error::GResult;
-use lsp::do_lsp;
 use messages::{info, messages};
 
 static BANNER: &str = r#"
@@ -81,7 +80,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match opts.build_type {
         ctx::BuildType::LSP => {
             mess.status("LSP");
-            lsp::do_lsp(opts)?;
+            todo!("Todo!")
+            // do_lsp(opts)?;
         }
 
         // Build of check to see if build is okay
