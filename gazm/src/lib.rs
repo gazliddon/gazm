@@ -38,7 +38,6 @@ pub mod asmctx;
 pub mod fixerupper;
 pub mod regutils;
 pub mod config;
-pub mod old_lsp;
 pub mod token_store;
 pub mod vars;
 pub mod doc;
