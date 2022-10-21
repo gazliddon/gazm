@@ -1,20 +1,28 @@
 use crate::ctx::{CheckSum, Opts};
+use crate::lsp::LspConfig;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct YamlConfig {
+#[derive(Debug, Clone, Deserialize, Default)]
+struct LoadedYamlConfig {
     #[serde(skip)]
     pub file: PathBuf,
-    pub opts: Opts,
+    pub opts: Option<Opts>,
 
-    vars: HashMap<String, String>,
+    vars: Option<HashMap<String, String>>,
     project: Project,
-    checksums: HashMap<String, CheckSum>,
+    checksums: Option<HashMap<String, CheckSum>>,
+    lsp: Option<LspConfig>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+pub struct YamlConfig {
+    pub file: PathBuf,
+    pub opts: Opts,
+    project: Project,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct Project {
     pub name: String,
 }
@@ -35,18 +43,27 @@ impl YamlConfig {
 
         use toml::Value;
         let f = std::fs::read_to_string(&file).expect("can't read");
-        let mut val: Self = toml::from_str(&f).unwrap();
+        let toml: LoadedYamlConfig = toml::from_str(&f).unwrap();
 
-        val.opts.vars = val
+        let mut opts = toml.opts.clone().unwrap_or_default();
+        opts.vars = toml
             .vars
             .clone()
+            .unwrap_or_default()
             .into_iter()
             .collect::<Vec<(String, String)>>()
             .into();
-        val.file = file.as_ref().to_path_buf().clone();
-        val.opts.checksums = val.checksums.clone();
-        val.opts.assemble_dir = run_dir;
-        val
+        opts.checksums = toml.checksums.clone().unwrap_or_default();
+        opts.assemble_dir = run_dir;
+        opts.lsp_config = toml.lsp.unwrap_or_default();
+
+        let ret = YamlConfig {
+            file :file.as_ref().to_path_buf().clone(),
+            opts,
+            project: toml.project,
+        };
+
+        ret
     }
 }
 

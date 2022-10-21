@@ -20,7 +20,7 @@ use utils::PathSearcher;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::vec;
+use crate::lsp::LspConfig;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -45,6 +45,7 @@ pub enum BuildType {
     LSP,
     Check,
 }
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Settings {}
@@ -78,6 +79,9 @@ pub struct Opts {
 
     #[serde(skip)]
     pub build_type: BuildType,
+
+    #[serde(skip)]
+    pub lsp_config: LspConfig,
 }
 
 impl Default for Opts {
@@ -102,6 +106,7 @@ impl Default for Opts {
             build_async: false,
             checksums: Default::default(),
             build_type: BuildType::Build,
+            lsp_config: Default::default(),
         }
     }
 }

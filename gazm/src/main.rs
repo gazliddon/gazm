@@ -80,8 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match opts.build_type {
         ctx::BuildType::LSP => {
             mess.status("LSP");
-            todo!("Todo!")
-            // do_lsp(opts)?;
+            lsp::do_lsp(opts)?;
         }
 
         // Build of check to see if build is okay

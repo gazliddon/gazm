@@ -6,6 +6,8 @@ use crate::{
     ctx::{Context, Opts},
 };
 
+use crate::lsp::LspConfig;
+
 use crate::config;
 
 use clap::{Arg, ArgMatches, Command};
@@ -23,8 +25,7 @@ pub enum ConfigErrorType {
     #[error("Can't change to directory {0}")]
     InvalidDir(PathBuf),
     #[error("Can't find file {0}")]
-    MissingConfigFile(PathBuf)
-
+    MissingConfigFile(PathBuf),
 }
 
 impl std::fmt::Debug for ConfigErrorType {
@@ -44,25 +45,29 @@ fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
     let path = PathBuf::from(x);
 
     if !path.is_file() {
-        return Err(ConfigErrorType::MissingConfigFile(path))
+        return Err(ConfigErrorType::MissingConfigFile(path));
     }
-
-    Ok(config::YamlConfig::new_from_file(x))
+    let ret = config::YamlConfig::new_from_file(x);
+    Ok(ret)
 }
 
 fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigError<Opts> {
     let mut conf = load_config(m)?;
     conf.opts.build_type = build_type;
-    Ok( conf.opts )
+    Ok(conf.opts)
 }
 
 impl Opts {
-    pub fn from_arg_matches(orig_matches : clap::ArgMatches) -> ConfigError<Opts> {
+    pub fn from_arg_matches(orig_matches: clap::ArgMatches) -> ConfigError<Opts> {
         let ret = match orig_matches.subcommand() {
+
             Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build)?,
 
-            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::LSP)?,
+            Some(("lsp", m)) => {
+                load_opts_with_build_type(m, BuildType::LSP)?
+            }
 
+            // TODO! Remove this option
             Some(("asm", m)) => {
                 let mut opts = Opts {
                     deps_file: m.value_of("deps").map(|f| f.to_string()),
@@ -120,6 +125,17 @@ impl Opts {
     }
 }
 
+fn make_config_file_command(command: &str) -> Command {
+    Command::new(command)
+        .about("use the config file")
+        .arg(Arg::new("config-file")
+        .help("load config file")
+        .multiple_values(false)
+        .index(1)
+        .required(false)
+        .default_value("gazm.toml"))
+}
+
 pub fn parse() -> clap::ArgMatches {
     Command::new("gazm")
         .about("6809 assembler")
@@ -127,25 +143,9 @@ pub fn parse() -> clap::ArgMatches {
         .version("0.1")
         .bin_name("gazm")
         .subcommand_required(true)
+        .subcommand(make_config_file_command("build"))
         .subcommand(
-            Command::new("build").about("use the config file").arg(
-                Arg::new("config-file")
-                    .help("load config file")
-                    .multiple_values(false)
-                    .index(1)
-                    .required(false)
-                    .default_value("gazm.toml"),
-            ),
-        )
-        .subcommand(
-            Command::new("lsp").about("use the config file").arg(
-                Arg::new("config-file")
-                    .help("load config file")
-                    .multiple_values(false)
-                    .index(1)
-                    .required(false)
-                    .default_value("gazm.toml"),
-            ),
+            make_config_file_command("lsp")
         )
         .subcommand(
             Command::new("asm")
