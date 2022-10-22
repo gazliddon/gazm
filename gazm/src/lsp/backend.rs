@@ -15,17 +15,25 @@ pub struct Backend {
 
 impl Backend {
     pub fn new( client: Client, opts : Opts ) -> Self {
+        info!("Backend created!");
+
+        let ctx = create_ctx(opts);
+
+        with_state(&ctx, |ctx : &mut Context| {
+            info!("ctx toml {}", ctx.opts.project_file.to_string_lossy())
+        });
+
         Self {
             client,
-            ctx : create_ctx(opts),
+            ctx 
         }
     }
-
 }
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> TResult<InitializeResult> {
+    async fn initialize(&self, _init: InitializeParams) -> TResult<InitializeResult> {
+
         Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {
@@ -59,7 +67,7 @@ impl LanguageServer for Backend {
         })
     }
 
-    async fn initialized(&self, _: InitializedParams) {
+    async fn initialized(&self, _init: InitializedParams) {
         info!("initialized");
         self.client
             .log_message(MessageType::INFO, "initialized!")
