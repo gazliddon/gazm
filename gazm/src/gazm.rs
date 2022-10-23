@@ -5,7 +5,7 @@ use crate::error::UserError;
 use crate::error::{GResult, GazmErrorType};
 use crate::item::Node;
 use crate::tokenize;
-use emu::utils::sources::{Position, SourceFile};
+use emu::utils::sources::{Position, SourceFile, EditResult, TextEditTrait};
 use rayon::iter::plumbing::Consumer;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,6 @@ use thiserror::Error;
 
 pub struct Assembler {
     ctx: Arc<Mutex<Context>>,
-    opts: Opts,
 }
 
 impl Into<Context> for Assembler {
@@ -29,12 +28,12 @@ impl Assembler {
     pub fn new(opts: Opts) -> Self {
         let ctx = Context::from(opts.clone());
         let ctx = Arc::new(Mutex::new(ctx));
-        Self { ctx, opts }
+        Self { ctx }
     }
 
     /// Assemble for the first time
-    pub fn assemble(&mut self) -> GResult<()> {
-        *self = Self::new(self.opts.clone());
+    pub fn assemble(&self) -> GResult<()> {
+        self.with_inner(|ctx| ctx.reset_all());
         self.reassemble()
     }
 
@@ -68,15 +67,21 @@ impl Assembler {
     /// and invalidate the token cache
     #[allow(unreachable_code)]
     #[allow(unused_variables)]
-    pub fn edit_file<P: AsRef<Path>>(
+    pub fn edit_file<P: AsRef<Path>, X>(
         &self,
         file: P,
-        f: impl FnOnce(&mut SourceFile) -> GResult<()>,
-    ) -> GResult<()> {
-        self.with_inner(|_ctx| -> GResult<()> {
-            todo!("Do this!");
-            Ok(())
-        })
+        f: impl FnOnce(&mut dyn TextEditTrait) -> EditResult<X>,
+    ) -> GResult<X> {
+        let x = self.with_inner(|ctx| -> GResult<X> {
+
+            let res = ctx.edit_source_file(&file, |editable| {
+                f(editable)
+            })?;
+
+            Ok(res)
+        })?;
+
+        Ok(x)
     }
 }
 

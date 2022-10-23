@@ -1,39 +1,64 @@
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server, };
-use std::sync::{Arc,Mutex};
-use crate::ctx::{ Opts, Context };
-use serde_json::Value;
-use tower_lsp::jsonrpc::Result as TResult;
+use crate::ctx::{Context, Opts};
+use crate::error::GResult;
+use crate::gazm::{create_ctx, reassemble_ctx, with_state, Assembler};
+use emu::utils::sources::TextEdit;
 use log::info;
-use crate::gazm::{create_ctx, reassemble_ctx, with_state};
+use serde_json::Value;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use tower_lsp::jsonrpc::Result as TResult;
+use tower_lsp::lsp_types::*;
+use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-#[derive(Debug)]
 pub struct Backend {
     pub client: Client,
-    pub ctx: Arc<Mutex<Context>>,
+    pub asm: Assembler,
+}
+
+pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
+    let te = TextEdit::new(
+        range.start.line as usize,
+        range.start.character as usize,
+        range.end.line as usize,
+        range.end.character as usize,
+        txt,
+    );
+    te
 }
 
 impl Backend {
-    pub fn new( client: Client, opts : Opts ) -> Self {
+    pub fn new(client: Client, opts: Opts) -> Self {
         info!("Backend created!");
+        let asm = Assembler::new(opts);
+        Self { client, asm }
+    }
+}
 
-        let ctx = create_ctx(opts);
+impl Assembler {
+    fn apply_changes<P: AsRef<Path>>(
+        &self,
+        doc: P,
+        content_changes: &Vec<TextDocumentContentChangeEvent>,
+    ) -> GResult<()> {
 
-        with_state(&ctx, |ctx : &mut Context| {
-            info!("ctx toml {}", ctx.opts.project_file.to_string_lossy())
-        });
+        info!("Trying to apply changes to {}", doc.as_ref().to_string_lossy());
 
-        Self {
-            client,
-            ctx 
+        // Apply the changes and abort on any errors
+        for change in content_changes {
+            if let Some(range) = change.range {
+                let te = to_text_edit(&range, &change.text);
+                info!("About to apply {:#?}", te);
+                self.edit_file(&doc, |text_file| text_file.edit(&te))?;
+            }
         }
+
+        Ok(())
     }
 }
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _init: InitializeParams) -> TResult<InitializeResult> {
-
         Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {
@@ -41,7 +66,7 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::INCREMENTAL,
                 )),
 
-                hover_provider: Some(HoverProviderCapability::Simple(true) ),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
 
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
@@ -69,6 +94,10 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _init: InitializedParams) {
         info!("initialized");
+
+        let x = self.asm.assemble();
+        info!("Assembler results {:#?}", x);
+
         self.client
             .log_message(MessageType::INFO, "initialized!")
             .await;
@@ -122,8 +151,18 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn did_change(&self, _: DidChangeTextDocumentParams) {
-        info!("did_change");
+    async fn did_change(&self, x: DidChangeTextDocumentParams) {
+        if x.text_document.uri.scheme() == "file" {
+            let doc = x.text_document.uri.path();
+
+            let e = self.asm.apply_changes(doc, &x.content_changes);
+
+            match e {
+                Err(e) => info!("Error {e}"),
+                Ok(_) => info!("Applied changes"),
+            };
+        }
+
         self.client
             .log_message(MessageType::INFO, "file changed!")
             .await;
@@ -153,22 +192,29 @@ impl LanguageServer for Backend {
 
     async fn hover(&self, params: HoverParams) -> TResult<Option<Hover>> {
         info!("hover");
-        info!("{}", params.text_document_position_params.text_document.uri.path());
+        info!(
+            "{}",
+            params
+                .text_document_position_params
+                .text_document
+                .uri
+                .path()
+        );
 
         let x = vec![];
 
         let xx = self.client.configuration(x).await;
 
         if let Ok(xx) = xx {
-                for f in xx {
-                    info!("item: {}", f)
-                }
+            for f in xx {
+                info!("item: {}", f)
+            }
         }
 
         let _ = params;
 
         let reply = Some(Hover {
-            contents: HoverContents::Markup(MarkupContent{
+            contents: HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
                 value: "# You Are A\nWanker".to_string(),
             }),

@@ -10,6 +10,7 @@ use crate::token_store::TokenStore;
 use crate::vars::Vars;
 use emu::utils;
 
+use emu::utils::sources::EditErrorKind;
 use utils::sources::{
     fileloader::{FileIo, SourceFileLoader},
     BinToWrite, BinWriteDesc, EditResult, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
@@ -18,9 +19,9 @@ use utils::sources::{
 
 use utils::PathSearcher;
 
+use crate::lsp::LspConfig;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use crate::lsp::LspConfig;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -45,7 +46,6 @@ pub enum BuildType {
     LSP,
     Check,
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Settings {}
@@ -185,21 +185,25 @@ impl Context {
         f(source)
     }
 
-    pub fn edit_source_file<P: AsRef<Path>>(
+    pub fn edit_source_file<P: AsRef<Path>, X>(
         &mut self,
         file: P,
-        f: impl FnOnce(&mut dyn TextEditTrait),
-    ) {
-        let old_hash = self.sources().get_hash(&file).unwrap();
-        let source = self.sources_mut().get_source_mut(&file).unwrap();
+        f: impl FnOnce(&mut dyn TextEditTrait) -> EditResult<X>,
+    ) -> EditResult<X> {
+        if let Ok(source) = self.sources_mut().get_source_mut(&file) {
+            let old_hash = source.source.get_hash().clone();
 
-        f(&mut source.source);
+            let res = f(&mut source.source)?;
 
-        // Invalidate token cache if needed
-        let new_hash = self.sources().get_hash(&file).unwrap();
+            // Invalidate token cache if needed
+            let new_hash = source.source.get_hash().clone();
 
-        if new_hash != old_hash {
-            self.get_token_store_mut().invalidate_tokens(&file);
+            if new_hash != old_hash {
+                self.get_token_store_mut().invalidate_tokens(&file);
+            }
+            Ok(res)
+        } else {
+            Err(EditErrorKind::NoSourceFile(file.as_ref().to_string_lossy().into()))
         }
     }
 
@@ -363,7 +367,6 @@ impl Context {
     }
 
     pub fn checksum_report(&self) {
-
         if !self.opts.checksums.is_empty() {
             use utils::hash::get_hash;
             let mess = crate::messages::messages();

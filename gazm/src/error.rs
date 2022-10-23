@@ -3,7 +3,7 @@ use crate::doc::ErrorDocType;
 use crate::locate::span_to_pos;
 use crate::locate::Span;
 use crate::{binary, gazm};
-use emu::utils::sources::{AsmSource, Position, SourceInfo};
+use emu::utils::sources::{AsmSource, Position, SourceInfo, EditErrorKind};
 use serde::de::Error;
 use thiserror::Error;
 
@@ -21,6 +21,8 @@ pub enum GazmErrorType {
     BinaryError(binary::BinaryError),
     #[error("Parse error {0}")]
     ParseError(#[from] ParseError),
+    #[error(transparent)]
+    EditError(#[from] EditErrorKind)
 }
 
 struct GazmError {

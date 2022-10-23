@@ -22,6 +22,7 @@ impl TextPos {
 
 /// Contains information for an edit to the in memrory text file
 /// start..end is half open, end = the character after the last char to edit
+#[derive(Debug)]
 pub struct TextEdit<'a> {
     pub start: TextPos,
     pub end: TextPos,
@@ -57,10 +58,12 @@ impl<'a> TextEdit<'a> {
 pub enum EditErrorKind {
     #[error("Index out of range, asked for {0}, file size is {1}")]
     IndexOutOfRange(usize, usize),
-    #[error("Character out of range: requesed {0}, line length is {1}")]
+    #[error("Character out of range: character requesed {0}, line length {1}")]
     CharacterOutOfRange(usize, usize),
     #[error("Line out of range: requested {0}, num of lines {1}")]
     LineOutOfRange(usize, usize),
+    #[error("Can't find source file {0}")]
+    NoSourceFile(String),
 }
 
 pub type EditResult<T> = Result<T, EditErrorKind>;

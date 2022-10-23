@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::set_current_dir(assemble_dir)?;
     }
 
-    let mut asm = gazm::Assembler::new(opts.clone());
+    let asm = gazm::Assembler::new(opts.clone());
 
     match opts.build_type {
         ctx::BuildType::LSP => {
