@@ -163,7 +163,6 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
         };
 
         size_tree(&mut asm_ctx, id, &tree)?;
-
         compile(&mut asm_ctx, &tree)?;
         ctx.asm_out.ast = Some(tree);
         Ok(())

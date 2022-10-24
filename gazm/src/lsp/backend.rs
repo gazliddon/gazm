@@ -75,10 +75,12 @@ impl LanguageServer for Backend {
                     all_commit_characters: None,
                     ..Default::default()
                 }),
+
                 execute_command_provider: Some(ExecuteCommandOptions {
                     commands: vec!["dummy.do_something".to_string()],
                     work_done_progress_options: Default::default(),
                 }),
+
                 workspace: Some(WorkspaceServerCapabilities {
                     workspace_folders: Some(WorkspaceFoldersServerCapabilities {
                         supported: Some(true),
@@ -94,10 +96,8 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _init: InitializedParams) {
         info!("initialized");
-
         let x = self.asm.assemble();
         info!("Assembler results {:#?}", x);
-
         self.client
             .log_message(MessageType::INFO, "initialized!")
             .await;
@@ -163,6 +163,9 @@ impl LanguageServer for Backend {
             };
         }
 
+        let r = self.asm.reassemble();
+        info!("ASM {:?}", r);
+
         self.client
             .log_message(MessageType::INFO, "file changed!")
             .await;
@@ -200,6 +203,8 @@ impl LanguageServer for Backend {
                 .uri
                 .path()
         );
+
+        info!("{:#?}", params);
 
         let x = vec![];
 

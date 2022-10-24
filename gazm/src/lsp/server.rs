@@ -1,10 +1,12 @@
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server, };
+use super::backend::Backend;
 use crate::ctx::Opts;
 use log::info;
-use super::backend::Backend;
+use log::LevelFilter;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
+use tokio::runtime::Runtime;
+use tower_lsp::lsp_types::*;
+use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -16,12 +18,14 @@ pub struct LspConfig {
 
 impl Default for LspConfig {
     fn default() -> Self {
-        Self { log_file: Default::default() }
+        Self {
+            log_file: Default::default(),
+        }
     }
 }
 
-async fn run_lsp(opts: Opts) {
-    use log::LevelFilter;
+pub fn do_lsp(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
+    let rt = Runtime::new()?;
 
     // TODO
     // have the logger log to the file in the lsp_config opt
@@ -30,17 +34,15 @@ async fn run_lsp(opts: Opts) {
     }
 
     info!("Starting up gazm lsp");
-
     let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
-    let (service, socket) = LspService::new(|client| Backend::new(client,opts));
+    let (service, socket) = LspService::new(|client| Backend::new(client, opts));
 
-    Server::new(stdin, stdout, socket).serve(service).await;
-}
+    rt.block_on(async {
+        info!("About to create server");
+        let server = Server::new(stdin, stdout, socket);
+        server.serve(service).await;
+        info!("All done! about to quit");
+    });
 
-pub fn do_lsp(opts: Opts)  -> Result<(), Box<dyn std::error::Error>> {
-    use tokio::runtime::Runtime;
-    let rt  = Runtime::new()?;
-    rt.block_on(run_lsp(opts));
     Ok(())
 }
-
