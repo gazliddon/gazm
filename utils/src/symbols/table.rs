@@ -1,6 +1,7 @@
 use super::*;
 use std::collections::HashMap;
 
+
 // #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy)]
 // pub struct SymbolId(u64);
 
@@ -58,13 +59,17 @@ impl<V : ValueTraits, ID : IdTraits> SymbolReader<V, ID> for SymbolTable<V, ID> 
     fn get_symbol(&self, id: ID) -> Option<&V> {
         self.id_to_value.get(&id)
     }
+
+    fn get_symbol_name(&self, id: &ID) -> Option<&str> {
+        self.id_to_name.get(&id).map(|x| x.as_str())
+    }
 }
 
 impl<V : ValueTraits, ID : IdTraits> SymbolWriter<V, ID> for SymbolTable<V, ID> {
 
-    fn add_symbol_with_value(&mut self, name: &str, value: V) -> Result<ID, SymbolError<ID>> {
+    fn add_symbol_with_value(&mut self, name: &str, value: V) -> SymbolResult<ID, ID> {
         if let Some(id) = self.get_symbol_id(name) {
-            Err(SymbolError::AlreadyDefined(id))
+            Err(SymbolErrorKind::AlreadyDefined(id))
         } else {
             let id = self.get_next_id();
             self.name_to_id.insert(name.to_string(), id);
@@ -74,8 +79,8 @@ impl<V : ValueTraits, ID : IdTraits> SymbolWriter<V, ID> for SymbolTable<V, ID> 
         }
     }
 
-    fn remove_symbol(&mut self, id: ID) -> Result<(), SymbolError<ID>> {
-        self.get_symbol(id).ok_or(SymbolError::NotFound)?;
+    fn remove_symbol(&mut self, id: ID) -> SymbolResult<ID,()> {
+        self.get_symbol(id).ok_or(SymbolErrorKind::NotFound)?;
         let name = self.id_to_name.get(&id).unwrap();
         self.name_to_id.remove(name);
         self.id_to_value.remove(&id);
@@ -83,8 +88,8 @@ impl<V : ValueTraits, ID : IdTraits> SymbolWriter<V, ID> for SymbolTable<V, ID> 
         Ok(())
     }
 
-    fn get_symbol_mut(&mut self, id: ID) -> Result<&mut V, SymbolError<ID>> {
-        self.id_to_value.get_mut(&id).ok_or(SymbolError::NotFound)
+    fn get_symbol_mut(&mut self, id: ID) -> SymbolResult<ID, &mut V> {
+        self.id_to_value.get_mut(&id).ok_or(SymbolErrorKind::NotFound)
     }
 }
 

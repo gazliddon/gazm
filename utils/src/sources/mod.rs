@@ -13,6 +13,7 @@ mod sourcefiles;
 mod error;
 mod sourceinfo;
 mod textedit;
+pub mod value;
 
 pub use position::*;
 pub use sourcestore::*;

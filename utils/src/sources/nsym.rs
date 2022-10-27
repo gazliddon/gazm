@@ -1,41 +1,71 @@
-
-use crate::symbols::*;
 use crate::sources::Position;
+use crate::symbols::*;
+use super::value::Value;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Value {
-    Undefined,
-    Macro,
-    Signed(i64),
-    Unsigned(u64),
-    Text(String),
-    Double(f64),
-}
-
-pub type Symbols = Scopes<SymbolValue,usize>;
-pub type SymbolId = ScopedSymbolId<usize>;
+pub type Symbols = Scopes<SymbolValue, usize>;
+pub type SymbolId = crate::symbols::SymbolId<usize>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SymbolValue {
-    value : Value,
-    pos : Option<Position>,
+    value: Value,
+    pos: Option<Position>,
 }
 
-impl ValueTraits for SymbolValue {
+impl SymbolValue {
+    pub fn new(value: Value, pos: Option<Position>) -> Self {
+        Self { value, pos }
+    }
+
+    pub fn new_text(text: &str, pos: Option<Position>) -> Self {
+        Self::new(Value::Text(text.to_string()), pos)
+    }
+
+    pub fn new_double(num: f64, pos: Option<Position>) -> Self {
+        Self::new(Value::Double(num), pos)
+    }
+    pub fn new_signed(num: i64, pos: Option<Position>) -> Self {
+        Self::new(Value::Signed(num), pos)
+    }
+    pub fn new_unsigned(num: u64, pos: Option<Position>) -> Self {
+        Self::new(Value::Unsigned(num), pos)
+    }
 }
 
-impl IdTraits for usize {
-}
+impl ValueTraits for SymbolValue {}
+
+impl IdTraits for usize {}
 
 impl Default for SymbolValue {
     fn default() -> Self {
         Self {
-            value: Value::Undefined,
-            pos : None,
+            value: Value::Null,
+            pos: None,
         }
     }
 }
 
+#[allow(unused_imports)]
+mod test {
+    use super::*;
+    use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
+    #[test]
+    fn test_sym() {
+        let name = "a_symbol";
 
+        let mut syms = Symbols::new();
+        let sym = SymbolValue::new_unsigned(1024, None);
 
+        let mut c = syms.root_cursor();
+
+        let id = c.add_symbol(name, sym.clone()).unwrap();
+        let c2 = c.get_symbol_from_name(name).unwrap();
+        assert_eq!(c2, &sym);
+
+        let x = syms.get_symbol_info(&id).unwrap();
+
+        println!("{:#?}", x);
+
+        assert!(false);
+    }
+}
