@@ -1,14 +1,15 @@
 use std::collections::HashMap;
 
 use super::ScopePath;
-
-use super::table::SymbolTable;
+use super::SymbolTable;
 use super::{IdTraits, SymbolErrorKind, ValueTraits};
 use super::{SymbolReader, SymbolResult, SymbolWriter};
 
 pub type ScopeRef<'a, V, ID> = ego_tree::NodeRef<'a, SymbolTable<V, ID>>;
 pub type ScopeMut<'a, V, ID> = ego_tree::NodeMut<'a, SymbolTable<V, ID>>;
 pub type ScopeId = ego_tree::NodeId;
+
+
 
 // Indices of a symbol in the tree
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +36,7 @@ pub struct Scopes<V: ValueTraits, ID: IdTraits> {
     root_id: ego_tree::NodeId,
 }
 
+
 impl<V: ValueTraits, ID: IdTraits> Default for Scopes<V, ID> {
     fn default() -> Self {
         Self::new()
@@ -51,7 +53,33 @@ fn find_sub_scope<V: ValueTraits, ID: IdTraits>(n: ScopeRef<V, ID>, name: &str) 
     None
 }
 
+
+impl<V: ValueTraits, ID: IdTraits> std::fmt::Display for Scopes<V, ID> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.write(f)
+    }
+}
+
 impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
+
+    fn write_lo(&self, id : ScopeId, indent : usize, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
+        let sc = self.scopes.get(id).unwrap();
+
+        let pad = " ".repeat(indent * 2);
+
+        std::writeln!(f, "{}{}", pad, sc.value().get_scope_name())?;
+
+        for c in sc.children() {
+            self.write_lo(c.id(), indent + 1, f)?;
+        }
+        Ok(())
+    }
+
+    pub fn write(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { 
+        self.write_lo(self.root_id, 0, f)
+    }
+
     pub fn create_scope<F: Into<ScopePath>>(
         &mut self,
         parent: F,
@@ -64,7 +92,7 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
     }
 
     pub fn new() -> Self {
-        let syms = SymbolTable::new("root");
+        let syms = SymbolTable::new("");
         let scopes = ego_tree::Tree::new(syms);
         let root_id = scopes.root().id();
         Self { scopes, root_id }
@@ -150,6 +178,43 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
 
     pub fn add_symbol_named(&mut self, _fqn: &str, _val: V) -> SymbolResult<ScopeId, SymbolId<ID>> {
         panic!()
+    }
+
+
+    pub fn find_scope_rel<B: Into<ScopePath>,P: Into<ScopePath>>(&self, base: B, path: P) -> SymbolResult<ID, ScopeId> {
+        let base : ScopePath = base.into();
+        let path : ScopePath = path.into();
+
+        if base.is_relative() { 
+            Err(SymbolErrorKind::AbsPathNeeded)
+            
+        } else if path.is_abs() {
+            Err(SymbolErrorKind::RelPathNeeded)
+        } else {
+
+            let abs = ScopePath::from_base_path(&base, &path).unwrap();
+            self.find_scope_abs(abs)
+
+        }
+    }
+
+    pub fn find_scope_abs<X: Into<ScopePath>>(&self, path: X) -> SymbolResult<ID, ScopeId> {
+        let path : ScopePath = path.into();
+
+        if path.is_relative() {
+            Err(SymbolErrorKind::AbsPathNeeded)
+        } else {
+        let parts = path.get_parts();
+
+        let mut root_id = self.root_id;
+
+        for part in parts {
+            let scope = self.get(root_id).ok_or(SymbolErrorKind::NotFound)?;
+            root_id = scope.children().find(|x| x.value().get_scope_name() == part).map(|z| z.id()).ok_or(SymbolErrorKind::NotFound)?;
+        }
+
+        Ok(root_id)
+        }
     }
 }
 
@@ -266,7 +331,6 @@ impl<'a, V: ValueTraits, ID: IdTraits> SymbolReader<V, ID> for ScopeCursor<'a, V
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 #[allow(unused_imports)]
 mod test {
@@ -285,6 +349,19 @@ mod test {
         let _id = syms.create_scope("", "test").unwrap();
         let id = syms.create_scope("::test", "test2").unwrap();
 
-        println!("{:?}", id);
+        let found_id = syms.find_scope_abs("::test::test2").unwrap();
+        let found_id_2 = syms.find_scope_rel("", "test::test2").unwrap();
+
+
+        println!("id : {:?}", id);
+        println!("found_id : {:?}", found_id);
+        println!("found_id_2 : {:?}", found_id_2);
+
+        let path = syms.get_scope_abs_fqn(id);
+        println!("{:?}", path);
+
+        println!("About to fail!!!!");
+
+        assert!(false)
     }
 }

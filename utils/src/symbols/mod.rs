@@ -6,12 +6,23 @@ pub use table::*;
 pub use tree::*;
 pub use paths::*;
 
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ScopeErrorKind {
+    NotFound,
+    AbsPathNeeded,
+    RelPathNeeded,
+}
+pub type ScopeResult<T> = Result<T, ScopeErrorKind>;
+
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbolErrorKind<ID> {
     AlreadyDefined(ID),
     Mismatch { expected: i64 },
     NotFound,
     AbsPathNeeded,
+    RelPathNeeded,
 }
 
 pub type SymbolResult<ID,T> = Result<T, SymbolErrorKind<ID>>;

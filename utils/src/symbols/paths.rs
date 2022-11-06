@@ -11,6 +11,19 @@ pub struct ScopePath {
 }
 
 impl ScopePath {
+    pub fn from_base_path(base : &ScopePath, path : &ScopePath) -> Option<Self>{
+        if base.is_abs() && path.is_relative() {
+            let mut parts = base.parts.clone();
+            parts.extend(path.parts.iter().cloned());
+            Some(Self {
+                is_relative: false,
+                parts
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn new<T: AsRef<str>>(txt: T) -> Self {
         let mut x = split_scopes(txt.as_ref());
 
