@@ -1,17 +1,22 @@
 mod table;
 mod tree;
 mod paths;
+mod cursor;
 
 pub use table::*;
 pub use tree::*;
 pub use paths::*;
+pub use cursor::*;
 
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ScopeErrorKind {
-    NotFound,
+    NotFound(String),
+    InvalidId,
     AbsPathNeeded,
     RelPathNeeded,
+    PathAlreadyExists(String),
+    NoParent,
 }
 pub type ScopeResult<T> = Result<T, ScopeErrorKind>;
 

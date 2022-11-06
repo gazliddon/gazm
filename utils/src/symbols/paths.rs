@@ -56,6 +56,10 @@ impl ScopePath {
         self.is_relative
     }
 
+    pub fn set_is_relative(&mut self, is_relative: bool) {
+        self.is_relative  = is_relative
+    }
+
     pub fn is_abs(&self) -> bool {
         !self.is_relative()
     }
