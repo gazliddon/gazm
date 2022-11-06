@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
+use super::ScopePath;
+
 use super::table::SymbolTable;
 use super::{IdTraits, SymbolErrorKind, ValueTraits};
-use super::{SymbolReader, SymbolWriter, SymbolResult};
+use super::{SymbolReader, SymbolResult, SymbolWriter};
 
 pub type ScopeRef<'a, V, ID> = ego_tree::NodeRef<'a, SymbolTable<V, ID>>;
 pub type ScopeMut<'a, V, ID> = ego_tree::NodeMut<'a, SymbolTable<V, ID>>;
@@ -11,12 +13,12 @@ pub type ScopeId = ego_tree::NodeId;
 // Indices of a symbol in the tree
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SymbolId<ID: IdTraits> {
-    scope_id : ScopeId,
-    symbol_id : ID
+    scope_id: ScopeId,
+    symbol_id: ID,
 }
 
 #[derive(Debug)]
-pub struct SymbolInfo<'a, V : ValueTraits> {
+pub struct SymbolInfo<'a, V: ValueTraits> {
     name: &'a str,
     value: &'a V,
 }
@@ -39,11 +41,26 @@ impl<V: ValueTraits, ID: IdTraits> Default for Scopes<V, ID> {
     }
 }
 
+fn find_sub_scope<V: ValueTraits, ID: IdTraits>(n: ScopeRef<V, ID>, name: &str) -> Option<ScopeId> {
+    for x in n.children() {
+        if x.value().get_scope_name() == name {
+            return Some(x.id());
+        }
+    }
+
+    None
+}
 
 impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
+    pub fn create_scope<F: Into<ScopePath>>(
+        &mut self,
+        parent: F,
+        scope_name: &str,
+    ) -> SymbolResult<ID, ScopeId> {
+        let base: ScopePath = parent.into();
+        let id = self.get_scope_id_from_fqn(&base)?;
 
-    fn scope_fqn_to_scope(&self) -> Option<ScopeId> {
-        panic!()
+        self.new_scope(id, scope_name)
     }
 
     pub fn new() -> Self {
@@ -57,13 +74,27 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         self.scopes.get(id)
     }
 
-    pub fn get_symbol_info<'a>(&'a self, id : &SymbolId<ID>) -> Option<SymbolInfo<'a, V>> {
+    pub fn scope_rel_to_abs(&self, _base: &ScopePath, _rel: &ScopePath) -> Option<ScopePath> {
+        panic!()
+    }
+
+    pub fn get_scope_id_from_fqn(&mut self, base: &ScopePath) -> SymbolResult<ID, ScopeId> {
+        if base.is_relative() {
+            Err(SymbolErrorKind::AbsPathNeeded)
+        } else {
+            let mut n = self.root_cursor();
+            n.navigate_relative(base.get_parts())
+        }
+    }
+
+    pub fn get_symbol_info<'a>(&'a self, id: &SymbolId<ID>) -> Option<SymbolInfo<'a, V>> {
         let scope_ref = self.scopes.get(id.scope_id).unwrap();
         let name = scope_ref.value().get_symbol_name(&id.symbol_id).unwrap();
 
-        scope_ref.value().get_symbol(id.symbol_id).map(|s| {
-            SymbolInfo { name, value: s }
-        })
+        scope_ref
+            .value()
+            .get_symbol(id.symbol_id)
+            .map(|s| SymbolInfo { name, value: s })
     }
 
     pub fn get_mut(&mut self, id: ScopeId) -> Option<ScopeMut<'_, V, ID>> {
@@ -96,11 +127,7 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         Some(ret)
     }
 
-    pub fn new_scope(
-        &mut self,
-        parent: ScopeId,
-        name: &str,
-    ) -> Result<ScopeId, SymbolErrorKind<ScopeId>> {
+    pub fn new_scope(&mut self, parent: ScopeId, name: &str) -> SymbolResult<ID, ScopeId> {
         let mut scope = self.scopes.get_mut(parent).expect("!");
         let id = scope.append(SymbolTable::new(name)).id();
         Ok(id)
@@ -121,7 +148,7 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         panic!()
     }
 
-    pub fn add_symbol_named(&mut self, _fqn: &str, _val : V ) -> SymbolResult<ScopeId, SymbolId<ID>> {
+    pub fn add_symbol_named(&mut self, _fqn: &str, _val: V) -> SymbolResult<ScopeId, SymbolId<ID>> {
         panic!()
     }
 }
@@ -132,18 +159,27 @@ pub struct ScopeCursor<'a, V: ValueTraits, ID: IdTraits> {
 }
 
 impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
+    pub fn go_root(&mut self) {
+        self.current_scope = self.scopes.root_id;
+    }
 
-    pub fn get_current_scope_id(&self) -> ScopeId {
+    pub fn go_up(&mut self) {
+        if let Some(id) = self.get_parent() {
+            self.current_scope = id;
+        }
+    }
+
+    pub fn get_current_scope(&self) -> ScopeId {
         self.current_scope
     }
 
-    pub fn get_current_scope(&self) -> ScopeRef<V, ID> {
-        let id = self.get_current_scope_id();
+    pub fn get_current_scope_node(&self) -> ScopeRef<V, ID> {
+        let id = self.get_current_scope();
         self.scopes.get(id).unwrap()
     }
 
-    pub fn get_current_scope_mut(&mut self) -> ScopeMut<V, ID> {
-        let id = self.get_current_scope_id();
+    pub fn get_current_scope_node_mut(&mut self) -> ScopeMut<V, ID> {
+        let id = self.get_current_scope();
         self.scopes.get_mut(id).unwrap()
     }
 
@@ -155,39 +191,64 @@ impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
         todo!("Todo")
     }
 
-    fn navigate_relative(&mut self, _path: &[String]) -> SymbolResult<ID, ScopeId> {
-        todo!("Todo")
+    pub fn get_parent(&mut self) -> Option<ScopeId> {
+        self.get_current_scope_node().parent().map(|x| x.id())
     }
 
-    fn navigate_abs(&mut self, path: &[String]) -> SymbolResult<ID, ScopeId> {
-        // Save current_scope
-        let old_scope = self.current_scope;
-        self.current_scope = self.scopes.root_id;
-        let res = self.navigate_relative(path);
+    fn navigate_relative_lo(&mut self, path: &[String]) -> SymbolResult<ID, ScopeId> {
+        for name in path.iter() {
+            let n = self.get_current_scope_node();
 
-        match res {
-            Ok(_) => res,
-            Err(_) => {
-                // restore current scope if there was an error
-                self.current_scope = old_scope;
-                res
-            }
+            let id = match name.as_str() {
+                "super" => self.get_parent().ok_or(SymbolErrorKind::NotFound)?,
+                _ => find_sub_scope(n, name).ok_or(SymbolErrorKind::NotFound)?,
+            };
+
+            self.current_scope = id;
+        }
+
+        Ok(self.get_current_scope())
+    }
+
+    pub fn navigate_relative(&mut self, path: &[String]) -> SymbolResult<ID, ScopeId> {
+        let mut ret = self.scopes.root_cursor();
+        ret.current_scope = self.current_scope;
+        let id = ret.navigate_relative_lo(path)?;
+        self.current_scope = id;
+        Ok(id)
+    }
+
+    pub fn navigate_abs(&mut self, path: &[String]) -> SymbolResult<ID, ScopeId> {
+        let mut ret = self.scopes.root_cursor();
+        let ret = ret.navigate_relative_lo(path)?;
+        self.current_scope = ret;
+        Ok(ret)
+    }
+
+    fn navigate(&mut self, fqn: &ScopePath) -> SymbolResult<ID, ScopeId> {
+        if fqn.is_relative() {
+            self.navigate_relative(fqn.get_parts())
+        } else {
+            self.navigate_abs(fqn.get_parts())
         }
     }
 
     pub fn remove_symbol(&mut self, name: &str) -> SymbolResult<ID, ()> {
-        let mut x = self.get_current_scope_mut();
+        let mut x = self.get_current_scope_node_mut();
         x.value().remove_symbol_name(name)
     }
 
     pub fn add_symbol(&mut self, name: &str, value: V) -> SymbolResult<ID, SymbolId<ID>> {
-        let mut x = self.get_current_scope_mut();
+        let mut x = self.get_current_scope_node_mut();
 
-        let symbol_id = x.value().add_symbol_with_value(name, value).map_err(|e| e)?;
+        let symbol_id = x
+            .value()
+            .add_symbol_with_value(name, value)
+            .map_err(|e| e)?;
 
         Ok(SymbolId {
             symbol_id,
-            scope_id: self.get_current_scope_id(),
+            scope_id: self.get_current_scope(),
         })
     }
 }
@@ -201,5 +262,29 @@ impl<'a, V: ValueTraits, ID: IdTraits> SymbolReader<V, ID> for ScopeCursor<'a, V
     fn get_symbol(&self, id: ID) -> Option<&V> {
         let scope = self.scopes.get(self.current_scope)?;
         scope.value().get_symbol(id)
+    }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+#[allow(unused_imports)]
+mod test {
+
+    use super::*;
+    use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
+
+    type Symbols = Scopes<String, usize>;
+    type SymbolId = crate::symbols::SymbolId<usize>;
+
+    impl ValueTraits for String {}
+
+    #[test]
+    fn test_symbol_table() {
+        let mut syms = Symbols::new();
+        let _id = syms.create_scope("", "test").unwrap();
+        let id = syms.create_scope("::test", "test2").unwrap();
+
+        println!("{:?}", id);
     }
 }

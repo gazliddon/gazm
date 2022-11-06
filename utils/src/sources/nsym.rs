@@ -46,6 +46,8 @@ impl Default for SymbolValue {
 
 #[allow(unused_imports)]
 mod test {
+    use std::iter::Sum;
+
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
@@ -63,9 +65,34 @@ mod test {
         assert_eq!(c2, &sym);
 
         let x = syms.get_symbol_info(&id).unwrap();
-
         println!("{:#?}", x);
+    }
 
+
+    // #[test]
+    fn create_scopes() {
+        let mut syms = Symbols::new();
+        let x = syms.create_scope("root", "test").unwrap();
+        println!("{:?}", x);
         assert!(false);
     }
+
+    fn find_a_scope() {
+    }
+
+    fn write_symbols_to_scope() {
+    }
+
+    fn resolve_a_symbol_from_a_scope() {
+    }
+
+    fn find_a_symbol_in_a_scope() {
+    }
+
+    // Need to 
+    // Create scopes
+    // Write a symbol to scope
+    // Resolve a symbol from within a scope
+    //    Walk up the tree
+    // Find a symbol in a scope
 }

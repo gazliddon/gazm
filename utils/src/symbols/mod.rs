@@ -1,13 +1,17 @@
 mod table;
 mod tree;
+mod paths;
+
 pub use table::*;
 pub use tree::*;
+pub use paths::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbolErrorKind<ID> {
     AlreadyDefined(ID),
     Mismatch { expected: i64 },
     NotFound,
+    AbsPathNeeded,
 }
 
 pub type SymbolResult<ID,T> = Result<T, SymbolErrorKind<ID>>;
