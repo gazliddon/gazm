@@ -43,16 +43,6 @@ impl<V: ValueTraits, ID: IdTraits> Default for Scopes<V, ID> {
     }
 }
 
-fn find_sub_scope<V: ValueTraits, ID: IdTraits>(n: ScopeRef<V, ID>, name: &str) -> Option<ScopeId> {
-    for x in n.children() {
-        if x.value().get_scope_name() == name {
-            return Some(x.id());
-        }
-    }
-
-    None
-}
-
 impl<V: ValueTraits, ID: IdTraits> std::fmt::Display for Scopes<V, ID> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.write(f)
