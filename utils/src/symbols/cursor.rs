@@ -4,7 +4,6 @@ use super::{
 
 use super::{ SymbolWriter, SymbolId, };
 
-
 use crate::symbols::SymbolReader;
 
 pub struct ScopeCursor<'a, V: ValueTraits, ID: IdTraits> {
@@ -19,27 +18,37 @@ impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
         }
     }
 
-    pub fn go_root(&mut self) {
-        self.current_scope = self.scopes.root_id;
-    }
-
-    pub fn go_parent(&mut self) {
-        if let Ok(id) = self.get_parent() {
-            self.current_scope = id;
+    pub fn root(self) -> Self {
+        Self {
+            current_scope: self.scopes.root_id,
+            scopes: self.scopes
         }
     }
 
-    pub fn get_current_scope(&self) -> ScopeId {
+    pub fn parent(self) -> Self {
+        let current_scope = if let Ok(id) = self.get_parent_id() {
+            id
+        } else {
+            self.current_scope
+        };
+
+        Self {
+            current_scope,
+            scopes : self.scopes
+        }
+    }
+
+    pub fn get_current_scope_id(&self) -> ScopeId {
         self.current_scope
     }
 
     fn get_current_scope_node(&self) -> ScopeRef<V, ID> {
-        let id = self.get_current_scope();
+        let id = self.get_current_scope_id();
         self.scopes.get(id).unwrap()
     }
 
     fn get_current_scope_node_mut(&mut self) -> ScopeMut<V, ID> {
-        let id = self.get_current_scope();
+        let id = self.get_current_scope_id();
         self.scopes.get_mut(id).unwrap()
     }
 
@@ -47,14 +56,14 @@ impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
         self.scopes.get_scope_abs_fqn(self.current_scope).unwrap()
     }
 
-    pub fn get_parent(&mut self) -> ScopeResult<ScopeId> {
+    pub fn get_parent_id(&self) -> ScopeResult<ScopeId> {
         self.get_current_scope_node()
             .parent()
             .map(|x| x.id())
             .ok_or(ScopeErrorKind::NoParent)
     }
 
-    pub fn go<P: Into<ScopePath>>(&mut self, path: P) -> ScopeResult<ScopeId> {
+    pub fn go<P: Into<ScopePath>>(self, path: P) -> ScopeResult<Self> {
         let path: ScopePath = path.into();
 
         let new_id = if path.is_abs() {
@@ -62,8 +71,11 @@ impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
         } else {
             self.scopes.find_scope_rel_id(self.current_scope, path)
         }?;
-        self.current_scope = new_id;
-        Ok(new_id)
+
+        Ok(Self {
+            current_scope: new_id,
+            scopes: self.scopes
+        })
     }
 
     pub fn remove_symbol(&mut self, name: &str) -> ScopeResult< ()> {
@@ -81,7 +93,7 @@ impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
 
         Ok(SymbolId {
             symbol_id,
-            scope_id: self.get_current_scope(),
+            scope_id: self.get_current_scope_id(),
         })
     }
 }
@@ -120,11 +132,13 @@ mod test {
 
         println!("{syms}");
 
-        let mut c = syms.cursor_from_path("::test::bar").unwrap();
+        let c = syms.cursor_from_path("::test::bar").unwrap();
 
-        assert_eq!(c.get_current_scope(), test_bar_id);
+        assert_eq!(c.get_current_scope_id(), test_bar_id);
 
-        let new_test_id = c.go("super").unwrap();
+        let c = c.go("super").unwrap();
+
+        let new_test_id = c.get_current_scope_id();
         let test_id = syms.find_scope_abs("::test").unwrap();
 
         assert_eq!(new_test_id, test_id);
