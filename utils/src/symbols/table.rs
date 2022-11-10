@@ -51,6 +51,7 @@ pub struct SymbolTable<V : super::ValueTraits, ID : IdTraits> {
     id_to_value: HashMap<ID, V>,
     id: usize,
 }
+
 impl<V : ValueTraits, ID : IdTraits> SymbolReader<V, ID> for SymbolTable<V, ID> { 
     fn get_symbol_id(&self, name: &str) -> Option<ID> {
         self.name_to_id.get(name).cloned()
@@ -67,9 +68,9 @@ impl<V : ValueTraits, ID : IdTraits> SymbolReader<V, ID> for SymbolTable<V, ID> 
 
 impl<V : ValueTraits, ID : IdTraits> SymbolWriter<V, ID> for SymbolTable<V, ID> {
 
-    fn add_symbol_with_value(&mut self, name: &str, value: V) -> SymbolResult<ID, ID> {
-        if let Some(id) = self.get_symbol_id(name) {
-            Err(SymbolErrorKind::AlreadyDefined(id))
+    fn add_symbol_with_value(&mut self, name: &str, value: V) -> ScopeResult< ID> {
+        if let Some(_) = self.get_symbol_id(name) {
+            Err(ScopeErrorKind::SymbolAlreadyDefined(name.to_string()))
         } else {
             let id = self.get_next_id();
             self.name_to_id.insert(name.to_string(), id);
@@ -79,8 +80,8 @@ impl<V : ValueTraits, ID : IdTraits> SymbolWriter<V, ID> for SymbolTable<V, ID> 
         }
     }
 
-    fn remove_symbol(&mut self, id: ID) -> SymbolResult<ID,()> {
-        self.get_symbol(id).ok_or(SymbolErrorKind::NotFound)?;
+    fn remove_symbol(&mut self, id: ID) -> ScopeResult<()> {
+        self.get_symbol(id).ok_or(ScopeErrorKind::SymbolIdNotFound)?;
         let name = self.id_to_name.get(&id).unwrap();
         self.name_to_id.remove(name);
         self.id_to_value.remove(&id);
@@ -88,8 +89,8 @@ impl<V : ValueTraits, ID : IdTraits> SymbolWriter<V, ID> for SymbolTable<V, ID> 
         Ok(())
     }
 
-    fn get_symbol_mut(&mut self, id: ID) -> SymbolResult<ID, &mut V> {
-        self.id_to_value.get_mut(&id).ok_or(SymbolErrorKind::NotFound)
+    fn get_symbol_mut(&mut self, id: ID) -> ScopeResult< &mut V> {
+        self.id_to_value.get_mut(&id).ok_or(ScopeErrorKind::SymbolIdNotFound)
     }
 }
 

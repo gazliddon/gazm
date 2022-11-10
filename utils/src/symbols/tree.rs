@@ -174,7 +174,7 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         let mut scope = self
             .scopes
             .get_mut(parent)
-            .ok_or(ScopeErrorKind::InvalidId)?;
+            .ok_or(ScopeErrorKind::InvalidScopeId)?;
         let id = scope.append(SymbolTable::new(name)).id();
         Ok(id)
     }
@@ -215,14 +215,14 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
             for part in parts {
                 let scope = self
                     .get(current_scope_id)
-                    .ok_or(ScopeErrorKind::InvalidId)?;
+                    .ok_or(ScopeErrorKind::InvalidScopeId)?;
 
                 current_scope_id = match part.as_str() {
                     "super" => scope.parent().ok_or(ScopeErrorKind::NoParent)?,
                     _ => scope
                         .children()
                         .find(|x| x.value().get_scope_name() == part)
-                        .ok_or_else(|| ScopeErrorKind::NotFound(path.to_string()))?,
+                        .ok_or_else(|| ScopeErrorKind::ScopeNotFound(path.to_string()))?,
                 }
                 .id();
             }

@@ -2,7 +2,7 @@ use super::{
     IdTraits, ScopeErrorKind, ScopeId, ScopeMut, ScopeRef, ScopeResult, Scopes, ValueTraits, ScopePath,
 };
 
-use super::{ SymbolWriter, SymbolId, SymbolResult };
+use super::{ SymbolWriter, SymbolId, };
 
 
 use crate::symbols::SymbolReader;
@@ -66,12 +66,12 @@ impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
         Ok(new_id)
     }
 
-    pub fn remove_symbol(&mut self, name: &str) -> SymbolResult<ID, ()> {
+    pub fn remove_symbol(&mut self, name: &str) -> ScopeResult< ()> {
         let mut x = self.get_current_scope_node_mut();
         x.value().remove_symbol_name(name)
     }
 
-    pub fn add_symbol(&mut self, name: &str, value: V) -> SymbolResult<ID, SymbolId<ID>> {
+    pub fn add_symbol(&mut self, name: &str, value: V) -> ScopeResult< SymbolId<ID>> {
         let mut x = self.get_current_scope_node_mut();
 
         let symbol_id = x
