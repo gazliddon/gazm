@@ -1,6 +1,5 @@
 // Code to handle
 // source level debugging functions
-pub mod nsym;
 
 pub mod fileloader;
 mod position;
@@ -13,7 +12,6 @@ mod sourcefiles;
 mod error;
 mod sourceinfo;
 mod textedit;
-pub mod value;
 
 pub use position::*;
 pub use sourcestore::*;

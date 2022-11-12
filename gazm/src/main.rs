@@ -42,6 +42,7 @@ mod token_store;
 mod tokenize;
 mod util;
 mod vars;
+mod newsyms;
 
 use anyhow::{Context, Result};
 use ctx::Opts;

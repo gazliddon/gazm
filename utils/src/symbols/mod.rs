@@ -8,7 +8,6 @@ pub use tree::*;
 pub use paths::*;
 pub use cursor::*;
 
-
 #[derive(thiserror::Error,Debug, PartialEq, Eq, Clone)]
 pub enum ScopeErrorKind {
     #[error("Scope not found: {0}")]
@@ -35,6 +34,7 @@ pub type ScopeResult<T> = Result<T, ScopeErrorKind>;
 
 
 use std::hash::Hash;
+
 pub trait IdTraits : From<usize> + Clone + PartialEq + Eq + Hash + Copy {
 }
 
@@ -73,3 +73,4 @@ pub trait SymbolWriter<V : ValueTraits, ID : IdTraits> : SymbolReader<V, ID> {
     fn get_symbol_mut(&mut self, id: ID) -> ScopeResult< &mut V>;
 }
 
+impl IdTraits for usize {}

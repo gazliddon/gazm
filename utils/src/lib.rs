@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 mod location;
 mod pathsearcher;
-mod symbols;
+pub mod symbols;
 pub mod hash;
 pub mod fileutils;
 pub mod rle;

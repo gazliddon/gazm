@@ -263,7 +263,6 @@ mod test {
 
     type Symbols = Scopes<String, usize>;
     type SymbolId = crate::symbols::SymbolId<usize>;
-
     impl ValueTraits for String {}
 
     #[test]

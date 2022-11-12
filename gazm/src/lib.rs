@@ -42,3 +42,4 @@ pub mod token_store;
 pub mod vars;
 pub mod doc;
 pub mod lsp;
+pub mod newsyms;
