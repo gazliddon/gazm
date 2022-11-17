@@ -10,11 +10,15 @@ pub enum PostfixerErrorKind {
 }
 
 pub trait GetPriority {
-    fn priority(&self) -> Option<usize>;
+    fn priority(&self) -> Option<usize> {
+        None
+    }
     fn is_op(&self) -> bool {
         self.priority().is_some()
     }
 }
+
+impl GetPriority for isize {}
 
 #[derive(Debug, Clone)]
 pub struct PostFixer<I: Clone + GetPriority> {

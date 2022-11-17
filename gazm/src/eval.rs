@@ -60,7 +60,6 @@ impl GetPriority for Item {
     fn priority(&self) -> Option<usize> {
         use Item::*;
         match self {
-
             Div => Some(12),
             Mul => Some(12),
             Add => Some(11),
@@ -132,6 +131,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
     }
 }
 
+
 /// Evaluates a postfix expression
 fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalError> {
     use Item::*;
@@ -152,6 +152,7 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
             items.push((c, item));
         }
     }
+
     use std::panic;
 
     for (cn, i) in &items {

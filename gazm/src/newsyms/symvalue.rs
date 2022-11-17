@@ -45,7 +45,6 @@ impl SymbolValue {
 
 impl ValueTraits for SymbolValue {}
 
-
 impl Default for SymbolValue {
     fn default() -> Self {
         Self {

@@ -3,6 +3,8 @@
 
 mod value;
 mod symvalue;
+mod eval;
 
 pub use value::*;
 pub use symvalue::*;
+pub use eval::*;
