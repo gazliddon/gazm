@@ -5,7 +5,6 @@ pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 
 // use std::fmt::{Debug, DebugMap};
 
-use std::slice::SliceIndex;
 use std::vec;
 
 use crate::error::{AstError, UserError};
@@ -15,9 +14,9 @@ use crate::scopes::ScopeBuilder;
 use crate::ctx::Context;
 use crate::item::{Item, Node};
 
-use crate::postfix;
 use crate::{messages::*, node};
 use emu::utils::sources::{Position, SourceInfo, SymbolQuery, SymbolWriter, SourceErrorType};
+use emu::utils::eval::{ PostFixer, GetPriority };
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -205,11 +204,10 @@ impl<'a> Ast<'a> {
     }
 
     fn node_to_postfix(&self, node: AstNodeRef) -> Result<Vec<AstNodeId>, String> {
-        use postfix::PostFixer;
 
         let args: Vec<_> = node.children().map(|n| Term::new(&n)).collect();
 
-        let mut pfix: PostFixer<Term> = postfix::PostFixer::new();
+        let mut pfix: PostFixer<Term> = PostFixer::new();
 
         let ret = pfix.get_postfix(args.clone()).map_err(|s| {
             let args: Vec<String> = args
@@ -454,7 +452,7 @@ struct Term {
     priority: Option<usize>,
 }
 
-impl postfix::GetPriority for Term {
+impl GetPriority for Term {
     fn priority(&self) -> Option<usize> {
         self.priority
     }

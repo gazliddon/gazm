@@ -1,13 +1,5 @@
-use emu::utils::Stack;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum PostfixerErrorKind {
-    #[error("Expected an operator, got {0}")]
-    ExpectedOperator(String),
-    #[error("Expected an odd number of args, got {0}")]
-    NeedOddAmountOfArgs(usize),
-}
+use crate::Stack;
+use super::PostfixerErrorKind;
 
 pub trait GetPriority {
     fn priority(&self) -> Option<usize> {
@@ -18,7 +10,6 @@ pub trait GetPriority {
     }
 }
 
-impl GetPriority for isize {}
 
 #[derive(Debug, Clone)]
 pub struct PostFixer<I: Clone + GetPriority> {
@@ -117,6 +108,7 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
 mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
+    impl GetPriority for isize {}
 
     fn to_string(vs: &[char]) -> String {
         String::from_iter(vs.iter())

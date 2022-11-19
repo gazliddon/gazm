@@ -31,7 +31,6 @@ mod messages;
 mod node;
 mod numbers;
 mod opcodes;
-mod postfix;
 mod register;
 mod regutils;
 mod scopes;

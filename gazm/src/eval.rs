@@ -1,12 +1,15 @@
+use emu::utils;
+use utils::eval;
+
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::item::Item;
-use crate::postfix::GetPriority;
+use eval::GetPriority;
 
 use std::fmt::Display;
 
 use crate::error::AstError;
-use emu::utils::sources::{Position, SymbolQuery};
-use emu::utils::Stack;
+use utils::sources::{Position, SymbolQuery};
+use utils::Stack;
 
 use thiserror::Error;
 

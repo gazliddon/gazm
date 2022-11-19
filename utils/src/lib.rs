@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 mod location;
 mod pathsearcher;
+pub mod eval;
 pub mod symbols;
 pub mod hash;
 pub mod fileutils;

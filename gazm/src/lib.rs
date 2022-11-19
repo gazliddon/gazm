@@ -22,7 +22,6 @@ pub mod messages;
 pub mod node;
 pub mod numbers;
 pub mod opcodes;
-pub mod postfix;
 pub mod register;
 pub mod scopes;
 pub mod sections;

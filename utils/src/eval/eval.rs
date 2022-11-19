@@ -1,25 +1,5 @@
-use crate::postfix::{self, GetPriority, PostFixer};
-use emu::utils::Stack;
-use thiserror::Error;
-
-#[derive(Clone, Copy, Debug, PartialEq, Error)]
-pub enum OperationErrorKind {
-    #[error("Divide by zero")]
-    DivideByZero,
-    #[error("Overflow")]
-    Overflow,
-    #[error("Illegal bit operation")]
-    IllegalBitOp,
-    #[error("Illegal shift operation")]
-    IllegalShift,
-    #[error("Incompatible operands")]
-    IncompatibleOperands,
-    #[error("Illegal negation")]
-    IllegalNegation,
-}
-
-pub type OperationError<T> = Result<T, OperationErrorKind>;
-
+use super::{GenericEvalErrorKind, GetPriority, OperationError};
+use crate::Stack;
 
 /// Traits a value in an expression must support
 pub trait EvalTraits:
@@ -36,7 +16,6 @@ pub trait EvalTraits:
     + Sized
 {
 }
-
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ExprItemKind {
@@ -112,36 +91,7 @@ pub trait ExprItemTraits<V: EvalTraits> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Error)]
-pub enum GenericEvalError {
-    #[error("Expected an operator, got {0}")]
-    UnexpectedOp(Operation),
-    #[error("Unable to evaluate expression")]
-    UnableToEvaluate,
-    #[error("Did not expecte a value")]
-    UnexpectedValue,
-    #[error("Did not evaluate all items")]
-    UnevaluatedTerms,
-    #[error("Stack unexpectedly empty")]
-    StackEmpty,
-    #[error("Expected a value")]
-    ExpectedValue,
-    #[error("Expected an operator")]
-    ExpectedOperator,
-    #[error(transparent)]
-    OperatorError(#[from] OperationErrorKind)
-
-}
-
-impl<T> From<OperationError<T>> for GenericEvalError {
-    fn from(_: OperationError<T>) -> Self {
-        todo!()
-    }
-}
-
-
-
-pub trait EvalExpr<V: EvalTraits, I: ExprItemTraits<V> + Clone, ERR: From<GenericEvalError>> {
+pub trait EvalExpr<V: EvalTraits, I: ExprItemTraits<V> + Clone, ERR: From<GenericEvalErrorKind>> {
     fn eval_expr(&self, i: &I) -> Result<I, ERR>;
 }
 
@@ -149,13 +99,16 @@ pub fn generic_postfix_eval<
     V: EvalTraits,
     I: ExprItemTraits<V> + Clone + From<V>,
     E: EvalExpr<V, I, ERR>,
-    ERR: From<GenericEvalError>,
+    ERR: From<GenericEvalErrorKind>,
 >(
     items: impl Iterator<Item = I>,
     evaluator: &E,
-) -> Result<I, (usize, ERR)> {
+) -> Result<V, (usize, ERR)> {
+    use GenericEvalErrorKind::*;
     use Operation::*;
-    use GenericEvalError::*;
+
+    // todo
+    // check that we have enough items in the iterator?
 
     let mut s: Stack<I> = Stack::new();
     let idx_err = |idx, e| -> (usize, ERR) { (idx, ERR::from(e)) };
@@ -184,7 +137,9 @@ pub fn generic_postfix_eval<
                     ShiftLeft => lhs << rhs,
                     ShiftRight => lhs >> rhs,
                     Rem => lhs % rhs,
-                }.map(|v| I::from(v)).map_err(|e| (idx, GenericEvalError::from(e).into()))?
+                }
+                .map(|v| I::from(v))
+                .map_err(|e| to_err(GenericEvalErrorKind::from(e)))?
             }
 
             ExprItemKind::Value => i.clone(),
@@ -194,29 +149,31 @@ pub fn generic_postfix_eval<
     }
 
     match s.len() {
+        // Nothing on top of stack
         0 => Err(StackEmpty),
-        1 => Ok(s.pop()),
+        // Something, try and extract the value
+        1 => s.pop().value().ok_or(ExpectedValue),
+        // Too many things on stack
         _ => Err(UnevaluatedTerms),
     }
     .map_err(|e| idx_err(0, e))
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum ExprItem<V: GetPriority> {
+pub enum ExprItem<V: GetPriority> {
     Op(Operation),
     Val(V),
     Expr(Vec<ExprItem<V>>),
 }
 
-impl< V: GetPriority> ExprItem<V> {
-    pub fn from_val(v : V) -> Self {
+impl<V: GetPriority> ExprItem<V> {
+    pub fn from_val(v: V) -> Self {
         ExprItem::Val(v)
     }
 
-    pub fn from_op(op : Operation) -> Self {
+    pub fn from_op(op: Operation) -> Self {
         ExprItem::Op(op)
     }
-
 }
 
 impl<V: GetPriority> GetPriority for ExprItem<V> {
@@ -256,46 +213,7 @@ impl<V: GetPriority> From<V> for ExprItem<V> {
     }
 }
 
-mod test_common {}
-
-mod value_test {
-    use super::super::Value;
-    use super::*;
-    struct Evaluator {}
-    impl GetPriority for Value {}
-    type VOPVal = ExprItem<Value>;
-    
-    type OpValLocal = ExprItem<Value>;
-
-    impl EvalTraits for Value {}
-
-
-    impl EvalExpr<Value, OpValLocal, GenericEvalError> for Evaluator {
-        fn eval_expr(&self, _i: &OpValLocal) -> Result<OpValLocal, GenericEvalError> {
-            todo!()
-        }
-    }
-
-    #[test]
-    fn test_value() {
-        use Value::*;
-        use Operation::*;
-        use ExprItem::*;
-        let infix_items: Vec<OpValLocal> =
-            vec![Val(Signed(10)), Op(Add), Val(Signed(20)), Op(Div), Val(Signed(5))];
-        let mut pfix = PostFixer::new();
-        let items = pfix.get_postfix(infix_items).unwrap();
-
-        // let items: Vec<OpVal> = vec![10.into(), 10.into(), Add.into(), 5.into(), Div.into()];
-        let evaluator = Evaluator {};
-        let x = generic_postfix_eval(items.into_iter(), &evaluator);
-        let desired = Ok(Val(Signed(14)));
-        assert_eq!(x, desired);
-    }
-}
-
 mod test {
-    use super::*;
 
     // type OpValLocal = ExprItem<isize>;
 

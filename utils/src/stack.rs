@@ -19,7 +19,7 @@ impl<A: Clone> Deref for Stack<A> {
         &self.stack
     }
 }
-
+// Todo some error for illegal pops
 impl<OP: Clone> Stack<OP> {
     pub fn new() -> Self {
         Self::default()

@@ -1,6 +1,8 @@
-use super::eval::EvalTraits;
-use super::eval::OperationError;
-use super::eval::OperationErrorKind;
+use emu::utils;
+
+use utils::eval::EvalTraits;
+use utils::eval::OperationError;
+use utils::eval::OperationErrorKind;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum EvalResultType {}
@@ -395,7 +397,6 @@ mod test {
 
         let a = Double(10.0);
         assert_eq!(-a, Ok( Double(-10.0) ));
-
 
         let a: Value = "hello".into();
         let b = -a;
