@@ -1,5 +1,5 @@
-use crate::Stack;
 use super::PostfixerErrorKind;
+use crate::Stack;
 
 pub trait GetPriority {
     fn priority(&self) -> Option<usize> {
@@ -9,7 +9,6 @@ pub trait GetPriority {
         self.priority().is_some()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct PostFixer<I: Clone + GetPriority> {
@@ -86,9 +85,9 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
                 while let Some((op, rhs)) = next_pair() {
                     let top_pri = self.top_pri();
 
-                    let this_pri = op.priority().ok_or_else(|| {
-                        PostfixerErrorKind::ExpectedOperator(format!("{:?}", op))
-                    })?;
+                    let this_pri = op
+                        .priority()
+                        .ok_or_else(|| PostfixerErrorKind::ExpectedOperator(format!("{:?}", op)))?;
 
                     if top_pri >= this_pri {
                         self.flush();
@@ -102,6 +101,12 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
             }
         }
     }
+}
+
+pub fn to_postfix<I: Clone + GetPriority + std::fmt::Debug>(i : &[I]) -> Result<Vec<I>, PostfixerErrorKind>
+{
+    let mut x = PostFixer::new();
+    x.get_postfix(i.clone().to_vec())
 }
 
 #[allow(unused_imports)]
@@ -150,24 +155,12 @@ mod test {
             if i.is_op() {
                 let (rhs, lhs) = s.pop_pair();
                 let res = match i {
-                    '*' => {
-                        lhs * rhs
-                    }
-                    '<' => {
-                        lhs << rhs
-                    }
-                    '>' => {
-                        lhs >> rhs
-                    }
-                    '/' => {
-                        lhs / rhs
-                    }
-                    '+' => {
-                        lhs + rhs
-                    }
-                    '-' => {
-                        lhs - rhs
-                    }
+                    '*' => lhs * rhs,
+                    '<' => lhs << rhs,
+                    '>' => lhs >> rhs,
+                    '/' => lhs / rhs,
+                    '+' => lhs + rhs,
+                    '-' => lhs - rhs,
                     _ => panic!(),
                 };
                 s.push(res);

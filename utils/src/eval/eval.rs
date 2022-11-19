@@ -95,7 +95,7 @@ pub trait EvalExpr<V: EvalTraits, I: ExprItemTraits<V> + Clone, ERR: From<Generi
     fn eval_expr(&self, i: &I) -> Result<I, ERR>;
 }
 
-pub fn generic_postfix_eval<
+pub fn evaluate_postfix_expr<
     V: EvalTraits,
     I: ExprItemTraits<V> + Clone + From<V>,
     E: EvalExpr<V, I, ERR>,
