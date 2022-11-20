@@ -11,6 +11,8 @@ use nom::sequence::{pair, preceded, separated_pair, tuple};
 
 use nom::character::complete::multispace0;
 
+use crate::parse::util;
+
 // Addr Modes and Parsing Order
 //  ,--R    SubSub(RegEnum)         parse_pre_dec_dec
 //  ,-R     Sub(RegEnum)            parse_pre_dec       *NOT ALLOWED INDIRECT*
@@ -119,7 +121,7 @@ fn parse_offset(input: Span) -> IResult<Node> {
 }
 
 fn parse_pc_offset(input: Span) -> IResult<Node> {
-    use crate::util::ws;
+    use util::ws;
 
     let sep = ws(tag(","));
     let (rest, (expr, _)) = separated_pair(parse_expr, sep, get_pc_reg)(input)?;
@@ -133,7 +135,7 @@ fn parse_pc_offset(input: Span) -> IResult<Node> {
 }
 
 fn parse_extended_indirect(input: Span) -> IResult<Node> {
-    use crate::util::{wrapped_chars, ws};
+    use util::{wrapped_chars, ws};
     let (rest, matched) = wrapped_chars('[', ws(parse_expr), ']')(input)?;
     let item = Item::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
     let ctx = matched_span(input, rest);
@@ -170,7 +172,7 @@ fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
 }
 
 fn parse_indexed_indirect(input: Span) -> IResult<Node> {
-    use crate::util::{wrapped_chars, ws};
+    use util::{wrapped_chars, ws};
     let indexed_indirect = alt((
         parse_no_arg_indexed_allowed_indirect,
         parse_pc_offset,

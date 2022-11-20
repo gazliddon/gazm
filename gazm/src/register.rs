@@ -1,5 +1,4 @@
 use super::item::{Item, Node};
-use super::util;
 
 use emu::cpu::RegEnum;
 use nom::character::complete::{alpha1, multispace0};
@@ -12,6 +11,7 @@ use std::collections::HashSet;
 
 use crate::error::IResult;
 use crate::locate::Span;
+use crate::parse::util;
 
 // Register parsing
 

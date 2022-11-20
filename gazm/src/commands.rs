@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use std::{collections::HashMap, path::PathBuf};
 
-use super::{expr, util};
+use super::expr;
 
 use Item::*;
 
@@ -11,7 +11,7 @@ use crate::{
     item::{Item, Node},
     labels::get_just_label,
     locate::matched_span,
-    util::{match_escaped_str, match_file_name},
+    parse::util::{self,match_escaped_str, match_file_name},
 };
 
 use nom::{
@@ -75,14 +75,14 @@ fn parse_include_arg(input: Span) -> IResult<Node> {
 }
 
 fn parse_grab_mem(input: Span) -> IResult<Node> {
-    use crate::util::ws;
+    use util::ws;
     let (rest, (src, size)) = separated_pair(parse_expr, ws(tag(",")), parse_expr)(input)?;
     let ret = Node::from_item_span(GrabMem, input).with_children(vec![src, size]);
     Ok((rest, ret))
 }
 
 fn inc_bin_args(input: Span) -> IResult<(PathBuf, Option<Vec<Node>>)> {
-    use crate::util::ws;
+    use util::ws;
     let sep = ws(tag(","));
     let sep2 = ws(tag(","));
     let (rest, file) = match_file_name(input)?;
@@ -100,7 +100,7 @@ fn parse_refbin_arg(input: Span) -> IResult<Node> {
 }
 
 fn parse_write_bin_args(input: Span) -> IResult<Node> {
-    use crate::util::ws;
+    use util::ws;
     let (rest, (file_name, _, source_addr, _, size)) = tuple((
         match_file_name,
         ws(tag(",")),

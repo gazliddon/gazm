@@ -26,7 +26,7 @@ use crate::{
     messages::messages,
     opcodes::parse_opcode,
     structs::{get_struct, parse_struct_definition},
-    util::{parse_assignment, ws},
+    parse::util::{parse_assignment, ws},
 };
 
 use emu::utils::sources;

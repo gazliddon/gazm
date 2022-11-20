@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::labels::get_just_label;
 use crate::locate::{matched_span, span_to_pos, Span};
-use crate::util::{get_block, sep_list0, wrapped_chars, ws};
+use crate::parse::util::{self,get_block, sep_list0, wrapped_chars, ws};
 
 use nom::multi::separated_list0;
 use nom::{
@@ -100,7 +100,7 @@ pub struct MacroCall {
 
 pub fn parse_macro_call(input: Span) -> IResult<Node> {
     use crate::expr::parse_expr;
-    use crate::util::sep_list1;
+    use util::sep_list1;
     use crate::item::Item;
     let sep = ws(tag(","));
 

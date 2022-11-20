@@ -1,27 +1,27 @@
-use crate::binary::{AccessType, BinRef, Binary, BinaryError};
-use ego_tree::iter::Children;
-use emu::utils::sources::{
-    ItemType, SourceMapping, SymbolError, SymbolQuery, SymbolWriter,
+use crate::{
+    asmctx::AsmCtx,
+    ast::{AstNodeId, AstNodeRef, AstTree},
+    binary::{AccessType, BinRef, Binary, BinaryError},
+    error::{GResult, GazmErrorType, UserError},
+    evaluator::{self, Evaluator},
+    fixerupper::FixerUpper,
+    item::{self, AddrModeParseType, IndexParseType, Item, Node},
+    messages::{info, messages},
+    parse::util::{ByteSize, ByteSizes},
 };
+
+use emu::{
+    cpu::RegEnum,
+    isa::Instruction,
+    utils::sources::{ItemType, SourceMapping, SymbolError, SymbolQuery, SymbolWriter},
+};
+
+use ego_tree::iter::Children;
 use serde_json::ser::Formatter;
 use std::collections::{HashMap, HashSet};
-
-use crate::ast::{AstNodeId, AstNodeRef, AstTree};
-use crate::item::{self, AddrModeParseType, IndexParseType, Item, Node};
-use crate::messages::{info, messages};
 use std::path::Path;
 
-use crate::error::UserError;
-
-use crate::evaluator::{self, Evaluator};
-use emu::cpu::RegEnum;
-use emu::isa::Instruction;
-
-use crate::asmctx::AsmCtx;
-use crate::error::{GResult, GazmErrorType};
-use crate::fixerupper::FixerUpper;
-use crate::util::{ByteSize, ByteSizes};
-use item::Item::*;
+use Item::*;
 
 /// Ast tree sizer
 /// gets the size of everything
@@ -219,7 +219,7 @@ impl<'a> Sizer<'a> {
                             if let Ok((value, _)) = ctx.ctx.eval_first_arg(node) {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
-                                if top_byte == dp as u8{
+                                if top_byte == dp as u8 {
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
@@ -271,12 +271,7 @@ impl<'a> Sizer<'a> {
                             expected, pcv
                         )
                     } else {
-                        let z = ctx
-                            .ctx
-                            .get_symbols()
-                            .get_symbol_info(name)
-                            .unwrap()
-                            .clone();
+                        let z = ctx.ctx.get_symbols().get_symbol_info(name).unwrap().clone();
                         let scope = ctx.get_scope_fqn();
                         format!("Scope: {scope} {z:#?} - {:?}", e)
                     };

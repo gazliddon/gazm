@@ -2,9 +2,9 @@
 //
 use super::item::{Item, Node};
 use super::labels::parse_label;
-use super::util;
 use crate::error::IResult;
 use crate::locate::{matched_span, Span};
+use crate::parse::util;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{char as nom_char, multispace0};

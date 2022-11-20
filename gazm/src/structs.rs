@@ -11,7 +11,7 @@ use crate::locate::matched_span;
 
 use crate::{
     labels::get_just_label,
-    util::{wrapped_chars, ws},
+    parse::util::{wrapped_chars, ws},
 };
 
 use crate::error::IResult;

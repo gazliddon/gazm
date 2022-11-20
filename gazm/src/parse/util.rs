@@ -142,7 +142,7 @@ pub fn match_file_name(input: Span) -> IResult<Span> {
 // Number
 pub fn parse_number(input: Span) -> IResult<Node> {
     let (rest, num) = numbers::get_number(input)?;
-    let matched = super::locate::matched_span(input, rest);
+    let matched = crate::locate::matched_span(input, rest);
     let ret = Node::from_number(num, matched);
     Ok((rest, ret))
 }

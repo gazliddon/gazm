@@ -39,14 +39,15 @@ mod sizer;
 mod structs;
 mod token_store;
 mod tokenize;
-mod util;
 mod vars;
 mod newsyms;
+mod parse;
 
 use anyhow::{Context, Result};
 use ctx::Opts;
 use error::GResult;
 use messages::{info, messages};
+
 
 static BANNER: &str = r#"
   __ _  __ _ _____ __ ___

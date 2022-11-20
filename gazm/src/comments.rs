@@ -11,6 +11,8 @@ use nom::sequence::{pair, preceded, tuple};
 use crate::error::IResult;
 use crate::locate::Span;
 
+use crate::parse::util::ws;
+
 static COMMENT: &str = ";";
 
 fn get_comment(input: Span) -> IResult<Span> {
@@ -38,7 +40,6 @@ pub fn parse_star_comment(input: Span) -> IResult<Node> {
 }
 
 pub fn strip_star_comment(input: Span) -> IResult<Node> {
-    use crate::util::ws;
     let (rest, matched) = ws(get_star_comment)(input)?;
     let ret = Node::from_item_span(Item::Comment(matched.to_string()), input);
     Ok((rest, ret))
