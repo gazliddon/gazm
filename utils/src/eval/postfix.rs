@@ -61,7 +61,7 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
         }
     }
 
-    pub fn get_postfix(&mut self, ops: Vec<I>) -> Result<Vec<I>, PostfixerErrorKind> {
+    pub fn get_postfix(&mut self, ops: &[I]) -> Result<Vec<I>, PostfixerErrorKind> {
         let len = ops.len();
 
         if len % 2 == 0 && len != 0 {
@@ -70,7 +70,7 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
 
         match len {
             0 => Ok(vec![]),
-            1 => Ok(ops),
+            1 => Ok(ops.to_vec()),
             _ => {
                 let mut it = ops.iter();
                 let lhs = it.next().unwrap();
@@ -106,7 +106,7 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
 pub fn to_postfix<I: Clone + GetPriority + std::fmt::Debug>(i : &[I]) -> Result<Vec<I>, PostfixerErrorKind>
 {
     let mut x = PostFixer::new();
-    x.get_postfix(i.clone().to_vec())
+    x.get_postfix(i)
 }
 
 #[allow(unused_imports)]
@@ -186,7 +186,7 @@ mod test {
             println!("testing : {test}");
             let mut x = PostFixer::new();
             let args: Vec<_> = test.chars().collect();
-            let ret = x.get_postfix(args).unwrap();
+            let ret = x.get_postfix(&args).unwrap();
             let result = eval(&ret);
             let ret_str = to_string(&ret);
             println!("Infix {}", ret_str);
@@ -200,7 +200,7 @@ mod test {
         let mut x = PostFixer::new();
 
         let args: Vec<_> = test.chars().collect();
-        let ret = x.get_postfix(args).unwrap();
+        let ret = x.get_postfix(&args).unwrap();
         let result = eval(&ret);
         let ret_str = to_string(&ret);
 

@@ -2,9 +2,9 @@
 members = ["utils", "emu","gazm", "diss", "gazmfmt"]
 
 [profile.release]
-# debug = true
-lto = true
-codegen-units = 1
+debug = true
+lto = "thin"
+# codegen-units = 1
 panic = "abort"
 strip = true
 

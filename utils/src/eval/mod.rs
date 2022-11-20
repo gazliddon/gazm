@@ -2,14 +2,13 @@
 mod postfix;
 mod eval;
 mod error;
-
 pub use postfix::*;
 pub use eval::*;
 pub use error::*;
 
 use std::fmt::Debug;
 
-pub fn eval_infix<
+pub fn infix_expr_to_value<
     V: EvalTraits,
     I: ExprItemTraits<V> + Clone + From<V> + Debug + GetPriority,
     E: EvalExpr<V, I, ERR>,

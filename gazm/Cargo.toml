@@ -1,15 +1,17 @@
 [package]
 name = "gazm"
-version = "0.9.5"
+version = "0.9.6"
 edition = "2021"
 
 
 [dependencies]
+emu = {path = "../emu"}
+
 nom = "*"
 nom_locate = "*"
+
 lazy_static = "1.4.0"
 pretty_assertions="*"
-emu = {path = "../emu"}
 clap = { version = "3.1.5", features = ["derive", "color"] }
 colored = "2"
 ego-tree="*"
@@ -31,7 +33,7 @@ simple-logging="*"
 
 tokio-util = { version = "0.7", optional = true, features = ["codec"] }
 tokio = { version = "1.21.0", features = ["full"] }
-tower-lsp = {path = "../../tower-lsp"}
+tower-lsp = { git = "https://github.com/gazliddon/tower-lsp", version = "*" }
 
 [dev-dependencies]
 criterion = "0.3"

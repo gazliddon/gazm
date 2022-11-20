@@ -1,6 +1,6 @@
 use gazm::ctx::{Context, Opts};
 use gazm::locate::Span;
-use gazm::tokenize::{ tokenize_text };
+use gazm::tokenize::tokenize_text;
 use utils::sources::AsmSource;
 use clap::{Arg, Command};
 
@@ -13,11 +13,11 @@ fn main() {
 
     let mut opts = Opts::default();
 
-    opts.star_comments = m.is_present("star-comments");
-    opts.trailing_comments = m.is_present("trailing-comments");
+    opts.star_comments = m.contains_id("star-comments");
+    opts.trailing_comments = m.contains_id("trailing-comments");
     opts.encode_blank_lines = true;
 
-    let file = m.value_of("file").unwrap();
+    let file = m.get_one::<String>("file").unwrap();
 
     let src = std::fs::read_to_string(file).expect("Can't load file");
 
@@ -29,7 +29,7 @@ fn main() {
 
     let formatted = render_nodes(toks.tokens, text);
 
-    if m.is_present("overwrite") {
+    if m.contains_id("overwrite") {
         std::fs::write(file, formatted).expect("Unable to write file")
     } else {
         println!("{formatted}")
@@ -43,7 +43,7 @@ pub fn parse() -> clap::ArgMatches {
         .version("0.1")
         .arg(
             Arg::new("file")
-                .multiple_values(false)
+                // .multiple_values(false)
                 .index(1)
                 .required(true),
         )

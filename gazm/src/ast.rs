@@ -16,7 +16,7 @@ use crate::item::{Item, Node};
 
 use crate::{messages::*, node};
 use emu::utils::sources::{Position, SourceInfo, SymbolQuery, SymbolWriter, SourceErrorType};
-use emu::utils::eval::{ PostFixer, GetPriority };
+use emu::utils::eval::{ PostFixer, GetPriority, to_postfix };
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -207,9 +207,7 @@ impl<'a> Ast<'a> {
 
         let args: Vec<_> = node.children().map(|n| Term::new(&n)).collect();
 
-        let mut pfix: PostFixer<Term> = PostFixer::new();
-
-        let ret = pfix.get_postfix(args.clone()).map_err(|s| {
+        let ret = to_postfix(&args).map_err(|s| {
             let args: Vec<String> = args
                 .iter()
                 .map(|a| format!("{:?}", self.tree.get(a.node).unwrap().value().item))
