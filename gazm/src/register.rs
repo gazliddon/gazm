@@ -1,22 +1,25 @@
-use super::item::{Item, Node};
+use crate::{
+    error::IResult,
+    item::{Item, Node},
+    locate::Span,
+    parse::util,
+};
 
 use emu::cpu::RegEnum;
-use nom::character::complete::{alpha1, multispace0};
-use nom::multi::separated_list1;
-use nom::sequence::{separated_pair, tuple};
 
-use nom::bytes::complete::tag;
+use nom::{
+    bytes::complete::tag,
+    character::complete::{alpha1, multispace0},
+    multi::separated_list1,
+    sequence::{separated_pair, tuple},
+};
 
 use std::collections::HashSet;
-
-use crate::error::IResult;
-use crate::locate::Span;
-use crate::parse::util;
 
 // Register parsing
 
 pub fn get_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
-    use emu::cpu::RegEnum::*;
+    use RegEnum::*;
 
     let (rest, input) = alpha1(input)?;
     let cmp = input.to_lowercase();

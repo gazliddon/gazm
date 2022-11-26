@@ -47,6 +47,34 @@ pub enum BuildType {
     Check,
 }
 
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SourceDatabaseAndSymbols {
+    mappings: SourceDatabase,
+    syms: SymbolTree,
+}
+pub fn load_sym_file(_file: &str) -> std::io::Result<SourceDatabaseAndSymbols> {
+    let _txt = std::fs::read_to_string(_file)?;
+    todo!()
+}
+
+// pub fn write_sym_file(
+//     file: &str,
+//     mappings: &SourceDatabase,
+//     syms: &SymbolTree,
+// ) -> std::io::Result<()> {
+//     let mut mappings: SourceDatabase = mappings.clone();
+//     mappings.file_name = emu::utils::fileutils::abs_path_from_cwd(&file);
+//     let the_lot = SourceDatabaseAndSymbols {
+//         mappings,
+//         syms : syms.clone(),
+//     };
+
+//     let j = serde_json::to_string_pretty(&the_lot).unwrap();
+//     std::fs::write(file, j)
+// }
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Settings {}
 #[derive(Debug, Clone, Deserialize)]
@@ -120,7 +148,7 @@ pub struct AsmOut {
     pub source_map: SourceMapping,
     pub lst_file: LstFile,
     pub exec_addr: Option<usize>,
-    pub bin_chunks: Vec<BinWriteDesc>,
+    // pub bin_chunks: Vec<BinWriteDesc>,
     pub bin_to_write_chunks: Vec<BinToWrite>,
     pub tokens: Vec<Node>,
     pub ast: Option<AstTree>,
@@ -203,7 +231,9 @@ impl Context {
             }
             Ok(res)
         } else {
-            Err(EditErrorKind::NoSourceFile(file.as_ref().to_string_lossy().into()))
+            Err(EditErrorKind::NoSourceFile(
+                file.as_ref().to_string_lossy().into(),
+            ))
         }
     }
 
@@ -300,7 +330,8 @@ impl Context {
         self.write_bin_chunks()?;
         self.checksum_report();
         self.write_lst_file()?;
-        self.write_sym_file()
+        self.write_sym_file()?;
+        self.write_deps_file()
     }
 
     pub fn write_lst_file(&mut self) -> GResult<()> {
@@ -328,40 +359,53 @@ impl Context {
         }
         Ok(())
     }
-    pub fn write_sym_file(&mut self) -> GResult<()> {
-        if let Some(sym_file) = &self.opts.syms_file {
-            let _syms = self.asm_out.symbols.clone();
+    pub fn write_deps_file(&mut self) -> GResult<()> {
+        if let Some(deps) = &self.opts.deps_file {
 
-            // let sd : SourceDatabase = ctx.into();
+            let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
 
-            status_mess!("Writing symbols: {}", sym_file);
+            let read: Vec<String> = self
+                .get_source_file_loader()
+                .get_files_read()
+                .iter()
+                .map(as_string)
+                .collect();
 
-            // sd.write_json(sym_file).with_context(||format!("Unable to write {sym_file}"))?;
+            let written: Vec<String> = self
+                .get_source_file_loader()
+                .get_files_written()
+                .iter()
+                .map(as_string)
+                .collect();
 
-            if let Some(deps) = &self.opts.deps_file {
-                status_mess!("Writing deps file : {deps}");
-
-                let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
-
-                let read: Vec<String> = self
-                    .get_source_file_loader()
-                    .get_files_read()
-                    .iter()
-                    .map(as_string)
-                    .collect();
-                let written: Vec<String> = self
-                    .get_source_file_loader()
-                    .get_files_written()
-                    .iter()
-                    .map(as_string)
-                    .collect();
-
+            if let Some(sym_file) = &self.opts.syms_file {
                 let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
                 let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
+
+                status_mess!("Writing deps file: {}", deps);
 
                 std::fs::write(deps, deps_line)
                     .with_context(|| format!("Unable to write {deps}"))?;
             }
+        }
+
+        Ok(())
+    }
+
+    pub fn write_sym_file(&mut self) -> GResult<()> {
+        if let Some(sym_file) = &self.opts.syms_file {
+            // let syms = &self.asm_out.symbols;
+
+            let sd: SourceDatabase = (&*self).into();
+            status_mess!("Writing symbols: {}", sym_file);
+
+            sd.write_json(sym_file)
+                .with_context(|| format!("Unable to write {sym_file}"))?;
+
+            // let sym_file_2 = format!("{}x", sym_file);
+            // status_mess!("Writing symbols_2: {}", sym_file_2);
+            // write_sym_file(&sym_file_2, &sd, syms)
+            //     .with_context(|| format!("Can't write new sym file {sym_file_2}"))?;
         }
         Ok(())
     }
@@ -400,11 +444,17 @@ impl Context {
 
 impl From<&Context> for SourceDatabase {
     fn from(c: &Context) -> Self {
+        let bins: Vec<_> = c
+            .asm_out
+            .bin_to_write_chunks
+            .iter()
+            .map(|c| c.bin_desc.clone())
+            .collect();
         SourceDatabase::new(
             &c.asm_out.source_map,
             &c.sources(),
             &c.asm_out.symbols,
-            &c.asm_out.bin_chunks,
+            &bins,
             c.asm_out.exec_addr,
         )
     }
@@ -422,6 +472,7 @@ impl Default for Context {
         }
     }
 }
+
 /// Create a Context from the command line Opts
 impl From<&Opts> for AsmOut {
     fn from(opts: &Opts) -> Self {

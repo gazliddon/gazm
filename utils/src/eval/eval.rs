@@ -2,7 +2,7 @@ use super::{GenericEvalErrorKind, GetPriority, OperationError};
 use crate::Stack;
 
 /// Traits a value in an expression must support
-pub trait EvalTraits:
+pub trait OperatorTraits:
     std::ops::Add<Output = OperationError<Self>>
     + std::ops::Sub<Output = OperationError<Self>>
     + std::ops::Mul<Output = OperationError<Self>>
@@ -14,6 +14,7 @@ pub trait EvalTraits:
     + std::ops::Shl<Output = OperationError<Self>>
     + std::ops::Shr<Output = OperationError<Self>>
     + Sized
+    + Clone
 {
 }
 
@@ -63,7 +64,9 @@ impl std::fmt::Display for Operation {
     }
 }
 
-pub trait ExprItemTraits<V: EvalTraits> {
+pub trait ExprItemTraits: Clone {
+    type ExprValue : OperatorTraits;
+
     fn item_type(&self) -> ExprItemKind {
         use ExprItemKind::*;
 
@@ -78,7 +81,7 @@ pub trait ExprItemTraits<V: EvalTraits> {
         }
     }
 
-    fn value(&self) -> Option<V>;
+    fn value(&self) -> Option<Self::ExprValue>;
     fn op(&self) -> Option<Operation>;
     fn is_expression(&self) -> bool;
 
@@ -91,19 +94,146 @@ pub trait ExprItemTraits<V: EvalTraits> {
     }
 }
 
-pub trait EvalExpr<V: EvalTraits, I: ExprItemTraits<V> + Clone, ERR: From<GenericEvalErrorKind>> {
-    fn eval_expr(&self, i: &I) -> Result<I, ERR>;
+/// V is the underlying value
+/// I is the wrapped item
+pub trait EvalExpr<I, ERR>
+where
+    ERR: From<GenericEvalErrorKind>,
+    I: ExprItemTraits
+{
+    fn eval_expr(&self, i: &I) -> Result<I::ExprValue, ERR>;
 }
 
-pub fn evaluate_postfix_expr<
-    V: EvalTraits,
-    I: ExprItemTraits<V> + Clone + From<V>,
-    E: EvalExpr<V, I, ERR>,
+#[derive(Clone)]
+enum StackItem<'a, I>
+where
+    I: ExprItemTraits
+{
+    Value(<I as ExprItemTraits>::ExprValue),
+    Item(&'a I),
+}
+
+impl<'a, I> StackItem<'a, I>
+where
+    I: ExprItemTraits
+{
+    pub fn item(&self) -> Option<&I> {
+        match self {
+            StackItem::Item(i) => Some(i),
+            _ => None,
+        }
+    }
+}
+
+impl<'a, I> From<&'a I> for StackItem<'a, I> 
+where
+ I : ExprItemTraits,
+{
+    fn from(item: &'a I) -> Self {
+        use ExprItemKind::*;
+        match item.item_type() {
+            Value => StackItem::Value(item.value().unwrap()),
+            _ => StackItem::Item(item),
+        }
+    }
+}
+
+impl<'a, I> ExprItemTraits for StackItem<'a, I>
+where
+    I: ExprItemTraits
+{
+    type ExprValue = I::ExprValue;
+
+    fn value(&self) -> Option<Self::ExprValue> {
+        match self {
+            StackItem::Value(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
+
+    fn op(&self) -> Option<Operation> {
+        match self {
+            StackItem::Item(i) => i.op(),
+            _ => None,
+        }
+    }
+
+    fn is_expression(&self) -> bool {
+        match self {
+            StackItem::Item(i) => i.is_expression(),
+            _ => false,
+        }
+    }
+}
+
+pub fn evaluate_postfix_expr_2<'a, I, E, ERR>(
+    items: impl Iterator<Item = &'a I>,
+    _evaluator: &E,
+) -> Result<I::ExprValue, ERR>
+where
+    I: ExprItemTraits + 'a,
+    E: EvalExpr<I, ERR>,
     ERR: From<GenericEvalErrorKind>,
->(
+{
+    use GenericEvalErrorKind::*;
+    use Operation::*;
+
+    let mut s: Stack<StackItem<'a, I>> = Stack::new();
+
+    let to_err = |_e| panic!();
+
+    for i in items.map(StackItem::from) {
+        let ret = match i.item_type() {
+            ExprItemKind::Expression => StackItem::Value(_evaluator.eval_expr(i.item().unwrap())?),
+
+            ExprItemKind::Operator => {
+                let op = i.op().ok_or(to_err(ExpectedOperator))?;
+
+                let (rhs, lhs) = s.pop_pair();
+                let lhs = lhs.value().ok_or(to_err(ExpectedValue))?;
+                let rhs = rhs.value().ok_or(to_err(ExpectedValue))?;
+
+                match op {
+                    Mul => lhs * rhs,
+                    Div => lhs / rhs,
+                    Add => lhs + rhs,
+                    Sub => lhs - rhs,
+                    BitAnd => lhs & rhs,
+                    BitXor => lhs ^ rhs,
+                    BitOr => lhs | rhs,
+                    ShiftLeft => lhs << rhs,
+                    ShiftRight => lhs >> rhs,
+                    Rem => lhs % rhs,
+                }
+                .map(|i| StackItem::Value(i))
+                .map_err(|e| to_err(GenericEvalErrorKind::from(e)))?
+            }
+
+            ExprItemKind::Value => i,
+        };
+
+        s.push(ret)
+    }
+    match s.len() {
+        // Nothing on top of stack
+        0 => Err(StackEmpty),
+        // Something, try and extract the value
+        1 => s.pop().value().ok_or(ExpectedValue),
+        // Too many things on stack
+        _ => Err(UnevaluatedTerms),
+    }
+    .map_err(|e| e.into())
+}
+
+pub fn evaluate_postfix_expr<I, E, ERR>(
     items: impl Iterator<Item = I>,
     evaluator: &E,
-) -> Result<V, (usize, ERR)> {
+) -> Result<I::ExprValue, (usize, ERR)>
+where
+    I: ExprItemTraits + From<I::ExprValue>,
+    E: EvalExpr<I, ERR>,
+    ERR: From<GenericEvalErrorKind>,
+{
     use GenericEvalErrorKind::*;
     use Operation::*;
 
@@ -117,7 +247,7 @@ pub fn evaluate_postfix_expr<
         let to_err = |e| -> (usize, ERR) { idx_err(idx, e) };
 
         let i = match i.item_type() {
-            ExprItemKind::Expression => evaluator.eval_expr(&i).map_err(|e| (idx, e))?,
+            ExprItemKind::Expression => evaluator.eval_expr(&i).map_err(|e| (idx, e))?.into(),
 
             ExprItemKind::Operator => {
                 let op = i.op().ok_or(to_err(ExpectedOperator))?;
@@ -187,7 +317,8 @@ impl<V: GetPriority> GetPriority for ExprItem<V> {
     }
 }
 
-impl<V: GetPriority + EvalTraits + Clone> ExprItemTraits<V> for ExprItem<V> {
+impl<V: GetPriority + OperatorTraits + Clone> ExprItemTraits for ExprItem<V> {
+    type ExprValue = V;
     fn value(&self) -> Option<V> {
         match self {
             ExprItem::Val(v) => Some(v.clone()),

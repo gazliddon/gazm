@@ -1,14 +1,13 @@
-use super::{AsmSource, Position, SymbolTree, TextEditTrait};
-use super::error::*;
+use super::{SourceFile, SourceFiles, AsmSource, Position, SymbolTree, TextEditTrait, error::*};
+use path_clean::PathClean;
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
-use super::{ SourceFile, SourceFiles };
 
 pub trait LocationTrait: Clone {
     fn get_line_number(&self) -> usize;
     fn get_file(&self) -> &PathBuf;
 }
-
 
 #[derive(Clone, Debug)]
 pub struct SourceLine<'a> {
@@ -137,8 +136,8 @@ pub struct BinWriteDesc {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BinToWrite {
-    pub bin_desc : BinWriteDesc,
-    pub data : Vec<u8>
+    pub bin_desc: BinWriteDesc,
+    pub data: Vec<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -149,7 +148,6 @@ pub struct SourceDatabase {
     pub exec_addr: Option<usize>,
     pub file_name: PathBuf,
 
-    #[serde(skip)]
     symbols: SymbolTree,
     #[serde(skip)]
     range_to_mapping: HashMap<std::ops::Range<usize>, Mapping>,
@@ -189,9 +187,6 @@ pub struct SourceLineInfo<'a> {
     line: usize,
     mem_range: std::ops::Range<u64>,
 }
-use std::fs;
-
-use path_clean::PathClean;
 
 fn abs_path<P1: AsRef<Path>, P2: AsRef<Path>>(path: P1, base: P2) -> PathBuf {
     let path = path.as_ref();
@@ -279,14 +274,6 @@ impl SourceDatabase {
         for (k, v) in &self.id_to_source_file {
             self.source_file_to_id.insert(v.clone(), *k);
         }
-
-        // // Make all of the files written path absolute by adding cwd when the sym file was saved
-        // for x in &mut self.bin_written {
-        //     // Adjust for being relative to cwd
-        //     let y = file_dir.join(x.file.as_path());
-        //     // Make absolute
-        //     x.file = y.canonicalize().expect("Cannot canonicalize");
-        // }
     }
 
     fn load_source_file(&self, file_id: u64) -> Result<(), ()> {
@@ -299,7 +286,7 @@ impl SourceDatabase {
             x.insert(file_id, SourceFile::new(file_name, &s));
             x.get(&file_id);
         } else {
-            println!("**** Got from cache! {}",file_name.to_string_lossy());
+            println!("**** Got from cache! {}", file_name.to_string_lossy());
         }
 
         Ok(())

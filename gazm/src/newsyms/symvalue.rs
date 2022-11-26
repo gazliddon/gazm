@@ -33,7 +33,7 @@ impl SymbolValue {
     }
 
     pub fn new_double(num: f64, pos: Option<Position>) -> Self {
-        Self::new(Value::Double(num), pos)
+        Self::new(Value::Float(num), pos)
     }
     pub fn new_signed(num: i64, pos: Option<Position>) -> Self {
         Self::new(Value::Signed(num), pos)

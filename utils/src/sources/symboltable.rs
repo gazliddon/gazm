@@ -410,4 +410,8 @@ impl SymbolTable {
         self.id += 1;
         ret
     }
+
+    pub fn get_symbols(&self ) -> Vec<&SymbolInfo> {
+        self.info.values().collect()
+    }
 }

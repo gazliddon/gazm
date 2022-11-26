@@ -1,41 +1,45 @@
-use nom::branch::alt;
-use nom::bytes::complete::{is_a, tag};
-use nom::combinator::recognize;
-use nom::multi::many1;
-use nom::{AsBytes, UnspecializedInput};
+use crate::{
+    error::{IResult, ParseError},
+    locate::Span,
+};
 
 use emu::utils::sources::AsmSource;
-use nom::character::complete::{alphanumeric1, anychar};
-use nom::sequence::preceded;
 
-use crate::error::{IResult, ParseError};
-use crate::locate::Span;
+use nom::{
+    branch::alt,
+    bytes::complete::{is_a, tag},
+    character::complete::{alphanumeric1, anychar},
+    combinator::recognize,
+    multi::many1,
+    sequence::preceded,
+    AsBytes, UnspecializedInput,
+};
 
 mod new {
-
     pub enum Literal {
         Int(NumberLiteral),
         QuotedString(String),
         Character(char),
     }
+    use nom::{
+        branch::alt,
+        bytes::complete::{is_a, tag, tag_no_case},
+        character::complete::{alphanumeric1, anychar, hex_digit0, hex_digit1},
+        character::is_hex_digit,
+        combinator::recognize,
+        error::context,
+        error::ContextError,
+        error::ErrorKind,
+        error::ParseError,
+        multi::many1,
+        sequence::preceded,
+        InputTake,
+    };
 
-
-    use nom::branch::alt;
-    use nom::bytes::complete::{is_a, tag, tag_no_case};
-    use nom::character::complete::{alphanumeric1, anychar, hex_digit0, hex_digit1};
-    use nom::character::is_hex_digit;
-    use nom::combinator::recognize;
-    use nom::error::context;
-    use nom::error::ContextError;
-    use nom::error::ErrorKind;
-    use nom::error::ParseError;
-    use nom::multi::many1;
-    use nom::sequence::preceded;
-    use nom::InputTake;
     use nom_locate::LocatedSpan;
 
     pub type Span<'a, X = ()> = LocatedSpan<&'a str, X>;
-    pub type IResult<'a, X, O> = nom::IResult<Span<'a,X>, O>;
+    pub type IResult<'a, X, O> = nom::IResult<Span<'a, X>, O>;
 
     #[derive(Clone, Debug)]
     pub enum NumberLiteralKind {
@@ -62,7 +66,7 @@ mod new {
         Ok((rest, (NumberLiteralKind::Hexadecimal, num)))
     }
 
-    fn get_bin<X: Clone>(input: Span<X>) -> IResult<X, ( NumberLiteralKind , i64)> {
+    fn get_bin<X: Clone>(input: Span<X>) -> IResult<X, (NumberLiteralKind, i64)> {
         let (rest, _) = alt((tag("0b"), tag("%")))(input)?;
         let (rest, num_str) = num_get(rest)?;
         let num = i64::from_str_radix(&num_str.replace('_', ""), 2).map_err(|_| panic!())?;
@@ -76,10 +80,10 @@ mod new {
     }
 
     /// Parse a span into a NumberLiteral
-    pub fn parse_number<X: Clone>(input: Span<X>) -> IResult<X, (Span<X>, NumberLiteral )> {
+    pub fn parse_number<X: Clone>(input: Span<X>) -> IResult<X, (Span<X>, NumberLiteral)> {
         let (rest, (kind, val)) = alt((get_hex, get_bin, get_dec))(input.clone())?;
         let span = input.take(input.len() - rest.len());
-        Ok((rest, (span, NumberLiteral { val, kind  })))
+        Ok((rest, (span, NumberLiteral { val, kind })))
     }
 }
 
@@ -131,8 +135,7 @@ mod newp {
     type IResult<'a, O, X, E> = nom::IResult<Span<'a, X>, O, E>;
     use nom::error::ParseError;
 
-
-    pub fn num_get<'a, X,E>(input: Span<'a, X>) -> IResult<'a, Span<X>, X,E>
+    pub fn num_get<'a, X, E>(input: Span<'a, X>) -> IResult<'a, Span<X>, X, E>
     where
         E: nom::error::ParseError<Span<'a, X>>,
         X: Clone,
@@ -310,7 +313,7 @@ mod test {
         use new::*;
 
         let span = Span::new(txt);
-        let (_, (sp, lit )) = parse_number(span).expect("Parse failure");
+        let (_, (sp, lit)) = parse_number(span).expect("Parse failure");
         assert_eq!(lit.val, expected);
         assert_eq!(&sp.to_string(), txt);
     }

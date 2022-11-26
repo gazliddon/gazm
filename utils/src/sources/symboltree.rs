@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde::ser::SerializeMap;
+
 use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolTable, SymbolWriter};
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
@@ -25,6 +27,27 @@ impl Default for SymbolTree {
             tree,
             current_scope,
         }
+    }
+}
+
+impl serde::Serialize for SymbolTree {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+            let hm = self.to_hash_map();
+            let mut map = serializer.serialize_map(Some(hm.len()))?;
+            for (k,v) in hm {
+                map.serialize_entry(&k,&v)?;
+            }
+            map.end()
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SymbolTree {
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        todo!()
     }
 }
 
@@ -123,13 +146,19 @@ impl SymbolTree {
         self.current_scope = new_node.id();
     }
 
-    pub fn to_json(&self) {
-        let mut hm = HashMap::<String,&SymbolTable >::new();
+    pub fn to_hash_map(&self) -> HashMap<String, Option<i64>> {
+        let mut hm : HashMap::<String,Option<i64>>  = HashMap::new();
 
-        for n in self.tree.nodes() {
-            let name = n.value().get_scope_name();
-            hm.insert(name.to_string(), n.value());
-        }
+        walk_syms(self.tree.root(), self.get_current_scope_fqn(), &mut |name : &str, value : Option<i64>| {
+            hm.insert(name.to_string(),value);
+        });
+
+        hm
+    }
+
+    pub fn to_json(&self) -> String {
+        let hm = self.to_hash_map();
+        serde_json::to_string_pretty(&hm).unwrap()
     }
 }
 
@@ -150,6 +179,25 @@ impl SymbolQuery for SymbolTree {
 
         Err(SymbolError::NotFound)
     }
+}
+
+pub fn walk_syms<F>(node: SymbolNodeRef, scope: String, f : &mut F)
+    where
+    F : FnMut(&str, Option<i64>)
+{
+    for info in node.value().get_symbols()  {
+        let fqn = format!("{scope}::{}",info.name);
+        f(&fqn,info.value)
+    }
+
+    for n in node.children() {
+        let scope = format!("{scope}::{}",n.value().get_scope_name());
+        walk_syms(n,scope,f);
+    }
+}
+
+pub fn print_syms(node: SymbolNodeRef, scope: String ) {
+    walk_syms(node,scope, &mut |name,val| println!("{name} = {:?}", val))
 }
 
 pub fn display_tree(out: &mut std::fmt::Formatter<'_>, node : SymbolNodeRef, depth : usize) -> Result<(), std::fmt::Error>{

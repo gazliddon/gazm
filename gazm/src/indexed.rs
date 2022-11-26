@@ -1,17 +1,18 @@
-use super::error::IResult;
-use super::expr::parse_expr;
-use super::item::{IndexParseType, Item, Node};
-use super::register::get_reg;
-use crate::locate::{matched_span, Span};
+use crate::{
+    error::IResult,
+    expr::parse_expr,
+    item::{IndexParseType, Item, Node},
+    locate::{matched_span, Span},
+    parse::util::{wrapped_chars, ws},
+    register::{get_index_reg, get_pc_reg, get_reg},
+};
 
-use crate::register::{get_index_reg, get_pc_reg};
-use nom::branch::alt;
-use nom::bytes::complete::{tag, tag_no_case};
-use nom::sequence::{pair, preceded, separated_pair, tuple};
-
-use nom::character::complete::multispace0;
-
-use crate::parse::util;
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, tag_no_case},
+    character::complete::multispace0,
+    sequence::{pair, preceded, separated_pair, tuple},
+};
 
 // Addr Modes and Parsing Order
 //  ,--R    SubSub(RegEnum)         parse_pre_dec_dec
@@ -121,8 +122,6 @@ fn parse_offset(input: Span) -> IResult<Node> {
 }
 
 fn parse_pc_offset(input: Span) -> IResult<Node> {
-    use util::ws;
-
     let sep = ws(tag(","));
     let (rest, (expr, _)) = separated_pair(parse_expr, sep, get_pc_reg)(input)?;
 
@@ -135,7 +134,6 @@ fn parse_pc_offset(input: Span) -> IResult<Node> {
 }
 
 fn parse_extended_indirect(input: Span) -> IResult<Node> {
-    use util::{wrapped_chars, ws};
     let (rest, matched) = wrapped_chars('[', ws(parse_expr), ']')(input)?;
     let item = Item::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
     let ctx = matched_span(input, rest);
@@ -172,7 +170,6 @@ fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
 }
 
 fn parse_indexed_indirect(input: Span) -> IResult<Node> {
-    use util::{wrapped_chars, ws};
     let indexed_indirect = alt((
         parse_no_arg_indexed_allowed_indirect,
         parse_pc_offset,

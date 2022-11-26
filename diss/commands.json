@@ -63,7 +63,7 @@
             "args": [
                 "File"
             ],
-            "min_args": 2
+            "min_args": 1
         }
     ]
 }

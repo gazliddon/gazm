@@ -1,3 +1,4 @@
+#![feature(associated_type_defaults)]
 #![allow(dead_code)]
 mod location;
 mod pathsearcher;

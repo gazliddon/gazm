@@ -1,6 +1,6 @@
 use emu::utils;
 
-use utils::eval::EvalTraits;
+use utils::eval::OperatorTraits;
 use utils::eval::OperationError;
 use utils::eval::OperationErrorKind;
 
@@ -14,7 +14,7 @@ pub enum Value {
     Signed(i64),
     Unsigned(u64),
     Text(String),
-    Double(f64),
+    Float(f64),
 }
 
 impl<T: Into<String>> From<T> for Value {
@@ -30,7 +30,7 @@ impl std::fmt::Display for Value {
         let x = match self {
             Signed(a) => format!("{a}"),
             Unsigned(a) => format!("{a}"),
-            Double(a) => format!("{a}"),
+            Float(a) => format!("{a}"),
             Text(a) => format!("{a}"),
             Macro => "macro".to_string(),
             Null => "null".to_string(),
@@ -44,7 +44,7 @@ impl Value {
     pub fn is_number(&self) -> bool {
         use Value::*;
         match self {
-            Unsigned(_) | Signed(_) | Double(_) => true,
+            Unsigned(_) | Signed(_) | Float(_) => true,
             _ => false,
         }
     }
@@ -52,9 +52,9 @@ impl Value {
     pub fn as_double(self) -> Self {
         use Value::*;
         match self {
-            Signed(a) => Double(a as f64),
-            Unsigned(a) => Double(a as f64),
-            Double(_) => self,
+            Signed(a) => Float(a as f64),
+            Unsigned(a) => Float(a as f64),
+            Float(_) => self,
             _ => Null,
         }
     }
@@ -64,7 +64,7 @@ impl Value {
         match self {
             Signed(a) => Unsigned(a as u64),
             Unsigned(_) => self,
-            Double(a) => Unsigned(a as u64),
+            Float(a) => Unsigned(a as u64),
             _ => Null,
         }
     }
@@ -74,7 +74,7 @@ impl Value {
         match self {
             Signed(_) => self,
             Unsigned(a) => Signed(a as i64),
-            Double(a) => Signed(a as i64),
+            Float(a) => Signed(a as i64),
             _ => Null,
         }
     }
@@ -95,13 +95,13 @@ impl std::ops::Add for Value {
         match (self, &rhs) {
             (Signed(a), Signed(b)) => Ok(Signed(a + b)),
             (Signed(a), Unsigned(b)) => Ok(Signed(a + *b as i64)),
-            (Signed(a), Double(b)) => Ok(Double(a as f64 + b)),
+            (Signed(a), Float(b)) => Ok(Float(a as f64 + b)),
             (Unsigned(a), Signed(b)) => Ok(Signed(a as i64 + b)),
             (Unsigned(a), Unsigned(b)) => Ok(Unsigned(a + b)),
-            (Unsigned(a), Double(b)) => Ok(Double(a as f64 + b)),
-            (Double(a), Signed(b)) => Ok(Double(a + *b as f64)),
-            (Double(a), Unsigned(b)) => Ok(Double(a + *b as f64)),
-            (Double(a), Double(b)) => Ok(Double(a + *b as f64)),
+            (Unsigned(a), Float(b)) => Ok(Float(a as f64 + b)),
+            (Float(a), Signed(b)) => Ok(Float(a + *b as f64)),
+            (Float(a), Unsigned(b)) => Ok(Float(a + *b as f64)),
+            (Float(a), Float(b)) => Ok(Float(a + *b as f64)),
             (Text(a), Text(b)) => Ok(Text(a + b)),
 
             (Macro, _) | (_, Macro) | (Text(_), _) | (_, Text(_)) | (_, Null) | (Null, _) => {
@@ -120,13 +120,13 @@ impl std::ops::Sub for Value {
         match (self, &rhs) {
             (Signed(a), Signed(b)) => Ok( Signed(a - b) ),
             (Signed(a), Unsigned(b)) => Ok( Signed(a - *b as i64) ),
-            (Signed(a), Double(b)) => Ok( Double(a as f64 - b) ),
+            (Signed(a), Float(b)) => Ok( Float(a as f64 - b) ),
             (Unsigned(a), Signed(b)) => Ok( Signed(a as i64 - b) ),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a - b) ),
-            (Unsigned(a), Double(b)) => Ok( Double(a as f64 - b) ),
-            (Double(a), Signed(b)) => Ok( Double(a - *b as f64) ),
-            (Double(a), Unsigned(b)) => Ok( Double(a - *b as f64) ),
-            (Double(a), Double(b)) => Ok( Double(a - *b as f64) ),
+            (Unsigned(a), Float(b)) => Ok( Float(a as f64 - b) ),
+            (Float(a), Signed(b)) => Ok( Float(a - *b as f64) ),
+            (Float(a), Unsigned(b)) => Ok( Float(a - *b as f64) ),
+            (Float(a), Float(b)) => Ok( Float(a - *b as f64) ),
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -148,13 +148,13 @@ impl std::ops::Mul for Value {
         match (self, &rhs) {
             (Signed(a), Signed(b)) => Ok( Signed(a * b) ),
             (Signed(a), Unsigned(b)) => Ok( Signed(a * *b as i64) ),
-            (Signed(a), Double(b)) => Ok( Double(a as f64 * b) ),
+            (Signed(a), Float(b)) => Ok( Float(a as f64 * b) ),
             (Unsigned(a), Signed(b)) => Ok( Signed(a as i64 * b) ),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a * b) ),
-            (Unsigned(a), Double(b)) => Ok( Double(a as f64 * b) ),
-            (Double(a), Signed(b)) => Ok( Double(a * *b as f64) ),
-            (Double(a), Unsigned(b)) => Ok( Double(a * *b as f64) ),
-            (Double(a), Double(b)) => Ok( Double(a * *b as f64) ),
+            (Unsigned(a), Float(b)) => Ok( Float(a as f64 * b) ),
+            (Float(a), Signed(b)) => Ok( Float(a * *b as f64) ),
+            (Float(a), Unsigned(b)) => Ok( Float(a * *b as f64) ),
+            (Float(a), Float(b)) => Ok( Float(a * *b as f64) ),
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -177,13 +177,13 @@ impl std::ops::Div for Value {
         match (self, &rhs) {
             (Signed(a), Signed(b)) => Ok( Signed(a / b) ),
             (Signed(a), Unsigned(b)) => Ok( Signed(a / *b as i64) ),
-            (Signed(a), Double(b)) => Ok( Double(a as f64 / b) ),
+            (Signed(a), Float(b)) => Ok( Float(a as f64 / b) ),
             (Unsigned(a), Signed(b)) => Ok( Signed(a as i64 / b) ),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a / b) ),
-            (Unsigned(a), Double(b)) => Ok( Double(a as f64 / b) ),
-            (Double(a), Signed(b)) => Ok( Double(a / *b as f64) ),
-            (Double(a), Unsigned(b)) => Ok( Double(a / *b as f64) ),
-            (Double(a), Double(b)) => Ok( Double(a / *b as f64) ),
+            (Unsigned(a), Float(b)) => Ok( Float(a as f64 / b) ),
+            (Float(a), Signed(b)) => Ok( Float(a / *b as f64) ),
+            (Float(a), Unsigned(b)) => Ok( Float(a / *b as f64) ),
+            (Float(a), Float(b)) => Ok( Float(a / *b as f64) ),
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -205,13 +205,13 @@ impl std::ops::Rem for Value {
         match (self, &rhs) {
             (Signed(a), Signed(b)) => Ok( Signed(a % b) ),
             (Signed(a), Unsigned(b)) => Ok( Signed(a % *b as i64) ),
-            (Signed(a), Double(b)) => Ok( Double(a as f64 % b) ),
+            (Signed(a), Float(b)) => Ok( Float(a as f64 % b) ),
             (Unsigned(a), Signed(b)) => Ok( Signed(a as i64 % b) ),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a % b) ),
-            (Unsigned(a), Double(b)) => Ok( Double(a as f64 % b) ),
-            (Double(a), Signed(b)) => Ok( Double(a % *b as f64) ),
-            (Double(a), Unsigned(b)) => Ok( Double(a % *b as f64) ),
-            (Double(a), Double(b)) => Ok( Double(a % *b as f64) ),
+            (Unsigned(a), Float(b)) => Ok( Float(a as f64 % b) ),
+            (Float(a), Signed(b)) => Ok( Float(a % *b as f64) ),
+            (Float(a), Unsigned(b)) => Ok( Float(a % *b as f64) ),
+            (Float(a), Float(b)) => Ok( Float(a % *b as f64) ),
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -234,8 +234,8 @@ impl std::ops::BitXor for Value {
             (Signed(a), Unsigned(b)) => Ok( Signed(a ^ *b as i64) ),
             (Unsigned(a), Signed(b)) => Ok( Signed(a as i64 ^ *b)),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a ^ b) ),
-            (Double(_), _) |
-            (_, Double(_)) |
+            (Float(_), _) |
+            (_, Float(_)) |
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -257,8 +257,8 @@ impl std::ops::BitAnd for Value {
             (Signed(a), Unsigned(b)) => Ok( Signed(a & *b as i64) ),
             (Unsigned(a), Signed(b)) => Ok( Signed(a as i64 & *b)),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a & b) ),
-            (Double(_), _) |
-            (_, Double(_)) |
+            (Float(_), _) |
+            (_, Float(_)) |
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -280,8 +280,8 @@ impl std::ops::BitOr for Value {
             (Signed(a), Unsigned(b)) => Ok( Signed(a | *b as i64) ),
             (Unsigned(a), Signed(b)) => Ok( Signed(a as i64 | b)),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a | b) ),
-            (Double(_), _) |
-            (_, Double(_)) |
+            (Float(_), _) |
+            (_, Float(_)) |
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -303,8 +303,8 @@ impl std::ops::Shr for Value {
             (Signed(a), Unsigned(b)) => Ok( Signed(a >> *b as i64) ),
             (Unsigned(a), Signed(b)) => Ok( Signed(( a as i64 ) >> b)),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a >> b) ),
-            (Double(_), _) |
-            (_, Double(_)) |
+            (Float(_), _) |
+            (_, Float(_)) |
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -327,8 +327,8 @@ impl std::ops::Shl for Value {
             (Signed(a), Unsigned(b)) => Ok( Signed(a << *b as i64) ),
             (Unsigned(a), Signed(b)) => Ok( Signed((a as i64) << b)),
             (Unsigned(a), Unsigned(b)) => Ok( Unsigned(a << b) ),
-            (Double(_), _) |
-            (_, Double(_)) |
+            (Float(_), _) |
+            (_, Float(_)) |
             (Null, _) |
             (_, Null) |
             (Macro, _) |
@@ -349,7 +349,7 @@ impl std::ops::Neg for Value {
         match self {
             Signed(a) => Ok( Signed(-a )),
             Unsigned(a) => Ok( Signed(-(a as i64 ))),
-            Double(a) => Ok( Double(-a )),
+            Float(a) => Ok( Float(-a )),
             _ => Err(OperationErrorKind::IllegalNegation),
         }
     }
@@ -375,15 +375,15 @@ mod test {
         let v2 = Unsigned(b);
         assert_eq!(v1 * v2, Ok(Unsigned(a * b)));
 
-        let v1 = Double(a as f64);
+        let v1 = Float(a as f64);
         let v2 = Unsigned(b);
-        assert_eq!(v2.clone() * v1.clone(), Ok(Double((a * b) as f64)));
-        assert_eq!(v1 * v2, Ok( Double((a * b) as f64) ));
+        assert_eq!(v2.clone() * v1.clone(), Ok(Float((a * b) as f64)));
+        assert_eq!(v1 * v2, Ok( Float((a * b) as f64) ));
 
-        let v1 = Double(a as f64);
+        let v1 = Float(a as f64);
         let v2 = Unsigned(b);
         let res = a as f64 / b as f64;
-        assert_eq!(v1.clone() / v2.clone(), Ok( Double(res) ));
+        assert_eq!(v1.clone() / v2.clone(), Ok( Float(res) ));
 
         let a: Value = "hello".into();
         let b: Value = " there".into();
@@ -391,12 +391,12 @@ mod test {
         assert_eq!(c, Ok("hello there".into()));
 
         let a: Value = "hello".into();
-        let b = Double(10.0);
+        let b = Float(10.0);
         let c = a / b;
         assert_eq!(c, Err(OperationErrorKind::IncompatibleOperands));
 
-        let a = Double(10.0);
-        assert_eq!(-a, Ok( Double(-10.0) ));
+        let a = Float(10.0);
+        assert_eq!(-a, Ok( Float(-10.0) ));
 
         let a: Value = "hello".into();
         let b = -a;
