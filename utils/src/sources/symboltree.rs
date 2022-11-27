@@ -47,7 +47,16 @@ impl<'de> serde::Deserialize<'de> for SymbolTree {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {
-        todo!()
+
+            let mut ret = Self::new();
+
+            let hm : HashMap<String, Option<i64>> = serde::Deserialize::deserialize(_deserializer)?;
+
+            for (k,v) in hm {
+                ret.add_fqn(&k, v)
+            }
+
+            Ok(ret)
     }
 }
 
@@ -159,6 +168,10 @@ impl SymbolTree {
     pub fn to_json(&self) -> String {
         let hm = self.to_hash_map();
         serde_json::to_string_pretty(&hm).unwrap()
+    }
+
+    pub  fn add_fqn(&mut self, txt: &str, val: Option<i64>) {
+        panic!()
     }
 }
 

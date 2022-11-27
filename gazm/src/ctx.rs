@@ -1,25 +1,25 @@
 use crate::ast::AstTree;
-use crate::astformat;
 use crate::binary::{self, AccessType, Binary};
 use crate::error::{ErrorCollector, GResult, GazmErrorType, ParseError, UserError};
 use crate::item::Node;
+use crate::lsp::LspConfig;
 use crate::macros::Macros;
 use crate::messages::{status_mess, Verbosity};
-use crate::status_err;
 use crate::token_store::TokenStore;
 use crate::vars::Vars;
-use emu::utils;
-
-use emu::utils::sources::EditErrorKind;
-use utils::sources::{
-    fileloader::{FileIo, SourceFileLoader},
-    BinToWrite, BinWriteDesc, EditResult, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
-    SymbolTree, TextEdit, TextEditTrait, TextPos,
+use crate::{astformat, status_err};
+use anyhow::{Context as AnyContext, Result};
+use emu::utils::{
+    hash::get_hash,
+    sources::{
+        fileloader::{FileIo, SourceFileLoader},
+        BinToWrite, BinWriteDesc, EditErrorKind, EditResult, SourceDatabase, SourceFile,
+        SourceFiles, SourceMapping, SymbolTree, TextEdit, TextEditTrait, TextPos,
+    },
+    PathSearcher,
 };
 
-use utils::PathSearcher;
-
-use crate::lsp::LspConfig;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -30,9 +30,6 @@ pub struct WriteBin {
     pub size: usize,
 }
 
-use anyhow::{Context as AnyContext, Result};
-
-use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 pub struct CheckSum {
     pub addr: usize,
@@ -47,36 +44,6 @@ pub enum BuildType {
     Check,
 }
 
-use serde::Serialize;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SourceDatabaseAndSymbols {
-    mappings: SourceDatabase,
-    syms: SymbolTree,
-}
-pub fn load_sym_file(_file: &str) -> std::io::Result<SourceDatabaseAndSymbols> {
-    let _txt = std::fs::read_to_string(_file)?;
-    todo!()
-}
-
-// pub fn write_sym_file(
-//     file: &str,
-//     mappings: &SourceDatabase,
-//     syms: &SymbolTree,
-// ) -> std::io::Result<()> {
-//     let mut mappings: SourceDatabase = mappings.clone();
-//     mappings.file_name = emu::utils::fileutils::abs_path_from_cwd(&file);
-//     let the_lot = SourceDatabaseAndSymbols {
-//         mappings,
-//         syms : syms.clone(),
-//     };
-
-//     let j = serde_json::to_string_pretty(&the_lot).unwrap();
-//     std::fs::write(file, j)
-// }
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Settings {}
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
@@ -361,7 +328,6 @@ impl Context {
     }
     pub fn write_deps_file(&mut self) -> GResult<()> {
         if let Some(deps) = &self.opts.deps_file {
-
             let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
 
             let read: Vec<String> = self
@@ -401,18 +367,12 @@ impl Context {
 
             sd.write_json(sym_file)
                 .with_context(|| format!("Unable to write {sym_file}"))?;
-
-            // let sym_file_2 = format!("{}x", sym_file);
-            // status_mess!("Writing symbols_2: {}", sym_file_2);
-            // write_sym_file(&sym_file_2, &sd, syms)
-            //     .with_context(|| format!("Can't write new sym file {sym_file_2}"))?;
         }
         Ok(())
     }
 
     pub fn checksum_report(&self) {
         if !self.opts.checksums.is_empty() {
-            use utils::hash::get_hash;
             let mess = crate::messages::messages();
 
             let mut errors = vec![];
