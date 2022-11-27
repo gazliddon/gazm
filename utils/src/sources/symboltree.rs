@@ -50,12 +50,12 @@ impl<'de> serde::Deserialize<'de> for SymbolTree {
         D: serde::Deserializer<'de>,
     {
         let mut ret = Self::new();
-
         let hm: HashMap<String, Option<i64>> = serde::Deserialize::deserialize(_deserializer)?;
 
         for (k, v) in hm {
             ret.add_fqn(&k, v)
         }
+        println!("{}", ret);
 
         Ok(ret)
     }
