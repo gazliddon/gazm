@@ -11,7 +11,7 @@ pub type SymbolNodeRef<'a> = ego_tree::NodeRef<'a, SymbolTable>;
 pub type SymbolNodeId = ego_tree::NodeId;
 pub type SymbolNodeMut<'a> = ego_tree::NodeMut<'a, SymbolTable>;
 
-#[derive(Debug, PartialEq,Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SymbolTree {
     tree: ego_tree::Tree<SymbolTable>,
     current_scope: SymbolNodeId,
@@ -33,35 +33,45 @@ impl Default for SymbolTree {
 impl serde::Serialize for SymbolTree {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
-            let hm = self.to_hash_map();
-            let mut map = serializer.serialize_map(Some(hm.len()))?;
-            for (k,v) in hm {
-                map.serialize_entry(&k,&v)?;
-            }
-            map.end()
+        S: serde::Serializer,
+    {
+        let hm = self.to_hash_map();
+        let mut map = serializer.serialize_map(Some(hm.len()))?;
+        for (k, v) in hm {
+            map.serialize_entry(&k, &v)?;
+        }
+        map.end()
     }
 }
 
 impl<'de> serde::Deserialize<'de> for SymbolTree {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
+        let mut ret = Self::new();
 
-            let mut ret = Self::new();
+        let hm: HashMap<String, Option<i64>> = serde::Deserialize::deserialize(_deserializer)?;
 
-            let hm : HashMap<String, Option<i64>> = serde::Deserialize::deserialize(_deserializer)?;
+        for (k, v) in hm {
+            ret.add_fqn(&k, v)
+        }
 
-            for (k,v) in hm {
-                ret.add_fqn(&k, v)
-            }
-
-            Ok(ret)
+        Ok(ret)
     }
 }
 
 fn split_fqn(text: &str) -> Vec<&str> {
     text.split("::").collect()
+}
+
+fn get_subscope(n: SymbolNodeRef, name: &str) -> Option<SymbolNodeId> {
+    for c in n.children() {
+        if c.value().get_scope_name() == name {
+            return Some(c.id());
+        }
+    }
+    None
 }
 
 impl SymbolTree {
@@ -77,7 +87,7 @@ impl SymbolTree {
         }
     }
     pub fn get_root(&self) -> SymbolNodeId {
-         self.tree.root().id()
+        self.tree.root().id()
     }
 
     pub fn set_root(&mut self) {
@@ -156,11 +166,15 @@ impl SymbolTree {
     }
 
     pub fn to_hash_map(&self) -> HashMap<String, Option<i64>> {
-        let mut hm : HashMap::<String,Option<i64>>  = HashMap::new();
+        let mut hm: HashMap<String, Option<i64>> = HashMap::new();
 
-        walk_syms(self.tree.root(), self.get_current_scope_fqn(), &mut |name : &str, value : Option<i64>| {
-            hm.insert(name.to_string(),value);
-        });
+        walk_syms(
+            self.tree.root(),
+            self.get_current_scope_fqn(),
+            &mut |name: &str, value: Option<i64>| {
+                hm.insert(name.to_string(), value);
+            },
+        );
 
         hm
     }
@@ -170,8 +184,35 @@ impl SymbolTree {
         serde_json::to_string_pretty(&hm).unwrap()
     }
 
-    pub  fn add_fqn(&mut self, txt: &str, val: Option<i64>) {
-        panic!()
+    // This is shit, much shame
+    pub fn add_fqn(&mut self, text: &str, val: Option<i64>) {
+        let items: Vec<_> = split_fqn(text);
+
+        let (path, sym) = match items.len() {
+            0 => panic!("WTF"),
+            1 => panic!("Neeed 2!"),
+            _ => (&items[0..items.len() - 1], &items[items.len() - 1]),
+        };
+
+        assert!(path[0] == "root");
+
+        // pop the first one off
+        let mut scope_id = self.tree.root().id();
+
+        for part in &path[1..] {
+            let n = self.tree.get(scope_id).unwrap();
+
+            if let Some(new_id) = get_subscope(n, part) {
+                scope_id = new_id
+            } else {
+                let mut n_mut = self.tree.get_mut(scope_id).unwrap();
+                let n = n_mut.insert_after(SymbolTable::new_with_scope(part));
+                scope_id = n.id()
+            }
+        }
+
+        let mut n = self.tree.get_mut(scope_id).unwrap();
+        n.value().add_symbol_with_value(sym, val.unwrap()).unwrap();
     }
 }
 
@@ -194,40 +235,42 @@ impl SymbolQuery for SymbolTree {
     }
 }
 
-pub fn walk_syms<F>(node: SymbolNodeRef, scope: String, f : &mut F)
-    where
-    F : FnMut(&str, Option<i64>)
+pub fn walk_syms<F>(node: SymbolNodeRef, scope: String, f: &mut F)
+where
+    F: FnMut(&str, Option<i64>),
 {
-    for info in node.value().get_symbols()  {
-        let fqn = format!("{scope}::{}",info.name);
-        f(&fqn,info.value)
+    for info in node.value().get_symbols() {
+        let fqn = format!("{scope}::{}", info.name);
+        f(&fqn, info.value)
     }
 
     for n in node.children() {
-        let scope = format!("{scope}::{}",n.value().get_scope_name());
-        walk_syms(n,scope,f);
+        let scope = format!("{scope}::{}", n.value().get_scope_name());
+        walk_syms(n, scope, f);
     }
 }
 
-pub fn print_syms(node: SymbolNodeRef, scope: String ) {
-    walk_syms(node,scope, &mut |name,val| println!("{name} = {:?}", val))
+pub fn print_syms(node: SymbolNodeRef, scope: String) {
+    walk_syms(node, scope, &mut |name, val| println!("{name} = {:?}", val))
 }
 
-pub fn display_tree(out: &mut std::fmt::Formatter<'_>, node : SymbolNodeRef, depth : usize) -> Result<(), std::fmt::Error>{
-
+pub fn display_tree(
+    out: &mut std::fmt::Formatter<'_>,
+    node: SymbolNodeRef,
+    depth: usize,
+) -> Result<(), std::fmt::Error> {
     let spaces = " ".repeat(depth * 4);
-    writeln!(out, "{spaces}scope: {}", node.value().get_scope_name(), )?;
+    writeln!(out, "{spaces}scope: {}", node.value().get_scope_name(),)?;
 
     let depth = depth + 1;
     let spaces = " ".repeat(depth * 4);
 
-    let mut vars : Vec<_> = node.value().info.values().collect();
-    vars.sort_by(|a,b| a.name.partial_cmp(&b.name).unwrap());
+    let mut vars: Vec<_> = node.value().info.values().collect();
+    vars.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
 
     for v in vars {
         if let Some(val) = v.value {
-            writeln!(out, "{spaces} {:10} : {:04X}", v.name, val) ?;
-
+            writeln!(out, "{spaces} {:10} : {:04X}", v.name, val)?;
         }
     }
 
