@@ -114,6 +114,10 @@ impl SymbolTree {
         self.tree.get(self.current_scope).unwrap().value()
     }
 
+    pub fn get_scope_symbols(&self, scope_id : SymbolNodeId) -> Option<&SymbolTable> {
+        self.tree.get(scope_id).map(|nr| nr.value())
+    }
+
     pub fn get_current_scope_fqn(&self) -> String {
         let scopes = self.get_current_scope_chain();
         let v: Vec<_> = scopes
