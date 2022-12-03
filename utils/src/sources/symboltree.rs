@@ -19,7 +19,7 @@ pub struct SymbolTree {
 
 impl Default for SymbolTree {
     fn default() -> Self {
-        let root = SymbolTable::new_with_scope("root");
+        let root = SymbolTable::new_with_scope("");
         let tree = SymbolTreeTree::new(root);
         let current_scope = tree.root().id();
 
@@ -55,7 +55,6 @@ impl<'de> serde::Deserialize<'de> for SymbolTree {
         for (k, v) in hm {
             ret.add_fqn(&k, v)
         }
-        println!("{}", ret);
 
         Ok(ret)
     }
@@ -198,7 +197,7 @@ impl SymbolTree {
             _ => (&items[0..items.len() - 1], &items[items.len() - 1]),
         };
 
-        assert!(path[0] == "root");
+        assert!(path[0] == "");
 
         // pop the first one off
         let mut scope_id = self.tree.root().id();

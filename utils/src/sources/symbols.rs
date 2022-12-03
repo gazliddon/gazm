@@ -24,7 +24,6 @@ pub trait SymbolQuery {
 
 pub trait SymbolWriter {
     fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<u64, SymbolError>;
-
     fn remove_symbol_name(&mut self, name: &str);
     fn add_symbol(&mut self, name: &str) -> Result<u64, SymbolError>;
 
@@ -33,6 +32,9 @@ pub trait SymbolWriter {
 
 ////////////////////////////////////////////////////////////////////////////////
 use serde::{Deserialize, Serialize};
+
+// use crate::symbols::{ValueTraits, };
+// use super::SymbolTree;
 /// Holds information about a symbol
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SymbolInfo {
@@ -51,4 +53,6 @@ pub enum SymbolError {
     NotFound,
     NoValue,
 }
+
+
 

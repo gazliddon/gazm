@@ -90,10 +90,10 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
     pub fn create_scope_recursive<F: Into<ScopePath>>(&mut self, path: F) -> ScopeResult<ScopeId> {
         let path: ScopePath = path.into();
 
-        let scope = self.find_scope_abs(path.clone());
+        let scope_id = self.find_scope_abs(path.clone());
 
-        if scope.is_ok() {
-            return Err(ScopeErrorKind::PathAlreadyExists(path.to_string()));
+        if scope_id.is_ok() {
+            return Ok(scope_id.unwrap())
         }
 
         if path.is_relative() {

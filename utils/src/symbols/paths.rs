@@ -11,45 +11,42 @@ pub struct ScopePath {
 }
 
 impl ScopePath {
-    pub fn from_base_path(base : &ScopePath, path : &ScopePath) -> Option<Self>{
+    pub fn from_base_path(base: &ScopePath, path: &ScopePath) -> Option<Self> {
         if base.is_abs() && path.is_relative() {
             let mut parts = base.parts.clone();
             parts.extend(path.parts.iter().cloned());
             Some(Self {
                 is_relative: false,
-                parts
+                parts,
             })
         } else {
             None
         }
     }
 
-    pub fn new<T: AsRef<str>>(txt: T) -> Self {
-        let mut x = split_scopes(txt.as_ref());
-
-        let is_relative = match x.get(0) {
+    pub fn from_parts(mut parts: Vec<&str>) -> Self {
+        let is_relative = match parts.get(0) {
             // If empty it's an abs scope pointing to root
-            None => {
+            None => false,
+            // If it's then the path started with ::
+            // so we pop the front item and classify as abs
+            Some(&"") => {
+                parts.remove(0);
                 false
             }
 
-            // If it's then the path started with ::
-            // so we pop the front item and classify as abs
-            Some(&"")  => {
-                x.remove(0);
-                false
-            },
-
             // Otherwise this is a relative path
-            _ => {
-                true
-            },
+            _ => true,
         };
 
         Self {
             is_relative,
-            parts: x.iter().map(|x| String::from(*x)).collect(),
+            parts: parts.iter().map(|x| String::from(*x)).collect(),
         }
+    }
+
+    pub fn new<T: AsRef<str>>(txt: T) -> Self {
+        Self::from_parts(split_scopes(txt.as_ref()))
     }
 
     pub fn is_relative(&self) -> bool {
@@ -57,7 +54,7 @@ impl ScopePath {
     }
 
     pub fn set_is_relative(&mut self, is_relative: bool) {
-        self.is_relative  = is_relative
+        self.is_relative = is_relative
     }
 
     pub fn is_abs(&self) -> bool {
@@ -88,8 +85,8 @@ impl std::fmt::Display for ScopePath {
 }
 
 pub struct SymbolPath {
-    path: ScopePath,
-    name: String,
+    pub path: ScopePath,
+    pub name: String,
 }
 
 impl SymbolPath {
@@ -99,6 +96,20 @@ impl SymbolPath {
             name: name.into(),
         }
     }
+
+    pub fn from_full_path(txt: &str) -> Self {
+        let split = split_scopes(txt);
+
+        match split.len() {
+            0 => panic!(),
+            _ => {
+                let path = &split[..split.len()-1];
+                let name = split[split.len()-1];
+                let path = ScopePath::from_parts(path.to_vec());
+                Self::new(path,name)
+            }
+        }
+    }
 }
 impl std::fmt::Display for SymbolPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -106,11 +117,20 @@ impl std::fmt::Display for SymbolPath {
     }
 }
 
-
 #[allow(unused_imports)]
 mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
+
+    #[test]
+    fn test_symbol_path() {
+        let txt = "::scope::hello";
+
+        let sym_path = SymbolPath::from_full_path(txt);
+        assert!(sym_path.path.is_abs());
+        assert_eq!(&sym_path.name,"hello");
+        assert_eq!(sym_path.path.to_string(), "::scope")
+    }
 
     #[test]
     fn test_split() {
