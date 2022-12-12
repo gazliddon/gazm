@@ -19,8 +19,8 @@ pub type SymbolId = symbols::SymbolId<usize>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SymbolValue {
-    value: Value,
-    pos: Option<Position>,
+    pub value: Value,
+    pub pos: Option<Position>,
 }
 
 impl SymbolValue {

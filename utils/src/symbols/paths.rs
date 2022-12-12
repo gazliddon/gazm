@@ -7,31 +7,34 @@ pub fn split_scopes<'a>(txt: &'a str) -> Vec<&'a str> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopePath {
     is_relative: bool,
-    parts: Vec<String>,
+    path_parts: Vec<String>,
 }
 
 impl ScopePath {
     pub fn from_base_path(base: &ScopePath, path: &ScopePath) -> Option<Self> {
         if base.is_abs() && path.is_relative() {
-            let mut parts = base.parts.clone();
-            parts.extend(path.parts.iter().cloned());
+            let mut path_parts = base.path_parts.clone();
+            path_parts.extend(path.path_parts.iter().cloned());
             Some(Self {
                 is_relative: false,
-                parts,
+                path_parts,
             })
         } else {
             None
         }
     }
 
-    pub fn from_parts(mut parts: Vec<&str>) -> Self {
+    pub fn is_root(&self) -> bool {
+        self.is_abs() && self.path_parts.get(0) == Some(&"".to_string()) && self.path_parts.len() == 1
+    }
+
+    pub fn from_parts(parts: Vec<&str>) -> Self {
         let is_relative = match parts.get(0) {
-            // If empty it's an abs scope pointing to root
-            None => false,
-            // If it's then the path started with ::
-            // so we pop the front item and classify as abs
-            Some(&"") => {
-                parts.remove(0);
+            // If empty it's an error
+            None => panic!("Zero parts!"),
+            // If the opening scope is "" (eg ::foo)
+            // then this is an absolute path
+            Some(&"")=> {
                 false
             }
 
@@ -41,7 +44,15 @@ impl ScopePath {
 
         Self {
             is_relative,
-            parts: parts.iter().map(|x| String::from(*x)).collect(),
+            path_parts: parts.iter().map(|x| String::from(*x)).collect(),
+        }
+    }
+
+    pub fn get_rel_parts(&self) -> &[String] {
+        if self.is_relative {
+            &self.path_parts
+        } else {
+            &self.path_parts[1..]
         }
     }
 
@@ -62,7 +73,14 @@ impl ScopePath {
     }
 
     pub fn get_parts(&self) -> &[String] {
-        &self.parts
+        &self.path_parts
+    }
+
+    pub fn concat(&self, path: &ScopePath) -> ScopePath {
+        assert!(self.is_abs());
+        assert!(path.is_relative());
+        let new_path = format!("{}::{}", self,path);
+        Self::new(&new_path)
     }
 }
 
@@ -74,11 +92,11 @@ impl<T: AsRef<str>> From<T> for ScopePath {
 
 impl std::fmt::Display for ScopePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut joined = self.parts.join("::");
+        let joined = self.path_parts.join("::");
 
-        if self.is_abs() {
-            joined = format!("::{joined}")
-        }
+        // if self.is_abs() {
+        //     joined = format!("::{joined}")
+        // }
 
         write!(f, "{joined}")
     }

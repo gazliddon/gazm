@@ -1,12 +1,25 @@
 use std::collections::HashMap;
 
+use super::ScopeCursor;
 use super::ScopeErrorKind;
 use super::ScopePath;
 use super::ScopeResult;
+use super::SymbolReader;
 use super::SymbolTable;
 use super::{IdTraits, ValueTraits};
-use super::SymbolReader;
-use super::ScopeCursor;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScopeKind {
+    File,
+    Function,
+    Block,
+}
+
+impl Default for ScopeKind {
+    fn default() -> Self {
+        ScopeKind::File
+    }
+}
 
 pub type ScopeRef<'a, V, ID> = ego_tree::NodeRef<'a, SymbolTable<V, ID>>;
 pub type ScopeMut<'a, V, ID> = ego_tree::NodeMut<'a, SymbolTable<V, ID>>;
@@ -15,26 +28,38 @@ pub type ScopeId = ego_tree::NodeId;
 // Indices of a symbol in the tree
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SymbolId<ID: IdTraits> {
-    pub (crate) scope_id: ScopeId,
-    pub (crate) symbol_id: ID,
+    pub(crate) scope_id: ScopeId,
+    pub(crate) symbol_id: ID,
 }
 
-#[derive(Debug)]
-pub struct SymbolInfo<'a, V: ValueTraits> {
+#[derive(Debug, Clone)]
+pub struct SymbolInfo<'a, V: ValueTraits, ID: IdTraits> {
     name: &'a str,
     value: &'a V,
+    id: SymbolId<ID>,
 }
 
 #[derive(Debug)]
 pub struct ScopeNode<V: ValueTraits, ID: IdTraits> {
-    symbols: SymbolTable<V, ID>,
-    aliases: HashMap<String, ScopeId>,
+    pub symbols: SymbolTable<V, ID>,
+    pub aliases: HashMap<String, ScopeId>,
+    pub name: String,
+}
+
+impl<V: ValueTraits, ID: IdTraits> ScopeNode<V, ID> {
+    pub fn new(name: &str) -> Self {
+        Self {
+            symbols: Default::default(),
+            aliases: Default::default(),
+            name: name.to_owned(),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct Scopes<V: ValueTraits, ID: IdTraits> {
     scopes: ego_tree::Tree<SymbolTable<V, ID>>,
-    pub (crate) root_id: ego_tree::NodeId,
+    pub(crate) root_id: ego_tree::NodeId,
 }
 
 impl<V: ValueTraits, ID: IdTraits> Default for Scopes<V, ID> {
@@ -74,7 +99,11 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         Ok(())
     }
 
-    pub fn write(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub fn root(&self) -> ScopeId {
+        self.root_id
+    }
+
+    fn write(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.write_lo(self.root_id, 0, f)
     }
 
@@ -83,7 +112,8 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         parent: F,
         scope_name: &str,
     ) -> ScopeResult<ScopeId> {
-        let id = self.find_scope_abs(parent.into())?;
+        let parent: ScopePath = parent.into();
+        let id = self.find_scope_abs(parent)?;
         self.new_scope(id, scope_name)
     }
 
@@ -92,16 +122,14 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
 
         let scope_id = self.find_scope_abs(path.clone());
 
-        if scope_id.is_ok() {
-            return Ok(scope_id.unwrap())
-        }
-
         if path.is_relative() {
             Err(ScopeErrorKind::AbsPathNeeded)
+        } else if scope_id.is_ok() {
+            Ok(scope_id.unwrap())
         } else {
             let mut id = self.root_id;
 
-            for part in path.get_parts() {
+            for part in path.get_rel_parts() {
                 let scope = self.get(id).unwrap();
 
                 if let Some(node) = scope
@@ -130,21 +158,25 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         self.scopes.get(id)
     }
 
-    pub fn get_symbol_info<'a>(&'a self, id: &SymbolId<ID>) -> Option<SymbolInfo<'a, V>> {
+    pub fn get_symbol_info<'a>(&'a self, id: &SymbolId<ID>) -> Option<SymbolInfo<'a, V, ID>> {
         let scope_ref = self.scopes.get(id.scope_id).unwrap();
         let name = scope_ref.value().get_symbol_name(&id.symbol_id).unwrap();
 
         scope_ref
             .value()
             .get_symbol(id.symbol_id)
-            .map(|s| SymbolInfo { name, value: s })
+            .map(|s| SymbolInfo {
+                name,
+                value: s,
+                id: id.clone(),
+            })
     }
 
     pub fn get_mut(&mut self, id: ScopeId) -> Option<ScopeMut<'_, V, ID>> {
         self.scopes.get_mut(id)
     }
 
-    fn get_scope_walker(&self, id: ScopeId) -> impl Iterator<Item = ScopeId> + '_ {
+    pub fn get_scope_parent_walker(&self, id: ScopeId) -> impl Iterator<Item = ScopeId> + '_ {
         let mut current_node = self.get(id);
 
         std::iter::from_fn(move || {
@@ -153,18 +185,17 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
             Some(id)
         })
     }
-
     pub fn get_scope_abs_fqn(&self, id: ScopeId) -> Option<String> {
         let abs: Vec<_> = self
             .get_scope_abs(id)?
             .into_iter()
             .map(|id| self.get(id).unwrap().value().get_scope_name().to_owned())
             .collect();
-        Some(abs.join("::"))
+        Some(format!("{}", abs.join("::")))
     }
 
     pub fn get_scope_abs(&self, id: ScopeId) -> Option<Vec<ScopeId>> {
-        let walker = self.get_scope_walker(id);
+        let walker = self.get_scope_parent_walker(id);
         let mut ret: Vec<_> = walker.collect();
         ret.reverse();
         Some(ret)
@@ -204,11 +235,27 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         base_id: ScopeId,
         path: P,
     ) -> ScopeResult<ScopeId> {
-        let mut current_scope_id = base_id;
         let path: ScopePath = path.into();
+        self.navigate_to_sub_scope(base_id, &path)
+    }
 
+    pub fn find_scope_rel<B: Into<ScopePath>, P: Into<ScopePath>>(
+        &self,
+        base: B,
+        path: P,
+    ) -> ScopeResult<ScopeId> {
+        let base: ScopePath = base.into();
+        let base_id = self.find_scope_abs(base)?;
+        self.navigate_to_sub_scope(base_id, &path.into())
+    }
+
+    fn navigate_to_sub_scope(
+        &self,
+        mut current_scope_id: ScopeId,
+        path: &ScopePath,
+    ) -> ScopeResult<ScopeId> {
         if path.is_abs() {
-            Err(ScopeErrorKind::AbsPathNeeded)
+            Err(ScopeErrorKind::RelPathNeeded)
         } else {
             let parts = path.get_parts();
 
@@ -222,7 +269,19 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
                     _ => scope
                         .children()
                         .find(|x| x.value().get_scope_name() == part)
-                        .ok_or_else(|| ScopeErrorKind::ScopeNotFound(path.to_string()))?,
+                        .ok_or_else(|| {
+                            println!("{}", self);
+                            for s in scope.children() {
+                                println!("{}", s.value().get_scope_name())
+                            }
+
+                            let current = scope.value().get_scope_name();
+                            let err = format!(
+                                "part: {part}\ncurrent: {current}\nfull: {}\n",
+                                path.to_string()
+                            );
+                            ScopeErrorKind::ScopeNotFound(err)
+                        })?,
                 }
                 .id();
             }
@@ -231,25 +290,17 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         }
     }
 
-    pub fn find_scope_rel<B: Into<ScopePath>, P: Into<ScopePath>>(
-        &self,
-        base: B,
-        path: P,
-    ) -> ScopeResult<ScopeId> {
-        let base: ScopePath = base.into();
-        let id = self.find_scope_abs(base)?;
-        self.find_scope_rel_id(id, path)
-    }
-
     pub fn find_scope_abs<X: Into<ScopePath>>(&self, path: X) -> ScopeResult<ScopeId> {
         let path: ScopePath = path.into();
-
-        if path.is_relative() {
+        if path.is_root() {
+            Ok(self.root_id)
+        } else if path.is_relative() {
             Err(ScopeErrorKind::AbsPathNeeded)
         } else {
-            let mut path = path.clone();
-            path.set_is_relative(true);
-            self.find_scope_rel_id(self.root_id, path)
+            let parts: Vec<_> = path.get_rel_parts().iter().map(|p| p.as_str()).collect();
+            let rel_path = ScopePath::from_parts(parts);
+            println!("{:#?}", rel_path);
+            self.navigate_to_sub_scope(self.root_id, &rel_path)
         }
     }
 }
@@ -269,12 +320,23 @@ mod test {
     fn test_symbol_recursive() {
         let mut syms = Symbols::new();
         let id = syms.create_scope_recursive("::test::test2").unwrap();
+        println!("{}", syms);
         let id_2 = syms.find_scope_abs("::test::test2").unwrap();
 
         println!("{}", syms);
 
         assert_eq!(id_2, id);
     }
+
+    fn test_scope(syms: &Symbols, name: &str) {
+        let id = syms.find_scope_abs(name).unwrap();
+        let path = syms.get_scope_abs_fqn(id).unwrap();
+        println!("{path}");
+        assert_eq!(path, name);
+    }
+
+    #[test]
+    fn test_fqn_retrieval() {}
 
     #[test]
     fn test_symbol_table() {
@@ -283,6 +345,7 @@ mod test {
         syms.create_scope("", "test").unwrap();
 
         let id = syms.create_scope("::test", "test2").unwrap();
+        syms.create_scope("::test", "test3").unwrap();
 
         let found_id = syms.find_scope_abs("::test::test2").unwrap();
         let found_id_2 = syms.find_scope_rel("", "test::test2").unwrap();
@@ -294,5 +357,9 @@ mod test {
 
         let path = syms.get_scope_abs_fqn(id).unwrap();
         assert_eq!(path, "::test::test2");
+
+        test_scope(&syms, "::test::test2");
+        test_scope(&syms, "::test::test3");
+        test_scope(&syms, "");
     }
 }

@@ -1,20 +1,16 @@
 use super::*;
 use std::collections::HashMap;
 
-
-// #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy)]
-// pub struct SymbolId(u64);
-
-// impl From<u64> for SymbolId {
-//     fn from(v: u64) -> Self {
-//         SymbolId(v)
-//     }
-// }
-
 #[derive(Debug)]
 struct ScopedSymbol<'a> {
     path: Vec<&'a str>,
     symbol: &'a str,
+}
+
+pub struct SymbolInfo<'a, V: ValueTraits, ID : IdTraits> {
+    pub name: &'a str,
+    pub value: &'a V,
+    pub id: ID
 }
 
 impl<'a> ScopedSymbol<'a> {
@@ -119,5 +115,12 @@ impl<V : ValueTraits,ID: IdTraits> SymbolTable<V,ID> {
         let ret = self.id;
         self.id += 1;
         ret.into()
+    }
+
+    pub fn iter<'a>(&self) -> impl Iterator<Item = SymbolInfo<V, ID>> {
+        self.id_to_value.iter().map(|(id, value)| {
+            let name = self.id_to_name.get(id).unwrap();
+            SymbolInfo {name,value,id: *id}
+        })
     }
 }

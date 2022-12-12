@@ -2,11 +2,13 @@ mod table;
 mod tree;
 mod paths;
 mod cursor;
+mod scope;
 
 pub use table::*;
 pub use tree::*;
 pub use paths::*;
 pub use cursor::*;
+pub use scope::*;
 
 #[derive(thiserror::Error,Debug, PartialEq, Eq, Clone)]
 pub enum ScopeErrorKind {

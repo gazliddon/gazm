@@ -18,6 +18,8 @@ pub trait OperatorTraits:
 {
 }
 
+
+/// Classification of what kind of item this is
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ExprItemKind {
     Expression,
@@ -64,7 +66,9 @@ impl std::fmt::Display for Operation {
     }
 }
 
-pub trait ExprItemTraits: Clone {
+/// Traits needed for classification of an item
+/// is it a Value, an operator or an expression
+pub trait ItemTraits: Clone {
     type ExprValue : OperatorTraits;
 
     fn item_type(&self) -> ExprItemKind {
@@ -83,7 +87,11 @@ pub trait ExprItemTraits: Clone {
 
     fn value(&self) -> Option<Self::ExprValue>;
     fn op(&self) -> Option<Operation>;
-    fn is_expression(&self) -> bool;
+    fn expr(&self) -> Option<&Vec<Self>>;
+
+    fn is_expression(&self) -> bool {
+        self.expr().is_some()
+    }
 
     fn is_op(&self) -> bool {
         self.op().is_some()
@@ -94,28 +102,29 @@ pub trait ExprItemTraits: Clone {
     }
 }
 
-/// V is the underlying value
-/// I is the wrapped item
-pub trait EvalExpr<I, ERR>
+/// Trait needed to evaluate an item
+/// Evals from an item to a value
+pub trait Eval<I, ERR>
 where
     ERR: From<GenericEvalErrorKind>,
-    I: ExprItemTraits
+    I: ItemTraits
 {
     fn eval_expr(&self, i: &I) -> Result<I::ExprValue, ERR>;
 }
 
+////////////////////////////////////////////////////////////////////////////////
 #[derive(Clone)]
 enum StackItem<'a, I>
 where
-    I: ExprItemTraits
+    I: ItemTraits
 {
-    Value(<I as ExprItemTraits>::ExprValue),
+    Value(<I as ItemTraits>::ExprValue),
     Item(&'a I),
 }
 
 impl<'a, I> StackItem<'a, I>
 where
-    I: ExprItemTraits
+    I: ItemTraits
 {
     pub fn item(&self) -> Option<&I> {
         match self {
@@ -127,7 +136,7 @@ where
 
 impl<'a, I> From<&'a I> for StackItem<'a, I> 
 where
- I : ExprItemTraits,
+ I : ItemTraits,
 {
     fn from(item: &'a I) -> Self {
         use ExprItemKind::*;
@@ -138,9 +147,9 @@ where
     }
 }
 
-impl<'a, I> ExprItemTraits for StackItem<'a, I>
+impl<'a, I> ItemTraits for StackItem<'a, I>
 where
-    I: ExprItemTraits
+    I: ItemTraits
 {
     type ExprValue = I::ExprValue;
 
@@ -158,11 +167,8 @@ where
         }
     }
 
-    fn is_expression(&self) -> bool {
-        match self {
-            StackItem::Item(i) => i.is_expression(),
-            _ => false,
-        }
+    fn expr(&self) -> Option<&Vec<Self>> {
+        None
     }
 }
 
@@ -171,8 +177,8 @@ pub fn evaluate_postfix_expr_2<'a, I, E, ERR>(
     _evaluator: &E,
 ) -> Result<I::ExprValue, ERR>
 where
-    I: ExprItemTraits + 'a,
-    E: EvalExpr<I, ERR>,
+    I: ItemTraits + 'a,
+    E: Eval<I, ERR>,
     ERR: From<GenericEvalErrorKind>,
 {
     use GenericEvalErrorKind::*;
@@ -180,18 +186,18 @@ where
 
     let mut s: Stack<StackItem<'a, I>> = Stack::new();
 
-    let to_err = |_e| panic!();
+    let to_err = |_e| panic!("{:#?}",_e);
 
     for i in items.map(StackItem::from) {
         let ret = match i.item_type() {
             ExprItemKind::Expression => StackItem::Value(_evaluator.eval_expr(i.item().unwrap())?),
 
             ExprItemKind::Operator => {
-                let op = i.op().ok_or(to_err(ExpectedOperator))?;
+                let op = i.op().ok_or_else(|| to_err(ExpectedOperator))?;
 
                 let (rhs, lhs) = s.pop_pair();
-                let lhs = lhs.value().ok_or(to_err(ExpectedValue))?;
-                let rhs = rhs.value().ok_or(to_err(ExpectedValue))?;
+                let lhs = lhs.value().ok_or_else(|| to_err(ExpectedValue))?;
+                let rhs = rhs.value().ok_or_else(|| to_err(ExpectedValue))?;
 
                 match op {
                     Mul => lhs * rhs,
@@ -230,8 +236,8 @@ pub fn evaluate_postfix_expr<I, E, ERR>(
     evaluator: &E,
 ) -> Result<I::ExprValue, (usize, ERR)>
 where
-    I: ExprItemTraits + From<I::ExprValue>,
-    E: EvalExpr<I, ERR>,
+    I: ItemTraits + From<I::ExprValue>,
+    E: Eval<I, ERR>,
     ERR: From<GenericEvalErrorKind>,
 {
     use GenericEvalErrorKind::*;
@@ -317,7 +323,7 @@ impl<V: GetPriority> GetPriority for ExprItem<V> {
     }
 }
 
-impl<V: GetPriority + OperatorTraits + Clone> ExprItemTraits for ExprItem<V> {
+impl<V: GetPriority + OperatorTraits + Clone> ItemTraits for ExprItem<V> {
     type ExprValue = V;
     fn value(&self) -> Option<V> {
         match self {
@@ -333,8 +339,12 @@ impl<V: GetPriority + OperatorTraits + Clone> ExprItemTraits for ExprItem<V> {
         }
     }
 
-    fn is_expression(&self) -> bool {
-        false
+    fn expr(&self) -> Option<&Vec<ExprItem<V>>> {
+        match self {
+            ExprItem::Expr(v) => Some(v),
+            _ => None,
+        }
+
     }
 }
 

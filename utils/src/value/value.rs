@@ -1,4 +1,5 @@
 // use crate::eval::OperatorTraits;
+
 use crate::eval::OperationError;
 use crate::eval::OperationErrorKind;
 
@@ -26,10 +27,10 @@ impl std::fmt::Display for Value {
         use Value::*;
 
         let x = match self {
-            Signed(a) => format!("{a}"),
-            Unsigned(a) => format!("{a}"),
-            Float(a) => format!("{a}"),
-            Text(a) => format!("{a}"),
+            Signed(a) => format!("{a}i64"),
+            Unsigned(a) => format!("{a}u64"),
+            Float(a) => format!("{a}f64"),
+            Text(a) => format!("\"{a}\""),
             Macro => "macro".to_string(),
             Null => "null".to_string(),
         };
