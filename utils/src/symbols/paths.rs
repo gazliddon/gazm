@@ -1,3 +1,6 @@
+/// Manipulation of text based scope paths
+/// Maybe show be a COW string?
+
 pub fn split_scopes<'a>(txt: &'a str) -> Vec<&'a str> {
     let ret = txt.split("::").collect();
     ret
@@ -8,21 +11,10 @@ pub fn split_scopes<'a>(txt: &'a str) -> Vec<&'a str> {
 pub struct ScopePath {
     is_relative: bool,
     path_parts: Vec<String>,
+    original: String,
 }
 
 impl ScopePath {
-    pub fn from_base_path(base: &ScopePath, path: &ScopePath) -> Option<Self> {
-        if base.is_abs() && path.is_relative() {
-            let mut path_parts = base.path_parts.clone();
-            path_parts.extend(path.path_parts.iter().cloned());
-            Some(Self {
-                is_relative: false,
-                path_parts,
-            })
-        } else {
-            None
-        }
-    }
 
     pub fn is_root(&self) -> bool {
         self.is_abs() && self.path_parts.get(0) == Some(&"".to_string()) && self.path_parts.len() == 1
@@ -37,7 +29,6 @@ impl ScopePath {
             Some(&"")=> {
                 false
             }
-
             // Otherwise this is a relative path
             _ => true,
         };
@@ -45,6 +36,7 @@ impl ScopePath {
         Self {
             is_relative,
             path_parts: parts.iter().map(|x| String::from(*x)).collect(),
+            original: Default::default()
         }
     }
 
@@ -64,23 +56,12 @@ impl ScopePath {
         self.is_relative
     }
 
-    pub fn set_is_relative(&mut self, is_relative: bool) {
-        self.is_relative = is_relative
-    }
-
     pub fn is_abs(&self) -> bool {
         !self.is_relative()
     }
 
     pub fn get_parts(&self) -> &[String] {
         &self.path_parts
-    }
-
-    pub fn concat(&self, path: &ScopePath) -> ScopePath {
-        assert!(self.is_abs());
-        assert!(path.is_relative());
-        let new_path = format!("{}::{}", self,path);
-        Self::new(&new_path)
     }
 }
 
@@ -93,11 +74,6 @@ impl<T: AsRef<str>> From<T> for ScopePath {
 impl std::fmt::Display for ScopePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let joined = self.path_parts.join("::");
-
-        // if self.is_abs() {
-        //     joined = format!("::{joined}")
-        // }
-
         write!(f, "{joined}")
     }
 }
@@ -117,7 +93,6 @@ impl SymbolPath {
 
     pub fn from_full_path(txt: &str) -> Self {
         let split = split_scopes(txt);
-
         match split.len() {
             0 => panic!(),
             _ => {
@@ -129,9 +104,19 @@ impl SymbolPath {
         }
     }
 }
+
 impl std::fmt::Display for SymbolPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}::{}", self.path, self.name)
+    }
+}
+
+impl<T> From<T> for SymbolPath
+where
+    T: AsRef<str>
+{
+    fn from(txt: T) -> Self {
+        Self::from_full_path(txt.as_ref())
     }
 }
 
@@ -143,8 +128,8 @@ mod test {
     #[test]
     fn test_symbol_path() {
         let txt = "::scope::hello";
+        let sym_path : SymbolPath = txt.into();
 
-        let sym_path = SymbolPath::from_full_path(txt);
         assert!(sym_path.path.is_abs());
         assert_eq!(&sym_path.name,"hello");
         assert_eq!(sym_path.path.to_string(), "::scope")
