@@ -6,14 +6,14 @@ use log::{ info, error };
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tower_lsp::jsonrpc::Result as TResult;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tower_lsp::jsonrpc;
-use request::{
+use tower_lsp::jsonrpc::Result as TResult;
+use tower_lsp::lsp_types::request::{
     GotoDeclarationParams, GotoDeclarationResponse, GotoImplementationParams,
     GotoImplementationResponse, GotoTypeDefinitionParams, GotoTypeDefinitionResponse,
 };
+use tower_lsp::lsp_types::*;
+use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 pub struct Backend {
     pub client: Client,
@@ -44,21 +44,38 @@ impl Backend {
 }
 
 impl Assembler {
+    fn apply_change<P: AsRef<Path>>(
+        &self,
+        doc: P,
+        change: &TextDocumentContentChangeEvent,
+    ) -> GResult<()> {
+        let doc = doc.as_ref();
+        if let Some(range) = change.range {
+            let te = to_text_edit(&range, &change.text);
+            info!("About to apply {:#?}", te);
+            self.edit_file(doc, |text_file| text_file.edit(&te))?;
+        } else {
+            info!("About to apply replace file {}", doc.to_string_lossy());
+            self.replace_file_contents(doc, &change.text)?;
+        };
+        Ok(())
+    }
+
     fn apply_changes<P: AsRef<Path>>(
         &self,
         doc: P,
         content_changes: &Vec<TextDocumentContentChangeEvent>,
     ) -> GResult<()> {
+        info!(
+            "Trying to apply changes to {}",
+            doc.as_ref().to_string_lossy()
+        );
 
-        info!("Trying to apply changes to {}", doc.as_ref().to_string_lossy());
+        let doc = doc.as_ref();
 
         // Apply the changes and abort on any errors
         for change in content_changes {
-            if let Some(range) = change.range {
-                let te = to_text_edit(&range, &change.text);
-                info!("About to apply {:#?}", te);
-                self.edit_file(&doc, |text_file| text_file.edit(&te))?;
-            }
+            self.apply_change(doc, change)?;
         }
 
         Ok(())
@@ -68,18 +85,28 @@ impl Assembler {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
+    async fn goto_declaration(
+        &self,
+        params: GotoDeclarationParams,
+    ) -> jsonrpc::Result<Option<GotoDeclarationResponse>> {
+        let _ = params;
+        error!("Got a textDocument/declaration request, but it is not implemented");
+        Err(jsonrpc::Error::method_not_found())
+    }
+
     async fn initialize(&self, _init: InitializeParams) -> TResult<InitializeResult> {
         Ok(InitializeResult {
             server_info: Some(ServerInfo { name: "gazm".into(), version: None }),
 
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::INCREMENTAL,
+                    TextDocumentSyncKind::FULL,
                 )),
 
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
-                definition_provider: Some(OneOf::Left(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
+
+                definition_provider: Some(OneOf::Left(true)),
 
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
@@ -143,16 +170,6 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn goto_declaration(
-        &self,
-        params: GotoDeclarationParams,
-    ) -> jsonrpc::Result<Option<GotoDeclarationResponse>> {
-        info!("Goto declaration");
-        let _ = params;
-        error!("Got a textDocument/declaration request, but it is not implemented you twat");
-        Err(jsonrpc::Error::method_not_found())
-    }
-
     async fn goto_definition(
         &self,
         params: GotoDefinitionParams,
@@ -163,22 +180,6 @@ impl LanguageServer for Backend {
     }
 
 
-    // async fn goto_declaration(
-    //     &self,
-    //     params: GotoDeclarationParams,
-    // ) -> jsonrpc::Result<Option<GotoDeclarationResponse>> {
-    //     info!("Goto declaration");
-
-    //     let range = Range {
-    //         start: params.text_document_position_params.position.clone(),
-    //         end : params.text_document_position_params.position.clone(),
-    //     };
-
-    //     let uri = params.text_document_position_params.text_document.uri;
-    //     let l = Location { uri,  range};
-    //     let resp = GotoDeclarationResponse::Scalar(l);
-    //     Ok(Some(resp))
-    // }
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> TResult<Option<Value>> {
         info!("execute_command");
