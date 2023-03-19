@@ -2,13 +2,18 @@ use crate::ctx::{Context, Opts};
 use crate::error::GResult;
 use crate::gazm::{create_ctx, reassemble_ctx, with_state, Assembler};
 use emu::utils::sources::TextEdit;
-use log::info;
+use log::{ info, error };
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tower_lsp::jsonrpc::Result as TResult;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
+use tower_lsp::jsonrpc;
+use request::{
+    GotoDeclarationParams, GotoDeclarationResponse, GotoImplementationParams,
+    GotoImplementationResponse, GotoTypeDefinitionParams, GotoTypeDefinitionResponse,
+};
 
 pub struct Backend {
     pub client: Client,
@@ -31,6 +36,10 @@ impl Backend {
         info!("Backend created!");
         let asm = Assembler::new(opts);
         Self { client, asm }
+    }
+
+    pub fn get_ast(_l : Location) -> Option<String> {
+        None
     }
 }
 
@@ -56,24 +65,27 @@ impl Assembler {
     }
 }
 
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _init: InitializeParams) -> TResult<InitializeResult> {
         Ok(InitializeResult {
-            server_info: None,
+            server_info: Some(ServerInfo { name: "gazm".into(), version: None }),
+
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::INCREMENTAL,
                 )),
 
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+                definition_provider: Some(OneOf::Left(true)),
+                declaration_provider: Some(DeclarationCapability::Simple(true)),
 
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
                     trigger_characters: Some(vec![".".to_string()]),
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
-                    ..Default::default()
                 }),
 
                 execute_command_provider: Some(ExecuteCommandOptions {
@@ -95,11 +107,13 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _init: InitializedParams) {
-        info!("initialized");
+        info!("initialized! yeah!");
+        info!("{:#?}", _init);
         let x = self.asm.assemble();
+
         info!("Assembler results {:#?}", x);
         self.client
-            .log_message(MessageType::INFO, "initialized!")
+            .log_message(MessageType::INFO, "initialized it all!")
             .await;
     }
 
@@ -128,6 +142,43 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, "watched files have changed!")
             .await;
     }
+
+    async fn goto_declaration(
+        &self,
+        params: GotoDeclarationParams,
+    ) -> jsonrpc::Result<Option<GotoDeclarationResponse>> {
+        info!("Goto declaration");
+        let _ = params;
+        error!("Got a textDocument/declaration request, but it is not implemented you twat");
+        Err(jsonrpc::Error::method_not_found())
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+        ) -> jsonrpc::Result<Option<GotoDefinitionResponse>> {
+        let _ = params;
+        error!("Got a textDocument/definition request, but it is not implemented you twat");
+        Err(jsonrpc::Error::method_not_found())
+    }
+
+
+    // async fn goto_declaration(
+    //     &self,
+    //     params: GotoDeclarationParams,
+    // ) -> jsonrpc::Result<Option<GotoDeclarationResponse>> {
+    //     info!("Goto declaration");
+
+    //     let range = Range {
+    //         start: params.text_document_position_params.position.clone(),
+    //         end : params.text_document_position_params.position.clone(),
+    //     };
+
+    //     let uri = params.text_document_position_params.text_document.uri;
+    //     let l = Location { uri,  range};
+    //     let resp = GotoDeclarationResponse::Scalar(l);
+    //     Ok(Some(resp))
+    // }
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> TResult<Option<Value>> {
         info!("execute_command");
@@ -188,8 +239,8 @@ impl LanguageServer for Backend {
     async fn completion(&self, _: CompletionParams) -> TResult<Option<CompletionResponse>> {
         info!("completion");
         Ok(Some(CompletionResponse::Array(vec![
-            CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
-            CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
+                                          CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
+                                          CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
         ])))
     }
 
@@ -198,13 +249,15 @@ impl LanguageServer for Backend {
         info!(
             "{}",
             params
-                .text_document_position_params
-                .text_document
-                .uri
-                .path()
-        );
+            .text_document_position_params
+            .text_document
+            .uri
+            .path()
+            );
 
         info!("{:#?}", params);
+
+
 
         let x = vec![];
 
