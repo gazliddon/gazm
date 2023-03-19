@@ -91,6 +91,8 @@ pub trait TextEditTrait {
         self.edit(&text_edit)
     }
 
+    fn replace_file(&mut self, new_text: &str) -> EditResult<()>;
+
     fn insert_line(&mut self, line_number: usize, txt: &str) -> EditResult<()> {
         let txt = &format!("{}\n", txt);
         let text_edit = TextEdit::new(line_number, 0, line_number, 0, txt);
@@ -133,6 +135,12 @@ impl TextEditTrait for TextFile {
         let last = &self.source[r.end..];
         let new_source = first.to_owned() + &edit.text + last;
         self.source = new_source;
+        self.post_change();
+        Ok(())
+    }
+
+    fn replace_file(&mut self, new_text: &str) -> EditResult<()> {
+        self.source = new_text.into();
         self.post_change();
         Ok(())
     }

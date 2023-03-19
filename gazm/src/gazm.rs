@@ -5,11 +5,13 @@ use crate::error::UserError;
 use crate::error::{GResult, GazmErrorType};
 use crate::item::Node;
 use crate::tokenize;
-use emu::utils::sources::{Position, SourceFile, EditResult, TextEditTrait};
+use emu::utils::sources::{EditResult, Position, SourceFile, TextEditTrait};
 use rayon::iter::plumbing::Consumer;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
+
+use log::error;
 
 pub struct Assembler {
     ctx: Arc<Mutex<Context>>,
@@ -63,20 +65,22 @@ impl Assembler {
         })
     }
 
+    pub fn replace_file_contents<P: AsRef<Path>>(&self, file: P, new_text: &str) -> GResult<()> {
+        self.with_inner(|ctx| -> GResult<()> {
+            let res = ctx.edit_source_file(&file, |editable| editable.replace_file(new_text))?;
+            Ok(res)
+        })
+    }
+
     /// Edit a file
     /// and invalidate the token cache
-    #[allow(unreachable_code)]
-    #[allow(unused_variables)]
     pub fn edit_file<P: AsRef<Path>, X>(
         &self,
         file: P,
         f: impl FnOnce(&mut dyn TextEditTrait) -> EditResult<X>,
     ) -> GResult<X> {
         let x = self.with_inner(|ctx| -> GResult<X> {
-
-            let res = ctx.edit_source_file(&file, |editable| {
-                f(editable)
-            })?;
+            let res = ctx.edit_source_file(&file, |editable| f(editable))?;
 
             Ok(res)
         })?;
