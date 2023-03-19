@@ -1,8 +1,8 @@
 use crate::ctx::{Context, Opts};
-use crate::error::GResult;
+use crate::error::{GResult, GazmErrorType};
 use crate::gazm::{create_ctx, reassemble_ctx, with_state, Assembler};
 use emu::utils::sources::TextEdit;
-use log::{ info, error };
+use log::{error, info};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -38,8 +38,77 @@ impl Backend {
         Self { client, asm }
     }
 
-    pub fn get_ast(_l : Location) -> Option<String> {
+    pub fn get_ast(_l: Location) -> Option<String> {
         None
+    }
+
+    fn create_diagnostics(&self, err: GazmErrorType) -> Vec<(PathBuf, Diagnostic)> {
+        let mut errs = vec![];
+        match err {
+            GazmErrorType::UserError(e) => errs.push(e),
+            GazmErrorType::TooManyErrors(e) => {
+                for e in e.errors {
+                    match e {
+                        GazmErrorType::UserError(e) => errs.push(e),
+                        _ => error!("Unhandled error {e}"),
+                    }
+                }
+            }
+            _ => (),
+        };
+
+        let mut diags = vec![];
+
+        for e in &errs {
+            let line = (e.pos.line - 1) as u32;
+            let character = (e.pos.col - 1) as u32;
+            let position = Position { line, character };
+            let range = Range::new(position.clone(), position.clone());
+
+            diags.push((
+                e.file.clone(),
+                Diagnostic::new_simple(range, e.message.clone()),
+            ))
+        }
+
+        diags
+    }
+
+    async fn reassemble_file<P: AsRef<Path>>(&self, doc: P) {
+        let doc = doc.as_ref().clone();
+
+        let r = self.asm.reassemble();
+
+        let diags = match r {
+            Ok(_) => vec![],
+            Err(e) => {
+                // Get any diags for this file
+                self.create_diagnostics(e)
+                    .into_iter()
+                    .filter_map(|(p, d)| {
+                        if p == doc {
+                            Some(d)
+                        } else {
+                            error!(
+                                "Shouldn't happen! expected {} got {}",
+                                p.to_string_lossy(),
+                                doc.to_string_lossy()
+                            );
+                            None
+                        }
+                    })
+                    .collect()
+            }
+        };
+
+        let uri = Url::parse(
+            &format!("file://{}", doc.to_string_lossy()));
+
+        if let Ok(uri) = uri {
+            self.client.publish_diagnostics(uri, diags, None).await;
+        } else {
+            error!("{:?}", uri);
+        }
     }
 }
 
@@ -50,6 +119,7 @@ impl Assembler {
         change: &TextDocumentContentChangeEvent,
     ) -> GResult<()> {
         let doc = doc.as_ref();
+
         if let Some(range) = change.range {
             let te = to_text_edit(&range, &change.text);
             info!("About to apply {:#?}", te);
@@ -57,7 +127,9 @@ impl Assembler {
         } else {
             info!("About to apply replace file {}", doc.to_string_lossy());
             self.replace_file_contents(doc, &change.text)?;
+            info!("did it!****");
         };
+
         Ok(())
     }
 
@@ -82,7 +154,6 @@ impl Assembler {
     }
 }
 
-
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn goto_declaration(
@@ -96,7 +167,10 @@ impl LanguageServer for Backend {
 
     async fn initialize(&self, _init: InitializeParams) -> TResult<InitializeResult> {
         Ok(InitializeResult {
-            server_info: Some(ServerInfo { name: "gazm".into(), version: None }),
+            server_info: Some(ServerInfo {
+                name: "gazm".into(),
+                version: None,
+            }),
 
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
@@ -173,13 +247,11 @@ impl LanguageServer for Backend {
     async fn goto_definition(
         &self,
         params: GotoDefinitionParams,
-        ) -> jsonrpc::Result<Option<GotoDefinitionResponse>> {
+    ) -> jsonrpc::Result<Option<GotoDefinitionResponse>> {
         let _ = params;
-        error!("Got a textDocument/definition request, but it is not implemented you twat");
+        error!("Got a textDocument/definition request, but it is not implemented");
         Err(jsonrpc::Error::method_not_found())
     }
-
-
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> TResult<Option<Value>> {
         info!("execute_command");
@@ -196,31 +268,32 @@ impl LanguageServer for Backend {
         Ok(None)
     }
 
-    async fn did_open(&self, _: DidOpenTextDocumentParams) {
-        info!("did_open");
-        self.client
-            .log_message(MessageType::INFO, "file opened!")
-            .await;
+    async fn did_open(&self, x: DidOpenTextDocumentParams) {
+        let doc = PathBuf::from(x.text_document.uri.path());
+        info!("did_open {}", doc.to_string_lossy());
+        self.reassemble_file(&doc).await;
     }
 
     async fn did_change(&self, x: DidChangeTextDocumentParams) {
+        info!("About to apply changes to {}", x.text_document.uri.path());
         if x.text_document.uri.scheme() == "file" {
-            let doc = x.text_document.uri.path();
+            let doc = PathBuf::from(x.text_document.uri.path());
 
-            let e = self.asm.apply_changes(doc, &x.content_changes);
+            let e = self.asm.apply_changes(&doc, &x.content_changes);
 
             match e {
-                Err(e) => info!("Error {e}"),
+                Err(e) => {
+                    info!("Error applying changes! {e}");
+                    return;
+                }
+
                 Ok(_) => info!("Applied changes"),
             };
+
+            self.reassemble_file(&doc).await
+        } else {
+            error!("Unknown uri type {}", x.text_document.uri.scheme())
         }
-
-        let r = self.asm.reassemble();
-        info!("ASM {:?}", r);
-
-        self.client
-            .log_message(MessageType::INFO, "file changed!")
-            .await;
     }
 
     async fn did_save(&self, _: DidSaveTextDocumentParams) {
@@ -240,8 +313,8 @@ impl LanguageServer for Backend {
     async fn completion(&self, _: CompletionParams) -> TResult<Option<CompletionResponse>> {
         info!("completion");
         Ok(Some(CompletionResponse::Array(vec![
-                                          CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
-                                          CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
+            CompletionItem::new_simple("Hello".to_string(), "Some detail".to_string()),
+            CompletionItem::new_simple("Bye".to_string(), "More detail".to_string()),
         ])))
     }
 
@@ -250,15 +323,13 @@ impl LanguageServer for Backend {
         info!(
             "{}",
             params
-            .text_document_position_params
-            .text_document
-            .uri
-            .path()
-            );
+                .text_document_position_params
+                .text_document
+                .uri
+                .path()
+        );
 
         info!("{:#?}", params);
-
-
 
         let x = vec![];
 

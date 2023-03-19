@@ -272,7 +272,7 @@ impl UserError {
 #[derive(Clone)]
 pub struct ErrorCollector {
     max_errors: usize,
-    errors: Vec<GazmErrorType>,
+    pub errors: Vec<GazmErrorType>,
     errors_remaining: usize,
 }
 
