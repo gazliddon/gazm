@@ -161,11 +161,13 @@ impl AstError {
 
 impl std::fmt::Display for AstError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (line,col) = self.pos.line_col_from_one();
+
         let err_string = self
             .message
             .clone()
             .unwrap_or_else(|| "NO ERROR".to_string());
-        write!(f, "{} : ({}:{})", err_string, self.pos.line, self.pos.col)
+        write!(f, "{} : ({}:{})", err_string, line,col)
     }
 }
 
@@ -224,8 +226,7 @@ impl UserError {
         let mut s = String::new();
 
         let pos = &self.pos;
-        let line = pos.line;
-        let col = pos.col;
+        let (line,col) = pos.line_col_from_one();
 
         let line_num = format!("{}", line);
         let spaces = " ".repeat(1 + line_num.len());
@@ -248,7 +249,7 @@ impl UserError {
 
         writeln!(s, "{}", bar).expect("kj");
         writeln!(s, "{} {}", bar_line, self.line).expect("kj");
-        writeln!(s, "{}{}^", bar, " ".repeat(self.pos.col)).expect("kj");
+        writeln!(s, "{}{}^", bar, " ".repeat(col)).expect("kj");
         Ok(s)
     }
 

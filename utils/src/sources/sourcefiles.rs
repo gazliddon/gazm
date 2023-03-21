@@ -85,12 +85,10 @@ impl SourceFiles {
             let source_file = self.get_source_id(file_id)?;
 
             let fragment = source_file.get_span(pos);
-            let line_str = source_file.get_line_from_position(pos);
+            let line_str = source_file.get_line(pos.line).unwrap();
 
             let ret = SourceInfo {
                 line_str,
-                col: pos.col,
-                line: pos.line,
                 fragment,
                 source_file,
                 file: source_file.file.clone(),

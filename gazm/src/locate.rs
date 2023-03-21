@@ -19,7 +19,7 @@ pub fn span_to_pos(i: Span) -> Position {
     let start = i.location_offset();
     let range = start..(start + i.len());
     Position::new(
-        i.location_line() as usize,
+        i.location_line() as usize - 1 ,
         i.get_column() as usize,
         range,
         i.extra,

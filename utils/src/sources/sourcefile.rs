@@ -29,10 +29,6 @@ impl SourceFile {
         self.source.get_line(line).ok()
     }
 
-    pub fn get_line_from_position(&self, p: &Position) -> &str {
-        self.get_line(p.line - 1).unwrap()
-    }
-
     pub fn get_span(&self, p: &Position) -> &str {
         // If the span is zero in length then return the single char at that position
         let range = if p.range.is_empty() {

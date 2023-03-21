@@ -60,9 +60,8 @@ impl Backend {
         let mut diags = vec![];
 
         for e in &errs {
-            let line = (e.pos.line - 1) as u32;
-            let character = (e.pos.col - 1) as u32;
-            let position = Position { line, character };
+            let (line,character) = e.pos.line_col();
+            let position = Position { line: line as u32, character: character as u32 };
             let range = Range::new(position.clone(), position.clone());
             let diag = 
                 Diagnostic::new_simple(range, e.message.clone());
