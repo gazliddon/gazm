@@ -27,8 +27,8 @@ impl<'a> AsmCtx<'a> {
         self.ctx
     }
 
-    pub fn binary(&mut self) -> &binary::Binary {
-        &mut self.ctx.asm_out.binary
+    pub fn binary(&self) -> &binary::Binary {
+        &self.ctx.asm_out.binary
     }
 
     pub fn binary_mut(&mut self) -> &mut binary::Binary {
