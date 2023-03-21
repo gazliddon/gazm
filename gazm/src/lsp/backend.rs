@@ -64,18 +64,20 @@ impl Backend {
             let character = (e.pos.col - 1) as u32;
             let position = Position { line, character };
             let range = Range::new(position.clone(), position.clone());
+            let diag = 
+                Diagnostic::new_simple(range, e.message.clone());
 
             diags.push((
                 e.file.clone(),
-                Diagnostic::new_simple(range, e.message.clone()),
+                diag
             ))
         }
 
         diags
     }
 
-    async fn reassemble_file<P: AsRef<Path>>(&self, doc: P) {
-        let doc = doc.as_ref().clone();
+    async fn reassemble_file(&self, uri: Url) {
+        let doc = PathBuf::from(uri.path());
 
         let r = self.asm.reassemble();
 
@@ -101,8 +103,7 @@ impl Backend {
             }
         };
 
-        let uri = Url::parse(
-            &format!("file://{}", doc.to_string_lossy()));
+        let uri = Url::parse(&format!("file://{}", doc.to_string_lossy()));
 
         if let Ok(uri) = uri {
             self.client.publish_diagnostics(uri, diags, None).await;
@@ -269,31 +270,29 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, x: DidOpenTextDocumentParams) {
-        let doc = PathBuf::from(x.text_document.uri.path());
-        info!("did_open {}", doc.to_string_lossy());
-        self.reassemble_file(&doc).await;
+        let doc = x.text_document.uri.path();
+        info!("did_open {}", doc);
+        self.reassemble_file(x.text_document.uri).await;
     }
 
     async fn did_change(&self, x: DidChangeTextDocumentParams) {
         info!("About to apply changes to {}", x.text_document.uri.path());
-        if x.text_document.uri.scheme() == "file" {
-            let doc = PathBuf::from(x.text_document.uri.path());
+        let uri = x.text_document.uri;
 
-            let e = self.asm.apply_changes(&doc, &x.content_changes);
+        let e = self
+            .asm
+            .apply_changes(PathBuf::from(uri.path()), &x.content_changes);
 
-            match e {
-                Err(e) => {
-                    info!("Error applying changes! {e}");
-                    return;
-                }
+        match e {
+            Err(e) => {
+                info!("Error applying changes! {e}");
+                return;
+            }
 
-                Ok(_) => info!("Applied changes"),
-            };
+            Ok(_) => info!("Applied changes"),
+        };
 
-            self.reassemble_file(&doc).await
-        } else {
-            error!("Unknown uri type {}", x.text_document.uri.scheme())
-        }
+        self.reassemble_file(uri).await;
     }
 
     async fn did_save(&self, _: DidSaveTextDocumentParams) {
