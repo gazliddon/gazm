@@ -42,3 +42,4 @@ pub mod doc;
 pub mod lsp;
 pub mod newsyms;
 pub mod parse;
+pub mod lookup;

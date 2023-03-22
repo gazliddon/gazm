@@ -42,6 +42,7 @@ mod tokenize;
 mod vars;
 mod newsyms;
 mod parse;
+mod lookup;
 
 use anyhow::{Context, Result};
 use ctx::Opts;
