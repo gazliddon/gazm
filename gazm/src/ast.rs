@@ -5,6 +5,7 @@ pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 
 // use std::fmt::{Debug, DebugMap};
 
+use std::collections::HashMap;
 use std::vec;
 
 use crate::error::{AstError, UserError};
@@ -15,8 +16,8 @@ use crate::ctx::Context;
 use crate::item::{Item, Node};
 
 use crate::{messages::*, node};
-use emu::utils::sources::{Position, SourceInfo, SymbolQuery, SymbolWriter, SourceErrorType};
-use emu::utils::eval::{ PostFixer, GetPriority, to_postfix };
+use emu::utils::eval::{to_postfix, GetPriority, PostFixer};
+use emu::utils::sources::{Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolWriter};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -64,9 +65,9 @@ pub struct Ast<'a> {
 }
 
 impl<'a> Ast<'a> {
-    pub fn from_nodes(ctx: &'a mut Context, node: &Node ) -> Result<AstTree, UserError> {
+    pub fn from_nodes(ctx: &'a mut Context, node: &Node) -> Result<AstTree, UserError> {
         let tree = make_tree(node);
-        let r =  Self::new(tree, ctx)?;
+        let r = Self::new(tree, ctx)?;
         Ok(r.tree)
     }
 
@@ -204,7 +205,6 @@ impl<'a> Ast<'a> {
     }
 
     fn node_to_postfix(&self, node: AstNodeRef) -> Result<Vec<AstNodeId>, String> {
-
         let args: Vec<_> = node.children().map(|n| Term::new(&n)).collect();
 
         let ret = to_postfix(&args).map_err(|s| {
@@ -212,12 +212,7 @@ impl<'a> Ast<'a> {
                 .iter()
                 .map(|a| format!("{:?}", self.tree.get(a.node).unwrap().value().item))
                 .collect();
-            format!(
-                "\n{:?} {:?}\n {}",
-                s,
-                node.value(),
-                args.join("\n")
-            )
+            format!("\n{:?} {:?}\n {}", s, node.value(), args.join("\n"))
         })?;
 
         let ret = ret.iter().map(|t| t.node).collect();
@@ -331,7 +326,8 @@ impl<'a> Ast<'a> {
     where
         S: Into<String>,
     {
-        self.ctx.asm_out
+        self.ctx
+            .asm_out
             .symbols
             .add_symbol_with_value(&name.into(), value)
             .map_err(|e| {
@@ -397,7 +393,6 @@ impl<'a> Ast<'a> {
                     }
 
                     Assignment(name) => {
-
                         let n = self.tree.get(id).unwrap();
                         let cn = n.first_child().unwrap();
                         let res = eval(&self.ctx.asm_out.symbols, cn);
@@ -408,7 +403,13 @@ impl<'a> Ast<'a> {
                                 self.add_symbol(value, name, c_id)?;
                                 let si = self.get_source_info_from_node_id(id).unwrap();
                                 let scope = self.ctx.asm_out.symbols.get_current_scope_fqn();
-                                let msg = format!("{scope}::{} = {} :  {} {}", name.clone(), value, si.file.to_string_lossy(),si.line_str);
+                                let msg = format!(
+                                    "{scope}::{} = {} :  {} {}",
+                                    name.clone(),
+                                    value,
+                                    si.file.to_string_lossy(),
+                                    si.line_str
+                                );
                                 x.debug(&msg);
                             }
 
@@ -444,6 +445,50 @@ impl<'a> Ast<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct LabelUsageAndDefintions {
+    label_to_definition_pos: HashMap<String, Position>,
+    labels: Vec<(Position, String)>,
+}
+
+impl LabelUsageAndDefintions {
+    pub fn new(tree: &AstTree) -> Self {
+        let mut label_to_definition_pos: HashMap<String, Position> = HashMap::new();
+        let mut labels: Vec<(Position, String)> = Default::default();
+
+        use Item::*;
+
+        for v in tree.values() {
+            let pos = v.pos.clone();
+            match &v.item {
+                LocalAssignment(name) | Assignment(name) | AssignmentFromPc(name) => {
+                    label_to_definition_pos.insert(name.clone(), pos);
+                }
+
+                Label(name) | LocalLabel(name) => {
+                    labels.push((pos, name.clone()));
+                }
+
+                _ => (),
+            }
+        }
+
+        Self {
+            label_to_definition_pos,
+            labels,
+        }
+    }
+
+    pub fn find_definiton(&self, _name: &str) -> Option<Position> {
+        None
+    }
+
+    pub fn find_label(&self, _p: Position) -> Option<String> {
+        None
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Clone, PartialEq)]
 struct Term {
     node: AstNodeId,
@@ -459,16 +504,15 @@ impl GetPriority for Term {
 pub fn to_priority(i: &Item) -> Option<usize> {
     use Item::*;
     match i {
-
-            Div => Some(12),
-            Mul => Some(12),
-            Add => Some(11),
-            Sub => Some(11),
-            ShiftLeft => Some(10),
-            ShiftRight => Some(10),
-            BitAnd => Some(9),
-            BitXor => Some(8),
-            BitOr => Some(7),
+        Div => Some(12),
+        Mul => Some(12),
+        Add => Some(11),
+        Sub => Some(11),
+        ShiftLeft => Some(10),
+        ShiftRight => Some(10),
+        BitAnd => Some(9),
+        BitXor => Some(8),
+        BitOr => Some(7),
         _ => None,
     }
 }
