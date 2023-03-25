@@ -2,6 +2,7 @@ use crate::ast::AstTree;
 use crate::binary::{self, AccessType, Binary};
 use crate::error::{ErrorCollector, GResult, GazmErrorType, ParseError, UserError};
 use crate::item::Node;
+use crate::lookup::LabelUsageAndDefintions;
 use crate::lsp::LspConfig;
 use crate::macros::Macros;
 use crate::messages::{status_mess, Verbosity};
@@ -13,8 +14,8 @@ use emu::utils::{
     hash::get_hash,
     sources::{
         fileloader::{FileIo, SourceFileLoader},
-        BinToWrite, BinWriteDesc, EditErrorKind, EditResult, SourceDatabase, SourceFile,
-        SourceFiles, SourceMapping, SymbolTree, TextEdit, TextEditTrait, TextPos,
+        AsmSource, BinToWrite, BinWriteDesc, EditErrorKind, EditResult, Position, SourceDatabase,
+        SourceFile, SourceFiles, SourceMapping, SymbolTree, TextEdit, TextEditTrait, TextPos,
     },
     PathSearcher,
 };
@@ -119,6 +120,7 @@ pub struct AsmOut {
     pub bin_to_write_chunks: Vec<BinToWrite>,
     pub tokens: Vec<Node>,
     pub ast: Option<AstTree>,
+    pub lookup: Option<LabelUsageAndDefintions>,
 }
 
 #[derive(Debug, Clone)]
@@ -399,6 +401,33 @@ impl Context {
                 mess.deindent();
             }
         }
+    }
+
+    pub fn asm_source_to_path(&self, a: &AsmSource) -> Option<PathBuf> {
+        match a {
+            AsmSource::FromStr => None,
+            AsmSource::FileId(id) => self
+                .source_file_loader
+                .sources
+                .get_source_file_from_id(*id)
+                .ok()
+                .map(|sf| sf.file.clone()),
+        }
+    }
+
+    pub fn path_to_id<P: AsRef<Path>>(&self, p : P) -> Option<u64> {
+        self.sources().get_source(p).ok().map(|r|r.0)
+    }
+
+    pub fn lookup_label_definition(&self, name: &str) -> Option<(PathBuf, Position)> {
+        self.asm_out
+            .lookup
+            .as_ref()
+            .and_then(|lookup| lookup.find_definition(name))
+            .and_then(|pos| {
+                self.asm_source_to_path(&pos.src)
+                    .map(|path| (path, pos.clone()))
+            })
     }
 }
 

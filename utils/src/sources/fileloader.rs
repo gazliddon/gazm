@@ -184,6 +184,7 @@ impl SourceFileLoader {
         Ok((path.as_ref().into(), text.to_string(), id))
     }
 
+
     pub fn from_search_paths<P: AsRef<Path>>(paths: &[P]) -> Self {
         let search_paths: Vec<PathBuf> = paths.iter().map(|x| PathBuf::from(x.as_ref())).collect();
         Self {

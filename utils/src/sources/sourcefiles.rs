@@ -44,7 +44,7 @@ impl SourceFiles {
         Ok((*id, self.id_to_source_file.get(id).unwrap() ))
     }
 
-    pub fn get_source_id(&self, id: u64) -> SResult<&SourceFile> {
+    pub fn get_source_file_from_id(&self, id: u64) -> SResult<&SourceFile> {
         self.id_to_source_file.get(&id).ok_or_else(|| SourceErrorType::IdNotFound(id))
     }
 
@@ -82,7 +82,7 @@ impl SourceFiles {
 
     pub fn get_source_info<'a>(&'a self, pos: &Position) -> SResult<SourceInfo<'a>> {
         if let AsmSource::FileId(file_id) = pos.src {
-            let source_file = self.get_source_id(file_id)?;
+            let source_file = self.get_source_file_from_id(file_id)?;
 
             let fragment = source_file.get_span(pos);
             let line_str = source_file.get_line(pos.line).unwrap();

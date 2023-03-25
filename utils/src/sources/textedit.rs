@@ -194,7 +194,7 @@ impl TextFile {
             .ok_or_else(|| EditErrorKind::LineOutOfRange(line, self.num_of_lines()))
     }
 
-    fn start_pos_to_index(&self, pos: &TextPos) -> EditResult<usize> {
+    pub fn start_pos_to_index(&self, pos: &TextPos) -> EditResult<usize> {
         let line_r = self.get_line_range(pos.line())?;
         let ret = line_r.start + pos.char();
 

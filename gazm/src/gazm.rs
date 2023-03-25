@@ -150,6 +150,7 @@ fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GRes
 }
 
 pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<()> {
+    use crate::lookup::LabelUsageAndDefintions;
     use crate::asmctx::AsmCtx;
     use crate::compile::compile;
     use crate::evaluator::Evaluator;
@@ -158,6 +159,8 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
 
     with_state(&arc_ctx, |ctx| {
         let tree = Ast::from_nodes(ctx, tokens)?;
+        let lookup = LabelUsageAndDefintions::new(&tree);
+        ctx.asm_out.lookup = Some(lookup);
 
         let id = tree.root().id();
 

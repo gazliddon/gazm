@@ -84,6 +84,7 @@ impl<'a> Ast<'a> {
 
         ret.evaluate_assignments()?;
 
+
         Ok(ret)
     }
 

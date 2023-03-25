@@ -1,7 +1,8 @@
 use crate::ctx::{Context, Opts};
 use crate::error::{GResult, GazmErrorType};
 use crate::gazm::{create_ctx, reassemble_ctx, with_state, Assembler};
-use emu::utils::sources::TextEdit;
+use emu::utils::sources::{SourceFile, TextEdit, TextEditTrait, TextPos};
+use futures::future::poll_immediate;
 use log::{error, info};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -60,19 +61,45 @@ impl Backend {
         let mut diags = vec![];
 
         for e in &errs {
-            let (line,character) = e.pos.line_col();
-            let position = Position { line: line as u32, character: character as u32 };
+            let (line, character) = e.pos.line_col();
+            let position = Position {
+                line: line as u32,
+                character: character as u32,
+            };
             let range = Range::new(position.clone(), position.clone());
-            let diag = 
-                Diagnostic::new_simple(range, e.message.clone());
+            let diag = Diagnostic::new_simple(range, e.message.clone());
 
-            diags.push((
-                e.file.clone(),
-                diag
-            ))
+            diags.push((e.file.clone(), diag))
         }
 
         diags
+    }
+
+    fn to_file_path_position(
+        &self,
+        pos: Position,
+        uri: &Url,
+    ) -> Option<(emu::utils::sources::Position, PathBuf)> {
+        let text_pos = position_to_text_pos(&pos);
+
+        uri.to_file_path().ok().and_then(|p| {
+            self.asm.with_inner(|ctx| {
+                ctx.sources().get_source(p).ok().and_then(|(id, sf)| {
+                    sf.source
+                        .start_pos_to_index(&text_pos)
+                        .ok()
+                        .and_then(|start_pos| {
+                            let p = emu::utils::sources::Position::new(
+                                text_pos.line(),
+                                text_pos.char(),
+                                start_pos..start_pos + 1,
+                                emu::utils::sources::AsmSource::FileId(id),
+                            );
+                            Some((p, sf.file.clone()))
+                        })
+                })
+            })
+        })
     }
 
     async fn reassemble_file(&self, uri: Url) {
@@ -154,6 +181,32 @@ impl Assembler {
     }
 }
 
+fn position_to_text_pos(p: &Position) -> TextPos {
+    let line = p.line as usize;
+    let character = p.character as usize;
+    TextPos::new(line, character)
+}
+
+fn make_location<P: AsRef<Path>>(line: usize, character: usize, path: P) -> Location {
+    let start_pos = Position {
+        line: line as u32,
+        character: character as u32,
+    };
+    let end_pos = start_pos.clone();
+    let range = Range::new(start_pos, end_pos);
+    let new_uri = Url::parse(&format!("file://{}", path.as_ref().to_string_lossy())).unwrap();
+    Location::new(new_uri, range)
+}
+
+fn text_pos_to_pos(text_pos: &TextPos, start_pos: usize, id: u64) -> emu::utils::sources::Position {
+    emu::utils::sources::Position::new(
+        text_pos.line(),
+        text_pos.char(),
+        start_pos..start_pos + 1,
+        emu::utils::sources::AsmSource::FileId(id),
+    )
+}
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn goto_declaration(
@@ -163,6 +216,40 @@ impl LanguageServer for Backend {
         let _ = params;
         error!("Got a textDocument/declaration request, but it is not implemented");
         Err(jsonrpc::Error::method_not_found())
+    }
+
+    async fn references(&self, params: ReferenceParams) -> jsonrpc::Result<Option<Vec<Location>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+
+        let res = self
+            .to_file_path_position(position, &uri)
+            .and_then(|(position, _)| {
+                self.asm.with_inner(|ctx| {
+                    ctx.asm_out.lookup.as_ref().and_then(|lookup| {
+                        lookup
+                            .find_label_or_defintion(&position)
+                            .and_then(|label_name| lookup.find_references(label_name))
+                            .map(|refs| refs.iter().map(|(_, p)| p.clone()).collect::<Vec<_>>())
+                    })
+                })
+            });
+
+        if let Some(refs) = res {
+            let z = refs
+                .into_iter()
+                .filter_map(|p| {
+                    self.asm.with_inner(|ctx| {
+                        ctx.asm_source_to_path(&p.src)
+                            .map(|file_name| Some(make_location(p.line, p.col, &file_name)))
+                    })
+                })
+                .collect();
+
+            Ok(z)
+        } else {
+            Err(jsonrpc::Error::method_not_found())
+        }
     }
 
     async fn initialize(&self, _init: InitializeParams) -> TResult<InitializeResult> {
@@ -181,6 +268,7 @@ impl LanguageServer for Backend {
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
 
                 definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
 
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
@@ -248,9 +336,43 @@ impl LanguageServer for Backend {
         &self,
         params: GotoDefinitionParams,
     ) -> jsonrpc::Result<Option<GotoDefinitionResponse>> {
-        let _ = params;
-        error!("Got a textDocument/definition request, but it is not implemented");
-        Err(jsonrpc::Error::method_not_found())
+        let text_pos = position_to_text_pos(&params.text_document_position_params.position);
+        let uri = &params.text_document_position_params.text_document.uri;
+
+        let position = uri.to_file_path().ok().and_then(|p| {
+            self.asm.with_inner(|ctx| {
+                ctx.sources().get_source(p).ok().and_then(|(id, sf)| {
+                    sf.source
+                        .start_pos_to_index(&text_pos)
+                        .ok()
+                        .and_then(|start_pos| {
+                            let p = text_pos_to_pos(&text_pos, start_pos, id);
+                            if let Some(lookup) = ctx.asm_out.lookup.as_ref() {
+                                lookup
+                                    .find_label(&p)
+                                    .and_then(|label_name| lookup.find_definition(&label_name))
+                                    .and_then(|def_pos| {
+                                        ctx.asm_source_to_path(&def_pos.src)
+                                            .map(|file_name| {
+                                                make_location(def_pos.line, def_pos.col, &file_name)
+                                            })
+                                            .map(|x| GotoDefinitionResponse::Scalar(x))
+                                    })
+                            } else {
+                                None
+                            }
+                        })
+                })
+            })
+        });
+
+        if let Some(position) = position.clone() {
+            self.client
+                .log_message(MessageType::INFO, &format!("{:?}, ", &position))
+                .await;
+        }
+
+        Ok(position)
     }
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> TResult<Option<Value>> {
