@@ -32,6 +32,49 @@ pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
     te
 }
 
+impl Context {
+    fn find_definition(&self, position: &Position, uri: &Url) -> Option<Location> {
+        self.to_file_path_position(position, uri)
+            .and_then(|(p, _)| {
+                self.asm_out.lookup.as_ref().and_then(|lookup| {
+                    lookup
+                        .find_label(&p)
+                        .and_then(|label_name| lookup.find_definition(&label_name))
+                        .and_then(|def_pos| {
+                            self.asm_source_to_path(&def_pos.src).map(|file_name| {
+                                make_location(def_pos.line, def_pos.col, &file_name)
+                            })
+                        })
+                })
+            })
+    }
+
+    fn to_file_path_position(
+        &self,
+        pos: &Position,
+        uri: &Url,
+    ) -> Option<(emu::utils::sources::Position, PathBuf)> {
+        let text_pos = position_to_text_pos(&pos);
+
+        uri.to_file_path().ok().and_then(|p| {
+            self.sources().get_source(p).ok().and_then(|(id, sf)| {
+                sf.source
+                    .start_pos_to_index(&text_pos)
+                    .ok()
+                    .and_then(|start_pos| {
+                        let p = emu::utils::sources::Position::new(
+                            text_pos.line(),
+                            text_pos.char(),
+                            start_pos..start_pos + 1,
+                            emu::utils::sources::AsmSource::FileId(id),
+                        );
+                        Some((p, sf.file.clone()))
+                    })
+            })
+        })
+    }
+}
+
 impl Backend {
     pub fn new(client: Client, opts: Opts) -> Self {
         info!("Backend created!");
@@ -73,33 +116,6 @@ impl Backend {
         }
 
         diags
-    }
-
-    fn to_file_path_position(
-        &self,
-        pos: Position,
-        uri: &Url,
-    ) -> Option<(emu::utils::sources::Position, PathBuf)> {
-        let text_pos = position_to_text_pos(&pos);
-
-        uri.to_file_path().ok().and_then(|p| {
-            self.asm.with_inner(|ctx| {
-                ctx.sources().get_source(p).ok().and_then(|(id, sf)| {
-                    sf.source
-                        .start_pos_to_index(&text_pos)
-                        .ok()
-                        .and_then(|start_pos| {
-                            let p = emu::utils::sources::Position::new(
-                                text_pos.line(),
-                                text_pos.char(),
-                                start_pos..start_pos + 1,
-                                emu::utils::sources::AsmSource::FileId(id),
-                            );
-                            Some((p, sf.file.clone()))
-                        })
-                })
-            })
-        })
     }
 
     async fn reassemble_file(&self, uri: Url) {
@@ -198,14 +214,6 @@ fn make_location<P: AsRef<Path>>(line: usize, character: usize, path: P) -> Loca
     Location::new(new_uri, range)
 }
 
-fn text_pos_to_pos(text_pos: &TextPos, start_pos: usize, id: u64) -> emu::utils::sources::Position {
-    emu::utils::sources::Position::new(
-        text_pos.line(),
-        text_pos.char(),
-        start_pos..start_pos + 1,
-        emu::utils::sources::AsmSource::FileId(id),
-    )
-}
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
@@ -219,37 +227,34 @@ impl LanguageServer for Backend {
     }
 
     async fn references(&self, params: ReferenceParams) -> jsonrpc::Result<Option<Vec<Location>>> {
+        info!("Finding references");
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
 
         let res = self
-            .to_file_path_position(position, &uri)
-            .and_then(|(position, _)| {
-                self.asm.with_inner(|ctx| {
-                    ctx.asm_out.lookup.as_ref().and_then(|lookup| {
-                        lookup
-                            .find_label_or_defintion(&position)
-                            .and_then(|label_name| lookup.find_references(label_name))
-                            .map(|refs| refs.iter().map(|(_, p)| p.clone()).collect::<Vec<_>>())
+            .asm
+            .with_inner(|ctx| {
+                ctx.to_file_path_position(&position, &uri)
+                    .and_then(|(position, _)| {
+                        ctx.asm_out.lookup.as_ref().and_then(|lookup| {
+                            lookup
+                                .find_label_or_defintion(&position)
+                                .and_then(|label_name| lookup.find_references(label_name))
+                        })
                     })
-                })
-            });
-
-        if let Some(refs) = res {
-            let z = refs
-                .into_iter()
-                .filter_map(|p| {
-                    self.asm.with_inner(|ctx| {
-                        ctx.asm_source_to_path(&p.src)
-                            .map(|file_name| Some(make_location(p.line, p.col, &file_name)))
+                    .map(|refs: Vec<_>| {
+                        refs.into_iter()
+                            .filter_map(|(_, p)| {
+                                ctx.asm_source_to_path(&p.src)
+                                    .map(|file_name| Some(make_location(p.line, p.col, &file_name)))
+                            })
+                            .collect()
                     })
-                })
-                .collect();
+            })
+            .ok_or(jsonrpc::Error::method_not_found());
+        info!("Done Finding references {:?}", res);
 
-            Ok(z)
-        } else {
-            Err(jsonrpc::Error::method_not_found())
-        }
+        res
     }
 
     async fn initialize(&self, _init: InitializeParams) -> TResult<InitializeResult> {
@@ -336,35 +341,11 @@ impl LanguageServer for Backend {
         &self,
         params: GotoDefinitionParams,
     ) -> jsonrpc::Result<Option<GotoDefinitionResponse>> {
-        let text_pos = position_to_text_pos(&params.text_document_position_params.position);
+        let position = &params.text_document_position_params.position;
         let uri = &params.text_document_position_params.text_document.uri;
-
-        let position = uri.to_file_path().ok().and_then(|p| {
-            self.asm.with_inner(|ctx| {
-                ctx.sources().get_source(p).ok().and_then(|(id, sf)| {
-                    sf.source
-                        .start_pos_to_index(&text_pos)
-                        .ok()
-                        .and_then(|start_pos| {
-                            let p = text_pos_to_pos(&text_pos, start_pos, id);
-                            if let Some(lookup) = ctx.asm_out.lookup.as_ref() {
-                                lookup
-                                    .find_label(&p)
-                                    .and_then(|label_name| lookup.find_definition(&label_name))
-                                    .and_then(|def_pos| {
-                                        ctx.asm_source_to_path(&def_pos.src)
-                                            .map(|file_name| {
-                                                make_location(def_pos.line, def_pos.col, &file_name)
-                                            })
-                                            .map(|x| GotoDefinitionResponse::Scalar(x))
-                                    })
-                            } else {
-                                None
-                            }
-                        })
-                })
-            })
-        });
+        let position = self
+            .asm
+            .with_inner(|ctx| ctx.find_definition(position, uri));
 
         if let Some(position) = position.clone() {
             self.client
@@ -372,7 +353,7 @@ impl LanguageServer for Backend {
                 .await;
         }
 
-        Ok(position)
+        Ok(position.map(|x| GotoDefinitionResponse::Scalar(x)))
     }
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> TResult<Option<Value>> {

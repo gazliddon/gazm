@@ -20,17 +20,21 @@ mod eval;
 mod evaluator;
 mod expr;
 mod fixerupper;
+mod fmt;
 mod gazm;
 mod indexed;
 mod item;
 mod labels;
 mod locate;
+mod lookup;
 mod lsp;
 mod macros;
 mod messages;
+mod newsyms;
 mod node;
 mod numbers;
 mod opcodes;
+mod parse;
 mod register;
 mod regutils;
 mod scopes;
@@ -40,15 +44,11 @@ mod structs;
 mod token_store;
 mod tokenize;
 mod vars;
-mod newsyms;
-mod parse;
-mod lookup;
 
 use anyhow::{Context, Result};
 use ctx::Opts;
 use error::GResult;
 use messages::{info, messages};
-
 
 static BANNER: &str = r#"
   __ _  __ _ _____ __ ___
