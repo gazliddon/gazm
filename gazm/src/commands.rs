@@ -74,6 +74,13 @@ fn parse_include_arg(input: Span) -> IResult<Node> {
     Ok((rest, ret))
 }
 
+fn parse_require_arg(input: Span) -> IResult<Node> {
+    let (rest, matched) = match_escaped_str(input)?;
+    let matched = matched.to_string();
+    let ret = Node::from_item_span(Require(PathBuf::from(&matched)), input);
+    Ok((rest, ret))
+}
+
 fn parse_grab_mem(input: Span) -> IResult<Node> {
     use util::ws;
     let (rest, (src, size)) = separated_pair(parse_expr, ws(tag(",")), parse_expr)(input)?;
@@ -170,7 +177,7 @@ fn mk_fill(input: Span, cv: (Node, Node)) -> Node {
 fn parse_bsz_arg(input: Span) -> IResult<Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let two_args = separated_pair(parse_expr, sep, parse_expr);
-    let one_arg = map(parse_expr, |x: Node| (x, Node::from_number(0, input)));
+    let one_arg = map(parse_expr, |x: Node| (x, Node::from_number(0, crate::item::ParsedFrom::FromExpr , input)));
     let (rest, matched) = alt((two_args, one_arg))(input)?;
     let ret = mk_fill(input, matched);
     Ok((rest, ret))
@@ -197,6 +204,7 @@ lazy_static! {
             ("org", parse_org_arg),
             ("include", parse_include_arg),
             ("exec_addr", parse_exec_arg),
+            ("require", parse_require_arg),
         ];
         v.into_iter().collect()
    };

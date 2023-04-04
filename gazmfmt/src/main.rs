@@ -77,6 +77,8 @@ pub fn render_nodes(nodes: Vec<Node>, text: Span) -> String {
 
     let mut last_key = 0;
 
+    panic!("get ride of nodes");
+
     for (key, group) in &nodes.iter().group_by(|e| e.ctx.line) {
         if key != last_key + 1 {
             writeln!(&mut ret,"").expect("can't write")

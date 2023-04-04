@@ -44,12 +44,6 @@ impl<'a> Sizer<'a> {
         Self { offset: 0, tree }
     }
 
-    pub fn size(&self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
-        ctx.set_root_scope();
-        let _ = self.size_node(ctx, 0, id)?;
-        Ok(())
-    }
-
     fn size_indexed(&self, ctx_mut: &mut AsmCtx, mut pc: usize, id: AstNodeId) -> GResult<usize> {
         // let eval = &ctx_mut.eval;
 
@@ -163,12 +157,7 @@ impl<'a> Sizer<'a> {
             }
 
             Org => {
-                let res = ctx.ctx.eval_first_arg(node);
-                if res.is_err() {
-                    panic!();
-                };
-
-                let (value, _) = res?;
+                let (value,_) = ctx.ctx.eval_first_arg(node)?;
                 pc = value as usize;
                 ctx.add_fixup(id, Item::SetPc(pc));
             }
@@ -250,9 +239,9 @@ impl<'a> Sizer<'a> {
                     // If the label has a child it means
                     // assignment is from an expr containing the current PC
                     // so lets evaluate it!
-                    ctx.set_pc_symbol(pc).unwrap();
+                    ctx.add_symbol_with_value("*", pc).unwrap();
                     let (ret, _) = ctx.ctx.eval_first_arg(node)?;
-                    ctx.remove_pc_symbol();
+                    ctx.remove_symbol("*");
                     ret
                 } else {
                     // Otherwise it's just the current PC
@@ -283,6 +272,14 @@ impl<'a> Sizer<'a> {
                 for c in ctx.ctx.get_children(node) {
                     pc = self.size_node(ctx, pc, c)?;
                 }
+            }
+
+            Scope2(name)  => {
+                ctx.set_scope(name);
+                for c in ctx.ctx.get_children(node) {
+                    pc = self.size_node(ctx, pc, c)?;
+                }
+                ctx.pop_scope();
             }
 
             Fdb(num_of_words) => {
@@ -333,6 +330,7 @@ impl<'a> Sizer<'a> {
 
             PostFixExpr | WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..)
             | StructDef(..) | MacroDef(..) | MacroCall(..) => (),
+
             _ => {
                 let msg = format!("Unable to size {:?}", i);
                 return Err(ctx.ctx.user_error(msg, node, true).into());

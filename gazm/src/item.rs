@@ -186,10 +186,10 @@ impl StructMemberType {
     pub fn to_size_item(&self) -> Item {
         use Item::*;
         match self {
-            Self::Byte => Number(1),
-            Self::Word => Number(2),
-            Self::DWord => Number(4),
-            Self::QWord => Number(8),
+            Self::Byte => Number(1, ParsedFrom::FromExpr),
+            Self::Word => Number(2, ParsedFrom::FromExpr),
+            Self::DWord => Number(4, ParsedFrom::FromExpr),
+            Self::QWord => Number(8, ParsedFrom::FromExpr),
             Self::UserType(name) => Label(format!("{}.size", name)),
         }
     }
@@ -199,6 +199,15 @@ impl StructMemberType {
 pub struct StructEntry {
     pub name: String,
     pub item_type: StructMemberType,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ParsedFrom {
+    Hex,
+    Dec,
+    Bin,
+    Char(char),
+    FromExpr,
 }
 
 ///Ast Node Items
@@ -224,6 +233,8 @@ pub enum Item {
     SetPutOffset(isize),
 
     Scope(String),
+    Scope2(String),
+    EndScope2,
     PopScope,
 
     Expr,
@@ -241,12 +252,13 @@ pub enum Item {
     Label(String),
     LocalLabel(String),
     Comment(String),
-    Number(i64),
+    Number(i64, ParsedFrom),
 
     OpCode(Instruction, AddrModeParseType),
     Operand(AddrModeParseType),
     OperandIndexed(IndexParseType, bool),
     Include(PathBuf),
+    Require(PathBuf),
     IncBin(PathBuf),
     IncBinRef(PathBuf),
     GrabMem,
@@ -291,14 +303,12 @@ impl Item {
         Self::OperandIndexed(imode, indirect)
     }
 
-
-
-    pub fn number(n: i64) -> Self {
-        Item::Number(n)
+    pub fn number(n: i64, p : ParsedFrom) -> Self {
+        Item::Number(n, p)
     }
 
     pub fn get_number(&self) -> Option<i64> {
-        if let Item::Number(n) = self {
+        if let Item::Number(n, _) = self {
             Some(*n)
         } else {
             None
@@ -324,8 +334,8 @@ impl BaseNode<Item, Position> {
         Self::new(item, vec![], span_to_pos(sp))
     }
 
-    pub fn from_number(n: i64, sp: Span) -> Self {
-        Self::from_item_span(Item::Number(n), sp)
+    pub fn from_number(n: i64, _p : ParsedFrom, sp  : Span) -> Self {
+        Self::from_item_span(Item::Number(n, _p), sp)
     }
 
     pub fn with_span(self, sp: Span) -> Self {
@@ -370,7 +380,18 @@ impl<'a> Display for BaseNode<Item, Position> {
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
-            Number(n) => n.to_string(),
+            Number(n, p) => {
+                match &p {
+                    ParsedFrom::Hex => format!("${:x}", n),
+                    ParsedFrom::FromExpr |
+                    ParsedFrom::Dec => n.to_string(),
+                    ParsedFrom::Char(c) => format!("'{c}'"),
+                    ParsedFrom::Bin => format!("%{:b}", n),
+
+
+                }
+
+            },
             UnaryTerm => join_children(""),
 
             Mul => "*".to_string(),

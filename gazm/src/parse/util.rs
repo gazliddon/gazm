@@ -6,9 +6,9 @@ use crate::numbers;
 use crate::error::{IResult, ParseError};
 use crate::locate::{matched_span, Span};
 
-use nom::bytes::complete::{escaped, is_not, tag, tag_no_case, take_while};
+use nom::bytes::complete::{escaped, is_not, tag, tag_no_case, take_while, take_till};
 
-use nom::character::complete::{char as nom_char, multispace0, multispace1, one_of};
+use nom::character::complete::{char as nom_char, multispace0, multispace1, one_of, anychar};
 use nom::combinator::cut;
 use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{preceded, separated_pair, terminated, tuple};
@@ -68,9 +68,9 @@ mod p2 {
         <I as InputIter>::Item: AsChar,
     {
         move |input: I| {
-            let (input, _) = nom_char(open)(input)?;
+            let (input, _) = nom_char(open) (input)?;
             let (input, matched) = inner.parse(input)?;
-            let (input, _) = nom_char(close)(input)?;
+            let (input, _) = ws(nom_char(close))(input)?;
             Ok((input, matched))
         }
     }
@@ -141,14 +141,23 @@ pub fn match_file_name(input: Span) -> IResult<Span> {
 ////////////////////////////////////////////////////////////////////////////////
 // Number
 pub fn parse_number(input: Span) -> IResult<Node> {
-    let (rest, num) = numbers::get_number(input)?;
+    let (rest, ( num, _parsed_from )) = numbers::get_number(input)?;
     let matched = crate::locate::matched_span(input, rest);
-    let ret = Node::from_number(num, matched);
+    let ret = Node::from_number(num, _parsed_from, matched);
     Ok((rest, ret))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Compile a string as a fake file
+
+// pub fn get_block(input: Span<'_>) -> IResult<Span> {
+//     let rest = input;
+//     use nom::sequence::pair;
+//     use nom::combinator::not;
+//     let (rest, _) = tuple((multispace0, tag("{"), multispace0))(rest)?;
+//     let (matched, _) = not(tag("}"))(rest)?;
+//     Ok((rest,matched))
+// }
 
 pub fn get_block(input: Span<'_>) -> IResult<Span> {
     // p2::get_block(input)
@@ -222,7 +231,7 @@ mod test {
     fn test_assignment() {
         let input = Span::new_extra("hello equ $1000", AsmSource::FromStr);
         let (_, matched) = parse_assignment(input).unwrap();
-        assert_eq!(&matched.to_string(), "hello equ 4096");
+        assert_eq!(&matched.to_string(), "hello equ $1000");
 
         let input = Span::new_extra("hello equ * ;;", AsmSource::FromStr);
         let (rest, matched) = parse_assignment(input).unwrap();

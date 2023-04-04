@@ -1,4 +1,5 @@
 use emu::utils::PathSearcher;
+use itertools::Itertools;
 
 use crate::asmctx::AsmCtx;
 use crate::binary::AccessType;
@@ -8,9 +9,9 @@ use crate::error::GazmErrorType;
 use crate::error::{GResult, ParseError};
 use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
+use crate::token_store::TokenStore;
 use crate::tokenize::{tokenize_text, TokenizedText};
 use async_std::prelude::*;
-use crate::token_store::TokenStore;
 
 use emu::utils::sources;
 use sources::fileloader::{FileIo, SourceFileLoader};
@@ -99,6 +100,7 @@ pub struct TokenizeResult {
     pub node: Node,
     pub errors: Vec<ParseError>,
     pub parent: Option<PathBuf>,
+    pub includes: Vec<PathBuf>,
 }
 
 use emu::utils::sources::Position;
@@ -135,11 +137,11 @@ fn tokenize_file<P: AsRef<Path>>(
         node,
         errors: tokens.parse_errors,
         parent,
+        includes: tokens.includes,
     };
 
     Ok(ret)
 }
-
 
 struct TokenizeContext {
     ctx: Arc<Mutex<Context>>,
@@ -186,7 +188,7 @@ impl TokenizeContext {
 
 pub fn tokenize<P: AsRef<Path>>(ctx: &Arc<Mutex<Context>>, requested_file: P) -> GResult<Node> {
     let include_stack = Stack::new();
-    let token_ctx = TokenizeContext::new(&ctx );
+    let token_ctx = TokenizeContext::new(&ctx);
     let file_name = tokenize_main(&token_ctx, &requested_file, None, include_stack)?;
 
     let ret = token_ctx.with(|ctx| -> GResult<Node> {
@@ -224,6 +226,11 @@ fn check_circular<P: AsRef<Path>>(
     }
 }
 
+fn is_circular<P: AsRef<Path>>(full_path: P, include_stack: &Stack<PathBuf>) -> bool {
+    let full_path = full_path.as_ref().to_path_buf();
+    include_stack.get_deque().contains(&full_path)
+}
+
 fn tokenize_main<P: AsRef<Path>>(
     ctx: &TokenizeContext,
     requested_file: P,
@@ -235,73 +242,52 @@ fn tokenize_main<P: AsRef<Path>>(
     use std::thread;
     // Find out if this file is already tokenized and held in the token store
     let (has_this_file, actual_file) = ctx.get_file_info(&requested_file)?;
+
     include_stack.push(actual_file.clone());
 
     // It isn't!
     if !has_this_file {
-        let mut tokenized = tokenize_file(ctx, &actual_file, parent)?;
+        let tokenized = tokenize_file(ctx, &actual_file, parent)?;
 
         ctx.with(|ctx| -> GResult<()> {
             for e in &tokenized.errors {
                 ctx.add_parse_error(e.clone())?;
             }
+
+            let ts = ctx.get_token_store_mut();
+            ts.add_tokens(&actual_file, tokenized.node);
             Ok(())
         })?;
 
-        let includes: Vec<Node> = tokenized
-            .node
+        // Get a set of unique includes
+        let includes : Vec<PathBuf> = tokenized
+            .includes
             .iter()
-            .cloned()
-            .filter(|n| n.item().get_include().is_some())
+            .filter_map(|p| ctx.get_file_info(&p).ok())
+            .filter_map(|(has_file, path)| if !has_file { Some(path) } else { None })
+            .unique()
             .collect();
 
-        // Did we find any includes?
-        // If so spawn a task to tokenize each include file
-        // in the scope of this file
-        // Tokenize includes!
-        
+
         rayon::scope(|s| -> GResult<()> {
-            for (file, pos) in includes
-                .into_iter()
-                .map(|n| (n.item().get_include().unwrap(), n.ctx.clone()))
-            {
+            for file in includes {
                 let full_path = ctx.get_full_path(&file)?;
-                check_circular(&actual_file, &full_path, &include_stack, &pos)?;
 
-                let mut stack = include_stack.clone();
-                stack.push(full_path.clone());
-                let actual_file = actual_file.clone();
+                if is_circular(&full_path, &include_stack) {
+                    panic!()
+                } else {
+                    let mut stack = include_stack.clone();
+                    stack.push(full_path.clone());
+                    let actual_file = actual_file.clone();
 
-                s.spawn(move |_| {
-                    let res = tokenize_main(ctx, &full_path, Some(actual_file.clone()), stack);
-                    ctx.with(|ctx| {
-                        let _ = ctx.asm_out.errors.add_result(res);
-                    })
-                });
+                    s.spawn(move |_| {
+                        let res = tokenize_main(ctx, &full_path, Some(actual_file.clone()), stack);
+                        ctx.with(|ctx| {
+                            let _ = ctx.asm_out.errors.add_result(res);
+                        })
+                    });
+                }
             }
-            Ok(())
-        })?;
-
-        // Now go through the tokens of this file
-        // and replace any includes with the correct tokens from the token store
-        // and then add the update tokens to the token store
-
-        ctx.with(|ctx| -> GResult<()> {
-            ctx.asm_out.errors.raise_errors()?;
-
-            let inc_nodes : Vec<_> = tokenized.node.children.iter_mut().filter_map(|c| {
-                c.item().get_include().map(|f| {
-                    let ret = (c, ctx.get_full_path(f).unwrap());
-                    ret
-                })
-            }).collect();
-
-
-            for (c, file) in inc_nodes {
-                *c = Box::new(ctx.get_tokens(&file).unwrap().clone());
-            }
-
-            ctx.add_tokens(actual_file.clone(), tokenized.node);
             Ok(())
         })?;
     }
@@ -338,7 +324,6 @@ mod test {
             .add_search_path(format!("{}/src", dir.to_string_lossy()));
         ctx
     }
-
 
     // fn test_tokens( b: &mut Bencher) {
     //     use async_std::task;

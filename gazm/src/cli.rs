@@ -60,26 +60,30 @@ fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigErr
 impl Opts {
     pub fn from_arg_matches(orig_matches: clap::ArgMatches) -> ConfigError<Opts> {
         let ret = match orig_matches.subcommand() {
-
             Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build)?,
 
-            Some(("lsp", m)) => {
-                load_opts_with_build_type(m, BuildType::LSP)?
+            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::LSP)?,
+
+            Some(("fmt", m)) => {
+                let mut o = load_opts_with_build_type(m, BuildType::Format)?;
+                o.project_file = m.value_of("fmt-file").map(PathBuf::from).unwrap();
+                o
             }
 
             // TODO! Remove this option
+            
             Some(("asm", m)) => {
                 let mut opts = Opts {
-                    deps_file: m.value_of("deps").map(|f| f.to_string()),
-                    syms_file: m.value_of("symbol-file").map(|f| f.to_string()),
-                    as6809_lst: m.value_of("as6809-lst").map(|f| f.to_string()),
-                    as6809_sym: m.value_of("as6809-sym").map(|f| f.to_string()),
+                    deps_file: m.value_of("deps").map(String::from),
+                    syms_file: m.value_of("symbol-file").map(String::from),
+                    as6809_lst: m.value_of("as6809-lst").map(String::from),
+                    as6809_sym: m.value_of("as6809-sym").map(String::from),
                     trailing_comments: m.is_present("trailing-comments"),
                     star_comments: m.is_present("star-comments"),
                     ignore_relative_offset_errors: m.is_present("ignore-relative-offset-errors"),
                     project_file: m.value_of("project-file").unwrap().into(),
-                    lst_file: m.value_of("lst-file").map(|f| f.to_string()),
-                    ast_file: m.value_of("ast-file").map(|f| PathBuf::from(f.to_string())),
+                    lst_file: m.value_of("lst-file").map(String::from),
+                    ast_file: m.value_of("ast-file").map(PathBuf::from),
                     build_async: m.is_present("build-async"),
                     assemble_dir: Some(std::env::current_dir().unwrap()),
                     ..Default::default()
@@ -125,15 +129,19 @@ impl Opts {
     }
 }
 
-fn make_config_file_command(command: &str) -> Command {
-    Command::new(command)
-        .about("use the config file")
-        .arg(Arg::new("config-file")
+fn make_config_file_arg<'a>() -> Arg<'a> {
+    Arg::new("config-file")
         .help("load config file")
         .multiple_values(false)
         .index(1)
         .required(false)
-        .default_value("gazm.toml"))
+        .default_value("gazm.toml")
+}
+
+fn make_config_file_command<'a>(command: &'a str, about: &'a str) -> Command<'a> {
+    Command::new(command)
+        .about(about)
+        .arg(make_config_file_arg())
 }
 
 pub fn parse() -> clap::ArgMatches {
@@ -143,16 +151,38 @@ pub fn parse() -> clap::ArgMatches {
         .version("0.1")
         .bin_name("gazm")
         .subcommand_required(true)
-        .subcommand(make_config_file_command("build"))
+        .subcommand(make_config_file_command(
+            "build",
+            "Build using the config file",
+        ))
+        .subcommand(make_config_file_command(
+            "lsp",
+            "Launch LSP using config file",
+        ))
         .subcommand(
-            make_config_file_command("lsp")
+            Command::new("fmt")
+                .about("Format a file")
+                .arg(
+                    Arg::new("config-file")
+                        .help("load config file")
+                        .multiple_values(false)
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::new("fmt-file")
+                        .help("file to format")
+                        .multiple_values(false)
+                        .index(2)
+                        .required(true),
+                ),
         )
         .subcommand(
             Command::new("asm")
+                .about("Assemble using command line switches")
                 .arg(
                     Arg::new("project-file")
                         .multiple_values(false)
-                        // .index(1)
                         .required(true),
                 )
                 .arg(

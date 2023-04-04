@@ -7,7 +7,7 @@ struct ScopedSymbol<'a> {
     symbol: &'a str,
 }
 
-pub struct SymbolInfo<'a, V: ValueTraits, ID : IdTraits> {
+pub struct XSymbolInfo<'a, V: ValueTraits, ID : IdTraits> {
     pub name: &'a str,
     pub value: &'a V,
     pub id: ID
@@ -117,10 +117,10 @@ impl<V : ValueTraits,ID: IdTraits> SymbolTable<V,ID> {
         ret.into()
     }
 
-    pub fn iter<'a>(&self) -> impl Iterator<Item = SymbolInfo<V, ID>> {
+    pub fn iter<'a>(&self) -> impl Iterator<Item = XSymbolInfo<V, ID>> {
         self.id_to_value.iter().map(|(id, value)| {
             let name = self.id_to_name.get(id).unwrap();
-            SymbolInfo {name,value,id: *id}
+            XSymbolInfo {name,value,id: *id}
         })
     }
 }

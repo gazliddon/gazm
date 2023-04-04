@@ -6,7 +6,8 @@ pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 // use std::fmt::{Debug, DebugMap};
 
 use std::collections::HashMap;
-use std::vec;
+use std::num::NonZeroUsize;
+use std::{iter, vec};
 
 use crate::error::{AstError, UserError};
 use crate::eval::{EvalError, EvalErrorEnum};
@@ -17,7 +18,9 @@ use crate::item::{Item, Node};
 
 use crate::{messages::*, node};
 use emu::utils::eval::{to_postfix, GetPriority, PostFixer};
-use emu::utils::sources::{Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolWriter};
+use emu::utils::sources::{
+    Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolTree, SymbolWriter,
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -49,6 +52,17 @@ pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
     }
 }
 
+pub fn create_ast_node(tree: &mut AstTree, node: &Node) -> AstNodeId {
+    let ipos = ItemWithPos::new(node);
+
+    let mut this_node = tree.orphan(ipos);
+
+    for n in &node.children {
+        add_node(&mut this_node, n);
+    }
+    this_node.id()
+}
+
 pub fn make_tree(node: &Node) -> AstTree {
     let mut ret = AstTree::new(ItemWithPos::new(node));
 
@@ -64,28 +78,101 @@ pub struct Ast<'a> {
     pub ctx: &'a mut Context,
 }
 
+/// Iterate through the nodes recursively, depth first
+fn get_recursive<F>(node: AstNodeRef, f: &mut F)
+where
+    F: FnMut(AstNodeRef),
+{
+    f(node);
+
+    for n in node.children() {
+        get_recursive(n, f)
+    }
+}
+
+fn get_ids_recursive(node: AstNodeRef) -> Vec<AstNodeId> {
+    let mut ret = vec![];
+    get_recursive(node, &mut |x: AstNodeRef| ret.push(x.id()));
+    ret
+}
+
+fn iter_ids_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeId> {
+    let mut i = get_ids_recursive(node).into_iter();
+
+    iter::from_fn(move || i.next())
+}
+
+fn iter_refs_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeRef> {
+    let mut i = get_ids_recursive(node).into_iter();
+    iter::from_fn(move || i.next().and_then(|id| node.tree().get(id)))
+}
+
 impl<'a> Ast<'a> {
+    pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
+        let mut ret = Self { tree, ctx };
+
+        ret.inline_includes()?;
+
+        ret.rename_locals();
+        ret.process_macros()?;
+        ret.postfix_expressions()?;
+        ret.generate_struct_symbols()?;
+        ret.evaluate_assignments()?;
+
+        Ok(ret)
+    }
+
     pub fn from_nodes(ctx: &'a mut Context, node: &Node) -> Result<AstTree, UserError> {
         let tree = make_tree(node);
         let r = Self::new(tree, ctx)?;
         Ok(r.tree)
     }
 
-    pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
-        let mut ret = Self { tree, ctx };
+    fn inline_includes(&mut self) -> Result<(), UserError> {
+        use Item::*;
 
-        ret.rename_locals();
+        loop {
+            let include_ids: Vec<_> = iter_refs_recursive(self.tree.root())
+                .filter_map(|node| node.value().item.get_include().map(|p| (node.id(), p)))
+                .collect();
 
-        ret.process_macros()?;
+            if include_ids.is_empty() {
+                break;
+            }
 
-        ret.postfix_expressions()?;
+            for (id, path) in include_ids {
+                let actual_file = self.ctx.get_full_path(&path).unwrap();
+                let tokens = self.ctx.get_tokens(&actual_file).unwrap();
 
-        ret.generate_struct_symbols()?;
+                let new_node_id = create_ast_node(&mut self.tree, tokens);
+                let mut node_mut = self.tree.get_mut(id).unwrap();
+                node_mut.insert_id_after(new_node_id);
+                node_mut.detach();
+            }
+        }
+        Ok(())
+    }
 
-        ret.evaluate_assignments()?;
+    pub fn scope_symbols(&mut self) {
+        use Item::*;
 
+        let mut scoper = SymbolTree::new();
 
-        Ok(ret)
+        for id in get_ids_recursive(self.tree.root()) {
+            let item = self.tree.get(id).unwrap().value().item.clone();
+
+            match &item {
+                Scope(scope) => {
+                    scoper.pop_scope();
+                    scoper.set_scope(scope);
+                }
+
+                AssignmentFromPc(name) | Assignment(name) => {
+                    println!("{name} is scope {}", scoper.get_current_scope_fqn())
+                }
+                _ => (),
+            }
+        }
     }
 
     pub fn process_macros(&mut self) -> Result<(), UserError> {
@@ -96,9 +183,7 @@ impl<'a> Ast<'a> {
 
         // Make a hash of macro definitions
         // longer term this needs scoping
-        let mdefs = self
-            .tree
-            .nodes()
+        let mdefs = iter_refs_recursive(self.tree.root())
             .filter_map(|n| match &n.value().item {
                 MacroDef(name, ..) => Some((name.to_string(), n.id())),
                 _ => None,
@@ -106,42 +191,44 @@ impl<'a> Ast<'a> {
             .collect::<HashMap<_, _>>();
 
         // and a vec of macro calls
-        let mcalls = self
-            .tree
-            .nodes()
+        let mcalls = iter_refs_recursive(self.tree.root())
             .enumerate()
             .filter_map(|(i, n)| {
                 let val = &n.value();
                 match &val.item {
-                    MacroCall(name) => Some((i, name.to_string(), n.id(), val.pos.clone())),
+                    MacroCall(name) => {
+                        let caller_scope = format!("%MACRO%_{name}_{i}");
+                        Some((caller_scope, name.to_string(), n.id(), val.pos.clone()))
+                    }
                     _ => None,
                 }
             })
             .collect::<Vec<_>>();
 
-        let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
-
-        for (caller_num, name, caller_id, pos) in mcalls.into_iter() {
+        // Create new nodes to replace the current macro call nodes
+        let mut nodes_to_change: Vec<(String, AstNodeId, AstNodeId)> = vec![];
+        for (caller_scope, name, caller_node_id, pos) in mcalls.into_iter() {
             // TODO need a failure case if we can't find the macro definition
             let macro_id = mdefs.get(&name).ok_or_else(|| {
                 let mess = format!("Can't find macro definition for {name}");
-                self.user_error(mess, caller_id)
+                self.user_error(mess, caller_node_id)
             })?;
 
-            let caller_scope = format!("%MACRO%_{name}_{caller_num}");
-
+            // Create a new node for this macro call
             let item = MacroCallProcessed {
                 macro_id: *macro_id,
                 scope: caller_scope,
             };
-
-            let mut new_node = self.tree.orphan(ItemWithPos { pos, item });
-            new_node.reparent_from_id_append(caller_id);
-            nodes_to_change.push((caller_id, new_node.id()));
+            let mut replacement_node = self.tree.orphan(ItemWithPos { pos, item });
+            // Take the children of the original caller node
+            replacement_node.reparent_from_id_append(caller_node_id);
+            nodes_to_change.push((name, caller_node_id, replacement_node.id()));
         }
 
-        for (from_id, to_id) in nodes_to_change {
-            self.tree.get_mut(from_id).unwrap().insert_id_after(to_id);
+        for (_, caller_id, replacment_node_id) in nodes_to_change {
+            let mut caller_node = self.tree.get_mut(caller_id).unwrap();
+            caller_node.insert_id_after(replacment_node_id);
+            caller_node.detach();
         }
 
         Ok(())
@@ -226,16 +313,18 @@ impl<'a> Ast<'a> {
     // error rather tha a string
 
     fn postfix_expressions(&mut self) -> Result<(), UserError> {
-        info("Converting expressions to poxtfix", |x| {
+        let ret = info("Converting expressions to poxtfix", |x| {
             use Item::*;
 
             let mut to_convert: Vec<(AstNodeId, Vec<AstNodeId>)> = vec![];
 
             // find all of the nodes that need converting
-            for n in self.tree.nodes() {
+            // create a table of the order of ids desired to make the expression
+            // postix
+            for n in iter_refs_recursive(self.tree.root()) {
                 let v = n.value();
-
-                match v.item {
+                let parent_id = n.id();
+                match &v.item {
                     BracketedExpr | Expr => {
                         let new_order = self.node_to_postfix(n).map_err(|s| {
                             let si = self.get_source_info_from_node_id(n.id()).unwrap();
@@ -243,14 +332,14 @@ impl<'a> Ast<'a> {
                             UserError::from_text(msg, &si, true)
                         })?;
 
-                        to_convert.push((n.id(), new_order));
+                        to_convert.push((parent_id, new_order));
                     }
                     _ => (),
                 }
             }
 
-            for (parent, new_children) in &to_convert {
-                for c in new_children {
+            for (parent, new_children) in to_convert.iter() {
+                for c in new_children.iter() {
                     if let Some(mut c) = self.tree.get_mut(*c) {
                         c.detach();
                     } else {
@@ -265,17 +354,18 @@ impl<'a> Ast<'a> {
 
                 let mut p = self.tree.get_mut(*parent).unwrap();
 
-                for c in new_children {
+                for c in new_children.iter() {
                     p.append_id(*c);
                 }
-
                 p.value().item = PostFixExpr;
             }
 
             x.debug(&format!("Converted {} expression(s)", to_convert.len()));
 
             Ok(())
-        })
+        });
+
+        ret
     }
 
     fn convert_error(&self, e: AstError) -> UserError {
@@ -340,10 +430,9 @@ impl<'a> Ast<'a> {
     fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
         info("Generating symbols for struct definitions", |x| {
             use Item::*;
-            let ids: Vec<_> = self.tree.nodes().map(|n| n.id()).collect();
 
             // let mut symbols = self.symbols.clone();
-            for id in ids {
+            for id in iter_ids_recursive(self.tree.root()) {
                 let item = &self.tree.get(id).unwrap().value().item.clone();
 
                 if let StructDef(name) = item {
@@ -380,9 +469,7 @@ impl<'a> Ast<'a> {
 
             let mut pc_references = vec![];
 
-            let ids: Vec<_> = self.tree.nodes().map(|n| n.id()).collect();
-
-            for id in ids {
+            for id in iter_ids_recursive(self.tree.root()) {
                 let item = self.tree.get(id).unwrap().value().item.clone();
 
                 match &item {
@@ -445,7 +532,6 @@ impl<'a> Ast<'a> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 ////////////////////////////////////////////////////////////////////////////////
 

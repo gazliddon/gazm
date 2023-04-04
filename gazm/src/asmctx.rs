@@ -83,12 +83,15 @@ impl<'a> AsmCtx<'a> {
             .add_symbol_with_value(name, val as i64)
     }
 
-    pub fn set_pc_symbol(&mut self, val: usize) -> Result<u64, SymbolError> {
-        self.add_symbol_with_value("*", val)
-    }
+    // pub fn set_pc_symbol(&mut self, val: usize) -> Result<u64, SymbolError> {
+    //     self.ctx
+    //         .get_symbols_mut()
+    //         .add_symbol_with_value("*", val as i64)
+    //     // self.add_symbol_with_value("*", val)
+    // }
 
-    pub fn remove_pc_symbol(&mut self) {
-        self.ctx.get_symbols_mut().remove_symbol_name("*")
+    pub fn remove_symbol(&mut self, name: &str) {
+        self.ctx.get_symbols_mut().remove_symbol_name(name)
     }
 
     pub fn loader_mut(&mut self) -> &mut SourceFileLoader {

@@ -43,6 +43,7 @@ pub enum BuildType {
     Build,
     LSP,
     Check,
+    Format,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -66,6 +67,7 @@ pub struct Opts {
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
     pub build_async: bool,
+    pub fmt_file: Option<String>,
 
     #[serde(skip)]
     pub checksums: HashMap<String, CheckSum>,
@@ -103,6 +105,7 @@ impl Default for Opts {
             checksums: Default::default(),
             build_type: BuildType::Build,
             lsp_config: Default::default(),
+            fmt_file: None,
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::{
     error::{IResult, ParseError},
     locate::Span,
+    item::ParsedFrom,
 };
 
 use emu::utils::sources::AsmSource;
@@ -14,6 +15,7 @@ use nom::{
     sequence::preceded,
     AsBytes, UnspecializedInput,
 };
+
 
 mod new {
     pub enum Literal {
@@ -41,17 +43,27 @@ mod new {
     pub type Span<'a, X = ()> = LocatedSpan<&'a str, X>;
     pub type IResult<'a, X, O> = nom::IResult<Span<'a, X>, O>;
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, PartialEq)]
     pub enum NumberLiteralKind {
         Decimal,
         Hexadecimal,
         Binary,
+        Character,
     }
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct NumberLiteral {
         pub kind: NumberLiteralKind,
         pub val: i64,
+    }
+
+    impl NumberLiteral {
+        pub fn new(val : i64, kind: NumberLiteralKind) -> Self {
+            Self {
+                val, kind
+            }
+        }
+
     }
 
     fn num_get<X: Clone>(input: Span<X>) -> IResult<X, Span<X>> {
@@ -168,36 +180,36 @@ fn num_parse_err(input: Span, radix: &str, e: std::num::ParseIntError) -> nom::E
     nom::Err::Error(ParseError::new(e, &input, true))
 }
 
-fn get_hex(input: Span) -> IResult<i64> {
+fn get_hex(input: Span) -> IResult<( i64, ParsedFrom )> {
     let (rest, _) = alt((tag("0x"), tag("0X"), tag("$")))(input)?;
     let (rest, num_str) = num_get(rest)?;
 
     let num = i64::from_str_radix(&num_str.replace('_', ""), 16)
         .map_err(|e| num_parse_err(num_str, "hex", e))?;
 
-    Ok((rest, num))
+    Ok((rest, ( num, ParsedFrom::Hex )))
 }
 
-fn get_binary(input: Span) -> IResult<i64> {
+fn get_binary(input: Span) -> IResult<( i64, ParsedFrom )> {
     let (rest, _) = alt((tag("%"), tag("0b"), tag("0B")))(input)?;
     let (rest, num_str) = num_get(rest)?;
     let num = i64::from_str_radix(&num_str.replace('_', ""), 2)
         .map_err(|e| num_parse_err(num_str, "binary", e))?;
 
-    Ok((rest, num))
+    Ok((rest, ( num, ParsedFrom::Bin )))
 }
 
-fn get_char(input: Span) -> IResult<i64> {
+fn get_char(input: Span) -> IResult<( i64, ParsedFrom )> {
     let (rest, matched) = preceded(tag("'"), anychar)(input)?;
     let (rest, _) = tag("'")(rest)?;
     let mut s = String::new();
     s.push(matched);
     let num_bytes = s.as_bytes();
     let ret = num_bytes[0];
-    Ok((rest, ret as i64))
+    Ok((rest, ( ret as i64, ParsedFrom::Char(matched) )))
 }
 
-fn get_dec(input: Span) -> IResult<i64> {
+fn get_dec(input: Span) -> IResult<( i64, ParsedFrom )> {
     let (rest, num_str) = num_get(input)?;
 
     let num = num_str
@@ -205,39 +217,20 @@ fn get_dec(input: Span) -> IResult<i64> {
         .parse::<i64>()
         .map_err(|e| num_parse_err(num_str, "Decimal", e))?;
 
-    Ok((rest, num))
+    Ok((rest, ( num, ParsedFrom::Dec )))
 }
 
-pub fn get_number(input: Span) -> IResult<i64> {
+pub fn get_number(input: Span) -> IResult<( i64, ParsedFrom )> {
     alt((get_hex, get_binary, get_dec, get_char))(input)
 }
 
-pub fn get_number_err(input: &str) -> Result<isize, String> {
-    let x = AsmSource::FromStr;
-    let s = Span::new_extra(input, x);
-    let n = get_number(s);
-
-    match n {
-        Err(_) => Err(format!("Couldn't parse {input} as a number")),
-        Ok((_, num)) => Ok(num as isize),
-    }
-}
-
-pub fn get_number_err_usize(input: &str) -> Result<usize, String> {
-    let x = get_number_err(input)?;
-    if x < 0 {
-        Err(format!("{} doesn't map to a usize", x))
-    } else {
-        Ok(x.try_into().unwrap())
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 #[allow(unused_imports)]
 mod test {
 
-    use super::*;
+    use super::{*, new::{NumberLiteralKind, NumberLiteral}};
     use pretty_assertions::{assert_eq, assert_ne};
 
     use lazy_static::lazy_static;
@@ -273,13 +266,13 @@ mod test {
 
     fn test_nums<F>(arr: &[(&'static str, i64)], func: F)
     where
-        F: Fn(Span) -> IResult<i64>,
+        F: Fn(Span) -> IResult<( i64, ParsedFrom  )>,
     {
         for (input, desired) in arr.iter() {
             let res = func((*input).into());
             println!("Testing: {:?}", input);
 
-            if let Ok((_, number)) = res {
+            if let Ok((_, ( number,_ ))) = res {
                 assert_eq!(number, *desired)
             } else {
                 println!("Could not parse {} {:?}", input, res);
@@ -309,20 +302,20 @@ mod test {
     }
     struct Test {}
 
-    fn test_it(txt: &str, expected: i64) {
+    fn test_it(txt: &str, expected : NumberLiteral) {
         use new::*;
 
         let span = Span::new(txt);
         let (_, (sp, lit)) = parse_number(span).expect("Parse failure");
-        assert_eq!(lit.val, expected);
+        assert_eq!(lit, expected);
         assert_eq!(&sp.to_string(), txt);
     }
 
     #[test]
     fn test_new() {
-        test_it("$101010", 0x101010);
-        test_it("%101010", 0b101010);
-        test_it("0b101010", 0b101010);
-        test_it("$ff", 255);
+        test_it("$101010", NumberLiteral::new(0x101010, NumberLiteralKind::Hexadecimal));
+        test_it("%101010", NumberLiteral::new(0b101010, NumberLiteralKind::Binary));
+        test_it("0b101010", NumberLiteral::new(0b101010, NumberLiteralKind::Binary));
+        test_it("$ff",  NumberLiteral::new(255,NumberLiteralKind::Hexadecimal));
     }
 }

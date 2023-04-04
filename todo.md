@@ -1,9 +1,15 @@
 # Todo
 
 ## Misc
-- [*] Make all line counts start from line 0, only > 1 for displaying etc
+* Add variable scoping into tokenizer
+
+## Require
+- [ ] Change scope syntax to be in a block?
+
+## Misc
+- [x] Make all line counts start from line 0, only > 1 for displaying etc
 - [ ] Text position -> Ast Item
-- [ ] Move FMT in gazm
+- [x] Move FMT in gazm
 
 ## LSP
 * Get document changes
@@ -17,7 +23,7 @@
     - [*] Recompile on doc change
     - [ ] Recompile work space changes
 
-* Show references
+* [*] Show references
 * Show symbol value
     * On Shift-K on references
     * Next to definitions

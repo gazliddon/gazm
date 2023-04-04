@@ -34,6 +34,7 @@ simple-logging="*"
 tokio-util = { version = "*", optional = true, features = ["codec"] }
 tokio = { version = "1.24.2", features = ["full"] }
 tower-lsp = { git = "https://github.com/gazliddon/tower-lsp", version = "*" }
+itertools="*"
 
 [dev-dependencies]
 criterion = "0.3"

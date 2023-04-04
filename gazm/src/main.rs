@@ -80,6 +80,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let asm = gazm::Assembler::new(opts.clone());
 
     match opts.build_type {
+        ctx::BuildType::Format => {
+            mess.status("Format file");
+            fmt::fmt(&opts)
+        }
+
         ctx::BuildType::LSP => {
             mess.status("LSP");
             lsp::do_lsp(opts)?;

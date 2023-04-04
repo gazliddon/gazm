@@ -80,7 +80,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             }
 
             Expr => {
-                println!("EXPR");
                 join_kids("")
             }
 
@@ -88,7 +87,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
-            Number(n) => n.to_string(),
+            Number(n, _) => n.to_string(),
             // UnaryMinus => "-".to_string(),
             UnaryTerm => {
                 format!("!{:?} {:?}", child_item(0), child_item(1))

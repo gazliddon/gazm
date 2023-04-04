@@ -84,6 +84,13 @@ pub fn get_macro_def(input: Span<'_>) -> IResult<(Span, Vec<Span>, Span)> {
     Ok((rest, (name, params, body)))
 }
 
+pub fn get_scope_block(input: Span<'_>) -> IResult<(Span, Span)> {
+    let rest = input;
+    let (rest, (_, name)) = ws(separated_pair(tag("scope2"), multispace1, get_just_label))(rest)?;
+    let (rest, body) = get_block(rest)?;
+    Ok((rest, (name, body)))
+}
+
 fn parse_raw_args(input: Span<'_>) -> IResult<Vec<Span<'_>>> {
     let sep = ws(tag(","));
     let arg = ws(recognize(many1(is_not(",)"))));
@@ -157,6 +164,21 @@ impl Macros {
 mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
+    #[test]
+    fn test_scopes() {
+        let body = "scope2 background { a   } aka kj akj a";
+        let sp = Span::new_extra(body, emu::utils::sources::AsmSource::FromStr);
+
+
+        if let Ok((rest, (name, body))) = get_scope_block(sp) {
+            assert_eq!(&name.to_string(), "background");
+            assert_eq!(&body.to_string(), "a");
+            assert_eq!(&rest.to_string(), "aka kj akj a");
+
+        } else {
+            assert!(false)
+        }
+    }
 
     #[test]
     fn test_expansion() {

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::ser::SerializeMap;
 
 use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolTable, SymbolWriter};
+
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
 
@@ -167,6 +168,8 @@ impl SymbolTree {
         let new_node = node_mut.append(new_tab);
         self.current_scope = new_node.id();
     }
+
+
 
     pub fn to_hash_map(&self) -> HashMap<String, Option<i64>> {
         let mut hm: HashMap<String, Option<i64>> = HashMap::new();

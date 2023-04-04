@@ -95,12 +95,12 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
 
         Label(name) => symbols
             .get_value(name)
-            .map(Item::number)
+            .map(|n| Item::number(n, crate::item::ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
 
         Pc => symbols
             .get_value("*")
-            .map(Item::number)
+            .map(|n| Item::number(n, crate::item::ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,
 
         UnaryTerm => {
@@ -112,14 +112,14 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
             let num = r.get_number().unwrap();
 
             let num = &match ops.value().item {
-                Item::Sub => Item::Number(-num),
+                Item::Sub => Item::Number(-num, crate::item::ParsedFrom::FromExpr),
                 _ => return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n)),
             };
 
             num.clone()
         }
 
-        Number(_) => i.clone(),
+        Number(_, _) => i.clone(),
 
         _ => {
             return Err(EvalError::new(EvalErrorEnum::UnableToEvaluate, n));
@@ -127,7 +127,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
     };
 
     // If this isn't a number return an error
-    if let Item::Number(_) = rez {
+    if let Item::Number(_,_) = rez {
         Ok(rez)
     } else {
         Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n))
@@ -182,7 +182,7 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
             })
             .map_err(|_| EvalError::new(EvalErrorEnum::UnableToEvaluate, *cn))??;
 
-            s.push(Number(res))
+            s.push(Number(res, crate::item::ParsedFrom::FromExpr))
         } else {
             s.push(i.clone());
         }

@@ -437,6 +437,12 @@ impl<'a> Compiler<'a> {
                     self.compile_children(ctx, id)?;
                 }
 
+                Scope2(name) => {
+                    ctx.set_scope(&name);
+                    self.compile_children(ctx, id)?;
+                    ctx.pop_scope()
+                }
+
                 Fdb(..) => {
                     for n in node.children() {
                         let x = ctx.ctx.eval_node(n)?;

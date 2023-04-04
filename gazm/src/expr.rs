@@ -154,7 +154,7 @@ mod test {
         let matched = matched.to_string();
 
         assert_eq!(*rest, "");
-        assert_eq!(matched, "3*4+5+-10");
+        assert_eq!(matched, "3*4+%101+-10");
 
         let input = "3 * 4 + 5 - (5 * 4)";
         let span = Span::new_extra(input, AsmSource::FromStr);
