@@ -128,7 +128,7 @@ fn tokenize_file<P: AsRef<Path>>(
 
     let file_pos = span_to_pos(input);
     let item = TokenizedFile(requested_file.clone(), parent.clone());
-    let node = Node::from_item_pos(item, file_pos).with_children(tokens.tokens);
+    let node = Node::new_with_children(item, tokens.tokens, file_pos);
 
     let ret = TokenizeResult {
         requested_file,

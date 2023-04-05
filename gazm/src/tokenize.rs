@@ -190,7 +190,7 @@ impl Tokens {
                 let tok_result = Tokens::new(body, self.opts.clone())?;
                 self.add_includes(&tok_result.includes);
                 let toks = tok_result.to_tokens();
-                let scope_def = Node::from_item_span(Item::Scope2(name.to_string()), body).with_children(toks);
+                let scope_def = Node::new_with_children(Item::Scope2(name.to_string()), toks, span_to_pos(body));
                 self.add_node(scope_def);
                 source = rest;
                 continue;
@@ -203,8 +203,7 @@ impl Tokens {
                 let name = name.to_string();
                 let params = params.iter().map(|x| x.to_string()).collect();
 
-                let macro_def = Node::from_item_pos(Item::MacroDef(name, params), pos)
-                    .with_children(macro_tokes);
+                let macro_def = Node::new_with_children(Item::MacroDef(name, params), macro_tokes,pos);
                 self.add_node(macro_def);
                 source = rest;
                 continue;
@@ -304,7 +303,7 @@ pub fn tokenize_file<P: AsRef<Path>>(
     }
 
     let item = TokenizedFile(this_file, parent);
-    let node = Node::from_item_span(item, input).with_children(tokes.tokens);
+    let node = Node::new_with_children(item, tokes.tokens,span_to_pos(input));
 
     Ok(node)
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::labels::get_just_label;
 use crate::locate::{matched_span, span_to_pos, Span};
-use crate::parse::util::{self,get_block, sep_list0, wrapped_chars, ws};
+use crate::parse::util::{self, get_block, sep_list0, wrapped_chars, ws};
 
 use nom::multi::separated_list0;
 use nom::{
@@ -13,7 +13,7 @@ use nom::{
     sequence::separated_pair,
 };
 
-use emu::utils::sources::{ Position, SourceFiles };
+use emu::utils::sources::{Position, SourceFiles};
 
 use crate::error::{IResult, UserError};
 use crate::item::Node;
@@ -23,14 +23,19 @@ pub struct MacroDef {
     pub name: String,
     pub params: Vec<String>,
     pub pos: Position,
-    pub nodes : Vec<Node>,
+    pub nodes: Vec<Node>,
 }
 
 use regex::Regex;
 
 impl MacroDef {
-    pub fn new(name: String, params: Vec<String>, pos: Position, nodes : Vec<Node>) -> Self {
-        Self { name, params, pos, nodes }
+    pub fn new(name: String, params: Vec<String>, pos: Position, nodes: Vec<Node>) -> Self {
+        Self {
+            name,
+            params,
+            pos,
+            nodes,
+        }
     }
     fn mk_regex(&self) -> Vec<Regex> {
         let to_regex = |v: &String| {
@@ -45,11 +50,7 @@ impl MacroDef {
     /// Expands this macro
     /// args = a vec of positions of the arguments
     /// returns a string of the expanded macro and the position of the original macro text
-    pub fn expand(
-        &self,
-        sources: &SourceFiles,
-        args: Vec<Position>,
-    ) -> (Position, String) {
+    pub fn expand(&self, sources: &SourceFiles, args: Vec<Position>) -> (Position, String) {
         if args.len() != self.params.len() {
             panic!("Wrong number of args")
         }
@@ -107,29 +108,28 @@ pub struct MacroCall {
 
 pub fn parse_macro_call(input: Span) -> IResult<Node> {
     use crate::expr::parse_expr;
-    use util::sep_list1;
     use crate::item::Item;
+    use util::sep_list1;
     let sep = ws(tag(","));
 
     let rest = input;
-    let (rest,name) = get_just_label(rest)?;
-    let (rest, args) = ws(wrapped_chars('(', ws(separated_list0(sep, parse_expr)), ')'))(rest)?;
+    let (rest, name) = get_just_label(rest)?;
+    let (rest, args) = ws(wrapped_chars(
+        '(',
+        ws(separated_list0(sep, parse_expr)),
+        ')',
+    ))(rest)?;
 
-    let matched_span = matched_span(input, rest);
-
-    let ret = Node::from_item_span(
-        Item::MacroCall(name.to_string())
-        , matched_span).with_children(args);
+    let matched_span = span_to_pos(matched_span(input, rest));
+    let ret = Node::new_with_children(Item::MacroCall(name.to_string()), args, matched_span);
 
     Ok((rest, ret))
 }
-
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Macros {
     macro_defs: HashMap<String, MacroDef>,
 }
-
 
 impl Macros {
     pub fn new() -> Self {
@@ -166,15 +166,13 @@ mod test {
     use pretty_assertions::{assert_eq, assert_ne};
     #[test]
     fn test_scopes() {
-        let body = "scope2 background { a   } aka kj akj a";
+        let body = "scope2 background {a} aka kj akj a";
         let sp = Span::new_extra(body, emu::utils::sources::AsmSource::FromStr);
-
 
         if let Ok((rest, (name, body))) = get_scope_block(sp) {
             assert_eq!(&name.to_string(), "background");
             assert_eq!(&body.to_string(), "a");
             assert_eq!(&rest.to_string(), "aka kj akj a");
-
         } else {
             assert!(false)
         }

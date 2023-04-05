@@ -3,7 +3,7 @@
 use super::item::{Item, Node};
 use super::labels::parse_label;
 use crate::error::IResult;
-use crate::locate::{matched_span, Span};
+use crate::locate::{matched_span, Span, span_to_pos};
 use crate::parse::util;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -62,7 +62,7 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
         separated_pair(parse_unary_op, multispace0, parse_non_unary_term)(input)?;
 
     let matched_span = matched_span(input, rest);
-    let ret = Node::from_item_span(Item::UnaryTerm, matched_span).with_children(vec![op, term]);
+    let ret = Node::new_with_children(Item::UnaryTerm, vec![op, term], span_to_pos( matched_span) );
     Ok((rest, ret))
 }
 
@@ -111,17 +111,17 @@ fn parse_op_term(input: Span) -> IResult<(Node, Node)> {
 ////////////////////////////////////////////////////////////////////////////////
 pub fn parse_expr(input: Span) -> IResult<Node> {
     let (rest, term) = parse_term(input)?;
-    let mut vec_ret = vec![term];
     let (rest, vs) = many0(preceded(multispace0, parse_op_term))(rest)?;
 
-    for (o, t) in vs {
-        vec_ret.push(o);
-        vec_ret.push(t);
-    }
+    // for (o, t) in vs {
+    //     vec_ret.push(o);
+    //     vec_ret.push(t);
+    // }
 
-    let matched_span = matched_span(input, rest);
-
-    let node = Node::from_item_span(Item::Expr, matched_span).with_children(vec_ret);
+    let mut vec_ret = vec![term];
+    vec_ret.extend(vs.into_iter().map(|(o,t)| [o,t]).flatten());
+    let matched_span = span_to_pos(matched_span(input, rest));
+    let node = Node::new_with_children(Item::Expr, vec_ret,matched_span);
 
     Ok((rest, node))
 }
@@ -141,7 +141,7 @@ mod test {
         let (rest, matched) = parse_bracketed_expr(span).unwrap();
         println!("{:#?}", matched);
         let matched = matched.to_string();
-        assert_eq!(*rest, " + 20");
+        assert_eq!(*rest, "+ 20");
         assert_eq!(matched, "(10+4)");
     }
 

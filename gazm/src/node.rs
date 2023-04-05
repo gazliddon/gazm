@@ -1,6 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Node
-
 pub trait CtxTrait: Clone + std::fmt::Debug {}
 
 #[derive(PartialEq, Clone)]
@@ -34,7 +33,7 @@ impl<I, C: CtxTrait> BaseNode<I, C> {
         !self.children.is_empty()
     }
 
-    pub fn new<X>(item: I, children: Vec<Self>, ctx: X) -> Self
+    pub fn new_with_children<X>(item: I, children: Vec<Self>, ctx: X) -> Self
     where
         X: Into<C>,
     {
@@ -46,17 +45,22 @@ impl<I, C: CtxTrait> BaseNode<I, C> {
         }
     }
 
+    pub fn new<X>(item: I, ctx: X) -> Self
+    where
+        X: Into<C>,
+    {
+        Self {
+            item,
+            children : Default::default(),
+            ctx: ctx.into(),
+        }
+    }
+
     pub fn from_item<X>(item: I, ctx: X) -> Self
     where
         X: Into<C>,
     {
-        Self::new(item, vec![], ctx)
-    }
-
-    pub fn with_children(self, children: Vec<Self>) -> Self {
-        let mut ret = self;
-        ret.children = box_it(children);
-        ret
+        Self::new(item, ctx)
     }
 
     pub fn take_children(self, other: Self) -> Self {

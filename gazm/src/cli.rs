@@ -61,6 +61,7 @@ impl Opts {
     pub fn from_arg_matches(orig_matches: clap::ArgMatches) -> ConfigError<Opts> {
         let ret = match orig_matches.subcommand() {
             Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build)?,
+            Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check)?,
 
             Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::LSP)?,
 
@@ -154,6 +155,10 @@ pub fn parse() -> clap::ArgMatches {
         .subcommand(make_config_file_command(
             "build",
             "Build using the config file",
+        ))
+        .subcommand(make_config_file_command(
+            "check",
+            "Check syntax using the config file",
         ))
         .subcommand(make_config_file_command(
             "lsp",

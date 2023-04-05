@@ -112,7 +112,6 @@ impl<'a> Ast<'a> {
         let mut ret = Self { tree, ctx };
 
         ret.inline_includes()?;
-
         ret.rename_locals();
         ret.process_macros()?;
         ret.postfix_expressions()?;
@@ -128,51 +127,37 @@ impl<'a> Ast<'a> {
         Ok(r.tree)
     }
 
+    /// Find all of the includes in this AST and replace with the
+    /// with inlines included files tokens
     fn inline_includes(&mut self) -> Result<(), UserError> {
         use Item::*;
 
+        // Loop over the ast until we have replaced all of the includes
+        // each include can have includes in it as well
         loop {
+            // Get all of the include ids
             let include_ids: Vec<_> = iter_refs_recursive(self.tree.root())
                 .filter_map(|node| node.value().item.get_include().map(|p| (node.id(), p)))
                 .collect();
 
+            // Break if there's no includes
             if include_ids.is_empty() {
                 break;
             }
 
-            for (id, path) in include_ids {
+            // Go through the ids and get the tokens to insert into this AST
+            for (id, path) in include_ids.iter() {
                 let actual_file = self.ctx.get_full_path(&path).unwrap();
                 let tokens = self.ctx.get_tokens(&actual_file).unwrap();
 
                 let new_node_id = create_ast_node(&mut self.tree, tokens);
-                let mut node_mut = self.tree.get_mut(id).unwrap();
+                let mut node_mut = self.tree.get_mut(*id).unwrap();
                 node_mut.insert_id_after(new_node_id);
+                // Remove the include node
                 node_mut.detach();
             }
         }
         Ok(())
-    }
-
-    pub fn scope_symbols(&mut self) {
-        use Item::*;
-
-        let mut scoper = SymbolTree::new();
-
-        for id in get_ids_recursive(self.tree.root()) {
-            let item = self.tree.get(id).unwrap().value().item.clone();
-
-            match &item {
-                Scope(scope) => {
-                    scoper.pop_scope();
-                    scoper.set_scope(scope);
-                }
-
-                AssignmentFromPc(name) | Assignment(name) => {
-                    println!("{name} is scope {}", scoper.get_current_scope_fqn())
-                }
-                _ => (),
-            }
-        }
     }
 
     pub fn process_macros(&mut self) -> Result<(), UserError> {
@@ -206,7 +191,7 @@ impl<'a> Ast<'a> {
             .collect::<Vec<_>>();
 
         // Create new nodes to replace the current macro call nodes
-        let mut nodes_to_change: Vec<(String, AstNodeId, AstNodeId)> = vec![];
+        // let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
         for (caller_scope, name, caller_node_id, pos) in mcalls.into_iter() {
             // TODO need a failure case if we can't find the macro definition
             let macro_id = mdefs.get(&name).ok_or_else(|| {
@@ -214,20 +199,24 @@ impl<'a> Ast<'a> {
                 self.user_error(mess, caller_node_id)
             })?;
 
-            // Create a new node for this macro call
-            let item = MacroCallProcessed {
-                macro_id: *macro_id,
-                scope: caller_scope,
-            };
-            let mut replacement_node = self.tree.orphan(ItemWithPos { pos, item });
+            // Create the node we'll replace
+            let mut replacement_node = self.tree.orphan(ItemWithPos {
+                item: MacroCallProcessed {
+                    macro_id: *macro_id,
+                    scope: caller_scope,
+                },
+                pos,
+            });
+
             // Take the children of the original caller node
             replacement_node.reparent_from_id_append(caller_node_id);
-            nodes_to_change.push((name, caller_node_id, replacement_node.id()));
-        }
+            let replacement_node_id = replacement_node.id();
 
-        for (_, caller_id, replacment_node_id) in nodes_to_change {
-            let mut caller_node = self.tree.get_mut(caller_id).unwrap();
-            caller_node.insert_id_after(replacment_node_id);
+            // Get a mutable version of the caller node
+            let mut caller_node = self.tree.get_mut(caller_node_id).unwrap();
+            // Insert the replacement node after this one
+            caller_node.insert_id_after(replacement_node_id);
+            // detach the orginal caller node
             caller_node.detach();
         }
 

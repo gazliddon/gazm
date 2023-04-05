@@ -7,7 +7,7 @@ use nom::{
     sequence::separated_pair,
 };
 
-use crate::locate::matched_span;
+use crate::locate::{matched_span, span_to_pos};
 
 use crate::{
     labels::get_just_label,
@@ -69,12 +69,13 @@ fn parse_struct_entry(input: Span<'_>) -> IResult<Node> {
         Node::from_item_span(Item::Number(1, crate::item::ParsedFrom::FromExpr), input)
     };
 
-    let expr = Node::from_item_span(Item::Expr, input).with_children(vec![
+    let childre= vec![
         multiplier,
         Node::from_item_span(Item::Mul, input),
         Node::from_item_span(size, input),
-    ]);
+    ];
 
+    let expr = Node::new_with_children(Item::Expr, childre, span_to_pos(input));
     let ret = Node::from_item_span(Item::StructEntry(name.to_string()), input).with_child(expr);
 
     Ok((rest, ret))
@@ -93,8 +94,7 @@ pub fn parse_struct_definition(input: Span<'_>) -> IResult<Node> {
         Err(crate::error::parse_failure(m, spare))
     } else {
         let matched_span = matched_span(input, rest);
-        let res = Node::from_item_span(Item::StructDef(name.to_string()), matched_span)
-            .with_children(entries);
+        let res = Node::new_with_children(Item::StructDef(name.to_string()), entries, span_to_pos( matched_span ));
         Ok((rest, res))
     }
 }

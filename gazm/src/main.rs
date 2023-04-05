@@ -100,7 +100,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if opts.build_type == ctx::BuildType::Build {
                 asm.write_outputs()?;
             }
-
             mess.deindent();
             mess.info("");
         }

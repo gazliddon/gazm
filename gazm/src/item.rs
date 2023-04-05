@@ -327,11 +327,11 @@ impl Item {
 
 impl BaseNode<Item, Position> {
     pub fn from_item_pos(item: Item, p: Position) -> Self {
-        Self::new(item, vec![], p)
+        Self::new(item, p)
     }
 
     pub fn from_item_span(item: Item, sp: Span) -> Self {
-        Self::new(item, vec![], span_to_pos(sp))
+        Self::new(item, span_to_pos(sp))
     }
 
     pub fn from_number(n: i64, _p : ParsedFrom, sp  : Span) -> Self {
