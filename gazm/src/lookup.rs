@@ -3,13 +3,15 @@ use crate::ast::AstTree;
 use crate::item::Item;
 use emu::utils::sources::Position;
 use std::collections::HashMap;
+use crate::item::Node;
 
 #[derive(Clone, Debug)]
 pub struct LabelUsageAndDefintions {
     label_to_definition_pos: HashMap<String, Position>,
     label_references: Vec<(String, Position)>,
-}
 
+    nodes_by_id : HashMap<usize, Node >,
+}
 use log::info;
 
 impl LabelUsageAndDefintions {
@@ -36,6 +38,7 @@ impl LabelUsageAndDefintions {
         Self {
             label_to_definition_pos,
             label_references: labels,
+            nodes_by_id: Default::default(),
         }
     }
 
@@ -90,5 +93,8 @@ impl LabelUsageAndDefintions {
             .iter()
             .find(|p| p.1.overlaps(pos))
             .map(|p| p.0.as_str())
+    }
+
+    pub fn find_node(&self, line: usize, col: usize, file_id : usize ) {
     }
 }

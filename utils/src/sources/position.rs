@@ -4,7 +4,7 @@ impl std::fmt::Display for Position {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Debug, Copy, Hash)]
 pub enum AsmSource {
     FromStr,
     FileId(u64),
@@ -15,6 +15,7 @@ impl Default for AsmSource {
         AsmSource::FromStr
     }
 }
+
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Position {
