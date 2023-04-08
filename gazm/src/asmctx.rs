@@ -6,7 +6,7 @@ use crate::error::{ErrorCollector, GResult, GazmErrorType};
 use crate::evaluator::Evaluator;
 use crate::item::Item;
 use crate::{binary, fixerupper::FixerUpper};
-use emu::utils::sources::{self, BinToWrite, Position};
+use emu::utils::sources::{self, BinToWrite, Position, SymbolScopeId};
 use sources::fileloader::{FileIo, SourceFileLoader};
 use sources::{BinWriteDesc, SourceMapping, SymbolError, SymbolNodeId, SymbolWriter};
 use std::path::{ Path, PathBuf };
@@ -77,7 +77,7 @@ impl<'a> AsmCtx<'a> {
         self.ctx.get_symbols().get_current_scope_fqn()
     }
 
-    pub fn add_symbol_with_value(&mut self, name: &str, val: usize) -> Result<u64, SymbolError> {
+    pub fn add_symbol_with_value(&mut self, name: &str, val: usize) -> Result<SymbolScopeId, SymbolError> {
         self.ctx
             .get_symbols_mut()
             .add_symbol_with_value(name, val as i64)

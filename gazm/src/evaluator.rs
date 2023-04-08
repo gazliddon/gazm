@@ -14,6 +14,8 @@ use crate::error::{GResult, GazmErrorType};
 use crate::eval::eval;
 use crate::item::Item::*;
 
+use emu::utils::sources::SymbolScopeId;
+
 /// Evaluates things
 pub struct Evaluator<'a> {
     symbols: &'a mut SymbolTree,
@@ -21,8 +23,13 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> SymbolQuery for Evaluator<'a> {
+    
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         self.symbols.get_symbol_info(name)
+    }
+
+    fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
+        todo!()
     }
 }
 

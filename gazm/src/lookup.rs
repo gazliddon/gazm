@@ -95,6 +95,6 @@ impl LabelUsageAndDefintions {
             .map(|p| p.0.as_str())
     }
 
-    pub fn find_node(&self, line: usize, col: usize, file_id : usize ) {
+    pub fn find_node(&self, _line: usize, _col: usize, _file_id : usize ) {
     }
 }

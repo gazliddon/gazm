@@ -11,11 +11,11 @@ use itertools::Itertools;
 
 pub struct Format {}
 
-pub fn fmt(opts: &Opts) {
-    let asm = Assembler::new(opts.clone());
-    let (tok_text,source) = asm.tokenize_single_file().unwrap();
-    let ret = render_nodes(tok_text.tokens, source);
-    println!("{}", ret)
+pub fn fmt(_opts: &Opts) {
+    // let asm = Assembler::new(opts.clone());
+    // let (tok_text,source) = asm.tokenize_single_file().unwrap();
+    // let ret = render_nodes(tok_text.tokens, source);
+    // println!("{}", ret)
 }
 
 use std::fmt::Write;

@@ -20,9 +20,11 @@ use emu::utils::{
     PathSearcher,
 };
 
+use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use tower_lsp::lsp_types::lsp_request;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -163,6 +165,18 @@ fn to_gazm(e: anyhow::Error) -> GazmErrorType {
 }
 
 impl Context {
+    pub fn get_untokenized_files(&self, files: &[PathBuf]) -> Vec<PathBuf> {
+        files
+            .iter()
+            .cloned()
+            .filter_map(|p| match self.has_tokens(&p) {
+                true => None,
+                false => Some(p),
+            })
+            .unique()
+            .collect()
+    }
+
     pub fn reset_output(&mut self) {
         self.asm_out = AsmOut::from(&self.opts)
     }
@@ -259,7 +273,7 @@ impl Context {
         }
     }
 
-    pub fn get_full_path<P: AsRef<Path>>(&mut self, path: P) -> Result<PathBuf, GazmErrorType> {
+    pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorType> {
         let path: PathBuf = self
             .get_vars()
             .expand_vars(path.as_ref().to_string_lossy())
@@ -418,8 +432,8 @@ impl Context {
         }
     }
 
-    pub fn path_to_id<P: AsRef<Path>>(&self, p : P) -> Option<u64> {
-        self.sources().get_source(p).ok().map(|r|r.0)
+    pub fn path_to_id<P: AsRef<Path>>(&self, p: P) -> Option<u64> {
+        self.sources().get_source(p).ok().map(|r| r.0)
     }
 
     pub fn lookup_label_definition(&self, name: &str) -> Option<(PathBuf, Position)> {

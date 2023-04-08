@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::ser::SerializeMap;
 
-use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolTable, SymbolWriter};
+use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolTable, SymbolWriter, SymbolScopeId};
 
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
@@ -223,6 +223,10 @@ impl SymbolTree {
 }
 
 impl SymbolQuery for SymbolTree {
+    fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> { 
+        panic!()
+    }
+
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         let scope = self.current_scope;
 
@@ -296,7 +300,7 @@ impl std::fmt::Display for SymbolTree {
 }
 
 impl SymbolWriter for SymbolTree {
-    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<u64, SymbolError> {
+    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<SymbolScopeId, SymbolError> {
         let mut node = self.tree.get_mut(self.current_scope).unwrap();
         node.value().add_symbol_with_value(name, value)
     }
@@ -306,7 +310,7 @@ impl SymbolWriter for SymbolTree {
         node.value().remove_symbol_name(name)
     }
 
-    fn add_symbol(&mut self, name: &str) -> Result<u64, SymbolError> {
+    fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
         let mut node = self.tree.get_mut(self.current_scope).unwrap();
         node.value().add_symbol(name)
     }

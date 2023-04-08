@@ -7,6 +7,7 @@ use crate::ctx::Context;
 use crate::ctx::Opts;
 use crate::error::GazmErrorType;
 use crate::error::{GResult, ParseError};
+use crate::info_mess;
 use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
 use crate::token_store::TokenStore;
@@ -23,6 +24,7 @@ use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
 use emu::utils::Stack;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 struct IdResource<K, V>
@@ -104,24 +106,41 @@ pub struct TokenizeResult {
 }
 
 use emu::utils::sources::Position;
+/// Tokenize this file and add its tokens to the token store
+/// return the includes this file had in it
+pub fn tokenize_file_and_add_tokens<P: AsRef<Path>>(
+    ctx: &mut Context,
+    actual_file: P,
+    parent: Option<PathBuf>,
+) -> GResult<Vec<PathBuf>> {
+    let tokenized = tokenize_file(ctx, &actual_file, parent)?;
 
-fn tokenize_file<P: AsRef<Path>>(
-    ctx: &TokenizeContext,
+    for e in &tokenized.errors {
+        ctx.add_parse_error(e.clone())?;
+    }
+
+    let ts = ctx.get_token_store_mut();
+    ts.add_tokens(&actual_file, tokenized.node);
+    info_mess!("Added tokens for {}", actual_file.as_ref().to_string_lossy());
+    Ok(ctx.get_untokenized_files(&tokenized.includes))
+}
+
+pub fn tokenize_file<P: AsRef<Path>>(
+    ctx: &mut Context,
     requested_file: P,
     parent: Option<PathBuf>,
 ) -> GResult<TokenizeResult> {
+    // ctx.with(|ctx| {
     use Item::*;
 
     let requested_file = requested_file.as_ref().to_path_buf();
 
-    let (file, source, file_id, opts) = ctx.with(|ctx| {
-        ctx.read_source(&requested_file)
-            .map(|(file, source, file_id)| (file, source, file_id, ctx.opts.clone()))
-    })?;
-
+    let (file, source, file_id) = ctx
+        .read_source(&requested_file)
+        .map(|(file, source, file_id)| (file, source, file_id))?;
     let input = Span::new_extra(&source, AsmSource::FileId(file_id));
 
-    let tokens = tokenize_text(input, opts)?;
+    let tokens = tokenize_text(ctx, input)?;
 
     // Collect all of the include files
     // let includes = get_include_files(&tokens);
@@ -141,6 +160,7 @@ fn tokenize_file<P: AsRef<Path>>(
     };
 
     Ok(ret)
+    // })
 }
 
 struct TokenizeContext {
@@ -189,7 +209,7 @@ impl TokenizeContext {
 pub fn tokenize<P: AsRef<Path>>(ctx: &Arc<Mutex<Context>>, requested_file: P) -> GResult<Node> {
     let include_stack = Stack::new();
     let token_ctx = TokenizeContext::new(&ctx);
-    let file_name = tokenize_main(&token_ctx, &requested_file, None, include_stack)?;
+    let file_name = tokenize_async_main_loop(&token_ctx, &requested_file, None, include_stack)?;
 
     let ret = token_ctx.with(|ctx| -> GResult<Node> {
         ctx.asm_out.errors.raise_errors()?;
@@ -225,13 +245,57 @@ fn check_circular<P: AsRef<Path>>(
         Ok(())
     }
 }
+////////////////////////////////////////////////////////////////////////////////
+#[derive(Clone)]
+struct IncludeStack {
+    include_stack: Stack<PathBuf>,
+}
+
+pub enum IncludeErrors {
+    CircularInclude,
+    CantPop,
+}
+
+impl IncludeStack {
+    pub fn new() -> Self {
+        Self {
+            include_stack: Default::default(),
+        }
+    }
+
+    pub fn push<P: AsRef<Path>>(&mut self, p: P) -> Result<(), IncludeErrors> {
+        let p = p.as_ref().to_path_buf();
+        if self.include_stack.get_deque().contains(&p) {
+            Err(IncludeErrors::CircularInclude)
+        } else {
+            self.include_stack.push(p);
+            Ok(())
+        }
+    }
+
+    pub fn pop<P: AsRef<Path>>(&mut self) -> Result<(), IncludeErrors> {
+        if self.include_stack.is_empty() {
+            Err(IncludeErrors::CantPop)
+        } else {
+            self.include_stack.pop();
+            Ok(())
+        }
+    }
+
+    fn is_circular<P: AsRef<Path>>(&self, full_path: P) -> bool {
+        let full_path = full_path.as_ref().to_path_buf();
+        self.include_stack.get_deque().contains(&full_path)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 fn is_circular<P: AsRef<Path>>(full_path: P, include_stack: &Stack<PathBuf>) -> bool {
     let full_path = full_path.as_ref().to_path_buf();
     include_stack.get_deque().contains(&full_path)
 }
 
-fn tokenize_main<P: AsRef<Path>>(
+fn tokenize_async_main_loop<P: AsRef<Path>>(
     ctx: &TokenizeContext,
     requested_file: P,
     parent: Option<PathBuf>,
@@ -242,35 +306,19 @@ fn tokenize_main<P: AsRef<Path>>(
     use std::thread;
     // Find out if this file is already tokenized and held in the token store
     let (has_this_file, actual_file) = ctx.get_file_info(&requested_file)?;
-
     include_stack.push(actual_file.clone());
 
     // It isn't!
     if !has_this_file {
-        let tokenized = tokenize_file(ctx, &actual_file, parent)?;
-
-        ctx.with(|ctx| -> GResult<()> {
-            for e in &tokenized.errors {
-                ctx.add_parse_error(e.clone())?;
-            }
-
-            let ts = ctx.get_token_store_mut();
-            ts.add_tokens(&actual_file, tokenized.node);
-            Ok(())
+        info_mess!("Reading file {}", actual_file.to_string_lossy());
+        let untokenized_includes = ctx.with(|ctx| -> GResult<Vec<PathBuf>> {
+            tokenize_file_and_add_tokens(ctx, &actual_file, parent)
         })?;
 
-        // Get a set of unique includes
-        let includes : Vec<PathBuf> = tokenized
-            .includes
-            .iter()
-            .filter_map(|p| ctx.get_file_info(&p).ok())
-            .filter_map(|(has_file, path)| if !has_file { Some(path) } else { None })
-            .unique()
-            .collect();
-
+        // let includes = ctx.with(|ctx| ctx.rationalise_includes(&tokenized.includes));
 
         rayon::scope(|s| -> GResult<()> {
-            for file in includes {
+            for file in untokenized_includes {
                 let full_path = ctx.get_full_path(&file)?;
 
                 if is_circular(&full_path, &include_stack) {
@@ -281,7 +329,12 @@ fn tokenize_main<P: AsRef<Path>>(
                     let actual_file = actual_file.clone();
 
                     s.spawn(move |_| {
-                        let res = tokenize_main(ctx, &full_path, Some(actual_file.clone()), stack);
+                        let res = tokenize_async_main_loop(
+                            ctx,
+                            &full_path,
+                            Some(actual_file.clone()),
+                            stack,
+                        );
                         ctx.with(|ctx| {
                             let _ = ctx.asm_out.errors.add_result(res);
                         })
@@ -290,6 +343,8 @@ fn tokenize_main<P: AsRef<Path>>(
             }
             Ok(())
         })?;
+    } else {
+        info_mess!("File {} was already tokenized", actual_file.to_string_lossy())
     }
 
     Ok(actual_file)

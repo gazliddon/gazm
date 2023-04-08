@@ -12,6 +12,8 @@ pub trait Value {
 pub trait SymbolQuery {
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError>;
 
+    fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError>;
+
     fn get_value(&self, name: &str) -> Result<i64, SymbolError> {
         let si = self.get_symbol_info(name)?;
         si.value.ok_or(SymbolError::NoValue)
@@ -22,10 +24,16 @@ pub trait SymbolQuery {
     }
 }
 
+#[derive(Debug, PartialEq, Hash)]
+pub struct SymbolScopeId {
+    pub scope_id : u64,
+    pub symbol_id: u64,
+}
+
 pub trait SymbolWriter {
-    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<u64, SymbolError>;
+    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<SymbolScopeId, SymbolError>;
     fn remove_symbol_name(&mut self, name: &str);
-    fn add_symbol(&mut self, name: &str) -> Result<u64, SymbolError>;
+    fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError>;
 
     fn add_reference_symbol(&mut self, name: &str, val: i64);
 }

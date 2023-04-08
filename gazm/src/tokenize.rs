@@ -16,13 +16,14 @@ use std::{
 };
 
 use crate::{
+    async_tokenize::tokenize_file as real_tokenize_file,
     commands, comments,
     ctx::{Context, Opts},
     error::{parse_error, ErrorCollector, GResult, GazmErrorType, IResult, ParseError, UserError},
     item::{Item, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos, Span},
-    macros::{get_macro_def, parse_macro_call, get_scope_block},
+    macros::{get_macro_def, get_scope_block, parse_macro_call},
     messages::messages,
     opcodes::parse_opcode,
     parse::util::{parse_assignment, ws},
@@ -98,7 +99,7 @@ impl Tokens {
             opts,
             // tok_ctx,
             parse_errors: vec![],
-            includes: vec![]
+            includes: vec![],
         };
 
         x.parse_to_tokens(text)?;
@@ -153,12 +154,11 @@ impl Tokens {
         if let Ok((rest, node)) =
             alt((ws(parse_command), ws(parse_opcode), ws(parse_macro_call)))(input)
         {
-
             match node.item() {
                 Item::Include(name) => self.add_include(name.clone()),
                 _ => (),
             }
-        
+
             self.add_node(node);
             self.trailing_text(rest)
         } else {
@@ -170,7 +170,7 @@ impl Tokens {
         self.tokens
     }
 
-    fn add_include<P: AsRef<Path>>(&mut self, file : P) {
+    fn add_include<P: AsRef<Path>>(&mut self, file: P) {
         self.includes.push(file.as_ref().into())
     }
 
@@ -186,11 +186,15 @@ impl Tokens {
         let mut source = input;
 
         while !source.is_empty() {
-            if let Ok(( rest, (name, body) )) = get_scope_block(source) {
+            if let Ok((rest, (name, body))) = get_scope_block(source) {
                 let tok_result = Tokens::new(body, self.opts.clone())?;
                 self.add_includes(&tok_result.includes);
                 let toks = tok_result.to_tokens();
-                let scope_def = Node::new_with_children(Item::Scope2(name.to_string()), toks, span_to_pos(body));
+                let scope_def = Node::new_with_children(
+                    Item::Scope2(name.to_string()),
+                    toks,
+                    span_to_pos(body),
+                );
                 self.add_node(scope_def);
                 source = rest;
                 continue;
@@ -203,12 +207,12 @@ impl Tokens {
                 let name = name.to_string();
                 let params = params.iter().map(|x| x.to_string()).collect();
 
-                let macro_def = Node::new_with_children(Item::MacroDef(name, params), macro_tokes,pos);
+                let macro_def =
+                    Node::new_with_children(Item::MacroDef(name, params), macro_tokes, pos);
                 self.add_node(macro_def);
                 source = rest;
                 continue;
             }
-
 
             let res: Result<(), ParseError> = try {
                 if let Ok((rest, _)) = get_struct(source) {
@@ -237,75 +241,37 @@ impl Tokens {
     }
 }
 
-fn get_include_files(tokes: &TokenizedText) -> Vec<(usize, PathBuf)> {
-    // Collect all of the include files
-    tokes
-        .tokens
-        .iter()
-        .enumerate()
-        .filter_map(|(i, n)| {
-            n.item()
-                .get_include()
-                .and_then(|inc_file| Some((i, inc_file)))
-        })
-        .collect()
-}
-
 pub fn tokenize_file<P: AsRef<Path>>(
     depth: usize,
     ctx: &mut crate::ctx::Context,
     file: P,
     parent: Option<PathBuf>,
     do_includes: bool,
-) -> GResult<Node> {
+) -> GResult<PathBuf> {
     use anyhow::Context;
     use Item::*;
 
-    let x = messages();
+    let file = ctx.get_full_path(file)?;
 
-    let this_file = file.as_ref().to_path_buf();
+    if !ctx.has_tokens(&file) {
+        let tokenized = real_tokenize_file(ctx, &file, parent)?;
 
-    let (file_name, source, id) = ctx.read_source(&file)?;
+        for e in &tokenized.errors {
+            ctx.add_parse_error(e.clone())?;
+        }
 
-    let action = if depth == 0 {
-        "Tokenizing"
-    } else {
-        "Including"
-    };
+        let ts = ctx.get_token_store_mut();
+        ts.add_tokens(&file, tokenized.node);
 
-    let comp_msg = format!("{} {}", action, file_name.to_string_lossy());
-
-    x.status(&comp_msg);
-
-    let input = Span::new_extra(&source, AsmSource::FileId(id));
-
-    let mut tokes = tokenize_text(input, ctx.opts.clone())?;
-
-    for err in &tokes.parse_errors {
-        ctx.add_parse_error(err.clone())?;
-    }
-
-    if do_includes {
-        // Collect all of the include files
-        let includes = get_include_files(&tokes);
-
-        let res: GResult<Vec<(usize, Node)>> = includes
-            .into_iter()
-            .map(|(i, inc_file)| {
-                tokenize_file(depth + 1, ctx, inc_file, Some(this_file.clone()), true)
-                    .map(|n| (i, n))
-            })
-            .collect();
-
-        for (i, n) in res? {
-            tokes.tokens[i] = n
+        if do_includes {
+            let includes = ctx.get_untokenized_files(&tokenized.includes);
+            for inc_file in includes {
+                tokenize_file(depth + 1, ctx, &inc_file, Some(file.clone()), true)?;
+            }
         }
     }
 
-    let item = TokenizedFile(this_file, parent);
-    let node = Node::new_with_children(item, tokes.tokens,span_to_pos(input));
-
-    Ok(node)
+    Ok(file)
 }
 
 impl From<Tokens> for TokenizedText {
@@ -320,17 +286,22 @@ impl From<Tokens> for TokenizedText {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub fn tokenize<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P, do_includes: bool) -> GResult<Node> {
+pub fn tokenize<P: AsRef<Path>>(
+    arc_ctx: &Arc<Mutex<Context>>,
+    file: P,
+    do_includes: bool,
+) -> GResult<Node> {
     let msg = format!("Reading {}", file.as_ref().to_string_lossy());
     messages().status(msg);
 
     let mut ctx_arc = arc_ctx.lock().unwrap();
     let ctx = &mut ctx_arc.deref_mut();
 
-    let block = tokenize_file(0, ctx, &file, None, do_includes)?;
-    ctx.asm_out.errors.raise_errors()?;
+    let file_tokenized = tokenize_file(0, ctx, &file, None, do_includes)?;
 
-    Ok(block)
+    ctx.asm_out.errors.raise_errors()?;
+    let toks = ctx.get_tokens(&file_tokenized).unwrap().clone();
+    Ok(toks)
 }
 
 pub struct TokenizedText {
@@ -339,8 +310,17 @@ pub struct TokenizedText {
     pub parse_errors: Vec<ParseError>,
 }
 
-pub fn tokenize_text(text: Span, opts: Opts) -> GResult<TokenizedText> {
-    let toks = Tokens::new(text, opts)?;
+pub fn tokenize_text(ctx: &Context, text: Span) -> GResult<TokenizedText> {
+    let mut toks = Tokens::new(text, ctx.opts.clone())?;
+    let includes: GResult<Vec<_>> = toks
+        .includes
+        .iter()
+        .cloned()
+        .map(|path| ctx.get_full_path(path))
+        .collect();
+
+    toks.includes = includes?;
+
     Ok(toks.into())
 }
 

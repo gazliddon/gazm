@@ -34,17 +34,6 @@ impl Assembler {
         Self { ctx }
     }
 
-    pub fn tokenize_single_file(&self) -> GResult<( TokenizedText, String )> {
-        self.with_inner( |ctx| {
-            ctx.reset_output();
-            let (_file_name, source, id) = ctx.read_source(&ctx.opts.project_file.clone())?;
-            let span = Span::new_extra(&source, emu::utils::sources::AsmSource::FileId(id));
-
-            let block = crate::tokenize::tokenize_text(span, ctx.opts.clone())?;
-            ctx.asm_out.errors.raise_errors()?;
-            Ok(( block, source ))
-        })
-    }
 
     /// Assemble for the first time
     pub fn assemble(&self) -> GResult<()> {
@@ -123,15 +112,20 @@ pub fn reassemble_ctx(arc_ctx: &Arc<Mutex<Context>>) -> GResult<()> {
 fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
     use emu::utils::PathSearcher;
 
-    let paths = with_state(&arc_ctx, |ctx| {
+    let ( paths, is_asnc ) = with_state(&arc_ctx, |ctx| {
         if let Some(dir) = file.as_ref().parent() {
             ctx.get_source_file_loader_mut().add_search_path(dir);
         }
         let paths = ctx.get_source_file_loader_mut().get_search_paths().clone();
-        paths
+        ( paths, ctx.opts.build_async )
     });
 
-    let node = async_tokenize::tokenize(&arc_ctx, file)?;
+    let node = if is_asnc {
+        async_tokenize::tokenize(&arc_ctx, file)
+
+    } else {
+        tokenize::tokenize(&arc_ctx,file, true)
+    }?;
 
     assemble_tokens(arc_ctx, &node)?;
 

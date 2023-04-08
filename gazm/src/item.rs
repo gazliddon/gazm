@@ -2,11 +2,11 @@ use std::fmt::Display;
 use std::{collections::HashSet, path::PathBuf};
 
 use crate::ast::AstNodeId;
+use crate::error::ParseError;
 use crate::locate::span_to_pos;
 use crate::locate::Span;
 use crate::macros::MacroCall;
 use crate::node::{BaseNode, CtxTrait};
-use crate::error::ParseError;
 use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
 use emu::utils::sources::Position;
@@ -14,7 +14,6 @@ use emu::utils::sources::Position;
 impl<'a> CtxTrait for Span<'a> {}
 
 pub type Node = BaseNode<Item, Position>;
-
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {
@@ -222,7 +221,10 @@ pub enum Item {
 
     MacroCall(String),
 
-    MacroCallProcessed{ scope: String, macro_id: AstNodeId },
+    MacroCallProcessed {
+        scope: String,
+        macro_id: AstNodeId,
+    },
 
     MacroDef(String, Vec<String>),
 
@@ -303,7 +305,7 @@ impl Item {
         Self::OperandIndexed(imode, indirect)
     }
 
-    pub fn number(n: i64, p : ParsedFrom) -> Self {
+    pub fn number(n: i64, p: ParsedFrom) -> Self {
         Item::Number(n, p)
     }
 
@@ -322,7 +324,6 @@ impl Item {
             None
         }
     }
-
 }
 
 impl BaseNode<Item, Position> {
@@ -334,7 +335,7 @@ impl BaseNode<Item, Position> {
         Self::new(item, span_to_pos(sp))
     }
 
-    pub fn from_number(n: i64, _p : ParsedFrom, sp  : Span) -> Self {
+    pub fn from_number(n: i64, _p: ParsedFrom, sp: Span) -> Self {
         Self::from_item_span(Item::Number(n, _p), sp)
     }
 
@@ -359,7 +360,7 @@ impl<'a> Display for BaseNode<Item, Position> {
         let join_children = |sep| join_vec(&self.children, sep);
 
         let ret: String = match item {
-            AssignmentFromPc(name) | LocalAssignmentFromPc(name) => { 
+            AssignmentFromPc(name) | LocalAssignmentFromPc(name) => {
                 format!("{} equ *", name)
             }
 
@@ -380,17 +381,11 @@ impl<'a> Display for BaseNode<Item, Position> {
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
-            Number(n, p) => {
-                match &p {
-                    ParsedFrom::Hex => format!("${:x}", n),
-                    ParsedFrom::FromExpr |
-                    ParsedFrom::Dec => n.to_string(),
-                    ParsedFrom::Char(c) => format!("'{c}'"),
-                    ParsedFrom::Bin => format!("%{:b}", n),
-
-
-                }
-
+            Number(n, p) => match &p {
+                ParsedFrom::Hex => format!("${:x}", n),
+                ParsedFrom::FromExpr | ParsedFrom::Dec => n.to_string(),
+                ParsedFrom::Char(c) => format!("'{c}'"),
+                ParsedFrom::Bin => format!("%{:b}", n),
             },
             UnaryTerm => join_children(""),
 

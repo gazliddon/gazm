@@ -1,4 +1,4 @@
-use super::{Position, SymbolError, SymbolInfo, SymbolQuery, SymbolWriter};
+use super::{Position, SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolWriter};
 
 use std::{collections::HashMap, fmt::Display};
 
@@ -227,11 +227,11 @@ mod new {
             Err("whoops".to_owned())
         }
 
-        fn navigate_relative(&mut self, _path : &[String] ) -> Result<ScopeId, String> {
+        fn navigate_relative(&mut self, _path: &[String]) -> Result<ScopeId, String> {
             panic!();
         }
 
-        fn navigate_abs(&mut self, path : &[String]) -> Result<ScopeId,String> {
+        fn navigate_abs(&mut self, path: &[String]) -> Result<ScopeId, String> {
             // Save current_scope
             let old_scope = self.current_scope;
             self.current_scope = self.scopes.root_id;
@@ -250,13 +250,12 @@ mod new {
 
     impl<'a, V> SymbolQuery<V, ScopedSymbolId> for ScopeNavigator<'a, V> {
         fn get_symbol_id(&self, name: &str) -> Option<ScopedSymbolId> {
-
             let scope_path = ScopePath::new(name);
 
             match &scope_path {
                 ScopePath::Abs(_) => (),
                 ScopePath::ThisScope(_) => (),
-                ScopePath::Relative(_) => ()
+                ScopePath::Relative(_) => (),
             };
 
             panic!();
@@ -301,13 +300,13 @@ impl Default for SymbolTable {
 }
 impl Display for SymbolTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Scope: {}",self.scope)?;
+        writeln!(f, "Scope: {}", self.scope)?;
 
         for (name, id) in &self.name_to_id {
             let val = self.info.get(id).unwrap();
             match &val.value {
-                Some(val) => writeln!(f,"{name} = {:04X} ({})",val,val)?,
-                _ => writeln!(f, "{name} = undefined", )?,
+                Some(val) => writeln!(f, "{name} = {:04X} ({})", val, val)?,
+                _ => writeln!(f, "{name} = undefined",)?,
             }
         }
         Ok(())
@@ -315,6 +314,11 @@ impl Display for SymbolTable {
 }
 
 impl SymbolQuery for SymbolTable {
+
+    fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
+        panic!()
+    }
+
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         let id = self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
         self.get(*id)
@@ -322,10 +326,14 @@ impl SymbolQuery for SymbolTable {
 }
 
 impl SymbolWriter for SymbolTable {
-    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<u64, SymbolError> {
+    fn add_symbol_with_value(
+        &mut self,
+        name: &str,
+        value: i64,
+    ) -> Result<SymbolScopeId, SymbolError> {
         let nstr: String = name.into();
         let id = self.add_symbol(&nstr)?;
-        self.set_value(id, value)?;
+        self.set_value(id.symbol_id, value)?;
 
         if let Some(expected) = self.ref_name_to_value.get(&nstr) {
             if *expected != value {
@@ -345,7 +353,7 @@ impl SymbolWriter for SymbolTable {
         }
     }
 
-    fn add_symbol(&mut self, name: &str) -> Result<u64, SymbolError> {
+    fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
         let name: String = name.into();
 
         if let Some(id) = self.name_to_id.get(&name) {
@@ -358,7 +366,10 @@ impl SymbolWriter for SymbolTable {
             let info = SymbolInfo { name, value: None };
 
             self.info.insert(x_id, info);
-            Ok(x_id)
+            Ok(SymbolScopeId {
+                symbol_id: x_id,
+                scope_id: self.id,
+            })
         }
     }
 
@@ -411,7 +422,7 @@ impl SymbolTable {
         ret
     }
 
-    pub fn get_symbols(&self ) -> Vec<&SymbolInfo> {
+    pub fn get_symbols(&self) -> Vec<&SymbolInfo> {
         self.info.values().collect()
     }
 }

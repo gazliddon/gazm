@@ -2,9 +2,9 @@ pub type AstTree = ego_tree::Tree<ItemWithPos>;
 pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
 pub type AstNodeId = ego_tree::NodeId;
 pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
-
 // use std::fmt::{Debug, DebugMap};
-
+//
+// lkd dk dlk
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::{iter, vec};
@@ -19,11 +19,10 @@ use crate::item::{Item, Node};
 use crate::{messages::*, node};
 use emu::utils::eval::{to_postfix, GetPriority, PostFixer};
 use emu::utils::sources::{
-    Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolTree, SymbolWriter,
+    Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolTree, SymbolWriter, SymbolScopeId,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
     tree.get(id).unwrap().children().map(|c| c.id()).collect()
 }
@@ -116,6 +115,7 @@ impl<'a> Ast<'a> {
         ret.process_macros()?;
         ret.postfix_expressions()?;
         ret.generate_struct_symbols()?;
+        // ret.scope_assignments()?;
         ret.evaluate_assignments()?;
 
         Ok(ret)
@@ -148,7 +148,14 @@ impl<'a> Ast<'a> {
             // Go through the ids and get the tokens to insert into this AST
             for (id, path) in include_ids.iter() {
                 let actual_file = self.ctx.get_full_path(&path).unwrap();
-                let tokens = self.ctx.get_tokens(&actual_file).unwrap();
+                let tokens = self.ctx.get_tokens(&actual_file);
+
+                if tokens.is_none() {
+                    println!("Can't find include tokens for {}", actual_file.to_string_lossy());
+                    panic!()
+                }
+
+                let tokens = tokens.unwrap();
 
                 let new_node_id = create_ast_node(&mut self.tree, tokens);
                 let mut node_mut = self.tree.get_mut(*id).unwrap();
@@ -402,7 +409,7 @@ impl<'a> Ast<'a> {
         self.eval_node(first_child.id())
     }
 
-    pub fn add_symbol<S>(&mut self, value: i64, name: S, id: AstNodeId) -> Result<u64, UserError>
+    pub fn add_symbol<S>(&mut self, value: i64, name: S, id: AstNodeId) -> Result<SymbolScopeId, UserError>
     where
         S: Into<String>,
     {
@@ -451,10 +458,45 @@ impl<'a> Ast<'a> {
         })
     }
 
+    fn scope_assignments(&mut self) -> Result<(), UserError> {
+        info("Correctly scoping assignments", |_| {
+            use super::eval::eval;
+            use Item::*;
+
+
+            let mut symbols = SymbolTree::new();
+
+            for id in iter_ids_recursive(self.tree.root()) {
+                let item = self.tree.get(id).unwrap().value().item.clone();
+
+                match &item {
+                    Scope(scope) => {
+                        symbols.set_root();
+                        symbols.set_scope(scope);
+                    }
+
+                    Assignment(name) => {
+                        let _id = symbols.add_symbol(name).unwrap();
+
+                        println!(
+                            "{name} becomes {}::{name}",
+                            symbols.get_current_scope_fqn()
+                        );
+                        ()
+                    }
+                    _ => (),
+                }
+            }
+
+            Ok(())
+        })
+    }
+
     fn evaluate_assignments(&mut self) -> Result<(), UserError> {
         info("Evaluating assignments", |x| {
             use super::eval::eval;
             use Item::*;
+            self.ctx.asm_out.symbols.set_root();
 
             let mut pc_references = vec![];
 

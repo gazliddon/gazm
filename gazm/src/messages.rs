@@ -230,6 +230,17 @@ macro_rules! status_mess {
     }}
 }
 #[macro_export]
+macro_rules! info_mess {
+    ($($arg:tt)*) => {{
+        use $crate::messages;
+        let m = messages::messages();
+        if m.get_verbosity() >= messages::Verbosity::Info {
+            let res = std::fmt::format(std::format_args!($($arg)*));
+            m.status(res)
+        }
+    }}
+}
+#[macro_export]
 macro_rules! status_err {
     ($($arg:tt)*) => {{
         use $crate::messages;
