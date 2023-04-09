@@ -1,15 +1,15 @@
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
-use crate::ctx::Opts;
 use crate::ctx::LstFile;
-use crate::vars::Vars;
+use crate::ctx::Opts;
 use crate::error::{ErrorCollector, GResult, GazmErrorType};
 use crate::evaluator::Evaluator;
 use crate::item::Item;
+use crate::vars::Vars;
 use crate::{binary, fixerupper::FixerUpper};
 use emu::utils::sources::{self, BinToWrite, Position, SymbolScopeId};
 use sources::fileloader::{FileIo, SourceFileLoader};
 use sources::{BinWriteDesc, SourceMapping, SymbolError, SymbolNodeId, SymbolWriter};
-use std::path::{ Path, PathBuf };
+use std::path::{Path, PathBuf};
 
 use crate::ctx::Context;
 
@@ -57,7 +57,7 @@ impl<'a> AsmCtx<'a> {
         if dp < 0 {
             self.ctx.asm_out.direct_page = None
         } else {
-            self.ctx.asm_out.direct_page  = Some(dp as u64 as u8)
+            self.ctx.asm_out.direct_page = Some(dp as u64 as u8)
         }
     }
 
@@ -77,7 +77,11 @@ impl<'a> AsmCtx<'a> {
         self.ctx.get_symbols().get_current_scope_fqn()
     }
 
-    pub fn add_symbol_with_value(&mut self, name: &str, val: usize) -> Result<SymbolScopeId, SymbolError> {
+    pub fn add_symbol_with_value(
+        &mut self,
+        name: &str,
+        val: usize,
+    ) -> Result<SymbolScopeId, SymbolError> {
         self.ctx
             .get_symbols_mut()
             .add_symbol_with_value(name, val as i64)
@@ -107,7 +111,9 @@ impl<'a> AsmCtx<'a> {
         let count = range.len();
 
         let data = self
-            .ctx.asm_out.binary
+            .ctx
+            .asm_out
+            .binary
             .get_bytes(physical_address as usize, count as usize)
             .to_vec();
 
@@ -117,24 +123,20 @@ impl<'a> AsmCtx<'a> {
 
         // Save a record of the file Written
         // this goes into the written sym file eventually
-        let bin_desc = BinWriteDesc {
-            file: path.clone(),
-            addr: range,
-        };
 
-        let bin_to_write = BinToWrite {
-            bin_desc,
-            data
-        };
-
+        let bin_to_write = BinToWrite::new(data, &path, range);
         self.ctx.asm_out.bin_to_write_chunks.push(bin_to_write);
 
         // return the path written to, may have been expanded
         Ok(path)
     }
 
-    fn get_abs_path<P: AsRef<Path>, >(&mut self, path: P, ) -> PathBuf {
-        let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
+    fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
+        let path = self
+            .ctx
+            .opts
+            .vars
+            .expand_vars(path.as_ref().to_string_lossy());
         let path = emu::utils::fileutils::abs_path_from_cwd(path);
         path
     }
@@ -159,13 +161,21 @@ impl<'a> AsmCtx<'a> {
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
         use emu::utils::sources::fileloader::FileIo;
 
-        let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
+        let path = self
+            .ctx
+            .opts
+            .vars
+            .expand_vars(path.as_ref().to_string_lossy());
         let ret = self.ctx.get_source_file_loader().get_size(path)?;
         Ok(ret)
     }
 
     pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
+        let path = self
+            .ctx
+            .opts
+            .vars
+            .expand_vars(path.as_ref().to_string_lossy());
         let ret = self.ctx.get_source_file_loader_mut().read_binary(path)?;
         Ok(ret)
     }
@@ -175,12 +185,19 @@ impl<'a> AsmCtx<'a> {
         path: P,
         r: std::ops::Range<usize>,
     ) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.ctx.opts.vars.expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.ctx.get_source_file_loader_mut().read_binary_chunk(path, r)?;
+        let path = self
+            .ctx
+            .opts
+            .vars
+            .expand_vars(path.as_ref().to_string_lossy());
+        let ret = self
+            .ctx
+            .get_source_file_loader_mut()
+            .read_binary_chunk(path, r)?;
         Ok(ret)
     }
 
-    pub fn add_source_mapping(&mut self , pos: &Position, pc: usize) {
+    pub fn add_source_mapping(&mut self, pos: &Position, pc: usize) {
         let (_, phys_range) = self.binary().range_to_write_address(pc);
 
         let si = self.ctx.get_source_info(pos);

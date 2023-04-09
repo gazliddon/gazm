@@ -220,10 +220,11 @@ impl SymbolTree {
         let mut n = self.tree.get_mut(scope_id).unwrap();
         n.value().add_symbol_with_value(sym, val.unwrap()).unwrap();
     }
+
 }
 
 impl SymbolQuery for SymbolTree {
-    fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> { 
+    fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
         panic!()
     }
 

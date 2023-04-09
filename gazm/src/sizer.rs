@@ -5,7 +5,7 @@ use crate::{
     error::{GResult, GazmErrorType, UserError},
     evaluator::{self, Evaluator},
     fixerupper::FixerUpper,
-    item::{self, AddrModeParseType, IndexParseType, Item, Node},
+    item::{self, AddrModeParseType, IndexParseType, Item, Node, LabelDefinition},
     messages::{info, messages},
     parse::util::{ByteSize, ByteSizes},
 };
@@ -231,7 +231,7 @@ impl<'a> Sizer<'a> {
                 };
             }
 
-            AssignmentFromPc(name) => {
+            AssignmentFromPc(LabelDefinition::Text(name)) => {
                 // TODO should two types of item rather than this
                 // conditional
                 let pcv = if node.first_child().is_some() {
@@ -274,13 +274,6 @@ impl<'a> Sizer<'a> {
                 }
             }
 
-            Scope2(name)  => {
-                ctx.set_scope(name);
-                for c in ctx.ctx.get_children(node) {
-                    pc = self.size_node(ctx, pc, c)?;
-                }
-                ctx.pop_scope();
-            }
 
             Fdb(num_of_words) => {
                 pc += (*num_of_words * 2) as usize;

@@ -24,7 +24,7 @@ pub trait SymbolQuery {
     }
 }
 
-#[derive(Debug, PartialEq, Hash)]
+#[derive(Debug, PartialEq, Hash, Clone)]
 pub struct SymbolScopeId {
     pub scope_id : u64,
     pub symbol_id: u64,

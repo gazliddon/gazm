@@ -1,16 +1,16 @@
 // Lookup where labels are defined and referenced
 use crate::ast::AstTree;
-use crate::item::Item;
+use crate::item::Node;
+use crate::item::{Item, LabelDefinition};
 use emu::utils::sources::Position;
 use std::collections::HashMap;
-use crate::item::Node;
 
 #[derive(Clone, Debug)]
 pub struct LabelUsageAndDefintions {
     label_to_definition_pos: HashMap<String, Position>,
     label_references: Vec<(String, Position)>,
 
-    nodes_by_id : HashMap<usize, Node >,
+    nodes_by_id: HashMap<usize, Node>,
 }
 use log::info;
 
@@ -24,10 +24,12 @@ impl LabelUsageAndDefintions {
         for v in tree.values() {
             let pos = v.pos.clone();
             match &v.item {
-                LocalAssignment(name) | Assignment(name) | AssignmentFromPc(name) => {
+                LocalAssignment(LabelDefinition::Text(name))
+                | Assignment(LabelDefinition::Text(name))
+                | AssignmentFromPc(LabelDefinition::Text(name)) => {
                     label_to_definition_pos.insert(name.clone(), pos);
                 }
-                Label(name) | LocalLabel(name) => {
+                Label(LabelDefinition::Text(name)) | LocalLabel(LabelDefinition::Text(name)) => {
                     labels.push((name.to_string(), pos));
                 }
 
@@ -65,17 +67,17 @@ impl LabelUsageAndDefintions {
     }
 
     pub fn find_definition_from_pos(&self, pos: &Position) -> Option<&str> {
-        for (k,v) in self.label_to_definition_pos.iter() {
-
+        for (k, v) in self.label_to_definition_pos.iter() {
             if v.overlaps(pos) {
-                return Some(k)
+                return Some(k);
             }
         }
 
         None
     }
     pub fn find_label_or_defintion(&self, pos: &Position) -> Option<&str> {
-        let label = self.label_references
+        let label = self
+            .label_references
             .iter()
             .find(|p| p.1.overlaps(pos))
             .map(|p| p.0.as_str());
@@ -85,7 +87,6 @@ impl LabelUsageAndDefintions {
         } else {
             label
         }
-
     }
 
     pub fn find_label(&self, pos: &Position) -> Option<&str> {
@@ -95,6 +96,5 @@ impl LabelUsageAndDefintions {
             .map(|p| p.0.as_str())
     }
 
-    pub fn find_node(&self, _line: usize, _col: usize, _file_id : usize ) {
-    }
+    pub fn find_node(&self, _line: usize, _col: usize, _file_id: usize) {}
 }

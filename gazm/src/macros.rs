@@ -16,7 +16,7 @@ use nom::{
 use emu::utils::sources::{Position, SourceFiles};
 
 use crate::error::{IResult, UserError};
-use crate::item::Node;
+use crate::item::{LabelDefinition, Node};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacroDef {
@@ -121,7 +121,11 @@ pub fn parse_macro_call(input: Span) -> IResult<Node> {
     ))(rest)?;
 
     let matched_span = span_to_pos(matched_span(input, rest));
-    let ret = Node::new_with_children(Item::MacroCall(name.to_string()), args, matched_span);
+    let ret = Node::new_with_children(
+        Item::MacroCall(name.to_string()),
+        args,
+        matched_span,
+    );
 
     Ok((rest, ret))
 }

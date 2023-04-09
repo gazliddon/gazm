@@ -1,5 +1,5 @@
 use crate::expr::parse_expr;
-use crate::item::{Item, Node};
+use crate::item::{Item, Node, LabelDefinition};
 use crate::labels;
 use crate::numbers;
 
@@ -112,8 +112,8 @@ pub fn parse_assignment(input: Span) -> IResult<Node> {
     let matched_span = matched_span(input, rest);
 
     let item = match label.item {
-        Item::Label(name) => Item::Assignment(name),
-        Item::LocalLabel(name) => Item::LocalAssignment(name),
+        Item::Label(symbol_def) => Item::Assignment(symbol_def.clone()),
+        Item::LocalLabel(symbol_def) => Item::LocalAssignment(symbol_def.clone()),
         _ => panic!(),
     };
 

@@ -11,6 +11,8 @@ use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
 use emu::utils::sources::Position;
 
+use emu::utils::sources::SymbolScopeId;
+
 impl<'a> CtxTrait for Span<'a> {}
 
 pub type Node = BaseNode<Item, Position>;
@@ -189,7 +191,7 @@ impl StructMemberType {
             Self::Word => Number(2, ParsedFrom::FromExpr),
             Self::DWord => Number(4, ParsedFrom::FromExpr),
             Self::QWord => Number(8, ParsedFrom::FromExpr),
-            Self::UserType(name) => Label(format!("{}.size", name)),
+            Self::UserType(name) => Label(LabelDefinition::Text( format!("{}.size", name) )),
         }
     }
 }
@@ -209,15 +211,31 @@ pub enum ParsedFrom {
     FromExpr,
 }
 
+#[derive(Debug, PartialEq, Hash, Clone)]
+pub enum LabelDefinition {
+    Text(String),
+    Scoped(SymbolScopeId),
+}
+
+impl std::fmt::Display for LabelDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LabelDefinition::Scoped(x) => write!(f, "Scoped({},{})", x.scope_id, x.scope_id),
+            LabelDefinition::Text(x) => write!(f, "Text({x})"),
+        }
+    }
+}
+
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
     BlankLine,
     Skip(usize),
-    LocalAssignment(String),
-    Assignment(String),
-    AssignmentFromPc(String),
-    LocalAssignmentFromPc(String),
+
+    LocalAssignment(LabelDefinition),
+    Assignment(LabelDefinition),
+    AssignmentFromPc(LabelDefinition),
+    LocalAssignmentFromPc(LabelDefinition),
 
     MacroCall(String),
 
@@ -235,8 +253,6 @@ pub enum Item {
     SetPutOffset(isize),
 
     Scope(String),
-    Scope2(String),
-    EndScope2,
     PopScope,
 
     Expr,
@@ -251,8 +267,9 @@ pub enum Item {
 
     ScopedSymbol(u64),
 
-    Label(String),
-    LocalLabel(String),
+    Label(LabelDefinition),
+    LocalLabel(LabelDefinition),
+
     Comment(String),
     Number(i64, ParsedFrom),
 
@@ -366,7 +383,7 @@ impl<'a> Display for BaseNode<Item, Position> {
 
             Pc => "*".to_string(),
 
-            Label(name) | LocalLabel(name) => name.clone(),
+            Label(LabelDefinition::Text(name)) | LocalLabel(LabelDefinition::Text(name)) => name.clone(),
 
             Comment(comment) => comment.clone(),
             // QuotedString(test) => format!("\"{}\"", test),

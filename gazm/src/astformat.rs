@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::item::{self, Item};
+use crate::item::{self, Item, LabelDefinition};
 
 impl<'a> std::fmt::Display for Ast<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -60,7 +60,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Pc => "*".to_string(),
 
-            Label(name) => name.clone(),
+            Label(LabelDefinition::Text(name)) => name.clone(),
             LocalLabel(name) => format!("!{name}"),
 
             Comment(comment) => format!("; {comment}"),

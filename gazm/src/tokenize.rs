@@ -20,7 +20,7 @@ use crate::{
     commands, comments,
     ctx::{Context, Opts},
     error::{parse_error, ErrorCollector, GResult, GazmErrorType, IResult, ParseError, UserError},
-    item::{Item, Node},
+    item::{Item, Node, LabelDefinition},
     labels::parse_label,
     locate::{matched_span, span_to_pos, Span},
     macros::{get_macro_def, get_scope_block, parse_macro_call},
@@ -77,10 +77,10 @@ fn parse_label_not_macro(input: Span) -> IResult<Node> {
 fn mk_pc_equate(node: Node) -> Node {
     use Item::*;
     let pos = node.ctx().clone();
-
+    
     match &node.item {
-        Label(name) => Node::from_item(AssignmentFromPc(name.clone()), pos),
-        LocalLabel(name) => Node::from_item(LocalAssignmentFromPc(name.clone()), pos),
+        Label(label_def) => Node::from_item(AssignmentFromPc(label_def.clone()), pos),
+        LocalLabel(label_def) => Node::from_item(LocalAssignmentFromPc(label_def.clone()), pos),
         _ => panic!("shouldn't happen"),
     }
 }
@@ -186,18 +186,19 @@ impl Tokens {
         let mut source = input;
 
         while !source.is_empty() {
-            if let Ok((rest, (name, body))) = get_scope_block(source) {
-                let tok_result = Tokens::new(body, self.opts.clone())?;
-                self.add_includes(&tok_result.includes);
-                let toks = tok_result.to_tokens();
-                let scope_def = Node::new_with_children(
-                    Item::Scope2(name.to_string()),
-                    toks,
-                    span_to_pos(body),
-                );
-                self.add_node(scope_def);
-                source = rest;
-                continue;
+            if let Ok((_rest, (_name, _body))) = get_scope_block(source) {
+                panic!();
+                // let tok_result = Tokens::new(body, self.opts.clone())?;
+                // self.add_includes(&tok_result.includes);
+                // let toks = tok_result.to_tokens();
+                // let scope_def = Node::new_with_children(
+                //     Item::Scope2(name.to_string()),
+                //     toks,
+                //     span_to_pos(body),
+                // );
+                // self.add_node(scope_def);
+                // source = rest;
+                // continue;
             }
 
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {

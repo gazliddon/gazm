@@ -12,6 +12,7 @@ use nom::multi::many0;
 
 use crate::error::IResult;
 use crate::locate::Span;
+            use crate::item::LabelDefinition;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
@@ -52,13 +53,17 @@ fn get_local_label(input: Span) -> IResult<Span> {
 
 pub fn parse_just_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
-    let ret = Node::from_item_span(Item::Label(matched.to_string()), matched);
+    let ret = Node::from_item_span(Item::Label(
+            LabelDefinition::Text(matched.to_string())
+            ), matched);
     Ok((rest, ret))
 }
 
 fn parse_local_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_local_label(input)?;
-    let ret = Node::from_item_span(Item::LocalLabel(matched.to_string()), matched);
+    let ret = Node::from_item_span(Item::LocalLabel(
+            LabelDefinition::Text(matched.to_string()))
+            , matched);
     Ok((rest, ret))
 }
 

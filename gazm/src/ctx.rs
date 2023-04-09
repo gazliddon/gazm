@@ -20,6 +20,12 @@ use emu::utils::{
     PathSearcher,
 };
 
+
+fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String {
+    let z: Vec<String> = i.map(|s| s.as_ref().to_string_lossy().into()).collect();
+    z.join(sep)
+}
+
 use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -317,18 +323,21 @@ impl Context {
         self.checksum_report();
         self.write_lst_file()?;
         self.write_sym_file()?;
-        self.write_deps_file()
+        self.write_deps_file()?;
+
+        Ok(())
     }
 
     pub fn write_lst_file(&mut self) -> GResult<()> {
-        use std::fs;
-
         if let Some(lst_file) = &self.opts.lst_file {
+            use std::fs;
+
             let text = self.asm_out.lst_file.lines.join("\n");
             fs::write(lst_file, text)
                 .with_context(|| format!("Unable to write list file {lst_file}"))?;
             status_mess!("Written lst file {lst_file}");
         }
+
         Ok(())
     }
 
@@ -347,25 +356,13 @@ impl Context {
     }
     pub fn write_deps_file(&mut self) -> GResult<()> {
         if let Some(deps) = &self.opts.deps_file {
-            let as_string = |s: &PathBuf| -> String { s.to_string_lossy().into() };
-
-            let read: Vec<String> = self
-                .get_source_file_loader()
-                .get_files_read()
-                .iter()
-                .map(as_string)
-                .collect();
-
-            let written: Vec<String> = self
-                .get_source_file_loader()
-                .get_files_written()
-                .iter()
-                .map(as_string)
-                .collect();
 
             if let Some(sym_file) = &self.opts.syms_file {
-                let deps_line_2 = format!("{} : {sym_file}", written.join(" \\\n"));
-                let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read.join(" \\\n"));
+                let sf = self.get_source_file_loader();
+                let read = join_paths(sf.get_files_read().iter(), " \\\n");
+                let written = join_paths(sf.get_files_written().iter(), " \\\n");
+                let deps_line_2 = format!("{} : {sym_file}", written);
+                let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read);
 
                 status_mess!("Writing deps file: {}", deps);
 

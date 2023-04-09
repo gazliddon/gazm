@@ -140,6 +140,18 @@ pub struct BinToWrite {
     pub data: Vec<u8>,
 }
 
+impl BinToWrite {
+    pub fn new<P: AsRef<Path>>(data: Vec<u8>, p : P, addr: std::ops::Range<usize> ) -> Self {
+        Self {
+            data,
+            bin_desc : BinWriteDesc {
+                file: p.as_ref().to_path_buf(),
+                addr
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SourceDatabase {
     id_to_source_file: HashMap<u64, PathBuf>,

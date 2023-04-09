@@ -314,9 +314,13 @@ impl Display for SymbolTable {
 }
 
 impl SymbolQuery for SymbolTable {
+    fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
+        if self.id == id.scope_id {
+            self.info.get(&id.symbol_id).ok_or(SymbolError::NotFound)
+        } else {
+            Err(SymbolError::NotFound)
+        }
 
-    fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-        panic!()
     }
 
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
@@ -424,5 +428,9 @@ impl SymbolTable {
 
     pub fn get_symbols(&self) -> Vec<&SymbolInfo> {
         self.info.values().collect()
+    }
+
+    pub fn get_id(&self) -> u64 {
+        self.id
     }
 }

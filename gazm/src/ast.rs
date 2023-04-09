@@ -14,12 +14,12 @@ use crate::eval::{EvalError, EvalErrorEnum};
 use crate::scopes::ScopeBuilder;
 
 use crate::ctx::Context;
-use crate::item::{Item, Node};
+use crate::item::{Item, LabelDefinition, Node};
 
 use crate::{messages::*, node};
 use emu::utils::eval::{to_postfix, GetPriority, PostFixer};
 use emu::utils::sources::{
-    Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolTree, SymbolWriter, SymbolScopeId,
+    Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolTree, SymbolWriter,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +115,7 @@ impl<'a> Ast<'a> {
         ret.process_macros()?;
         ret.postfix_expressions()?;
         ret.generate_struct_symbols()?;
-        // ret.scope_assignments()?;
+        ret.scope_assignments()?;
         ret.evaluate_assignments()?;
 
         Ok(ret)
@@ -151,7 +151,10 @@ impl<'a> Ast<'a> {
                 let tokens = self.ctx.get_tokens(&actual_file);
 
                 if tokens.is_none() {
-                    println!("Can't find include tokens for {}", actual_file.to_string_lossy());
+                    println!(
+                        "Can't find include tokens for {}",
+                        actual_file.to_string_lossy()
+                    );
                     panic!()
                 }
 
@@ -253,29 +256,30 @@ impl<'a> Ast<'a> {
                 x.debug(&format!("{} -> {}", name, ret));
                 ret
             };
+            use crate::item::LabelDefinition;
 
             // Expand all local labels to have a scoped name
             // and change all locals to globals
             for v in self.tree.values_mut() {
                 match &v.item {
-                    AssignmentFromPc(name) => {
+                    AssignmentFromPc(LabelDefinition::Text(name)) => {
                         scopes.pop();
                         scopes.push_new(name);
                     }
 
-                    LocalAssignmentFromPc(name) => {
+                    LocalAssignmentFromPc(LabelDefinition::Text(name)) => {
                         let new_name = rename(&scopes.get_current_fqn(), name);
-                        v.item = AssignmentFromPc(new_name);
+                        v.item = AssignmentFromPc(LabelDefinition::Text(new_name));
                     }
 
-                    LocalAssignment(name) => {
+                    LocalAssignment(LabelDefinition::Text(name)) => {
                         let new_name = rename(&scopes.get_current_fqn(), name);
-                        v.item = Assignment(new_name);
+                        v.item = Assignment(LabelDefinition::Text(new_name));
                     }
 
-                    LocalLabel(name) => {
+                    LocalLabel(LabelDefinition::Text(name)) => {
                         let new_name = rename(&scopes.get_current_fqn(), name);
-                        v.item = Label(new_name);
+                        v.item = Label(LabelDefinition::Text(new_name));
                     }
 
                     TokenizedFile(_, _) => {
@@ -409,7 +413,12 @@ impl<'a> Ast<'a> {
         self.eval_node(first_child.id())
     }
 
-    pub fn add_symbol<S>(&mut self, value: i64, name: S, id: AstNodeId) -> Result<SymbolScopeId, UserError>
+    pub fn add_symbol<S>(
+        &mut self,
+        value: i64,
+        name: S,
+        id: AstNodeId,
+    ) -> Result<SymbolScopeId, UserError>
     where
         S: Into<String>,
     {
@@ -463,7 +472,6 @@ impl<'a> Ast<'a> {
             use super::eval::eval;
             use Item::*;
 
-
             let mut symbols = SymbolTree::new();
 
             for id in iter_ids_recursive(self.tree.root()) {
@@ -475,14 +483,9 @@ impl<'a> Ast<'a> {
                         symbols.set_scope(scope);
                     }
 
-                    Assignment(name) => {
+                    Assignment(LabelDefinition::Text(name)) => {
                         let _id = symbols.add_symbol(name).unwrap();
-
-                        println!(
-                            "{name} becomes {}::{name}",
-                            symbols.get_current_scope_fqn()
-                        );
-                        ()
+                        println!("{name} becomes {}::{name}", symbols.get_current_scope_fqn());
                     }
                     _ => (),
                 }
@@ -511,7 +514,7 @@ impl<'a> Ast<'a> {
                         }
                     }
 
-                    Assignment(name) => {
+                    Assignment(LabelDefinition::Text(name)) => {
                         let n = self.tree.get(id).unwrap();
                         let cn = n.first_child().unwrap();
                         let res = eval(&self.ctx.asm_out.symbols, cn);
@@ -554,7 +557,7 @@ impl<'a> Ast<'a> {
 
             for (name, id) in pc_references {
                 let mut n = self.tree.get_mut(id).unwrap();
-                n.value().item = Item::AssignmentFromPc(name);
+                n.value().item = Item::AssignmentFromPc(LabelDefinition::Text(name));
             }
 
             Ok(())

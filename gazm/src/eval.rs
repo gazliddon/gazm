@@ -2,7 +2,7 @@ use emu::utils;
 use utils::eval;
 
 use crate::ast::{AstNodeId, AstNodeRef};
-use crate::item::Item;
+use crate::item::{Item, LabelDefinition};
 use eval::GetPriority;
 
 use std::fmt::Display;
@@ -93,7 +93,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
     let rez = match i {
         PostFixExpr => eval_postfix(symbols, n)?,
 
-        Label(name) => symbols
+        Label(LabelDefinition::Text(name)) => symbols
             .get_value(name)
             .map(|n| Item::number(n, crate::item::ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
