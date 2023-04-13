@@ -240,8 +240,9 @@ pub enum Item {
     MacroCall(String),
 
     MacroCallProcessed {
-        scope: String,
+        scope_id: u64,
         macro_id: AstNodeId,
+        params_vec_of_id : Vec<SymbolScopeId>,
     },
 
     MacroDef(String, Vec<String>),

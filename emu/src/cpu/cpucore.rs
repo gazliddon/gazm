@@ -1331,7 +1331,7 @@ impl<'a> Context<'a> {
 impl<'a> Context<'a> {
     fn gen_irq(&mut self, irq_flag: Flags, save_regs: bool, vector: usize) -> CpuResult<()> {
         // Is this IRQ disabled?
-        // TODO should be moved into the IRQ line sensing code
+        // TODO: should be moved into the IRQ line sensing code
         // https://github.com/elmerucr/MC6809/blob/master/src/mc6809.cpp
 
         if !self.regs.flags.contains(irq_flag) {

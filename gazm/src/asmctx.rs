@@ -69,12 +69,29 @@ impl<'a> AsmCtx<'a> {
         self.ctx.get_symbols_mut().pop_scope()
     }
 
-    pub fn set_scope(&mut self, name: &str) {
+    pub fn set_scope(&mut self, name: &str) -> u64 {
         self.ctx.get_symbols_mut().set_scope(name)
+    }
+
+    pub fn set_scope_from_id(&mut self, scope_id: u64) {
+        self.ctx.get_symbols_mut().set_scope_from_id(scope_id)
+    }
+
+    pub fn get_current_scope_id(&self) -> u64 {
+        self.ctx.get_symbols().get_current_scope_id()
     }
 
     pub fn get_scope_fqn(&mut self) -> String {
         self.ctx.get_symbols().get_current_scope_fqn()
+    }
+    pub fn set_symbol_value(
+        &mut self,
+        symbol_id : SymbolScopeId,
+        val: usize,
+    ) -> Result<(), SymbolError> {
+        self.ctx
+            .get_symbols_mut()
+            .set_symbol(symbol_id, val as i64)
     }
 
     pub fn add_symbol_with_value(
@@ -118,7 +135,7 @@ impl<'a> AsmCtx<'a> {
             .to_vec();
 
         // Write the file
-        // TODO This all needs produce errors if appropriate
+        // TODO: This all needs produce errors if appropriate
         let path = self.get_abs_path(path);
 
         // Save a record of the file Written
@@ -148,14 +165,12 @@ impl<'a> AsmCtx<'a> {
 
     pub fn eval_macro_args(
         &mut self,
-        scope: &str,
-        args_id: AstNodeId,
-        macro_id: AstNodeId,
+        scope_id: u64,
+        caller_id: AstNodeId,
         tree: &AstTree,
-    ) {
-        let node = tree.get(args_id).unwrap();
-        let macro_node = tree.get(macro_id).unwrap();
-        self.ctx.eval_macro_args(scope, node, macro_node);
+    ) -> bool {
+        let node = tree.get(caller_id).unwrap();
+        self.ctx.eval_macro_args(scope_id, node)
     }
 
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {

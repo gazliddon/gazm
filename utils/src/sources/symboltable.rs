@@ -279,7 +279,8 @@ pub struct SymbolTable {
     pub info: HashMap<u64, SymbolInfo>,
     name_to_id: HashMap<String, u64>,
     ref_name_to_value: HashMap<String, i64>,
-    id: u64,
+    highest_id: u64,
+    scope_id: u64,
 }
 
 pub enum SymbolKind {
@@ -293,11 +294,11 @@ struct Symbol {
     pos: Position,
 }
 
-impl Default for SymbolTable {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// impl Default for SymbolTable {
+//     fn default() -> Self {
+//         Self::new()
+//     }
+// }
 impl Display for SymbolTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Scope: {}", self.scope)?;
@@ -315,21 +316,31 @@ impl Display for SymbolTable {
 
 impl SymbolQuery for SymbolTable {
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-        if self.id == id.scope_id {
+        if self.scope_id == id.scope_id {
             self.info.get(&id.symbol_id).ok_or(SymbolError::NotFound)
         } else {
             Err(SymbolError::NotFound)
         }
 
     }
-
-    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-        let id = self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
-        self.get(*id)
+    fn get_symbol_info(&self, name: &str) -> Result<(SymbolScopeId, &SymbolInfo ), SymbolError> {
+        let symbol_id = *self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
+        let si = self.get(symbol_id)?;
+        let scope_id = self.get_scope_id();
+        Ok( (SymbolScopeId{symbol_id, scope_id}, si) )
     }
 }
 
 impl SymbolWriter for SymbolTable {
+
+    fn set_symbol(&mut self, symbol_id : SymbolScopeId, val : i64) -> Result<(), SymbolError> {
+        if self.scope_id == symbol_id.scope_id {
+            self.set_value(symbol_id.symbol_id, val)
+        } else {
+            Err(SymbolError::NotFound)
+        }
+    }
+
     fn add_symbol_with_value(
         &mut self,
         name: &str,
@@ -361,7 +372,8 @@ impl SymbolWriter for SymbolTable {
         let name: String = name.into();
 
         if let Some(id) = self.name_to_id.get(&name) {
-            Err(SymbolError::AlreadyDefined(*id))
+            let x = self.info.get(id).unwrap();
+            Err(SymbolError::AlreadyDefined(( *id, x.value )))
         } else {
             let x_id = self.get_next_id();
 
@@ -372,7 +384,7 @@ impl SymbolWriter for SymbolTable {
             self.info.insert(x_id, info);
             Ok(SymbolScopeId {
                 symbol_id: x_id,
-                scope_id: self.id,
+                scope_id: self.scope_id,
             })
         }
     }
@@ -384,21 +396,22 @@ impl SymbolWriter for SymbolTable {
 }
 
 impl SymbolTable {
-    pub fn new() -> Self {
-        Self::new_with_scope("No Scope")
-    }
+    // pub fn new() -> Self {
+    //     Self::new_with_scope("No Scope")
+    // }
 
     pub fn get_scope_name(&self) -> &str {
         &self.scope
     }
 
-    pub fn new_with_scope(name: &str) -> Self {
+    pub fn new_with_scope(name: &str, scope_id : u64) -> Self {
         Self {
             scope: name.to_string(),
             info: Default::default(),
             name_to_id: Default::default(),
             ref_name_to_value: Default::default(),
-            id: 1,
+            highest_id: 1,
+            scope_id
         }
     }
 
@@ -421,8 +434,8 @@ impl SymbolTable {
     }
 
     fn get_next_id(&mut self) -> u64 {
-        let ret = self.id;
-        self.id += 1;
+        let ret = self.highest_id;
+        self.highest_id += 1;
         ret
     }
 
@@ -430,7 +443,7 @@ impl SymbolTable {
         self.info.values().collect()
     }
 
-    pub fn get_id(&self) -> u64 {
-        self.id
+    pub fn get_scope_id(&self) -> u64 {
+        self.scope_id
     }
 }

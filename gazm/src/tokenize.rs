@@ -1,5 +1,6 @@
 use futures::AsyncWriteExt;
 
+use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::is_not,
@@ -20,7 +21,7 @@ use crate::{
     commands, comments,
     ctx::{Context, Opts},
     error::{parse_error, ErrorCollector, GResult, GazmErrorType, IResult, ParseError, UserError},
-    item::{Item, Node, LabelDefinition},
+    item::{Item, LabelDefinition, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos, Span},
     macros::{get_macro_def, get_scope_block, parse_macro_call},
@@ -77,7 +78,7 @@ fn parse_label_not_macro(input: Span) -> IResult<Node> {
 fn mk_pc_equate(node: Node) -> Node {
     use Item::*;
     let pos = node.ctx().clone();
-    
+
     match &node.item {
         Label(label_def) => Node::from_item(AssignmentFromPc(label_def.clone()), pos),
         LocalLabel(label_def) => Node::from_item(LocalAssignmentFromPc(label_def.clone()), pos),
@@ -93,16 +94,24 @@ struct Tokens {
 }
 
 impl Tokens {
-    fn new(text: Span, opts: Opts) -> GResult<Self> {
+    fn new(ctx: &Context, text: Span) -> GResult<Self> {
         let mut x = Self {
             tokens: vec![],
-            opts,
-            // tok_ctx,
+            opts: ctx.opts.clone(),
             parse_errors: vec![],
             includes: vec![],
         };
 
-        x.parse_to_tokens(text)?;
+        x.parse_to_tokens(ctx, text)?;
+
+        let includes: GResult<Vec<_>> = x
+            .includes
+            .iter()
+            .unique()
+            .map(|path| ctx.get_full_path(path))
+            .collect();
+
+        x.includes = includes?;
 
         Ok(x)
     }
@@ -180,7 +189,7 @@ impl Tokens {
         }
     }
 
-    fn parse_to_tokens(&mut self, input: Span) -> GResult<()> {
+    fn parse_to_tokens(&mut self, ctx : &Context, input: Span) -> GResult<()> {
         use crate::macros::MacroCall;
 
         let mut source = input;
@@ -202,7 +211,7 @@ impl Tokens {
             }
 
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
-                let macro_tokes = Tokens::new(body, self.opts.clone())?.to_tokens();
+                let macro_tokes = Tokens::new(ctx, body)?.to_tokens();
 
                 let pos = crate::locate::span_to_pos(body);
                 let name = name.to_string();
@@ -312,17 +321,7 @@ pub struct TokenizedText {
 }
 
 pub fn tokenize_text(ctx: &Context, text: Span) -> GResult<TokenizedText> {
-    let mut toks = Tokens::new(text, ctx.opts.clone())?;
-    let includes: GResult<Vec<_>> = toks
-        .includes
-        .iter()
-        .cloned()
-        .map(|path| ctx.get_full_path(path))
-        .collect();
-
-    toks.includes = includes?;
-
-    Ok(toks.into())
+    Ok(Tokens::new(ctx, text)?.into())
 }
 
 ////////////////////////////////////////////////////////////////////////////////

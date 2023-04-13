@@ -7,10 +7,11 @@ pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 // lkd dk dlk
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
-use std::{iter, vec};
+use std::{default, iter, vec};
 
 use crate::error::{AstError, UserError};
 use crate::eval::{EvalError, EvalErrorEnum};
+use crate::parse::util::match_escaped_str;
 use crate::scopes::ScopeBuilder;
 
 use crate::ctx::Context;
@@ -21,11 +22,26 @@ use emu::utils::eval::{to_postfix, GetPriority, PostFixer};
 use emu::utils::sources::{
     Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolTree, SymbolWriter,
 };
+use emu::utils::symbols;
 
 ////////////////////////////////////////////////////////////////////////////////
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
     tree.get(id).unwrap().children().map(|c| c.id()).collect()
 }
+
+// fn replace_node(tree: &mut AstTree, old_node_id: AstNodeId, new_node_id: AstNodeId) {
+//     let mut old_node = tree.get_mut(old_node_id).expect("can't retrieve old node");
+//     old_node.insert_id_after(new_node_id);
+//     old_node.detach();
+// }
+
+// fn replace_node_take_children(tree: &mut AstTree, old_node_id: AstNodeId, new_node_id: AstNodeId) {
+//     let mut replacement_node = tree
+//         .get_mut(new_node_id)
+//         .expect("Can't fetch replacement node");
+//     replacement_node.reparent_from_id_append(old_node_id);
+//     replace_node(tree, old_node_id, new_node_id)
+// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ItemWithPos {
@@ -74,6 +90,7 @@ pub fn make_tree(node: &Node) -> AstTree {
 #[derive(Debug)]
 pub struct Ast<'a> {
     pub tree: AstTree,
+    pub macro_defs: Vec<AstNodeId>,
     pub ctx: &'a mut Context,
 }
 
@@ -107,15 +124,38 @@ fn iter_refs_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeRef> {
 }
 
 impl<'a> Ast<'a> {
+    fn replace_node(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
+        let mut old_node = self
+            .tree
+            .get_mut(old_node_id)
+            .expect("can't retrieve old node");
+        old_node.insert_id_after(new_node_id);
+        old_node.detach();
+    }
+
+    fn replace_node_take_children(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
+        let mut replacement_node = self
+            .tree
+            .get_mut(new_node_id)
+            .expect("Can't fetch replacement node");
+        replacement_node.reparent_from_id_append(old_node_id);
+        self.replace_node(old_node_id, new_node_id)
+    }
+
     pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
-        let mut ret = Self { tree, ctx };
+        let mut ret = Self {
+            tree,
+            ctx,
+            macro_defs: vec![],
+        };
 
         ret.inline_includes()?;
         ret.rename_locals();
-        ret.process_macros()?;
         ret.postfix_expressions()?;
+        ret.process_macros()?;
         ret.generate_struct_symbols()?;
         ret.scope_assignments()?;
+        ret.scope_labels()?;
         ret.evaluate_assignments()?;
 
         Ok(ret)
@@ -161,39 +201,68 @@ impl<'a> Ast<'a> {
                 let tokens = tokens.unwrap();
 
                 let new_node_id = create_ast_node(&mut self.tree, tokens);
-                let mut node_mut = self.tree.get_mut(*id).unwrap();
-                node_mut.insert_id_after(new_node_id);
-                // Remove the include node
-                node_mut.detach();
+                self.replace_node(*id, new_node_id);
             }
         }
         Ok(())
     }
-
     pub fn process_macros(&mut self) -> Result<(), UserError> {
-        // TODO should be written in a way that can detect
+        // TODO: should be written in a way that can detect
         // redefinitions of a macro
         use std::collections::HashMap;
         use Item::*;
 
         // Make a hash of macro definitions
         // longer term this needs scoping
-        let mdefs = iter_refs_recursive(self.tree.root())
-            .filter_map(|n| match &n.value().item {
-                MacroDef(name, ..) => Some((name.to_string(), n.id())),
-                _ => None,
-            })
-            .collect::<HashMap<_, _>>();
+        // and detach all of them from the main tree
+
+        let mut mdefs: HashMap<String, (AstNodeId, Vec<String>)> = Default::default();
+
+        for macro_id in iter_ids_recursive(self.tree.root()) {
+            let macro_node = self.tree.get(macro_id).unwrap();
+            match &macro_node.value().item {
+                MacroDef(name, params) => {
+                    mdefs.insert(name.to_string(), (macro_node.id(), params.clone()));
+                    self.tree.get_mut(macro_id).expect("Can't get macro mut node").detach();
+                }
+                _ => (),
+            }
+        }
+
+        self.ctx.asm_out.symbols.set_root();
 
         // and a vec of macro calls
         let mcalls = iter_refs_recursive(self.tree.root())
             .enumerate()
-            .filter_map(|(i, n)| {
-                let val = &n.value();
+            .filter_map(|(i, macro_call_node)| {
+                let syms = &mut self.ctx.asm_out.symbols;
+                let val = &macro_call_node.value();
                 match &val.item {
+                    Scope(name) => {
+                        syms.set_root();
+                        syms.set_scope(name);
+                        None
+                    }
+
                     MacroCall(name) => {
-                        let caller_scope = format!("%MACRO%_{name}_{i}");
-                        Some((caller_scope, name.to_string(), n.id(), val.pos.clone()))
+                        // Create a unique name for this macro application scope
+                        let caller_scope_name = format!("%MACRO%_{name}_{i}");
+                        // Create the scope
+                        let macro_caller_scope_id = syms.set_scope(&caller_scope_name);
+
+                        // TODO: need a failure case if we can't find the macro definition
+                        let (macro_id, params) =
+                            mdefs.get(name).expect("Expected to find macro definition");
+
+                        syms.pop_scope();
+
+                        Some((
+                            macro_id,
+                            macro_caller_scope_id,
+                            params,
+                            macro_call_node.id(),
+                            val.pos.clone(),
+                        ))
                     }
                     _ => None,
                 }
@@ -202,42 +271,26 @@ impl<'a> Ast<'a> {
 
         // Create new nodes to replace the current macro call nodes
         // let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
-        for (caller_scope, name, caller_node_id, pos) in mcalls.into_iter() {
-            // TODO need a failure case if we can't find the macro definition
-            let macro_id = mdefs.get(&name).ok_or_else(|| {
-                let mess = format!("Can't find macro definition for {name}");
-                self.user_error(mess, caller_node_id)
-            })?;
+        for (macro_id, macro_caller_scope_id, params, caller_node_id, pos) in mcalls.into_iter() {
+            let params_vec = self.ctx.asm_out.symbols.add_symbols_to_scope(macro_caller_scope_id, &params).unwrap();
 
             // Create the node we'll replace
-            let mut replacement_node = self.tree.orphan(ItemWithPos {
-                item: MacroCallProcessed {
-                    macro_id: *macro_id,
-                    scope: caller_scope,
-                },
-                pos,
-            });
+            let replacement_node_id = self
+                .tree
+                .orphan(ItemWithPos {
+                    item: MacroCallProcessed {
+                        macro_id: *macro_id,
+                        scope_id: macro_caller_scope_id,
+                        params_vec_of_id: params_vec,
+                    },
+                    pos,
+                })
+                .id();
 
-            // Take the children of the original caller node
-            replacement_node.reparent_from_id_append(caller_node_id);
-            let replacement_node_id = replacement_node.id();
-
-            // Get a mutable version of the caller node
-            let mut caller_node = self.tree.get_mut(caller_node_id).unwrap();
-            // Insert the replacement node after this one
-            caller_node.insert_id_after(replacement_node_id);
-            // detach the orginal caller node
-            caller_node.detach();
+            self.replace_node_take_children(caller_node_id, replacement_node_id);
         }
 
         Ok(())
-    }
-
-    pub fn get_tree(&self) -> &AstTree {
-        &self.tree
-    }
-    pub fn get_tree_mut(&mut self) -> &mut AstTree {
-        &mut self.tree
     }
 
     fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, SourceErrorType> {
@@ -307,10 +360,6 @@ impl<'a> Ast<'a> {
 
         Ok(ret)
     }
-
-    // TODO!
-    // Make this and other functions return an appropriate
-    // error rather tha a string
 
     fn postfix_expressions(&mut self) -> Result<(), UserError> {
         let ret = info("Converting expressions to poxtfix", |x| {
@@ -413,6 +462,19 @@ impl<'a> Ast<'a> {
         self.eval_node(first_child.id())
     }
 
+    pub fn set_symbol(
+        &mut self,
+        value: i64,
+        symbol_id: SymbolScopeId,
+        _node_id: AstNodeId,
+    ) -> Result<(), UserError> {
+        self.ctx
+            .asm_out
+            .symbols
+            .set_symbol(symbol_id, value)
+            .map_err(|_| panic!())
+    }
+
     pub fn add_symbol<S>(
         &mut self,
         value: i64,
@@ -435,6 +497,8 @@ impl<'a> Ast<'a> {
     fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
         info("Generating symbols for struct definitions", |x| {
             use Item::*;
+
+            self.ctx.asm_out.symbols.set_root();
 
             // let mut symbols = self.symbols.clone();
             for id in iter_ids_recursive(self.tree.root()) {
@@ -467,41 +531,85 @@ impl<'a> Ast<'a> {
         })
     }
 
+    fn scope_labels(&mut self) -> Result<(), UserError> {
+        use Item::*;
+
+        self.ctx.asm_out.symbols.set_root();
+
+        for node_id in iter_ids_recursive(self.tree.root()) {
+            let item = self.tree.get(node_id).unwrap().value().item.clone();
+            // let pos = self.tree.get(node_id).unwrap().value().pos.clone();
+
+            match &item {
+                // Track scope correctly
+                Scope(scope) => {
+                    let symbols = &mut self.ctx.asm_out.symbols;
+                    symbols.set_root();
+                    symbols.set_scope(scope.as_str());
+                }
+
+                // Convert any label in tree to a lable reference
+                Label(LabelDefinition::Text(name)) => {
+                    let symbols = &mut self.ctx.asm_out.symbols;
+                    let (id, _si) = symbols
+                        .get_symbol_info(&name)
+                        .expect("Internal error getting symbol info");
+                    let mut x = self.tree.get_mut(node_id).unwrap();
+                    x.value().item = Label(LabelDefinition::Scoped(id));
+                }
+
+                _ => (),
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Traverse through all assignments and reserve a label for them at the correct scope
     fn scope_assignments(&mut self) -> Result<(), UserError> {
-        info("Correctly scoping assignments", |_| {
+        let res = info("Correctly scoping assignments", |_| {
             use super::eval::eval;
             use Item::*;
 
-            let mut symbols = SymbolTree::new();
+            self.ctx.asm_out.symbols.set_root();
 
-            for id in iter_ids_recursive(self.tree.root()) {
-                let item = self.tree.get(id).unwrap().value().item.clone();
+            for node_id in iter_ids_recursive(self.tree.root()) {
+                let symbols = &mut self.ctx.asm_out.symbols;
+                let item = self.tree.get(node_id).unwrap().value().item.clone();
 
                 match &item {
                     Scope(scope) => {
                         symbols.set_root();
-                        symbols.set_scope(scope);
+                        symbols.set_scope(scope.as_str());
+                    }
+
+                    AssignmentFromPc(LabelDefinition::Text(name)) => {
+                        let sym_id = symbols.add_symbol(name).unwrap();
+                        let mut x = self.tree.get_mut(node_id).unwrap();
+                        x.value().item = AssignmentFromPc(LabelDefinition::Scoped(sym_id));
                     }
 
                     Assignment(LabelDefinition::Text(name)) => {
-                        let _id = symbols.add_symbol(name).unwrap();
-                        println!("{name} becomes {}::{name}", symbols.get_current_scope_fqn());
+                        let sym_id = symbols.add_symbol(name).unwrap();
+                        let mut x = self.tree.get_mut(node_id).unwrap();
+                        x.value().item = Assignment(LabelDefinition::Scoped(sym_id));
                     }
                     _ => (),
                 }
             }
 
             Ok(())
-        })
+        });
+
+        res
     }
 
     fn evaluate_assignments(&mut self) -> Result<(), UserError> {
-        info("Evaluating assignments", |x| {
+        info("Evaluating assignments", |_| {
             use super::eval::eval;
             use Item::*;
-            self.ctx.asm_out.symbols.set_root();
 
-            let mut pc_references = vec![];
+            self.ctx.asm_out.symbols.set_root();
 
             for id in iter_ids_recursive(self.tree.root()) {
                 let item = self.tree.get(id).unwrap().value().item.clone();
@@ -514,7 +622,8 @@ impl<'a> Ast<'a> {
                         }
                     }
 
-                    Assignment(LabelDefinition::Text(name)) => {
+                    Assignment(LabelDefinition::Scoped(label_id)) => {
+                        let scoped_item = LabelDefinition::Scoped(*label_id);
                         let n = self.tree.get(id).unwrap();
                         let cn = n.first_child().unwrap();
                         let res = eval(&self.ctx.asm_out.symbols, cn);
@@ -522,26 +631,15 @@ impl<'a> Ast<'a> {
 
                         match res {
                             Ok(value) => {
-                                self.add_symbol(value, name, c_id)?;
-                                let si = self.get_source_info_from_node_id(id).unwrap();
-                                let scope = self.ctx.asm_out.symbols.get_current_scope_fqn();
-                                let msg = format!(
-                                    "{scope}::{} = {} :  {} {}",
-                                    name.clone(),
-                                    value,
-                                    si.file.to_string_lossy(),
-                                    si.line_str
-                                );
-                                x.debug(&msg);
+                                self.set_symbol(value, *label_id, c_id)?;
                             }
 
                             Err(EvalError {
                                 source: EvalErrorEnum::CotainsPcReference,
                                 ..
                             }) => {
-                                pc_references.push((name.clone(), n.id()));
-                                let msg = format!("Marking to convert to pc reference: {}", name);
-                                x.debug(&msg);
+                                let mut x = self.tree.get_mut(n.id()).unwrap();
+                                x.value().item = Item::AssignmentFromPc(scoped_item);
                             }
 
                             Err(e) => {
@@ -553,11 +651,6 @@ impl<'a> Ast<'a> {
                     }
                     _ => (),
                 }
-            }
-
-            for (name, id) in pc_references {
-                let mut n = self.tree.get_mut(id).unwrap();
-                n.value().item = Item::AssignmentFromPc(LabelDefinition::Text(name));
             }
 
             Ok(())

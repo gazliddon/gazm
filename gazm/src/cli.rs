@@ -71,8 +71,7 @@ impl Opts {
                 o
             }
 
-            // TODO! Remove this option
-            
+            // TODO: Remove this option
             Some(("asm", m)) => {
                 let mut opts = Opts {
                     deps_file: m.value_of("deps").map(String::from),

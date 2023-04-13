@@ -2,7 +2,7 @@ use emu::utils;
 use utils::eval;
 
 use crate::ast::{AstNodeId, AstNodeRef};
-use crate::item::{Item, LabelDefinition};
+use crate::item::{Item, LabelDefinition, ParsedFrom};
 use eval::GetPriority;
 
 use std::fmt::Display;
@@ -93,14 +93,28 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
     let rez = match i {
         PostFixExpr => eval_postfix(symbols, n)?,
 
+        Label(LabelDefinition::Scoped(id)) => {
+            symbols
+                .get_value_from_id(*id)
+                .map(|n| Item::number(n, ParsedFrom::FromExpr))
+                .map_err(|_| {
+                    let name = symbols
+                        .get_symbol_info_from_id(*id)
+                        .expect("Interal error")
+                        .name
+                        .clone();
+                    EvalError::new(EvalErrorEnum::SymbolNotFoud(name), n)
+                })?
+        }
+
         Label(LabelDefinition::Text(name)) => symbols
             .get_value(name)
-            .map(|n| Item::number(n, crate::item::ParsedFrom::FromExpr))
+            .map(|n| Item::number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
 
         Pc => symbols
             .get_value("*")
-            .map(|n| Item::number(n, crate::item::ParsedFrom::FromExpr))
+            .map(|n| Item::number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,
 
         UnaryTerm => {
@@ -127,13 +141,12 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
     };
 
     // If this isn't a number return an error
-    if let Item::Number(_,_) = rez {
+    if let Item::Number(_, _) = rez {
         Ok(rez)
     } else {
         Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n))
     }
 }
-
 
 /// Evaluates a postfix expression
 fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalError> {

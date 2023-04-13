@@ -5,7 +5,7 @@ use crate::{
     error::{GResult, GazmErrorType, UserError},
     evaluator::{self, Evaluator},
     fixerupper::FixerUpper,
-    item::{self, AddrModeParseType, IndexParseType, Item, Node, LabelDefinition},
+    item::{self, AddrModeParseType, IndexParseType, Item, LabelDefinition, Node},
     messages::{info, messages},
     parse::util::{ByteSize, ByteSizes},
 };
@@ -127,10 +127,11 @@ impl<'a> Sizer<'a> {
         let (node, i) = self.get_node_item(ctx, id);
 
         match &i {
-            MacroCallProcessed { scope, macro_id } => {
-                ctx.eval_macro_args(scope, id, *macro_id, self.tree);
+            MacroCallProcessed { scope_id, macro_id, .. } => {
+                ctx.eval_macro_args(*scope_id, id,  self.tree);
 
-                ctx.set_scope(scope);
+                let current_scope = ctx.get_current_scope_id();
+                ctx.set_scope_from_id(*scope_id);
 
                 let (m_node, _) = self.get_node_item(ctx, *macro_id);
 
@@ -140,7 +141,7 @@ impl<'a> Sizer<'a> {
                     pc = self.size_node(ctx, pc, c)?;
                 }
 
-                ctx.pop_scope();
+                ctx.set_scope_from_id(current_scope)
             }
 
             Scope(opt) => {
@@ -157,7 +158,7 @@ impl<'a> Sizer<'a> {
             }
 
             Org => {
-                let (value,_) = ctx.ctx.eval_first_arg(node)?;
+                let (value, _) = ctx.ctx.eval_first_arg(node)?;
                 pc = value as usize;
                 ctx.add_fixup(id, Item::SetPc(pc));
             }
@@ -231,8 +232,8 @@ impl<'a> Sizer<'a> {
                 };
             }
 
-            AssignmentFromPc(LabelDefinition::Text(name)) => {
-                // TODO should two types of item rather than this
+            AssignmentFromPc(LabelDefinition::Scoped(symbol_id)) => {
+                // TODO: should two types of item rather than this
                 // conditional
                 let pcv = if node.first_child().is_some() {
                     // Assign this label
@@ -247,25 +248,7 @@ impl<'a> Sizer<'a> {
                     // Otherwise it's just the current PC
                     pc as i64
                 };
-
-                // let scope = ctx.get_scope_fqn();
-                // let msg = format!("Setting {scope}::{name} to ${pc:04X} ({pc})");
-                // messages().debug(msg);
-
-                // Add the symbol
-                ctx.add_symbol_with_value(name, pcv as usize).map_err(|e| {
-                    let err = if let SymbolError::Mismatch { expected } = e {
-                        format!(
-                            "Mismatch symbol {name} : expected {:04X} got : {:04X}",
-                            expected, pcv
-                        )
-                    } else {
-                        let z = ctx.ctx.get_symbols().get_symbol_info(name).unwrap().clone();
-                        let scope = ctx.get_scope_fqn();
-                        format!("Scope: {scope} {z:#?} - {:?}", e)
-                    };
-                    ctx.ctx.user_error(err, node, false)
-                })?;
+                ctx.set_symbol_value(*symbol_id, pcv as usize).unwrap();
             }
 
             Block | TokenizedFile(..) => {
@@ -273,7 +256,6 @@ impl<'a> Sizer<'a> {
                     pc = self.size_node(ctx, pc, c)?;
                 }
             }
-
 
             Fdb(num_of_words) => {
                 pc += (*num_of_words * 2) as usize;

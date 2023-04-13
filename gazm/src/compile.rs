@@ -368,155 +368,147 @@ impl<'a> Compiler<'a> {
 
         let mut do_source_mapping = ctx.ctx.opts.lst_file.is_some();
 
-        let res: Result<(), GazmErrorType> = try {
-            match i {
-                Scope(opt) => {
-                    ctx.set_root_scope();
-                    if opt != "root" {
-                        ctx.set_scope(&opt);
-                    }
-                }
-
-                GrabMem => self.grab_mem(ctx, id)?,
-
-                WriteBin(file_name) => self.add_binary_to_write(ctx, id, &file_name)?,
-
-                IncBinRef(file_name) => {
-                    self.inc_bin_ref(ctx, &file_name)?;
-                }
-
-                IncBinResolved { file, r } => {
-                    self.incbin_resolved(ctx, id, &file, &r)?;
-                }
-
-                Skip(skip) => {
-                    ctx.binary_mut().skip(skip);
-                }
-
-                SetPc(new_pc) => {
-                    ctx.binary_mut().set_write_address(new_pc, 0);
-                    pc = new_pc;
-                    debug_mess!("Set PC to {:02X}", pc);
-                }
-
-                SetPutOffset(offset) => {
-                    debug_mess!("Set put offset to {}", offset);
-                    ctx.binary_mut().set_write_offset(offset);
-                }
-
-                OpCode(ins, amode) => {
-                    self.opcode(ctx, id, &ins, &amode)?;
-                }
-
-                MacroCallProcessed { scope, macro_id } => {
-                    do_source_mapping = false;
-
-                    let (m_node, _) = self.get_node_item(ctx, macro_id);
-                    let ret = ctx.ctx.eval_macro_args(&scope, node, m_node);
-
-                    if !ret {
-                        let si = ctx.ctx.get_source_info(&pos).unwrap();
-                        return Err(UserError::from_text(
-                            "Couldn't evaluate all macro args",
-                            &si,
-                            true,
-                        )
-                        .into());
-                    }
-
-                    ctx.set_scope(&scope);
-
-                    for c_node in m_node.children() {
-                        self.compile_node(ctx, c_node.id())?;
-                    }
-
-                    ctx.pop_scope();
-                }
-
-                Block | TokenizedFile(..) => {
-                    self.compile_children(ctx, id)?;
-                }
-
-
-                Fdb(..) => {
-                    for n in node.children() {
-                        let x = ctx.ctx.eval_node(n)?;
-                        ctx.binary_mut().write_word_check_size(x)?;
-                    }
-
-                    let (phys_range, range) = ctx.binary().range_to_write_address(pc);
-                    self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
-                }
-
-                Fcb(..) => {
-                    for n in node.children() {
-                        let x = ctx.ctx.eval_node(n)?;
-                        ctx.binary_mut().write_byte_check_size(x)?;
-                    }
-                    let (phys_range, range) = ctx.binary().range_to_write_address(pc);
-                    self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
-                }
-
-                Fcc(text) => {
-                    for c in text.as_bytes() {
-                        ctx.binary_mut().write_byte(*c)?;
-                    }
-                    let (phys_range, range) = ctx.binary().range_to_write_address(pc);
-                    self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
-                }
-
-                Zmb => {
-                    let (bytes, _) = ctx.ctx.eval_first_arg(node)?;
-                    for _ in 0..bytes {
-                        ctx.binary_mut().write_byte(0)?;
-                    }
-                    let (phys_range, range) = ctx.binary().range_to_write_address(pc);
-                    self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
-                }
-
-                Zmd => {
-                    let (words, _) = ctx.ctx.eval_first_arg(node)?;
-                    for _ in 0..words {
-                        ctx.binary_mut().write_word(0)?;
-                    }
-
-                    let (phys_range, range) = ctx.binary().range_to_write_address(pc);
-                    self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
-                }
-
-                Fill => {
-                    let (byte, size) = ctx.ctx.eval_two_args(node)?;
-
-                    for _ in 0..size {
-                        ctx.binary_mut().write_ubyte_check_size(byte)?;
-                    }
-
-                    let (phys_range, range) = ctx.binary().range_to_write_address(pc);
-                    self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
-                }
-
-                Exec => {
-                    let (exec_addr, _) = ctx.ctx.eval_first_arg(node)?;
-                    ctx.set_exec_addr(exec_addr as usize);
-                }
-
-                IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
-                | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp => (),
-                _ => {
-                    panic!("Can't compile {:?}", i);
+        match i {
+            Scope(opt) => {
+                ctx.set_root_scope();
+                if opt != "root" {
+                    ctx.set_scope(&opt);
                 }
             }
 
-            if do_source_mapping {
-                ctx.add_source_mapping(&node.value().pos, pc);
-            }
-        };
+            GrabMem => self.grab_mem(ctx, id)?,
 
-        match res {
-            // TODO understand why we're ignoring binary errors
-            Err(GazmErrorType::BinaryError(_)) => Ok(()),
-            Err(e) => ctx.ctx.asm_out.errors.add_error(e, false),
-            _ => res,
+            WriteBin(file_name) => self.add_binary_to_write(ctx, id, &file_name)?,
+
+            IncBinRef(file_name) => {
+                self.inc_bin_ref(ctx, &file_name)?;
+            }
+
+            IncBinResolved { file, r } => {
+                self.incbin_resolved(ctx, id, &file, &r)?;
+            }
+
+            Skip(skip) => {
+                ctx.binary_mut().skip(skip);
+            }
+
+            SetPc(new_pc) => {
+                ctx.binary_mut().set_write_address(new_pc, 0);
+                pc = new_pc;
+                debug_mess!("Set PC to {:02X}", pc);
+            }
+
+            SetPutOffset(offset) => {
+                debug_mess!("Set put offset to {}", offset);
+                ctx.binary_mut().set_write_offset(offset);
+            }
+
+            OpCode(ins, amode) => {
+                self.opcode(ctx, id, &ins, &amode)?;
+            }
+
+            MacroCallProcessed { scope_id, macro_id, .. } => {
+                do_source_mapping = false;
+                let (m_node, _) = self.get_node_item(ctx, macro_id);
+                let ret = ctx.ctx.eval_macro_args(scope_id, node);
+
+                if !ret {
+                    let si = ctx.ctx.get_source_info(&pos).unwrap();
+                    return Err(UserError::from_text(
+                        "Couldn't evaluate all macro args",
+                        &si,
+                        true,
+                    )
+                    .into());
+                }
+
+                let prev_scop = ctx.get_current_scope_id();
+                ctx.set_scope_from_id(scope_id);
+
+                for c_node in m_node.children() {
+                    self.compile_node(ctx, c_node.id())?;
+                }
+
+                ctx.set_scope_from_id(prev_scop);
+            }
+
+            Block | TokenizedFile(..) => {
+                self.compile_children(ctx, id)?;
+            }
+
+            Fdb(..) => {
+                for n in node.children() {
+                    let x = ctx.ctx.eval_node(n)?;
+                    ctx.binary_mut().write_word_check_size(x)?;
+                }
+
+                let (phys_range, range) = ctx.binary().range_to_write_address(pc);
+                self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
+            }
+
+            Fcb(..) => {
+                for n in node.children() {
+                    let x = ctx.ctx.eval_node(n)?;
+                    ctx.binary_mut().write_byte_check_size(x)?;
+                }
+                let (phys_range, range) = ctx.binary().range_to_write_address(pc);
+                self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
+            }
+
+            Fcc(text) => {
+                for c in text.as_bytes() {
+                    ctx.binary_mut().write_byte(*c)?;
+                }
+                let (phys_range, range) = ctx.binary().range_to_write_address(pc);
+                self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
+            }
+
+            Zmb => {
+                let (bytes, _) = ctx.ctx.eval_first_arg(node)?;
+                for _ in 0..bytes {
+                    ctx.binary_mut().write_byte(0)?;
+                }
+                let (phys_range, range) = ctx.binary().range_to_write_address(pc);
+                self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
+            }
+
+            Zmd => {
+                let (words, _) = ctx.ctx.eval_first_arg(node)?;
+                for _ in 0..words {
+                    ctx.binary_mut().write_word(0)?;
+                }
+
+                let (phys_range, range) = ctx.binary().range_to_write_address(pc);
+                self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
+            }
+
+            Fill => {
+                let (byte, size) = ctx.ctx.eval_two_args(node)?;
+
+                for _ in 0..size {
+                    ctx.binary_mut().write_ubyte_check_size(byte)?;
+                }
+
+                let (phys_range, range) = ctx.binary().range_to_write_address(pc);
+                self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
+            }
+
+            Exec => {
+                let (exec_addr, _) = ctx.ctx.eval_first_arg(node)?;
+                ctx.set_exec_addr(exec_addr as usize);
+            }
+
+            IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
+            | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp => (),
+            _ => {
+                panic!("Can't compile {:?}", i);
+            }
         }
+
+        if do_source_mapping {
+            ctx.add_source_mapping(&node.value().pos, pc);
+        }
+
+        Ok(())
     }
 }

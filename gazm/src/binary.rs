@@ -352,7 +352,7 @@ impl Binary {
         Ok(did_check)
     }
 
-    // TODO! Need to errorise this
+    // TODO: Need to errorise this
 
     // Get bytes from memory
     // address is the physical_address

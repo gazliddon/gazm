@@ -10,12 +10,17 @@ pub trait Value {
 // An info struct
 
 pub trait SymbolQuery {
-    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError>;
+    fn get_symbol_info(&self, name: &str) -> Result<(SymbolScopeId, &SymbolInfo ), SymbolError>;
 
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError>;
 
     fn get_value(&self, name: &str) -> Result<i64, SymbolError> {
-        let si = self.get_symbol_info(name)?;
+        let (_,si) = self.get_symbol_info(name)?;
+        si.value.ok_or(SymbolError::NoValue)
+    }
+
+    fn get_value_from_id(&self, id: SymbolScopeId) -> Result<i64, SymbolError> {
+        let si = self.get_symbol_info_from_id(id)?;
         si.value.ok_or(SymbolError::NoValue)
     }
 
@@ -24,7 +29,7 @@ pub trait SymbolQuery {
     }
 }
 
-#[derive(Debug, PartialEq, Hash, Clone)]
+#[derive(Debug, PartialEq, Hash, Clone, Copy, Eq)]
 pub struct SymbolScopeId {
     pub scope_id : u64,
     pub symbol_id: u64,
@@ -34,8 +39,8 @@ pub trait SymbolWriter {
     fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<SymbolScopeId, SymbolError>;
     fn remove_symbol_name(&mut self, name: &str);
     fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError>;
-
     fn add_reference_symbol(&mut self, name: &str, val: i64);
+    fn set_symbol(&mut self, symbol_id : SymbolScopeId, val : i64) -> Result<(), SymbolError>;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -56,7 +61,7 @@ pub struct SymbolInfo {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbolError {
-    AlreadyDefined(u64),
+    AlreadyDefined(( u64, Option<i64> )),
     Mismatch { expected: i64 },
     NotFound,
     NoValue,

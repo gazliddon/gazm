@@ -1,3 +1,24 @@
+
+# scoping
+
+## Macros
+* Pre-process all macro calls
+    * Each parameter has a symbol id assigned to it for this scope
+    * Has a scope id
+    * Has a macro body node id
+
+* Application
+    * When a macro is called
+    * save the current scope
+    * Eval all args
+    * change to the macro scope
+    * Assign each arg symbol the value of the parameter
+    * size / compile node
+    * change to the previous scope
+
+
+
+
 # AST Navigation
 
 

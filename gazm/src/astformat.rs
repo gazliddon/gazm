@@ -4,7 +4,7 @@ use crate::item::{self, Item, LabelDefinition};
 impl<'a> std::fmt::Display for Ast<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let wrapped = DisplayWrapper {
-            node: self.get_tree().root(),
+            node: self.tree.root(),
         };
         write!(f, "{}", wrapped)
     }
