@@ -276,6 +276,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SymbolTable {
     scope: String,
+    fqn_scope: String,
     pub info: HashMap<u64, SymbolInfo>,
     name_to_id: HashMap<String, u64>,
     ref_name_to_value: HashMap<String, i64>,
@@ -323,11 +324,9 @@ impl SymbolQuery for SymbolTable {
         }
 
     }
-    fn get_symbol_info(&self, name: &str) -> Result<(SymbolScopeId, &SymbolInfo ), SymbolError> {
+    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         let symbol_id = *self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
-        let si = self.get(symbol_id)?;
-        let scope_id = self.get_scope_id();
-        Ok( (SymbolScopeId{symbol_id, scope_id}, si) )
+        self.get(symbol_id)
     }
 }
 
@@ -378,14 +377,14 @@ impl SymbolWriter for SymbolTable {
             let x_id = self.get_next_id();
 
             self.name_to_id.insert(name.clone(), x_id);
-
-            let info = SymbolInfo { name, value: None };
-
-            self.info.insert(x_id, info);
-            Ok(SymbolScopeId {
+            let id = SymbolScopeId {
                 symbol_id: x_id,
                 scope_id: self.scope_id,
-            })
+            };
+
+            let info = SymbolInfo::new(&name,None,id.clone());
+            self.info.insert(x_id, info);
+            Ok(id)
         }
     }
 
@@ -403,14 +402,18 @@ impl SymbolTable {
     pub fn get_scope_name(&self) -> &str {
         &self.scope
     }
+    pub fn get_scope_fqn_name(&self) -> &str {
+        &self.fqn_scope
+    }
 
-    pub fn new_with_scope(name: &str, scope_id : u64) -> Self {
+    pub fn new_with_scope(name: &str, fqn_scope: &str, scope_id : u64) -> Self {
         Self {
             scope: name.to_string(),
             info: Default::default(),
             name_to_id: Default::default(),
             ref_name_to_value: Default::default(),
             highest_id: 1,
+            fqn_scope: fqn_scope.to_string(),
             scope_id
         }
     }

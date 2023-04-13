@@ -131,7 +131,7 @@ impl<'a> Sizer<'a> {
                 ctx.eval_macro_args(*scope_id, id,  self.tree);
 
                 let current_scope = ctx.get_current_scope_id();
-                ctx.set_scope_from_id(*scope_id);
+                ctx.set_scope_from_id(*scope_id).unwrap();
 
                 let (m_node, _) = self.get_node_item(ctx, *macro_id);
 
@@ -141,7 +141,7 @@ impl<'a> Sizer<'a> {
                     pc = self.size_node(ctx, pc, c)?;
                 }
 
-                ctx.set_scope_from_id(current_scope)
+                ctx.set_scope_from_id(current_scope).unwrap();
             }
 
             Scope(opt) => {

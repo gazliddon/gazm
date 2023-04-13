@@ -195,7 +195,7 @@ where
             ExprItemKind::Operator => {
                 let op = i.op().ok_or_else(|| to_err(ExpectedOperator))?;
 
-                let (rhs, lhs) = s.pop_pair();
+                let (rhs, lhs) = s.pop_pair().expect("Can't pop pair?");
                 let lhs = lhs.value().ok_or_else(|| to_err(ExpectedValue))?;
                 let rhs = rhs.value().ok_or_else(|| to_err(ExpectedValue))?;
 
@@ -224,7 +224,7 @@ where
         // Nothing on top of stack
         0 => Err(StackEmpty),
         // Something, try and extract the value
-        1 => s.pop().value().ok_or(ExpectedValue),
+        1 => s.pop().expect("Can't pop!").value().ok_or(ExpectedValue),
         // Too many things on stack
         _ => Err(UnevaluatedTerms),
     }
@@ -258,7 +258,7 @@ where
             ExprItemKind::Operator => {
                 let op = i.op().ok_or(to_err(ExpectedOperator))?;
 
-                let (rhs, lhs) = s.pop_pair();
+                let (rhs, lhs) = s.pop_pair().expect("Can't pop pair!");
                 let lhs = lhs.value().ok_or(to_err(ExpectedValue))?;
                 let rhs = rhs.value().ok_or(to_err(ExpectedValue))?;
 
@@ -288,7 +288,7 @@ where
         // Nothing on top of stack
         0 => Err(StackEmpty),
         // Something, try and extract the value
-        1 => s.pop().value().ok_or(ExpectedValue),
+        1 => s.pop().expect("Can't pop!").value().ok_or(ExpectedValue),
         // Too many things on stack
         _ => Err(UnevaluatedTerms),
     }

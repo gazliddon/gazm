@@ -101,8 +101,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
                     let name = symbols
                         .get_symbol_info_from_id(*id)
                         .expect("Interal error")
-                        .name
-                        .clone();
+                        .name().to_string();
                     EvalError::new(EvalErrorEnum::SymbolNotFoud(name), n)
                 })?
         }
@@ -113,6 +112,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
             .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
 
         Pc => symbols
+            // TODO: MUST change this be a root symnol, not current scope
             .get_value("*")
             .map(|n| Item::number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,
@@ -173,7 +173,7 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
 
     for (cn, i) in &items {
         if i.is_op() {
-            let (rhs, lhs) = s.pop_pair();
+            let (rhs, lhs) = s.pop_pair().expect("Can't pop pair!");
 
             let lhs = lhs.get_number().unwrap();
             let rhs = rhs.get_number().unwrap();
@@ -201,7 +201,7 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
         }
     }
 
-    Ok(s.pop())
+    Ok(s.pop().expect("Can't pop top!"))
 }
 
 pub fn eval(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<i64, EvalError> {

@@ -2,8 +2,72 @@
 use crate::ast::AstTree;
 use crate::item::Node;
 use crate::item::{Item, LabelDefinition};
-use emu::utils::sources::Position;
-use std::collections::HashMap;
+use emu::utils::sources::{Position, SymbolScopeId, SymbolTree, SymbolTable, SymbolInfo, SymbolError};
+use emu::utils::Stack;
+use std::collections::{HashMap, VecDeque};
+
+pub struct Navigator<'a> {
+    syms: &'a SymbolTree,
+    current_scope_id: u64,
+    scope_stack: Stack<u64>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum NavError {
+    UnableToPop,
+    ScopeIdNotFound(u64),
+    SymbolError(SymbolError)
+}
+
+impl<'a> Navigator<'a> {
+    pub fn new(syms: &'a SymbolTree) -> Self {
+        Self {
+            syms,
+            current_scope_id: syms.get_root_id(),
+            scope_stack: Default::default(),
+        }
+    }
+    
+    pub fn new_with_id(syms: &'a SymbolTree, id: u64) -> Result<Self,NavError> {
+        let mut ret = Self::new(syms);
+        ret.set_scope(id)?;
+        Ok(ret)
+    }
+
+    fn get_scope(&self, scope_id: u64) -> Result<&SymbolTable, NavError> {
+        self.syms
+            .get_scope_symbols_from_id(scope_id)
+            .map_err(|e| NavError::SymbolError(e))
+    }
+
+    fn check_scope(&self, scope_id: u64) -> Result<(), NavError> {
+        self.get_scope(scope_id).map(|_|())
+    }
+
+    pub fn get_current_scope_id(&self) -> u64 {
+        self.current_scope_id
+    }
+
+    pub fn resolve_label(&self, _name: &str) -> Result<&SymbolInfo, SymbolError> {
+        self.syms.resolve_label(_name, self.current_scope_id)
+    }
+
+    pub fn set_scope(&mut self, scope_id: u64) -> Result<(), NavError> {
+        self.check_scope(scope_id)?;
+        self.current_scope_id = scope_id;
+        Ok(())
+    }
+
+    pub fn push_scope(&mut self, scope_id: u64) -> Result<(), NavError> {
+        self.check_scope(scope_id)?;
+        self.scope_stack.push(scope_id);
+        Ok(())
+    }
+
+    pub fn pop_scope(&mut self) -> Result<u64, NavError> {
+        self.scope_stack.pop().ok_or(NavError::UnableToPop)
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct LabelUsageAndDefintions {

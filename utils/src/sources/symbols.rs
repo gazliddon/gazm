@@ -10,12 +10,12 @@ pub trait Value {
 // An info struct
 
 pub trait SymbolQuery {
-    fn get_symbol_info(&self, name: &str) -> Result<(SymbolScopeId, &SymbolInfo ), SymbolError>;
+    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError>;
 
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError>;
 
     fn get_value(&self, name: &str) -> Result<i64, SymbolError> {
-        let (_,si) = self.get_symbol_info(name)?;
+        let si = self.get_symbol_info(name)?;
         si.value.ok_or(SymbolError::NoValue)
     }
 
@@ -29,7 +29,7 @@ pub trait SymbolQuery {
     }
 }
 
-#[derive(Debug, PartialEq, Hash, Clone, Copy, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub struct SymbolScopeId {
     pub scope_id : u64,
     pub symbol_id: u64,
@@ -52,15 +52,31 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SymbolInfo {
     /// Symbol Name
-    pub name: String,
+    name: String,
     // /// Unique Symbol Id
     // pub x_id: u64,
     /// Value, if any
     pub value: Option<i64>,
+
+    pub symbol_id : SymbolScopeId,
+}
+
+impl SymbolInfo {
+    pub fn new(name: &str, value : Option<i64>, symbol_id : SymbolScopeId) -> Self {
+        Self {
+            name: name.to_string(), value, symbol_id 
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbolError {
+    InvalidScope,
     AlreadyDefined(( u64, Option<i64> )),
     Mismatch { expected: i64 },
     NotFound,

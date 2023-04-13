@@ -4,6 +4,10 @@ pub struct Stack<OP: Clone> {
     stack: VecDeque<OP>,
 }
 
+enum StackError {
+    CantPop,
+}
+
 impl<OP: Clone> Default for Stack<OP> {
     fn default() -> Self {
         Self {
@@ -29,17 +33,15 @@ impl<OP: Clone> Stack<OP> {
         self.stack.push_front(op)
     }
 
-    pub fn pop(&mut self) -> OP {
-        self.stack.pop_front().unwrap()
+    pub fn pop(&mut self) -> Option<OP> {
+        self.stack.pop_front()
     }
 
     /// Pop top pair from stack
     /// rhs = top, lhs = next
     /// returns (rhs, lhs)
-    pub fn pop_pair(&mut self) -> (OP, OP) {
-        let rhs = self.pop();
-        let lhs = self.pop();
-        (rhs, lhs)
+    pub fn pop_pair(&mut self) -> Option<(OP, OP)> {
+        self.pop().and_then(|rhs| self.pop().map(|lhs| (rhs,lhs)))
     }
 
     pub fn get_deque(&self) -> &VecDeque<OP> {

@@ -423,13 +423,13 @@ impl<'a> Compiler<'a> {
                 }
 
                 let prev_scop = ctx.get_current_scope_id();
-                ctx.set_scope_from_id(scope_id);
+                ctx.set_scope_from_id(scope_id).unwrap();
 
                 for c_node in m_node.children() {
                     self.compile_node(ctx, c_node.id())?;
                 }
 
-                ctx.set_scope_from_id(prev_scop);
+                ctx.set_scope_from_id(prev_scop).unwrap();
             }
 
             Block | TokenizedFile(..) => {

@@ -153,7 +153,7 @@ mod test {
 
         for i in e.iter() {
             if i.is_op() {
-                let (rhs, lhs) = s.pop_pair();
+                let (rhs, lhs) = s.pop_pair().expect("Can't pop pair!");
                 let res = match i {
                     '*' => lhs * rhs,
                     '<' => lhs << rhs,
@@ -169,7 +169,7 @@ mod test {
             }
         }
 
-        s.pop()
+        s.pop().expect("Can't pop!")
     }
 
     #[test]

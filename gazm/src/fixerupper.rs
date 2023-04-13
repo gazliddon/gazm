@@ -5,7 +5,7 @@ use emu::utils::sources::SymbolNodeId;
 
 #[derive(Debug,Hash, PartialEq, Eq)]
 pub struct FixKey {
-    scope: SymbolNodeId,
+    scope: u64,
     id: SymbolNodeId,
 }
 
@@ -19,15 +19,15 @@ impl FixerUpper {
         Self::default()
     }
 
-    pub fn add_fixup(&mut self, scope: SymbolNodeId, id: AstNodeId, v: Item) {
+    pub fn add_fixup(&mut self, scope: u64, id: AstNodeId, v: Item) {
         let k = FixKey { id, scope };
         self.fixups.insert(k, v);
     }
-    pub fn get_fixup(&self, scope: SymbolNodeId, id: AstNodeId) -> Option<&Item> {
+    pub fn get_fixup(&self, scope: u64, id: AstNodeId) -> Option<&Item> {
         self.fixups.get(&FixKey { scope, id })
     }
 
-    pub fn get_fixup_or_default(&self, scope: SymbolNodeId, id: AstNodeId, i : &Item) -> Item {
+    pub fn get_fixup_or_default(&self, scope: u64, id: AstNodeId, i : &Item) -> Item {
         self.get_fixup(scope, id).unwrap_or(i).clone()
     }
 }

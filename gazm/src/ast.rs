@@ -551,9 +551,9 @@ impl<'a> Ast<'a> {
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
                     let symbols = &mut self.ctx.asm_out.symbols;
-                    let (id, _si) = symbols
+                    let id = symbols
                         .get_symbol_info(&name)
-                        .expect("Internal error getting symbol info");
+                        .expect("Internal error getting symbol info").symbol_id;
                     let mut x = self.tree.get_mut(node_id).unwrap();
                     x.value().item = Label(LabelDefinition::Scoped(id));
                 }
