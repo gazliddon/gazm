@@ -119,7 +119,7 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
     // }
 
     let mut vec_ret = vec![term];
-    vec_ret.extend(vs.into_iter().map(|(o,t)| [o,t]).flatten());
+    vec_ret.extend(vs.into_iter().flat_map(|(o,t)| [o,t]));
     let matched_span = span_to_pos(matched_span(input, rest));
     let node = Node::new_with_children(Item::Expr, vec_ret,matched_span);
 

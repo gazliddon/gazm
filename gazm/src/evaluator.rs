@@ -40,9 +40,11 @@ impl Context {
             params_vec_of_id, ..
         } = &caller_node.value().item
         {
-
             let old_scope = self.asm_out.symbols.get_current_scope_id();
-            self.asm_out.symbols.set_scope_from_id(eval_scope_id).unwrap();
+            self.asm_out
+                .symbols
+                .set_scope_from_id(eval_scope_id)
+                .unwrap();
 
             // println!("Evaling macro argos for {_name}");
 
@@ -55,26 +57,22 @@ impl Context {
             it.for_each(|(symbol_id, arg_value)| {
                 let si = self.asm_out.symbols.get_symbol_info_from_id(*symbol_id);
 
-                match si {
+                match &si {
                     // Already evaluated
-                    Ok(&SymbolInfo { value: Some(_), .. }) => {
+                    Ok(SymbolInfo { value: Some(_), .. }) => {
                         args_evaled += 1;
                     }
 
                     // Symbol exists but has no value
-                    Ok(&SymbolInfo { value: None, .. }) => {
+                    Ok(SymbolInfo { value: None, .. }) => {
                         // Try and evaluate the node
-                        match self.eval_node(arg_value) {
+                        if let Ok(value) = self.eval_node(arg_value) {
                             // Success, add the symbol!
-                            Ok(value) => {
-                                self.asm_out
-                                    .symbols
-                                    .set_symbol(*symbol_id, value)
-                                    .expect("Unexpected failure to add macro param symbol");
-                                args_evaled += 1;
-                            }
-
-                            _ => (),
+                            self.asm_out
+                                .symbols
+                                .set_symbol(*symbol_id, value)
+                                .expect("Unexpected failure to add macro param symbol");
+                            args_evaled += 1;
                         }
                     }
 
@@ -92,7 +90,6 @@ impl Context {
         } else {
             panic!()
         }
-
     }
 
     pub fn get_symbols_mut(&mut self) -> &mut SymbolTree {

@@ -18,7 +18,6 @@ pub trait OperatorTraits:
 {
 }
 
-
 /// Classification of what kind of item this is
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ExprItemKind {
@@ -62,14 +61,14 @@ impl GetPriority for Operation {
 
 impl std::fmt::Display for Operation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
 /// Traits needed for classification of an item
 /// is it a Value, an operator or an expression
 pub trait ItemTraits: Clone {
-    type ExprValue : OperatorTraits;
+    type ExprValue: OperatorTraits;
 
     fn item_type(&self) -> ExprItemKind {
         use ExprItemKind::*;
@@ -107,7 +106,7 @@ pub trait ItemTraits: Clone {
 pub trait Eval<I, ERR>
 where
     ERR: From<GenericEvalErrorKind>,
-    I: ItemTraits
+    I: ItemTraits,
 {
     fn eval_expr(&self, i: &I) -> Result<I::ExprValue, ERR>;
 }
@@ -116,7 +115,7 @@ where
 #[derive(Clone)]
 enum StackItem<'a, I>
 where
-    I: ItemTraits
+    I: ItemTraits,
 {
     Value(<I as ItemTraits>::ExprValue),
     Item(&'a I),
@@ -124,7 +123,7 @@ where
 
 impl<'a, I> StackItem<'a, I>
 where
-    I: ItemTraits
+    I: ItemTraits,
 {
     pub fn item(&self) -> Option<&I> {
         match self {
@@ -134,9 +133,9 @@ where
     }
 }
 
-impl<'a, I> From<&'a I> for StackItem<'a, I> 
+impl<'a, I> From<&'a I> for StackItem<'a, I>
 where
- I : ItemTraits,
+    I: ItemTraits,
 {
     fn from(item: &'a I) -> Self {
         use ExprItemKind::*;
@@ -149,7 +148,7 @@ where
 
 impl<'a, I> ItemTraits for StackItem<'a, I>
 where
-    I: ItemTraits
+    I: ItemTraits,
 {
     type ExprValue = I::ExprValue;
 
@@ -186,7 +185,7 @@ where
 
     let mut s: Stack<StackItem<'a, I>> = Stack::new();
 
-    let to_err = |_e| panic!("{:#?}",_e);
+    let to_err = |_e| panic!("{_e:#?}");
 
     for i in items.map(StackItem::from) {
         let ret = match i.item_type() {
@@ -344,7 +343,6 @@ impl<V: GetPriority + OperatorTraits + Clone> ItemTraits for ExprItem<V> {
             ExprItem::Expr(v) => Some(v),
             _ => None,
         }
-
     }
 }
 

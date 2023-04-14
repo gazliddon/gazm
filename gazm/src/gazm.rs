@@ -4,8 +4,8 @@ use crate::ctx::{AsmOut, Context, Opts};
 use crate::error::UserError;
 use crate::error::{GResult, GazmErrorType};
 use crate::item::Node;
-use crate::tokenize::{self, TokenizedText};
 use crate::locate::Span;
+use crate::tokenize::{self, TokenizedText};
 use emu::utils::sources::{EditResult, Position, SourceFile, TextEditTrait};
 use rayon::iter::plumbing::Consumer;
 use std::path::{Path, PathBuf};
@@ -18,22 +18,20 @@ pub struct Assembler {
     ctx: Arc<Mutex<Context>>,
 }
 
-impl Into<Context> for Assembler {
-    fn into(self) -> Context {
-        let lock = Arc::try_unwrap(self.ctx).expect("Still multiple owners");
-        let ctx = lock.into_inner().expect("can't lock mutex");
-        ctx
+impl From<Assembler> for Context {
+    fn from(value: Assembler) -> Self {
+        let lock = Arc::try_unwrap(value.ctx).expect("Still multiple owners");
+        lock.into_inner().expect("can't lock mutex")
     }
 }
 
 impl Assembler {
     /// Create an Assembler
     pub fn new(opts: Opts) -> Self {
-        let ctx = Context::from(opts.clone());
+        let ctx = Context::from(opts);
         let ctx = Arc::new(Mutex::new(ctx));
         Self { ctx }
     }
-
 
     /// Assemble for the first time
     pub fn assemble(&self) -> GResult<()> {
@@ -50,7 +48,6 @@ impl Assembler {
         })?;
 
         assemble_file(&self.ctx, file)
-
     }
 
     /// Operate on the inner Context
@@ -60,15 +57,12 @@ impl Assembler {
     }
 
     pub fn write_outputs(&self) -> GResult<()> {
-        self.with_inner(|ctx| {
-            ctx.write_ouputs()
-        })
+        self.with_inner(|ctx| ctx.write_ouputs())
     }
 
     pub fn replace_file_contents<P: AsRef<Path>>(&self, file: P, new_text: &str) -> GResult<()> {
         self.with_inner(|ctx| -> GResult<()> {
-            let res = ctx.edit_source_file(&file, |editable| editable.replace_file(new_text))?;
-            Ok(res)
+            Ok(ctx.edit_source_file(&file, |editable| editable.replace_file(new_text))?)
         })
     }
 
@@ -96,8 +90,7 @@ pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R 
 
 pub fn create_ctx(opts: Opts) -> Arc<Mutex<Context>> {
     let ctx = Context::from(opts);
-    let ctx = Arc::new(Mutex::new(ctx));
-    ctx
+    Arc::new(Mutex::new(ctx))
 }
 
 pub fn reassemble_ctx(arc_ctx: &Arc<Mutex<Context>>) -> GResult<()> {
@@ -112,24 +105,23 @@ pub fn reassemble_ctx(arc_ctx: &Arc<Mutex<Context>>) -> GResult<()> {
 fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
     use emu::utils::PathSearcher;
 
-    let ( paths, is_asnc ) = with_state(&arc_ctx, |ctx| {
+    let (paths, is_asnc) = with_state(arc_ctx, |ctx| {
         if let Some(dir) = file.as_ref().parent() {
             ctx.get_source_file_loader_mut().add_search_path(dir);
         }
         let paths = ctx.get_source_file_loader_mut().get_search_paths().clone();
-        ( paths, ctx.opts.build_async )
+        (paths, ctx.opts.build_async)
     });
 
     let node = if is_asnc {
-        async_tokenize::tokenize(&arc_ctx, file)
-
+        async_tokenize::tokenize(arc_ctx, file)
     } else {
-        tokenize::tokenize(&arc_ctx,file, true)
+        tokenize::tokenize(arc_ctx, file, true)
     }?;
 
     assemble_tokens(arc_ctx, &node)?;
 
-    with_state(&arc_ctx, |ctx| {
+    with_state(arc_ctx, |ctx| {
         ctx.asm_out.tokens.push(node);
         ctx.get_source_file_loader_mut().set_search_paths(paths);
         ctx.asm_out.errors.raise_errors()
@@ -144,7 +136,7 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
     use crate::lookup::LabelUsageAndDefintions;
     use crate::sizer::size_tree;
 
-    with_state(&arc_ctx, |ctx| {
+    with_state(arc_ctx, |ctx| {
         let tree = Ast::from_nodes(ctx, tokens)?;
         let lookup = LabelUsageAndDefintions::new(&tree);
         ctx.asm_out.lookup = Some(lookup);

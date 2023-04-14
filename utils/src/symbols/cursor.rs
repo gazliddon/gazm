@@ -94,8 +94,7 @@ impl<'a, V: ValueTraits, ID: IdTraits> ScopeCursor<'a, V, ID> {
 
         let symbol_id = x
             .value()
-            .add_symbol_with_value(name, value)
-            .map_err(|e| e)?;
+            .add_symbol_with_value(name, value)?;
 
         Ok(SymbolId {
             symbol_id,

@@ -94,7 +94,7 @@ pub trait TextEditTrait {
     fn replace_file(&mut self, new_text: &str) -> EditResult<()>;
 
     fn insert_line(&mut self, line_number: usize, txt: &str) -> EditResult<()> {
-        let txt = &format!("{}\n", txt);
+        let txt = &format!("{txt}\n");
         let text_edit = TextEdit::new(line_number, 0, line_number, 0, txt);
         self.edit(&text_edit)
     }
@@ -131,9 +131,9 @@ impl std::fmt::Display for TextFile {
 impl TextEditTrait for TextFile {
     fn edit(&mut self, edit: &TextEdit) -> EditResult<()> {
         let r = self.get_range(edit)?;
-        let first = &self.source[..r.start];
         let last = &self.source[r.end..];
-        let new_source = first.to_owned() + &edit.text + last;
+        let new_source = (self.source[..r.start]).to_owned() + edit.text + last;
+
         self.source = new_source;
         self.post_change();
         Ok(())

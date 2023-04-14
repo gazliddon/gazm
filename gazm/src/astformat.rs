@@ -6,7 +6,7 @@ impl<'a> std::fmt::Display for Ast<'a> {
         let wrapped = DisplayWrapper {
             node: self.tree.root(),
         };
-        write!(f, "{}", wrapped)
+        write!(f, "{wrapped}")
     }
 }
 
@@ -102,7 +102,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             BitXor => "^".to_string(),
 
             Org => {
-                println!("org");
                 format!("org {}", child_string(0))
             }
 
@@ -141,7 +140,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
                 let ind = |s: String, indirect: &bool| -> String {
                     if *indirect {
-                        format!("[{}]", s)
+                        format!("[{s}]")
                     } else {
                         s
                     }
@@ -155,24 +154,24 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                         use item::IndexParseType::*;
                         match imode {
                             ConstantByteOffset(r, v) | Constant5BitOffset(r, v) => {
-                                ind(format!("{},{}", v, r), indirect)
+                                ind(format!("{v},{r}"), indirect)
                             }
 
-                            ConstantWordOffset(r, v) => ind(format!("{},{}", v, r), indirect),
+                            ConstantWordOffset(r, v) => ind(format!("{v},{r}"), indirect),
 
-                            PcOffsetWord(v) => ind(format!("{},PC", v), indirect),
-                            PcOffsetByte(v) => ind(format!("{},PC", v), indirect),
+                            PcOffsetWord(v) => ind(format!("{v},PC"), indirect),
+                            PcOffsetByte(v) => ind(format!("{v},PC"), indirect),
                             ConstantOffset(r) => {
-                                ind(format!("{},{}", child_string(0), r), indirect)
+                                ind(format!("{},{r}", child_string(0)), indirect)
                             }
-                            Zero(r) => ind(format!(",{}", r), indirect),
-                            SubSub(r) => ind(format!(",--{}", r), indirect),
-                            Sub(r) => format!(",-{}", r),
-                            PlusPlus(r) => ind(format!(",{}++", r), indirect),
-                            Plus(r) => format!(",{}+", r),
-                            AddA(r) => ind(format!("A,{}", r), indirect),
-                            AddB(r) => ind(format!("B,{}", r), indirect),
-                            AddD(r) => ind(format!("D,{}", r), indirect),
+                            Zero(r) => ind(format!(",{r}"), indirect),
+                            SubSub(r) => ind(format!(",--{r}"), indirect),
+                            Sub(r) => format!(",-{r}"),
+                            PlusPlus(r) => ind(format!(",{r}++"), indirect),
+                            Plus(r) => format!(",{r}+"),
+                            AddA(r) => ind(format!("A,{r}"), indirect),
+                            AddB(r) => ind(format!("B,{r}"), indirect),
+                            AddD(r) => ind(format!("D,{r}"), indirect),
                             PCOffset => ind(format!("{},PC", child_string(0)), indirect),
                             ExtendedIndirect => format!("[{}]", child_string(0)),
                         }
@@ -180,11 +179,11 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                     _ => format!("{:?} NOT IMPLEMENTED", ins.addr_mode),
                 };
 
-                format!("{} {}", ins.action, operand)
+                format!("{} {operand}", ins.action)
             }
-            _ => format!("{:?} not implemented", item),
+            _ => format!("{item:?} not implemented"),
         };
 
-        write!(f, "{}", ret)
+        write!(f, "{ret}")
     }
 }

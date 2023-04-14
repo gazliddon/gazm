@@ -37,7 +37,7 @@ impl<'a> Navigator<'a> {
     fn get_scope(&self, scope_id: u64) -> Result<&SymbolTable, NavError> {
         self.syms
             .get_scope_symbols_from_id(scope_id)
-            .map_err(|e| NavError::SymbolError(e))
+            .map_err( NavError::SymbolError)
     }
 
     fn check_scope(&self, scope_id: u64) -> Result<(), NavError> {
@@ -108,11 +108,11 @@ impl LabelUsageAndDefintions {
         }
     }
 
-    pub fn find_references(&self, _name: &str) -> Option<Vec<(String, Position)>> {
+    pub fn find_references(&self, name: &str) -> Option<Vec<(String, Position)>> {
         let ret: Vec<(String, Position)> = self
             .label_references
             .iter()
-            .filter_map(|pair| if pair.0 == _name { Some(pair) } else { None })
+            .filter(|pair| pair.0 == name)
             .cloned()
             .collect();
 
@@ -126,7 +126,7 @@ impl LabelUsageAndDefintions {
     pub fn find_definition(&self, _name: &str) -> Option<&Position> {
         self.label_to_definition_pos
             .iter()
-            .find(|(s, _)| s.to_string() == _name)
+            .find(|(s, _)| *s == _name)
             .map(|(_, p)| p)
     }
 

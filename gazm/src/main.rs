@@ -85,7 +85,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fmt::fmt(&opts)
         }
 
-        ctx::BuildType::LSP => {
+        ctx::BuildType::Lsp => {
             mess.status("LSP");
             lsp::do_lsp(opts)?;
         }

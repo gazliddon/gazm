@@ -32,7 +32,7 @@ pub const VEC_FIRQ: usize = 0xfff6;
 pub const VEC_IRQ: usize = 0xfff8;
 pub const VEC_SWI: usize = 0xfffa;
 pub const VEC_NMI: usize = 0xfffc;
-pub const VEC_RESET: usize = 0xfffE;
+pub const VEC_RESET: usize = 0xfffe;
 
 // Handles CPU emulation
 use super::{
@@ -79,7 +79,7 @@ fn get_tfr_reg(op: u8) -> RegEnum {
         10 => RegEnum::CC,
         11 => RegEnum::DP,
         _ => {
-            println!("op of {:02X}", op);
+            println!("op of {op:02X}");
             panic!("illegal tfr regs")
         }
     }
@@ -89,24 +89,14 @@ pub fn get_tfr_regs(op: u8) -> (RegEnum, RegEnum) {
     (get_tfr_reg(op >> 4), get_tfr_reg(op & 0xf))
 }
 
+// Bool defaults to false
+#[derive(Default)]
 pub struct Pins {
     pub firq: bool,
     pub irq: bool,
     pub nmi: bool,
     pub reset: bool,
     pub waiting_for_irq: bool,
-}
-
-impl Default for Pins {
-    fn default() -> Self {
-        Self {
-            firq: false,
-            irq: false,
-            nmi: false,
-            reset: false,
-            waiting_for_irq: false,
-        }
-    }
 }
 
 pub struct Context<'a> {
@@ -449,7 +439,7 @@ impl<'a> Context<'a> {
 
     fn tfr<A: AddressLines>(&mut self) -> CpuResult<()> {
         let operand = self.fetch_byte::<A>()?;
-        let (a, b) = get_tfr_regs(operand as u8);
+        let (a, b) = get_tfr_regs(operand );
         let av = self.regs.get(&a);
         self.regs.set(&b, av);
         Ok(())
@@ -791,7 +781,7 @@ impl<'a> Context<'a> {
     ////////////////////////////////////////////////////////////////////////////////
     fn exg<A: AddressLines>(&mut self) -> CpuResult<()> {
         let operand = self.fetch_byte::<A>()?;
-        let (a, b) = get_tfr_regs(operand as u8);
+        let (a, b) = get_tfr_regs(operand );
         let av = self.regs.get(&a);
         let bv = self.regs.get(&b);
         self.regs.set(&b, av);
@@ -1254,7 +1244,7 @@ impl<'a> Context<'a> {
 
         push8!(self.regs.flags.bits());
 
-        let pc = self.mem.load_word(vec.into())?;
+        let pc = self.mem.load_word(vec)?;
         self.set_next_pc(pc as usize);
         Ok(())
     }

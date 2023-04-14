@@ -307,7 +307,7 @@ impl Display for SymbolTable {
         for (name, id) in &self.name_to_id {
             let val = self.info.get(id).unwrap();
             match &val.value {
-                Some(val) => writeln!(f, "{name} = {:04X} ({})", val, val)?,
+                Some(val) => writeln!(f, "{name} = {val:04X} ({val})")?,
                 _ => writeln!(f, "{name} = undefined",)?,
             }
         }
@@ -382,7 +382,7 @@ impl SymbolWriter for SymbolTable {
                 scope_id: self.scope_id,
             };
 
-            let info = SymbolInfo::new(&name,None,id.clone());
+            let info = SymbolInfo::new(&name,None,id);
             self.info.insert(x_id, info);
             Ok(id)
         }

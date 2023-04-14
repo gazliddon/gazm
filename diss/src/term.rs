@@ -27,8 +27,8 @@ pub struct Term {
     prompt: String,
 }
 
-impl Term {
-    pub fn new() -> Self {
+impl Default for Term {
+    fn default() -> Self {
         let history = PathBuf::from_str("history.txt").unwrap();
         let prompt = "> ".to_owned();
 
@@ -48,6 +48,12 @@ impl Term {
             prompt: prompt_copy,
         }
     }
+}
+
+impl Term {
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn quit(&self) {
         self.control_tx.send(TermControl::Quit).unwrap();
@@ -60,7 +66,7 @@ impl Term {
             match x {
                 Ok(output) => self.output.push(output),
                 Err(TryRecvError::Empty) => break,
-                _ => panic!("{:?}", x),
+                _ => panic!("{x:?}"),
             }
         }
     }
@@ -95,7 +101,7 @@ impl Term {
                 Ok(TermControl::Quit) => break,
                 Ok(TermControl::SetPrompt(new_prompt)) => prompt = new_prompt,
                 Err(TryRecvError::Empty) => (),
-                _ => panic!("{:?}", has_quit),
+                _ => panic!("{has_quit:?}"),
             }
 
             let readline = rl.readline(&prompt);

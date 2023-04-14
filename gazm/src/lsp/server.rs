@@ -8,20 +8,12 @@ use tokio::runtime::Runtime;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Default,Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(default)]
 #[serde(rename_all = "kebab-case")]
 pub struct LspConfig {
     pub log_file: Option<PathBuf>,
-}
-
-impl Default for LspConfig {
-    fn default() -> Self {
-        Self {
-            log_file: Default::default(),
-        }
-    }
 }
 
 pub fn do_lsp(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {

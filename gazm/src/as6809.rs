@@ -31,7 +31,7 @@ pub fn add_reference_syms<P: AsRef<Path>>(
 
     for line in text.lines() {
         if let Some(matches) = equ_rex.captures(line) {
-            let data = (&matches["data"]).parse::<i64>().unwrap();
+            let data = (matches["data"]).parse::<i64>().unwrap();
             let label = &matches["label"];
             syms.add_reference_symbol(label, data);
         }

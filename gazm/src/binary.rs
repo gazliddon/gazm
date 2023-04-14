@@ -63,7 +63,7 @@ impl std::fmt::Display for MemoryLocation {
 
 impl std::fmt::Debug for MemoryLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 
@@ -142,10 +142,10 @@ impl Binary {
         let mut run: (usize, usize) = (0, 0);
         let mut add_err = |_addr, _a, _b| {
             if _addr as isize != (last + 1) {
-                runs.push(run.clone());
+                runs.push(run);
                 run = (_addr, 1)
             } else {
-                run.1 = run.1 + 1;
+                run.1 += 1;
             }
             last = _addr as isize;
         };

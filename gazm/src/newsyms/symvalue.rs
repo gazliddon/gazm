@@ -82,8 +82,8 @@ mod test {
     fn create_scopes() {
         let mut syms = Symbols::new();
         let x = syms.create_scope("root", "test").unwrap();
-        println!("{:?}", x);
-        assert!(false);
+        println!("{x:?}");
+        panic!()
     }
 
     fn find_a_scope() {}

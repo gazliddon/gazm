@@ -57,16 +57,14 @@ fn parse_comments(stars: bool, input: Span) -> IResult<Node> {
 
 fn parse_trailing_line_text<'a>(opts: &Opts, input: Span<'a>) -> IResult<'a, Node> {
     if let Ok((rest, matched)) = parse_comments(opts.star_comments, input) {
-        return Ok((rest, matched));
+        Ok((rest, matched))
+    } else if opts.trailing_comments {
+        let node = Node::from_item_span(Item::Comment(input.to_string()), input);
+        Ok((input, node))
     } else {
-        if opts.trailing_comments {
-            let node = Node::from_item_span(Item::Comment(input.to_string()), input);
-            Ok((input, node))
-        } else {
-            let message = "Unexpected characters";
-            let pe = ParseError::new(message.to_string(), &input, false);
-            return Err(nom::Err::Error(pe));
-        }
+        let message = "Unexpected characters";
+        let pe = ParseError::new(message.to_string(), &input, false);
+        Err(nom::Err::Error(pe))
     }
 }
 
@@ -163,9 +161,8 @@ impl Tokens {
         if let Ok((rest, node)) =
             alt((ws(parse_command), ws(parse_opcode), ws(parse_macro_call)))(input)
         {
-            match node.item() {
-                Item::Include(name) => self.add_include(name.clone()),
-                _ => (),
+            if let Item::Include(name) = node.item() {
+                self.add_include(name.clone())
             }
 
             self.add_node(node);
@@ -175,7 +172,7 @@ impl Tokens {
         }
     }
 
-    fn to_tokens(self) -> Vec<Node> {
+    fn take_tokens(self) -> Vec<Node> {
         self.tokens
     }
 
@@ -211,7 +208,8 @@ impl Tokens {
             }
 
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
-                let macro_tokes = Tokens::new(ctx, body)?.to_tokens();
+                let macro_tokes = Tokens::new(ctx, body)?.take_tokens();
+                
 
                 let pos = crate::locate::span_to_pos(body);
                 let name = name.to_string();
@@ -252,7 +250,7 @@ impl Tokens {
 }
 
 pub fn tokenize_file<P: AsRef<Path>>(
-    depth: usize,
+    _depth: usize,
     ctx: &mut crate::ctx::Context,
     file: P,
     parent: Option<PathBuf>,
@@ -276,7 +274,7 @@ pub fn tokenize_file<P: AsRef<Path>>(
         if do_includes {
             let includes = ctx.get_untokenized_files(&tokenized.includes);
             for inc_file in includes {
-                tokenize_file(depth + 1, ctx, &inc_file, Some(file.clone()), true)?;
+                tokenize_file(_depth + 1, ctx, &inc_file, Some(file.clone()), true)?;
             }
         }
     }

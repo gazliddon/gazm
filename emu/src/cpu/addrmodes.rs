@@ -132,7 +132,7 @@ impl AddressLines for Direct {
 
     fn diss(mem: &dyn MemoryIO, ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspecte_byte(mem).unwrap();
-        format!("<${:02x}", val)
+        format!("<${val:02x}")
     }
 }
 
@@ -195,7 +195,7 @@ impl AddressLines for Extended {
 
     fn diss(mem: &dyn MemoryIO, ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspect_word(mem).unwrap();
-        format!(">${:02x}", val)
+        format!(">${val:02x}")
     }
 }
 
@@ -218,7 +218,7 @@ impl AddressLines for Immediate8 {
 
     fn diss(mem: &dyn MemoryIO, ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspecte_byte(mem).unwrap();
-        format!("#${:02x}", val)
+        format!("#${val:02x}")
     }
 }
 
@@ -239,7 +239,7 @@ impl AddressLines for Immediate16 {
 
     fn diss(mem: &dyn MemoryIO, ins: &mut InstructionDecoder) -> String {
         let val = ins.fetch_inspect_word(mem).unwrap();
-        format!("#${:04x}", val)
+        format!("#${val:04x}")
     }
 }
 
@@ -444,34 +444,34 @@ impl AddressLines for Indexed {
 
         match itype {
             IndexModes::RPlus(r) => {
-                format!("{:?}+", r)
+                format!("{r:?}+")
             }
             IndexModes::RPlusPlus(r) => {
-                format!("{:?}++", r)
+                format!("{r:?}++")
             }
             IndexModes::RSub(r) => {
-                format!("{:?}-", r)
+                format!("{r:?}-")
             }
             IndexModes::RSubSub(r) => {
-                format!("{:?}--", r)
+                format!("{r:?}--")
             }
             IndexModes::RZero(r) => {
-                format!("{:?}", r)
+                format!("{r:?}")
             }
             IndexModes::RAddB(r) => {
-                format!("B,{:?}", r)
+                format!("B,{r:?}")
             }
             IndexModes::RAddA(r) => {
-                format!("A,{:?}", r)
+                format!("A,{r:?}")
             }
             IndexModes::RAddi8(r) => {
-                format!("{},{:?}", ins.fetch_inspecte_byte(mem).unwrap() as i8, r)
+                format!("{},{r:?}", ins.fetch_inspecte_byte(mem).unwrap() as i8)
             }
             IndexModes::RAddi16(r) => {
-                format!("{},{:?}", ins.fetch_inspecte_byte(mem).unwrap() as i8, r)
+                format!("{},{r:?}", ins.fetch_inspecte_byte(mem).unwrap() as i8)
             }
             IndexModes::RAddD(r) => {
-                format!("D,{:?}", r)
+                format!("D,{r:?}")
             }
             IndexModes::PCAddi8 => {
                 format!("PC,{:?}", ins.fetch_inspecte_byte(mem).unwrap() as i8)
@@ -479,12 +479,12 @@ impl AddressLines for Indexed {
             IndexModes::PCAddi16 => {
                 format!("PC,{:?}", ins.fetch_inspecte_byte(mem).unwrap())
             }
-            IndexModes::Illegal => format!("ILLEGAL INDEX MODE {:?}", itype),
+            IndexModes::Illegal => format!("ILLEGAL INDEX MODE {itype:?}"),
             IndexModes::Ea => {
                 format!("0x{:04X}", ins.fetch_inspect_word(mem).unwrap())
             }
             IndexModes::ROff(r, offset) => {
-                format!("{}, {:?}", offset, r)
+                format!("{offset}, {r:?}")
             }
         }
     }

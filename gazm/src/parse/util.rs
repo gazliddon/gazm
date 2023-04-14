@@ -39,7 +39,7 @@ mod p2 {
     use nom::UnspecializedInput;
     use std::ops::{RangeFrom, RangeTo};
 
-    pub fn sep_list1<'a, F, I, O, E>(inner: F) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
+    pub fn sep_list1<F, I, O, E>(inner: F) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
     where
         F: Parser<I, O, E> + Copy,
         E: ParseError<I>,
@@ -75,7 +75,7 @@ mod p2 {
         }
     }
 
-    pub fn ws<'a, F, I, O, E: ParseError<I>>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
+    pub fn ws< F, I, O, E: ParseError<I>>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
     where
         F: Parser<I, O, E>,
         I: InputTakeAtPosition,
@@ -112,8 +112,8 @@ pub fn parse_assignment(input: Span) -> IResult<Node> {
     let matched_span = matched_span(input, rest);
 
     let item = match label.item {
-        Item::Label(symbol_def) => Item::Assignment(symbol_def.clone()),
-        Item::LocalLabel(symbol_def) => Item::LocalAssignment(symbol_def.clone()),
+        Item::Label(symbol_def) => Item::Assignment(symbol_def),
+        Item::LocalLabel(symbol_def) => Item::LocalAssignment(symbol_def),
         _ => panic!(),
     };
 
@@ -179,7 +179,7 @@ impl ByteSizes {
             Self::Zero => Self::Zero,
             Self::Bits5(v) => Self::Byte(*v),
             Self::Byte(v) => Self::Word(*v as i16),
-            Self::Word(v) => Self::Word(*v as i16),
+            Self::Word(v) => Self::Word(*v ),
         };
     }
 }

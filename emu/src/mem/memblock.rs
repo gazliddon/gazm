@@ -36,7 +36,7 @@ impl<E: ByteOrder> MemBlock<E> {
     }
     fn to_index(&self, addr: usize) -> MemResult<usize> {
         if self.region.is_in_region(addr) {
-            Ok( addr as usize - self.region.addr as usize )
+            Ok( addr - self.region.addr )
 
         } else {
             Err(MemErrorTypes::IllegalAddress(addr))
@@ -66,7 +66,7 @@ impl<E: ByteOrder> MemoryIO for MemBlock<E> {
         let mut addr = _addr;
         for b in _data {
             self.store_byte(addr, *b)?;
-            addr = addr + 1;
+            addr += 1;
         }
         Ok(())
     }

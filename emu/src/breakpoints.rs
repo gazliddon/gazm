@@ -39,21 +39,12 @@ impl BreakPoint {
     }
 }
 
-#[derive(Clone, Debug)]
+// usize def as zero
+#[derive(Default, Clone, Debug)]
 pub struct BreakPoints {
     break_points: std::collections::HashMap<usize, BreakPoint>,
-    mem_to_bp: HashMap<usize,usize>,
+    mem_to_bp: HashMap<usize, usize>,
     id: usize,
-}
-
-impl Default for BreakPoints {
-    fn default() -> Self {
-        Self {
-            break_points: HashMap::new(),
-            mem_to_bp: HashMap::new(),
-            id: 0,
-        }
-    }
 }
 
 impl BreakPoints {
@@ -75,12 +66,13 @@ impl BreakPoints {
     }
 
     pub fn has_breakpoint(&self, addr: usize, bp_type: BreakPointTypes) -> bool {
-        let bp = self.get_breakpoints(addr, 1);
-        let num = bp
-            .iter()
-            .filter(|b| b.addr == addr && b.bp_type == bp_type)
-            .count();
-        num > 0
+        self.find_breakpoint(addr, bp_type).is_some()
+    }
+
+    fn find_breakpoint(&self, addr: usize, bp_type: BreakPointTypes) -> Option<&BreakPoint> {
+        self.break_points
+            .values()
+            .find(|bp| bp.addr == addr && bp.bp_type == bp_type)
     }
 
     pub fn add(&mut self, addr: usize, bp_type: BreakPointTypes) -> Option<usize> {
@@ -95,17 +87,10 @@ impl BreakPoints {
         }
     }
     pub fn find_breakpoint_id(&self, addr: usize, bp_type: BreakPointTypes) -> Option<usize> {
-        self.find_breakpoint(addr, bp_type).map(|bp| bp.id)
+        self.find_breakpoint(addr, bp_type)
+            .map(|bp| bp.id)
     }
 
-    fn find_breakpoint(&self, addr: usize, bp_type: BreakPointTypes) -> Option<&BreakPoint> {
-        for (_, bp) in self.break_points.iter() {
-            if bp.addr == addr && bp.bp_type == bp_type {
-                return Some(bp);
-            }
-        }
-        None
-    }
     pub fn remove_by_id(&mut self, id: usize) {
         self.break_points.remove(&id);
     }

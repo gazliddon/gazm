@@ -1,7 +1,7 @@
 /// Manipulation of text based scope paths
 /// Maybe show be a COW string?
 
-pub fn split_scopes<'a>(txt: &'a str) -> Vec<&'a str> {
+pub fn split_scopes(txt: &str) -> Vec<&str> {
     let ret = txt.split("::").collect();
     ret
 }
@@ -21,7 +21,7 @@ impl ScopePath {
     }
 
     pub fn from_parts(parts: Vec<&str>) -> Self {
-        let is_relative = match parts.get(0) {
+        let is_relative = match parts.first() {
             // If empty it's an error
             None => panic!("Zero parts!"),
             // If the opening scope is "" (eg ::foo)

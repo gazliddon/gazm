@@ -1,21 +1,16 @@
+
 impl std::fmt::Display for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}:{})", self.line, self.col)
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Copy, Hash)]
+#[derive(Default,Clone, PartialEq, Eq, Debug, Copy, Hash)]
 pub enum AsmSource {
+   #[default] 
     FromStr,
     FileId(u64),
 }
-
-impl Default for AsmSource {
-    fn default() -> Self {
-        AsmSource::FromStr
-    }
-}
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Position {

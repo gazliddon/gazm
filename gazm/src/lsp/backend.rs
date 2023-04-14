@@ -39,10 +39,10 @@ impl Context {
                 self.asm_out.lookup.as_ref().and_then(|lookup| {
                     lookup
                         .find_label(&p)
-                        .and_then(|label_name| lookup.find_definition(&label_name))
+                        .and_then(|label_name| lookup.find_definition(label_name))
                         .and_then(|def_pos| {
                             self.asm_source_to_path(&def_pos.src).map(|file_name| {
-                                make_location(def_pos.line, def_pos.col, &file_name)
+                                make_location(def_pos.line, def_pos.col, file_name)
                             })
                         })
                 })
@@ -54,21 +54,21 @@ impl Context {
         pos: &Position,
         uri: &Url,
     ) -> Option<(emu::utils::sources::Position, PathBuf)> {
-        let text_pos = position_to_text_pos(&pos);
+        let text_pos = position_to_text_pos(pos);
 
         uri.to_file_path().ok().and_then(|p| {
             self.sources().get_source(p).ok().and_then(|(id, sf)| {
                 sf.source
                     .start_pos_to_index(&text_pos)
                     .ok()
-                    .and_then(|start_pos| {
+                    .map(|start_pos| {
                         let p = emu::utils::sources::Position::new(
                             text_pos.line(),
                             text_pos.char(),
                             start_pos..start_pos + 1,
                             emu::utils::sources::AsmSource::FileId(id),
                         );
-                        Some((p, sf.file.clone()))
+                        (p, sf.file.clone())
                     })
             })
         })
@@ -104,12 +104,13 @@ impl Backend {
         let mut diags = vec![];
 
         for e in &errs {
+            let e = e.as_ref();
             let (line, character) = e.pos.line_col();
             let position = Position {
                 line: line as u32,
                 character: character as u32,
             };
-            let range = Range::new(position.clone(), position.clone());
+            let range = Range::new(position, position);
             let diag = Diagnostic::new_simple(range, e.message.clone());
 
             diags.push((e.file.clone(), diag))
@@ -208,7 +209,7 @@ fn make_location<P: AsRef<Path>>(line: usize, character: usize, path: P) -> Loca
         line: line as u32,
         character: character as u32,
     };
-    let end_pos = start_pos.clone();
+    let end_pos = start_pos;
     let range = Range::new(start_pos, end_pos);
     let new_uri = Url::parse(&format!("file://{}", path.as_ref().to_string_lossy())).unwrap();
     Location::new(new_uri, range)
@@ -246,7 +247,7 @@ impl LanguageServer for Backend {
                         refs.into_iter()
                             .filter_map(|(_, p)| {
                                 ctx.asm_source_to_path(&p.src)
-                                    .map(|file_name| Some(make_location(p.line, p.col, &file_name)))
+                                    .map(|file_name| Some(make_location(p.line, p.col, file_name)))
                             })
                             .collect()
                     })
@@ -296,7 +297,6 @@ impl LanguageServer for Backend {
                 }),
                 ..ServerCapabilities::default()
             },
-            ..Default::default()
         })
     }
 
@@ -353,7 +353,7 @@ impl LanguageServer for Backend {
                 .await;
         }
 
-        Ok(position.map(|x| GotoDefinitionResponse::Scalar(x)))
+        Ok(position.map(GotoDefinitionResponse::Scalar))
     }
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> TResult<Option<Value>> {

@@ -257,7 +257,7 @@ impl<'a> Compiler<'a> {
                     .map_err(|x| match x {
                         DoesNotFit { .. } => self.relative_error(ctx, id, val, 8),
                         DoesNotMatchReference { .. } => self.binary_error(ctx, id, x),
-                        _ => ctx.ctx.user_error(format!("{:?}", x), arg_n, false).into(),
+                        _ => ctx.ctx.user_error(format!("{x:?}"), arg_n, false).into(),
                     });
 
                 match &res {
@@ -287,7 +287,7 @@ impl<'a> Compiler<'a> {
                 res.map_err(|x| match x {
                     DoesNotFit { .. } => self.relative_error(ctx, id, val, 16),
                     DoesNotMatchReference { .. } => self.binary_error(ctx, id, x),
-                    _ => ctx.ctx.user_error(format!("{:?}", x), arg_n, true).into(),
+                    _ => ctx.ctx.user_error(format!("{x:?}"), arg_n, true).into(),
                 })?;
             }
 
@@ -501,7 +501,7 @@ impl<'a> Compiler<'a> {
             IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
             | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp => (),
             _ => {
-                panic!("Can't compile {:?}", i);
+                panic!("Can't compile {i:?}");
             }
         }
 

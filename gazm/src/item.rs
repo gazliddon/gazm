@@ -191,7 +191,7 @@ impl StructMemberType {
             Self::Word => Number(2, ParsedFrom::FromExpr),
             Self::DWord => Number(4, ParsedFrom::FromExpr),
             Self::QWord => Number(8, ParsedFrom::FromExpr),
-            Self::UserType(name) => Label(LabelDefinition::Text( format!("{}.size", name) )),
+            Self::UserType(name) => Label(LabelDefinition::Text(format!("{name}.size"))),
         }
     }
 }
@@ -242,7 +242,7 @@ pub enum Item {
     MacroCallProcessed {
         scope_id: u64,
         macro_id: AstNodeId,
-        params_vec_of_id : Vec<SymbolScopeId>,
+        params_vec_of_id: Vec<SymbolScopeId>,
     },
 
     MacroDef(String, Vec<String>),
@@ -369,7 +369,7 @@ pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {
     ret.join(sep)
 }
 
-impl<'a> Display for BaseNode<Item, Position> {
+impl Display for BaseNode<Item, Position> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Item::*;
 
@@ -379,12 +379,14 @@ impl<'a> Display for BaseNode<Item, Position> {
 
         let ret: String = match item {
             AssignmentFromPc(name) | LocalAssignmentFromPc(name) => {
-                format!("{} equ *", name)
+                format!("{name} equ *")
             }
 
             Pc => "*".to_string(),
 
-            Label(LabelDefinition::Text(name)) | LocalLabel(LabelDefinition::Text(name)) => name.clone(),
+            Label(LabelDefinition::Text(name)) | LocalLabel(LabelDefinition::Text(name)) => {
+                name.clone()
+            }
 
             Comment(comment) => comment.clone(),
             // QuotedString(test) => format!("\"{}\"", test),
@@ -400,10 +402,10 @@ impl<'a> Display for BaseNode<Item, Position> {
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
             Number(n, p) => match &p {
-                ParsedFrom::Hex => format!("${:x}", n),
+                ParsedFrom::Hex => format!("${n:x}"),
                 ParsedFrom::FromExpr | ParsedFrom::Dec => n.to_string(),
                 ParsedFrom::Char(c) => format!("'{c}'"),
-                ParsedFrom::Bin => format!("%{:b}", n),
+                ParsedFrom::Bin => format!("%{n:b}"),
             },
             UnaryTerm => join_children(""),
 
@@ -428,26 +430,23 @@ impl<'a> Display for BaseNode<Item, Position> {
 
             TokenizedFile(file, _) => {
                 let header = format!("; included file {}", file.to_string_lossy());
-                let children: Vec<String> =
-                    self.children.iter().map(|n| format!("{}", &*n)).collect();
+                let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 format!("{}\n{}", header, children.join("\n"))
             }
 
             Block => {
-                let children: Vec<String> =
-                    self.children.iter().map(|n| format!("{}", &*n)).collect();
+                let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 children.join("\n")
             }
 
             SetDp => {
-                let children: Vec<String> =
-                    self.children.iter().map(|n| format!("{}", &*n)).collect();
+                let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 children.join("\n")
             }
 
-            _ => format!("{:?} not implemented", item),
+            _ => format!("{item:?} not implemented"),
         };
 
-        write!(f, "{}", ret)
+        write!(f, "{ret}")
     }
 }

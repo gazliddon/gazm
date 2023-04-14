@@ -41,7 +41,7 @@ impl MacroDef {
         let to_regex = |v: &String| {
             let start = r"\|\s*";
             let end = r"\s*\|";
-            let re = format!("{}{}{}", start, v, end);
+            let re = format!("{start}{v}{end}");
             regex::Regex::new(&re).unwrap()
         };
         self.params.iter().map(to_regex).collect()

@@ -1,9 +1,9 @@
 mod error;
-mod eval;
+mod eval_postfix;
 /// Generics for evaluating infix expressions
 mod postfix;
 pub use error::*;
-pub use eval::*;
+pub use eval_postfix::*;
 pub use postfix::*;
 
 use std::fmt::Debug;
@@ -15,7 +15,7 @@ where
     E: Eval<I, ERR>,
     ERR: From<GenericEvalErrorKind>,
 {
-    let post_fix_expr = to_postfix(i).map_err(|e| GenericEvalErrorKind::PostFixError(e))?;
+    let post_fix_expr = to_postfix(i).map_err(GenericEvalErrorKind::PostFixError)?;
     let res = evaluate_postfix_expr(post_fix_expr.into_iter(), evaluator).map_err(|(_, e)| e)?;
     Ok(res)
 }

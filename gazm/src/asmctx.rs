@@ -131,7 +131,7 @@ impl<'a> AsmCtx<'a> {
             .ctx
             .asm_out
             .binary
-            .get_bytes(physical_address as usize, count as usize)
+            .get_bytes(physical_address , count )
             .to_vec();
 
         // Write the file
@@ -154,8 +154,7 @@ impl<'a> AsmCtx<'a> {
             .opts
             .vars
             .expand_vars(path.as_ref().to_string_lossy());
-        let path = emu::utils::fileutils::abs_path_from_cwd(path);
-        path
+        emu::utils::fileutils::abs_path_from_cwd(path)
     }
 
     fn write_bin_file_data<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {

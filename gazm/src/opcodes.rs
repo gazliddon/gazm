@@ -165,7 +165,7 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
         let node = Node::from_item_span(item, matched).take_children(arg);
         Ok((rest, node))
     } else {
-        let msg = format!("{} does not support {:?} addresing mode", text, amode);
+        let msg = format!("{text} does not support {amode:?} addresing mode");
         Err(crate::error::parse_error(&msg, input))
     }
 }
@@ -187,7 +187,7 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
         );
         Ok((rest, ret))
     } else {
-        let msg = format!("Missing operand for {}", text);
+        let msg = format!("Missing operand for {text}");
         Err(crate::error::parse_failure(&msg, matched_span))
     }
 }
@@ -196,7 +196,7 @@ pub fn parse_opcode(input: Span) -> IResult<Node> {
 
     let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)
         .map_err(|_| {
-            let msg = format!("Expected op code : got {}", input);
+            let msg = format!("Expected op code : got {input}");
             crate::error::parse_error(&msg, input) }
             )?;
     Ok((rest, item))

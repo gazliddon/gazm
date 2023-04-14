@@ -142,10 +142,10 @@ impl Dbase {
     fn from_data(instructions: Vec<Instruction>, unknown: Instruction) -> Self {
         let max = instructions.iter().map(|p| p.opcode).max().unwrap_or(0);
 
-        let mut lookup: Vec<Instruction> = vec![unknown.clone(); (max as usize) + 1];
+        let mut lookup: Vec<Instruction> = vec![unknown.clone(); max + 1];
 
         for i in instructions.iter() {
-            lookup[i.opcode as usize] = i.clone();
+            lookup[i.opcode ] = i.clone();
         }
 
         for (i, o) in lookup.iter_mut().enumerate() {
@@ -244,11 +244,11 @@ macro_rules! op_table {
     }
 }"#;
 
-        writeln!(f, "{}", header)?;
+        writeln!(f, "{header}")?;
 
         for i in self.instructions.iter() {
-            writeln!(f, "\t\t{}", i)?
+            writeln!(f, "\t\t{i}")?
         }
-        writeln!(f, "{}", footer)
+        writeln!(f, "{footer}")
     }
 }

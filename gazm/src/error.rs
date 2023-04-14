@@ -66,7 +66,7 @@ impl std::fmt::Display for ParseError {
 
 impl ParseError {
     pub fn message(&self) -> String {
-        self.message.clone().unwrap_or_else(|| "".to_string())
+        self.message.clone().unwrap_or_default()
     }
 }
 
@@ -116,7 +116,7 @@ impl From<nom::Err<ParseError>> for ParseError {
 
 impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
     fn from_error_kind(input: Span<'a>, kind: nom::error::ErrorKind) -> Self {
-        Self::new(format!("parse error {:?}", kind), &input, false)
+        Self::new(format!("parse error {kind:?}"), &input, false)
     }
 
     fn append(_input: Span, _kind: nom::error::ErrorKind, other: Self) -> Self {
@@ -124,7 +124,7 @@ impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
     }
 
     fn from_char(input: Span<'a>, c: char) -> Self {
-        Self::new(format!("unexpected character '{}'", c), &input, false)
+        Self::new(format!("unexpected character '{c}'"), &input, false)
     }
 }
 
@@ -167,7 +167,7 @@ impl std::fmt::Display for AstError {
             .message
             .clone()
             .unwrap_or_else(|| "NO ERROR".to_string());
-        write!(f, "{} : ({}:{})", err_string, line,col)
+        write!(f, "{err_string} : ({line}:{col})")
     }
 }
 
@@ -178,6 +178,11 @@ impl std::error::Error for UserError {}
 
 #[derive(PartialEq, Clone)]
 pub struct UserError {
+    pub data : Box<UserErrorData>
+}
+
+#[derive(PartialEq, Clone)]
+pub struct UserErrorData {
     pub message: String,
     pub pos: Position,
     pub fragment: String,
@@ -189,7 +194,7 @@ pub struct UserError {
 impl std::fmt::Display for UserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = self.pretty().unwrap();
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 impl std::fmt::Debug for UserError {
@@ -200,12 +205,7 @@ impl std::fmt::Debug for UserError {
 use crate::messages::Messageize;
 use colored::*;
 
-impl UserError {
-    pub fn from_ast_error(_err: AstError, info: &SourceInfo) -> Self {
-        let message = _err.message.unwrap_or_else(|| "Error".to_string());
-        Self::from_text(message, info, _err.failure)
-    }
-
+impl UserErrorData {
     pub fn from_text<S>(msg: S, info: &SourceInfo, is_failure: bool) -> Self
     where
         S: Into<String>,
@@ -220,6 +220,19 @@ impl UserError {
         }
     }
 
+    pub fn from_parse_error(err: &ParseError, sources: &emu::utils::sources::SourceFiles) -> Self {
+        let si = sources.get_source_info(&err.pos).unwrap();
+
+        Self {
+            message: err.message(),
+            pos: err.pos.clone(),
+            fragment: si.fragment.to_string(),
+            line: si.line_str.to_string(),
+            file: si.file,
+            failure: err.failure,
+        }
+    }
+
     pub fn pretty(&self) -> GResult<String> {
         use std::fmt::Write as FmtWrite;
 
@@ -228,10 +241,10 @@ impl UserError {
         let pos = &self.pos;
         let (line,col) = pos.line_col_from_one();
 
-        let line_num = format!("{}", line);
+        let line_num = format!("{line}");
         let spaces = " ".repeat(1 + line_num.len());
-        let bar = format!("{}|", spaces).info();
-        let bar_line = format!("{} |", line_num).info();
+        let bar = format!("{spaces}|").info();
+        let bar_line = format!("{line_num} |").info();
 
         let error = "error".bold().red();
 
@@ -247,23 +260,48 @@ impl UserError {
         )
         .expect("kj");
 
-        writeln!(s, "{}", bar).expect("kj");
-        writeln!(s, "{} {}", bar_line, self.line).expect("kj");
-        writeln!(s, "{}{}^", bar, " ".repeat(col)).expect("kj");
+        writeln!(s, "{bar}").expect("kj");
+        writeln!(s, "{bar_line} {}", self.line).expect("kj");
+        writeln!(s, "{bar}{}^", " ".repeat(col)).expect("kj");
         Ok(s)
+    }
+}
+
+impl AsRef<UserErrorData> for UserError {
+    fn as_ref(&self) -> &UserErrorData {
+        self.data.as_ref()
+    }
+}
+
+impl From<UserErrorData> for UserError {
+    fn from(value: UserErrorData) -> Self {
+        Self {
+            data: value.into()
+        }
+    }
+}
+
+impl UserError {
+    pub fn from_ast_error(_err: AstError, info: &SourceInfo) -> Self {
+        let message = _err.message.unwrap_or_else(|| "Error".to_string());
+        Self::from_text(message, info, _err.failure)
+    }
+
+    pub fn from_text<S>(msg: S, info: &SourceInfo, is_failure: bool) -> Self
+    where
+        S: Into<String>,
+    {
+        let data = UserErrorData::from_text(msg, info, is_failure);
+        data.into()
+    }
+
+    pub fn pretty(&self) -> GResult<String> {
+        self.data.pretty()
     }
 
     pub fn from_parse_error(err: &ParseError, sources: &emu::utils::sources::SourceFiles) -> Self {
-        let si = sources.get_source_info(&err.pos).unwrap();
-
-        Self {
-            message: err.message(),
-            pos: err.pos.clone(),
-            fragment: si.fragment.to_string(),
-            line: si.line_str.to_string(),
-            file: si.file,
-            failure: err.failure,
-        }
+        let data = UserErrorData::from_parse_error(err,sources);
+        data.into()
     }
 }
 
@@ -290,7 +328,7 @@ impl Default for ErrorCollector {
 impl std::fmt::Display for ErrorCollector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for x in &self.errors {
-            writeln!(f, "{}", x)?;
+            writeln!(f, "{x}")?;
         }
         Ok(())
     }
@@ -352,7 +390,7 @@ impl ErrorCollector {
     }
 
     pub fn add_user_error(&mut self, err: UserError) -> GResult<()> {
-        let failure = err.failure;
+        let failure = err.as_ref().failure;
         let err = GazmErrorType::UserError(err);
         self.add_error(err, failure)
     }

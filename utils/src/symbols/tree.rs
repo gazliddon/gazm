@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::ScopeCursor;
 use super::ScopeErrorKind;
 use super::ScopePath;
@@ -7,18 +5,14 @@ use super::ScopeResult;
 use super::SymbolReader;
 use super::SymbolTable;
 use super::{IdTraits, ValueTraits};
+use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub enum ScopeKind {
+    #[default]
     File,
     Function,
     Block,
-}
-
-impl Default for ScopeKind {
-    fn default() -> Self {
-        ScopeKind::File
-    }
 }
 
 pub type ScopeRef<'a, V, ID> = ego_tree::NodeRef<'a, SymbolTable<V, ID>>;
@@ -91,7 +85,7 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
             _ => name,
         };
 
-        writeln!(f, "{}{}", pad, name)?;
+        writeln!(f, "{pad}{name}")?;
 
         for c in sc.children() {
             self.write_lo(c.id(), indent + 1, f)?;
@@ -191,7 +185,7 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
             .into_iter()
             .map(|id| self.get(id).unwrap().value().get_scope_name().to_owned())
             .collect();
-        Some(format!("{}", abs.join("::")))
+        Some(abs.join("::"))
     }
 
     pub fn get_scope_abs(&self, id: ScopeId) -> Option<Vec<ScopeId>> {
@@ -270,16 +264,13 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
                         .children()
                         .find(|x| x.value().get_scope_name() == part)
                         .ok_or_else(|| {
-                            println!("{}", self);
+                            println!("{self}");
                             for s in scope.children() {
                                 println!("{}", s.value().get_scope_name())
                             }
 
                             let current = scope.value().get_scope_name();
-                            let err = format!(
-                                "part: {part}\ncurrent: {current}\nfull: {}\n",
-                                path.to_string()
-                            );
+                            let err = format!("part: {part}\ncurrent: {current}\nfull: {path}\n");
                             ScopeErrorKind::ScopeNotFound(err)
                         })?,
                 }
@@ -299,7 +290,7 @@ impl<V: ValueTraits, ID: IdTraits> Scopes<V, ID> {
         } else {
             let parts: Vec<_> = path.get_rel_parts().iter().map(|p| p.as_str()).collect();
             let rel_path = ScopePath::from_parts(parts);
-            println!("{:#?}", rel_path);
+            println!("{rel_path:#?}");
             self.navigate_to_sub_scope(self.root_id, &rel_path)
         }
     }

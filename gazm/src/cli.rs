@@ -30,7 +30,7 @@ pub enum ConfigErrorType {
 
 impl std::fmt::Debug for ConfigErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 
@@ -40,7 +40,7 @@ fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
     use std::env::set_current_dir;
 
     // Get the config file or use the default gazm.toml
-    let x = m.value_of("config-file").unwrap_or("gazm.toml".into());
+    let x = m.value_of("config-file").unwrap_or("gazm.toml");
 
     let path = PathBuf::from(x);
 
@@ -63,7 +63,7 @@ impl Opts {
             Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build)?,
             Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check)?,
 
-            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::LSP)?,
+            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::Lsp)?,
 
             Some(("fmt", m)) => {
                 let mut o = load_opts_with_build_type(m, BuildType::Format)?;

@@ -128,7 +128,7 @@ impl<'a> ParseError<'a> {
 
 impl<'a> nom::error::ParseError<Span<'a>> for ParseError<'a> {
     fn from_error_kind(input: Span<'a>, kind: nom::error::ErrorKind) -> Self {
-        Self::new(format!("parse error {:?}", kind), input, false)
+        Self::new(format!("parse error {kind:?}"), input, false)
     }
 
     fn append(_input: Span, _kind: nom::error::ErrorKind, other: Self) -> Self {
@@ -136,7 +136,7 @@ impl<'a> nom::error::ParseError<Span<'a>> for ParseError<'a> {
     }
 
     fn from_char(input: Span<'a>, c: char) -> Self {
-        Self::new(format!("unexpected character '{}'", c), input, false)
+        Self::new(format!("unexpected character '{c}'"), input, false)
     }
 }
 
@@ -145,7 +145,7 @@ fn num_parse_err<'a>(
     radix: &str,
     e: std::num::ParseIntError,
 ) -> nom::Err<ParseError<'a>> {
-    let e = format!("Parsing {}: {}", radix, e);
+    let e = format!("Parsing {radix}: {e}");
     nom::Err::Error(ParseError::new(e, input, true))
 }
 

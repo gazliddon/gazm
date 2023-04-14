@@ -49,7 +49,7 @@ pub struct CheckSum {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BuildType {
     Build,
-    LSP,
+    Lsp,
     Check,
     Format,
 }
@@ -143,22 +143,14 @@ pub struct Context {
     pub asm_out: AsmOut,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct LstFile {
     pub lines: Vec<String>,
 }
 
-impl Default for LstFile {
-    fn default() -> Self {
-        Self {
-            lines: Default::default(),
-        }
-    }
-}
-
 impl LstFile {
     pub fn new() -> Self {
-        Self { lines: vec![] }
+        Self::default()
     }
 
     pub fn add(&mut self, line: &str) {
@@ -361,10 +353,10 @@ impl Context {
                 let sf = self.get_source_file_loader();
                 let read = join_paths(sf.get_files_read().iter(), " \\\n");
                 let written = join_paths(sf.get_files_written().iter(), " \\\n");
-                let deps_line_2 = format!("{} : {sym_file}", written);
-                let deps_line = format!("{deps_line_2}\n{sym_file} : {}", read);
+                let deps_line_2 = format!("{written} : {sym_file}");
+                let deps_line = format!("{deps_line_2}\n{sym_file} : {read}");
 
-                status_mess!("Writing deps file: {}", deps);
+                status_mess!("Writing deps file: {deps}");
 
                 std::fs::write(deps, deps_line)
                     .with_context(|| format!("Unable to write {deps}"))?;
@@ -399,7 +391,7 @@ impl Context {
                 let expected_hash = csum.sha1.to_lowercase();
 
                 if this_hash != expected_hash {
-                    let hash = format!("{} : {} != {}", name, this_hash, expected_hash);
+                    let hash = format!("{name} : {this_hash} != {expected_hash}");
                     errors.push(hash);
                 }
             }
@@ -455,7 +447,7 @@ impl From<&Context> for SourceDatabase {
             .collect();
         SourceDatabase::new(
             &c.asm_out.source_map,
-            &c.sources(),
+            c.sources(),
             &c.asm_out.symbols,
             &bins,
             c.asm_out.exec_addr,

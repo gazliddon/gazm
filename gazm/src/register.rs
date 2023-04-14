@@ -36,7 +36,7 @@ pub fn get_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
         "s" => S,
         "d" => D,
         _ => {
-            let msg = format!("Expecting a register: {}", cmp);
+            let msg = format!("Expecting a register: {cmp}");
             return Err(crate::error::parse_error(&msg, input));
         }
     };
@@ -51,8 +51,7 @@ pub fn get_index_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
         Ok((rest, reg))
     } else {
         let msg = format!(
-            "Illegal index register {:?}, must be either: X, Y, S, U",
-            reg
+            "Illegal index register {reg:?}, must be either: X, Y, S, U",
         );
         Err(crate::error::parse_failure(&msg, input))
     }

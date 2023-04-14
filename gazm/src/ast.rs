@@ -23,6 +23,7 @@ use emu::utils::sources::{
     Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolTree, SymbolWriter,
 };
 use emu::utils::symbols;
+use log::kv::ToValue;
 
 ////////////////////////////////////////////////////////////////////////////////
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
@@ -187,7 +188,7 @@ impl<'a> Ast<'a> {
 
             // Go through the ids and get the tokens to insert into this AST
             for (id, path) in include_ids.iter() {
-                let actual_file = self.ctx.get_full_path(&path).unwrap();
+                let actual_file = self.ctx.get_full_path(path).unwrap();
                 let tokens = self.ctx.get_tokens(&actual_file);
 
                 if tokens.is_none() {
@@ -220,12 +221,12 @@ impl<'a> Ast<'a> {
 
         for macro_id in iter_ids_recursive(self.tree.root()) {
             let macro_node = self.tree.get(macro_id).unwrap();
-            match &macro_node.value().item {
-                MacroDef(name, params) => {
-                    mdefs.insert(name.to_string(), (macro_node.id(), params.clone()));
-                    self.tree.get_mut(macro_id).expect("Can't get macro mut node").detach();
-                }
-                _ => (),
+            if let MacroDef(name, params) = &macro_node.value().item {
+                mdefs.insert(name.to_string(), (macro_node.id(), params.clone()));
+                self.tree
+                    .get_mut(macro_id)
+                    .expect("Can't get macro mut node")
+                    .detach();
             }
         }
 
@@ -272,7 +273,12 @@ impl<'a> Ast<'a> {
         // Create new nodes to replace the current macro call nodes
         // let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
         for (macro_id, macro_caller_scope_id, params, caller_node_id, pos) in mcalls.into_iter() {
-            let params_vec = self.ctx.asm_out.symbols.add_symbols_to_scope(macro_caller_scope_id, &params).unwrap();
+            let params_vec = self
+                .ctx
+                .asm_out
+                .symbols
+                .add_symbols_to_scope(macro_caller_scope_id, params)
+                .unwrap();
 
             // Create the node we'll replace
             let replacement_node_id = self
@@ -305,8 +311,8 @@ impl<'a> Ast<'a> {
             let mut scopes = ScopeBuilder::new();
 
             let rename = |fqn: &String, name: &String| {
-                let ret = format!("{}/{}", fqn, name);
-                x.debug(&format!("{} -> {}", name, ret));
+                let ret = format!("{fqn}/{name}");
+                x.debug(format!("{name} -> {ret}"));
                 ret
             };
             use crate::item::LabelDefinition;
@@ -362,7 +368,7 @@ impl<'a> Ast<'a> {
     }
 
     fn postfix_expressions(&mut self) -> Result<(), UserError> {
-        let ret = info("Converting expressions to poxtfix", |x| {
+        info("Converting expressions to poxtfix", |x| {
             use Item::*;
 
             let mut to_convert: Vec<(AstNodeId, Vec<AstNodeId>)> = vec![];
@@ -377,7 +383,7 @@ impl<'a> Ast<'a> {
                     BracketedExpr | Expr => {
                         let new_order = self.node_to_postfix(n).map_err(|s| {
                             let si = self.get_source_info_from_node_id(n.id()).unwrap();
-                            let msg = format!("Can't convert to postfix: {}", s);
+                            let msg = format!("Can't convert to postfix: {s}");
                             UserError::from_text(msg, &si, true)
                         })?;
 
@@ -409,12 +415,9 @@ impl<'a> Ast<'a> {
                 p.value().item = PostFixExpr;
             }
 
-            x.debug(&format!("Converted {} expression(s)", to_convert.len()));
-
+            x.debug(format!("Converted {} expression(s)", to_convert.len()));
             Ok(())
-        });
-
-        ret
+        })
     }
 
     fn convert_error(&self, e: AstError) -> UserError {
@@ -489,8 +492,8 @@ impl<'a> Ast<'a> {
             .symbols
             .add_symbol_with_value(&name.into(), value)
             .map_err(|e| {
-                let msg = format!("Symbol error {:?}", e);
-                self.user_error(&msg, id)
+                let msg = format!("Symbol error {e:?}");
+                self.user_error(msg, id)
             })
     }
 
@@ -515,7 +518,7 @@ impl<'a> Ast<'a> {
 
                         if let StructEntry(entry_name) = i {
                             let value = self.eval_node_child(c_id)?;
-                            let scoped_name = format!("{}.{}", name, entry_name);
+                            let scoped_name = format!("{name}.{entry_name}");
                             self.add_symbol(current, &scoped_name, c_id)?;
                             x.info(format!("Struct: Set {scoped_name} to {current}"));
                             current += value;
@@ -552,8 +555,9 @@ impl<'a> Ast<'a> {
                 Label(LabelDefinition::Text(name)) => {
                     let symbols = &mut self.ctx.asm_out.symbols;
                     let id = symbols
-                        .get_symbol_info(&name)
-                        .expect("Internal error getting symbol info").symbol_id;
+                        .get_symbol_info(name)
+                        .expect("Internal error getting symbol info")
+                        .symbol_id;
                     let mut x = self.tree.get_mut(node_id).unwrap();
                     x.value().item = Label(LabelDefinition::Scoped(id));
                 }
@@ -567,7 +571,7 @@ impl<'a> Ast<'a> {
 
     /// Traverse through all assignments and reserve a label for them at the correct scope
     fn scope_assignments(&mut self) -> Result<(), UserError> {
-        let res = info("Correctly scoping assignments", |_| {
+        info("Correctly scoping assignments", |_| {
             use super::eval::eval;
             use Item::*;
 
@@ -599,9 +603,7 @@ impl<'a> Ast<'a> {
             }
 
             Ok(())
-        });
-
-        res
+        })
     }
 
     fn evaluate_assignments(&mut self) -> Result<(), UserError> {
@@ -644,7 +646,7 @@ impl<'a> Ast<'a> {
 
                             Err(e) => {
                                 let ast_err: AstError = e.into();
-                                let msg = format!("Evaluating assignments: {}", ast_err);
+                                let msg = format!("Evaluating assignments: {ast_err}");
                                 return Err(self.node_error(&msg, c_id, true));
                             }
                         }

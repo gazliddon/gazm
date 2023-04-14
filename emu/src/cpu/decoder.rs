@@ -67,7 +67,7 @@ fn decode_op(
 
     if instruction_info.addr_mode == AddrModeEnum::Indexed {
         let index_mode_id = reader.peek_byte()?;
-        let index_mode = super::indexed::IndexedFlags::new(index_mode_id as u8);
+        let index_mode = super::indexed::IndexedFlags::new(index_mode_id );
         index_size = index_mode.get_index_type().get_size();
     } 
 
@@ -86,7 +86,7 @@ fn decode_op(
         addr,
         op_code,
         instruction_info,
-        cycles: instruction_info.cycles as usize,
+        cycles: instruction_info.cycles ,
         data,
         operand_addr,
     };

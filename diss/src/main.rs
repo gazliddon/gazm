@@ -44,7 +44,7 @@ fn load_binary_file<P: AsRef<std::path::Path>>(filename: P) -> Vec<u8> {
     let mut f = File::open(&filename).expect("no file found");
     let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer).expect("buffer overflow");
+    f.read_exact(&mut buffer).expect("buffer overflow");
     buffer
 }
 
@@ -58,7 +58,7 @@ impl Stargate {
         }
     }
 
-    fn make_ctx<'a>(&'a mut self) -> cpu::Context<'a> {
+    fn make_ctx(&mut self) -> cpu::Context {
         cpu::Context::new(&mut self.mem, &mut self.regs, &mut self.pins).unwrap()
     }
 }
@@ -160,17 +160,16 @@ fn mk_diss_it(
     addr: usize,
 ) -> impl Iterator<Item = diss::Disassembly> + '_ {
     let mut addr = addr;
-    let mut _i = std::iter::from_fn(move || {
+    std::iter::from_fn(move || {
         let diss = diss::Diss::new();
         let x = diss.diss(data, addr);
         addr = x.decoded.next_addr;
         Some(x)
-    });
-    _i
+    })
 }
 
 fn to_hex_str(mem: &[u8]) -> String {
-    let v: Vec<_> = mem.iter().map(|b| format!("{:02X}", b)).collect();
+    let v: Vec<_> = mem.iter().map(|b| format!("{b:02X}")).collect();
     v.join(" ")
 }
 
@@ -224,7 +223,7 @@ fn do_command(dbg_ctx: &mut DebugCtx, text: &str, x: commands::Command, sg: &mut
                     println!("{}", sg.regs);
                 }
                 Err(e) => {
-                    println!("{}",e)
+                    println!("{e}")
                 }
             }
         }
@@ -287,7 +286,7 @@ fn do_command(dbg_ctx: &mut DebugCtx, text: &str, x: commands::Command, sg: &mut
                         print!("?? ");
                     }
                 }
-                print!("\n");
+                println!();
             }
 
             dbg_ctx.current_addr = i.get_addr();
@@ -313,8 +312,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         for y in output {
             match &y {
-                TermOutput::Text(x) => println!("got {:?}", x),
-                TermOutput::CtrlD | TermOutput::CtrlC | _ => {
+                TermOutput::Text(x) => println!("got {x:?}"),
+                _ => {
                     running = false;
                     break;
                 }

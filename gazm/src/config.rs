@@ -27,13 +27,15 @@ pub struct Project {
     pub name: String,
 }
 
-impl YamlConfig {
-    pub fn new() -> Self {
+impl Default for YamlConfig {
+    fn default() -> Self {
         use toml::Value;
-        let config_file = format!("./gazm.toml");
-        Self::new_from_file(&config_file)
+        let config_file = "./gazm.toml";
+        Self::new_from_file(config_file)
     }
+}
 
+impl YamlConfig {
     pub fn new_from_file<P: AsRef<std::path::Path>>(file: P) -> Self {
         let run_dir = file.as_ref().parent().and_then(|p| {
             (p.to_string_lossy() != "")
@@ -58,7 +60,7 @@ impl YamlConfig {
         opts.lsp_config = toml.lsp.unwrap_or_default();
 
         let ret = YamlConfig {
-            file :file.as_ref().to_path_buf().clone(),
+            file :file.as_ref().to_path_buf(),
             opts,
             project: toml.project,
         };

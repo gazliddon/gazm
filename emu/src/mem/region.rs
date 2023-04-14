@@ -56,16 +56,16 @@ impl Region {
     }
 
     fn to_usize(&self) -> (usize, usize) {
-        (self.addr as usize, self.last_addr )
+        (self.addr , self.last_addr )
     }
 
     pub fn as_range(&self) -> std::ops::Range<usize> {
-        self.addr as usize..(self.last_addr + 1)
+        self.addr ..(self.last_addr + 1)
     }
 }
 
 fn calc_addr_last(addr: usize, size: usize) -> (usize, usize) {
-    (addr as usize, addr as usize + size as usize - 1)
+    (addr , addr + size - 1)
 }
 
 #[cfg(test)]

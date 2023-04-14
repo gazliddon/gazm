@@ -1,8 +1,7 @@
-use emu::utils;
+// use crate::eval::OperatorTraits;
 
-use utils::eval::OperationError;
-use utils::eval::OperationErrorKind;
-use utils::eval::OperatorTraits;
+use crate::eval::OperationError;
+use crate::eval::OperationErrorKind;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum EvalResultType {}
@@ -28,10 +27,10 @@ impl std::fmt::Display for Value {
         use Value::*;
 
         let x = match self {
-            Signed(a) => format!("{a}"),
-            Unsigned(a) => format!("{a}"),
-            Float(a) => format!("{a}"),
-            Text(a) => a.clone(),
+            Signed(a) => format!("{a}i64"),
+            Unsigned(a) => format!("{a}u64"),
+            Float(a) => format!("{a}f64"),
+            Text(a) => format!("\"{a}\""),
             Macro => "macro".to_string(),
             Null => "null".to_string(),
         };
@@ -42,10 +41,13 @@ impl std::fmt::Display for Value {
 
 impl Value {
     pub fn is_number(&self) -> bool {
-        matches!(self, Value::Unsigned(_) | Value::Signed(_) | Value::Float(_))
+        matches!(
+            self,
+            Value::Unsigned(_) | Value::Signed(_) | Value::Float(_)
+        )
     }
 
-    pub fn into_double(self) -> Self {
+    pub fn as_double(self) -> Self {
         use Value::*;
         match self {
             Signed(a) => Float(a as f64),
@@ -55,7 +57,7 @@ impl Value {
         }
     }
 
-    pub fn into_unsigned(self) -> Self {
+    pub fn as_unsigned(self) -> Self {
         use Value::*;
         match self {
             Signed(a) => Unsigned(a as u64),
@@ -65,7 +67,7 @@ impl Value {
         }
     }
 
-    pub fn into_signed(self) -> Self {
+    pub fn as_signed(self) -> Self {
         use Value::*;
         match self {
             Signed(_) => self,
@@ -75,7 +77,7 @@ impl Value {
         }
     }
 
-    pub fn into_text(self) -> Self {
+    pub fn as_text(self) -> Self {
         Value::Text(format!("{self}"))
     }
 }
@@ -317,7 +319,7 @@ impl std::ops::Neg for Value {
     type Output = OperationError<Self>;
 
     fn neg(self) -> Self::Output {
-        use OperationErrorKind::*;
+        // use OperationErrorKind::*;
         use Value::*;
         match self {
             Signed(a) => Ok(Signed(-a)),

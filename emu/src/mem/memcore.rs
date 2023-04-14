@@ -96,7 +96,7 @@ pub trait MemoryIO {
 
         for a in range.clone() {
             let b = self.inspect_byte(a).unwrap();
-            let t = format!("{:02X}", b);
+            let t = format!("{b:02X}");
             v.push(t);
         }
 

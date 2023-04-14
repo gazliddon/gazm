@@ -1,7 +1,7 @@
 mod symvalue;
 /// Concrete version of symbol tables used in Gazm
-mod value;
-pub use value::*;
+mod value_ops;
+pub use value_ops::*;
 
 pub use symvalue::*;
 

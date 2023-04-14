@@ -87,7 +87,7 @@ mod new {
 
     fn get_dec<X: Clone>(input: Span<X>) -> IResult<X, (NumberLiteralKind, i64)> {
         let (rest, num_str) = num_get(input)?;
-        let num = i64::from_str_radix(&num_str.replace('_', ""), 10).map_err(|_| panic!())?;
+        let num = num_str.replace('_', "").parse::<i64>().map_err(|_| panic!())?;
         Ok((rest, (NumberLiteralKind::Decimal, num)))
     }
 
@@ -176,7 +176,7 @@ fn num_get(input: Span) -> IResult<Span> {
 }
 
 fn num_parse_err(input: Span, radix: &str, e: std::num::ParseIntError) -> nom::Err<ParseError> {
-    let e = format!("Parsing {}: {}", radix, e);
+    let e = format!("Parsing {radix}: {e}");
     nom::Err::Error(ParseError::new(e, &input, true))
 }
 
@@ -270,12 +270,12 @@ mod test {
     {
         for (input, desired) in arr.iter() {
             let res = func((*input).into());
-            println!("Testing: {:?}", input);
+            println!("Testing: {input:?}");
 
             if let Ok((_, ( number,_ ))) = res {
                 assert_eq!(number, *desired)
             } else {
-                println!("Could not parse {} {:?}", input, res);
+                println!("Could not parse {input} {res:?}");
                 assert!(res.is_ok())
             }
         }

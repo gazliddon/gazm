@@ -203,7 +203,7 @@ impl Diss {
         };
 
         if !operand.is_empty() {
-            text = format!("{} {operand}", text);
+            text = format!("{text} {operand}");
         }
 
         Disassembly {

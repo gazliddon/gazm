@@ -18,7 +18,7 @@ impl<'a> ScopedSymbol<'a> {
          let mut path : Vec<_>  = fqn.split("::").collect();
          assert!(!path.is_empty());
 
-         let symbol = &path.last().unwrap().clone();
+         let symbol = *path.last().unwrap();
          path.resize(path.len() - 1, "");
 
          Self {
@@ -58,14 +58,14 @@ impl<V : ValueTraits, ID : IdTraits> SymbolReader<V, ID> for SymbolTable<V, ID> 
     }
 
     fn get_symbol_name(&self, id: &ID) -> Option<&str> {
-        self.id_to_name.get(&id).map(|x| x.as_str())
+        self.id_to_name.get(id).map(|x| x.as_str())
     }
 }
 
 impl<V : ValueTraits, ID : IdTraits> SymbolWriter<V, ID> for SymbolTable<V, ID> {
 
     fn add_symbol_with_value(&mut self, name: &str, value: V) -> ScopeResult< ID> {
-        if let Some(_) = self.get_symbol_id(name) {
+        if self.get_symbol_id(name).is_some() {
             Err(ScopeErrorKind::SymbolAlreadyDefined(name.to_string()))
         } else {
             let id = self.get_next_id();
@@ -117,7 +117,7 @@ impl<V : ValueTraits,ID: IdTraits> SymbolTable<V,ID> {
         ret.into()
     }
 
-    pub fn iter<'a>(&self) -> impl Iterator<Item = XSymbolInfo<V, ID>> {
+    pub fn iter(&self) -> impl Iterator<Item = XSymbolInfo<V, ID>> {
         self.id_to_value.iter().map(|(id, value)| {
             let name = self.id_to_name.get(id).unwrap();
             XSymbolInfo {name,value,id: *id}

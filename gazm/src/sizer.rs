@@ -52,7 +52,7 @@ impl<'a> Sizer<'a> {
         if let OpCode(ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
             let _this_pc = pc;
 
-            pc += ins.size as usize;
+            pc += ins.size;
             use item::IndexParseType::*;
 
             match pmode {
@@ -127,8 +127,10 @@ impl<'a> Sizer<'a> {
         let (node, i) = self.get_node_item(ctx, id);
 
         match &i {
-            MacroCallProcessed { scope_id, macro_id, .. } => {
-                ctx.eval_macro_args(*scope_id, id,  self.tree);
+            MacroCallProcessed {
+                scope_id, macro_id, ..
+            } => {
+                ctx.eval_macro_args(*scope_id, id, self.tree);
 
                 let current_scope = ctx.get_current_scope_id();
                 ctx.set_scope_from_id(*scope_id).unwrap();
@@ -209,7 +211,7 @@ impl<'a> Sizer<'a> {
                             if let Ok((value, _)) = ctx.ctx.eval_first_arg(node) {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
-                                if top_byte == dp as u8 {
+                                if top_byte == dp {
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
@@ -227,7 +229,7 @@ impl<'a> Sizer<'a> {
                     }
 
                     _ => {
-                        pc += ins.size as usize;
+                        pc += ins.size ;
                     }
                 };
             }
@@ -258,11 +260,11 @@ impl<'a> Sizer<'a> {
             }
 
             Fdb(num_of_words) => {
-                pc += (*num_of_words * 2) as usize;
+                pc += *num_of_words * 2 ;
             }
 
             Fcb(num_of_bytes) => {
-                pc += *num_of_bytes as usize;
+                pc += *num_of_bytes ;
             }
 
             Fcc(text) => {
@@ -307,7 +309,7 @@ impl<'a> Sizer<'a> {
             | StructDef(..) | MacroDef(..) | MacroCall(..) => (),
 
             _ => {
-                let msg = format!("Unable to size {:?}", i);
+                let msg = format!("Unable to size {i:?}");
                 return Err(ctx.ctx.user_error(msg, node, true).into());
             }
         };

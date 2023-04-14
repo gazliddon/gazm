@@ -23,7 +23,7 @@ impl<I, C: CtxTrait> BaseNode<I, C> {
     }
     pub fn get_child(&self, n: usize) -> Option<&BaseNode<I, C>> {
         if let Some(box_node) = self.children.get(n) {
-            Some(&*box_node)
+            Some(box_node)
         } else {
             None
         }

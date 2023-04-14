@@ -186,11 +186,9 @@ impl TokenizeContext {
     }
 
     pub fn get_full_path<P: AsRef<Path>>(&self, file: P) -> GResult<PathBuf> {
-        let ret = self.with(|ctx| -> GResult<PathBuf> {
-            let inc_file = ctx.get_full_path(&file);
-            inc_file
-        });
-        ret
+        self.with(|ctx| -> GResult<PathBuf> {
+            ctx.get_full_path(&file)
+        })
     }
 
     /// Is this file in the path?
@@ -208,7 +206,7 @@ impl TokenizeContext {
 
 pub fn tokenize<P: AsRef<Path>>(ctx: &Arc<Mutex<Context>>, requested_file: P) -> GResult<Node> {
     let include_stack = Stack::new();
-    let token_ctx = TokenizeContext::new(&ctx);
+    let token_ctx = TokenizeContext::new(ctx);
     let file_name = tokenize_async_main_loop(&token_ctx, &requested_file, None, include_stack)?;
 
     let ret = token_ctx.with(|ctx| -> GResult<Node> {
@@ -238,7 +236,7 @@ fn check_circular<P: AsRef<Path>>(
 
         Err(GazmErrorType::ParseError(ParseError::new_from_pos(
             "Circular include".to_string(),
-            &pos,
+            pos,
             true,
         )))
     } else {
@@ -366,8 +364,7 @@ mod test {
 
     fn get_config<P: AsRef<Path>>(path: P) -> YamlConfig {
         println!("Trying to read {}", path.as_ref().to_string_lossy());
-        let config = YamlConfig::new_from_file(&path);
-        config
+        YamlConfig::new_from_file(&path)
     }
 
     fn mk_ctx(config: &YamlConfig) -> crate::ctx::Context {

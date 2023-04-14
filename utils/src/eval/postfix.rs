@@ -39,7 +39,7 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
             self.opstack.push(op.clone());
             Ok(())
         } else {
-            Err(PostfixerErrorKind::ExpectedOperator(format!("{:?}", op)))
+            Err(PostfixerErrorKind::ExpectedOperator(format!("{op:?}")))
         }
     }
 
@@ -87,7 +87,7 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
 
                     let this_pri = op
                         .priority()
-                        .ok_or_else(|| PostfixerErrorKind::ExpectedOperator(format!("{:?}", op)))?;
+                        .ok_or_else(|| PostfixerErrorKind::ExpectedOperator(format!("{op:?}")))?;
 
                     if top_pri >= this_pri {
                         self.flush();

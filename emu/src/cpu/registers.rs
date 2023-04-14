@@ -30,7 +30,7 @@ impl Display for RegEnum {
             Self::CC => "CC",
             Self::PC => "PC",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
