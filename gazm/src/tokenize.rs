@@ -279,7 +279,6 @@ pub fn from_file<P: AsRef<Path>>(
             }
         }
     }
-
     Ok(file)
 }
 
