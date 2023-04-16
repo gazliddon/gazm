@@ -7,7 +7,7 @@ pub struct Vars {
 
 impl From<Vec<(String, String)>> for Vars {
     fn from(input: Vec<(String, String)>) -> Self {
-        let mut ret: Self = Default::default();
+        let mut ret: Self = Vars::default();
         for (k, v) in input {
             ret.set_var(k.to_string(), v.to_string());
         }
@@ -20,8 +20,8 @@ impl Vars {
         Self::default()
     }
 
-    pub fn set_var<V: Into<String>>(&mut self, var: V, val: V) {
-        self.vars.insert(var.into(), val.into());
+    pub fn set_var<V: Into<String>>(&mut self, var: V, value: V) {
+        self.vars.insert(var.into(), value.into());
     }
 
     pub fn get_var(&self, v: &str) -> Option<&String> {

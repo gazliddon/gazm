@@ -1,4 +1,3 @@
-
 use crate::ast::make_tree;
 use crate::ctx::Opts;
 use crate::gazm::Assembler;
@@ -25,7 +24,7 @@ pub fn render_nodes(nodes: Vec<Node>, text: String) -> String {
     let mut last_key = 0;
 
     for (key, group) in &nodes.iter().group_by(|e| e.ctx.line) {
-
+        use Item::*;
         if key != last_key + 1 {
             writeln!(&mut ret).expect("can't write")
         }
@@ -33,10 +32,8 @@ pub fn render_nodes(nodes: Vec<Node>, text: String) -> String {
         last_key = key;
 
         let mut columns = vec![String::new(); 4];
-        use Item::*;
 
-
-        for (count,n) in group.enumerate() {
+        for (count, n) in group.enumerate() {
             match n.item() {
                 Comment(name) => {
                     if count == 0 {
@@ -61,14 +58,14 @@ pub fn render_nodes(nodes: Vec<Node>, text: String) -> String {
 
                 Org => columns[1] = format!("{n}"),
 
-                WriteBin(file) => { columns[0] ="writebin".to_owned();
+                WriteBin(file) => {
+                    columns[0] = "writebin".to_owned();
                     columns[1] = format!("\"{}\"", file.to_string_lossy())
-                },
+                }
 
                 Rmb | Fcc(..) | MacroCall(..) | OpCode(..) | Fdb(..) | Fcb(..) | Fill => {
-                    let txt = &text[n.ctx.range.clone()].to_string();
-                    let txt = txt.replace('\t', " ");
-                    columns[1] = txt
+                    let original_txt = text[n.ctx.range.clone()].to_string().replace('\t', " ");
+                    columns[1] = original_txt
                 }
 
                 BlankLine => (),

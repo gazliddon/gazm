@@ -151,6 +151,8 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
 /// Evaluates a postfix expression
 fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalError> {
     use Item::*;
+    use std::panic;
+
     let mut s: Stack<Item> = Stack::new();
 
     let mut items: Vec<(AstNodeRef, Item)> = vec![];
@@ -169,7 +171,6 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
         }
     }
 
-    use std::panic;
 
     for (cn, i) in &items {
         if i.is_op() {
@@ -178,8 +179,8 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
             let lhs = lhs.get_number().unwrap();
             let rhs = rhs.get_number().unwrap();
 
-            let res = panic::catch_unwind(|| {
-                let res = match i {
+            let result = panic::catch_unwind(|| {
+                let result = match i {
                     Mul => lhs * rhs,
                     Div => lhs / rhs,
                     Add => lhs + rhs,
@@ -191,11 +192,11 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
                     ShiftRight => lhs >> (rhs as u64),
                     _ => return Err(EvalError::new(EvalErrorEnum::UnexpectedOp, *cn)),
                 };
-                Ok(res)
+                Ok(result)
             })
             .map_err(|_| EvalError::new(EvalErrorEnum::UnableToEvaluate, *cn))??;
 
-            s.push(Number(res, crate::item::ParsedFrom::FromExpr))
+            s.push(Number(result, crate::item::ParsedFrom::FromExpr))
         } else {
             s.push(i.clone());
         }

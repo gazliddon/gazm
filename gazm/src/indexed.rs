@@ -31,57 +31,57 @@ fn get_post_inc(input: Span) -> IResult<IndexParseType> {
     let (rest, (_, _, matched, _)) =
         tuple((tag(","), multispace0, get_index_reg, tag("+")))(input)?;
 
-    let ret = IndexParseType::Plus(matched);
-    Ok((rest, ret))
+    let index_type = IndexParseType::Plus(matched);
+    Ok((rest, index_type))
 }
 
 fn get_post_inc_inc(input: Span) -> IResult<IndexParseType> {
     let (rest, (_, _, matched, _)) =
         tuple((tag(","), multispace0, get_index_reg, tag("++")))(input)?;
-    let ret = IndexParseType::PlusPlus(matched);
-    Ok((rest, ret))
+    let index_type = IndexParseType::PlusPlus(matched);
+    Ok((rest, index_type))
 }
 
 fn get_pre_dec_dec(input: Span) -> IResult<IndexParseType> {
     let (rest, (_, _, _, matched)) =
         tuple((tag(","), multispace0, tag("--"), get_index_reg))(input)?;
-    let ret = IndexParseType::SubSub(matched);
-    Ok((rest, ret))
+    let index_type = IndexParseType::SubSub(matched);
+    Ok((rest, index_type))
 }
 
 fn get_pre_dec(input: Span) -> IResult<IndexParseType> {
     let (rest, (_, _, _, matched)) =
         tuple((tag(","), multispace0, tag("-"), get_index_reg))(input)?;
-    let ret = IndexParseType::Sub(matched);
-    Ok((rest, ret))
+    let index_type = IndexParseType::Sub(matched);
+    Ok((rest, index_type))
 }
 
 fn get_zero(input: Span) -> IResult<IndexParseType> {
     let sep = pair(tag(","), multispace0);
     let (rest, matched) = preceded(sep, get_reg)(input)?;
-    let ret = IndexParseType::Zero(matched);
-    Ok((rest, ret))
+    let index_type = IndexParseType::Zero(matched);
+    Ok((rest, index_type))
 }
 
 fn get_add_a(input: Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
     let (rest, (_, matched)) = separated_pair(tag_no_case("a"), sep, get_index_reg)(input)?;
-    let ret = IndexParseType::AddA(matched);
-    Ok((rest, ret))
+    let index_type = IndexParseType::AddA(matched);
+    Ok((rest, index_type))
 }
 
 fn get_add_b(input: Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
     let (rest, (_, matched)) = separated_pair(tag_no_case("b"), sep, get_index_reg)(input)?;
-    let ret = IndexParseType::AddB(matched);
-    Ok((rest, ret))
+    let index_type = IndexParseType::AddB(matched);
+    Ok((rest, index_type))
 }
 
 fn get_add_d(input: Span) -> IResult<IndexParseType> {
     let sep = separated_pair(multispace0, tag(","), multispace0);
     let (rest, (_, matched)) = separated_pair(tag_no_case("d"), sep, get_index_reg)(input)?;
-    let ret = IndexParseType::AddD(matched);
-    Ok((rest, ret))
+    let index_type = IndexParseType::AddD(matched);
+    Ok((rest, index_type))
 }
 
 fn get_no_arg_indexed(input: Span) -> IResult<IndexParseType> {

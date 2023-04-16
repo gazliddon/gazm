@@ -26,9 +26,6 @@
 ```
 # Todo
 
-# Todo
-* Don't remove includes from AST
-
 ## Misc
 * Add variable scoping into tokenizer
 
@@ -36,11 +33,12 @@
 - [ ] Change scope syntax to be in a block?
 
 ## Misc
-- [x] Make all line counts start from line 0, only > 1 for displaying etc
 - [ ] Text position -> Ast Item
 - [x] Move FMT in gazm
+- [x] Make all line counts start from line 0, only > 1 for displaying etc
 
 ## LSP
+* Allow for multiple project file
 * Get document changes
     - [*] Initial implementation register only for complete doc changes
     - [*] Add interface to incorporate change of entire doc

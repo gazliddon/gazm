@@ -165,8 +165,8 @@ mod newp {
         let mut s = String::new();
         s.push(matched);
         let num_bytes = s.as_bytes();
-        let ret = num_bytes[0];
-        Ok((rest, ret as i64))
+        let num_of_bytes = num_bytes[0] as i64;
+        Ok((rest, num_of_bytes))
     }
 }
 
@@ -205,8 +205,8 @@ fn get_char(input: Span) -> IResult<( i64, ParsedFrom )> {
     let mut s = String::new();
     s.push(matched);
     let num_bytes = s.as_bytes();
-    let ret = num_bytes[0];
-    Ok((rest, ( ret as i64, ParsedFrom::Char(matched) )))
+    let num_of_bytes = num_bytes[0];
+    Ok((rest, ( num_of_bytes as i64, ParsedFrom::Char(matched) )))
 }
 
 fn get_dec(input: Span) -> IResult<( i64, ParsedFrom )> {
@@ -250,10 +250,10 @@ mod test {
             ("0X0", 0),
         ];
         static ref TEST_DEC: Vec<(&'static str, i64)> = vec![
-            ("8723872", 8723872),
+            ("8723872", 8_723_872),
             ("4096", 4096),
             ("12", 12),
-            ("0___0_112210", 112210),
+            ("0___0_112210", 112_210),
         ];
         static ref TEST_ALL: Vec<(&'static str, i64)> = {
             let mut all = vec![];

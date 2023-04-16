@@ -50,10 +50,8 @@ impl<'a> Sizer<'a> {
         let (node, i) = self.get_node_item(ctx_mut, id);
 
         if let OpCode(ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
-            let _this_pc = pc;
-
-            pc += ins.size;
             use item::IndexParseType::*;
+            pc += ins.size;
 
             match pmode {
                 Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..) | Sub(..)
@@ -190,6 +188,7 @@ impl<'a> Sizer<'a> {
 
             OpCode(ins, amode) => {
                 use emu::isa::AddrModeEnum;
+                        use crate::opcodes::get_opcode_info;
 
                 match amode {
                     AddrModeParseType::Extended(false) => {
@@ -201,7 +200,6 @@ impl<'a> Sizer<'a> {
 
                         let mut size = ins.size;
 
-                        use crate::opcodes::get_opcode_info;
 
                         let dp_info = get_opcode_info(ins)
                             .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
@@ -295,9 +293,9 @@ impl<'a> Sizer<'a> {
             }
 
             IncBin(file_name) => {
-                let r = self.get_binary_extents(ctx, file_name, node)?;
+                let r = Self::get_binary_extents(ctx, file_name, node)?;
                 let new_item = IncBinResolved {
-                    file: file_name.to_path_buf(),
+                    file: file_name.clone(),
                     r: r.clone(),
                 };
 
@@ -318,7 +316,6 @@ impl<'a> Sizer<'a> {
     }
 
     fn get_binary_extents<P: AsRef<Path>>(
-        &self,
         ctx: &mut AsmCtx,
         file_name: P,
         node: AstNodeRef,
@@ -337,18 +334,18 @@ impl<'a> Sizer<'a> {
         if let Some((offset, size)) = offset_size {
             let offset = ctx.ctx.eval_node(offset)?;
             let size = ctx.ctx.eval_node(size)?;
-            let offset = offset as usize;
-            let size = size as usize;
-            let last = (offset + size) - 1;
+            let offset_usize = offset as usize;
+            let size_usize = size as usize;
+            let last = (offset_usize + size_usize) - 1;
 
-            if !(r.contains(&offset) && r.contains(&last)) {
+            if !(r.contains(&offset_usize) && r.contains(&last)) {
                 let msg =
                     format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
                 return Err(ctx.ctx.user_error(msg, node, true).into());
             };
 
-            r.start = offset;
-            r.end = offset + size;
+            r.start = offset_usize;
+            r.end = offset_usize + size_usize;
         }
 
         Ok(r)

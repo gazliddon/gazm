@@ -121,13 +121,13 @@ pub fn parse_macro_call(input: Span) -> IResult<Node> {
     ))(rest)?;
 
     let matched_span = span_to_pos(matched_span(input, rest));
-    let ret = Node::new_with_children(
+    let node = Node::new_with_children(
         Item::MacroCall(name.to_string()),
         args,
         matched_span,
     );
 
-    Ok((rest, ret))
+    Ok((rest, node))
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

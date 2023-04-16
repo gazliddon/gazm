@@ -76,9 +76,9 @@ fn parse_struct_entry(input: Span<'_>) -> IResult<Node> {
     ];
 
     let expr = Node::new_with_children(Item::Expr, childre, span_to_pos(input));
-    let ret = Node::from_item_span(Item::StructEntry(name.to_string()), input).with_child(expr);
+    let node = Node::from_item_span(Item::StructEntry(name.to_string()), input).with_child(expr);
 
-    Ok((rest, ret))
+    Ok((rest, node))
 }
 
 pub fn parse_struct_definition(input: Span<'_>) -> IResult<Node> {
@@ -89,12 +89,12 @@ pub fn parse_struct_definition(input: Span<'_>) -> IResult<Node> {
     let sep = ws(tag(","));
     let (spare, _) = opt(sep)(spare)?;
 
-    if !spare.is_empty() {
-        let m = "Unexpected text in struct definition, missing comma on previous line?";
-        Err(crate::error::parse_failure(m, spare))
-    } else {
+    if spare.is_empty() {
         let matched_span = matched_span(input, rest);
         let res = Node::new_with_children(Item::StructDef(name.to_string()), entries, span_to_pos( matched_span ));
         Ok((rest, res))
+    } else {
+        let m = "Unexpected text in struct definition, missing comma on previous line?";
+        Err(crate::error::parse_failure(m, spare))
     }
 }

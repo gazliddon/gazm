@@ -109,10 +109,10 @@ impl Binary {
     ) -> (std::ops::Range<usize>, std::ops::Range<usize>) {
         let start = pc;
         let end = self.get_write_address();
-        let pstart = self.logical_to_physical(start);
-        let pend = self.logical_to_physical(end);
+        let phys_start = self.logical_to_physical(start);
+        let phys_end = self.logical_to_physical(end);
 
-        (start..end, pstart..pend)
+        (start..end, phys_start..phys_end)
     }
     pub fn add_watch(&mut self, range: std::ops::Range<usize>) {
         self.watches.push(Watch { range })

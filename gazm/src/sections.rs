@@ -113,6 +113,7 @@ impl SectionDescriptor {
     }
 }
 
+#[derive(Default)]
 struct Sections {
     current_section: Option<usize>,
     sections: Vec<Section>,
@@ -155,13 +156,11 @@ pub enum SectionError {
     ErrorLoadingSectionFile(String),
 }
 
+
+
 impl Sections {
     pub fn new() -> Self {
-        Sections {
-            current_section: None,
-            sections: vec![],
-            name_to_section: Default::default(),
-        }
+        Self::default()
     }
 
     pub fn from_file(file: &str) -> Result<Sections, SectionError> {
@@ -173,7 +172,7 @@ impl Sections {
         let s: Vec<SerializedSection> = serde_yaml::from_str(&x)
             .map_err(|_| SectionError::ErrorLoadingSectionFile(file.to_string()))?;
 
-        let s2: Vec<SectionDescriptor> = s.into_iter().map(|x| x.into()).collect();
+        let s2: Vec<SectionDescriptor> = s.into_iter().map(Into::into).collect();
         let mut ret = Self::new();
         for s in s2 {
             ret.add_section_descriptor(s).unwrap();

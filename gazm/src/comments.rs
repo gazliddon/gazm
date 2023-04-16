@@ -29,20 +29,20 @@ pub fn parse_comment(input: Span) -> IResult<Node> {
     use Item::*;
 
     let (rest, matched) = get_comment(input)?;
-    let ret = Node::from_item_span(Comment(matched.to_string()), input);
-    Ok((rest, ret))
+    let node = Node::from_item_span(Comment(matched.to_string()), input);
+    Ok((rest, node))
 }
 pub fn parse_star_comment(input: Span) -> IResult<Node> {
     use Item::*;
     let (rest, matched) = get_star_comment(input)?;
-    let ret = Node::from_item_span(Comment(matched.to_string()), input);
-    Ok((rest, ret))
+    let node = Node::from_item_span(Comment(matched.to_string()), input);
+    Ok((rest, node))
 }
 
 pub fn strip_star_comment(input: Span) -> IResult<Node> {
     let (rest, matched) = ws(get_star_comment)(input)?;
-    let ret = Node::from_item_span(Item::Comment(matched.to_string()), input);
-    Ok((rest, ret))
+    let node = Node::from_item_span(Item::Comment(matched.to_string()), input);
+    Ok((rest, node))
 }
 
 // Strips comment if there

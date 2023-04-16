@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub enum SearchError {
-    FileNotFound(PathBuf, Vec<PathBuf>),
+    FileNotFound(Box<PathBuf>, Box<Vec<PathBuf>>),
     Placeholder,
 }
 
@@ -66,6 +66,6 @@ impl PathSearcher for Paths {
             return Ok(file_name.to_path_buf());
         }
 
-        Err(SearchError::FileNotFound(file_name.to_path_buf(), tried))
+        Err(SearchError::FileNotFound(file_name.to_path_buf().into(), tried.into()))
     }
 }

@@ -62,8 +62,8 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
         separated_pair(parse_unary_op, multispace0, parse_non_unary_term)(input)?;
 
     let matched_span = matched_span(input, rest);
-    let ret = Node::new_with_children(Item::UnaryTerm, vec![op, term], span_to_pos( matched_span) );
-    Ok((rest, ret))
+    let node = Node::new_with_children(Item::UnaryTerm, vec![op, term], span_to_pos( matched_span) );
+    Ok((rest, node))
 }
 
 fn parse_unary_op(input: Span) -> IResult<'_, Node> {
@@ -74,9 +74,9 @@ fn parse_unary_op(input: Span) -> IResult<'_, Node> {
     ))(input)?;
 
     let matched_span = matched_span(input, rest);
-    let ret = Node::from_item_span(op, matched_span);
+    let node = Node::from_item_span(op, matched_span);
 
-    Ok((rest, ret))
+    Ok((rest, node))
 }
 
 fn parse_binary_op(input: Span) -> IResult<Node> {
@@ -98,9 +98,9 @@ fn parse_binary_op(input: Span) -> IResult<Node> {
     ))(input)?;
 
     let matched_span = matched_span(input, rest);
-    let ret = Node::from_item_span(op, matched_span);
+    let node = Node::from_item_span(op, matched_span);
 
-    Ok((rest, ret))
+    Ok((rest, node))
 }
 
 fn parse_op_term(input: Span) -> IResult<(Node, Node)> {

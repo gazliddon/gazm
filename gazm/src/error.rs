@@ -20,7 +20,7 @@ pub enum GazmErrorType {
     #[error(transparent)]
     BinaryError(binary::BinaryError),
     #[error("Parse error {0}")]
-    ParseError(#[from] ParseError),
+    ParseError(#[from] Box<ParseError>),
     #[error(transparent)]
     EditError(#[from] EditErrorKind)
 }

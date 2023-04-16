@@ -135,7 +135,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("fcb {}", join_kids(","))
             }
 
-            OpCode(ins, amode) => {
+            OpCode(instruction, amode) => {
                 use item::AddrModeParseType::*;
 
                 let ind = |s: String, indirect: &bool| -> String {
@@ -150,9 +150,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                     Immediate => format!("#{}", child_string(0)),
                     Direct => format!("<{}", child_string(0)),
                     Extended(..) => child_string(0),
-                    Indexed(imode, indirect) => {
+                    Indexed(index_mode, indirect) => {
                         use item::IndexParseType::*;
-                        match imode {
+                        match index_mode {
                             ConstantByteOffset(r, v) | Constant5BitOffset(r, v) => {
                                 ind(format!("{v},{r}"), indirect)
                             }
@@ -176,10 +176,10 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                             ExtendedIndirect => format!("[{}]", child_string(0)),
                         }
                     }
-                    _ => format!("{:?} NOT IMPLEMENTED", ins.addr_mode),
+                    _ => format!("{:?} NOT IMPLEMENTED", instruction.addr_mode),
                 };
 
-                format!("{} {operand}", ins.action)
+                format!("{} {operand}", instruction.action)
             }
             _ => format!("{item:?} not implemented"),
         };

@@ -42,7 +42,10 @@ impl std::fmt::Display for Value {
 
 impl Value {
     pub fn is_number(&self) -> bool {
-        matches!(self, Value::Unsigned(_) | Value::Signed(_) | Value::Float(_))
+        matches!(
+            self,
+            Value::Unsigned(_) | Value::Signed(_) | Value::Float(_)
+        )
     }
 
     pub fn into_double(self) -> Self {
@@ -97,12 +100,10 @@ impl std::ops::Add for Value {
             (Unsigned(a), Float(b)) => Ok(Float(a as f64 + b)),
             (Float(a), Signed(b)) => Ok(Float(a + *b as f64)),
             (Float(a), Unsigned(b)) => Ok(Float(a + *b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a + *b )),
+            (Float(a), Float(b)) => Ok(Float(a + *b)),
             (Text(a), Text(b)) => Ok(Text(a + b)),
 
-            (Macro, _) | (_, Macro) | (Text(_), _) | (_, Text(_)) | (_, Null) | (Null, _) => {
-                Err(IncompatibleOperands)
-            }
+            (Macro | Text(_) | Null, _) | (_, Macro | Text(_) | Null) => Err(IncompatibleOperands),
         }
     }
 }
@@ -122,10 +123,8 @@ impl std::ops::Sub for Value {
             (Unsigned(a), Float(b)) => Ok(Float(a as f64 - b)),
             (Float(a), Signed(b)) => Ok(Float(a - *b as f64)),
             (Float(a), Unsigned(b)) => Ok(Float(a - *b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a - *b )),
-            (Null, _) | (_, Null) | (Macro, _) | (_, Macro) | (Text(_), _) | (_, Text(_)) => {
-                Err(IncompatibleOperands)
-            }
+            (Float(a), Float(b)) => Ok(Float(a - *b)),
+            (Null | Macro | Text(_), _) | (_, Null | Macro | Text(_)) => Err(IncompatibleOperands),
         }
     }
 }
@@ -145,10 +144,8 @@ impl std::ops::Mul for Value {
             (Unsigned(a), Float(b)) => Ok(Float(a as f64 * b)),
             (Float(a), Signed(b)) => Ok(Float(a * *b as f64)),
             (Float(a), Unsigned(b)) => Ok(Float(a * *b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a * *b )),
-            (Null, _) | (_, Null) | (Macro, _) | (_, Macro) | (Text(_), _) | (_, Text(_)) => {
-                Err(IncompatibleOperands)
-            }
+            (Float(a), Float(b)) => Ok(Float(a * *b)),
+            (Null | Macro | Text(_), _) | (_, Null | Macro | Text(_)) => Err(IncompatibleOperands),
         }
     }
 }
@@ -169,7 +166,7 @@ impl std::ops::Div for Value {
             (Unsigned(a), Float(b)) => Ok(Float(a as f64 / b)),
             (Float(a), Signed(b)) => Ok(Float(a / *b as f64)),
             (Float(a), Unsigned(b)) => Ok(Float(a / *b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a / *b )),
+            (Float(a), Float(b)) => Ok(Float(a / *b)),
             (Null, _) | (_, Null) | (Macro, _) | (_, Macro) | (Text(_), _) | (_, Text(_)) => {
                 Err(IncompatibleOperands)
             }
@@ -193,7 +190,7 @@ impl std::ops::Rem for Value {
             (Unsigned(a), Float(b)) => Ok(Float(a as f64 % b)),
             (Float(a), Signed(b)) => Ok(Float(a % *b as f64)),
             (Float(a), Unsigned(b)) => Ok(Float(a % *b as f64)),
-            (Float(a), Float(b)) => Ok(Float(a % *b )),
+            (Float(a), Float(b)) => Ok(Float(a % *b)),
             (Null, _) | (_, Null) | (Macro, _) | (_, Macro) | (Text(_), _) | (_, Text(_)) => {
                 Err(IncompatibleOperands)
             }

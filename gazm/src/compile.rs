@@ -83,6 +83,8 @@ impl<'a> Compiler<'a> {
         imode: IndexParseType,
         indirect: bool,
     ) -> GResult<()> {
+        use item::IndexParseType::*;
+
         let idx_byte = imode.get_index_byte(indirect);
         let (node, _) = self.get_node_item(ctx, id);
 
@@ -91,7 +93,6 @@ impl<'a> Compiler<'a> {
 
         ctx.binary_mut().write_byte(idx_byte)?;
 
-        use item::IndexParseType::*;
 
         match imode {
             PCOffset | ConstantOffset(..) => {
@@ -244,11 +245,11 @@ impl<'a> Compiler<'a> {
             }
 
             Relative => {
+                use crate::binary::BinaryError::*;
                 let (arg, arg_id) = ctx.ctx.eval_first_arg(node)?;
                 let (arg_n, _) = self.get_node_item(ctx, arg_id);
                 let val = arg - (pc as i64 + ins.size as i64);
                 // offset is from PC after Instruction and operand has been fetched
-                use crate::binary::BinaryError::*;
                 let res = ctx
                     .ctx
                     .asm_out

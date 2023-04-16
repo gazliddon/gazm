@@ -49,24 +49,24 @@ fn parse_immediate(input: Span) -> IResult<Node> {
     use AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag("#"), expr::parse_expr)(input)?;
-    let ret = Node::from_item_span(Operand(Immediate), input).with_child(matched);
-    Ok((rest, ret))
+    let node = Node::from_item_span(Operand(Immediate), input).with_child(matched);
+    Ok((rest, node))
 }
 
 fn parse_force_dp(input: Span) -> IResult<Node> {
     use crate::item::AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag("<"), expr::parse_expr)(input)?;
-    let ret = Node::from_item_span(Operand(Direct), input).with_child(matched);
-    Ok((rest, ret))
+    let node = Node::from_item_span(Operand(Direct), input).with_child(matched);
+    Ok((rest, node))
 }
 
 fn parse_force_extended(input: Span) -> IResult<Node> {
     use crate::item::AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag(">"), expr::parse_expr)(input)?;
-    let ret = Node::from_item_span(Operand(Extended(true)), input).with_child(matched);
-    Ok((rest, ret))
+    let node = Node::from_item_span(Operand(Extended(true)), input).with_child(matched);
+    Ok((rest, node))
 }
 
 fn parse_reg_set(input: Span) -> IResult<Node> {
@@ -110,10 +110,10 @@ fn parse_opcode_arg(input: Span) -> IResult<Node> {
     Ok((rest, matched))
 }
 
-fn get_instruction<'a>(
-    amode: &crate::item::AddrModeParseType,
-    info: &'a InstructionInfo,
-) -> Option<&'a Instruction> {
+fn get_instruction(
+    amode: crate::item::AddrModeParseType,
+    info: &InstructionInfo,
+) -> Option<&Instruction> {
     use AddrModeEnum::*;
     let get = |amode| info.get_instruction(&amode);
 
@@ -159,7 +159,7 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
         _ => todo!("Need an error here {:?}", arg.item()),
     };
 
-    if let Some(instruction) = get_instruction(&amode, info) {
+    if let Some(instruction) = get_instruction(amode, info) {
         let matched = matched_span(input, rest);
         let item = Item::OpCode(instruction.clone(), amode);
         let node = Node::from_item_span(item, matched).take_children(arg);
@@ -178,14 +178,14 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
     let matched_span = matched_span(input, rest);
 
     if let Some(instruction) = info.get_instruction(&Inherent) {
-        let ret = Node::from_item_span(
+        let node = Node::from_item_span(
             OpCode(
                 instruction.clone(),
                 super::item::AddrModeParseType::Inherent,
             ),
             matched_span,
         );
-        Ok((rest, ret))
+        Ok((rest, node))
     } else {
         let msg = format!("Missing operand for {text}");
         Err(crate::error::parse_failure(&msg, matched_span))

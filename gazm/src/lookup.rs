@@ -80,10 +80,11 @@ use log::info;
 
 impl LabelUsageAndDefintions {
     pub fn new(tree: &AstTree) -> Self {
+        use Item::*;
+
         let mut label_to_definition_pos: HashMap<String, Position> = HashMap::new();
         let mut labels: Vec<(String, Position)> = Default::default();
 
-        use Item::*;
 
         for v in tree.values() {
             let pos = v.pos.clone();

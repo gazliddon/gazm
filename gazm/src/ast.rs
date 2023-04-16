@@ -3,7 +3,6 @@ pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
 pub type AstNodeId = ego_tree::NodeId;
 pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 // use std::fmt::{Debug, DebugMap};
-//
 // lkd dk dlk
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
@@ -29,20 +28,6 @@ use log::kv::ToValue;
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
     tree.get(id).unwrap().children().map(|c| c.id()).collect()
 }
-
-// fn replace_node(tree: &mut AstTree, old_node_id: AstNodeId, new_node_id: AstNodeId) {
-//     let mut old_node = tree.get_mut(old_node_id).expect("can't retrieve old node");
-//     old_node.insert_id_after(new_node_id);
-//     old_node.detach();
-// }
-
-// fn replace_node_take_children(tree: &mut AstTree, old_node_id: AstNodeId, new_node_id: AstNodeId) {
-//     let mut replacement_node = tree
-//         .get_mut(new_node_id)
-//         .expect("Can't fetch replacement node");
-//     replacement_node.reparent_from_id_append(old_node_id);
-//     replace_node(tree, old_node_id, new_node_id)
-// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ItemWithPos {
@@ -103,7 +88,7 @@ where
     f(node);
 
     for n in node.children() {
-        get_recursive(n, f)
+        get_recursive(n, f);
     }
 }
 
@@ -115,7 +100,6 @@ fn get_ids_recursive(node: AstNodeRef) -> Vec<AstNodeId> {
 
 fn iter_ids_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeId> {
     let mut i = get_ids_recursive(node).into_iter();
-
     iter::from_fn(move || i.next())
 }
 
@@ -140,7 +124,7 @@ impl<'a> Ast<'a> {
             .get_mut(new_node_id)
             .expect("Can't fetch replacement node");
         replacement_node.reparent_from_id_append(old_node_id);
-        self.replace_node(old_node_id, new_node_id)
+        self.replace_node(old_node_id, new_node_id);
     }
 
     pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
@@ -207,28 +191,49 @@ impl<'a> Ast<'a> {
         }
         Ok(())
     }
+
+    pub fn detach_nodes_by_id<I: Iterator<Item = AstNodeId>>(&mut self, i: I) {
+        for id in i {
+            self.tree.get_mut(id).unwrap().detach();
+        }
+    }
+
+    pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> Vec<AstNodeId>
+    where
+        I: Iterator<Item = AstNodeId>,
+        F: Fn(AstNodeRef) -> bool,
+    {
+        i.filter(|id| {
+            let node = self.tree.get(*id).unwrap();
+            if f(node) {
+                self.tree.get_mut(*id).unwrap().detach();
+                true
+            } else {
+                false
+            }
+        })
+        .collect()
+    }
+
     pub fn process_macros(&mut self) -> Result<(), UserError> {
         // TODO: should be written in a way that can detect
         // redefinitions of a macro
         use std::collections::HashMap;
-        use Item::*;
+        use Item::{MacroCall, MacroCallProcessed, MacroDef, Scope};
 
-        // Make a hash of macro definitions
-        // longer term this needs scoping
-        // and detach all of them from the main tree
+        // Detach all of the MacroDef nodes
+        let detached = self.detach_nodes_filter(iter_ids_recursive(self.tree.root()), |nref| {
+            matches!(nref.value().item, Item::MacroDef(..))
+        });
 
-        let mut mdefs: HashMap<String, (AstNodeId, Vec<String>)> = Default::default();
-
-        for macro_id in iter_ids_recursive(self.tree.root()) {
-            let macro_node = self.tree.get(macro_id).unwrap();
-            if let MacroDef(name, params) = &macro_node.value().item {
-                mdefs.insert(name.to_string(), (macro_node.id(), params.clone()));
-                self.tree
-                    .get_mut(macro_id)
-                    .expect("Can't get macro mut node")
-                    .detach();
-            }
-        }
+        let mdefs: HashMap<String, (AstNodeId, Vec<String>)> = detached
+            .into_iter()
+            .filter_map(|id| {
+                let item = &self.tree.get(id).unwrap().value().item;
+                item.get_macro_def()
+                    .map(|(nm, params)| (nm.into(), (id, params.clone())))
+            })
+            .collect();
 
         self.ctx.asm_out.symbols.set_root();
 
@@ -305,8 +310,6 @@ impl<'a> Ast<'a> {
     }
 
     fn rename_locals(&mut self) {
-        use Item::*;
-
         info("Scoping locals into globals", |x| {
             let mut scopes = ScopeBuilder::new();
 
@@ -315,11 +318,11 @@ impl<'a> Ast<'a> {
                 x.debug(format!("{name} -> {ret}"));
                 ret
             };
-            use crate::item::LabelDefinition;
 
             // Expand all local labels to have a scoped name
             // and change all locals to globals
             for v in self.tree.values_mut() {
+                use Item::*;
                 match &v.item {
                     AssignmentFromPc(LabelDefinition::Text(name)) => {
                         scopes.pop();

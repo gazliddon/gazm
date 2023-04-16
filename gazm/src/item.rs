@@ -94,14 +94,14 @@ impl IndexParseType {
             }
 
             Zero(r) => {
-                let mut bits = 0b10000100;
+                let mut bits = 0b1000_0100;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
 
             AddA(r) => {
-                let mut bits = 0b10000110;
+                let mut bits = 0b1000_0110;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
@@ -330,6 +330,14 @@ impl Item {
     pub fn get_number(&self) -> Option<i64> {
         if let Item::Number(n, _) = self {
             Some(*n)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_macro_def(&self) -> Option<( &String,&Vec<String> )> {
+        if let Item::MacroDef(name,params) = self {
+            Some((name,params))
         } else {
             None
         }

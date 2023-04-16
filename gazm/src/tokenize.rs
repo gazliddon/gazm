@@ -73,8 +73,8 @@ fn parse_label_not_macro(input: Span) -> IResult<Node> {
     parse_label(input)
 }
 
-fn mk_pc_equate(node: Node) -> Node {
-    use Item::*;
+fn mk_pc_equate(node: &Node) -> Node {
+    use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
     let pos = node.ctx().clone();
 
     match &node.item {
@@ -115,16 +115,16 @@ impl Tokens {
     }
 
     fn add_node(&mut self, node: Node) {
-        self.tokens.push(node)
+        self.tokens.push(node);
     }
 
     fn trailing_text<'a>(&'a mut self, input: Span<'a>) -> IResult<()> {
-        if !input.is_empty() {
+        if input.is_empty() {
+            Ok((input, ()))
+        } else {
             let (rest, node) = parse_trailing_line_text(&self.opts, input)?;
             self.add_node(node);
             Ok((rest, ()))
-        } else {
-            Ok((input, ()))
         }
     }
 
@@ -152,7 +152,7 @@ impl Tokens {
 
         // If this is a label, add the label and carry on
         if let Ok((rest, label)) = ws(parse_label_not_macro)(input) {
-            let node = mk_pc_equate(label);
+            let node = mk_pc_equate(&label);
             self.add_node(node);
             input = rest;
         }
@@ -162,7 +162,7 @@ impl Tokens {
             alt((ws(parse_command), ws(parse_opcode), ws(parse_macro_call)))(input)
         {
             if let Item::Include(name) = node.item() {
-                self.add_include(name.clone())
+                self.add_include(name.clone());
             }
 
             self.add_node(node);
@@ -177,12 +177,12 @@ impl Tokens {
     }
 
     fn add_include<P: AsRef<Path>>(&mut self, file: P) {
-        self.includes.push(file.as_ref().into())
+        self.includes.push(file.as_ref().into());
     }
 
     fn add_includes(&mut self, paths: &[PathBuf]) {
         for p in paths {
-            self.includes.push(p.clone())
+            self.includes.push(p.clone());
         }
     }
 
@@ -208,12 +208,13 @@ impl Tokens {
             }
 
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
+                use std::string::ToString;
                 let macro_tokes = Tokens::new(ctx, body)?.take_tokens();
                 
 
                 let pos = crate::locate::span_to_pos(body);
                 let name = name.to_string();
-                let params = params.iter().map(|x| x.to_string()).collect();
+                let params = params.iter().map(ToString::to_string).collect();
 
                 let macro_def =
                     Node::new_with_children(Item::MacroDef(name, params), macro_tokes, pos);
@@ -249,7 +250,7 @@ impl Tokens {
     }
 }
 
-pub fn tokenize_file<P: AsRef<Path>>(
+pub fn from_file<P: AsRef<Path>>(
     _depth: usize,
     ctx: &mut crate::ctx::Context,
     file: P,
@@ -274,7 +275,7 @@ pub fn tokenize_file<P: AsRef<Path>>(
         if do_includes {
             let includes = ctx.get_untokenized_files(&tokenized.includes);
             for inc_file in includes {
-                tokenize_file(_depth + 1, ctx, &inc_file, Some(file.clone()), true)?;
+                from_file(_depth + 1, ctx, &inc_file, Some(file.clone()), true)?;
             }
         }
     }
@@ -303,9 +304,9 @@ pub fn tokenize<P: AsRef<Path>>(
     messages().status(msg);
 
     let mut ctx_arc = arc_ctx.lock().unwrap();
-    let ctx = &mut ctx_arc.deref_mut();
+    let ctx = &mut *ctx_arc;
 
-    let file_tokenized = tokenize_file(0, ctx, &file, None, do_includes)?;
+    let file_tokenized = from_file(0, ctx, &file, None, do_includes)?;
 
     ctx.asm_out.errors.raise_errors()?;
     let toks = ctx.get_tokens(&file_tokenized).unwrap().clone();
@@ -318,7 +319,7 @@ pub struct TokenizedText {
     pub parse_errors: Vec<ParseError>,
 }
 
-pub fn tokenize_text(ctx: &Context, text: Span) -> GResult<TokenizedText> {
+pub fn from_text(ctx: &Context, text: Span) -> GResult<TokenizedText> {
     Ok(Tokens::new(ctx, text)?.into())
 }
 

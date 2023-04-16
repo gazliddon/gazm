@@ -11,7 +11,7 @@ use crate::info_mess;
 use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
 use crate::token_store::TokenStore;
-use crate::tokenize::{tokenize_text, TokenizedText};
+use crate::tokenize::{from_text, TokenizedText};
 use async_std::prelude::*;
 
 use emu::utils::sources;
@@ -140,7 +140,7 @@ pub fn tokenize_file<P: AsRef<Path>>(
         .map(|(file, source, file_id)| (file, source, file_id))?;
     let input = Span::new_extra(&source, AsmSource::FileId(file_id));
 
-    let tokens = tokenize_text(ctx, input)?;
+    let tokens = from_text(ctx, input)?;
 
     // Collect all of the include files
     // let includes = get_include_files(&tokens);
@@ -234,11 +234,13 @@ fn check_circular<P: AsRef<Path>>(
             println!("{i} - {}", x.to_string_lossy());
         }
 
-        Err(GazmErrorType::ParseError(ParseError::new_from_pos(
+        let pe = ParseError::new_from_pos(
             "Circular include".to_string(),
             pos,
             true,
-        )))
+        );
+
+        Err(GazmErrorType::ParseError(pe.into()))
     } else {
         Ok(())
     }

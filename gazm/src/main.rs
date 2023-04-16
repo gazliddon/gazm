@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 #![feature(try_blocks)]
-
+// #![deny(clippy::pedantic)]
 mod as6809;
 mod asmctx;
 mod ast;
@@ -82,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match opts.build_type {
         ctx::BuildType::Format => {
             mess.status("Format file");
-            fmt::fmt(&opts)
+            fmt::fmt(&opts);
         }
 
         ctx::BuildType::Lsp => {

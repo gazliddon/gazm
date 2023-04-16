@@ -117,9 +117,9 @@ pub fn parse_assignment(input: Span) -> IResult<Node> {
         _ => panic!(),
     };
 
-    let ret = Node::from_item_span(item, matched_span).with_child(arg);
+    let node = Node::from_item_span(item, matched_span).with_child(arg);
 
-    Ok((rest, ret))
+    Ok((rest, node))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -141,10 +141,10 @@ pub fn match_file_name(input: Span) -> IResult<Span> {
 ////////////////////////////////////////////////////////////////////////////////
 // Number
 pub fn parse_number(input: Span) -> IResult<Node> {
-    let (rest, ( num, _parsed_from )) = numbers::get_number(input)?;
+    let (rest, ( num, parsed_from )) = numbers::get_number(input)?;
     let matched = crate::locate::matched_span(input, rest);
-    let ret = Node::from_number(num, _parsed_from, matched);
-    Ok((rest, ret))
+    let node = Node::from_number(num, parsed_from, matched);
+    Ok((rest, node))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

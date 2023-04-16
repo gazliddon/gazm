@@ -54,7 +54,7 @@ fn make_records(x: &str) -> Vec<Record> {
                 .step_by(2)
                 .map(|x| u8::from_str_radix(&data[x..x + 2], 16).unwrap())
                 .collect();
-            ret.push(Record { addr, data })
+            ret.push(Record { addr, data });
         }
     }
     ret

@@ -20,7 +20,7 @@ pub struct AsmCtx<'a> {
 
 impl<'a> AsmCtx<'a> {
     pub fn set_exec_addr(&mut self, addr: usize) {
-        self.ctx.asm_out.exec_addr = Some(addr)
+        self.ctx.asm_out.exec_addr = Some(addr);
     }
 
     pub fn ctx(&mut self) -> &mut Context {
@@ -55,9 +55,9 @@ impl<'a> AsmCtx<'a> {
 
     pub fn set_dp(&mut self, dp: i64) {
         if dp < 0 {
-            self.ctx.asm_out.direct_page = None
+            self.ctx.asm_out.direct_page = None;
         } else {
-            self.ctx.asm_out.direct_page = Some(dp as u64 as u8)
+            self.ctx.asm_out.direct_page = Some(dp as u64 as u8);
         }
     }
 
@@ -66,14 +66,14 @@ impl<'a> AsmCtx<'a> {
     }
 
     pub fn pop_scope(&mut self) {
-        self.ctx.get_symbols_mut().pop_scope()
+        self.ctx.get_symbols_mut().pop_scope();
     }
 
     pub fn set_scope(&mut self, name: &str) -> u64 {
         self.ctx.get_symbols_mut().set_scope(name)
     }
 
-    pub fn set_scope_from_id(&mut self, scope_id: u64) -> Result<(),SymbolError>{
+    pub fn set_scope_from_id(&mut self, scope_id: u64) -> Result<(), SymbolError> {
         self.ctx.get_symbols_mut().set_scope_from_id(scope_id)
     }
 
@@ -86,12 +86,10 @@ impl<'a> AsmCtx<'a> {
     }
     pub fn set_symbol_value(
         &mut self,
-        symbol_id : SymbolScopeId,
+        symbol_id: SymbolScopeId,
         val: usize,
     ) -> Result<(), SymbolError> {
-        self.ctx
-            .get_symbols_mut()
-            .set_symbol(symbol_id, val as i64)
+        self.ctx.get_symbols_mut().set_symbol(symbol_id, val as i64)
     }
 
     pub fn add_symbol_with_value(
@@ -112,7 +110,7 @@ impl<'a> AsmCtx<'a> {
     // }
 
     pub fn remove_symbol(&mut self, name: &str) {
-        self.ctx.get_symbols_mut().remove_symbol_name(name)
+        self.ctx.get_symbols_mut().remove_symbol_name(name);
     }
 
     pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
@@ -131,7 +129,7 @@ impl<'a> AsmCtx<'a> {
             .ctx
             .asm_out
             .binary
-            .get_bytes(physical_address , count )
+            .get_bytes(physical_address, count)
             .to_vec();
 
         // Write the file
@@ -162,12 +160,7 @@ impl<'a> AsmCtx<'a> {
         self.loader_mut().write(path, data)
     }
 
-    pub fn eval_macro_args(
-        &mut self,
-        scope_id: u64,
-        caller_id: AstNodeId,
-        tree: &AstTree,
-    ) -> bool {
+    pub fn eval_macro_args(&mut self, scope_id: u64, caller_id: AstNodeId, tree: &AstTree) -> bool {
         let node = tree.get(caller_id).unwrap();
         self.ctx.eval_macro_args(scope_id, node)
     }
@@ -218,7 +211,7 @@ impl<'a> AsmCtx<'a> {
 
         if let Ok(si) = si {
             let mem_text = if phys_range.is_empty() {
-                "".to_owned()
+                String::new()
             } else {
                 format!(
                     "{:02X?}",

@@ -50,9 +50,7 @@ pub fn get_index_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
     if reg.is_valid_for_index() {
         Ok((rest, reg))
     } else {
-        let msg = format!(
-            "Illegal index register {reg:?}, must be either: X, Y, S, U",
-        );
+        let msg = format!("Illegal index register {reg:?}, must be either: X, Y, S, U",);
         Err(crate::error::parse_failure(&msg, input))
     }
 }
@@ -73,21 +71,20 @@ pub fn get_reg_pair(input: Span) -> IResult<(emu::cpu::RegEnum, emu::cpu::RegEnu
 }
 
 fn get_reg_set(input: Span) -> IResult<HashSet<emu::cpu::RegEnum>> {
-    let mut ret = HashSet::new();
+    let mut hash_ret = HashSet::new();
 
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let (rest, matched) = separated_list1(sep, get_reg)(input)?;
 
     for r in matched {
-        if ret.contains(&r) {
+        if hash_ret.contains(&r) {
             let err = nom::error::make_error(input, nom::error::ErrorKind::Fail);
             return Err(nom::Err::Error(err));
-        } else {
-            ret.insert(r);
         }
+        hash_ret.insert(r);
     }
 
-    Ok((rest, ret))
+    Ok((rest, hash_ret))
 }
 
 // pub fn parse_reg(input: Span) -> IResult<Node> {
@@ -125,8 +122,8 @@ pub fn parse_reg_set_n(input: Span, n: usize) -> IResult<Node> {
 fn parse_reg_set(input: Span) -> IResult<Node> {
     let (rest, matched) = get_reg_set(input)?;
 
-    let ret = Node::from_item_span(Item::RegisterSet(matched), input);
-    Ok((rest, ret))
+    let node = Node::from_item_span(Item::RegisterSet(matched), input);
+    Ok((rest, node))
 }
 
 pub fn parse_reg_set_2(input: Span) -> IResult<Node> {

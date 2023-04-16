@@ -1,23 +1,34 @@
 use crate::commands::command_token;
 use crate::item::{Item, Node};
 use crate::opcodes::opcode_just_token;
-use nom::combinator::{all_consuming, recognize};
-use nom::sequence::pair;
+use nom::combinator::{all_consuming, opt, recognize};
+use nom::multi::many1;
+use nom::sequence::{pair, preceded, separated_pair};
 
 use nom::character::complete::{alpha1, alphanumeric1};
 
 use nom::branch::alt;
-use nom::bytes::complete::is_a;
+use nom::bytes::complete::{is_a, tag};
 use nom::multi::many0;
 
 use crate::error::IResult;
+use crate::item::LabelDefinition;
 use crate::locate::Span;
-            use crate::item::LabelDefinition;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
 static LOCAL_LABEL_PREFIX: &str = "@!";
 static OK_LABEL_CHARS: &str = "_?.";
+
+// scoped symbol is just a symbol or!
+// opt(symbol)sep(symbol+)
+pub fn get_scoped_label(input: Span) -> IResult<(Option<Span>, Vec<Span> )> {
+    let (rest, (lab, parts)) = pair(
+        opt(get_just_label),
+        many1(preceded(tag("::"), get_just_label)),
+    )(input)?;
+    Ok((rest, (lab, parts )))
+}
 
 pub fn get_just_label(input: Span) -> IResult<Span> {
     use crate::error::parse_error;
@@ -53,18 +64,20 @@ fn get_local_label(input: Span) -> IResult<Span> {
 
 pub fn parse_just_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
-    let ret = Node::from_item_span(Item::Label(
-            LabelDefinition::Text(matched.to_string())
-            ), matched);
-    Ok((rest, ret))
+    let node = Node::from_item_span(
+        Item::Label(LabelDefinition::Text(matched.to_string())),
+        matched,
+    );
+    Ok((rest, node))
 }
 
 fn parse_local_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_local_label(input)?;
-    let ret = Node::from_item_span(Item::LocalLabel(
-            LabelDefinition::Text(matched.to_string()))
-            , matched);
-    Ok((rest, ret))
+    let node = Node::from_item_span(
+        Item::LocalLabel(LabelDefinition::Text(matched.to_string())),
+        matched,
+    );
+    Ok((rest, node))
 }
 
 pub fn parse_label(input: Span) -> IResult<Node> {
@@ -74,10 +87,20 @@ pub fn parse_label(input: Span) -> IResult<Node> {
 
 #[allow(unused_imports)]
 mod test {
-    use pretty_assertions::{assert_eq, assert_ne};
     use emu::utils::sources::{AsmSource, Position};
+    use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
+    #[test]
+    fn scope_label() {
+        let lab = "hello::campers::chums";
+        let input = Span::new_extra(lab, AsmSource::FromStr);
+        let (_rest, (root, parts)) = get_scoped_label(input).expect("A scoped label");
+
+        println!("{root:?}");
+        println!("{parts:#?}");
+        panic!()
+    }
 
     #[test]
     fn test_parse_label() {
