@@ -38,7 +38,7 @@ pub type ConfigError<T> = Result<T, ConfigErrorType>;
 
 fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
     // Get the config file or use the default gazm.toml
-    let mut path : PathBuf = m.value_of("config-file").unwrap_or("gazm.toml").into();
+    let mut path: PathBuf = m.value_of("config-file").unwrap_or("gazm.toml").into();
 
     // If the file is a directory then add gazm.toml to the file
     if path.is_dir() {
@@ -50,25 +50,45 @@ fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
     }
 
     let ret = config::YamlConfig::new_from_file(path);
+
     Ok(ret)
 }
 
-fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigError<Opts> {
+fn get_verbosity(m: &ArgMatches) -> Option<Verbosity> {
+    if m.is_present("verbose") {
+        let v = match m.occurrences_of("verbose") {
+            0 => Verbosity::Silent,
+            1 => Verbosity::Normal,
+            2 => Verbosity::Info,
+            3 => Verbosity::Interesting,
+            _ => Verbosity::Debug,
+        };
+        Some(v)
+    } else {
+        None
+    }
+}
+
+fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType, verbosity_overide : Option<Verbosity>) -> ConfigError<Opts> {
     let mut conf = load_config(m)?;
     conf.opts.build_type = build_type;
+    if let Some(v) = verbosity_overide {
+        conf.opts.verbose = v
+    }
     Ok(conf.opts)
 }
 
 impl Opts {
     pub fn from_arg_matches(orig_matches: clap::ArgMatches) -> ConfigError<Opts> {
-        let ret = match orig_matches.subcommand() {
-            Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build)?,
-            Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check)?,
+        let verbosity = get_verbosity(&orig_matches);
 
-            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::Lsp)?,
+        let ret = match orig_matches.subcommand() {
+            Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build, verbosity)?,
+            Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check, verbosity)?,
+            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::Lsp, verbosity)?,
 
             Some(("fmt", m)) => {
-                let mut o = load_opts_with_build_type(m, BuildType::Format)?;
+                let mut o = load_opts_with_build_type(m, BuildType::Format, verbosity)?;
                 o.project_file = m.value_of("fmt-file").map(PathBuf::from).unwrap();
                 o
             }
@@ -91,13 +111,7 @@ impl Opts {
                     ..Default::default()
                 };
 
-                opts.verbose = match m.occurrences_of("verbose") {
-                    0 => Verbosity::Silent,
-                    1 => Verbosity::Normal,
-                    2 => Verbosity::Info,
-                    3 => Verbosity::Interesting,
-                    _ => Verbosity::Debug,
-                };
+                opts.verbose = verbosity.unwrap_or_default();
 
                 if m.is_present("mem-size") {
                     opts.mem_size = m
@@ -146,12 +160,28 @@ fn make_config_file_command<'a>(command: &'a str, about: &'a str) -> Command<'a>
         .arg(make_config_file_arg())
 }
 
+fn build_async_arg() -> Arg<'static> {
+    Arg::new("build-async")
+        .help("Build asynchronously")
+        .long("async-build")
+        .multiple_values(false)
+        .takes_value(false)
+        .required(false)
+}
+
 pub fn parse() -> clap::ArgMatches {
     Command::new("gazm")
         .about("6809 assembler")
         .author("gazaxian")
         .version("0.1")
         .bin_name("gazm")
+        .arg(
+            Arg::new("verbose")
+                .long("verbose")
+                .help("Verbose mode")
+                .multiple_occurrences(true)
+                .short('v'),
+        )
         .subcommand_required(true)
         .subcommand(make_config_file_command(
             "build",
@@ -191,14 +221,7 @@ pub fn parse() -> clap::ArgMatches {
                         .multiple_values(false)
                         .required(true),
                 )
-                .arg(
-                    Arg::new("build-async")
-                        .help("Build asynchronously")
-                        .long("async-build")
-                        .multiple_values(false)
-                        .takes_value(false)
-                        .required(false),
-                )
+                .arg(build_async_arg())
                 .arg(
                     Arg::new("symbol-file")
                         .help("File symbols are written to")
@@ -206,13 +229,6 @@ pub fn parse() -> clap::ArgMatches {
                         .help("symbol file")
                         .takes_value(true)
                         .short('s'),
-                )
-                .arg(
-                    Arg::new("verbose")
-                        .long("verbose")
-                        .help("Verbose mode")
-                        .multiple_occurrences(true)
-                        .short('v'),
                 )
                 .arg(
                     Arg::new("ignore-relative-offset-errors")
