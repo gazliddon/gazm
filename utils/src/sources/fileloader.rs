@@ -139,7 +139,7 @@ impl PathSearcher for SourceFileLoader {
         self.source_search_paths.get_full_path(file)
     }
 
-    fn get_search_paths(&self) -> &Vec<PathBuf> {
+    fn get_search_paths(&self) -> &[ PathBuf ] {
         self.source_search_paths.get_search_paths()
     }
 
@@ -147,7 +147,7 @@ impl PathSearcher for SourceFileLoader {
         self.source_search_paths.add_path(path)
     }
 
-    fn set_search_paths(&mut self, paths: Vec<PathBuf>) {
+    fn set_search_paths(&mut self, paths: &[PathBuf]) {
         self.source_search_paths.set_search_paths(paths)
     }
 }

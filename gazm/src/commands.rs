@@ -50,7 +50,7 @@ fn parse_fcc_arg(input: Span) -> IResult<Node> {
 fn parse_fdb_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     let num_of_bytes = matched.len();
-    let node = Node::new_with_children(Fdb(num_of_bytes), matched, span_to_pos(input));
+    let node = Node::new_with_children(Fdb(num_of_bytes), &matched, span_to_pos(input));
     Ok((rest, node))
 }
 
@@ -63,7 +63,7 @@ fn parse_rmb_arg(input: Span) -> IResult<Node> {
 fn parse_fcb_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     let num_of_bytes = matched.len();
-    let node = Node::new_with_children(Fcb(num_of_bytes), matched, span_to_pos(input));
+    let node = Node::new_with_children(Fcb(num_of_bytes), &matched, span_to_pos(input));
     Ok((rest, node))
 }
 
@@ -84,7 +84,7 @@ fn parse_require_arg(input: Span) -> IResult<Node> {
 fn parse_grab_mem(input: Span) -> IResult<Node> {
     use util::ws;
     let (rest, (src, size)) = separated_pair(parse_expr, ws(tag(",")), parse_expr)(input)?;
-    let node = Node::new_with_children(GrabMem, vec![src, size],span_to_pos( input ));
+    let node = Node::new_with_children(GrabMem, &vec![src, size],span_to_pos( input ));
     Ok((rest, node))
 }
 
@@ -102,7 +102,7 @@ fn inc_bin_args(input: Span) -> IResult<(PathBuf, Option<Vec<Node>>)> {
 fn parse_refbin_arg(input: Span) -> IResult<Node> {
     let (rest, (file, extra_args)) = inc_bin_args(input)?;
     let node =
-        Node::new_with_children(IncBinRef(file), extra_args.unwrap_or_default(), span_to_pos( input ));
+        Node::new_with_children(IncBinRef(file), &extra_args.unwrap_or_default(), span_to_pos( input ));
     Ok((rest, node))
 }
 
@@ -119,7 +119,7 @@ fn parse_write_bin_args(input: Span) -> IResult<Node> {
     let file_name = PathBuf::from(file_name.to_string());
 
     let node =
-        Node::new_with_children(WriteBin(file_name), vec![source_addr, size], span_to_pos(input));
+        Node::new_with_children(WriteBin(file_name), &vec![source_addr, size], span_to_pos(input));
 
     Ok((rest, node))
 }
@@ -128,7 +128,7 @@ fn parse_incbin_arg(input: Span) -> IResult<Node> {
     let (rest, (file, extra_args)) = inc_bin_args(input)?;
 
     let node =
-        Node::new_with_children(IncBin(file), extra_args.unwrap_or_default(), span_to_pos(input));
+        Node::new_with_children(IncBin(file), &extra_args.unwrap_or_default(), span_to_pos(input));
 
     Ok((rest, node))
 }
@@ -170,7 +170,7 @@ fn parse_scope_arg(input: Span) -> IResult<Node> {
 }
 
 fn mk_fill(input: Span, cv: (Node, Node)) -> Node {
-    Node::new_with_children(Fill, vec![cv.0, cv.1], span_to_pos( input ))
+    Node::new_with_children(Fill, &vec![cv.0, cv.1], span_to_pos( input ))
 }
 
 fn parse_bsz_arg(input: Span) -> IResult<Node> {

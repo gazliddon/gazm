@@ -103,7 +103,9 @@ impl<I: Clone + GetPriority + std::fmt::Debug> PostFixer<I> {
     }
 }
 
-pub fn to_postfix<I: Clone + GetPriority + std::fmt::Debug>(i : &[I]) -> Result<Vec<I>, PostfixerErrorKind>
+pub fn to_postfix<I>(i: &[I]) -> Result<Vec<I>, PostfixerErrorKind>
+where
+    I: Clone + GetPriority + std::fmt::Debug,
 {
     let mut x = PostFixer::new();
     x.get_postfix(i)

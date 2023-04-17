@@ -50,7 +50,6 @@ impl From<anyhow::Error> for GazmErrorType {
 // Anyhow, don't care what the error type is.
 // application should use this
 // thiserror = typed errors, gasmlib
-
 #[derive(Error, Debug, PartialEq, Clone)]
 pub struct ParseError {
     pub message: Option<String>,
@@ -311,7 +310,7 @@ impl UserError {
 #[derive(Clone)]
 pub struct ErrorCollector {
     max_errors: usize,
-    pub errors: Vec<GazmErrorType>,
+    pub errors: thin_vec::ThinVec<GazmErrorType>,
     errors_remaining: usize,
 }
 
@@ -346,7 +345,7 @@ impl ErrorCollector {
         Self {
             max_errors,
             errors_remaining: max_errors,
-            errors: vec![],
+            errors: Default::default()
         }
     }
 

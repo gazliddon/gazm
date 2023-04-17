@@ -29,8 +29,8 @@ impl<OP: Clone> Stack<OP> {
         Self::default()
     }
 
-    pub fn push(&mut self, op: OP) {
-        self.stack.push_front(op)
+    pub fn push<X : Into<OP>>(&mut self, op: X) {
+        self.stack.push_front(op.into())
     }
 
     pub fn pop(&mut self) -> Option<OP> {

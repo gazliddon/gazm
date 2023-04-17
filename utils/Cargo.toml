@@ -18,6 +18,7 @@ thiserror="*"
 sha1="*"
 base64ct="*"
 base16ct="*"
+thin-vec="*"
 
 lazy_static = "1.4.0"
 pretty_assertions="*"

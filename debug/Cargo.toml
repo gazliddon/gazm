@@ -17,7 +17,6 @@ lazy_static = "*"
 byteorder="*"
 imgui-glium-renderer="0.8.2"
 imgui-winit-support="0.8.2"
-
 serde = { version = "*", features = ["derive"] }
 serde_yaml = "*"
 serde_json = "*"

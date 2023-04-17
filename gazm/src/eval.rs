@@ -96,7 +96,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
         Label(LabelDefinition::Scoped(id)) => {
             symbols
                 .get_value_from_id(*id)
-                .map(|n| Item::number(n, ParsedFrom::FromExpr))
+                .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
                 .map_err(|_| {
                     let name = symbols
                         .get_symbol_info_from_id(*id)
@@ -108,13 +108,13 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
 
         Label(LabelDefinition::Text(name)) => symbols
             .get_value(name)
-            .map(|n| Item::number(n, ParsedFrom::FromExpr))
+            .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
 
         Pc => symbols
             // TODO: MUST change this be a root symnol, not current scope
             .get_value("*")
-            .map(|n| Item::number(n, ParsedFrom::FromExpr))
+            .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,
 
         UnaryTerm => {
@@ -123,7 +123,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
             let num = c.next().unwrap();
             let r = eval_internal(symbols, num)?;
 
-            let num = r.get_number().unwrap();
+            let num = r.unrwap_number().unwrap();
 
             let num = &match ops.value().item {
                 Item::Sub => Item::Number(-num, crate::item::ParsedFrom::FromExpr),
@@ -176,8 +176,8 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
         if i.is_op() {
             let (rhs, lhs) = s.pop_pair().expect("Can't pop pair!");
 
-            let lhs = lhs.get_number().unwrap();
-            let rhs = rhs.get_number().unwrap();
+            let lhs = lhs.unrwap_number().unwrap();
+            let rhs = rhs.unrwap_number().unwrap();
 
             let result = panic::catch_unwind(|| {
                 let result = match i {
@@ -207,5 +207,5 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
 
 pub fn eval(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<i64, EvalError> {
     let ret = eval_internal(symbols, n)?;
-    Ok(ret.get_number().unwrap())
+    Ok(ret.unrwap_number().unwrap())
 }

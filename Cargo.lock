@@ -816,6 +816,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "simple-logging",
+ "thin-vec",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -1838,6 +1839,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "222a222a5bfe1bba4a77b45ec488a741b3cb8872e5e499451fd7d0129c9c7c3d"
 
 [[package]]
+name = "thin-vec"
+version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aac81b6fd6beb5884b0cf3321b8117e6e5d47ecb6fc89f414cfdcca8b2fe2dd8"
+
+[[package]]
 name = "thiserror"
 version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2144,6 +2151,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha1 0.10.5",
+ "thin-vec",
  "thiserror",
 ]
 

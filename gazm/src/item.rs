@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::{collections::HashSet, path::PathBuf};
+use thin_vec::ThinVec;
 
 use crate::ast::AstNodeId;
 use crate::error::ParseError;
@@ -191,7 +192,7 @@ impl StructMemberType {
             Self::Word => Number(2, ParsedFrom::FromExpr),
             Self::DWord => Number(4, ParsedFrom::FromExpr),
             Self::QWord => Number(8, ParsedFrom::FromExpr),
-            Self::UserType(name) => Label(LabelDefinition::Text(format!("{name}.size"))),
+            Self::UserType(name) => Label(format!("{name}.size").into()),
         }
     }
 }
@@ -215,6 +216,22 @@ pub enum ParsedFrom {
 pub enum LabelDefinition {
     Text(String),
     Scoped(SymbolScopeId),
+}
+
+impl From<SymbolScopeId> for LabelDefinition {
+    fn from(value: SymbolScopeId) -> Self {
+        Self::Scoped(value)
+    }
+}
+impl From<&String> for LabelDefinition {
+    fn from(value: &String) -> Self {
+        Self::Text(value.clone())
+    }
+}
+impl From<String> for LabelDefinition {
+    fn from(value: String) -> Self {
+        Self::Text(value)
+    }
 }
 
 impl std::fmt::Display for LabelDefinition {
@@ -242,10 +259,10 @@ pub enum Item {
     MacroCallProcessed {
         scope_id: u64,
         macro_id: AstNodeId,
-        params_vec_of_id: Vec<SymbolScopeId>,
+        params_vec_of_id: ThinVec<SymbolScopeId>,
     },
 
-    MacroDef(String, Vec<String>),
+    MacroDef(String, ThinVec<String>),
 
     StructDef(String),
     StructEntry(String),
@@ -290,7 +307,7 @@ pub enum Item {
     WriteBin(PathBuf),
 
     TokenizedFile(PathBuf, Option<PathBuf>),
-    Errors(Vec<ParseError>),
+    Errors(ThinVec<ParseError>),
 
     Exec,
     Org,
@@ -323,11 +340,15 @@ impl Item {
         Self::OperandIndexed(imode, indirect)
     }
 
-    pub fn number(n: i64, p: ParsedFrom) -> Self {
+    pub fn from_number(n: i64, p: ParsedFrom) -> Self {
         Item::Number(n, p)
     }
 
-    pub fn get_number(&self) -> Option<i64> {
+    pub fn is_expr(&self) -> bool {
+        matches!(self,Self::Expr | Self::BracketedExpr)
+    }
+
+    pub fn unrwap_number(&self) -> Option<i64> {
         if let Item::Number(n, _) = self {
             Some(*n)
         } else {
@@ -335,7 +356,7 @@ impl Item {
         }
     }
 
-    pub fn get_macro_def(&self) -> Option<( &String,&Vec<String> )> {
+    pub fn unwrap_macro_def(&self) -> Option<( &String,&[String])> {
         if let Item::MacroDef(name,params) = self {
             Some((name,params))
         } else {
@@ -343,9 +364,9 @@ impl Item {
         }
     }
 
-    pub fn get_include(&self) -> Option<PathBuf> {
+    pub fn unwrap_include(&self) -> Option<&PathBuf> {
         if let Item::Include(n) = self {
-            Some(n.clone())
+            Some(n)
         } else {
             None
         }
@@ -381,7 +402,7 @@ impl Display for BaseNode<Item, Position> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Item::*;
 
-        let item = self.item();
+        let item = &self.item;
 
         let join_children = |sep| join_vec(&self.children, sep);
 

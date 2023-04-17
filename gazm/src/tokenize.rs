@@ -75,11 +75,11 @@ fn parse_label_not_macro(input: Span) -> IResult<Node> {
 
 fn mk_pc_equate(node: &Node) -> Node {
     use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
-    let pos = node.ctx().clone();
+    let pos = node.ctx.clone();
 
     match &node.item {
-        Label(label_def) => Node::from_item(AssignmentFromPc(label_def.clone()), pos),
-        LocalLabel(label_def) => Node::from_item(LocalAssignmentFromPc(label_def.clone()), pos),
+        Label(label_def) => Node::new(AssignmentFromPc(label_def.clone()), pos),
+        LocalLabel(label_def) => Node::new(LocalAssignmentFromPc(label_def.clone()), pos),
         _ => panic!("shouldn't happen"),
     }
 }
@@ -161,7 +161,7 @@ impl Tokens {
         if let Ok((rest, node)) =
             alt((ws(parse_command), ws(parse_opcode), ws(parse_macro_call)))(input)
         {
-            if let Item::Include(name) = node.item() {
+            if let Item::Include(name) = &node.item {
                 self.add_include(name.clone());
             }
 
@@ -217,7 +217,7 @@ impl Tokens {
                 let params = params.iter().map(ToString::to_string).collect();
 
                 let macro_def =
-                    Node::new_with_children(Item::MacroDef(name, params), macro_tokes, pos);
+                    Node::new_with_children(Item::MacroDef(name, params), &macro_tokes, pos);
                 self.add_node(macro_def);
                 source = rest;
                 continue;

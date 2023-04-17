@@ -147,7 +147,7 @@ pub fn tokenize_file<P: AsRef<Path>>(
 
     let file_pos = span_to_pos(input);
     let item = TokenizedFile(requested_file.clone(), parent.clone());
-    let node = Node::new_with_children(item, tokens.tokens, file_pos);
+    let node = Node::new_with_children(item, &tokens.tokens, file_pos);
 
     let ret = TokenizeResult {
         requested_file,
@@ -193,14 +193,11 @@ impl TokenizeContext {
 
     /// Is this file in the path?
     /// Is this file already tokenized?
-    pub fn get_file_info<P: AsRef<Path>>(&self, requested_file: P) -> GResult<(bool, PathBuf)> {
-        let ret = self.with(|ctx| -> GResult<(bool, PathBuf)> {
-            let actual_file = ctx.get_full_path(&requested_file)?;
-            let has_this_file = ctx.has_tokens(&requested_file);
-            Ok((has_this_file, actual_file))
-        })?;
-
-        Ok(ret)
+    pub fn has_tokens_for_file<P: AsRef<Path>>(&self, requested_file: P) -> bool {
+        self.with(|ctx| -> bool {
+            // let actual_file = ctx.get_full_path(&requested_file)?;
+            ctx.has_tokens(&requested_file)
+        })
     }
 }
 
@@ -297,42 +294,44 @@ fn is_circular<P: AsRef<Path>>(full_path: P, include_stack: &Stack<PathBuf>) -> 
 
 fn tokenize_async_main_loop<P: AsRef<Path>>(
     ctx: &TokenizeContext,
-    requested_file: P,
+    file_to_tokenize: P,
     parent: Option<PathBuf>,
     mut include_stack: Stack<PathBuf>,
 ) -> GResult<PathBuf> {
     use rayon::prelude::*;
-    use std::sync::mpsc::sync_channel;
-    use std::thread;
+
+    let file_to_tokenize = file_to_tokenize.as_ref().to_path_buf();
+
     // Find out if this file is already tokenized and held in the token store
-    let (has_this_file, actual_file) = ctx.get_file_info(&requested_file)?;
-    include_stack.push(actual_file.clone());
+    let has_this_file = ctx.has_tokens_for_file(&file_to_tokenize);
+
+    include_stack.push(&file_to_tokenize);
 
     // It isn't!
     if !has_this_file {
-        info_mess!("Reading file {}", actual_file.to_string_lossy());
+        info_mess!("Reading file {}", file_to_tokenize.to_string_lossy());
         let untokenized_includes = ctx.with(|ctx| -> GResult<Vec<PathBuf>> {
-            tokenize_file_and_add_tokens(ctx, &actual_file, parent)
+            tokenize_file_and_add_tokens(ctx, &file_to_tokenize, parent)
         })?;
 
         // let includes = ctx.with(|ctx| ctx.rationalise_includes(&tokenized.includes));
 
         rayon::scope(|s| -> GResult<()> {
-            for file in untokenized_includes {
-                let full_path = ctx.get_full_path(&file)?;
+            for full_path in untokenized_includes.iter() {
 
                 if is_circular(&full_path, &include_stack) {
+                    // TODO: Needs a proper error
                     panic!()
                 } else {
                     let mut stack = include_stack.clone();
-                    stack.push(full_path.clone());
-                    let actual_file = actual_file.clone();
+                    stack.push(full_path);
+                    let included_from = file_to_tokenize.clone();
 
                     s.spawn(move |_| {
                         let res = tokenize_async_main_loop(
                             ctx,
                             &full_path,
-                            Some(actual_file.clone()),
+                            Some(included_from),
                             stack,
                         );
                         ctx.with(|ctx| {
@@ -344,10 +343,10 @@ fn tokenize_async_main_loop<P: AsRef<Path>>(
             Ok(())
         })?;
     } else {
-        info_mess!("File {} was already tokenized", actual_file.to_string_lossy())
+        info_mess!("File {} was already tokenized", file_to_tokenize.to_string_lossy())
     }
 
-    Ok(actual_file)
+    Ok(file_to_tokenize)
 }
 
 #[allow(unused_imports)]

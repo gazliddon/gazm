@@ -38,8 +38,8 @@ pub struct ItemWithPos {
 impl ItemWithPos {
     pub fn new(n: &Node) -> Self {
         Self {
-            item: n.item().clone(),
-            pos: n.ctx().clone(),
+            item: n.item.clone(),
+            pos: n.ctx.clone(),
         }
     }
 }
@@ -135,8 +135,8 @@ impl<'a> Ast<'a> {
         };
 
         ret.inline_includes()?;
-        ret.rename_locals();
         ret.postfix_expressions()?;
+        ret.rename_locals();
         ret.process_macros()?;
         ret.generate_struct_symbols()?;
         ret.scope_assignments()?;
@@ -156,39 +156,37 @@ impl<'a> Ast<'a> {
     /// with inlines included files tokens
     fn inline_includes(&mut self) -> Result<(), UserError> {
         use Item::*;
-
         // Loop over the ast until we have replaced all of the includes
         // each include can have includes in it as well
         loop {
             // Get all of the include ids
             let include_ids: Vec<_> = iter_refs_recursive(self.tree.root())
-                .filter_map(|node| node.value().item.get_include().map(|p| (node.id(), p)))
+                .filter_map(|node| {
+                    node.value()
+                        .item
+                        .unwrap_include()
+                        .map(|p| (node.id(), self.ctx.get_full_path(p).unwrap()))
+                })
                 .collect();
 
-            // Break if there's no includes
+            // Go through the ids and get the tokens to insert into this AST
+            for (id, actual_file) in include_ids.iter() {
+                if let Some(tokens) = self.ctx.get_tokens(&actual_file) {
+                    let new_node_id = create_ast_node(&mut self.tree, tokens);
+                    self.replace_node(*id, new_node_id);
+                } else {
+                    panic!(
+                        "Can't find include tokens for {}",
+                        actual_file.to_string_lossy()
+                    )
+                }
+            }
+
             if include_ids.is_empty() {
                 break;
             }
-
-            // Go through the ids and get the tokens to insert into this AST
-            for (id, path) in include_ids.iter() {
-                let actual_file = self.ctx.get_full_path(path).unwrap();
-                let tokens = self.ctx.get_tokens(&actual_file);
-
-                if tokens.is_none() {
-                    println!(
-                        "Can't find include tokens for {}",
-                        actual_file.to_string_lossy()
-                    );
-                    panic!()
-                }
-
-                let tokens = tokens.unwrap();
-
-                let new_node_id = create_ast_node(&mut self.tree, tokens);
-                self.replace_node(*id, new_node_id);
-            }
         }
+
         Ok(())
     }
 
@@ -230,8 +228,8 @@ impl<'a> Ast<'a> {
             .into_iter()
             .filter_map(|id| {
                 let item = &self.tree.get(id).unwrap().value().item;
-                item.get_macro_def()
-                    .map(|(nm, params)| (nm.into(), (id, params.clone())))
+                item.unwrap_macro_def()
+                    .map(|(nm, params)| (nm.into(), (id, params.to_vec())))
             })
             .collect();
 
@@ -292,7 +290,7 @@ impl<'a> Ast<'a> {
                     item: MacroCallProcessed {
                         macro_id: *macro_id,
                         scope_id: macro_caller_scope_id,
-                        params_vec_of_id: params_vec,
+                        params_vec_of_id: params_vec.into(),
                     },
                     pos,
                 })
@@ -331,17 +329,17 @@ impl<'a> Ast<'a> {
 
                     LocalAssignmentFromPc(LabelDefinition::Text(name)) => {
                         let new_name = rename(&scopes.get_current_fqn(), name);
-                        v.item = AssignmentFromPc(LabelDefinition::Text(new_name));
+                        v.item = AssignmentFromPc(new_name.into());
                     }
 
                     LocalAssignment(LabelDefinition::Text(name)) => {
                         let new_name = rename(&scopes.get_current_fqn(), name);
-                        v.item = Assignment(LabelDefinition::Text(new_name));
+                        v.item = Assignment(new_name.into());
                     }
 
                     LocalLabel(LabelDefinition::Text(name)) => {
                         let new_name = rename(&scopes.get_current_fqn(), name);
-                        v.item = Label(LabelDefinition::Text(new_name));
+                        v.item = Label(new_name.into());
                     }
 
                     TokenizedFile(_, _) => {
@@ -354,71 +352,42 @@ impl<'a> Ast<'a> {
         });
     }
 
-    fn node_to_postfix(&self, node: AstNodeRef) -> Result<Vec<AstNodeId>, String> {
-        let args: Vec<_> = node.children().map(|n| Term::new(&n)).collect();
+    // Convert this node to from infix to postfix
+    fn node_to_postfix(&mut self, node_id: AstNodeId) -> Result<(), UserError> {
+        let node = self.tree.get(node_id).expect("Can't fetch node id");
+        assert!(node.value().item.is_expr());
+
+        let args = node.children().map(Term::from).collect::<Vec<_>>();
 
         let ret = to_postfix(&args).map_err(|s| {
-            let args: Vec<String> = args
+            let args: Vec<_> = args
                 .iter()
                 .map(|a| format!("{:?}", self.tree.get(a.node).unwrap().value().item))
                 .collect();
-            format!("\n{:?} {:?}\n {}", s, node.value(), args.join("\n"))
+            let msg = format!("\n{:?} {:?}\n {}", s, node.value(), args.join("\n"));
+            let msg = format!("Can't convert to postfix: {msg}");
+            self.node_error(msg, node_id, true)
         })?;
 
-        let ret = ret.iter().map(|t| t.node).collect();
+        // Remove and reappend each node
+        let tree = &mut self.tree;
 
-        Ok(ret)
+        for t in ret.iter().map(|t| t.node) {
+            tree.get_mut(t).expect("Couldn't Fetch mut child").detach();
+            tree.get_mut(node_id).unwrap().append_id(t);
+        }
+
+        tree.get_mut(node_id).unwrap().value().item = Item::PostFixExpr;
+        Ok(())
     }
 
     fn postfix_expressions(&mut self) -> Result<(), UserError> {
-        info("Converting expressions to poxtfix", |x| {
-            use Item::*;
-
-            let mut to_convert: Vec<(AstNodeId, Vec<AstNodeId>)> = vec![];
-
-            // find all of the nodes that need converting
-            // create a table of the order of ids desired to make the expression
-            // postix
-            for n in iter_refs_recursive(self.tree.root()) {
-                let v = n.value();
-                let parent_id = n.id();
-                match &v.item {
-                    BracketedExpr | Expr => {
-                        let new_order = self.node_to_postfix(n).map_err(|s| {
-                            let si = self.get_source_info_from_node_id(n.id()).unwrap();
-                            let msg = format!("Can't convert to postfix: {s}");
-                            UserError::from_text(msg, &si, true)
-                        })?;
-
-                        to_convert.push((parent_id, new_order));
-                    }
-                    _ => (),
+        info("Converting expressions to poxtfix", |_| {
+            for id in iter_ids_recursive(self.tree.root()) {
+                if self.tree.get(id).unwrap().value().item.is_expr() {
+                    self.node_to_postfix(id)?
                 }
             }
-
-            for (parent, new_children) in to_convert.iter() {
-                for c in new_children.iter() {
-                    if let Some(mut c) = self.tree.get_mut(*c) {
-                        c.detach();
-                    } else {
-                        let si = self.get_source_info_from_node_id(*c).unwrap();
-                        return Err(UserError::from_text(
-                            "Can't get a mutatable node",
-                            &si,
-                            true,
-                        ));
-                    }
-                }
-
-                let mut p = self.tree.get_mut(*parent).unwrap();
-
-                for c in new_children.iter() {
-                    p.append_id(*c);
-                }
-                p.value().item = PostFixExpr;
-            }
-
-            x.debug(format!("Converted {} expression(s)", to_convert.len()));
             Ok(())
         })
     }
@@ -428,16 +397,10 @@ impl<'a> Ast<'a> {
         UserError::from_ast_error(e, &si)
     }
 
-    pub fn user_error<S>(&self, msg: S, id: AstNodeId) -> UserError
+    fn node_error<S>(&self, msg: S, id: AstNodeId, is_failure: bool) -> UserError
     where
         S: Into<String>,
     {
-        let n = self.tree.get(id).unwrap();
-        let e = AstError::from_node(msg, n);
-        self.convert_error(e)
-    }
-
-    fn node_error(&self, msg: &str, id: AstNodeId, is_failure: bool) -> UserError {
         let node = self.tree.get(id).unwrap();
         let si = &self.get_source_info_from_node_id(node.id()).unwrap();
         UserError::from_text(msg, si, is_failure)
@@ -496,7 +459,7 @@ impl<'a> Ast<'a> {
             .add_symbol_with_value(&name.into(), value)
             .map_err(|e| {
                 let msg = format!("Symbol error {e:?}");
-                self.user_error(msg, id)
+                self.node_error(msg, id, false)
             })
     }
 
@@ -562,7 +525,7 @@ impl<'a> Ast<'a> {
                         .expect("Internal error getting symbol info")
                         .symbol_id;
                     let mut x = self.tree.get_mut(node_id).unwrap();
-                    x.value().item = Label(LabelDefinition::Scoped(id));
+                    x.value().item = Label(id.into());
                 }
 
                 _ => (),
@@ -593,13 +556,13 @@ impl<'a> Ast<'a> {
                     AssignmentFromPc(LabelDefinition::Text(name)) => {
                         let sym_id = symbols.add_symbol(name).unwrap();
                         let mut x = self.tree.get_mut(node_id).unwrap();
-                        x.value().item = AssignmentFromPc(LabelDefinition::Scoped(sym_id));
+                        x.value().item = AssignmentFromPc(sym_id.into());
                     }
 
                     Assignment(LabelDefinition::Text(name)) => {
                         let sym_id = symbols.add_symbol(name).unwrap();
                         let mut x = self.tree.get_mut(node_id).unwrap();
-                        x.value().item = Assignment(LabelDefinition::Scoped(sym_id));
+                        x.value().item = Assignment(sym_id.into());
                     }
                     _ => (),
                 }
@@ -614,43 +577,44 @@ impl<'a> Ast<'a> {
             use super::eval::eval;
             use Item::*;
 
-            self.ctx.asm_out.symbols.set_root();
+            let symbols = &mut self.ctx.asm_out.symbols;
+
+            symbols.set_root();
 
             for id in iter_ids_recursive(self.tree.root()) {
-                let item = self.tree.get(id).unwrap().value().item.clone();
 
-                match &item {
+
+                match &self.tree.get(id).unwrap().value().item {
                     Scope(scope) => {
-                        self.ctx.asm_out.symbols.set_root();
+                        symbols.set_root();
                         if scope != "root" {
-                            self.ctx.asm_out.symbols.set_scope(scope);
+                            symbols.set_scope(scope);
                         }
                     }
 
                     Assignment(LabelDefinition::Scoped(label_id)) => {
-                        let scoped_item = LabelDefinition::Scoped(*label_id);
-                        let n = self.tree.get(id).unwrap();
-                        let cn = n.first_child().unwrap();
-                        let res = eval(&self.ctx.asm_out.symbols, cn);
-                        let c_id = cn.id();
+                        let label_id = *label_id;
+                        let tree =&mut self.tree;
+                        let expr = tree.get(id).unwrap().first_child().unwrap();
+                        let expr_id = expr.id();
 
-                        match res {
+                        match eval(symbols, expr) {
                             Ok(value) => {
-                                self.set_symbol(value, *label_id, c_id)?;
+                                symbols.set_symbol(label_id, value).expect("Can't set symbols");
                             }
 
                             Err(EvalError {
                                 source: EvalErrorEnum::CotainsPcReference,
                                 ..
                             }) => {
-                                let mut x = self.tree.get_mut(n.id()).unwrap();
-                                x.value().item = Item::AssignmentFromPc(scoped_item);
+                                let assignment = Item::AssignmentFromPc(label_id.into());
+                                tree.get_mut(id).unwrap().value().item = assignment; 
                             }
 
                             Err(e) => {
                                 let ast_err: AstError = e.into();
                                 let msg = format!("Evaluating assignments: {ast_err}");
-                                return Err(self.node_error(&msg, c_id, true));
+                                return Err(self.node_error(&msg, expr_id, true));
                             }
                         }
                     }
@@ -697,6 +661,15 @@ pub fn to_priority(i: &Item) -> Option<usize> {
 
 impl Term {
     pub fn new(node: &AstNodeRef) -> Self {
+        Self {
+            node: node.id(),
+            priority: to_priority(&node.value().item),
+        }
+    }
+}
+
+impl From<AstNodeRef<'_>> for Term {
+    fn from(node: AstNodeRef) -> Self {
         Self {
             node: node.id(),
             priority: to_priority(&node.value().item),

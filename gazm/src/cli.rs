@@ -37,17 +37,19 @@ impl std::fmt::Debug for ConfigErrorType {
 pub type ConfigError<T> = Result<T, ConfigErrorType>;
 
 fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
-    use std::env::set_current_dir;
-
     // Get the config file or use the default gazm.toml
-    let x = m.value_of("config-file").unwrap_or("gazm.toml");
+    let mut path : PathBuf = m.value_of("config-file").unwrap_or("gazm.toml").into();
 
-    let path = PathBuf::from(x);
+    // If the file is a directory then add gazm.toml to the file
+    if path.is_dir() {
+        path.push("gazm.toml")
+    }
 
     if !path.is_file() {
         return Err(ConfigErrorType::MissingConfigFile(path));
     }
-    let ret = config::YamlConfig::new_from_file(x);
+
+    let ret = config::YamlConfig::new_from_file(path);
     Ok(ret)
 }
 

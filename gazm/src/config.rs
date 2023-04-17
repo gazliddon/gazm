@@ -38,7 +38,10 @@ impl Default for YamlConfig {
 impl YamlConfig {
     pub fn new_from_file<P: AsRef<std::path::Path>>(file: P) -> Self {
         use toml::Value;
-        let run_dir = file.as_ref().parent().and_then(|p| {
+
+        let file = file.as_ref();
+
+        let run_dir = file.parent().and_then(|p| {
             (p.to_string_lossy() != "")
                 .then_some(p)
                 .map(|p| p.to_path_buf())
@@ -60,7 +63,7 @@ impl YamlConfig {
         opts.lsp_config = toml.lsp.unwrap_or_default();
 
         let ret = YamlConfig {
-            file :file.as_ref().to_path_buf(),
+            file : file.to_path_buf(),
             opts,
             project: toml.project,
         };

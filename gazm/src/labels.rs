@@ -65,7 +65,7 @@ fn get_local_label(input: Span) -> IResult<Span> {
 pub fn parse_just_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
     let node = Node::from_item_span(
-        Item::Label(LabelDefinition::Text(matched.to_string())),
+        Item::Label(matched.to_string().into()),
         matched,
     );
     Ok((rest, node))
@@ -74,7 +74,7 @@ pub fn parse_just_label(input: Span) -> IResult<Node> {
 fn parse_local_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_local_label(input)?;
     let node = Node::from_item_span(
-        Item::LocalLabel(LabelDefinition::Text(matched.to_string())),
+        Item::LocalLabel(matched.to_string().into()),
         matched,
     );
     Ok((rest, node))

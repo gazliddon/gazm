@@ -156,13 +156,13 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
     let amode = match arg.item {
         Operand(amode) => amode,
         OperandIndexed(amode, indirect) => AddrModeParseType::Indexed(amode, indirect),
-        _ => todo!("Need an error here {:?}", arg.item()),
+        _ => todo!("Need an error here {:?}", arg.item),
     };
 
     if let Some(instruction) = get_instruction(amode, info) {
         let matched = matched_span(input, rest);
         let item = Item::OpCode(instruction.clone(), amode);
-        let node = Node::from_item_span(item, matched).take_children(arg);
+        let node = Node::from_item_span(item, matched).take_others_children(arg);
         Ok((rest, node))
     } else {
         let msg = format!("{text} does not support {amode:?} addresing mode");

@@ -109,7 +109,7 @@ fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GRes
         if let Some(dir) = file.as_ref().parent() {
             ctx.get_source_file_loader_mut().add_search_path(dir);
         }
-        let paths = ctx.get_source_file_loader_mut().get_search_paths().clone();
+        let paths = ctx.get_source_file_loader_mut().get_search_paths().to_vec();
         (paths, ctx.opts.build_async)
     });
 
@@ -123,7 +123,7 @@ fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GRes
 
     with_state(arc_ctx, |ctx| {
         ctx.asm_out.tokens.push(node);
-        ctx.get_source_file_loader_mut().set_search_paths(paths);
+        ctx.get_source_file_loader_mut().set_search_paths(&paths);
         ctx.asm_out.errors.raise_errors()
     })
 }

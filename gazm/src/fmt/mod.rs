@@ -34,7 +34,7 @@ pub fn render_nodes(nodes: Vec<Node>, text: String) -> String {
         let mut columns = vec![String::new(); 4];
 
         for (count, n) in group.enumerate() {
-            match n.item() {
+            match &n.item {
                 Comment(name) => {
                     if count == 0 {
                         columns[0] = format!("; {name}")
@@ -70,7 +70,7 @@ pub fn render_nodes(nodes: Vec<Node>, text: String) -> String {
 
                 BlankLine => (),
 
-                _ => println!("Can't format {:?}", n.item()),
+                _ => println!("Can't format {:?}", &n.item),
             }
         }
 

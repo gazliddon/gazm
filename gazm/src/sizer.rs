@@ -13,7 +13,9 @@ use crate::{
 use emu::{
     cpu::RegEnum,
     isa::Instruction,
-    utils::sources::{ItemType, SourceMapping, SymbolError, SymbolQuery, SymbolWriter},
+    utils::sources::{
+        ItemType, SourceMapping, SymbolError, SymbolQuery, SymbolScopeId, SymbolWriter,
+    },
 };
 
 use ego_tree::iter::Children;
@@ -35,7 +37,15 @@ struct Sizer<'a> {
 pub fn size_tree(ctx: &mut AsmCtx, id: AstNodeId, tree: &AstTree) -> GResult<()> {
     let sizer = Sizer::new(tree);
     ctx.set_root_scope();
-    let _ = sizer.size_node(ctx, 0, id)?;
+
+    let pc_id = ctx.ctx.get_symbols_mut()
+        .add_symbol_with_value("*", 0)
+        .expect("Can't add symbol for pc");
+
+    let _ = sizer.size_node(ctx, 0, id, pc_id)?;
+
+    ctx.set_root_scope();
+    ctx.remove_symbol("*");
     Ok(())
 }
 
@@ -119,7 +129,13 @@ impl<'a> Sizer<'a> {
         panic!()
     }
 
-    fn size_node(&self, ctx: &mut AsmCtx, mut pc: usize, id: AstNodeId) -> GResult<usize> {
+    fn size_node(
+        &self,
+        ctx: &mut AsmCtx,
+        mut pc: usize,
+        id: AstNodeId,
+        pc_symbol_id: SymbolScopeId,
+    ) -> GResult<usize> {
         use item::Item::*;
 
         let (node, i) = self.get_node_item(ctx, id);
@@ -138,7 +154,7 @@ impl<'a> Sizer<'a> {
                 let kids: Vec<_> = m_node.children().map(|n| n.id()).collect();
 
                 for c in kids {
-                    pc = self.size_node(ctx, pc, c)?;
+                    pc = self.size_node(ctx, pc, c, pc_symbol_id)?;
                 }
 
                 ctx.set_scope_from_id(current_scope).unwrap();
@@ -187,8 +203,8 @@ impl<'a> Sizer<'a> {
             }
 
             OpCode(ins, amode) => {
+                use crate::opcodes::get_opcode_info;
                 use emu::isa::AddrModeEnum;
-                        use crate::opcodes::get_opcode_info;
 
                 match amode {
                     AddrModeParseType::Extended(false) => {
@@ -199,7 +215,6 @@ impl<'a> Sizer<'a> {
                         // !!!! and it wasn't forced (need someway to propogate this from parse)
 
                         let mut size = ins.size;
-
 
                         let dp_info = get_opcode_info(ins)
                             .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
@@ -227,7 +242,7 @@ impl<'a> Sizer<'a> {
                     }
 
                     _ => {
-                        pc += ins.size ;
+                        pc += ins.size;
                     }
                 };
             }
@@ -240,10 +255,8 @@ impl<'a> Sizer<'a> {
                     // If the label has a child it means
                     // assignment is from an expr containing the current PC
                     // so lets evaluate it!
-                    ctx.add_symbol_with_value("*", pc).unwrap();
-                    let (ret, _) = ctx.ctx.eval_first_arg(node)?;
-                    ctx.remove_symbol("*");
-                    ret
+                    ctx.set_symbol_value(pc_symbol_id, pc).expect("Can't set PC symbol value");
+                    ctx.ctx.eval_first_arg(node)?.0
                 } else {
                     // Otherwise it's just the current PC
                     pc as i64
@@ -253,16 +266,16 @@ impl<'a> Sizer<'a> {
 
             Block | TokenizedFile(..) => {
                 for c in ctx.ctx.get_children(node) {
-                    pc = self.size_node(ctx, pc, c)?;
+                    pc = self.size_node(ctx, pc, c, pc_symbol_id)?;
                 }
             }
 
             Fdb(num_of_words) => {
-                pc += *num_of_words * 2 ;
+                pc += *num_of_words * 2;
             }
 
             Fcb(num_of_bytes) => {
-                pc += *num_of_bytes ;
+                pc += *num_of_bytes;
             }
 
             Fcc(text) => {

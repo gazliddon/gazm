@@ -62,7 +62,7 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
         separated_pair(parse_unary_op, multispace0, parse_non_unary_term)(input)?;
 
     let matched_span = matched_span(input, rest);
-    let node = Node::new_with_children(Item::UnaryTerm, vec![op, term], span_to_pos( matched_span) );
+    let node = Node::new_with_children(Item::UnaryTerm, &vec![op, term], span_to_pos( matched_span) );
     Ok((rest, node))
 }
 
@@ -121,7 +121,7 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
     let mut vec_ret = vec![term];
     vec_ret.extend(vs.into_iter().flat_map(|(o,t)| [o,t]));
     let matched_span = span_to_pos(matched_span(input, rest));
-    let node = Node::new_with_children(Item::Expr, vec_ret,matched_span);
+    let node = Node::new_with_children(Item::Expr, &vec_ret,matched_span);
 
     Ok((rest, node))
 }
