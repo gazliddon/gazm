@@ -161,7 +161,7 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
 
     if let Some(instruction) = get_instruction(amode, info) {
         let matched = matched_span(input, rest);
-        let item = Item::OpCode(instruction.clone(), amode);
+        let item = Item::OpCode(text.to_string(), instruction.clone(), amode);
         let node = Node::from_item_span(item, matched).take_others_children(arg);
         Ok((rest, node))
     } else {
@@ -180,6 +180,7 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
     if let Some(instruction) = info.get_instruction(&Inherent) {
         let node = Node::from_item_span(
             OpCode(
+                text.to_string(),
                 instruction.clone(),
                 super::item::AddrModeParseType::Inherent,
             ),

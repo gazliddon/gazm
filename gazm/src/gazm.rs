@@ -1,12 +1,13 @@
 use crate::ast::Ast;
-use crate::async_tokenize;
+use crate::async_tokenize::{self, TokenizeResult};
 use crate::ctx::{AsmOut, Context, Opts};
 use crate::error::UserError;
-use crate::error::{GResult, GazmErrorType};
+use crate::error::{GResult, GazmErrorKind};
 use crate::item::Node;
 use crate::locate::Span;
-use crate::tokenize::{self, TokenizedText};
+use crate::tokenize;
 use emu::utils::sources::{EditResult, Position, SourceFile, TextEditTrait};
+use emu::utils::PathSearcher;
 use rayon::iter::plumbing::Consumer;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -15,13 +16,12 @@ use thiserror::Error;
 use log::error;
 
 pub struct Assembler {
-    ctx: Arc<Mutex<Context>>,
+    pub ctx: Context
 }
 
 impl From<Assembler> for Context {
     fn from(value: Assembler) -> Self {
-        let lock = Arc::try_unwrap(value.ctx).expect("Still multiple owners");
-        lock.into_inner().expect("can't lock mutex")
+        value.ctx
     }
 }
 
@@ -29,57 +29,46 @@ impl Assembler {
     /// Create an Assembler
     pub fn new(opts: Opts) -> Self {
         let ctx = Context::from(opts);
-        let ctx = Arc::new(Mutex::new(ctx));
         Self { ctx }
     }
 
+    pub fn tokenize_file<P: AsRef<Path>>(&mut self, file: P) -> GResult<TokenizeResult> {
+            let file = self.ctx.get_source_file_loader().get_full_path(file)?;
+        tokenize::tokenize(&mut self.ctx, file)
+    }
+
     /// Assemble for the first time
-    pub fn assemble(&self) -> GResult<()> {
-        self.with_inner(|ctx| ctx.reset_all());
-        self.reassemble()
+    pub fn assemble(&mut self) -> GResult<()> {
+            self.ctx.reset_all();
+            assemble_project(&mut self.ctx)
     }
 
     /// Reassemble the project keeping the same caches
     /// but clearing the assembly output
-    pub fn reassemble(&self) -> GResult<()> {
-        let file = self.with_inner(|ctx: &mut Context| -> GResult<PathBuf> {
-            ctx.reset_output();
-            Ok(ctx.opts.project_file.clone())
-        })?;
-
-        assemble_file(&self.ctx, file)
+    pub fn reassemble(&mut self) -> GResult<()> {
+            self.ctx.reset_output();
+            assemble_project(&mut self.ctx)
     }
 
-    /// Operate on the inner Context
-    pub fn with_inner<R>(&self, f: impl FnOnce(&mut Context) -> R) -> R {
-        let ctx = &mut self.ctx.lock().expect("Could not lock mutex");
-        f(ctx)
+
+    pub fn write_outputs(&mut self) -> GResult<()> {
+        self.ctx.write_ouputs()
     }
 
-    pub fn write_outputs(&self) -> GResult<()> {
-        self.with_inner(|ctx| ctx.write_ouputs())
-    }
-
-    pub fn replace_file_contents<P: AsRef<Path>>(&self, file: P, new_text: &str) -> GResult<()> {
-        self.with_inner(|ctx| -> GResult<()> {
-            Ok(ctx.edit_source_file(&file, |editable| editable.replace_file(new_text))?)
-        })
+    pub fn replace_file_contents<P: AsRef<Path>>(&mut self, file: P, new_text: &str) -> GResult<()> {
+            Ok(self.ctx.edit_source_file(&file, |editable| editable.replace_file(new_text))?)
     }
 
     /// Edit a file
     /// and invalidate the token cache
     pub fn edit_file<P: AsRef<Path>, X>(
-        &self,
+        &mut self,
         file: P,
         f: impl FnOnce(&mut dyn TextEditTrait) -> EditResult<X>,
     ) -> GResult<X> {
-        let x = self.with_inner(|ctx| -> GResult<X> {
-            let res = ctx.edit_source_file(&file, |editable| f(editable))?;
+            let r = self.ctx.edit_source_file(&file, |editable| f(editable))?;
+        Ok(r)
 
-            Ok(res)
-        })?;
-
-        Ok(x)
     }
 }
 
@@ -93,42 +82,28 @@ pub fn create_ctx(opts: Opts) -> Arc<Mutex<Context>> {
     Arc::new(Mutex::new(ctx))
 }
 
-pub fn reassemble_ctx(arc_ctx: &Arc<Mutex<Context>>) -> GResult<()> {
-    let file = with_state(arc_ctx, |ctx| -> GResult<PathBuf> {
-        ctx.reset_output();
-        Ok(ctx.opts.project_file.clone())
-    })?;
-
-    assemble_file(arc_ctx, file)
-}
-
-fn assemble_file<P: AsRef<Path>>(arc_ctx: &Arc<Mutex<Context>>, file: P) -> GResult<()> {
+fn assemble_project(ctx: &mut Context) -> GResult<()> {
     use emu::utils::PathSearcher;
 
-    let (paths, is_asnc) = with_state(arc_ctx, |ctx| {
-        if let Some(dir) = file.as_ref().parent() {
-            ctx.get_source_file_loader_mut().add_search_path(dir);
-        }
-        let paths = ctx.get_source_file_loader_mut().get_search_paths().to_vec();
-        (paths, ctx.opts.build_async)
-    });
+    let file = ctx.opts.project_file.to_owned();
+    let paths = ctx.get_source_file_loader_mut().get_search_paths().to_vec();
 
-    let node = if is_asnc {
-        async_tokenize::tokenize(arc_ctx, file)
+    if let Some(dir) = file.parent() {
+        ctx.get_source_file_loader_mut().add_search_path(dir);
+    }
+
+    let tokes = if ctx.opts.build_async {
+        async_tokenize::tokenize(ctx, file)
     } else {
-        tokenize::tokenize(arc_ctx, file, true)
+        tokenize::tokenize(ctx, file)
     }?;
 
-    assemble_tokens(arc_ctx, &node)?;
-
-    with_state(arc_ctx, |ctx| {
-        ctx.asm_out.tokens.push(node);
-        ctx.get_source_file_loader_mut().set_search_paths(&paths);
-        ctx.asm_out.errors.raise_errors()
-    })
+    assemble_tokens(ctx, &tokes.node)?;
+    ctx.get_source_file_loader_mut().set_search_paths(&paths);
+    ctx.asm_out.errors.raise_errors()
 }
 
-pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<()> {
+pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
     use crate::asmctx::AsmCtx;
     use crate::compile::compile;
     use crate::evaluator::Evaluator;
@@ -136,21 +111,19 @@ pub fn assemble_tokens(arc_ctx: &Arc<Mutex<Context>>, tokens: &Node) -> GResult<
     use crate::lookup::LabelUsageAndDefintions;
     use crate::sizer::size_tree;
 
-    with_state(arc_ctx, |ctx| {
-        let tree = Ast::from_nodes(ctx, tokens)?;
-        let lookup = LabelUsageAndDefintions::new(&tree);
-        ctx.asm_out.lookup = Some(lookup);
+    let tree = Ast::from_nodes(ctx, tokens)?;
+    let lookup = LabelUsageAndDefintions::new(&tree);
+    ctx.asm_out.lookup = Some(lookup);
 
-        let id = tree.root().id();
+    let id = tree.root().id();
 
-        let mut asm_ctx = AsmCtx {
-            fixer_upper: FixerUpper::new(),
-            ctx,
-        };
+    let mut asm_ctx = AsmCtx {
+        fixer_upper: FixerUpper::new(),
+        ctx,
+    };
 
-        size_tree(&mut asm_ctx, id, &tree)?;
-        compile(&mut asm_ctx, &tree)?;
-        ctx.asm_out.ast = Some(tree);
-        Ok(())
-    })
+    size_tree(&mut asm_ctx, id, &tree)?;
+    compile(&mut asm_ctx, &tree)?;
+    ctx.asm_out.ast = Some(tree);
+    Ok(())
 }

@@ -92,13 +92,15 @@ where
     }
 }
 
+/// Return a vec of depth first node ids
 fn get_ids_recursive(node: AstNodeRef) -> Vec<AstNodeId> {
     let mut ret = vec![];
     get_recursive(node, &mut |x: AstNodeRef| ret.push(x.id()));
     ret
 }
 
-fn iter_ids_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeId> {
+/// Depth first iteration of all node ids
+pub fn iter_ids_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeId> {
     let mut i = get_ids_recursive(node).into_iter();
     iter::from_fn(move || i.next())
 }
@@ -106,6 +108,21 @@ fn iter_ids_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeId> {
 fn iter_refs_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeRef> {
     let mut i = get_ids_recursive(node).into_iter();
     iter::from_fn(move || i.next().and_then(|id| node.tree().get(id)))
+}
+
+fn iter_items_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &Item)> {
+    let mut i = get_ids_recursive(node).into_iter();
+    iter::from_fn(move || {
+        i.next()
+            .and_then(|id| node.tree().get(id).map(|n| (n.id(), &n.value().item)))
+    })
+}
+fn iter_values_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &ItemWithPos)> {
+    let mut i = get_ids_recursive(node).into_iter();
+    iter::from_fn(move || {
+        i.next()
+            .and_then(|id| node.tree().get(id).map(|n| (n.id(), n.value())))
+    })
 }
 
 impl<'a> Ast<'a> {
@@ -135,6 +152,7 @@ impl<'a> Ast<'a> {
         };
 
         ret.inline_includes()?;
+        ret.create_scopes()?;
         ret.postfix_expressions()?;
         ret.rename_locals();
         ret.process_macros()?;
@@ -155,39 +173,50 @@ impl<'a> Ast<'a> {
     /// Find all of the includes in this AST and replace with the
     /// with inlines included files tokens
     fn inline_includes(&mut self) -> Result<(), UserError> {
-        use Item::*;
-        // Loop over the ast until we have replaced all of the includes
-        // each include can have includes in it as well
-        loop {
-            // Get all of the include ids
-            let include_ids: Vec<_> = iter_refs_recursive(self.tree.root())
-                .filter_map(|node| {
-                    node.value()
-                        .item
-                        .unwrap_include()
-                        .map(|p| (node.id(), self.ctx.get_full_path(p).unwrap()))
-                })
-                .collect();
+        info("Inlining include files", |_x| {
+            use Item::*;
+            // Loop over the ast until we have replaced all of the includes
+            // each include can have includes in it as well
+            loop {
+                // Get all of the include ids
+                let include_ids: Vec<_> = iter_items_recursive(self.tree.root())
+                    .filter_map(|(id, item)| {
+                        item.unwrap_include()
+                            .map(|p| (id, self.ctx.get_full_path(p).unwrap()))
+                    })
+                    .collect();
 
-            // Go through the ids and get the tokens to insert into this AST
-            for (id, actual_file) in include_ids.iter() {
-                if let Some(tokens) = self.ctx.get_tokens(&actual_file) {
-                    let new_node_id = create_ast_node(&mut self.tree, tokens);
-                    self.replace_node(*id, new_node_id);
-                } else {
-                    panic!(
-                        "Can't find include tokens for {}",
-                        actual_file.to_string_lossy()
-                    )
+                if include_ids.is_empty() {
+                    crate::info_mess!("Finished inlining includes");
+                    break;
+                }
+
+                // Go through the ids and get the tokens to insert into this AST
+                for (id, actual_file) in include_ids {
+                    if let Some(tokens) = self.ctx.get_tokens(&actual_file) {
+                        crate::info_mess!("Inlining {} - HAD TOKENS", actual_file.to_string_lossy());
+                        let new_node_id = create_ast_node(&mut self.tree, &tokens.node);
+                        self.replace_node(id, new_node_id);
+                    } else {
+                        let x: Vec<_> = self
+                            .ctx
+                            .token_store
+                            .tokens
+                            .iter()
+                            .map(|(k, _)| k.to_string_lossy())
+                            .collect();
+
+                        panic!(
+                            "Can't find include tokens for {}\n{:?}",
+                            actual_file.to_string_lossy(),
+                            x
+                        )
+                    }
                 }
             }
 
-            if include_ids.is_empty() {
-                break;
-            }
-        }
-
-        Ok(())
+            Ok(())
+        })
     }
 
     pub fn detach_nodes_by_id<I: Iterator<Item = AstNodeId>>(&mut self, i: I) {
@@ -214,53 +243,50 @@ impl<'a> Ast<'a> {
     }
 
     pub fn process_macros(&mut self) -> Result<(), UserError> {
-        // TODO: should be written in a way that can detect
-        // redefinitions of a macro
-        use std::collections::HashMap;
-        use Item::{MacroCall, MacroCallProcessed, MacroDef, Scope};
+        info("Processing macros", |_| {
+            // TODO: should be written in a way that can detect
+            // redefinitions of a macro
+            use std::collections::HashMap;
+            use Item::{MacroCall, MacroCallProcessed, MacroDef, ScopeId};
 
-        // Detach all of the MacroDef nodes
-        let detached = self.detach_nodes_filter(iter_ids_recursive(self.tree.root()), |nref| {
-            matches!(nref.value().item, Item::MacroDef(..))
-        });
+            // Detach all of the MacroDef nodes
+            let detached = self.detach_nodes_filter(iter_ids_recursive(self.tree.root()), |nref| {
+                matches!(nref.value().item, Item::MacroDef(..))
+            });
 
-        let mdefs: HashMap<String, (AstNodeId, Vec<String>)> = detached
-            .into_iter()
-            .filter_map(|id| {
-                let item = &self.tree.get(id).unwrap().value().item;
-                item.unwrap_macro_def()
-                    .map(|(nm, params)| (nm.into(), (id, params.to_vec())))
-            })
-            .collect();
+            let mdefs: HashMap<String, (AstNodeId, Vec<String>)> = detached
+                .into_iter()
+                .filter_map(|id| {
+                    let item = &self.tree.get(id).unwrap().value().item;
+                    item.unwrap_macro_def()
+                        .map(|(nm, params)| (nm.into(), (id, params.to_vec())))
+                })
+                .collect();
 
-        self.ctx.asm_out.symbols.set_root();
+            self.ctx.asm_out.symbols.set_root();
 
-        // and a vec of macro calls
-        let mcalls = iter_refs_recursive(self.tree.root())
-            .enumerate()
-            .filter_map(|(i, macro_call_node)| {
+            let mut mcalls = vec![];
+
+            for (i, macro_call_node) in iter_refs_recursive(self.tree.root()).enumerate() {
                 let syms = &mut self.ctx.asm_out.symbols;
                 let val = &macro_call_node.value();
                 match &val.item {
-                    Scope(name) => {
-                        syms.set_root();
-                        syms.set_scope(name);
-                        None
+                    ScopeId(scope_id) => {
+                        syms.set_scope_from_id(*scope_id)
+                            .expect("Can't set scope id");
                     }
 
                     MacroCall(name) => {
                         // Create a unique name for this macro application scope
                         let caller_scope_name = format!("%MACRO%_{name}_{i}");
                         // Create the scope
-                        let macro_caller_scope_id = syms.set_scope(&caller_scope_name);
+                        let macro_caller_scope_id = syms.create_or_get_scope_id(&caller_scope_name);
 
-                        // TODO: need a failure case if we can't find the macro definition
-                        let (macro_id, params) =
-                            mdefs.get(name).expect("Expected to find macro definition");
+                        let (macro_id, params) = mdefs.get(name).ok_or_else(|| {
+                            self.node_error("Can't find macro", macro_call_node.id(), false)
+                        })?;
 
-                        syms.pop_scope();
-
-                        Some((
+                        mcalls.push((
                             macro_id,
                             macro_caller_scope_id,
                             params,
@@ -268,38 +294,34 @@ impl<'a> Ast<'a> {
                             val.pos.clone(),
                         ))
                     }
-                    _ => None,
+                    _ => (),
                 }
-            })
-            .collect::<Vec<_>>();
+            }
 
-        // Create new nodes to replace the current macro call nodes
-        // let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
-        for (macro_id, macro_caller_scope_id, params, caller_node_id, pos) in mcalls.into_iter() {
-            let params_vec = self
-                .ctx
-                .asm_out
-                .symbols
-                .add_symbols_to_scope(macro_caller_scope_id, params)
-                .unwrap();
+            // Create new nodes to replace the current macro call nodes
+            // let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
+            for (macro_id, caller_scope_id, params, caller_node_id, pos) in mcalls.into_iter() {
+                let syms = &mut self.ctx.asm_out.symbols;
+                let params_vec = syms.add_symbols_to_scope(caller_scope_id, params).unwrap();
 
-            // Create the node we'll replace
-            let replacement_node_id = self
-                .tree
-                .orphan(ItemWithPos {
-                    item: MacroCallProcessed {
-                        macro_id: *macro_id,
-                        scope_id: macro_caller_scope_id,
-                        params_vec_of_id: params_vec.into(),
-                    },
-                    pos,
-                })
-                .id();
+                // Create the node we'll replace
+                let replacement_id = self
+                    .tree
+                    .orphan(ItemWithPos {
+                        item: MacroCallProcessed {
+                            macro_id: *macro_id,
+                            scope_id: caller_scope_id,
+                            params_vec_of_id: params_vec.into(),
+                        },
+                        pos,
+                    })
+                    .id();
 
-            self.replace_node_take_children(caller_node_id, replacement_node_id);
-        }
+                self.replace_node_take_children(caller_node_id, replacement_id);
+            }
 
-        Ok(())
+            Ok(())
+        })
     }
 
     fn get_source_info_from_node_id(&self, id: AstNodeId) -> Result<SourceInfo, SourceErrorType> {
@@ -475,7 +497,7 @@ impl<'a> Ast<'a> {
 
                 if let StructDef(name) = item {
                     let mut current = 0;
-                    x.info(format!("Generating symbols for {name}"));
+                    x.debug(format!("Generating symbols for {name}"));
 
                     let kids_ids = get_kids_ids(&self.tree, id);
 
@@ -486,7 +508,7 @@ impl<'a> Ast<'a> {
                             let value = self.eval_node_child(c_id)?;
                             let scoped_name = format!("{name}.{entry_name}");
                             self.add_symbol(current, &scoped_name, c_id)?;
-                            x.info(format!("Struct: Set {scoped_name} to {current}"));
+                            x.debug(format!("Struct: Set {scoped_name} to {current}"));
                             current += value;
                         }
                     }
@@ -500,6 +522,33 @@ impl<'a> Ast<'a> {
         })
     }
 
+    /// Traverse all nodes and create scopes from Scope(name)
+    /// and change node from Scope(name) -> ScopeId(scope_id)
+    fn create_scopes(&mut self) -> Result<(), UserError> {
+        use Item::*;
+
+        self.ctx.asm_out.symbols.set_root();
+
+        for node_id in iter_ids_recursive(self.tree.root()) {
+            let item = self.tree.get(node_id).unwrap().value().item.clone();
+
+            match &item {
+                // Track scope correctly
+                Scope(scope) => {
+                    let symbols = &mut self.ctx.asm_out.symbols;
+                    symbols.set_root();
+                    let id = symbols.set_scope(scope.as_str());
+                    let mut x = self.tree.get_mut(node_id).unwrap();
+                    x.value().item = ScopeId(id);
+                }
+
+                _ => (),
+            }
+        }
+
+        Ok(())
+    }
+
     fn scope_labels(&mut self) -> Result<(), UserError> {
         use Item::*;
 
@@ -507,19 +556,18 @@ impl<'a> Ast<'a> {
 
         for node_id in iter_ids_recursive(self.tree.root()) {
             let item = self.tree.get(node_id).unwrap().value().item.clone();
-            // let pos = self.tree.get(node_id).unwrap().value().pos.clone();
+            let symbols = &mut self.ctx.asm_out.symbols;
 
             match &item {
                 // Track scope correctly
-                Scope(scope) => {
-                    let symbols = &mut self.ctx.asm_out.symbols;
-                    symbols.set_root();
-                    symbols.set_scope(scope.as_str());
+                ScopeId(scope_id) => {
+                    symbols
+                        .set_scope_from_id(*scope_id)
+                        .expect("Can't set scope");
                 }
 
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
-                    let symbols = &mut self.ctx.asm_out.symbols;
                     let id = symbols
                         .get_symbol_info(name)
                         .expect("Internal error getting symbol info")
@@ -548,9 +596,10 @@ impl<'a> Ast<'a> {
                 let item = self.tree.get(node_id).unwrap().value().item.clone();
 
                 match &item {
-                    Scope(scope) => {
-                        symbols.set_root();
-                        symbols.set_scope(scope.as_str());
+                    ScopeId(scope_id) => {
+                        symbols
+                            .set_scope_from_id(*scope_id)
+                            .expect("Can't set scope");
                     }
 
                     AssignmentFromPc(LabelDefinition::Text(name)) => {
@@ -578,29 +627,26 @@ impl<'a> Ast<'a> {
             use Item::*;
 
             let symbols = &mut self.ctx.asm_out.symbols;
-
             symbols.set_root();
 
             for id in iter_ids_recursive(self.tree.root()) {
-
-
                 match &self.tree.get(id).unwrap().value().item {
-                    Scope(scope) => {
-                        symbols.set_root();
-                        if scope != "root" {
-                            symbols.set_scope(scope);
-                        }
+                    ScopeId(scope_id) => {
+                        symbols
+                            .set_scope_from_id(*scope_id)
+                            .expect("Can't set scope");
                     }
 
                     Assignment(LabelDefinition::Scoped(label_id)) => {
                         let label_id = *label_id;
-                        let tree =&mut self.tree;
+                        let tree = &mut self.tree;
                         let expr = tree.get(id).unwrap().first_child().unwrap();
-                        let expr_id = expr.id();
 
                         match eval(symbols, expr) {
                             Ok(value) => {
-                                symbols.set_symbol(label_id, value).expect("Can't set symbols");
+                                symbols
+                                    .set_symbol(label_id, value)
+                                    .expect("Can't set symbols");
                             }
 
                             Err(EvalError {
@@ -608,13 +654,14 @@ impl<'a> Ast<'a> {
                                 ..
                             }) => {
                                 let assignment = Item::AssignmentFromPc(label_id.into());
-                                tree.get_mut(id).unwrap().value().item = assignment; 
+                                tree.get_mut(id)
+                                    .expect("Can't get assignment node")
+                                    .value()
+                                    .item = assignment;
                             }
 
                             Err(e) => {
-                                let ast_err: AstError = e.into();
-                                let msg = format!("Evaluating assignments: {ast_err}");
-                                return Err(self.node_error(&msg, expr_id, true));
+                                return Err(self.convert_error(e.into()));
                             }
                         }
                     }

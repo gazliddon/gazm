@@ -12,7 +12,7 @@ pub enum AsmSource {
     FileId(u64),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Position {
     pub line: usize,
     pub col: usize,

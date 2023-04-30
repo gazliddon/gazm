@@ -65,9 +65,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Comment(comment) => format!("; {comment}"),
 
-            Block =>  {
-                join_kids("\n")
-            }
 
             // QuotedString(test) => format!("\"{}\"", test),
             // Register(r) => r.to_string(),
@@ -115,7 +112,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             TokenizedFile(_, _) => join_kids("\n"),
 
-            OpCode(ins, item::AddrModeParseType::Inherent) => ins.action.clone(),
+            OpCode(_,ins, item::AddrModeParseType::Inherent) => ins.action.clone(),
 
             StructDef(name) => {
                 let body = join_kids(",\n");
@@ -135,7 +132,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("fcb {}", join_kids(","))
             }
 
-            OpCode(instruction, amode) => {
+            OpCode(_,instruction, amode) => {
                 use item::AddrModeParseType::*;
 
                 let ind = |s: String, indirect: &bool| -> String {

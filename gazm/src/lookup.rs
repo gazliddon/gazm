@@ -76,7 +76,9 @@ pub struct LabelUsageAndDefintions {
 
     nodes_by_id: HashMap<usize, Node>,
 }
+
 use log::info;
+
 
 impl LabelUsageAndDefintions {
     pub fn new(tree: &AstTree) -> Self {
@@ -163,3 +165,16 @@ impl LabelUsageAndDefintions {
 
     pub fn find_node(&self, _line: usize, _col: usize, _file_id: usize) {}
 }
+
+enum AstNodeKind {
+    Label(SymbolScopeId),
+    Command
+}
+
+pub struct AstSearchResult {
+}
+
+
+
+
+

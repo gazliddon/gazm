@@ -1,7 +1,7 @@
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::ctx::LstFile;
 use crate::ctx::Opts;
-use crate::error::{ErrorCollector, GResult, GazmErrorType};
+use crate::error::{ErrorCollector, GResult, GazmErrorKind};
 use crate::evaluator::Evaluator;
 use crate::item::Item;
 use crate::vars::Vars;
@@ -129,13 +129,9 @@ impl<'a> AsmCtx<'a> {
             .ctx
             .asm_out
             .binary
-            .get_bytes(physical_address, count)
-            .to_vec();
+            .get_bytes(physical_address, count)?.to_vec();
 
-        // Write the file
-        // TODO: This all needs produce errors if appropriate
         let path = self.get_abs_path(path);
-
         // Save a record of the file Written
         // this goes into the written sym file eventually
 

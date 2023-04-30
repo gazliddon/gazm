@@ -1,6 +1,7 @@
-use crate::ast::AstTree;
+use crate::ast::{AstTree, AstNodeId};
+use crate::async_tokenize::TokenizeResult;
 use crate::binary::{self, AccessType, Binary};
-use crate::error::{ErrorCollector, GResult, GazmErrorType, ParseError, UserError};
+use crate::error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError};
 use crate::item::Node;
 use crate::lookup::LabelUsageAndDefintions;
 use crate::lsp::LspConfig;
@@ -76,6 +77,8 @@ pub struct Opts {
     pub max_errors: usize,
     pub build_async: bool,
     pub fmt_file: Option<String>,
+    #[serde(skip)]
+    pub do_includes: bool,
 
     #[serde(skip)]
     pub checksums: HashMap<String, CheckSum>,
@@ -114,6 +117,7 @@ impl Default for Opts {
             build_type: BuildType::Build,
             lsp_config: Default::default(),
             fmt_file: None,
+            do_includes: true,
         }
     }
 }
@@ -129,14 +133,13 @@ pub struct AsmOut {
     pub exec_addr: Option<usize>,
     // pub bin_chunks: Vec<BinWriteDesc>,
     pub bin_to_write_chunks: Vec<BinToWrite>,
-    pub tokens: Vec<Node>,
     pub ast: Option<AstTree>,
     pub lookup: Option<LabelUsageAndDefintions>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    token_store: TokenStore,
+    pub token_store: TokenStore,
     source_file_loader: SourceFileLoader,
     pub cwd: PathBuf,
     pub opts: Opts,
@@ -158,21 +161,25 @@ impl LstFile {
     }
 }
 
-fn to_gazm(e: anyhow::Error) -> GazmErrorType {
-    GazmErrorType::Misc(e.to_string())
+fn to_gazm(e: anyhow::Error) -> GazmErrorKind {
+    GazmErrorKind::Misc(e.to_string())
 }
 
 impl Context {
-    pub fn get_untokenized_files(&self, files: &[PathBuf]) -> Vec<PathBuf> {
+    pub fn get_untokenized_files(&self, files: &[( Position, PathBuf )]) -> Vec<(Position, PathBuf )> {
         files
             .iter()
             .cloned()
-            .filter_map(|p| match self.has_tokens(&p) {
+            .filter_map(|(pos,path)| match self.get_tokens(&path).is_some() {
                 true => None,
-                false => Some(p),
+                false => Some((pos, path)),
             })
             .unique()
             .collect()
+    }
+
+    pub fn get_project_file(&self) -> PathBuf {
+        self.get_full_path(&self.opts.project_file).unwrap()
     }
 
     pub fn reset_output(&mut self) {
@@ -225,16 +232,8 @@ impl Context {
         &mut self.token_store
     }
 
-    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&Node> {
+    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult> {
         self.token_store.get_tokens(&file)
-    }
-
-    pub fn has_tokens<P: AsRef<Path>>(&self, file: P) -> bool {
-        self.get_tokens(file).is_some()
-    }
-
-    pub fn add_tokens<P: AsRef<Path>>(&mut self, file: P, node: Node) {
-        self.token_store.add_tokens(file, node)
     }
 
     pub fn sources(&self) -> &SourceFiles {
@@ -248,7 +247,7 @@ impl Context {
         &self.opts.vars
     }
 
-    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GazmErrorType> {
+    pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GazmErrorKind> {
         let path = self.get_vars().expand_vars(path.as_ref().to_string_lossy());
         let ret = self.source_file_loader.get_size(path).map_err(to_gazm)?;
         Ok(ret)
@@ -258,7 +257,7 @@ impl Context {
     pub fn read_source<P: AsRef<Path>>(
         &mut self,
         path: P,
-    ) -> Result<(PathBuf, String, u64), GazmErrorType> {
+    ) -> Result<(PathBuf, String, u64), GazmErrorKind> {
         let path = self.get_full_path(&path)?;
         // let path_string = path.to_string_lossy();
 
@@ -271,7 +270,7 @@ impl Context {
         }
     }
 
-    pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorType> {
+    pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorKind> {
         let path: PathBuf = self
             .get_vars()
             .expand_vars(path.as_ref().to_string_lossy())
@@ -279,7 +278,7 @@ impl Context {
 
         let ret = self.source_file_loader.get_full_path(&path).map_err(|_| {
             let err = format!("Can't find file {}", path.to_string_lossy());
-            GazmErrorType::Misc(err)
+            GazmErrorKind::Misc(err)
         })?;
 
         Ok(ret)
@@ -386,7 +385,7 @@ impl Context {
             let mut errors = vec![];
 
             for (name, csum) in &self.opts.checksums {
-                let data = self.asm_out.binary.get_bytes(csum.addr, csum.size);
+                let data = self.asm_out.binary.get_bytes(csum.addr, csum.size).expect("Binary error");
                 let this_hash = get_hash(data);
                 let expected_hash = csum.sha1.to_lowercase();
 

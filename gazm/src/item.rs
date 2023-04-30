@@ -38,6 +38,31 @@ pub enum IndexParseType {
     PcOffsetByte(i8),
 }
 
+impl IndexParseType {
+    pub fn has_operand(&self) -> bool {
+        use IndexParseType::*;
+
+        match self {
+            ConstantOffset(..) => true, //             arg,R
+            Plus(..) => false,          //             ,R+                    2 0 |
+            PlusPlus(..) => false,      //             ,R++                   3 0 |
+            Sub(..) => false,           //             ,-R                    2 0 |
+            SubSub(..) => false,        //             ,--R                   3 0 |
+            Zero(..) => false,          //             ,R                     0 0 |
+            AddB(..) => false,          //             (+/- B),R              1 0 |
+            AddA(..) => false,          //             (+/- A),R              1 0 |
+            AddD(..) => false,          //             (+/- D),R              4 0 |
+            PCOffset => true,           //             (+/- 7 bit offset),PC  1 1 |
+            ExtendedIndirect => true,   //  [expr]
+            Constant5BitOffset(..) => true,
+            ConstantByteOffset(..) => true,
+            ConstantWordOffset(..) => true,
+            PcOffsetWord(..) => true,
+            PcOffsetByte(..) => true,
+        }
+    }
+}
+
 fn rbits(r: RegEnum) -> u8 {
     let rnum = {
         match r {
@@ -175,6 +200,23 @@ pub enum AddrModeParseType {
     RegisterPair(RegEnum, RegEnum),
 }
 
+impl AddrModeParseType {
+    pub fn has_operand(&self) -> bool {
+        use AddrModeParseType::*;
+
+        match self {
+            Direct => true,
+            Extended(..) => true,
+            Relative => true,
+            Inherent => false,
+            Immediate => true,
+            RegisterSet => true,
+            RegisterPair(..) => false,
+            Indexed(x, _) => x.has_operand(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum StructMemberType {
     Byte,
@@ -243,6 +285,7 @@ impl std::fmt::Display for LabelDefinition {
     }
 }
 
+
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
@@ -271,19 +314,16 @@ pub enum Item {
     SetPutOffset(isize),
 
     Scope(String),
-    PopScope,
+    ScopeId(u64),
 
     Expr,
     PostFixExpr,
     BracketedExpr,
     Pc,
-    Block,
 
     UnaryTerm,
 
     RegisterSet(HashSet<RegEnum>),
-
-    ScopedSymbol(u64),
 
     Label(LabelDefinition),
     LocalLabel(LabelDefinition),
@@ -291,7 +331,7 @@ pub enum Item {
     Comment(String),
     Number(i64, ParsedFrom),
 
-    OpCode(Instruction, AddrModeParseType),
+    OpCode(String, Instruction, AddrModeParseType),
     Operand(AddrModeParseType),
     OperandIndexed(IndexParseType, bool),
     Include(PathBuf),
@@ -345,7 +385,7 @@ impl Item {
     }
 
     pub fn is_expr(&self) -> bool {
-        matches!(self,Self::Expr | Self::BracketedExpr)
+        matches!(self, Self::Expr | Self::BracketedExpr)
     }
 
     pub fn unrwap_number(&self) -> Option<i64> {
@@ -356,9 +396,9 @@ impl Item {
         }
     }
 
-    pub fn unwrap_macro_def(&self) -> Option<( &String,&[String])> {
-        if let Item::MacroDef(name,params) = self {
-            Some((name,params))
+    pub fn unwrap_macro_def(&self) -> Option<(&String, &[String])> {
+        if let Item::MacroDef(name, params) = self {
+            Some((name, params))
         } else {
             None
         }
@@ -453,19 +493,14 @@ impl Display for BaseNode<Item, Position> {
                 format!("({})", join_children(""))
             }
 
-            OpCode(ins, addr_type) => {
-                format!("{} {:?}", ins.action, addr_type)
+            OpCode(txt,_ins, addr_type) => {
+                format!("{txt} {:?}",  addr_type)
             }
 
             TokenizedFile(file, _) => {
                 let header = format!("; included file {}", file.to_string_lossy());
                 let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 format!("{}\n{}", header, children.join("\n"))
-            }
-
-            Block => {
-                let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
-                children.join("\n")
             }
 
             SetDp => {

@@ -3,14 +3,15 @@ use crate::doc::ErrorDocType;
 use crate::locate::span_to_pos;
 use crate::locate::Span;
 use crate::{binary, gazm};
+use emu::utils::SearchError;
 use emu::utils::sources::{AsmSource, Position, SourceInfo, EditErrorKind};
 use serde::de::Error;
 use thiserror::Error;
 
-pub type GResult<T> = Result<T, GazmErrorType>;
+pub type GResult<T> = Result<T, GazmErrorKind>;
 
 #[derive(Error, Debug, Clone)]
-pub enum GazmErrorType {
+pub enum GazmErrorKind {
     #[error(transparent)]
     UserError(#[from] UserError),
     #[error("Misc: {0}")]
@@ -18,32 +19,28 @@ pub enum GazmErrorType {
     #[error("Too Many Errors")]
     TooManyErrors(ErrorCollector),
     #[error(transparent)]
-    BinaryError(binary::BinaryError),
+    BinaryError(#[from] binary::BinaryError),
     #[error("Parse error {0}")]
     ParseError(#[from] Box<ParseError>),
     #[error(transparent)]
-    EditError(#[from] EditErrorKind)
+    EditError(#[from] EditErrorKind),
+    #[error(transparent)]
+    FileError(#[from] SearchError)
 }
 
 struct GazmError {
-    pub error: GazmErrorType,
+    pub error: GazmErrorKind,
     pub error_doc_type: Option<ErrorDocType>,
 }
 
-impl From<binary::BinaryError> for GazmErrorType {
-    fn from(x: binary::BinaryError) -> Self {
-        GazmErrorType::BinaryError(x)
-    }
-}
-
-impl From<String> for GazmErrorType {
+impl From<String> for GazmErrorKind {
     fn from(x: String) -> Self {
-        GazmErrorType::Misc(x)
+        GazmErrorKind::Misc(x)
     }
 }
-impl From<anyhow::Error> for GazmErrorType {
+impl From<anyhow::Error> for GazmErrorKind {
     fn from(x: anyhow::Error) -> Self {
-        GazmErrorType::Misc(x.to_string())
+        GazmErrorKind::Misc(x.to_string())
     }
 }
 
@@ -81,12 +78,12 @@ pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
 
 impl ParseError {
     pub fn new(message: String, span: &Span, failure: bool) -> ParseError {
-        Self::new_from_pos(message, &span_to_pos(*span), failure)
+        Self::new_from_pos(message.as_str(), &span_to_pos(*span), failure)
     }
 
-    pub fn new_from_pos(message: String, pos: &Position, failure: bool) -> Self {
+    pub fn new_from_pos(message: &str, pos: &Position, failure: bool) -> Self {
         Self {
-            message: Some(message),
+            message: Some(message.to_owned()),
             pos: pos.clone(),
             failure,
         }
@@ -281,9 +278,9 @@ impl From<UserErrorData> for UserError {
 }
 
 impl UserError {
-    pub fn from_ast_error(_err: AstError, info: &SourceInfo) -> Self {
-        let message = _err.message.unwrap_or_else(|| "Error".to_string());
-        Self::from_text(message, info, _err.failure)
+    pub fn from_ast_error(error: AstError, info: &SourceInfo) -> Self {
+        let message = error.message.unwrap_or_else(|| "Error".to_string());
+        Self::from_text(message, info, error.failure)
     }
 
     pub fn from_text<S>(msg: S, info: &SourceInfo, is_failure: bool) -> Self
@@ -310,7 +307,7 @@ impl UserError {
 #[derive(Clone)]
 pub struct ErrorCollector {
     max_errors: usize,
-    pub errors: thin_vec::ThinVec<GazmErrorType>,
+    pub errors: thin_vec::ThinVec<GazmErrorKind>,
     errors_remaining: usize,
 }
 
@@ -375,7 +372,7 @@ impl ErrorCollector {
 
     pub fn raise_errors(&self) -> GResult<()> {
         if self.has_errors() {
-            Err(GazmErrorType::TooManyErrors(self.clone()))
+            Err(GazmErrorKind::TooManyErrors(self.clone()))
         } else {
             Ok(())
         }
@@ -390,11 +387,11 @@ impl ErrorCollector {
 
     pub fn add_user_error(&mut self, err: UserError) -> GResult<()> {
         let failure = err.as_ref().failure;
-        let err = GazmErrorType::UserError(err);
+        let err = GazmErrorKind::UserError(err);
         self.add_error(err, failure)
     }
 
-    pub fn add_error(&mut self, err: GazmErrorType, failure: bool) -> GResult<()> {
+    pub fn add_error(&mut self, err: GazmErrorKind, failure: bool) -> GResult<()> {
         self.errors.push(err.clone());
 
         if self.errors_remaining == 0 || failure {

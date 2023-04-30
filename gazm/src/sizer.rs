@@ -2,7 +2,7 @@ use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
     binary::{AccessType, BinRef, Binary, BinaryError},
-    error::{GResult, GazmErrorType, UserError},
+    error::{GResult, GazmErrorKind, UserError},
     evaluator::{self, Evaluator},
     fixerupper::FixerUpper,
     item::{self, AddrModeParseType, IndexParseType, Item, LabelDefinition, Node},
@@ -59,7 +59,7 @@ impl<'a> Sizer<'a> {
 
         let (node, i) = self.get_node_item(ctx_mut, id);
 
-        if let OpCode(ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
+        if let OpCode(text,ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
             use item::IndexParseType::*;
             pc += ins.size;
 
@@ -99,7 +99,7 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item = OpCode(text.clone(),ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -117,7 +117,7 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item = OpCode(text.clone(),ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -160,11 +160,8 @@ impl<'a> Sizer<'a> {
                 ctx.set_scope_from_id(current_scope).unwrap();
             }
 
-            Scope(opt) => {
-                ctx.set_root_scope();
-                if opt != "root" {
-                    ctx.set_scope(opt);
-                }
+            ScopeId(scope_id) => {
+                ctx.set_scope_from_id(*scope_id).unwrap();
             }
 
             GrabMem => {
@@ -202,7 +199,7 @@ impl<'a> Sizer<'a> {
                 pc += bytes as usize;
             }
 
-            OpCode(ins, amode) => {
+            OpCode(text,ins, amode) => {
                 use crate::opcodes::get_opcode_info;
                 use emu::isa::AddrModeEnum;
 
@@ -228,7 +225,7 @@ impl<'a> Sizer<'a> {
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
-                                    let new_item = OpCode(new_ins, AddrModeParseType::Direct);
+                                    let new_item = OpCode(text.clone(),new_ins, AddrModeParseType::Direct);
                                     ctx.add_fixup(id, new_item);
                                 }
                             }
@@ -251,12 +248,9 @@ impl<'a> Sizer<'a> {
                 // TODO: should two types of item rather than this
                 // conditional
                 let pcv = if node.first_child().is_some() {
-                    // Assign this label
-                    // If the label has a child it means
-                    // assignment is from an expr containing the current PC
-                    // so lets evaluate it!
                     ctx.set_symbol_value(pc_symbol_id, pc).expect("Can't set PC symbol value");
                     ctx.ctx.eval_first_arg(node)?.0
+
                 } else {
                     // Otherwise it's just the current PC
                     pc as i64
@@ -264,7 +258,7 @@ impl<'a> Sizer<'a> {
                 ctx.set_symbol_value(*symbol_id, pcv as usize).unwrap();
             }
 
-            Block | TokenizedFile(..) => {
+            TokenizedFile(..) => {
                 for c in ctx.ctx.get_children(node) {
                     pc = self.size_node(ctx, pc, c, pc_symbol_id)?;
                 }

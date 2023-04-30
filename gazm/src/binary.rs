@@ -1,10 +1,10 @@
 use emu::mem::CheckedMemoryIo;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{ops::BitAnd, path::PathBuf};
 use thiserror::Error;
 
 struct Rle {
-    runs : Vec<(usize,usize)>
+    runs: Vec<(usize, usize)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -136,7 +136,7 @@ impl Binary {
         None
     }
 
-    pub fn check_against_referece(&self) -> Vec<(usize,usize)>{
+    pub fn check_against_referece(&self) -> Vec<(usize, usize)> {
         let mut last = 0;
         let mut runs = vec![];
         let mut run: (usize, usize) = (0, 0);
@@ -352,23 +352,20 @@ impl Binary {
         Ok(did_check)
     }
 
-    // TODO: Need to errorise this
-
-    // Get bytes from memory
-    // address is the physical_address
-    pub fn get_bytes(&self, physical_address: usize, count: usize) -> &[u8] {
+    pub fn get_bytes(&self, physical_address: usize, count: usize) -> Result<&[u8], BinaryError> {
         if count == 0 {
-            panic!("Amount is zero!");
+            Err(BinaryError::AskedForZeroBytes)
+        } else {
+            let r = physical_address..(physical_address + count);
+            Ok(&self.data[r])
         }
-        let r = physical_address..(physical_address + count);
-        &self.data[r]
     }
 
-    pub fn get_bytes_range(&self, r: std::ops::Range<usize>) -> &[u8] {
+    pub fn get_bytes_range(&self, r: std::ops::Range<usize>) -> Result<&[u8],BinaryError> {
         if r.is_empty() {
-            panic!("Internal error, asked for a zero byte range")
+            Err(BinaryError::AskedForZeroBytes)
         } else {
-            &self.data[r]
+            Ok( &self.data[r] )
         }
     }
 

@@ -6,6 +6,7 @@ use nom::{
     multi::separated_list0,
     sequence::separated_pair,
 };
+use crate::parse::strip_comments;
 
 use crate::locate::{matched_span, span_to_pos};
 
@@ -46,7 +47,7 @@ fn get_struct_arg_type(input: Span<'_>) -> IResult<StructMemberType> {
 fn get_struct_entry(
     input: Span<'_>,
 ) -> IResult<(Span, StructMemberType, Option<Span>, Option<Node>)> {
-    let (input, comment) = crate::comments::strip_comments(input)?;
+    let (input, comment) = strip_comments(input)?;
 
     let sep = ws(tag(":"));
     let (rest, (name, item_type)) =

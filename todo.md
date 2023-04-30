@@ -1,3 +1,6 @@
+# Parsing
+* Add in scope operators for symbol Parsing
+* A symbol may have a path and that path might be absolute or relative
 
 # Todo Scoping
 * Properly scope local labels
@@ -19,16 +22,14 @@
     * As well as direct navigation
     * Can be read-only? - Navigation by ScopeNavigator - writing by symbols object
 
-# AST Navigation
+# File position to AST node mapping
+* Make this generic in some way?
+    * We only want certain nodes mapped?
 
+# AST Navigation
 ```rust
     let x = 10;
 ```
-# Todo
-
-## Misc
-* Add variable scoping into tokenizer
-
 ## Require
 - [ ] Change scope syntax to be in a block?
 

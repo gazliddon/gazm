@@ -1,7 +1,7 @@
 #![allow(dead_code)]
+use super::AddrModeEnum;
 use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
-use super::AddrModeEnum;
 use std::fmt;
 
 // use serde::de::Deserializer;
@@ -145,11 +145,11 @@ impl Dbase {
         let mut lookup: Vec<Instruction> = vec![unknown.clone(); max + 1];
 
         for i in instructions.iter() {
-            lookup[i.opcode ] = i.clone();
+            lookup[i.opcode] = i.clone();
         }
 
         for (i, o) in lookup.iter_mut().enumerate() {
-            o.opcode = i ;
+            o.opcode = i;
         }
 
         let mut name_to_ins: HashMap<String, InstructionInfo> = HashMap::new();

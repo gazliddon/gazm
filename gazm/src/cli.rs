@@ -93,7 +93,6 @@ impl Opts {
                 o
             }
 
-            // TODO: Remove this option
             Some(("asm", m)) => {
                 let mut opts = Opts {
                     deps_file: m.value_of("deps").map(String::from),
@@ -158,6 +157,7 @@ fn make_config_file_command<'a>(command: &'a str, about: &'a str) -> Command<'a>
     Command::new(command)
         .about(about)
         .arg(make_config_file_arg())
+
 }
 
 fn build_async_arg() -> Arg<'static> {
@@ -173,8 +173,9 @@ pub fn parse() -> clap::ArgMatches {
     Command::new("gazm")
         .about("6809 assembler")
         .author("gazaxian")
-        .version("0.1")
+        .version("0.1.1")
         .bin_name("gazm")
+        // TODO: Look into using groups so replicate this into other subcommands
         .arg(
             Arg::new("verbose")
                 .long("verbose")

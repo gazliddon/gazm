@@ -1,6 +1,6 @@
 use crate::ctx::{Context, Opts};
-use crate::error::{GResult, GazmErrorType};
-use crate::gazm::{create_ctx, reassemble_ctx, with_state, Assembler};
+use crate::error::{GResult, GazmErrorKind};
+use crate::gazm::{create_ctx, with_state, Assembler};
 use emu::utils::sources::{SourceFile, TextEdit, TextEditTrait, TextPos};
 use futures::future::poll_immediate;
 use log::{error, info};
@@ -18,7 +18,7 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 pub struct Backend {
     pub client: Client,
-    pub asm: Assembler,
+    pub asm_ctx: Arc<Mutex<Assembler>>,
 }
 
 pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
@@ -78,22 +78,22 @@ impl Context {
 impl Backend {
     pub fn new(client: Client, opts: Opts) -> Self {
         info!("Backend created!");
-        let asm = Assembler::new(opts);
-        Self { client, asm }
+        let asm_ctx = Arc::new(Mutex::new(Assembler::new(opts)));
+        Self { client, asm_ctx }
     }
 
     pub fn get_ast(_l: Location) -> Option<String> {
         None
     }
 
-    fn create_diagnostics(&self, err: GazmErrorType) -> Vec<(PathBuf, Diagnostic)> {
+    fn create_diagnostics(&self, err: GazmErrorKind) -> Vec<(PathBuf, Diagnostic)> {
         let mut errs = vec![];
         match err {
-            GazmErrorType::UserError(e) => errs.push(e),
-            GazmErrorType::TooManyErrors(e) => {
+            GazmErrorKind::UserError(e) => errs.push(e),
+            GazmErrorKind::TooManyErrors(e) => {
                 for e in e.errors {
                     match e {
-                        GazmErrorType::UserError(e) => errs.push(e),
+                        GazmErrorKind::UserError(e) => errs.push(e),
                         _ => error!("Unhandled error {e}"),
                     }
                 }
@@ -121,8 +121,9 @@ impl Backend {
 
     async fn reassemble_file(&self, uri: Url) {
         let doc = PathBuf::from(uri.path());
+        info!("Reassmbling {}", doc.to_string_lossy());
 
-        let r = self.asm.reassemble();
+        let r = with_state(&self.asm_ctx, |asm| asm.reassemble());
 
         let diags = match r {
             Ok(_) => vec![],
@@ -158,7 +159,7 @@ impl Backend {
 
 impl Assembler {
     fn apply_change<P: AsRef<Path>>(
-        &self,
+        &mut self,
         doc: P,
         change: &TextDocumentContentChangeEvent,
     ) -> GResult<()> {
@@ -178,7 +179,7 @@ impl Assembler {
     }
 
     fn apply_changes<P: AsRef<Path>>(
-        &self,
+        &mut self,
         doc: P,
         content_changes: &Vec<TextDocumentContentChangeEvent>,
     ) -> GResult<()> {
@@ -215,7 +216,6 @@ fn make_location<P: AsRef<Path>>(line: usize, character: usize, path: P) -> Loca
     Location::new(new_uri, range)
 }
 
-
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn goto_declaration(
@@ -232,12 +232,13 @@ impl LanguageServer for Backend {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
 
-        let res = self
-            .asm
-            .with_inner(|ctx| {
-                ctx.to_file_path_position(&position, &uri)
+        let res = with_state(
+            &self.asm_ctx,
+            |asm| -> jsonrpc::Result<Option<Vec<Location>>> {
+                asm.ctx
+                    .to_file_path_position(&position, &uri)
                     .and_then(|(position, _)| {
-                        ctx.asm_out.lookup.as_ref().and_then(|lookup| {
+                        asm.ctx.asm_out.lookup.as_ref().and_then(|lookup| {
                             lookup
                                 .find_label_or_defintion(&position)
                                 .and_then(|label_name| lookup.find_references(label_name))
@@ -246,13 +247,16 @@ impl LanguageServer for Backend {
                     .map(|refs: Vec<_>| {
                         refs.into_iter()
                             .filter_map(|(_, p)| {
-                                ctx.asm_source_to_path(&p.src)
+                                asm.ctx
+                                    .asm_source_to_path(&p.src)
                                     .map(|file_name| Some(make_location(p.line, p.col, file_name)))
                             })
                             .collect()
                     })
-            })
-            .ok_or(jsonrpc::Error::method_not_found());
+                    .ok_or(jsonrpc::Error::method_not_found())
+            },
+        );
+
         info!("Done Finding references {:?}", res);
 
         res
@@ -303,12 +307,12 @@ impl LanguageServer for Backend {
     async fn initialized(&self, _init: InitializedParams) {
         info!("initialized! yeah!");
         info!("{:#?}", _init);
-        let x = self.asm.assemble();
+        // let x = self.asm.assemble();
 
-        info!("Assembler results {:#?}", x);
-        self.client
-            .log_message(MessageType::INFO, "initialized it all!")
-            .await;
+        // info!("Assembler results {:#?}", x);
+        // self.client
+        //     .log_message(MessageType::INFO, "initialized it all!")
+        //     .await;
     }
 
     async fn shutdown(&self) -> TResult<()> {
@@ -343,15 +347,8 @@ impl LanguageServer for Backend {
     ) -> jsonrpc::Result<Option<GotoDefinitionResponse>> {
         let position = &params.text_document_position_params.position;
         let uri = &params.text_document_position_params.text_document.uri;
-        let position = self
-            .asm
-            .with_inner(|ctx| ctx.find_definition(position, uri));
 
-        if let Some(position) = position.clone() {
-            self.client
-                .log_message(MessageType::INFO, &format!("{:?}, ", &position))
-                .await;
-        }
+        let position = with_state(&self.asm_ctx, |asm| asm.ctx.find_definition(position, uri));
 
         Ok(position.map(GotoDefinitionResponse::Scalar))
     }
@@ -378,12 +375,14 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change(&self, x: DidChangeTextDocumentParams) {
+        info!("did change!");
         info!("About to apply changes to {}", x.text_document.uri.path());
+
         let uri = x.text_document.uri;
 
-        let e = self
-            .asm
-            .apply_changes(PathBuf::from(uri.path()), &x.content_changes);
+        let e = with_state(&self.asm_ctx, |asm| {
+            asm.apply_changes(PathBuf::from(uri.path()), &x.content_changes)
+        });
 
         match e {
             Err(e) => {

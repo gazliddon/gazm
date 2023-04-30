@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
+use crate::async_tokenize::TokenizeResult;
 
 use crate::item::{Item, Node};
 use std::collections::HashMap;
 
 #[derive(Default, Clone, Debug)]
 pub struct TokenStore {
-    tokens: HashMap<PathBuf, Node>,
+    pub tokens: HashMap<PathBuf, TokenizeResult>,
 }
 
 impl TokenStore {
@@ -15,11 +16,11 @@ impl TokenStore {
         }
     }
 
-    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&Node> {
+    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult> {
         self.tokens.get(&file.as_ref().to_path_buf())
     }
 
-    pub fn add_tokens<P: AsRef<Path>>(&mut self, file: P, node: Node) {
+    pub fn add_tokens<P: AsRef<Path>>(&mut self, file: P, node: TokenizeResult) {
         self.tokens.insert(file.as_ref().to_path_buf(), node);
     }
 

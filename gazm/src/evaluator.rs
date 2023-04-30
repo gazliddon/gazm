@@ -10,7 +10,7 @@ use emu::utils::sources::fileloader::SourceFileLoader;
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::ctx::Context;
 use crate::error::UserError;
-use crate::error::{GResult, GazmErrorType};
+use crate::error::{GResult, GazmErrorKind};
 use crate::eval::eval;
 use crate::item::Item::*;
 

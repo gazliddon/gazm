@@ -10,7 +10,6 @@ mod async_tokenize;
 mod binary;
 mod cli;
 mod commands;
-mod comments;
 mod compile;
 mod config;
 mod ctx;
@@ -77,12 +76,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::set_current_dir(assemble_dir)?;
     }
 
-    let asm = gazm::Assembler::new(opts.clone());
+    let mut asm = gazm::Assembler::new(opts.clone());
 
     match opts.build_type {
         ctx::BuildType::Format => {
             mess.status("Format file");
-            fmt::fmt(&opts);
+            fmt::fmt(&opts)?;
         }
 
         ctx::BuildType::Lsp => {

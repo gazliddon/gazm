@@ -7,7 +7,7 @@ use crate::{
     ast::{AstNodeId, AstNodeRef, AstTree},
     astformat::as_string,
     ctx::Opts,
-    error::{GResult, GazmErrorType, UserError},
+    error::{GResult, GazmErrorKind, UserError},
     fixerupper::FixerUpper,
     item::{self, AddrModeParseType, IndexParseType, Item, Node},
     messages::debug_mess,
@@ -49,14 +49,14 @@ impl<'a> Compiler<'a> {
         ctx: &AsmCtx,
         id: AstNodeId,
         e: crate::binary::BinaryError,
-    ) -> GazmErrorType {
+    ) -> GazmErrorKind {
         let (n, _) = self.get_node_item(ctx, id);
         let info = &ctx.ctx.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
         UserError::from_text(msg, info, true).into()
     }
 
-    fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GazmErrorType {
+    fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GazmErrorKind {
         let (n, _) = self.get_node_item(ctx, id);
         let p = 1 << (bits - 1);
 
@@ -144,6 +144,7 @@ impl<'a> Compiler<'a> {
         let bytes = ctx
             .binary()
             .get_bytes(source as usize, size as usize)
+            .map_err(|e| self.binary_error(ctx, id, e))?
             .to_vec();
 
         ctx.binary_mut()
@@ -370,11 +371,8 @@ impl<'a> Compiler<'a> {
         let mut do_source_mapping = ctx.ctx.opts.lst_file.is_some();
 
         match i {
-            Scope(opt) => {
-                ctx.set_root_scope();
-                if opt != "root" {
-                    ctx.set_scope(&opt);
-                }
+            ScopeId(scope_id) => {
+                ctx.set_scope_from_id(scope_id).unwrap();
             }
 
             GrabMem => self.grab_mem(ctx, id)?,
@@ -404,7 +402,7 @@ impl<'a> Compiler<'a> {
                 ctx.binary_mut().set_write_offset(offset);
             }
 
-            OpCode(ins, amode) => {
+            OpCode(_,ins, amode) => {
                 self.opcode(ctx, id, &ins, &amode)?;
             }
 
@@ -433,7 +431,7 @@ impl<'a> Compiler<'a> {
                 ctx.set_scope_from_id(prev_scop).unwrap();
             }
 
-            Block | TokenizedFile(..) => {
+            TokenizedFile(..) => {
                 self.compile_children(ctx, id)?;
             }
 

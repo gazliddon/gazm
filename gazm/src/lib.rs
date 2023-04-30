@@ -9,7 +9,6 @@ pub mod async_tokenize;
 pub mod binary;
 pub mod cli;
 pub mod commands;
-pub mod comments;
 pub mod compile;
 pub mod config;
 pub mod ctx;

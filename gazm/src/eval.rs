@@ -112,7 +112,6 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
             .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
 
         Pc => symbols
-            // TODO: MUST change this be a root symnol, not current scope
             .get_value("*")
             .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,

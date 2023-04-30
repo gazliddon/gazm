@@ -18,7 +18,6 @@ pub struct LspConfig {
 
 pub fn do_lsp(opts: Opts) -> Result<(), Box<dyn std::error::Error>> {
     // TODO: have the logger log to the file in the lsp_config opt
-    //
     if let Some(log_path) = &opts.lsp_config.log_file {
         simple_logging::log_to_file(log_path, LevelFilter::Info).unwrap();
     }

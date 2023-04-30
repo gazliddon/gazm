@@ -40,7 +40,6 @@ fn parse_exec_arg(input: Span) -> IResult<Node> {
     Ok((rest, node))
 }
 
-
 fn parse_fcc_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = util::wrapped_chars('"', is_not("\""), '"')(input)?;
     let node = Node::from_item_span(Fcc(matched.to_string()), input);

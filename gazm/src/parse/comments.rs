@@ -1,8 +1,6 @@
 use crate::item::{Item, Node};
 use nom::character::complete::not_line_ending;
-
 use nom::bytes::complete::take_until;
-
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::recognize;

@@ -249,6 +249,12 @@ impl SymbolTree {
     // enters the child scope below the current_scope
     // If it doesn't exist then create it
     pub fn set_scope(&mut self, name: &str) -> u64 {
+        let new_scope_node_id = self.create_or_get_scope_id(name);
+        self.current_scope_id = new_scope_node_id;
+        new_scope_node_id
+    }
+
+    pub fn create_or_get_scope_id(&mut self, name: &str) -> u64 {
         let node = self
             .get_scope_node_from_id(self.current_scope_id)
             .expect("WHUT");
@@ -256,13 +262,10 @@ impl SymbolTree {
         for c in node.children() {
             if c.value().get_scope_name() == name {
                 let id = c.value().get_scope_id();
-                self.current_scope_id = id;
                 return id;
             }
         }
-        let new_scope_node_id = self.insert_new_table(name, self.current_scope_id);
-        self.current_scope_id = new_scope_node_id;
-        new_scope_node_id
+        self.insert_new_table(name, self.current_scope_id)
     }
 
     pub fn to_hash_map(&self) -> HashMap<String, Option<i64>> {
