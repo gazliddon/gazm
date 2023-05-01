@@ -26,6 +26,7 @@ pub enum GazmErrorKind {
     EditError(#[from] EditErrorKind),
     #[error(transparent)]
     FileError(#[from] SearchError)
+
 }
 
 struct GazmError {

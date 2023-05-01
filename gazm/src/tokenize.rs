@@ -16,7 +16,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{parse::parse_comment, async_tokenize::TokenizeResult};
+use crate::{async_tokenize::TokenizeResult, parse::parse_comment};
 
 use crate::{
     ast::AstNodeId,
@@ -97,23 +97,13 @@ pub struct Tokens {
 }
 
 impl Tokens {
-    pub fn from_text(ctx: &Context, text: Span) -> GResult<Self> {
+    pub fn from_text(opts: &Opts, text: Span) -> GResult<Self> {
         let mut x = Self {
-            opts: ctx.opts.clone(),
+            opts: opts.clone(),
             ..Default::default()
         };
 
-        x.parse_to_tokens(ctx, text)?;
-
-        if ctx.opts.do_includes {
-            let includes: GResult<Vec<_>> = x
-                .includes
-                .into_iter()
-                .unique()
-                .map(|(pos, path)| Ok((pos, ctx.get_full_path(path)?)))
-                .collect();
-            x.includes = includes?;
-        }
+        x.parse_to_tokens_2(text)?;
 
         Ok(x)
     }
@@ -184,6 +174,68 @@ impl Tokens {
         self.includes.push((pos, file.as_ref().into()));
     }
 
+    fn parse_to_tokens_2(&mut self, input: Span) -> GResult<()> {
+        use crate::macros::MacroCall;
+
+        let mut source = input;
+
+        while !source.is_empty() {
+            if let Ok((_rest, (_name, _body))) = get_scope_block(source) {
+                panic!();
+                // let tok_result = Tokens::new(body, self.opts.clone())?;
+                // self.add_includes(&tok_result.includes);
+                // let toks = tok_result.to_tokens();
+                // let scope_def = Node::new_with_children(
+                //     Item::Scope2(name.to_string()),
+                //     toks,
+                //     span_to_pos(body),
+                // );
+                // self.add_node(scope_def);
+                // source = rest;
+                // continue;
+            }
+
+            if let Ok((rest, (name, params, body))) = get_macro_def(source) {
+                use std::string::ToString;
+                let macro_tokes = Tokens::from_text(&self.opts, body)?.take_tokens();
+
+                let pos = crate::locate::span_to_pos(body);
+                let name = name.to_string();
+                let params = params.iter().map(ToString::to_string).collect();
+
+                let macro_def =
+                    Node::new_with_children(Item::MacroDef(name, params), &macro_tokes, pos);
+                self.add_node(macro_def);
+                source = rest;
+                continue;
+            }
+
+            let res: Result<(), ParseError> = try {
+                if let Ok((rest, _)) = get_struct(source) {
+                    let (_, matched) = parse_struct_definition(source)?;
+                    self.add_node(matched);
+                    source = rest;
+                    continue;
+                }
+
+                let (rest, line) = get_line(source)?;
+
+                source = rest;
+
+                self.tokenize_line(line)?;
+            };
+
+            match res {
+                Ok(..) => (),
+                Err(pe) => {
+                    self.parse_errors.push(pe);
+                }
+            };
+        }
+
+        Ok(())
+    }
+
     fn parse_to_tokens(&mut self, ctx: &Context, input: Span) -> GResult<()> {
         use crate::macros::MacroCall;
 
@@ -207,7 +259,8 @@ impl Tokens {
 
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
                 use std::string::ToString;
-                let macro_tokes = Tokens::from_text(ctx, body)?.take_tokens();
+
+                let macro_tokes = Tokens::from_text(&ctx.opts, body)?.take_tokens();
 
                 let pos = crate::locate::span_to_pos(body);
                 let name = name.to_string();
@@ -247,51 +300,6 @@ impl Tokens {
     }
 }
 
-fn from_file<P: AsRef<Path>>(
-    _depth: usize,
-    ctx: &mut crate::ctx::Context,
-    file: P,
-    parent: Option<PathBuf>,
-) -> GResult<PathBuf> {
-    use anyhow::Context;
-    use Item::*;
-
-    let file = ctx.get_full_path(file)?;
-
-    if !ctx.get_tokens(&file).is_some() {
-        let tokenized = real_tokenize_file(ctx, &file, parent)?;
-
-        for e in &tokenized.errors {
-            ctx.add_parse_error(e.clone())?;
-        }
-
-
-        if ctx.opts.do_includes {
-            let includes = ctx.get_untokenized_files(&tokenized.includes);
-            for (_pos, inc_file) in includes {
-                from_file(_depth + 1, ctx, &inc_file, Some(file.clone()))?;
-            }
-        }
-
-        let ts = ctx.get_token_store_mut();
-        ts.add_tokens(&file, tokenized);
-    }
-    Ok(file)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-pub fn tokenize<P: AsRef<Path>>(ctx: &mut Context, file: P) -> GResult<TokenizeResult> {
-    let msg = format!("Reading {}", file.as_ref().to_string_lossy());
-    messages().status(msg);
-
-    // let mut ctx_arc = arc_ctx.lock().unwrap();
-    // let ctx = &mut *ctx_arc;
-    let file_tokenized = from_file(0, ctx, &file, None)?;
-    ctx.asm_out.errors.raise_errors()?;
-    let toks = ctx.get_tokens(&file_tokenized).unwrap().clone();
-    Ok(toks)
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Tests

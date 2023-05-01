@@ -105,7 +105,7 @@ pub fn iter_ids_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeId> {
     iter::from_fn(move || i.next())
 }
 
-fn iter_refs_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeRef> {
+pub fn iter_refs_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeRef> {
     let mut i = get_ids_recursive(node).into_iter();
     iter::from_fn(move || i.next().and_then(|id| node.tree().get(id)))
 }
@@ -193,7 +193,7 @@ impl<'a> Ast<'a> {
 
                 // Go through the ids and get the tokens to insert into this AST
                 for (id, actual_file) in include_ids {
-                    if let Some(tokens) = self.ctx.get_tokens(&actual_file) {
+                    if let Some(tokens) = self.ctx.get_tokens_from_full_path(&actual_file) {
                         crate::info_mess!("Inlining {} - HAD TOKENS", actual_file.to_string_lossy());
                         let new_node_id = create_ast_node(&mut self.tree, &tokens.node);
                         self.replace_node(id, new_node_id);

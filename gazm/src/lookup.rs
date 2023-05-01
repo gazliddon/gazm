@@ -1,10 +1,12 @@
 // Lookup where labels are defined and referenced
-use crate::ast::AstTree;
+use crate::ast::{iter_ids_recursive, iter_refs_recursive, AstTree};
 use crate::item::Node;
 use crate::item::{Item, LabelDefinition};
-use emu::utils::sources::{Position, SymbolScopeId, SymbolTree, SymbolTable, SymbolInfo, SymbolError};
+use emu::utils::sources::{
+    Position, SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolTable, SymbolTree,
+};
 use emu::utils::Stack;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{hash_map, HashMap, VecDeque};
 
 pub struct Navigator<'a> {
     syms: &'a SymbolTree,
@@ -16,7 +18,7 @@ pub struct Navigator<'a> {
 pub enum NavError {
     UnableToPop,
     ScopeIdNotFound(u64),
-    SymbolError(SymbolError)
+    SymbolError(SymbolError),
 }
 
 impl<'a> Navigator<'a> {
@@ -27,8 +29,8 @@ impl<'a> Navigator<'a> {
             scope_stack: Default::default(),
         }
     }
-    
-    pub fn new_with_id(syms: &'a SymbolTree, id: u64) -> Result<Self,NavError> {
+
+    pub fn new_with_id(syms: &'a SymbolTree, id: u64) -> Result<Self, NavError> {
         let mut ret = Self::new(syms);
         ret.set_scope(id)?;
         Ok(ret)
@@ -37,11 +39,11 @@ impl<'a> Navigator<'a> {
     fn get_scope(&self, scope_id: u64) -> Result<&SymbolTable, NavError> {
         self.syms
             .get_scope_symbols_from_id(scope_id)
-            .map_err( NavError::SymbolError)
+            .map_err(NavError::SymbolError)
     }
 
     fn check_scope(&self, scope_id: u64) -> Result<(), NavError> {
-        self.get_scope(scope_id).map(|_|())
+        self.get_scope(scope_id).map(|_| ())
     }
 
     pub fn get_current_scope_id(&self) -> u64 {
@@ -70,34 +72,35 @@ impl<'a> Navigator<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct LabelUsageAndDefintions {
-    label_to_definition_pos: HashMap<String, Position>,
-    label_references: Vec<(String, Position)>,
 
-    nodes_by_id: HashMap<usize, Node>,
+pub struct LabelUsageAndDefintions {
+    reference_pos_and_id: Vec<(Position, SymbolScopeId)>,
+    symbols: SymbolTree,
+    symbol_id_to_definition: HashMap<SymbolScopeId, Position>,
 }
 
 use log::info;
 
-
 impl LabelUsageAndDefintions {
-    pub fn new(tree: &AstTree) -> Self {
+    pub fn new(tree: &AstTree, _syms: &SymbolTree) -> Self {
         use Item::*;
 
-        let mut label_to_definition_pos: HashMap<String, Position> = HashMap::new();
-        let mut labels: Vec<(String, Position)> = Default::default();
+        let mut reference_pos_and_id: Vec<(Position, SymbolScopeId)> = vec![];
+        let mut symbol_id_to_definition: HashMap<SymbolScopeId, Position> = HashMap::new();
 
-
-        for v in tree.values() {
+        for n in iter_refs_recursive(tree.root()) {
+            let v = n.value();
             let pos = v.pos.clone();
+
             match &v.item {
-                LocalAssignment(LabelDefinition::Text(name))
-                | Assignment(LabelDefinition::Text(name))
-                | AssignmentFromPc(LabelDefinition::Text(name)) => {
-                    label_to_definition_pos.insert(name.clone(), pos);
+                Label(LabelDefinition::Scoped(id)) | LocalLabel(LabelDefinition::Scoped(id)) => {
+                    reference_pos_and_id.push((pos, *id))
                 }
-                Label(LabelDefinition::Text(name)) | LocalLabel(LabelDefinition::Text(name)) => {
-                    labels.push((name.to_string(), pos));
+
+                LocalAssignment(LabelDefinition::Scoped(id))
+                | Assignment(LabelDefinition::Scoped(id))
+                | AssignmentFromPc(LabelDefinition::Scoped(id)) => {
+                    symbol_id_to_definition.insert(*id, pos);
                 }
 
                 _ => (),
@@ -105,76 +108,63 @@ impl LabelUsageAndDefintions {
         }
 
         Self {
-            label_to_definition_pos,
-            label_references: labels,
-            nodes_by_id: Default::default(),
+            reference_pos_and_id,
+            symbols: _syms.clone(),
+            symbol_id_to_definition,
         }
     }
 
-    pub fn find_references(&self, name: &str) -> Option<Vec<(String, Position)>> {
-        let ret: Vec<(String, Position)> = self
-            .label_references
+    pub fn find_references(&self, id: SymbolScopeId) -> Vec<(Position, SymbolScopeId)> {
+        self.reference_pos_and_id
             .iter()
-            .filter(|pair| pair.0 == name)
+            .filter(|(_, ths_id)| *ths_id == id)
             .cloned()
-            .collect();
+            .collect()
+    }
 
-        if ret.is_empty() {
-            None
+    pub fn find_references_from_pos(&self, pos: &Position) -> Vec<(Position, SymbolScopeId)> {
+        if let Some(id) = self.find_symbol_id_at_pos(pos) {
+            self.find_references(id)
         } else {
-            Some(ret)
+            vec![]
         }
     }
 
-    pub fn find_definition(&self, _name: &str) -> Option<&Position> {
-        self.label_to_definition_pos
-            .iter()
-            .find(|(s, _)| *s == _name)
-            .map(|(_, p)| p)
-    }
-
-    pub fn find_definition_from_pos(&self, pos: &Position) -> Option<&str> {
-        for (k, v) in self.label_to_definition_pos.iter() {
-            if v.overlaps(pos) {
-                return Some(k);
+    pub fn find_symbol_referenced_at_pos(&self, p : &Position) -> Option<SymbolScopeId> {
+        for (pos, id) in self.reference_pos_and_id.iter() {
+            if p.overlaps(pos) {
+                return Some(*id);
             }
         }
-
         None
     }
-    pub fn find_label_or_defintion(&self, pos: &Position) -> Option<&str> {
-        let label = self
-            .label_references
-            .iter()
-            .find(|p| p.1.overlaps(pos))
-            .map(|p| p.0.as_str());
 
-        if label.is_none() {
-            self.find_definition_from_pos(pos)
-        } else {
-            label
+    pub fn find_symbol_defined_at_pos(&self, p : &Position) -> Option<SymbolScopeId> { 
+        for (id, pos) in self.symbol_id_to_definition.iter() {
+            if p.overlaps(pos)  {
+                return Some(*id)
+            }
         }
+        None
     }
 
-    pub fn find_label(&self, pos: &Position) -> Option<&str> {
-        self.label_references
-            .iter()
-            .find(|p| p.1.overlaps(pos))
-            .map(|p| p.0.as_str())
+    /// Finds a symbol id at Pos
+    /// Searches both references and definitions
+    pub fn find_symbol_id_at_pos(&self, p: &Position) -> Option<SymbolScopeId> {
+        self.find_symbol_referenced_at_pos(p).or_else(|| {
+            self.find_symbol_defined_at_pos(p)
+        })
     }
 
-    pub fn find_node(&self, _line: usize, _col: usize, _file_id: usize) {}
+    pub fn find_definition(&self, id: SymbolScopeId) -> Option<&Position> {
+        self.symbol_id_to_definition.get(&id)
+    }
+
 }
 
 enum AstNodeKind {
     Label(SymbolScopeId),
-    Command
+    Command,
 }
 
-pub struct AstSearchResult {
-}
-
-
-
-
-
+pub struct AstSearchResult {}

@@ -105,7 +105,6 @@ impl Opts {
                     project_file: m.value_of("project-file").unwrap().into(),
                     lst_file: m.value_of("lst-file").map(String::from),
                     ast_file: m.value_of("ast-file").map(PathBuf::from),
-                    build_async: m.is_present("build-async"),
                     assemble_dir: Some(std::env::current_dir().unwrap()),
                     ..Default::default()
                 };
@@ -160,14 +159,6 @@ fn make_config_file_command<'a>(command: &'a str, about: &'a str) -> Command<'a>
 
 }
 
-fn build_async_arg() -> Arg<'static> {
-    Arg::new("build-async")
-        .help("Build asynchronously")
-        .long("async-build")
-        .multiple_values(false)
-        .takes_value(false)
-        .required(false)
-}
 
 pub fn parse() -> clap::ArgMatches {
     Command::new("gazm")
@@ -222,7 +213,6 @@ pub fn parse() -> clap::ArgMatches {
                         .multiple_values(false)
                         .required(true),
                 )
-                .arg(build_async_arg())
                 .arg(
                     Arg::new("symbol-file")
                         .help("File symbols are written to")

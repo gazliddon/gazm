@@ -32,11 +32,6 @@ impl Assembler {
         Self { ctx }
     }
 
-    pub fn tokenize_file<P: AsRef<Path>>(&mut self, file: P) -> GResult<TokenizeResult> {
-            let file = self.ctx.get_source_file_loader().get_full_path(file)?;
-        tokenize::tokenize(&mut self.ctx, file)
-    }
-
     /// Assemble for the first time
     pub fn assemble(&mut self) -> GResult<()> {
             self.ctx.reset_all();
@@ -92,14 +87,12 @@ fn assemble_project(ctx: &mut Context) -> GResult<()> {
         ctx.get_source_file_loader_mut().add_search_path(dir);
     }
 
-    let tokes = if ctx.opts.build_async {
-        async_tokenize::tokenize(ctx, file)
-    } else {
-        tokenize::tokenize(ctx, file)
-    }?;
+    let tokes = async_tokenize::tokenize(ctx, file)?;
 
     assemble_tokens(ctx, &tokes.node)?;
+
     ctx.get_source_file_loader_mut().set_search_paths(&paths);
+
     ctx.asm_out.errors.raise_errors()
 }
 
@@ -112,8 +105,7 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
     use crate::sizer::size_tree;
 
     let tree = Ast::from_nodes(ctx, tokens)?;
-    let lookup = LabelUsageAndDefintions::new(&tree);
-    ctx.asm_out.lookup = Some(lookup);
+
 
     let id = tree.root().id();
 
@@ -124,6 +116,10 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
 
     size_tree(&mut asm_ctx, id, &tree)?;
     compile(&mut asm_ctx, &tree)?;
+
+    let lookup = LabelUsageAndDefintions::new(&tree, &ctx.asm_out.symbols);
     ctx.asm_out.ast = Some(tree);
+    ctx.asm_out.lookup = Some(lookup);
+
     Ok(())
 }

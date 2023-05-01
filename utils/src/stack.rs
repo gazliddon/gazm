@@ -36,6 +36,9 @@ impl<OP: Clone> Stack<OP> {
     pub fn pop(&mut self) -> Option<OP> {
         self.stack.pop_front()
     }
+    pub fn top(&self) -> Option<&OP> {
+        self.stack.front()
+    }
 
     /// Pop top pair from stack
     /// rhs = top, lhs = next

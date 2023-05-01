@@ -75,7 +75,6 @@ pub struct Opts {
     pub encode_blank_lines: bool,
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
-    pub build_async: bool,
     pub fmt_file: Option<String>,
     #[serde(skip)]
     pub do_includes: bool,
@@ -112,7 +111,6 @@ impl Default for Opts {
             ast_file: Default::default(),
             max_errors: 10,
             vars: Default::default(),
-            build_async: false,
             checksums: Default::default(),
             build_type: BuildType::Build,
             lsp_config: Default::default(),
@@ -170,7 +168,7 @@ impl Context {
         files
             .iter()
             .cloned()
-            .filter_map(|(pos,path)| match self.get_tokens(&path).is_some() {
+            .filter_map(|(pos,path)| match self.get_tokens_from_full_path(&path).is_some() {
                 true => None,
                 false => Some((pos, path)),
             })
@@ -232,8 +230,12 @@ impl Context {
         &mut self.token_store
     }
 
-    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult> {
+    pub fn get_tokens_from_full_path<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult> {
         self.token_store.get_tokens(&file)
+    }
+    pub fn expand_path_and_get_tokens<P: AsRef<Path>>(&self, file: P) -> GResult<&TokenizeResult> {
+        let file = self.get_full_path(file)?;
+        self.token_store.get_tokens(&file).ok_or(GazmErrorKind::Misc("Can't find tokens".to_string()))
     }
 
     pub fn sources(&self) -> &SourceFiles {
@@ -422,17 +424,6 @@ impl Context {
 
     pub fn path_to_id<P: AsRef<Path>>(&self, p: P) -> Option<u64> {
         self.sources().get_source(p).ok().map(|r| r.0)
-    }
-
-    pub fn lookup_label_definition(&self, name: &str) -> Option<(PathBuf, Position)> {
-        self.asm_out
-            .lookup
-            .as_ref()
-            .and_then(|lookup| lookup.find_definition(name))
-            .and_then(|pos| {
-                self.asm_source_to_path(&pos.src)
-                    .map(|path| (path, pos.clone()))
-            })
     }
 }
 

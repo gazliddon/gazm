@@ -58,3 +58,19 @@
 
 # Fix
 * Return a proper range for goto defintion
+
+# Async Stuff
+
+* In loop
+    * Get file_name
+    * expand to full path
+    * If tokens in cache then ok
+    * If not
+        * Read the file
+        * Queue (parent, file_name, file_id, file_text, opts)
+
+* In Async
+    * Turn into tokens
+    * Return Tokenized result
+
+
