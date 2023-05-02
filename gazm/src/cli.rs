@@ -75,19 +75,18 @@ struct Overides {
 }
 impl Overides {
     pub fn new(matches: &clap::ArgMatches) -> Self {
-        let mut ret = Overides::default();
-        ret.no_async = matches.is_present("no-async").then(|| true);
-        ret.verbosity =
-            matches
-                .is_present("verbose")
-                .then(|| match matches.occurrences_of("verbose") {
+        Overides {
+            no_async: matches.is_present("no-async").then_some(true),
+            verbosity: matches.is_present("verbose").then(|| {
+                match matches.occurrences_of("verbose") {
                     0 => Verbosity::Silent,
                     1 => Verbosity::Normal,
                     2 => Verbosity::Info,
                     3 => Verbosity::Interesting,
                     _ => Verbosity::Debug,
-                });
-        ret
+                }
+            }),
+        }
     }
 
     pub fn apply_overides(&self, opts: &Opts) -> Opts {
@@ -194,8 +193,8 @@ pub struct BuildInfo {
     pub crate_name: String,
 }
 
-impl BuildInfo {
-    pub fn new() -> Self {
+impl Default for BuildInfo {
+    fn default() -> Self {
         const UNKNOWN: &str = "UNKNOWN";
         let version = option_env!("CARGO_PKG_VERSION")
             .unwrap_or(UNKNOWN)
@@ -217,15 +216,19 @@ impl BuildInfo {
     }
 }
 
+impl BuildInfo {
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref BUILD_INFO : BuildInfo = BuildInfo::new();
 }
 
-
 pub fn parse() -> clap::ArgMatches {
-
     Command::new(BUILD_INFO.crate_name.as_str())
         .about("6809 assembler")
         .author(BUILD_INFO.authors.as_str())

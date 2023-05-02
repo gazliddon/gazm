@@ -331,7 +331,7 @@ pub enum Item {
     Comment(String),
     Number(i64, ParsedFrom),
 
-    OpCode(String, Instruction, AddrModeParseType),
+    OpCode(String, Box<Instruction>, AddrModeParseType),
     Operand(AddrModeParseType),
     OperandIndexed(IndexParseType, bool),
     Include(PathBuf),
@@ -494,7 +494,7 @@ impl Display for BaseNode<Item, Position> {
             }
 
             OpCode(txt,_ins, addr_type) => {
-                format!("{txt} {:?}",  addr_type)
+                format!("{txt} {addr_type:?}")
             }
 
             TokenizedFile(file, _) => {

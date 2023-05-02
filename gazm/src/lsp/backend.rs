@@ -38,7 +38,7 @@ pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
 impl Context {
     fn find_symbol_id(&self, position: &Position, uri: &Url) -> Option<SymbolScopeId> {
         self.do_pos_lookup_work(position, uri, |pos, lookup| {
-            lookup.find_symbol_id_at_pos(&pos)
+            lookup.find_symbol_id_at_pos(pos)
         })
     }
 
@@ -50,7 +50,7 @@ impl Context {
     fn find_references(&self, position: &Position, uri: &Url) -> Option<Vec<Location>> {
         self.do_pos_lookup_work(position, uri, |pos, lookup| {
             let ret: Vec<_> = lookup
-                .find_references_from_pos(&pos)
+                .find_references_from_pos(pos)
                 .into_iter()
                 .map(|(pos, _)| self.make_loc(&pos))
                 .collect();
@@ -73,14 +73,14 @@ impl Context {
                 self.asm_out
                     .lookup
                     .as_ref()
-                    .and_then(|lookup| f(&p, &lookup))
+                    .and_then(|lookup| f(&p, lookup))
             })
     }
 
     fn find_definition(&self, position: &Position, uri: &Url) -> Option<Location> {
         self.do_pos_lookup_work(position, uri, |pos, lookup| {
             lookup
-                .find_symbol_id_at_pos(&pos)
+                .find_symbol_id_at_pos(pos)
                 .and_then(|id| lookup.find_definition(id))
                 .and_then(|def_pos| {
                     self.asm_source_to_path(&def_pos.src)

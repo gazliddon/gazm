@@ -193,7 +193,10 @@ impl<'a> Ast<'a> {
                 // Go through the ids and get the tokens to insert into this AST
                 for (id, actual_file) in include_ids {
                     if let Some(tokens) = self.ctx.get_tokens_from_full_path(&actual_file) {
-                        crate::info_mess!("Inlining {} - HAD TOKENS", actual_file.to_string_lossy());
+                        crate::info_mess!(
+                            "Inlining {} - HAD TOKENS",
+                            actual_file.to_string_lossy()
+                        );
                         let new_node_id = create_ast_node(&mut self.tree, &tokens.node);
                         self.replace_node(id, new_node_id);
                     } else {
@@ -201,8 +204,8 @@ impl<'a> Ast<'a> {
                             .ctx
                             .token_store
                             .tokens
-                            .iter()
-                            .map(|(k, _)| k.to_string_lossy())
+                            .keys()
+                            .map(|k| k.to_string_lossy())
                             .collect();
 
                         panic!(
@@ -531,17 +534,12 @@ impl<'a> Ast<'a> {
         for node_id in iter_ids_recursive(self.tree.root()) {
             let item = self.tree.get(node_id).unwrap().value().item.clone();
 
-            match &item {
-                // Track scope correctly
-                Scope(scope) => {
-                    let symbols = &mut self.ctx.asm_out.symbols;
-                    symbols.set_root();
-                    let id = symbols.set_scope(scope.as_str());
-                    let mut x = self.tree.get_mut(node_id).unwrap();
-                    x.value().item = ScopeId(id);
-                }
-
-                _ => (),
+            if let Scope(scope) = &item {
+                let symbols = &mut self.ctx.asm_out.symbols;
+                symbols.set_root();
+                let id = symbols.set_scope(scope.as_str());
+                let mut x = self.tree.get_mut(node_id).unwrap();
+                x.value().item = ScopeId(id);
             }
         }
 

@@ -99,7 +99,7 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode(text.clone(),ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item = OpCode(text,ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -117,7 +117,7 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode(text.clone(),ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item = OpCode(text,ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -225,7 +225,7 @@ impl<'a> Sizer<'a> {
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
-                                    let new_item = OpCode(text.clone(),new_ins, AddrModeParseType::Direct);
+                                    let new_item = OpCode(text.clone(),Box::new(new_ins), AddrModeParseType::Direct);
                                     ctx.add_fixup(id, new_item);
                                 }
                             }

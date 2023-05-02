@@ -20,9 +20,9 @@ impl TokenStore {
         self.tokens.get(&file.as_ref().to_path_buf())
     }
 
-    pub fn add_tokens(&mut self, node: TokenizeResult) {
-        let file = node.loaded_file.clone();
-        self.tokens.insert(file, node);
+    pub fn add_tokens(&mut self, tokes: TokenizeResult) {
+        let file = tokes.request.full_file_name.clone();
+        self.tokens.insert(file, tokes);
     }
 
     pub fn has_tokens<P: AsRef<Path>>(&self, file: P) -> bool {

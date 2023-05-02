@@ -45,7 +45,7 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
 
     pub fn with_child(self, child: Self) -> Self {
         let mut ret = self;
-        ret.children = thin_vec![child.into()];
+        ret.children = thin_vec![child];
         ret
     }
     pub fn add_child(&mut self, n: Self) {

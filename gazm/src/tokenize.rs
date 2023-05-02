@@ -89,14 +89,11 @@ pub struct Tokens {
 
 impl Tokens {
     pub fn from_text(opts: &Opts, text: Span) -> GResult<Self> {
-        let mut x = Self {
+        let mut tokens = Self {
             opts: opts.clone(),
             ..Default::default()
         };
-
-        x.parse_to_tokens(text)?;
-
-        Ok(x)
+        tokens.parse_to_tokens(text).map(|_| tokens)
     }
 
     fn add_node(&mut self, node: Node) {
@@ -221,5 +218,4 @@ impl Tokens {
 
         Ok(())
     }
-
 }

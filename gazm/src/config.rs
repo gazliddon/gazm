@@ -47,7 +47,7 @@ impl YamlConfig {
                 .map(|p| p.to_path_buf())
         });
 
-        let f = std::fs::read_to_string(&file).expect("can't read");
+        let f = std::fs::read_to_string(file).expect("can't read");
         let toml: LoadedYamlConfig = toml::from_str(&f).unwrap();
 
         let mut opts = toml.opts.clone().unwrap_or_default();
@@ -62,14 +62,11 @@ impl YamlConfig {
         opts.assemble_dir = run_dir;
         opts.lsp_config = toml.lsp.unwrap_or_default();
 
-        let ret = YamlConfig {
+        YamlConfig {
             file : file.to_path_buf(),
             opts,
             project: toml.project,
-        };
-
-
-        ret
+        }
     }
 }
 
