@@ -9,7 +9,6 @@ use crate::token_store::TokenStore;
 use crate::vars::Vars;
 use crate::{astformat, status_err};
 
-
 use emu::utils::{
     hash::get_hash,
     sources::{
@@ -258,21 +257,26 @@ impl Context {
         Ok(ret)
     }
 
-    // TODO : This needs to return a reference to the source file NOT a big old copy of it
-    pub fn read_source<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-    ) -> Result<(PathBuf, String, u64), GazmErrorKind> {
+    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<&SourceFile, GazmErrorKind> {
         let path = self.get_full_path(&path)?;
         // let path_string = path.to_string_lossy();
-
         // Is it in the cache?
-        if let Ok((id, sf)) = self.source_file_loader.sources.get_source(&path) {
-            let ret = (sf.file.clone(), sf.source.source.clone(), id);
-            Ok(ret)
+        let id = if let Ok((id, _)) = self.source_file_loader.sources.get_source(&path) {
+            id
         } else {
-            self.source_file_loader.read_source(&path).map_err(to_gazm)
-        }
+            let sf= self
+                .source_file_loader
+                .read_source(&path)
+                .map_err(to_gazm)?;
+            sf.file_id
+        };
+
+        let ret = self
+            .source_file_loader
+            .sources
+            .get_source_file_from_id(id)?;
+
+        Ok(ret)
     }
 
     pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorKind> {

@@ -1,6 +1,5 @@
-use std::io;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum SourceErrorType {
     #[error("Sort this out gaz")]
     Misc,
@@ -9,17 +8,14 @@ pub enum SourceErrorType {
     #[error("Id not found: {0}")]
     IdNotFound(u64),
 
-    #[error(transparent)]
-    Io {
-        #[from]
-        source: io::Error,
-    },
+    #[error("IO Error : {0}")]
+    Io(String)
 
-    #[error(transparent)]
-    Json {
-        #[from]
-        source: serde_json::Error,
-    },
+    // #[error(transparent)]
+    // Json {
+    //     #[from]
+    //     source: serde_json::Error,
+    // },
 }
 
 pub type SResult<T> = Result<T,SourceErrorType>;

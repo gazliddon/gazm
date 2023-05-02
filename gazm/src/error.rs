@@ -4,7 +4,7 @@ use crate::locate::span_to_pos;
 use crate::locate::Span;
 use crate::binary;
 use emu::utils::SearchError;
-use emu::utils::sources::{Position, SourceInfo, EditErrorKind};
+use emu::utils::sources::{Position, SourceInfo, EditErrorKind, SourceErrorType};
 use thiserror::Error;
 
 pub type GResult<T> = Result<T, GazmErrorKind>;
@@ -24,7 +24,9 @@ pub enum GazmErrorKind {
     #[error(transparent)]
     EditError(#[from] EditErrorKind),
     #[error(transparent)]
-    FileError(#[from] SearchError)
+    FileError(#[from] SearchError),
+    #[error(transparent)]
+    SourceError(#[from] SourceErrorType),
 
 }
 

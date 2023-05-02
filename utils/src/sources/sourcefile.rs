@@ -6,16 +6,18 @@ use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub struct SourceFile {
+    pub file_id: u64,
     pub file: PathBuf,
     pub source: TextFile,
 }
 
 
 impl SourceFile {
-    pub fn new<P: AsRef<Path>>(file: P, source: &str) -> Self {
+    pub fn new<P: AsRef<Path>>(file: P, source: &str, file_id : u64) -> Self {
         Self {
             file: file.as_ref().to_path_buf(),
             source: TextFile::new(source),
+            file_id
         }
     }
 

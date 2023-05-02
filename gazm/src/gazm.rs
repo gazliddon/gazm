@@ -86,7 +86,12 @@ fn assemble_project(ctx: &mut Context) -> GResult<()> {
     }
 
     let tokes = {
-        async_tokenize::tokenize(ctx)?;
+        if ctx.opts.no_async {
+            async_tokenize::tokenize_no_async(ctx)?;
+        } else {
+            async_tokenize::tokenize_async(ctx)?;
+        }
+
         let file = ctx.get_project_file();
         ctx.get_tokens_from_full_path(&file).unwrap().clone()
     };

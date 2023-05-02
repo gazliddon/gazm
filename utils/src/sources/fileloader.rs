@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::SourceFiles;
+use super::{SourceFiles, SourceFile};
 use anyhow::{anyhow, Result};
 
 use crate::pathsearcher::{PathSearcher, Paths, SearchError};
@@ -173,17 +173,15 @@ impl SourceFileLoader {
         Self::default()
     }
 
-    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<(PathBuf, String, u64)> {
+    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<&SourceFile> {
         let (path, text) = self.read_to_string(path)?;
-        let (_, _, id) = self.add_source_file(&path, &text)?;
-        Ok((path, text, id))
+        self.add_source_file(&path, &text)
     }
-
-    pub fn add_source_file<P: AsRef<Path>>(&mut self, path: P, text: &str) -> Result<(PathBuf, String, u64)> {
+    pub fn add_source_file<P: AsRef<Path>>(&mut self, path: P, text: &str) -> Result<&SourceFile> {
         let id = self.sources.add_source_file(&path, text);
-        Ok((path.as_ref().into(), text.to_string(), id))
+        let sf = self.sources.get_source_file_from_id(id).unwrap();
+        Ok(sf)
     }
-
 
     pub fn from_search_paths<P: AsRef<Path>>(paths: &[P]) -> Self {
         let search_paths: Vec<PathBuf> = paths.iter().map(|x| PathBuf::from(x.as_ref())).collect();

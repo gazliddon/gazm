@@ -262,10 +262,10 @@ impl SourceDatabase {
 
         let symstr = std::fs::read_to_string(&sym_file).map_err(|e| match e.kind() {
             ErrorKind::NotFound => SourceErrorType::FileNotFound(file_name.to_string()),
-            _ => SourceErrorType::from(e),
+            _ => SourceErrorType::Io(e.to_string()),
         })?;
 
-        let mut sd: SourceDatabase = serde_json::from_str(&symstr)?;
+        let mut sd: SourceDatabase = serde_json::from_str(&symstr).map_err(|e| SourceErrorType::Io(e.to_string()))?;
         sd.post_deserialize();
         Ok(sd)
     }
@@ -295,7 +295,7 @@ impl SourceDatabase {
         if !x {
             let s = std::fs::read_to_string(file_name).expect("Should have read source file");
             let mut x = self.source_files.borrow_mut();
-            x.insert(file_id, SourceFile::new(file_name, &s));
+            x.insert(file_id, SourceFile::new(file_name, &s,file_id));
             x.get(&file_id);
         } else {
             println!("**** Got from cache! {}", file_name.to_string_lossy());

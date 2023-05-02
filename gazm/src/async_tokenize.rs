@@ -1,12 +1,12 @@
-use crate::ctx::{ Context, Opts };
-use crate::error::{GazmErrorKind,GResult, ParseError};
+use crate::ctx::{Context, Opts};
+use crate::error::{GResult, GazmErrorKind, ParseError};
 use crate::info_mess;
 use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
 use crate::tokenize::Tokens;
 
-use emu::utils::{ sources, PathSearcher,Stack };
-use sources::{ AsmSource, Position };
+use emu::utils::{sources, PathSearcher, Stack};
+use sources::{AsmSource, Position};
 
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
@@ -149,16 +149,14 @@ impl Context {
         if let Some(tokes) = self.get_tokens_from_full_path(&expanded_file) {
             Ok(GetTokensResult::Tokens(tokes.clone().into()))
         } else {
-            let (full_file_name, source, file_id) = self
-                .read_source(&requested_file)
-                .map(|(file, source, file_id)| (file, source, file_id))?;
+            let sf = self.read_source(&requested_file)?;
 
             let toke_req = TokenizeRequest {
-                file_id,
-                full_file_name,
+                file_id: sf.file_id,
+                full_file_name: sf.file.clone(),
                 requested_file: requested_file.as_ref().to_path_buf(),
                 parent,
-                source,
+                source: sf.source.source.clone(),
                 opts: self.opts.clone(),
             };
 
@@ -167,49 +165,57 @@ impl Context {
     }
 }
 
-pub fn tokenize(ctx: &mut Context) -> GResult<()> {
+pub fn tokenize_no_async(ctx: &mut Context) -> GResult<()> {
+    tokenize(ctx, |to_tokenize| {
+        to_tokenize.into_iter().map(|req| req.try_into()).collect()
+    })
+}
+pub fn tokenize_async(ctx: &mut Context) -> GResult<()> {
+    tokenize(ctx, |to_tokenize| {
+        use rayon::prelude::*;
+        to_tokenize
+            .into_par_iter()
+            .map(|req| req.try_into())
+            .collect()
+    })
+}
+
+pub fn tokenize<F>(ctx: &mut Context, f: F) -> GResult<()>
+where
+    F: Fn(Vec<TokenizeRequest>) -> Vec<GResult<TokenizeResult>>,
+{
     let mut files_to_process = vec![(ctx.get_project_file(), None)];
 
     while !files_to_process.is_empty() {
-        let mut to_tokenize: Vec<TokenizeRequest> = vec![];
-        let mut incs_to_process: Vec<(PathBuf, Option<PathBuf>)> = vec![];
+        let (to_tokenize, mut incs_to_process) = files_to_process.iter().try_fold(
+            (vec![], vec![]),
+            |(mut to_tok, mut incs), (req_file, parent)| {
+                use GetTokensResult::*;
+                let tokes = ctx.get_tokens(req_file, parent.clone())?;
 
-        for (requested_file, parent) in files_to_process.iter() {
-            let tokes = ctx.get_tokens(requested_file, parent.clone())?;
+                match tokes {
+                    Tokens(tokes) => {
+                        let req = &tokes.request;
+                        info_mess!("TOKES: Got {}", req.full_file_name.to_string_lossy());
+                        incs.extend(ctx.get_full_paths_with_parent(&tokes.includes, parent)?);
+                    }
+                    // If I don't have tokens then add it to a q of requestes
+                    Request(req) => {
+                        info_mess!("TOKES:Requesting {}", req.full_file_name.to_string_lossy());
+                        to_tok.push(*req)
+                    }
+                };
+                Ok::<_, GazmErrorKind>((to_tok, incs))
+            },
+        )?;
 
-            match tokes {
-                // If I have tokens then add any includes to the list of files to tokeniz
-                GetTokensResult::Tokens(tokes) => {
-                    let req = &tokes.request;
-                    info_mess!("TOKES: Got {}", req.full_file_name.to_string_lossy());
-                    let incs = ctx.get_full_paths_with_parent(&tokes.includes, parent)?;
-                    incs_to_process.extend(incs);
-                }
-                // If I don't have tokens then add it to a q of requestes
-                GetTokensResult::Request(req) => {
-                    info_mess!("TOKES:Requesting {}", req.full_file_name.to_string_lossy());
-                    to_tokenize.push(*req)
-                }
-            };
-        }
-
-        let tokenized: Vec<GResult<TokenizeResult>> = if ctx.opts.no_async {
-            to_tokenize.into_iter().map(|req| req.try_into()).collect()
-        } else {
-            use rayon::prelude::*;
-            to_tokenize
-                .into_par_iter()
-                .map(|req| req.try_into())
-                .collect()
-        };
+        let tokenized = f(to_tokenize);
 
         for tokes in tokenized.into_iter() {
             match tokes {
                 Ok(res) => {
                     let req = &res.request;
-
                     info_mess!("Tokenized! {}", req.full_file_name.to_string_lossy());
-
                     ctx.add_parse_errors(&res.errors)?;
                     incs_to_process.push((req.requested_file.clone(), req.parent.clone()));
                     ctx.get_token_store_mut().add_tokens(res);

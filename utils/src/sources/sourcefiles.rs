@@ -1,5 +1,5 @@
 ///! In memory representation of all source file
-use super::{AsmSource, Position, SourceFile, SourceErrorType, SourceInfo, SResult};
+use super::{AsmSource, Position, SResult, SourceErrorType, SourceFile, SourceInfo};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -22,32 +22,32 @@ impl SourceFiles {
     pub fn add_source_file<P: AsRef<Path>>(&mut self, p: P, text: &str) -> u64 {
         let p = p.as_ref().to_path_buf();
         let id = self.get_next_id();
-        let source_file = SourceFile::new(&p, text);
+        let source_file = SourceFile::new(&p, text, id);
         self.id_to_source_file.insert(id, source_file);
         self.path_to_id.insert(p, id);
         id
     }
 
-
     pub fn get_hash<P: AsRef<Path>>(&self, p: P) -> SResult<String> {
-        let (_, source ) = self.get_source(&p)?;
+        let (_, source) = self.get_source(&p)?;
         Ok(source.source.get_hash().clone())
     }
 
-    pub fn get_source<P: AsRef<Path>>(&self, p: P) -> SResult<(u64, &SourceFile )> {
+    pub fn get_source<P: AsRef<Path>>(&self, p: P) -> SResult<(u64, &SourceFile)> {
         let p = p.as_ref().to_path_buf();
 
         let id = self
             .path_to_id
             .get(&p)
             .ok_or_else(|| SourceErrorType::FileNotFound(p.to_string_lossy().into()))?;
-        Ok((*id, self.id_to_source_file.get(id).unwrap() ))
+        Ok((*id, self.id_to_source_file.get(id).unwrap()))
     }
 
     pub fn get_source_file_from_id(&self, id: u64) -> SResult<&SourceFile> {
-        self.id_to_source_file.get(&id).ok_or_else(|| SourceErrorType::IdNotFound(id))
+        self.id_to_source_file
+            .get(&id)
+            .ok_or(SourceErrorType::IdNotFound(id))
     }
-
 
     pub fn get_source_mut<P: AsRef<Path>>(&mut self, p: P) -> SResult<&mut SourceFile> {
         let p = p.as_ref().to_path_buf();
@@ -73,7 +73,7 @@ impl SourceFiles {
         let sf = self
             .id_to_source_file
             .get(&id)
-            .ok_or_else(|| SourceErrorType::IdNotFound(id))?;
+            .ok_or(SourceErrorType::IdNotFound(id))?;
         let p = sf.file.clone();
         self.path_to_id.remove(&p);
         self.id_to_source_file.remove(&id);
