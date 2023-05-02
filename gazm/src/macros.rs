@@ -1,22 +1,21 @@
 use std::collections::HashMap;
 
+use crate::error::{IResult, UserError};
+use crate::item::Node;
 use crate::labels::get_just_label;
 use crate::locate::{matched_span, span_to_pos, Span};
-use crate::parse::util::{self, get_block, sep_list0, wrapped_chars, ws};
-
-use nom::multi::separated_list0;
-use nom::{
-    bytes::complete::{is_not, tag},
-    character::complete::{multispace0, multispace1},
-    combinator::recognize,
-    multi::many1,
-    sequence::separated_pair,
-};
+use crate::parse::util::{get_block, sep_list0, wrapped_chars, ws};
 
 use emu::utils::sources::{Position, SourceFiles};
 
-use crate::error::{IResult, UserError};
-use crate::item::{LabelDefinition, Node};
+use nom::{
+    bytes::complete::{is_not, tag},
+    character::complete::multispace1,
+    combinator::recognize,
+    multi::many1,
+    multi::separated_list0,
+    sequence::separated_pair,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MacroDef {
@@ -109,7 +108,6 @@ pub struct MacroCall {
 pub fn parse_macro_call(input: Span) -> IResult<Node> {
     use crate::expr::parse_expr;
     use crate::item::Item;
-    use util::sep_list1;
     let sep = ws(tag(","));
 
     let rest = input;
@@ -121,11 +119,7 @@ pub fn parse_macro_call(input: Span) -> IResult<Node> {
     ))(rest)?;
 
     let matched_span = span_to_pos(matched_span(input, rest));
-    let node = Node::new_with_children(
-        Item::MacroCall(name.to_string()),
-        &args,
-        matched_span,
-    );
+    let node = Node::new_with_children(Item::MacroCall(name.to_string()), &args, matched_span);
 
     Ok((rest, node))
 }

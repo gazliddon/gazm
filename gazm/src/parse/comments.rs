@@ -4,7 +4,7 @@ use nom::bytes::complete::take_until;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::recognize;
-use nom::sequence::{pair, preceded, tuple};
+use nom::sequence::{preceded, tuple};
 
 use crate::error::IResult;
 use crate::locate::Span;

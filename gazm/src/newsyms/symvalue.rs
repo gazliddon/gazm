@@ -2,17 +2,11 @@ use emu::utils::sources::Position;
 use emu::utils::symbols;
 
 use symbols::{
-    SymbolTable,
     Scopes,
-    IdTraits,
     ValueTraits,
-    SymbolReader,
 };
 
-use symbols::*;
-
 use super::Value;
-
 
 pub type Symbols = Scopes<SymbolValue, usize>;
 pub type SymbolId = symbols::SymbolId<usize>;

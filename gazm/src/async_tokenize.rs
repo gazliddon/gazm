@@ -1,33 +1,15 @@
-use emu::utils::PathSearcher;
-use itertools::Itertools;
-
-use crate::asmctx::AsmCtx;
-use crate::ast::AstNodeId;
-use crate::binary::AccessType;
-use crate::ctx::Context;
-use crate::ctx::Opts;
-use crate::debug_mess;
-use crate::error::GazmErrorKind;
-use crate::error::UserError;
-use crate::error::{GResult, ParseError};
-use crate::gazm::with_state;
+use crate::ctx::{ Context, Opts };
+use crate::error::{GazmErrorKind,GResult, ParseError};
 use crate::info_mess;
 use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
-use crate::token_store::TokenStore;
 use crate::tokenize::Tokens;
 
-use emu::utils::sources;
-use sources::fileloader::{FileIo, SourceFileLoader};
-use sources::AsmSource;
-use sources::Position;
+use emu::utils::{ sources, PathSearcher,Stack };
+use sources::{ AsmSource, Position };
 
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::hash::Hash;
+use itertools::Itertools;
 use std::path::{Path, PathBuf};
-
-use emu::utils::Stack;
 use thiserror::Error;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -128,7 +110,6 @@ impl IncludeStack {
     }
 }
 ////////////////////////////////////////////////////////////////////////////////
-
 pub enum GetTokensResult {
     Tokens(Box<TokenizeResult>),
     Request(Box<TokenizeRequest>),

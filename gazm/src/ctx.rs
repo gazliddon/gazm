@@ -1,25 +1,26 @@
-use crate::ast::{AstNodeId, AstTree};
+use crate::ast::AstTree;
 use crate::async_tokenize::TokenizeResult;
 use crate::binary::{self, AccessType, Binary};
 use crate::error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError};
-use crate::item::Node;
 use crate::lookup::LabelUsageAndDefintions;
 use crate::lsp::LspConfig;
-use crate::macros::Macros;
 use crate::messages::{status_mess, Verbosity};
 use crate::token_store::TokenStore;
 use crate::vars::Vars;
 use crate::{astformat, status_err};
-use anyhow::{Context as AnyContext, Result};
+
+
 use emu::utils::{
     hash::get_hash,
     sources::{
         fileloader::{FileIo, SourceFileLoader},
-        AsmSource, BinToWrite, BinWriteDesc, EditErrorKind, EditResult, Position, SourceDatabase,
-        SourceFile, SourceFiles, SourceMapping, SymbolTree, TextEdit, TextEditTrait, TextPos,
+        AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
+        SourceFiles, SourceMapping, SymbolTree, TextEditTrait,
     },
     PathSearcher,
 };
+
+use anyhow::{Context as AnyContext, Result};
 
 fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String {
     let z: Vec<String> = i.map(|s| s.as_ref().to_string_lossy().into()).collect();
@@ -30,7 +31,6 @@ use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tower_lsp::lsp_types::lsp_request;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {

@@ -1,14 +1,10 @@
 use crate::ast::{AstNodeId, AstNodeRef, AstTree};
-use crate::ctx::LstFile;
-use crate::ctx::Opts;
-use crate::error::{ErrorCollector, GResult, GazmErrorKind};
-use crate::evaluator::Evaluator;
+use crate::error::GResult;
 use crate::item::Item;
-use crate::vars::Vars;
 use crate::{binary, fixerupper::FixerUpper};
 use emu::utils::sources::{self, BinToWrite, Position, SymbolScopeId};
 use sources::fileloader::{FileIo, SourceFileLoader};
-use sources::{BinWriteDesc, SourceMapping, SymbolError, SymbolNodeId, SymbolWriter};
+use sources::{ SymbolError, SymbolWriter};
 use std::path::{Path, PathBuf};
 
 use crate::ctx::Context;
@@ -162,7 +158,6 @@ impl<'a> AsmCtx<'a> {
     }
 
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
-        use emu::utils::sources::fileloader::FileIo;
 
         let path = self
             .ctx

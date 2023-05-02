@@ -1,6 +1,5 @@
-use emu::mem::CheckedMemoryIo;
 use serde::{Deserialize, Serialize};
-use std::{ops::BitAnd, path::PathBuf};
+use std::path::PathBuf;
 use thiserror::Error;
 
 struct Rle {

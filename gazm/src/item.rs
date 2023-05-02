@@ -6,7 +6,6 @@ use crate::ast::AstNodeId;
 use crate::error::ParseError;
 use crate::locate::span_to_pos;
 use crate::locate::Span;
-use crate::macros::MacroCall;
 use crate::node::{BaseNode, CtxTrait};
 use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;

@@ -1,15 +1,8 @@
-use crate::ast::iter_ids_recursive;
-use crate::ast::make_tree;
 use crate::ctx::Opts;
 use crate::error::GResult;
-use crate::gazm::Assembler;
-use crate::item::AddrModeParseType;
 use crate::item::Node;
 use crate::item::{Item, LabelDefinition};
-use crate::locate::Span;
-// use lazy_static::__Deref;
 
-use emu::isa::Instruction;
 use itertools::Itertools;
 
 pub struct Format {}

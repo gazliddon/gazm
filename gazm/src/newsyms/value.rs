@@ -2,7 +2,6 @@ use emu::utils;
 
 use utils::eval::OperationError;
 use utils::eval::OperationErrorKind;
-use utils::eval::OperatorTraits;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum EvalResultType {}
@@ -314,7 +313,6 @@ impl std::ops::Neg for Value {
     type Output = OperationError<Self>;
 
     fn neg(self) -> Self::Output {
-        use OperationErrorKind::*;
         use Value::*;
         match self {
             Signed(a) => Ok(Signed(-a)),

@@ -1,8 +1,5 @@
-use std::{fmt::Display, ops::BitOr, path::is_separator};
-
 use bitflags::bitflags;
-use num::{traits::WrappingNeg, Float};
-use utils::Stack;
+use alu::GazAlu;
 
 bitflags! {
     pub struct StackFlags: u8 {
@@ -42,9 +39,7 @@ use super::{
     InstructionDecoder, RegEnum, RegisterPair, RegisterSet, Regs, Relative, Relative16,
 };
 
-use crate::isa::AddrModeEnum;
 
-use alu::GazAlu;
 
 // use std::cell::RefCell;
 // use std::rc::Rc;

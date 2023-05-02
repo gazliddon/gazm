@@ -3,10 +3,8 @@ use crate::ctx::Opts;
 use log::info;
 use log::LevelFilter;
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
-use tokio::runtime::Runtime;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
+use std::path::PathBuf;
+use tower_lsp::{LspService, Server};
 
 #[derive(Default,Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]

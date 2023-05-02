@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::is_not,
     character::complete::{line_ending, multispace0},
-    combinator::{all_consuming, cut, not, opt, recognize},
+    combinator::{cut, not, opt, recognize},
     multi::many0,
     sequence::{preceded, terminated},
 };
@@ -13,23 +13,19 @@ use std::path::{Path, PathBuf};
 use tryvial::try_block;
 
 use crate::{
-    ast::AstNodeId,
     commands::parse_command,
-    ctx::{Context, Opts},
-    error::{parse_error, ErrorCollector, GResult, GazmErrorKind, IResult, ParseError, UserError},
+    ctx::Opts,
+    error::{GResult, IResult, ParseError},
     item::{Item, Node},
     labels::parse_label,
-    locate::{matched_span, span_to_pos, Span},
+    locate::Span,
     macros::{get_macro_def, get_scope_block, parse_macro_call},
     opcodes::parse_opcode,
-    parse::{
-        parse_comment,
-        util::{parse_assignment, ws},
-    },
+    parse::util::{parse_assignment, ws},
     structs::{get_struct, parse_struct_definition},
 };
 
-use emu::utils::sources::{AsmSource, Position};
+use emu::utils::sources::Position;
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
@@ -161,7 +157,6 @@ impl Tokens {
     }
 
     fn parse_to_tokens(&mut self, input: Span) -> GResult<()> {
-        use crate::macros::MacroCall;
 
         let mut source = input;
 
@@ -182,7 +177,6 @@ impl Tokens {
             }
 
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
-                use std::string::ToString;
                 let macro_tokes = Tokens::from_text(&self.opts, body)?.take_tokens();
 
                 let pos = crate::locate::span_to_pos(body);

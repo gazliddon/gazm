@@ -1,19 +1,15 @@
 use crate::ast::Ast;
-use crate::async_tokenize::{self, TokenizeResult};
-use crate::ctx::{AsmOut, Context, Opts};
-use crate::error::UserError;
-use crate::error::{GResult, GazmErrorKind};
+use crate::async_tokenize;
+use crate::ctx::{Context, Opts};
+use crate::error::GResult;
 use crate::item::Node;
-use crate::locate::Span;
-use crate::tokenize;
-use emu::utils::sources::{EditResult, Position, SourceFile, TextEditTrait};
-use emu::utils::PathSearcher;
-use rayon::iter::plumbing::Consumer;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use thiserror::Error;
 
-use log::error;
+use emu::utils::sources::{EditResult,  TextEditTrait};
+use emu::utils::PathSearcher;
+
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+
 
 pub struct Assembler {
     pub ctx: Context,
@@ -82,8 +78,6 @@ pub fn create_ctx(opts: Opts) -> Arc<Mutex<Context>> {
 }
 
 fn assemble_project(ctx: &mut Context) -> GResult<()> {
-    use emu::utils::PathSearcher;
-
     let file = ctx.opts.project_file.to_owned();
     let paths = ctx.get_source_file_loader_mut().get_search_paths().to_vec();
 
@@ -91,8 +85,6 @@ fn assemble_project(ctx: &mut Context) -> GResult<()> {
         ctx.get_source_file_loader_mut().add_search_path(dir);
     }
 
-    // let tokes = async_tokenize::tokenize(ctx, file)?;
-    //
     let tokes = {
         async_tokenize::tokenize(ctx)?;
         let file = ctx.get_project_file();
@@ -109,7 +101,6 @@ fn assemble_project(ctx: &mut Context) -> GResult<()> {
 pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
     use crate::asmctx::AsmCtx;
     use crate::compile::compile;
-    use crate::evaluator::Evaluator;
     use crate::fixerupper::FixerUpper;
     use crate::lookup::LabelUsageAndDefintions;
     use crate::sizer::size_tree;

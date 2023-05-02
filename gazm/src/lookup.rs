@@ -1,12 +1,11 @@
 // Lookup where labels are defined and referenced
-use crate::ast::{iter_ids_recursive, iter_refs_recursive, AstTree};
-use crate::item::Node;
+use crate::ast::{ iter_refs_recursive, AstTree};
 use crate::item::{Item, LabelDefinition};
 use emu::utils::sources::{
-    Position, SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolTable, SymbolTree,
+    Position, SymbolError, SymbolInfo, SymbolScopeId, SymbolTable, SymbolTree,
 };
 use emu::utils::Stack;
-use std::collections::{hash_map, HashMap, VecDeque};
+use std::collections::HashMap;
 
 pub struct Navigator<'a> {
     syms: &'a SymbolTree,
@@ -79,7 +78,6 @@ pub struct LabelUsageAndDefintions {
     symbol_id_to_definition: HashMap<SymbolScopeId, Position>,
 }
 
-use log::info;
 
 impl LabelUsageAndDefintions {
     pub fn new(tree: &AstTree, _syms: &SymbolTree) -> Self {

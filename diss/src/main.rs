@@ -1,7 +1,5 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
-#![allow(dead_code)]
-#![allow(unused_imports)]
 mod commands;
 mod diss;
 mod term;

@@ -1,20 +1,13 @@
-use std::path::PathBuf;
-
 use emu::utils::sources::{
-    Position, SourceErrorType, SourceInfo, SymbolError, SymbolInfo, SymbolQuery, SymbolTree,
-    SymbolWriter,
+    fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
+    SymbolQuery, SymbolScopeId, SymbolTree, SymbolWriter,
 };
 
-use emu::utils::sources::fileloader::SourceFileLoader;
-
-use crate::ast::{AstNodeId, AstNodeRef, AstTree};
+use crate::ast::{AstNodeId, AstNodeRef};
 use crate::ctx::Context;
-use crate::error::UserError;
-use crate::error::{GResult, GazmErrorKind};
+use crate::error::{GResult, UserError};
 use crate::eval::eval;
 use crate::item::Item::*;
-
-use emu::utils::sources::SymbolScopeId;
 
 /// Evaluates things
 pub struct Evaluator<'a> {

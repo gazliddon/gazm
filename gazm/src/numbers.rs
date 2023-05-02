@@ -4,7 +4,6 @@ use crate::{
     item::ParsedFrom,
 };
 
-use emu::utils::sources::AsmSource;
 
 use nom::{
     branch::alt,
@@ -13,7 +12,6 @@ use nom::{
     combinator::recognize,
     multi::many1,
     sequence::preceded,
-    AsBytes, UnspecializedInput,
 };
 
 
@@ -23,18 +21,13 @@ mod new {
         QuotedString(String),
         Character(char),
     }
+
     use nom::{
         branch::alt,
-        bytes::complete::{is_a, tag, tag_no_case},
-        character::complete::{alphanumeric1, anychar, hex_digit0, hex_digit1},
-        character::is_hex_digit,
+        bytes::complete::{is_a, tag},
+        character::complete::alphanumeric1, 
         combinator::recognize,
-        error::context,
-        error::ContextError,
-        error::ErrorKind,
-        error::ParseError,
         multi::many1,
-        sequence::preceded,
         InputTake,
     };
 
@@ -145,7 +138,6 @@ mod newp {
 
     type Span<'a, X> = LocatedSpan<&'a str, X>;
     type IResult<'a, O, X, E> = nom::IResult<Span<'a, X>, O, E>;
-    use nom::error::ParseError;
 
     pub fn num_get<'a, X, E>(input: Span<'a, X>) -> IResult<'a, Span<X>, X, E>
     where

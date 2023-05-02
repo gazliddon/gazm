@@ -2,10 +2,9 @@ use crate::ast::{AstNodeId, AstNodeRef};
 use crate::doc::ErrorDocType;
 use crate::locate::span_to_pos;
 use crate::locate::Span;
-use crate::{binary, gazm};
+use crate::binary;
 use emu::utils::SearchError;
-use emu::utils::sources::{AsmSource, Position, SourceInfo, EditErrorKind};
-use serde::de::Error;
+use emu::utils::sources::{Position, SourceInfo, EditErrorKind};
 use thiserror::Error;
 
 pub type GResult<T> = Result<T, GazmErrorKind>;

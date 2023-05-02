@@ -1,16 +1,16 @@
 use crate::expr::parse_expr;
-use crate::item::{Item, Node, LabelDefinition};
+use crate::item::{Item, Node};
 use crate::labels;
 use crate::numbers;
 
 use crate::error::{IResult, ParseError};
 use crate::locate::{matched_span, Span};
 
-use nom::bytes::complete::{escaped, is_not, tag, tag_no_case, take_while, take_till};
+use nom::bytes::complete::{escaped, is_not, tag, tag_no_case, take_while, };
 
-use nom::character::complete::{char as nom_char, multispace0, multispace1, one_of, anychar};
+use nom::character::complete::{char as nom_char, multispace0, multispace1, one_of, };
 use nom::combinator::cut;
-use nom::multi::{separated_list0, separated_list1};
+use nom::multi::separated_list0;
 use nom::sequence::{preceded, separated_pair, terminated, tuple};
 
 pub static LIST_SEP: &str = ",";
@@ -18,26 +18,19 @@ pub static LIST_SEP: &str = ",";
 pub use p2::{wrapped_chars, ws};
 
 mod p2 {
-    use nom::bytes::complete::{is_not, tag};
     use nom::character::complete::char as nom_char;
     use nom::character::complete::multispace0;
-    use nom::combinator::not;
-    use nom::combinator::recognize;
     use nom::error::ParseError;
-    use nom::multi::many0;
-    use nom::multi::{separated_list0, separated_list1};
-    use nom::sequence::{separated_pair, tuple};
+    use nom::multi::separated_list1;
+    use nom::sequence::tuple;
     use nom::AsChar;
-    use nom::FindToken;
     use nom::IResult;
     use nom::InputIter;
     use nom::InputLength;
-    use nom::InputTake;
     use nom::InputTakeAtPosition;
     use nom::Parser;
     use nom::Slice;
-    use nom::UnspecializedInput;
-    use std::ops::{RangeFrom, RangeTo};
+    use std::ops::RangeFrom;
 
     pub fn sep_list1<F, I, O, E>(inner: F) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
     where

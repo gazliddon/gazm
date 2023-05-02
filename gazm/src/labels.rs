@@ -1,7 +1,7 @@
 use crate::{
     commands::command_token,
     error::IResult,
-    item::{Item, LabelDefinition, Node},
+    item::{Item, Node},
     locate::Span,
     opcodes::opcode_just_token,
 };
@@ -12,7 +12,7 @@ use nom::{
     character::complete::{alpha1, alphanumeric1},
     combinator::{all_consuming, opt, recognize},
     multi::{ many0, many1 },
-    sequence::{pair, preceded, separated_pair},
+    sequence::{pair, preceded},
 };
 
 ////////////////////////////////////////////////////////////////////////////////

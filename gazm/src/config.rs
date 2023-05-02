@@ -29,7 +29,6 @@ pub struct Project {
 
 impl Default for YamlConfig {
     fn default() -> Self {
-        use toml::Value;
         let config_file = "./gazm.toml";
         Self::new_from_file(config_file)
     }
@@ -37,7 +36,6 @@ impl Default for YamlConfig {
 
 impl YamlConfig {
     pub fn new_from_file<P: AsRef<std::path::Path>>(file: P) -> Self {
-        use toml::Value;
 
         let file = file.as_ref();
 

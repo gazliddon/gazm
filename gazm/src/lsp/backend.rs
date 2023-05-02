@@ -1,9 +1,9 @@
 use crate::ctx::{Context, Opts};
 use crate::error::{GResult, GazmErrorKind};
-use crate::gazm::{create_ctx, with_state, Assembler};
+use crate::gazm::{with_state, Assembler};
 use crate::lookup::LabelUsageAndDefintions;
 use emu::utils::sources::{
-    Position as GazmPosition, SourceFile, SymbolScopeId, TextEdit, TextEditTrait, TextPos,
+    Position as GazmPosition, SymbolScopeId, TextEdit, TextPos,
 };
 use log::{error, info};
 use serde_json::Value;
@@ -17,7 +17,7 @@ use tower_lsp::lsp_types::request::{
 };
 use tower_lsp::lsp_types::Position;
 use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
+use tower_lsp::{Client, LanguageServer};
 
 pub struct Backend {
     pub client: Client,

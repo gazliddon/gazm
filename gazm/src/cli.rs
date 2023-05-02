@@ -1,21 +1,9 @@
-use crate::ctx::BuildType;
-use crate::error::ErrorCollector;
+use crate::ctx::{ BuildType,Opts };
 use crate::messages::Verbosity;
-use crate::{
-    binary::{AccessType, Binary},
-    ctx::{Context, Opts},
-};
-
 use crate::config;
-use crate::lsp::LspConfig;
 
 use clap::{Arg, ArgMatches, Command};
-use emu::utils::sources::fileloader::SourceFileLoader;
-use nom::ErrorConvert;
-use std::collections::HashMap;
-use std::fmt::Display;
-use std::hash::Hash;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 ////////////////////////////////////////////////////////////////////////////////
 pub type ConfigError<T> = Result<T, ConfigErrorType>;

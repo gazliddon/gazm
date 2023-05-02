@@ -1,5 +1,5 @@
 use super::{mem, CpuErr, IndexModes, IndexedFlags, InstructionDecoder, Regs};
-use mem::{MemErrorTypes, MemoryIO};
+use mem::MemoryIO;
 
 use crate::isa::AddrModeEnum;
 

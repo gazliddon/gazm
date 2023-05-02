@@ -1,26 +1,13 @@
 use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
-    binary::{AccessType, BinRef, Binary, BinaryError},
-    error::{GResult, GazmErrorKind, UserError},
-    evaluator::{self, Evaluator},
-    fixerupper::FixerUpper,
-    item::{self, AddrModeParseType, IndexParseType, Item, LabelDefinition, Node},
-    messages::{info, messages},
+    error::GResult,
+    item::{self, AddrModeParseType,  Item, LabelDefinition},
     parse::util::{ByteSize, ByteSizes},
 };
 
-use emu::{
-    cpu::RegEnum,
-    isa::Instruction,
-    utils::sources::{
-        ItemType, SourceMapping, SymbolError, SymbolQuery, SymbolScopeId, SymbolWriter,
-    },
-};
+use emu::utils::sources::{ SymbolWriter,SymbolScopeId } ;
 
-use ego_tree::iter::Children;
-use serde_json::ser::Formatter;
-use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use Item::*;
@@ -327,7 +314,6 @@ impl<'a> Sizer<'a> {
         file_name: P,
         node: AstNodeRef,
     ) -> GResult<std::ops::Range<usize>> {
-        use emu::utils::sources::fileloader::FileIo;
         let data_len = ctx.get_file_size(file_name.as_ref())?;
 
         let mut r = 0..data_len;

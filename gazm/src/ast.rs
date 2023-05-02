@@ -2,26 +2,21 @@ pub type AstTree = ego_tree::Tree<ItemWithPos>;
 pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
 pub type AstNodeId = ego_tree::NodeId;
 pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
-// use std::fmt::{Debug, DebugMap};
-// lkd dk dlk
-use std::collections::HashMap;
-use std::num::NonZeroUsize;
-use std::{default, iter, vec};
 
 use crate::error::{AstError, UserError};
 use crate::eval::{EvalError, EvalErrorEnum};
-use crate::parse::util::match_escaped_str;
 use crate::scopes::ScopeBuilder;
 
 use crate::ctx::Context;
 use crate::item::{Item, LabelDefinition, Node};
 
-use crate::{messages::*, node};
-use emu::utils::eval::{to_postfix, GetPriority, PostFixer};
+use crate::messages::*;
+use emu::utils::eval::{to_postfix, GetPriority};
 use emu::utils::sources::{
-    Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolTree, SymbolWriter,
+    Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolWriter,
 };
-use emu::utils::symbols;
+
+use std::iter;
 
 ////////////////////////////////////////////////////////////////////////////////
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
@@ -173,7 +168,6 @@ impl<'a> Ast<'a> {
     /// with inlines included files tokens
     fn inline_includes(&mut self) -> Result<(), UserError> {
         info("Inlining include files", |_x| {
-            use Item::*;
             // Loop over the ast until we have replaced all of the includes
             // each include can have includes in it as well
             loop {
@@ -249,7 +243,7 @@ impl<'a> Ast<'a> {
             // TODO: should be written in a way that can detect
             // redefinitions of a macro
             use std::collections::HashMap;
-            use Item::{MacroCall, MacroCallProcessed, MacroDef, ScopeId};
+            use Item::{MacroCall, MacroCallProcessed, ScopeId};
 
             // Detach all of the MacroDef nodes
             let detached = self.detach_nodes_filter(iter_ids_recursive(self.tree.root()), |nref| {
@@ -583,7 +577,6 @@ impl<'a> Ast<'a> {
     /// Traverse through all assignments and reserve a label for them at the correct scope
     fn scope_assignments(&mut self) -> Result<(), UserError> {
         info("Correctly scoping assignments", |_| {
-            use super::eval::eval;
             use Item::*;
 
             self.ctx.asm_out.symbols.set_root();

@@ -1,24 +1,16 @@
-use std::collections::{HashMap, HashSet};
-use std::os::unix::prelude::AsRawFd;
 use std::path::Path;
 
 use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
-    astformat::as_string,
-    ctx::Opts,
     error::{GResult, GazmErrorKind, UserError},
-    fixerupper::FixerUpper,
-    item::{self, AddrModeParseType, IndexParseType, Item, Node},
-    messages::debug_mess,
-    messages::{info, messages},
+    item::{self, AddrModeParseType, IndexParseType, Item},
+    messages::{ debug_mess, messages },
     regutils::*,
-    status_mess,
 };
 
-use emu::utils::sources::Position;
 
-use emu::{isa::Instruction, utils::sources::fileloader::FileIo, utils::sources::ItemType};
+use emu::{isa::Instruction, utils::sources::ItemType};
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
     let compiler = Compiler::new(tree)?;

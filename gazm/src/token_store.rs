@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use crate::async_tokenize::TokenizeResult;
 
-use crate::item::{Item, Node};
 use std::collections::HashMap;
 
 #[derive(Default, Clone, Debug)]

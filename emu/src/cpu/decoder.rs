@@ -1,12 +1,7 @@
-use std::io::Read;
-
-use itertools::Itertools;
-use num::traits::{WrappingAdd, WrappingNeg};
-
-use super::mem::{MemResult, MemoryIO};
+use super::mem::MemoryIO;
 use super::{CpuErr, CpuResult};
 use crate::isa::{Dbase, Instruction};
-use crate::mem::{MemErrorTypes, MemReader};
+use crate::mem::MemReader;
 
 const RBYTE: &[u8] = include_bytes!("resources/opcodes.json");
 
@@ -29,10 +24,7 @@ pub struct InstructionDecoder {
     pub operand_addr: usize,
 }
 
-fn decode_op_mem(
-    addr : usize,
-    reader: &mut dyn MemoryIO
-) -> CpuResult<InstructionDecoder> {
+fn decode_op_mem(addr: usize, reader: &mut dyn MemoryIO) -> CpuResult<InstructionDecoder> {
     let mut reader = MemReader::new(reader);
     reader.set_addr(addr);
     decode_op(&mut reader)
@@ -42,10 +34,7 @@ fn decode_op_mem(
 // Takes memory read as closure
 // means we can destructively read op code when emulating
 // or non destructively inspect for disassembly
-fn decode_op(
-    reader: &mut MemReader
-) -> CpuResult<InstructionDecoder> {
-
+fn decode_op(reader: &mut MemReader) -> CpuResult<InstructionDecoder> {
     let addr = reader.get_addr();
     let mut index_size = 0;
 
@@ -67,9 +56,9 @@ fn decode_op(
 
     if instruction_info.addr_mode == AddrModeEnum::Indexed {
         let index_mode_id = reader.peek_byte()?;
-        let index_mode = super::indexed::IndexedFlags::new(index_mode_id );
+        let index_mode = super::indexed::IndexedFlags::new(index_mode_id);
         index_size = index_mode.get_index_type().get_size();
-    } 
+    }
 
     let size = instruction_info.size + index_size;
 
@@ -81,12 +70,12 @@ fn decode_op(
 
     // Create the decoded instruction
     let ret = InstructionDecoder {
-        size : range.len(),
+        size: range.len(),
         next_addr: range.end,
         addr,
         op_code,
         instruction_info,
-        cycles: instruction_info.cycles ,
+        cycles: instruction_info.cycles,
         data,
         operand_addr,
     };
@@ -113,11 +102,11 @@ impl InstructionDecoder {
         // Ok(b)
     }
 
-    pub fn new_from_reader_mut(mem: &mut MemReader) -> CpuResult<Self> { 
+    pub fn new_from_reader_mut(mem: &mut MemReader) -> CpuResult<Self> {
         decode_op(mem)
     }
 
-    pub fn new_from_reader(mem: &mut MemReader) -> CpuResult<Self> { 
+    pub fn new_from_reader(mem: &mut MemReader) -> CpuResult<Self> {
         decode_op(mem)
     }
 
