@@ -1,6 +1,4 @@
-use futures::AsyncWriteExt;
-
-use itertools::Itertools;
+/// Parses text into a load of structured tokens
 use nom::{
     branch::alt,
     bytes::complete::is_not,
@@ -10,35 +8,28 @@ use nom::{
     sequence::{preceded, terminated},
 };
 
-use std::{
-    ops::DerefMut,
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::path::{Path, PathBuf};
 
-use crate::{async_tokenize::TokenizeResult, parse::parse_comment};
+use tryvial::try_block;
 
 use crate::{
     ast::AstNodeId,
-    async_tokenize::tokenize_file as real_tokenize_file,
-    commands,
+    commands::parse_command,
     ctx::{Context, Opts},
     error::{parse_error, ErrorCollector, GResult, GazmErrorKind, IResult, ParseError, UserError},
-    item::{Item, LabelDefinition, Node},
+    item::{Item, Node},
     labels::parse_label,
     locate::{matched_span, span_to_pos, Span},
     macros::{get_macro_def, get_scope_block, parse_macro_call},
-    messages::messages,
     opcodes::parse_opcode,
-    parse::util::{parse_assignment, ws},
+    parse::{
+        parse_comment,
+        util::{parse_assignment, ws},
+    },
     structs::{get_struct, parse_struct_definition},
 };
 
-use emu::utils::sources;
-
-use emu::utils::PathSearcher;
-use sources::fileloader::SourceFileLoader;
-use sources::{AsmSource, Position};
+use emu::utils::sources::{AsmSource, Position};
 
 fn get_line(input: Span) -> IResult<Span> {
     let (rest, line) = cut(preceded(
@@ -103,7 +94,7 @@ impl Tokens {
             ..Default::default()
         };
 
-        x.parse_to_tokens_2(text)?;
+        x.parse_to_tokens(text)?;
 
         Ok(x)
     }
@@ -123,8 +114,6 @@ impl Tokens {
     }
 
     fn tokenize_line<'a>(&'a mut self, line: Span<'a>) -> IResult<()> {
-        use commands::parse_command;
-
         let mut input = line;
 
         if line.is_empty() && self.opts.encode_blank_lines {
@@ -174,7 +163,7 @@ impl Tokens {
         self.includes.push((pos, file.as_ref().into()));
     }
 
-    fn parse_to_tokens_2(&mut self, input: Span) -> GResult<()> {
+    fn parse_to_tokens(&mut self, input: Span) -> GResult<()> {
         use crate::macros::MacroCall;
 
         let mut source = input;
@@ -210,19 +199,16 @@ impl Tokens {
                 continue;
             }
 
-            let res: Result<(), ParseError> = try {
+            let res: Result<(), ParseError> = try_block! {
                 if let Ok((rest, _)) = get_struct(source) {
                     let (_, matched) = parse_struct_definition(source)?;
                     self.add_node(matched);
                     source = rest;
-                    continue;
+                } else {
+                    let (rest, line) = get_line(source)?;
+                    source = rest;
+                    self.tokenize_line(line)?;
                 }
-
-                let (rest, line) = get_line(source)?;
-
-                source = rest;
-
-                self.tokenize_line(line)?;
             };
 
             match res {
@@ -236,76 +222,4 @@ impl Tokens {
         Ok(())
     }
 
-    fn parse_to_tokens(&mut self, ctx: &Context, input: Span) -> GResult<()> {
-        use crate::macros::MacroCall;
-
-        let mut source = input;
-
-        while !source.is_empty() {
-            if let Ok((_rest, (_name, _body))) = get_scope_block(source) {
-                panic!();
-                // let tok_result = Tokens::new(body, self.opts.clone())?;
-                // self.add_includes(&tok_result.includes);
-                // let toks = tok_result.to_tokens();
-                // let scope_def = Node::new_with_children(
-                //     Item::Scope2(name.to_string()),
-                //     toks,
-                //     span_to_pos(body),
-                // );
-                // self.add_node(scope_def);
-                // source = rest;
-                // continue;
-            }
-
-            if let Ok((rest, (name, params, body))) = get_macro_def(source) {
-                use std::string::ToString;
-
-                let macro_tokes = Tokens::from_text(&ctx.opts, body)?.take_tokens();
-
-                let pos = crate::locate::span_to_pos(body);
-                let name = name.to_string();
-                let params = params.iter().map(ToString::to_string).collect();
-
-                let macro_def =
-                    Node::new_with_children(Item::MacroDef(name, params), &macro_tokes, pos);
-                self.add_node(macro_def);
-                source = rest;
-                continue;
-            }
-
-            let res: Result<(), ParseError> = try {
-                if let Ok((rest, _)) = get_struct(source) {
-                    let (_, matched) = parse_struct_definition(source)?;
-                    self.add_node(matched);
-                    source = rest;
-                    continue;
-                }
-
-                let (rest, line) = get_line(source)?;
-
-                source = rest;
-
-                self.tokenize_line(line)?;
-            };
-
-            match res {
-                Ok(..) => (),
-                Err(pe) => {
-                    self.parse_errors.push(pe);
-                }
-            };
-        }
-
-        Ok(())
-    }
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Tests
-#[allow(unused_imports)]
-mod test {
-    use super::*;
-    #[allow(unused_imports)]
-    use pretty_assertions::{assert_eq, assert_ne};
 }

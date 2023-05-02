@@ -1,6 +1,5 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
-#![feature(try_blocks)]
 // #![deny(clippy::pedantic)]
 mod as6809;
 mod asmctx;
@@ -66,7 +65,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
-    mess.status(format!("Verbosity {:?}", &opts.verbose));
 
     // Todo move directory handling into assemble_from_opts
     // probably as a function of Opts
@@ -92,6 +90,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Build of check to see if build is okay
         ctx::BuildType::Build | ctx::BuildType::Check => {
             mess.status(BANNER);
+            mess.status(format!("Verbosity {:?}", &opts.verbose));
+
+            if opts.no_async {
+                mess.status("NO ASYNC")
+            }
+
             mess.indent();
             asm.assemble()?;
 

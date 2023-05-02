@@ -16,7 +16,7 @@ use thiserror::Error;
 use log::error;
 
 pub struct Assembler {
-    pub ctx: Context
+    pub ctx: Context,
 }
 
 impl From<Assembler> for Context {
@@ -34,24 +34,29 @@ impl Assembler {
 
     /// Assemble for the first time
     pub fn assemble(&mut self) -> GResult<()> {
-            self.ctx.reset_all();
-            assemble_project(&mut self.ctx)
+        self.ctx.reset_all();
+        assemble_project(&mut self.ctx)
     }
 
     /// Reassemble the project keeping the same caches
     /// but clearing the assembly output
     pub fn reassemble(&mut self) -> GResult<()> {
-            self.ctx.reset_output();
-            assemble_project(&mut self.ctx)
+        self.ctx.reset_output();
+        assemble_project(&mut self.ctx)
     }
-
 
     pub fn write_outputs(&mut self) -> GResult<()> {
         self.ctx.write_ouputs()
     }
 
-    pub fn replace_file_contents<P: AsRef<Path>>(&mut self, file: P, new_text: &str) -> GResult<()> {
-            Ok(self.ctx.edit_source_file(&file, |editable| editable.replace_file(new_text))?)
+    pub fn replace_file_contents<P: AsRef<Path>>(
+        &mut self,
+        file: P,
+        new_text: &str,
+    ) -> GResult<()> {
+        Ok(self
+            .ctx
+            .edit_source_file(&file, |editable| editable.replace_file(new_text))?)
     }
 
     /// Edit a file
@@ -61,9 +66,8 @@ impl Assembler {
         file: P,
         f: impl FnOnce(&mut dyn TextEditTrait) -> EditResult<X>,
     ) -> GResult<X> {
-            let r = self.ctx.edit_source_file(&file, |editable| f(editable))?;
+        let r = self.ctx.edit_source_file(&file, |editable| f(editable))?;
         Ok(r)
-
     }
 }
 
@@ -87,7 +91,13 @@ fn assemble_project(ctx: &mut Context) -> GResult<()> {
         ctx.get_source_file_loader_mut().add_search_path(dir);
     }
 
-    let tokes = async_tokenize::tokenize(ctx, file)?;
+    // let tokes = async_tokenize::tokenize(ctx, file)?;
+    //
+    let tokes = {
+        async_tokenize::async_tokenize_2(ctx)?;
+        let file = ctx.get_project_file();
+        ctx.get_tokens_from_full_path(&file).unwrap().clone()
+    };
 
     assemble_tokens(ctx, &tokes.node)?;
 
@@ -105,7 +115,6 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
     use crate::sizer::size_tree;
 
     let tree = Ast::from_nodes(ctx, tokens)?;
-
 
     let id = tree.root().id();
 

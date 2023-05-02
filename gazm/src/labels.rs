@@ -1,19 +1,19 @@
-use crate::commands::command_token;
-use crate::item::{Item, Node};
-use crate::opcodes::opcode_just_token;
-use nom::combinator::{all_consuming, opt, recognize};
-use nom::multi::many1;
-use nom::sequence::{pair, preceded, separated_pair};
+use crate::{
+    commands::command_token,
+    error::IResult,
+    item::{Item, LabelDefinition, Node},
+    locate::Span,
+    opcodes::opcode_just_token,
+};
 
-use nom::character::complete::{alpha1, alphanumeric1};
-
-use nom::branch::alt;
-use nom::bytes::complete::{is_a, tag};
-use nom::multi::many0;
-
-use crate::error::IResult;
-use crate::item::LabelDefinition;
-use crate::locate::Span;
+use nom::{
+    branch::alt,
+    bytes::complete::{is_a, tag},
+    character::complete::{alpha1, alphanumeric1},
+    combinator::{all_consuming, opt, recognize},
+    multi::{ many0, many1 },
+    sequence::{pair, preceded, separated_pair},
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Labels
@@ -22,12 +22,12 @@ static OK_LABEL_CHARS: &str = "_?.";
 
 // scoped symbol is just a symbol or!
 // opt(symbol)sep(symbol+)
-pub fn get_scoped_label(input: Span) -> IResult<(Option<Span>, Vec<Span> )> {
+pub fn get_scoped_label(input: Span) -> IResult<(Option<Span>, Vec<Span>)> {
     let (rest, (lab, parts)) = pair(
         opt(get_just_label),
         many1(preceded(tag("::"), get_just_label)),
     )(input)?;
-    Ok((rest, (lab, parts )))
+    Ok((rest, (lab, parts)))
 }
 
 pub fn get_just_label(input: Span) -> IResult<Span> {
@@ -64,19 +64,13 @@ fn get_local_label(input: Span) -> IResult<Span> {
 
 pub fn parse_just_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
-    let node = Node::from_item_span(
-        Item::Label(matched.to_string().into()),
-        matched,
-    );
+    let node = Node::from_item_span(Item::Label(matched.to_string().into()), matched);
     Ok((rest, node))
 }
 
 fn parse_local_label(input: Span) -> IResult<Node> {
     let (rest, matched) = get_local_label(input)?;
-    let node = Node::from_item_span(
-        Item::LocalLabel(matched.to_string().into()),
-        matched,
-    );
+    let node = Node::from_item_span(Item::LocalLabel(matched.to_string().into()), matched);
     Ok((rest, node))
 }
 

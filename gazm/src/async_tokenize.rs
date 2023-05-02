@@ -1,5 +1,6 @@
 use emu::utils::PathSearcher;
 use itertools::Itertools;
+use rayon::prelude::*;
 
 use crate::asmctx::AsmCtx;
 use crate::ast::AstNodeId;
@@ -107,6 +108,7 @@ pub struct TokenizeResult {
     pub includes: Vec<(Position, PathBuf)>,
 }
 
+#[derive(Debug, Clone)]
 pub struct TokenizeRequest {
     pub file_id: u64,
     pub expanded_file_name: PathBuf,
@@ -137,21 +139,21 @@ impl TokenizeRequest {
 }
 
 /// Async friendly tokenizer
-pub fn tokenize_text(req: TokenizeRequest) -> GResult<TokenizeResult> {
+pub fn tokenize_text(req: &TokenizeRequest) -> GResult<TokenizeResult> {
     let opts = &req.opts;
     let input = Span::new_extra(&req.source, AsmSource::FileId(req.file_id));
     let tokens = Tokens::from_text(opts, input)?;
-    Ok(req.to_result(tokens))
+    Ok(req.clone().to_result(tokens))
 }
 
 pub fn tokenize_text_and_add_tokens(
     ctx: &mut Context,
-    req: TokenizeRequest,
+    req: &TokenizeRequest,
 ) -> GResult<TokenizeResult> {
     let tokenized = tokenize_text(req)?;
 
     let ts = ctx.get_token_store_mut();
-    ts.add_tokens(&tokenized.loaded_file, tokenized.clone());
+    ts.add_tokens(tokenized.clone());
     info_mess!(
         "Added tokens for {}",
         tokenized.loaded_file.to_string_lossy()
@@ -159,7 +161,6 @@ pub fn tokenize_text_and_add_tokens(
 
     Ok(tokenized)
 }
-
 
 use emu::utils::sources::Position;
 /// Tokenize this file and add its tokens to the token store
@@ -171,7 +172,7 @@ pub fn tokenize_file_and_add_tokens<P: AsRef<Path>>(
 ) -> GResult<TokenizeResult> {
     let tokenized = tokenize_file(ctx, &actual_file, parent)?;
     let ts = ctx.get_token_store_mut();
-    ts.add_tokens(&actual_file, tokenized.clone());
+    ts.add_tokens(tokenized.clone());
     info_mess!(
         "Added tokens for {}",
         actual_file.as_ref().to_string_lossy()
@@ -202,7 +203,7 @@ pub fn tokenize_file<P: AsRef<Path>>(
         opts: ctx.opts.clone(),
     };
 
-    let mut result = tokenize_text(toke_req)?;
+    let mut result = tokenize_text(&toke_req)?;
 
     for e in &result.errors {
         ctx.add_parse_error(e.clone())?;
@@ -338,6 +339,63 @@ fn get_tokens<P: AsRef<Path>>(
     }
 }
 
+pub fn async_tokenize_2(ctx: &mut Context) -> GResult<()> {
+    let mut files_to_process: Vec<(PathBuf, Option<PathBuf>)> = vec![];
+
+    files_to_process.push((ctx.get_project_file(), None));
+
+    while !files_to_process.is_empty() {
+        let mut requests: Vec<TokenizeRequest> = vec![];
+        let mut files_to_process_next: Vec<(PathBuf, Option<PathBuf>)> = vec![];
+
+        for (requested_file, parent) in files_to_process.iter() {
+
+            let tokes = get_tokens(ctx, &requested_file, parent.clone())?;
+
+            match tokes {
+                // If I have tokens then add any includes to the list of files to tokeniz
+                GetTokensResult::Tokens(tokes) => {
+                    info_mess!("Got tokes for {}", tokes.loaded_file.to_string_lossy());
+                    files_to_process_next.extend(
+                        tokes
+                            .includes
+                            .iter()
+                            .map(|(_, path)| (path.clone(), tokes.parent.clone())),
+                    );
+                }
+                // If I don't have tokens then add it to a q of requestes
+                GetTokensResult::Request(req) => {
+                    let file = req.expanded_file_name.to_string_lossy();
+                    info_mess!("Requesting tokes for {file}");
+                    requests.push(req)
+                }
+            };
+        }
+
+        let tokenized: Vec<GResult<TokenizeResult>> = if ctx.opts.no_async {
+            requests.iter().map(|req| tokenize_text(req)).collect()
+        } else {
+            requests.par_iter().map(|req| tokenize_text(req)).collect()
+        };
+
+        for tokes in tokenized.into_iter() {
+            match tokes {
+                Ok(res) => {
+                    info_mess!("Tokenized! {}", res.loaded_file.to_string_lossy());
+                    ctx.add_parse_errors(&res.errors)?;
+                    files_to_process_next.push((res.requested_file.clone(), res.parent.clone()));
+                    ctx.get_token_store_mut().add_tokens(res);
+                }
+                Err(_) => ctx.asm_out.errors.add_result(tokes)?,
+            }
+        }
+
+        files_to_process = files_to_process_next;
+    }
+
+    Ok(())
+}
+
 fn tokenize_async_main_loop<P: AsRef<Path>>(
     arc_ctx: &Arc<Mutex<Context>>,
     requested_file: P,
@@ -346,9 +404,7 @@ fn tokenize_async_main_loop<P: AsRef<Path>>(
 ) -> GResult<()> {
     use rayon::prelude::*;
 
-    let file_to_tokenize = with_state(arc_ctx, |ctx| {
-        ctx.get_full_path(&requested_file)
-    })?;
+    let file_to_tokenize = with_state(arc_ctx, |ctx| ctx.get_full_path(&requested_file))?;
 
     let tokes = with_state(arc_ctx, |ctx| -> GResult<GetTokensResult> {
         get_tokens(ctx, &file_to_tokenize, parent.clone())
@@ -357,7 +413,7 @@ fn tokenize_async_main_loop<P: AsRef<Path>>(
     let includes = match tokes {
         GetTokensResult::Tokens(tokes) => tokes.includes.clone(),
         GetTokensResult::Request(req) => with_state(&arc_ctx, |ctx| -> GResult<_> {
-            Ok(tokenize_text_and_add_tokens(ctx, req)?.includes)
+            Ok(tokenize_text_and_add_tokens(ctx, &req)?.includes)
         })?,
     };
 

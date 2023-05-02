@@ -7,7 +7,6 @@ use crate::{
 };
 
 use crate::lsp::LspConfig;
-
 use crate::config;
 
 use clap::{Arg, ArgMatches, Command};
@@ -17,6 +16,9 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
+
+////////////////////////////////////////////////////////////////////////////////
+pub type ConfigError<T> = Result<T, ConfigErrorType>;
 
 #[derive(thiserror::Error, Clone)]
 pub enum ConfigErrorType {
@@ -34,7 +36,7 @@ impl std::fmt::Debug for ConfigErrorType {
     }
 }
 
-pub type ConfigError<T> = Result<T, ConfigErrorType>;
+////////////////////////////////////////////////////////////////////////////////
 
 fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
     // Get the config file or use the default gazm.toml
@@ -54,41 +56,67 @@ fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
     Ok(ret)
 }
 
-fn get_verbosity(m: &ArgMatches) -> Option<Verbosity> {
-    if m.is_present("verbose") {
-        let v = match m.occurrences_of("verbose") {
+fn load_opts_with_build_type(
+    m: &ArgMatches,
+    build_type: BuildType,
+    overides: &Overides,
+) -> ConfigError<Opts> {
+    let mut conf = load_config(m)?;
+    conf.opts.build_type = build_type;
+    let opts = overides.apply_overides(&conf.opts);
+    Ok(opts)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+#[derive(Default)]
+struct Overides {
+    pub no_async: Option<bool>,
+    pub verbosity: Option<Verbosity>,
+}
+impl Overides {
+    pub fn new(matches: &clap::ArgMatches) -> Self {
+        let mut ret = Overides::default();
+        ret.no_async = matches.is_present("no-async").then(|| true);
+        ret.verbosity = matches.is_present("verbose").then(||
+        match matches.occurrences_of("verbose") {
             0 => Verbosity::Silent,
             1 => Verbosity::Normal,
             2 => Verbosity::Info,
             3 => Verbosity::Interesting,
             _ => Verbosity::Debug,
-        };
-        Some(v)
-    } else {
-        None
+        }
+    );
+        ret
+    }
+
+    pub fn apply_overides(&self, opts: &Opts) -> Opts {
+        let mut ret = opts.clone();
+
+        if let Some(v) = self.verbosity {
+            ret.verbose = v
+        }
+
+        if let Some(v) = self.no_async {
+            ret.no_async = v
+        }
+
+        ret
     }
 }
 
-fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType, verbosity_overide : Option<Verbosity>) -> ConfigError<Opts> {
-    let mut conf = load_config(m)?;
-    conf.opts.build_type = build_type;
-    if let Some(v) = verbosity_overide {
-        conf.opts.verbose = v
-    }
-    Ok(conf.opts)
-}
+////////////////////////////////////////////////////////////////////////////////
 
 impl Opts {
     pub fn from_arg_matches(orig_matches: clap::ArgMatches) -> ConfigError<Opts> {
-        let verbosity = get_verbosity(&orig_matches);
+        let overides = Overides::new(&orig_matches);
 
         let ret = match orig_matches.subcommand() {
-            Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build, verbosity)?,
-            Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check, verbosity)?,
-            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::Lsp, verbosity)?,
+            Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build, &overides)?,
+            Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check, &overides)?,
+            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::Lsp, &overides)?,
 
             Some(("fmt", m)) => {
-                let mut o = load_opts_with_build_type(m, BuildType::Format, verbosity)?;
+                let mut o = load_opts_with_build_type(m, BuildType::Format, &overides)?;
                 o.project_file = m.value_of("fmt-file").map(PathBuf::from).unwrap();
                 o
             }
@@ -109,8 +137,6 @@ impl Opts {
                     ..Default::default()
                 };
 
-                opts.verbose = verbosity.unwrap_or_default();
-
                 if m.is_present("mem-size") {
                     opts.mem_size = m
                         .value_of("mem-size")
@@ -120,25 +146,26 @@ impl Opts {
 
                 if m.is_present("max-errors") {
                     opts.max_errors = m
-                        .value_of("mem-size")
+                        .value_of("max-errors")
                         .map(|s| s.parse::<usize>().unwrap())
                         .unwrap();
                 }
 
                 if let Some(mut it) = m.values_of("set") {
+
                     while let Some((var, value)) =
                         it.next().and_then(|var| it.next().map(|val| (var, val)))
                     {
                         opts.vars.set_var(var, value)
                     }
                 }
-                opts
+
+                overides.apply_overides(&opts)
             }
             _ => {
                 panic!()
             }
         };
-
         Ok(ret)
     }
 }
@@ -156,15 +183,13 @@ fn make_config_file_command<'a>(command: &'a str, about: &'a str) -> Command<'a>
     Command::new(command)
         .about(about)
         .arg(make_config_file_arg())
-
 }
-
 
 pub fn parse() -> clap::ArgMatches {
     Command::new("gazm")
         .about("6809 assembler")
         .author("gazaxian")
-        .version("0.1.1")
+        .version("0.2.0")
         .bin_name("gazm")
         // TODO: Look into using groups so replicate this into other subcommands
         .arg(
@@ -173,6 +198,12 @@ pub fn parse() -> clap::ArgMatches {
                 .help("Verbose mode")
                 .multiple_occurrences(true)
                 .short('v'),
+        )
+        .arg(
+            Arg::new("no-async")
+                .long("no-async")
+                .help("Disable async build")
+                .multiple_occurrences(false),
         )
         .subcommand_required(true)
         .subcommand(make_config_file_command(

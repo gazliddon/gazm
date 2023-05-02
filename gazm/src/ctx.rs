@@ -1,4 +1,4 @@
-use crate::ast::{AstTree, AstNodeId};
+use crate::ast::{AstNodeId, AstTree};
 use crate::async_tokenize::TokenizeResult;
 use crate::binary::{self, AccessType, Binary};
 use crate::error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError};
@@ -20,7 +20,6 @@ use emu::utils::{
     },
     PathSearcher,
 };
-
 
 fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String {
     let z: Vec<String> = i.map(|s| s.as_ref().to_string_lossy().into()).collect();
@@ -76,6 +75,7 @@ pub struct Opts {
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
     pub fmt_file: Option<String>,
+    pub no_async: bool,
     #[serde(skip)]
     pub do_includes: bool,
 
@@ -116,6 +116,7 @@ impl Default for Opts {
             lsp_config: Default::default(),
             fmt_file: None,
             do_includes: true,
+            no_async: false,
         }
     }
 }
@@ -153,7 +154,6 @@ impl LstFile {
     pub fn new() -> Self {
         Self::default()
     }
-
     pub fn add(&mut self, line: &str) {
         self.lines.push(line.to_string())
     }
@@ -164,14 +164,16 @@ fn to_gazm(e: anyhow::Error) -> GazmErrorKind {
 }
 
 impl Context {
-    pub fn get_untokenized_files(&self, files: &[( Position, PathBuf )]) -> Vec<(Position, PathBuf )> {
+    pub fn get_untokenized_files(&self, files: &[(Position, PathBuf)]) -> Vec<(Position, PathBuf)> {
         files
             .iter()
             .cloned()
-            .filter_map(|(pos,path)| match self.get_tokens_from_full_path(&path).is_some() {
-                true => None,
-                false => Some((pos, path)),
-            })
+            .filter_map(
+                |(pos, path)| match self.get_tokens_from_full_path(&path).is_some() {
+                    true => None,
+                    false => Some((pos, path)),
+                },
+            )
             .unique()
             .collect()
     }
@@ -235,7 +237,9 @@ impl Context {
     }
     pub fn expand_path_and_get_tokens<P: AsRef<Path>>(&self, file: P) -> GResult<&TokenizeResult> {
         let file = self.get_full_path(file)?;
-        self.token_store.get_tokens(&file).ok_or(GazmErrorKind::Misc("Can't find tokens".to_string()))
+        self.token_store
+            .get_tokens(&file)
+            .ok_or(GazmErrorKind::Misc("Can't find tokens".to_string()))
     }
 
     pub fn sources(&self) -> &SourceFiles {
@@ -284,6 +288,13 @@ impl Context {
         })?;
 
         Ok(ret)
+    }
+    pub fn add_parse_errors(&mut self, pe: &[ParseError]) -> GResult<()> {
+        for e in pe {
+            let ue = UserError::from_parse_error(e, self.sources());
+            self.asm_out.errors.add_user_error(ue)?
+        }
+        Ok(())
     }
 
     pub fn add_parse_error(&mut self, pe: ParseError) -> GResult<()> {
@@ -349,7 +360,6 @@ impl Context {
     }
     pub fn write_deps_file(&mut self) -> GResult<()> {
         if let Some(deps) = &self.opts.deps_file {
-
             if let Some(sym_file) = &self.opts.syms_file {
                 let sf = self.get_source_file_loader();
                 let read = join_paths(sf.get_files_read().iter(), " \\\n");
@@ -387,7 +397,11 @@ impl Context {
             let mut errors = vec![];
 
             for (name, csum) in &self.opts.checksums {
-                let data = self.asm_out.binary.get_bytes(csum.addr, csum.size).expect("Binary error");
+                let data = self
+                    .asm_out
+                    .binary
+                    .get_bytes(csum.addr, csum.size)
+                    .expect("Binary error");
                 let this_hash = get_hash(data);
                 let expected_hash = csum.sha1.to_lowercase();
 
