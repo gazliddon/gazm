@@ -6,8 +6,8 @@ use crate::{
     ctx::{Context, Opts},
 };
 
-use crate::lsp::LspConfig;
 use crate::config;
+use crate::lsp::LspConfig;
 
 use clap::{Arg, ArgMatches, Command};
 use emu::utils::sources::fileloader::SourceFileLoader;
@@ -77,15 +77,16 @@ impl Overides {
     pub fn new(matches: &clap::ArgMatches) -> Self {
         let mut ret = Overides::default();
         ret.no_async = matches.is_present("no-async").then(|| true);
-        ret.verbosity = matches.is_present("verbose").then(||
-        match matches.occurrences_of("verbose") {
-            0 => Verbosity::Silent,
-            1 => Verbosity::Normal,
-            2 => Verbosity::Info,
-            3 => Verbosity::Interesting,
-            _ => Verbosity::Debug,
-        }
-    );
+        ret.verbosity =
+            matches
+                .is_present("verbose")
+                .then(|| match matches.occurrences_of("verbose") {
+                    0 => Verbosity::Silent,
+                    1 => Verbosity::Normal,
+                    2 => Verbosity::Info,
+                    3 => Verbosity::Interesting,
+                    _ => Verbosity::Debug,
+                });
         ret
     }
 
@@ -152,7 +153,6 @@ impl Opts {
                 }
 
                 if let Some(mut it) = m.values_of("set") {
-
                     while let Some((var, value)) =
                         it.next().and_then(|var| it.next().map(|val| (var, val)))
                     {
@@ -185,18 +185,52 @@ fn make_config_file_command<'a>(command: &'a str, about: &'a str) -> Command<'a>
         .arg(make_config_file_arg())
 }
 
-const VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
-const AUTHORS: Option<&str> = option_env!("CARGO_PKG_AUTHORS");
-const BIN_NAME: Option<&str> = option_env!("CARGO_BIN_NAME");
-const CRATE_NAME: Option<&str> = option_env!("CARGO_CRATE_NAME");
-const UNKNOWN: &str = "UNKNOWN";
+////////////////////////////////////////////////////////////////////////////////
+
+pub struct BuildInfo {
+    pub version: String,
+    pub authors: String,
+    pub bin_name: String,
+    pub crate_name: String,
+}
+
+impl BuildInfo {
+    pub fn new() -> Self {
+        const UNKNOWN: &str = "UNKNOWN";
+        let version = option_env!("CARGO_PKG_VERSION")
+            .unwrap_or(UNKNOWN)
+            .to_string();
+        let authors = option_env!("CARGO_PKG_AUTHORS")
+            .unwrap_or(UNKNOWN)
+            .to_string();
+        let bin_name = option_env!("CARGO_BIN_NAME").unwrap_or(UNKNOWN).to_string();
+        let crate_name = option_env!("CARGO_CRATE_NAME")
+            .unwrap_or(UNKNOWN)
+            .to_string();
+
+        Self {
+            version,
+            authors,
+            bin_name,
+            crate_name,
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+lazy_static::lazy_static!{
+    static ref BUILD_INFO : BuildInfo = BuildInfo::new();
+}
+
 
 pub fn parse() -> clap::ArgMatches {
-    Command::new(CRATE_NAME.unwrap_or(UNKNOWN))
+
+    Command::new(BUILD_INFO.crate_name.as_str())
         .about("6809 assembler")
-        .author(AUTHORS.unwrap_or(UNKNOWN))
-        .version(VERSION.unwrap_or(UNKNOWN))
-        .bin_name(BIN_NAME.unwrap_or(UNKNOWN))
+        .author(BUILD_INFO.authors.as_str())
+        .version(BUILD_INFO.version.as_str())
+        .bin_name(BUILD_INFO.bin_name.as_str())
         // TODO: Look into using groups so replicate this into other subcommands
         .arg(
             Arg::new("verbose")
