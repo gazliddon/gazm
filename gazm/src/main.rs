@@ -78,33 +78,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match opts.build_type {
         ctx::BuildType::Format => {
-            mess.status("Format file");
+            status_mess!("Format file");
             fmt::fmt(&opts)?;
         }
 
         ctx::BuildType::Lsp => {
-            mess.status("LSP");
+            status_mess!("LSP");
             lsp::do_lsp(opts)?;
         }
 
         // Build of check to see if build is okay
         ctx::BuildType::Build | ctx::BuildType::Check => {
-            mess.status(BANNER);
-            mess.status(format!("Verbosity {:?}", &opts.verbose));
+            status_mess!("{BANNER}");
+            mess.indent();
+            status_mess!("Verbosity: {:?}", &opts.verbose);
 
             if opts.no_async {
-                mess.status("NO ASYNC")
+                status_mess!("Async: NO ASYNC");
             }
 
-            mess.indent();
             asm.assemble()?;
 
             // Only write outputs if this is of buildtype Build
             if opts.build_type == ctx::BuildType::Build {
                 asm.write_outputs()?;
             }
+
             mess.deindent();
-            mess.info("");
+            info_mess!("")
         }
     };
 
