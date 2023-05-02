@@ -1,3 +1,8 @@
+# Nice
+
+* Add in this https://github.com/lukaslueg/built/tree/master/example_project
+
+
 # Parsing
 * Add in scope operators for symbol Parsing
 * A symbol may have a path and that path might be absolute or relative
@@ -60,7 +65,6 @@
 * Return a proper range for goto defintion
 
 # Async Stuff
-
 * In loop
     * Get file_name
     * expand to full path

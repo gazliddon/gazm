@@ -74,8 +74,8 @@ pub struct Opts {
     pub encode_blank_lines: bool,
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
-    pub fmt_file: Option<String>,
     pub no_async: bool,
+
     #[serde(skip)]
     pub do_includes: bool,
 
@@ -114,7 +114,6 @@ impl Default for Opts {
             checksums: Default::default(),
             build_type: BuildType::Build,
             lsp_config: Default::default(),
-            fmt_file: None,
             do_includes: true,
             no_async: false,
         }

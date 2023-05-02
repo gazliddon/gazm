@@ -94,7 +94,7 @@ fn assemble_project(ctx: &mut Context) -> GResult<()> {
     // let tokes = async_tokenize::tokenize(ctx, file)?;
     //
     let tokes = {
-        async_tokenize::async_tokenize_2(ctx)?;
+        async_tokenize::tokenize(ctx)?;
         let file = ctx.get_project_file();
         ctx.get_tokens_from_full_path(&file).unwrap().clone()
     };
