@@ -185,12 +185,18 @@ fn make_config_file_command<'a>(command: &'a str, about: &'a str) -> Command<'a>
         .arg(make_config_file_arg())
 }
 
+const VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
+const AUTHORS: Option<&str> = option_env!("CARGO_PKG_AUTHORS");
+const BIN_NAME: Option<&str> = option_env!("CARGO_BIN_NAME");
+const CRATE_NAME: Option<&str> = option_env!("CARGO_CRATE_NAME");
+const UNKNOWN: &str = "UNKNOWN";
+
 pub fn parse() -> clap::ArgMatches {
-    Command::new("gazm")
+    Command::new(CRATE_NAME.unwrap_or(UNKNOWN))
         .about("6809 assembler")
-        .author("gazaxian")
-        .version("0.2.0")
-        .bin_name("gazm")
+        .author(AUTHORS.unwrap_or(UNKNOWN))
+        .version(VERSION.unwrap_or(UNKNOWN))
+        .bin_name(BIN_NAME.unwrap_or(UNKNOWN))
         // TODO: Look into using groups so replicate this into other subcommands
         .arg(
             Arg::new("verbose")

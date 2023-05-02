@@ -1,28 +1,26 @@
 [package]
 name = "utils"
-version = "0.1.0"
-authors = ["Gaz Liddon MBP19 <gaz@gazaxian.com>"]
+version = "0.2.0"
+authors = ["Gaz Liddon"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-regex = "1"
-quick-error="*"
 anyhow="*"
-log="*"
-env_logger="*"
-ego-tree="*"
-pathdiff="*"
-path-clean="*"
-thiserror="*"
-sha1="*"
-base64ct="*"
 base16ct="*"
-thin-vec="*"
-
+base64ct="*"
+ego-tree="*"
+env_logger="*"
 lazy_static = "1.4.0"
+log="*"
+path-clean="*"
+pathdiff="*"
 pretty_assertions="*"
-
+quick-error="*"
+regex = "*"
 serde = { version = "*", features = ["derive"] }
-serde_yaml = "*"
 serde_json = "*"
+serde_yaml = "*"
+sha1="*"
+thin-vec="*"
+thiserror="*"

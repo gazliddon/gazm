@@ -5,7 +5,6 @@ use crate::lookup::LabelUsageAndDefintions;
 use emu::utils::sources::{
     Position as GazmPosition, SourceFile, SymbolScopeId, TextEdit, TextEditTrait, TextPos,
 };
-use futures::future::poll_immediate;
 use log::{error, info};
 use serde_json::Value;
 use std::path::{Path, PathBuf};

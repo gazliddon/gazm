@@ -17,7 +17,6 @@ use crate::item::{Item, Node};
 use crate::locate::{span_to_pos, Span};
 use crate::token_store::TokenStore;
 use crate::tokenize::Tokens;
-use async_std::prelude::*;
 
 use emu::utils::sources;
 use sources::fileloader::{FileIo, SourceFileLoader};
@@ -465,8 +464,6 @@ mod test {
     use crate::messages::Verbosity;
 
     use super::*;
-    use async_std::task::block_on;
-    use futures::future::join_all;
     #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
 

@@ -22,7 +22,6 @@ use emu::utils::sources::{
     Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolTree, SymbolWriter,
 };
 use emu::utils::symbols;
-use log::kv::ToValue;
 
 ////////////////////////////////////////////////////////////////////////////////
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
