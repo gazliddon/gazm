@@ -1,6 +1,5 @@
 mod error;
 mod eval_postfix;
-/// Generics for evaluating infix expressions
 mod postfix;
 pub use error::*;
 pub use eval_postfix::*;
