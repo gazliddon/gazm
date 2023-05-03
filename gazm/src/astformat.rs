@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::item::{self, Item, LabelDefinition};
+use crate::item6809;
 
 impl<'a> std::fmt::Display for Ast<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -58,7 +59,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{name} equ *")
             }
 
-            Pc => "*".to_string(),
+            Pc6809 => "*".to_string(),
 
             Label(LabelDefinition::Text(name)) => name.clone(),
             LocalLabel(name) => format!("!{name}"),
@@ -112,7 +113,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             TokenizedFile(_, _) => join_kids("\n"),
 
-            OpCode(_,ins, item::AddrModeParseType::Inherent) => ins.action.clone(),
+            OpCode6809(_,ins, item6809::AddrModeParseType::Inherent) => ins.action.clone(),
 
             StructDef(name) => {
                 let body = join_kids(",\n");
@@ -132,8 +133,8 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("fcb {}", join_kids(","))
             }
 
-            OpCode(_,instruction, amode) => {
-                use item::AddrModeParseType::*;
+            OpCode6809(_,instruction, amode) => {
+                use crate::item6809::AddrModeParseType::*;
 
                 let ind = |s: String, indirect: &bool| -> String {
                     if *indirect {
@@ -148,7 +149,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                     Direct => format!("<{}", child_string(0)),
                     Extended(..) => child_string(0),
                     Indexed(index_mode, indirect) => {
-                        use item::IndexParseType::*;
+                        use crate::item6809::IndexParseType::*;
                         match index_mode {
                             ConstantByteOffset(r, v) | Constant5BitOffset(r, v) => {
                                 ind(format!("{v},{r}"), indirect)

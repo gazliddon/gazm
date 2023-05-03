@@ -153,7 +153,7 @@ fn parse_zmd_arg(input: Span) -> IResult<Node> {
 
 fn parse_setdp_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = parse_expr(input)?;
-    let node = Node::from_item_span(SetDp, input).with_child(matched);
+    let node = Node::from_item_span(SetDp6809, input).with_child(matched);
     Ok((rest, node))
 }
 

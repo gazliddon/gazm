@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 // #![deny(clippy::pedantic)]
+mod parse6809;
+mod item6809;
 mod as6809;
 mod asmctx;
 mod ast;
@@ -20,7 +22,6 @@ mod expr;
 mod fixerupper;
 mod fmt;
 mod gazm;
-mod indexed;
 mod item;
 mod labels;
 mod locate;
@@ -31,9 +32,7 @@ mod messages;
 mod newsyms;
 mod node;
 mod numbers;
-mod opcodes;
 mod parse;
-mod register;
 mod regutils;
 mod scopes;
 mod sections;

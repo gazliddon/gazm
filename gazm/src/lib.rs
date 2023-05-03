@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
-
+pub mod item6809;
+pub mod parse6809;
 pub mod as6809;
 pub mod asmctx;
 pub mod ast;
@@ -20,7 +21,6 @@ pub mod expr;
 pub mod fixerupper;
 pub mod fmt;
 pub mod gazm;
-pub mod indexed;
 pub mod item;
 pub mod labels;
 pub mod locate;
@@ -31,9 +31,7 @@ pub mod messages;
 pub mod newsyms;
 pub mod node;
 pub mod numbers;
-pub mod opcodes;
 pub mod parse;
-pub mod register;
 pub mod regutils;
 pub mod scopes;
 pub mod sections;

@@ -4,7 +4,8 @@ use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
     error::{GResult, GazmErrorKind, UserError},
-    item::{self, AddrModeParseType, IndexParseType, Item},
+    item::{self, Item},
+    item6809::{self, AddrModeParseType, IndexParseType},
     messages::{ debug_mess, messages },
     info_mess,
     status_mess,
@@ -77,7 +78,7 @@ impl<'a> Compiler<'a> {
         imode: IndexParseType,
         indirect: bool,
     ) -> GResult<()> {
-        use item::IndexParseType::*;
+        use item6809::IndexParseType::*;
 
         let idx_byte = imode.get_index_byte(indirect);
         let (node, _) = self.get_node_item(ctx, id);
@@ -301,7 +302,7 @@ impl<'a> Compiler<'a> {
             RegisterSet => {
                 let rset = &node.first_child().unwrap().value().item;
 
-                if let Item::RegisterSet(regs) = rset {
+                if let Item::RegisterSet6809(regs) = rset {
                     let flags = registers_to_flags(regs);
                     ctx.binary_mut().write_byte(flags)?;
                 } else {
@@ -396,7 +397,7 @@ impl<'a> Compiler<'a> {
                 ctx.binary_mut().set_write_offset(offset);
             }
 
-            OpCode(_,ins, amode) => {
+            OpCode6809(_,ins, amode) => {
                 self.opcode(ctx, id, &ins, &amode)?;
             }
 
@@ -492,7 +493,7 @@ impl<'a> Compiler<'a> {
             }
 
             IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
-            | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp => (),
+            | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp6809 => (),
             _ => {
                 panic!("Can't compile {i:?}");
             }

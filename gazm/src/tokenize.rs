@@ -20,7 +20,7 @@ use crate::{
     labels::parse_label,
     locate::Span,
     macros::{get_macro_def, get_scope_block, parse_macro_call},
-    opcodes::parse_opcode,
+    parse6809::opcodes::parse_opcode,
     parse::util::{parse_assignment, ws},
     structs::{get_struct, parse_struct_definition},
 };

@@ -95,7 +95,7 @@ pub fn render_nodes(nodes: &[Node], text: String) -> String {
                     columns[1] = format!("\"{}\"", file.to_string_lossy())
                 }
 
-                OpCode(txt,_ins, _addr_mode) => {
+                OpCode6809(txt,_ins, _addr_mode) => {
                     let arg = get_operand(n, &text);
                     // let original_txt = text[n.ctx.range.clone()].to_string().replace('\t', " ");
                     columns[1] = txt.to_owned().to_lowercase();

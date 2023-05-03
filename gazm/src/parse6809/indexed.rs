@@ -1,10 +1,12 @@
+use super::register::{get_index_reg, get_pc_reg, get_reg};
+
 use crate::{
+    item6809::IndexParseType,
     error::IResult,
     expr::parse_expr,
-    item::{IndexParseType, Item, Node},
+    item::{Item, Node},
     locate::{matched_span, Span},
     parse::util::{wrapped_chars, ws},
-    register::{get_index_reg, get_pc_reg, get_reg},
 };
 
 use nom::{
@@ -144,7 +146,7 @@ fn parse_extended_indirect(input: Span) -> IResult<Node> {
 fn parse_no_arg_indexed(input: Span) -> IResult<Node> {
     let (rest, matched) = get_no_arg_indexed(input)?;
     let ctx = matched_span(input, rest);
-    let matched = Node::from_item_span(Item::OperandIndexed(matched, false), ctx);
+    let matched = Node::from_item_span(Item::OperandIndexed6809(matched, false), ctx);
     Ok((rest, matched))
 }
 
@@ -163,7 +165,7 @@ fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
             Err(parse_failure(err, ctx))
         }
         _ => {
-            let matched = Node::from_item_span(Item::OperandIndexed(matched, false), ctx);
+            let matched = Node::from_item_span(Item::OperandIndexed6809(matched, false), ctx);
             Ok((rest, matched))
         }
     }
@@ -177,8 +179,8 @@ fn parse_indexed_indirect(input: Span) -> IResult<Node> {
     ));
     let (rest, mut matched) = wrapped_chars('[', ws(indexed_indirect), ']')(input)?;
 
-    if let Item::OperandIndexed(amode, _) = matched.item {
-        matched.item = Item::OperandIndexed(amode, true);
+    if let Item::OperandIndexed6809(amode, _) = matched.item {
+        matched.item = Item::OperandIndexed6809(amode, true);
     } else {
         panic!("Should not happen")
     };

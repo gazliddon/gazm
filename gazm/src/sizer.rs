@@ -2,11 +2,14 @@ use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
     error::GResult,
-    item::{self, AddrModeParseType,  Item, LabelDefinition},
+    item::{self, Item, LabelDefinition},
+    item6809::AddrModeParseType,
     parse::util::{ByteSize, ByteSizes},
+    parse6809::opcodes::get_opcode_info,
 };
 
 use emu::utils::sources::{ SymbolWriter,SymbolScopeId } ;
+use emu::isa::AddrModeEnum;
 
 use std::path::Path;
 
@@ -46,8 +49,8 @@ impl<'a> Sizer<'a> {
 
         let (node, i) = self.get_node_item(ctx_mut, id);
 
-        if let OpCode(text,ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
-            use item::IndexParseType::*;
+        if let OpCode6809(text,ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
+            use crate::item6809::IndexParseType::*;
             pc += ins.size;
 
             match pmode {
@@ -86,7 +89,7 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode(text,ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item = OpCode6809(text,ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -104,7 +107,7 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode(text,ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item = OpCode6809(text,ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -186,9 +189,7 @@ impl<'a> Sizer<'a> {
                 pc += bytes as usize;
             }
 
-            OpCode(text,ins, amode) => {
-                use crate::opcodes::get_opcode_info;
-                use emu::isa::AddrModeEnum;
+            OpCode6809(text,ins, amode) => {
 
                 match amode {
                     AddrModeParseType::Extended(false) => {
@@ -212,7 +213,7 @@ impl<'a> Sizer<'a> {
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
-                                    let new_item = OpCode(text.clone(),Box::new(new_ins), AddrModeParseType::Direct);
+                                    let new_item = OpCode6809(text.clone(),Box::new(new_ins), AddrModeParseType::Direct);
                                     ctx.add_fixup(id, new_item);
                                 }
                             }
@@ -281,7 +282,7 @@ impl<'a> Sizer<'a> {
                 pc += c as usize;
             }
 
-            SetDp => {
+            SetDp6809 => {
                 let (dp, _) = ctx.ctx.eval_first_arg(node)?;
                 ctx.set_dp(dp);
             }

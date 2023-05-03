@@ -111,7 +111,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
             .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
 
-        Pc => symbols
+        Pc6809 => symbols
             .get_value("*")
             .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,

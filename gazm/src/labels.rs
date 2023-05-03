@@ -3,7 +3,7 @@ use crate::{
     error::IResult,
     item::{Item, Node},
     locate::Span,
-    opcodes::opcode_just_token,
+    parse6809::opcodes::opcode_just_token,
 };
 
 use nom::{

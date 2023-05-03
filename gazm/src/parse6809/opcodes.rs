@@ -1,9 +1,9 @@
 use crate::expr;
-use crate::item::AddrModeParseType;
+use crate::item6809::AddrModeParseType;
 use crate::locate::matched_span;
-use crate::register;
+use crate::parse6809::register;
+use crate::item::{Item, Node};
 
-use super::item::{Item, Node};
 use emu::isa::AddrModeEnum;
 use emu::isa::{Dbase, Instruction, InstructionInfo};
 use nom::character::complete::digit0;
@@ -49,23 +49,23 @@ fn parse_immediate(input: Span) -> IResult<Node> {
     use AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag("#"), expr::parse_expr)(input)?;
-    let node = Node::from_item_span(Operand(Immediate), input).with_child(matched);
+    let node = Node::from_item_span(Operand6809(Immediate), input).with_child(matched);
     Ok((rest, node))
 }
 
 fn parse_force_dp(input: Span) -> IResult<Node> {
-    use crate::item::AddrModeParseType::*;
+    use crate::item6809::AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag("<"), expr::parse_expr)(input)?;
-    let node = Node::from_item_span(Operand(Direct), input).with_child(matched);
+    let node = Node::from_item_span(Operand6809(Direct), input).with_child(matched);
     Ok((rest, node))
 }
 
 fn parse_force_extended(input: Span) -> IResult<Node> {
-    use crate::item::AddrModeParseType::*;
+    use crate::item6809::AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = preceded(tag(">"), expr::parse_expr)(input)?;
-    let node = Node::from_item_span(Operand(Extended(true)), input).with_child(matched);
+    let node = Node::from_item_span(Operand6809(Extended(true)), input).with_child(matched);
     Ok((rest, node))
 }
 
@@ -74,14 +74,14 @@ fn parse_reg_set(input: Span) -> IResult<Node> {
 
     let (rest, matched) = register::parse_reg_set_1(input)?;
     let matched =
-        Node::from_item_span(Operand(AddrModeParseType::RegisterSet), input).with_child(matched);
+        Node::from_item_span(Operand6809(AddrModeParseType::RegisterSet), input).with_child(matched);
     Ok((rest, matched))
 }
 fn parse_opcode_reg_pair(input: Span) -> IResult<Node> {
     use nom::combinator::map;
     use Item::*;
     let reg_map =
-        |(a, b)| Node::from_item_span(Operand(AddrModeParseType::RegisterPair(a, b)), input);
+        |(a, b)| Node::from_item_span(Operand6809(AddrModeParseType::RegisterPair(a, b)), input);
 
     let (rest, matched) = map(register::get_reg_pair, reg_map)(input)?;
 
@@ -92,7 +92,7 @@ fn parse_extended(input: Span) -> IResult<Node> {
     use AddrModeParseType::*;
     use Item::*;
     let (rest, matched) = expr::parse_expr(input)?;
-    let res = Node::from_item_span(Operand(Extended(false)), input).with_child(matched);
+    let res = Node::from_item_span(Operand6809(Extended(false)), input).with_child(matched);
     Ok((rest, res))
 }
 
@@ -111,7 +111,7 @@ fn parse_opcode_arg(input: Span) -> IResult<Node> {
 }
 
 fn get_instruction(
-    amode: crate::item::AddrModeParseType,
+    amode: crate::item6809::AddrModeParseType,
     info: &InstructionInfo,
 ) -> Option<&Instruction> {
     use AddrModeEnum::*;
@@ -154,14 +154,14 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
     }?;
 
     let amode = match arg.item {
-        Operand(amode) => amode,
-        OperandIndexed(amode, indirect) => AddrModeParseType::Indexed(amode, indirect),
+        Operand6809(amode) => amode,
+        OperandIndexed6809(amode, indirect) => AddrModeParseType::Indexed(amode, indirect),
         _ => todo!("Need an error here {:?}", arg.item),
     };
 
     if let Some(instruction) = get_instruction(amode, info) {
         let matched = matched_span(input, rest);
-        let item = Item::OpCode(text.to_string(), Box::new(instruction.clone()), amode);
+        let item = Item::OpCode6809(text.to_string(), Box::new(instruction.clone()), amode);
         let node = Node::from_item_span(item, matched).take_others_children(arg);
         Ok((rest, node))
     } else {
@@ -179,10 +179,10 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
 
     if let Some(instruction) = info.get_instruction(&Inherent) {
         let node = Node::from_item_span(
-            OpCode(
+            OpCode6809(
                 text.to_string(),
                 Box::new(instruction.clone()),
-                super::item::AddrModeParseType::Inherent,
+                crate::item6809::AddrModeParseType::Inherent,
             ),
             matched_span,
         );

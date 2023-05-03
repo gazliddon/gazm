@@ -44,7 +44,7 @@ fn parse_bracketed_expr(input: Span) -> IResult<Node> {
 pub fn parse_pc(input: Span) -> IResult<Node> {
     let (rest, _matched) = nom_char('*')(input)?;
     let matched_span = matched_span(input, rest);
-    Ok((rest, Node::from_item_span(Item::Pc, matched_span)))
+    Ok((rest, Node::from_item_span(Item::Pc6809, matched_span)))
 }
 
 pub fn parse_non_unary_term(input: Span) -> IResult<Node> {

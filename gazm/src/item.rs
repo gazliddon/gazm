@@ -11,210 +11,14 @@ use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
 use emu::utils::sources::Position;
 
+use crate::item6809::{self, Item6809 };
+
 use emu::utils::sources::SymbolScopeId;
 
 impl<'a> CtxTrait for Span<'a> {}
 
 pub type Node = BaseNode<Item, Position>;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum IndexParseType {
-    ConstantOffset(RegEnum), //             arg,R
-    Plus(RegEnum),           //             ,R+                    2 0 |
-    PlusPlus(RegEnum),       //             ,R++                   3 0 |
-    Sub(RegEnum),            //             ,-R                    2 0 |
-    SubSub(RegEnum),         //             ,--R                   3 0 |
-    Zero(RegEnum),           //             ,R                     0 0 |
-    AddB(RegEnum),           //             (+/- B),R              1 0 |
-    AddA(RegEnum),           //             (+/- A),R              1 0 |
-    AddD(RegEnum),           //             (+/- D),R              4 0 |
-    PCOffset,                //             (+/- 7 bit offset),PC  1 1 |
-    ExtendedIndirect,        //  [expr]
-    Constant5BitOffset(RegEnum, i8),
-    ConstantByteOffset(RegEnum, i8),
-    ConstantWordOffset(RegEnum, i16),
-    PcOffsetWord(i16),
-    PcOffsetByte(i8),
-}
-
-impl IndexParseType {
-    pub fn has_operand(&self) -> bool {
-        use IndexParseType::*;
-
-        match self {
-            ConstantOffset(..) => true, //             arg,R
-            Plus(..) => false,          //             ,R+                    2 0 |
-            PlusPlus(..) => false,      //             ,R++                   3 0 |
-            Sub(..) => false,           //             ,-R                    2 0 |
-            SubSub(..) => false,        //             ,--R                   3 0 |
-            Zero(..) => false,          //             ,R                     0 0 |
-            AddB(..) => false,          //             (+/- B),R              1 0 |
-            AddA(..) => false,          //             (+/- A),R              1 0 |
-            AddD(..) => false,          //             (+/- D),R              4 0 |
-            PCOffset => true,           //             (+/- 7 bit offset),PC  1 1 |
-            ExtendedIndirect => true,   //  [expr]
-            Constant5BitOffset(..) => true,
-            ConstantByteOffset(..) => true,
-            ConstantWordOffset(..) => true,
-            PcOffsetWord(..) => true,
-            PcOffsetByte(..) => true,
-        }
-    }
-}
-
-fn rbits(r: RegEnum) -> u8 {
-    let rnum = {
-        match r {
-            RegEnum::X => 0,
-            RegEnum::Y => 1,
-            RegEnum::U => 2,
-            RegEnum::S => 3,
-            _ => panic!("internal error"),
-        }
-    };
-
-    rnum << 5
-}
-
-fn add_reg(bits: u8, r: RegEnum) -> u8 {
-    (bits & !(3 << 5)) | rbits(r)
-}
-
-fn add_ind(bits: u8, ind: bool) -> u8 {
-    let ind_bit = IndexedFlags::IND.bits();
-    let ind_val = if ind { ind_bit } else { 0u8 };
-
-    (bits & !ind_bit) | ind_val
-}
-
-impl IndexParseType {
-    pub fn get_index_byte(&self, indirect: bool) -> u8 {
-        use IndexParseType::*;
-
-        match *self {
-            Plus(r) => {
-                let mut bits = 0b1000_0000;
-                bits = add_reg(bits, r);
-                bits
-            }
-
-            PlusPlus(r) => {
-                let mut bits = 0b1000_0001;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            Sub(r) => {
-                let mut bits = 0b1000_0010;
-                bits = add_reg(bits, r);
-                bits
-            }
-
-            SubSub(r) => {
-                let mut bits = 0b1000_0011;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            Zero(r) => {
-                let mut bits = 0b1000_0100;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            AddA(r) => {
-                let mut bits = 0b1000_0110;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            AddB(r) => {
-                let mut bits = 0b1000_0101;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            AddD(r) => {
-                let mut bits = 0b1000_1011;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            PcOffsetByte(_) => {
-                let mut bits = 0b1000_1100;
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            PcOffsetWord(_) => {
-                let mut bits = 0b1000_1101;
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            ExtendedIndirect => 0b1001_1111,
-
-            Constant5BitOffset(r, off) => {
-                let mut bits = 0b0000_0000;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits |= off as u8 & 0x1f;
-                bits
-            }
-
-            ConstantByteOffset(r, _) => {
-                let mut bits = 0b1000_1000;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            ConstantWordOffset(r, _) => {
-                let mut bits = 0b1000_1001;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            PCOffset | ConstantOffset(..) => panic!("Internal error"),
-        }
-    }
-}
-
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub enum AddrModeParseType {
-    Indexed(IndexParseType, bool),
-    Direct,
-    Extended(bool), // if set then extended mode was forced, do not opt for DP
-    Relative,
-    Inherent,
-    Immediate,
-    RegisterSet,
-    RegisterPair(RegEnum, RegEnum),
-}
-
-impl AddrModeParseType {
-    pub fn has_operand(&self) -> bool {
-        use AddrModeParseType::*;
-
-        match self {
-            Direct => true,
-            Extended(..) => true,
-            Relative => true,
-            Inherent => false,
-            Immediate => true,
-            RegisterSet => true,
-            RegisterPair(..) => false,
-            Indexed(x, _) => x.has_operand(),
-        }
-    }
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum StructMemberType {
@@ -284,13 +88,23 @@ impl std::fmt::Display for LabelDefinition {
     }
 }
 
-
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
+    // TODO This will be a passed parameter
+    Item6809(Item6809),
+   
+    // And all of these will be in the above Item
+    SetDp6809,
+    OpCode6809(String, Box<Instruction>, item6809::AddrModeParseType),
+    Operand6809(item6809::AddrModeParseType),
+    OperandIndexed6809(item6809::IndexParseType, bool),
+    Pc6809,
+    RegisterSet6809(HashSet<RegEnum>),
+
+
     BlankLine,
     Skip(usize),
-
     LocalAssignment(LabelDefinition),
     Assignment(LabelDefinition),
     AssignmentFromPc(LabelDefinition),
@@ -318,21 +132,15 @@ pub enum Item {
     Expr,
     PostFixExpr,
     BracketedExpr,
-    Pc,
 
     UnaryTerm,
-
-    RegisterSet(HashSet<RegEnum>),
-
     Label(LabelDefinition),
     LocalLabel(LabelDefinition),
 
     Comment(String),
     Number(i64, ParsedFrom),
 
-    OpCode(String, Box<Instruction>, AddrModeParseType),
-    Operand(AddrModeParseType),
-    OperandIndexed(IndexParseType, bool),
+
     Include(PathBuf),
     Require(PathBuf),
     IncBin(PathBuf),
@@ -344,10 +152,8 @@ pub enum Item {
     },
 
     WriteBin(PathBuf),
-
     TokenizedFile(PathBuf, Option<PathBuf>),
     Errors(ThinVec<ParseError>),
-
     Exec,
     Org,
     Put,
@@ -360,7 +166,6 @@ pub enum Item {
     Fill,
     Zmb,
     Zmd,
-    SetDp,
 
     Mul,
     Div,
@@ -375,8 +180,8 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> Self {
-        Self::OperandIndexed(imode, indirect)
+    pub fn operand_from_index_mode(imode: item6809::IndexParseType, indirect: bool) -> Self {
+        Self::OperandIndexed6809(imode, indirect)
     }
 
     pub fn from_number(n: i64, p: ParsedFrom) -> Self {
@@ -450,7 +255,7 @@ impl Display for BaseNode<Item, Position> {
                 format!("{name} equ *")
             }
 
-            Pc => "*".to_string(),
+            Pc6809 => "*".to_string(),
 
             Label(LabelDefinition::Text(name)) | LocalLabel(LabelDefinition::Text(name)) => {
                 name.clone()
@@ -492,7 +297,7 @@ impl Display for BaseNode<Item, Position> {
                 format!("({})", join_children(""))
             }
 
-            OpCode(txt,_ins, addr_type) => {
+            OpCode6809(txt,_ins, addr_type) => {
                 format!("{txt} {addr_type:?}")
             }
 
@@ -502,7 +307,7 @@ impl Display for BaseNode<Item, Position> {
                 format!("{}\n{}", header, children.join("\n"))
             }
 
-            SetDp => {
+            SetDp6809 => {
                 let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 children.join("\n")
             }
