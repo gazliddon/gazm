@@ -16,6 +16,8 @@ use emu::utils::sources::{
     Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolWriter,
 };
 
+use crate::info_mess;
+
 use std::iter;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -167,7 +169,7 @@ impl<'a> Ast<'a> {
     /// Find all of the includes in this AST and replace with the
     /// with inlines included files tokens
     fn inline_includes(&mut self) -> Result<(), UserError> {
-        info("Inlining include files", |_x| {
+        info("Inlining include files", |_| {
             // Loop over the ast until we have replaced all of the includes
             // each include can have includes in it as well
             loop {
@@ -180,14 +182,14 @@ impl<'a> Ast<'a> {
                     .collect();
 
                 if include_ids.is_empty() {
-                    crate::info_mess!("Finished inlining includes");
+                    info_mess!("Finished inlining includes");
                     break;
                 }
 
                 // Go through the ids and get the tokens to insert into this AST
                 for (id, actual_file) in include_ids {
                     if let Some(tokens) = self.ctx.get_tokens_from_full_path(&actual_file) {
-                        crate::info_mess!(
+                        info_mess!(
                             "Inlining {} - HAD TOKENS",
                             actual_file.to_string_lossy()
                         );

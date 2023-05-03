@@ -187,8 +187,9 @@ where
     let mut files_to_process = vec![(ctx.get_project_file(), None)];
 
     while !files_to_process.is_empty() {
+        let size = files_to_process.len();
         let (to_tokenize, mut incs_to_process) = files_to_process.iter().try_fold(
-            (vec![], vec![]),
+            (Vec::with_capacity(size), Vec::with_capacity(size)),
             |(mut to_tok, mut incs), (req_file, parent)| {
                 use GetTokensResult::*;
                 let tokes = ctx.get_tokens(req_file, parent.clone())?;

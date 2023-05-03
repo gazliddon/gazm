@@ -5,6 +5,8 @@ use std::{collections::HashMap, fmt::Display};
 mod new {
     use std::collections::HashMap;
 
+    use thin_vec::ThinVec;
+
     #[derive(Debug, PartialEq, Eq, Clone)]
     pub enum SymbolError {
         AlreadyDefined(SymbolId),
@@ -134,20 +136,20 @@ mod new {
     }
 
     enum ScopePath {
-        Abs(Vec<String>),
+        Abs(ThinVec<String>),
         ThisScope(String),
-        Relative(Vec<String>),
+        Relative(ThinVec<String>),
     }
 
     impl ScopePath {
         pub fn new(name: &str) -> Self {
-            let split: Vec<_> = name.split("::").collect();
+            let split: ThinVec<_> = name.split("::").collect();
             if split.len() == 1 {
                 // is this a scoped name?
                 // no, just ask current scope
                 ScopePath::ThisScope(split[0].to_owned())
             } else {
-                let split: Vec<_> = split.into_iter().map(|s| s.to_owned()).collect();
+                let split: ThinVec<_> = split.into_iter().map(|s| s.to_owned()).collect();
                 if split[0] == "root" || split[0].is_empty() {
                     ScopePath::Abs(split)
                 } else {
@@ -180,7 +182,7 @@ mod new {
         }
 
         pub fn get_scope_abs_fqn(&self, id: ScopeId) -> Option<String> {
-            let abs: Vec<_> = self
+            let abs: ThinVec<_> = self
                 .get_scope_abs(id)?
                 .into_iter()
                 .map(|id| self.get(id).unwrap().value().get_scope_name().to_owned())
@@ -188,9 +190,9 @@ mod new {
             Some(abs.join("::"))
         }
 
-        pub fn get_scope_abs(&self, id: ScopeId) -> Option<Vec<ScopeId>> {
+        pub fn get_scope_abs(&self, id: ScopeId) -> Option<ThinVec<ScopeId>> {
             let walker = self.get_scope_walker(id);
-            let mut ret: Vec<_> = walker.collect();
+            let mut ret: ThinVec<_> = walker.collect();
             ret.reverse();
             Some(ret)
         }

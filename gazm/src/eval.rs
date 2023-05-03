@@ -152,9 +152,8 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
     use Item::*;
     use std::panic;
 
-    let mut s: Stack<Item> = Stack::new();
-
-    let mut items: Vec<(AstNodeRef, Item)> = vec![];
+    let mut s: Stack<Item> = Stack::with_capacity(1024);
+    let mut items: Vec<(AstNodeRef, Item)> = Vec::with_capacity(1024);
 
     {
         for c in n.children() {

@@ -231,7 +231,7 @@ impl SourceDatabase {
         written: &[BinWriteDesc],
         exec_addr: Option<usize>,
     ) -> Self {
-        let mut id_to_source_file = HashMap::new();
+        let mut id_to_source_file = HashMap::with_capacity(4096);
 
         for (k, v) in &sources.id_to_source_file {
             id_to_source_file.insert(*k, v.file.clone());

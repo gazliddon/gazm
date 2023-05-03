@@ -6,6 +6,8 @@ use crate::{
     error::{GResult, GazmErrorKind, UserError},
     item::{self, AddrModeParseType, IndexParseType, Item},
     messages::{ debug_mess, messages },
+    info_mess,
+    status_mess,
     regutils::*,
 };
 
@@ -182,12 +184,11 @@ impl<'a> Compiler<'a> {
 
         ctx.binary_mut().bin_reference(&bin_ref, &data);
 
-        messages().info(format!(
-            "Adding binary reference {} for {:05X} - {:05X}",
+        info_mess!("Adding binary reference {} for {:05X} - {:05X}",
             file.to_string_lossy(),
             dest,
             dest + data.len()
-        ));
+        );
 
         Ok(())
     }
@@ -204,7 +205,7 @@ impl<'a> Compiler<'a> {
 
         let (node, _) = self.get_node_item(ctx, id);
 
-        let x = messages();
+        // let x = messages();
         let pc = ctx.binary().get_write_address();
 
         let ins_amode = ins.addr_mode;
@@ -258,8 +259,7 @@ impl<'a> Compiler<'a> {
                     Ok(_) => (),
                     Err(_) => {
                         if ctx.ctx.opts.ignore_relative_offset_errors {
-                            // x.warning(e.pretty().unwrap());
-                            x.warning("Skipping writing relative offset");
+                            // messages::warning("Skipping writing relative offset");
                             ctx.binary_mut().write_ibyte_check_size(0)?;
                         } else {
                             res?;
@@ -323,14 +323,16 @@ impl<'a> Compiler<'a> {
         file: P,
         r: &std::ops::Range<usize>,
     ) -> GResult<()> {
-        let msg = format!(
+
+        status_mess!(
             "Including Binary {} :  offset: {:04X} len: {:04X}",
             file.as_ref().to_string_lossy(),
             r.start,
             r.len()
         );
 
-        messages().status(msg);
+
+
 
         let (.., bin) = ctx.read_binary_chunk(file, r.clone())?;
 

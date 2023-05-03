@@ -11,7 +11,7 @@ enum StackError {
 impl<OP: Clone> Default for Stack<OP> {
     fn default() -> Self {
         Self {
-            stack: Default::default(),
+            stack: VecDeque::with_capacity(100)
         }
     }
 }
@@ -27,6 +27,11 @@ impl<A: Clone> Deref for Stack<A> {
 impl<OP: Clone> Stack<OP> {
     pub fn new() -> Self {
         Self::default()
+    }
+    pub fn with_capacity(n : usize) -> Self {
+        Self {
+            stack: VecDeque::with_capacity(n)
+        }
     }
 
     pub fn push<X : Into<OP>>(&mut self, op: X) {
