@@ -1,7 +1,7 @@
 # Nice
 
-* Add in this https://github.com/lukaslueg/built/tree/master/example_project
-
+* https://github.com/lukaslueg/built/tree/master/example_project
+* https://github.com/windwp/nvim-autopairs
 
 # Parsing
 * Add in scope operators for symbol Parsing

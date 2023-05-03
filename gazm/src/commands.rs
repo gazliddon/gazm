@@ -1,17 +1,15 @@
+use super::expr;
 use lazy_static::lazy_static;
 use std::{collections::HashMap, path::PathBuf};
-
-use super::expr;
-
-use Item::*;
 
 type CommandParseFn = fn(Span) -> IResult<Node>;
 
 use crate::{
+    error::IResult,
     item::{Item, Node},
     labels::get_just_label,
-    locate::{matched_span, span_to_pos},
-    parse::util::{self,match_escaped_str, match_file_name},
+    locate::{Span,matched_span, span_to_pos},
+    parse::util::{self, match_escaped_str, match_file_name},
 };
 
 use nom::{
@@ -25,65 +23,67 @@ use nom::{
 
 use expr::parse_expr;
 
-use crate::error::IResult;
-use crate::locate::Span;
 
-fn parse_org_arg(input: Span) -> IResult<Node> {
+fn parse_expr_arg(input: Span, item : Item) -> IResult<Node> { 
     let (rest, matched) = parse_expr(input)?;
-    let node = Node::from_item_span(Org, input).with_child(matched);
+    let node = Node::from_item_span(item, input).with_child(matched);
     Ok((rest, node))
 }
 
+fn parse_org_arg(input: Span) -> IResult<Node> {
+    parse_expr_arg(input, Item::Org)
+}
+
 fn parse_exec_arg(input: Span) -> IResult<Node> {
-    let (rest, matched) = parse_expr(input)?;
-    let node = Node::from_item_span(Exec, input).with_child(matched);
-    Ok((rest, node))
+    parse_expr_arg(input, Item::Exec)
+}
+
+fn parse_setdp_arg(input: Span) -> IResult<Node> {
+    parse_expr_arg(input, Item::SetDp6809)
+}
+
+fn parse_rmb_arg(input: Span) -> IResult<Node> {
+    parse_expr_arg(input, Item::Rmb)
 }
 
 fn parse_fcc_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = util::wrapped_chars('"', is_not("\""), '"')(input)?;
-    let node = Node::from_item_span(Fcc(matched.to_string()), input);
+    let node = Node::from_item_span(Item::Fcc(matched.to_string()), input);
     Ok((rest, node))
 }
 
 fn parse_fdb_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     let num_of_bytes = matched.len();
-    let node = Node::new_with_children(Fdb(num_of_bytes), &matched, span_to_pos(input));
-    Ok((rest, node))
-}
-
-fn parse_rmb_arg(input: Span) -> IResult<Node> {
-    let (rest, matched) = parse_expr(input)?;
-    let node = Node::from_item_span(Rmb, input).with_child(matched);
+    let node = Node::new_with_children(Item::Fdb(num_of_bytes), &matched, span_to_pos(input));
     Ok((rest, node))
 }
 
 fn parse_fcb_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = util::sep_list1(parse_expr)(input)?;
     let num_of_bytes = matched.len();
-    let node = Node::new_with_children(Fcb(num_of_bytes), &matched, span_to_pos(input));
+    let node = Node::new_with_children(Item::Fcb(num_of_bytes), &matched, span_to_pos(input));
     Ok((rest, node))
 }
 
 fn parse_include_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = match_escaped_str(input)?;
     let matched = matched.to_string();
-    let node = Node::from_item_span(Include(PathBuf::from(&matched)), input);
+    let node = Node::from_item_span(Item::Include(PathBuf::from(&matched)), input);
     Ok((rest, node))
 }
 
 fn parse_require_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = match_escaped_str(input)?;
     let matched = matched.to_string();
-    let node = Node::from_item_span(Require(PathBuf::from(&matched)), input);
+    let node = Node::from_item_span(Item::Require(PathBuf::from(&matched)), input);
     Ok((rest, node))
 }
 
 fn parse_grab_mem(input: Span) -> IResult<Node> {
     use util::ws;
     let (rest, (src, size)) = separated_pair(parse_expr, ws(tag(",")), parse_expr)(input)?;
-    let node = Node::new_with_children(GrabMem, &vec![src, size],span_to_pos( input ));
+    let node = Node::new_with_children(Item::GrabMem, &vec![src, size], span_to_pos(input));
     Ok((rest, node))
 }
 
@@ -100,8 +100,11 @@ fn inc_bin_args(input: Span) -> IResult<(PathBuf, Option<Vec<Node>>)> {
 
 fn parse_refbin_arg(input: Span) -> IResult<Node> {
     let (rest, (file, extra_args)) = inc_bin_args(input)?;
-    let node =
-        Node::new_with_children(IncBinRef(file), &extra_args.unwrap_or_default(), span_to_pos( input ));
+    let node = Node::new_with_children(
+        Item::IncBinRef(file),
+        &extra_args.unwrap_or_default(),
+        span_to_pos(input),
+    );
     Ok((rest, node))
 }
 
@@ -117,8 +120,11 @@ fn parse_write_bin_args(input: Span) -> IResult<Node> {
 
     let file_name = PathBuf::from(file_name.to_string());
 
-    let node =
-        Node::new_with_children(WriteBin(file_name), &vec![source_addr, size], span_to_pos(input));
+    let node = Node::new_with_children(
+        Item::WriteBin(file_name),
+        &vec![source_addr, size],
+        span_to_pos(input),
+    );
 
     Ok((rest, node))
 }
@@ -126,8 +132,11 @@ fn parse_write_bin_args(input: Span) -> IResult<Node> {
 fn parse_incbin_arg(input: Span) -> IResult<Node> {
     let (rest, (file, extra_args)) = inc_bin_args(input)?;
 
-    let node =
-        Node::new_with_children(IncBin(file), &extra_args.unwrap_or_default(), span_to_pos(input));
+    let node = Node::new_with_children(
+        Item::IncBin(file),
+        &extra_args.unwrap_or_default(),
+        span_to_pos(input),
+    );
 
     Ok((rest, node))
 }
@@ -141,41 +150,41 @@ fn parse_fill_arg(input: Span) -> IResult<Node> {
 
 fn parse_zmb_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = parse_expr(input)?;
-    let node = Node::from_item_span(Zmb, input).with_child(matched);
+    let node = Node::from_item_span(Item::Zmb, input).with_child(matched);
     Ok((rest, node))
 }
 
 fn parse_zmd_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = parse_expr(input)?;
-    let node = Node::from_item_span(Zmd, input).with_child(matched);
+    let node = Node::from_item_span(Item::Zmd, input).with_child(matched);
     Ok((rest, node))
 }
 
-fn parse_setdp_arg(input: Span) -> IResult<Node> {
-    let (rest, matched) = parse_expr(input)?;
-    let node = Node::from_item_span(SetDp6809, input).with_child(matched);
-    Ok((rest, node))
-}
 
 fn parse_put_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = parse_expr(input)?;
-    let node = Node::from_item_span(Put, input).with_child(matched);
+    let node = Node::from_item_span(Item::Put, input).with_child(matched);
     Ok((rest, node))
 }
 fn parse_scope_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = get_just_label(input)?;
-    let node = Node::from_item_span(Scope(matched.to_string()), input);
+    let node = Node::from_item_span(Item::Scope(matched.to_string()), input);
     Ok((rest, node))
 }
 
 fn mk_fill(input: Span, cv: (Node, Node)) -> Node {
-    Node::new_with_children(Fill, &vec![cv.0, cv.1], span_to_pos( input ))
+    Node::new_with_children(Item::Fill, &vec![cv.0, cv.1], span_to_pos(input))
 }
 
 fn parse_bsz_arg(input: Span) -> IResult<Node> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let two_args = separated_pair(parse_expr, sep, parse_expr);
-    let one_arg = map(parse_expr, |x: Node| (x, Node::from_number(0, crate::item::ParsedFrom::FromExpr , input)));
+    let one_arg = map(parse_expr, |x: Node| {
+        (
+            x,
+            Node::from_number(0, crate::item::ParsedFrom::FromExpr, input),
+        )
+    });
     let (rest, matched) = alt((two_args, one_arg))(input)?;
     let node = mk_fill(input, matched);
     Ok((rest, node))
@@ -205,7 +214,7 @@ lazy_static! {
             ("require", parse_require_arg),
         ];
         v.into_iter().collect()
-   };
+    };
 }
 
 fn command_token_function(input: Span) -> IResult<(Span, CommandParseFn)> {

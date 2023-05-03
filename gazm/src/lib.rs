@@ -2,7 +2,6 @@
 #![allow(dead_code)]
 pub mod item6809;
 pub mod parse6809;
-pub mod as6809;
 pub mod asmctx;
 pub mod ast;
 pub mod astformat;

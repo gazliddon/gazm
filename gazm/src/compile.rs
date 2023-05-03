@@ -66,11 +66,6 @@ impl<'a> Compiler<'a> {
         UserError::from_text(msg, info, true).into()
     }
 
-    pub fn compile(&self, ctx: &mut AsmCtx) -> GResult<()> {
-        ctx.set_root_scope();
-        self.compile_node(ctx, self.tree.root().id())
-    }
-
     fn compile_indexed(
         &self,
         ctx: &mut AsmCtx,

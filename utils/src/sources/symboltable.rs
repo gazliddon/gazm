@@ -384,7 +384,7 @@ impl SymbolWriter for SymbolTable {
                 scope_id: self.scope_id,
             };
 
-            let info = SymbolInfo::new(&name,None,id);
+            let info = SymbolInfo::new(&name,None,id,&self.fqn_scope);
             self.info.insert(x_id, info);
             Ok(id)
         }
@@ -397,10 +397,6 @@ impl SymbolWriter for SymbolTable {
 }
 
 impl SymbolTable {
-    // pub fn new() -> Self {
-    //     Self::new_with_scope("No Scope")
-    // }
-
     pub fn get_scope_name(&self) -> &str {
         &self.scope
     }

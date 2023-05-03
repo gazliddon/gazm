@@ -64,6 +64,7 @@ pub struct ScopeStore {
     scopes: Vec<ScopeEntry>,
 }
 
+#[allow(dead_code)]
 impl ScopeStore {
     pub fn new() -> Self {
         Self::default()
@@ -142,9 +143,5 @@ impl ScopeBuilder {
             node = parent;
         }
         string
-    }
-
-    fn build(self) -> StackTree<String> {
-        self.scope_tree
     }
 }

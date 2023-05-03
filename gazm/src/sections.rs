@@ -73,6 +73,7 @@ pub fn make_binary(desc: &SectionDescriptor) -> Binary {
     ret
 }
 
+#[allow(dead_code)]
 impl Section {
     fn new(
         name: &str,
@@ -136,6 +137,7 @@ impl DerefMut for Sections {
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum SectionError {
     #[error("Sections cannot be zero in size")]
     ZeroSizedSection,
@@ -157,7 +159,7 @@ pub enum SectionError {
 }
 
 
-
+#[allow(dead_code)]
 impl Sections {
     pub fn new() -> Self {
         Self::default()

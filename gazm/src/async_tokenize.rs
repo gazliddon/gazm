@@ -66,11 +66,13 @@ impl TokenizeRequest {
 
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Clone, Default)]
+#[allow(dead_code)]
 pub struct IncludeStack {
     include_stack: Stack<PathBuf>,
 }
 
 #[derive(Error, Debug, Clone)]
+#[allow(dead_code)]
 pub enum IncludeErrorKind {
     #[error("Circular include")]
     CircularInclude,
@@ -78,6 +80,7 @@ pub enum IncludeErrorKind {
     CantPop,
 }
 
+#[allow(dead_code)]
 impl IncludeStack {
     pub fn new() -> Self {
         Default::default()
@@ -232,6 +235,7 @@ where
 }
 
 #[allow(unused_imports)]
+#[allow(dead_code)]
 mod test {
     use std::path;
     use std::{thread::current, time::Instant};

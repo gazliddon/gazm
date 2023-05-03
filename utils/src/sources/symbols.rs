@@ -31,16 +31,20 @@ pub trait SymbolQuery {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub struct SymbolScopeId {
-    pub scope_id : u64,
+    pub scope_id: u64,
     pub symbol_id: u64,
 }
 
 pub trait SymbolWriter {
-    fn add_symbol_with_value(&mut self, name: &str, value: i64) -> Result<SymbolScopeId, SymbolError>;
+    fn add_symbol_with_value(
+        &mut self,
+        name: &str,
+        value: i64,
+    ) -> Result<SymbolScopeId, SymbolError>;
     fn remove_symbol_name(&mut self, name: &str);
     fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError>;
     fn add_reference_symbol(&mut self, name: &str, val: i64);
-    fn set_symbol(&mut self, symbol_id : SymbolScopeId, val : i64) -> Result<(), SymbolError>;
+    fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError>;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,20 +55,19 @@ use serde::{Deserialize, Serialize};
 /// Holds information about a symbol
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SymbolInfo {
-    /// Symbol Name
     name: String,
-    // /// Unique Symbol Id
-    // pub x_id: u64,
-    /// Value, if any
+    fqn: String,
     pub value: Option<i64>,
-
-    pub symbol_id : SymbolScopeId,
+    pub symbol_id: SymbolScopeId,
 }
 
 impl SymbolInfo {
-    pub fn new(name: &str, value : Option<i64>, symbol_id : SymbolScopeId) -> Self {
+    pub fn new(name: &str, value: Option<i64>, symbol_id: SymbolScopeId, fqn: &str) -> Self {
         Self {
-            name: name.to_string(), value, symbol_id 
+            name: name.to_string(),
+            value,
+            symbol_id,
+            fqn: fqn.to_string(),
         }
     }
 
@@ -72,16 +75,20 @@ impl SymbolInfo {
         &self.name
     }
 
+    pub fn scope(&self) -> &str {
+        &self.fqn
+    }
+
+    pub fn scoped_name(&self) -> String {
+        format!("{}::{}", self.fqn, self.name)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbolError {
     InvalidScope,
-    AlreadyDefined(( u64, Option<i64> )),
+    AlreadyDefined((u64, Option<i64>)),
     Mismatch { expected: i64 },
     NotFound,
     NoValue,
 }
-
-
-

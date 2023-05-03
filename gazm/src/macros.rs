@@ -28,23 +28,14 @@ pub struct MacroDef {
 use regex::Regex;
 
 impl MacroDef {
-    pub fn new(name: String, params: Vec<String>, pos: Position, nodes: Vec<Node>) -> Self {
-        Self {
-            name,
-            params,
-            pos,
-            nodes,
-        }
-    }
-    fn mk_regex(&self) -> Vec<Regex> {
-        let to_regex = |v: &String| {
-            let start = r"\|\s*";
-            let end = r"\s*\|";
-            let re = format!("{start}{v}{end}");
-            regex::Regex::new(&re).unwrap()
-        };
-        self.params.iter().map(to_regex).collect()
-    }
+    // pub fn new(name: String, params: Vec<String>, pos: Position, nodes: Vec<Node>) -> Self {
+    //     Self {
+    //         name,
+    //         params,
+    //         pos,
+    //         nodes,
+    //     }
+    // }
 
     /// Expands this macro
     /// args = a vec of positions of the arguments
@@ -91,6 +82,7 @@ pub fn get_scope_block(input: Span<'_>) -> IResult<(Span, Span)> {
     Ok((rest, (name, body)))
 }
 
+#[allow(dead_code)]
 fn parse_raw_args(input: Span<'_>) -> IResult<Vec<Span<'_>>> {
     let sep = ws(tag(","));
     let arg = ws(recognize(many1(is_not(",)"))));
@@ -125,10 +117,11 @@ pub fn parse_macro_call(input: Span) -> IResult<Node> {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Macros {
+struct Macros {
     macro_defs: HashMap<String, MacroDef>,
 }
 
+#[allow(dead_code)]
 impl Macros {
     pub fn new() -> Self {
         Self::default()

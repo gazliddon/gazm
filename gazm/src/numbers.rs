@@ -15,6 +15,7 @@ use nom::{
 };
 
 
+#[allow(dead_code)]
 mod new {
     pub enum Literal {
         Int(NumberLiteral),
@@ -131,7 +132,7 @@ mod new {
 // fn num_get(input: Span) -> IResult<Span> {
 //     recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
 // }
-
+#[allow(dead_code)]
 mod newp {
     use super::*;
     use nom_locate::LocatedSpan;
@@ -220,6 +221,7 @@ pub fn get_number(input: Span) -> IResult<( i64, ParsedFrom )> {
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 #[allow(unused_imports)]
+#[allow(dead_code)]
 mod test {
 
     use super::{*, new::{NumberLiteralKind, NumberLiteral}};

@@ -2,10 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
 
-struct Rle {
-    runs: Vec<(usize, usize)>,
-}
-
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum AccessType {
     ReadWrite,

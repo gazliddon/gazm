@@ -22,6 +22,7 @@ static OK_LABEL_CHARS: &str = "_?.";
 
 // scoped symbol is just a symbol or!
 // opt(symbol)sep(symbol+)
+#[allow(dead_code)]
 pub fn get_scoped_label(input: Span) -> IResult<(Option<Span>, Vec<Span>)> {
     let (rest, (lab, parts)) = pair(
         opt(get_just_label),

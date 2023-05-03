@@ -3,7 +3,7 @@ use crate::error::{GResult, GazmErrorKind};
 use crate::gazm::{with_state, Assembler};
 use crate::lookup::LabelUsageAndDefintions;
 use emu::utils::sources::{
-    Position as GazmPosition, SymbolScopeId, TextEdit, TextPos,
+    Position as GazmPosition, SymbolInfo, SymbolQuery, SymbolScopeId, TextEdit, TextPos,
 };
 use log::{error, info};
 use serde_json::Value;
@@ -120,10 +120,6 @@ impl Backend {
         info!("Backend created!");
         let asm_ctx = Arc::new(Mutex::new(Assembler::new(opts)));
         Self { client, asm_ctx }
-    }
-
-    pub fn get_ast(_l: Location) -> Option<String> {
-        None
     }
 
     fn create_diagnostics(&self, err: GazmErrorKind) -> Vec<(PathBuf, Diagnostic)> {
@@ -442,36 +438,27 @@ impl LanguageServer for Backend {
 
     async fn hover(&self, params: HoverParams) -> TResult<Option<Hover>> {
         info!("hover");
-        info!(
-            "{}",
-            params
-                .text_document_position_params
-                .text_document
-                .uri
-                .path()
-        );
+        let uri = &params.text_document_position_params.text_document.uri;
+        let position = &params.text_document_position_params.position;
 
-        info!("{:#?}", params);
-
-        let x = vec![];
-
-        let xx = self.client.configuration(x).await;
-
-        if let Ok(xx) = xx {
-            for f in xx {
-                info!("item: {}", f)
-            }
-        }
-
-        let _ = params;
-
-        let reply = Some(Hover {
-            contents: HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: "# You Are A\nWanker".to_string(),
-            }),
-            range: None,
+        let ret = with_state(&self.asm_ctx, |asm_ctx| -> Option<SymbolInfo> {
+            let id = asm_ctx.ctx.find_symbol_id(position, uri)?;
+            let si = asm_ctx.ctx.get_symbols().get_symbol_info_from_id(id).unwrap();
+            Some(si.clone())
         });
+
+        let reply = if let Some(si) = ret {
+            let reply = Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("# Symbol Information for {}\n_full name:_ {}", si.name(), si.scoped_name()),
+                }),
+                range: None,
+            };
+            Some(reply)
+        } else {
+            None
+        };
 
         Ok(reply)
     }

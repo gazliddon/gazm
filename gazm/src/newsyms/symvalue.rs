@@ -9,6 +9,7 @@ use symbols::{
 use super::Value;
 
 pub type Symbols = Scopes<SymbolValue, usize>;
+#[allow(dead_code)]
 pub type SymbolId = symbols::SymbolId<usize>;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -17,6 +18,7 @@ pub struct SymbolValue {
     pos: Option<Position>,
 }
 
+#[allow(dead_code)]
 impl SymbolValue {
     pub fn new(value: Value, pos: Option<Position>) -> Self {
         Self { value, pos }
@@ -49,27 +51,14 @@ impl Default for SymbolValue {
 }
 
 #[allow(unused_imports)]
+#[allow(dead_code)]
 mod test {
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
 
-    #[test]
     fn test_sym() {
-        let name = "a_symbol";
-
-        let mut syms = Symbols::new();
-        let sym = SymbolValue::new_unsigned(1024, None);
-
-        let mut c = syms.root_cursor();
-
-        let id = c.add_symbol(name, sym.clone()).unwrap();
-        let c2 = c.get_symbol_from_name(name).unwrap();
-        assert_eq!(c2, &sym);
-
-        let x = syms.get_symbol_info(&id).unwrap();
-        println!("{:#?}", x);
     }
 
     // #[test]

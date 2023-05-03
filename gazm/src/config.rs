@@ -6,12 +6,9 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 struct LoadedYamlConfig {
-    #[serde(skip)]
-    pub file: PathBuf,
     pub opts: Option<Opts>,
-
     vars: Option<HashMap<String, String>>,
-    project: Project,
+    // project: Project,
     checksums: Option<HashMap<String, CheckSum>>,
     lsp: Option<LspConfig>,
 }
@@ -19,7 +16,6 @@ struct LoadedYamlConfig {
 pub struct YamlConfig {
     pub file: PathBuf,
     pub opts: Opts,
-    project: Project,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -63,7 +59,6 @@ impl YamlConfig {
         YamlConfig {
             file : file.to_path_buf(),
             opts,
-            project: toml.project,
         }
     }
 }

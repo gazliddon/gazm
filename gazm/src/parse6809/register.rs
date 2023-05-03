@@ -109,9 +109,6 @@ fn parse_reg_set(input: Span) -> IResult<Node> {
     Ok((rest, node))
 }
 
-pub fn parse_reg_set_2(input: Span) -> IResult<Node> {
-    parse_reg_set_n(input, 2)
-}
 pub fn parse_reg_set_1(input: Span) -> IResult<Node> {
     parse_reg_set_n(input, 1)
 }

@@ -20,7 +20,7 @@ use Item::*;
 /// assigns values to labels that
 /// are defined by value of PC
 struct Sizer<'a> {
-    offset: isize,
+    _offset: isize,
     tree: &'a AstTree,
 }
 
@@ -41,7 +41,7 @@ pub fn size_tree(ctx: &mut AsmCtx, id: AstNodeId, tree: &AstTree) -> GResult<()>
 
 impl<'a> Sizer<'a> {
     pub fn new(tree: &'a AstTree) -> Self {
-        Self { offset: 0, tree }
+        Self { _offset: 0, tree }
     }
 
     fn size_indexed(&self, ctx_mut: &mut AsmCtx, mut pc: usize, id: AstNodeId) -> GResult<usize> {

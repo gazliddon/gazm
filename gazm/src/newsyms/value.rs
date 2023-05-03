@@ -7,6 +7,7 @@ use utils::eval::OperationErrorKind;
 pub enum EvalResultType {}
 
 #[derive(Debug, PartialEq, Clone)]
+#[allow(dead_code)]
 pub enum Value {
     Null,
     Macro,
@@ -39,6 +40,7 @@ impl std::fmt::Display for Value {
     }
 }
 
+#[allow(dead_code)]
 impl Value {
     pub fn is_number(&self) -> bool {
         matches!(

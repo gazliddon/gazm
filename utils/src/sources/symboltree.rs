@@ -204,12 +204,17 @@ impl SymbolTree {
     }
 
     pub fn get_current_scope_fqn(&self) -> String {
-        let scopes = self.get_current_scope_chain();
+        self.get_scope_fqn(self.current_scope_id)
+    }
+
+    pub fn get_scope_fqn(&self, id: u64) -> String {
+        let scopes = self.get_scope_chain(id).unwrap();
         let v: Vec<_> = scopes
             .into_iter()
             .map(|id| self.get_scope_symbols_from_id(id).unwrap().get_scope_name())
             .collect();
         v.join("::")
+
     }
 
     pub fn get_fqn_scope_id(&self, name: &str) -> Option<SymbolNodeId> {
@@ -319,7 +324,7 @@ impl SymbolTree {
     }
 
     fn insert_new_table(&mut self, name: &str, parent_id: u64) -> u64 {
-        let tab = self.create_new_table(name, "");
+        let tab = self.create_new_table(name, parent_id);
         let tab_id = tab.get_scope_id();
         let parent_id = self.scope_id_to_node_id.get(&parent_id).unwrap();
         let mut parent_mut = self.tree.get_mut(*parent_id).unwrap();
@@ -328,9 +333,11 @@ impl SymbolTree {
         n.value().get_scope_id()
     }
 
-    fn create_new_table(&mut self, name: &str, fqn: &str) -> SymbolTable {
+    fn create_new_table(&mut self, name: &str, parent_id: u64) -> SymbolTable {
+        let parent_fqn = self.get_scope_fqn(parent_id);
+        let fqn = format!("{parent_fqn}::{name}");
         let scope_id = self.get_next_scope_id();
-        SymbolTable::new_with_scope(name, fqn, scope_id)
+        SymbolTable::new_with_scope(name, &fqn, scope_id)
     }
 
     pub fn resolve_label(&self, name: &str, scope_id: u64) -> Result<&SymbolInfo, SymbolError> {

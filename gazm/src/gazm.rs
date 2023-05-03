@@ -72,11 +72,6 @@ pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R 
     f(state)
 }
 
-pub fn create_ctx(opts: Opts) -> Arc<Mutex<Context>> {
-    let ctx = Context::from(opts);
-    Arc::new(Mutex::new(ctx))
-}
-
 fn assemble_project(ctx: &mut Context) -> GResult<()> {
     let file = ctx.opts.project_file.to_owned();
     let paths = ctx.get_source_file_loader_mut().get_search_paths().to_vec();

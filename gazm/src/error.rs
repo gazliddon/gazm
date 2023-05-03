@@ -30,10 +30,7 @@ pub enum GazmErrorKind {
 
 }
 
-struct GazmError {
-    pub error: GazmErrorKind,
-    pub error_doc_type: Option<ErrorDocType>,
-}
+
 
 impl From<String> for GazmErrorKind {
     fn from(x: String) -> Self {
@@ -308,7 +305,7 @@ impl UserError {
 
 #[derive(Clone)]
 pub struct ErrorCollector {
-    max_errors: usize,
+    _max_errors: usize,
     pub errors: thin_vec::ThinVec<GazmErrorKind>,
     errors_remaining: usize,
 }
@@ -316,7 +313,7 @@ pub struct ErrorCollector {
 impl Default for ErrorCollector {
     fn default() -> Self {
         Self {
-            max_errors: 10,
+            _max_errors: 10,
             errors: Default::default(),
             errors_remaining: Default::default(),
         }
@@ -340,10 +337,10 @@ impl std::fmt::Debug for ErrorCollector {
 impl std::error::Error for ErrorCollector {}
 
 impl ErrorCollector {
-    pub fn new(max_errors: usize) -> Self {
+    pub fn new(_max_errors: usize) -> Self {
         Self {
-            max_errors,
-            errors_remaining: max_errors,
+            _max_errors,
+            errors_remaining: _max_errors,
             errors: Default::default()
         }
     }

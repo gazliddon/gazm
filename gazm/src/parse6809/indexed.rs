@@ -99,6 +99,7 @@ fn get_no_arg_indexed(input: Span) -> IResult<IndexParseType> {
     ))(input)?;
     Ok((rest, matched))
 }
+#[allow(dead_code)]
 fn get_no_arg_indexed_allowed_indirect(input: Span) -> IResult<IndexParseType> {
     let (rest, matched) = alt((
         get_pre_dec_dec,

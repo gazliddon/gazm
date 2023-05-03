@@ -166,6 +166,7 @@ pub enum ByteSizes {
     Word(i16),
 }
 
+#[allow(dead_code)]
 impl ByteSizes {
     pub fn promote(&mut self) {
         *self = match self {

@@ -47,6 +47,7 @@ impl Default for Messages {
     }
 }
 
+#[allow(dead_code)]
 impl Messages {
     pub fn new() -> Self {
         Self::default()
@@ -142,12 +143,6 @@ impl Messages {
 use std::mem::MaybeUninit;
 use std::sync::{Mutex, Once};
 
-struct SingletonReader {
-    // Since we will be used in many threads, we need to protect
-    // concurrent access
-    inner: Mutex<u8>,
-}
-
 pub fn messages() -> &'static mut Messages {
     static mut SINGLETON: MaybeUninit<Messages> = MaybeUninit::uninit();
     static ONCE: Once = Once::new();
@@ -166,6 +161,7 @@ pub fn messages() -> &'static mut Messages {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+#[allow(dead_code)]
 pub fn verbosity<F, Y>(verbosity: Verbosity, mut f: F) -> Y
 where
     F: FnMut(&mut super::messages::Messages) -> Y,
@@ -182,6 +178,7 @@ where
     r
 }
 
+#[allow(dead_code)]
 pub fn debug<F, Y>(text: &str, mut f: F) -> Y
 where
     F: FnMut(&mut super::messages::Messages) -> Y,
@@ -207,6 +204,7 @@ where
     r
 }
 
+#[allow(dead_code)]
 pub fn status<F, Y, S>(text: S, mut f: F) -> Y
 where
     F: FnMut(&mut super::messages::Messages) -> Y,

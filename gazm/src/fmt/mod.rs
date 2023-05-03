@@ -5,8 +5,6 @@ use crate::item::{Item, LabelDefinition};
 
 use itertools::Itertools;
 
-pub struct Format {}
-
 pub fn fmt(_opts: &Opts) -> GResult<String> {
     // let asm = Assembler::new(opts.clone());
     // let tokenized = asm.tokenize_file(&opts.project_file)?;
@@ -33,7 +31,7 @@ fn get_operand(
         text[c.ctx.range.clone()].to_owned()
     }
 }
-
+#[allow(dead_code)]
 pub fn render_nodes(nodes: &[Node], text: String) -> String {
     let mut ret = String::new();
 

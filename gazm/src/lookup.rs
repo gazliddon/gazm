@@ -7,12 +7,14 @@ use emu::utils::sources::{
 use emu::utils::Stack;
 use std::collections::HashMap;
 
+#[allow(dead_code)]
 pub struct Navigator<'a> {
     syms: &'a SymbolTree,
     current_scope_id: u64,
     scope_stack: Stack<u64>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum NavError {
     UnableToPop,
@@ -20,6 +22,7 @@ pub enum NavError {
     SymbolError(SymbolError),
 }
 
+#[allow(dead_code)]
 impl<'a> Navigator<'a> {
     pub fn new(syms: &'a SymbolTree) -> Self {
         Self {
@@ -74,7 +77,7 @@ impl<'a> Navigator<'a> {
 
 pub struct LabelUsageAndDefintions {
     reference_pos_and_id: Vec<(Position, SymbolScopeId)>,
-    symbols: SymbolTree,
+    _symbols: SymbolTree,
     symbol_id_to_definition: HashMap<SymbolScopeId, Position>,
 }
 
@@ -107,7 +110,7 @@ impl LabelUsageAndDefintions {
 
         Self {
             reference_pos_and_id,
-            symbols: _syms.clone(),
+            _symbols: _syms.clone(),
             symbol_id_to_definition,
         }
     }
@@ -160,9 +163,3 @@ impl LabelUsageAndDefintions {
 
 }
 
-enum AstNodeKind {
-    Label(SymbolScopeId),
-    Command,
-}
-
-pub struct AstSearchResult {}

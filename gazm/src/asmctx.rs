@@ -19,9 +19,6 @@ impl<'a> AsmCtx<'a> {
         self.ctx.asm_out.exec_addr = Some(addr);
     }
 
-    pub fn ctx(&mut self) -> &mut Context {
-        self.ctx
-    }
 
     pub fn binary(&self) -> &binary::Binary {
         &self.ctx.asm_out.binary
@@ -37,12 +34,6 @@ impl<'a> AsmCtx<'a> {
         (scope, id)
     }
 
-    pub fn get_node_item(&'a self, tree: &'a AstTree, id: AstNodeId) -> (AstNodeRef, Item) {
-        let node = tree.get(id).unwrap();
-        let this_i = &node.value().item;
-        let i = self.get_fixup_or_default(id, this_i);
-        (node, i)
-    }
 
     pub fn get_fixup_or_default(&self, id: AstNodeId, i: &Item) -> Item {
         let scope = self.ctx.get_symbols().get_current_scope();
@@ -61,13 +52,13 @@ impl<'a> AsmCtx<'a> {
         self.ctx.get_symbols_mut().set_root();
     }
 
-    pub fn pop_scope(&mut self) {
-        self.ctx.get_symbols_mut().pop_scope();
-    }
+    // pub fn pop_scope(&mut self) {
+    //     self.ctx.get_symbols_mut().pop_scope();
+    // }
 
-    pub fn set_scope(&mut self, name: &str) -> u64 {
-        self.ctx.get_symbols_mut().set_scope(name)
-    }
+    // pub fn set_scope(&mut self, name: &str) -> u64 {
+    //     self.ctx.get_symbols_mut().set_scope(name)
+    // }
 
     pub fn set_scope_from_id(&mut self, scope_id: u64) -> Result<(), SymbolError> {
         self.ctx.get_symbols_mut().set_scope_from_id(scope_id)
@@ -77,9 +68,9 @@ impl<'a> AsmCtx<'a> {
         self.ctx.get_symbols().get_current_scope_id()
     }
 
-    pub fn get_scope_fqn(&mut self) -> String {
-        self.ctx.get_symbols().get_current_scope_fqn()
-    }
+    // pub fn get_scope_fqn(&mut self) -> String {
+    //     self.ctx.get_symbols().get_current_scope_fqn()
+    // }
     pub fn set_symbol_value(
         &mut self,
         symbol_id: SymbolScopeId,
@@ -88,15 +79,15 @@ impl<'a> AsmCtx<'a> {
         self.ctx.get_symbols_mut().set_symbol(symbol_id, val as i64)
     }
 
-    pub fn add_symbol_with_value(
-        &mut self,
-        name: &str,
-        val: usize,
-    ) -> Result<SymbolScopeId, SymbolError> {
-        self.ctx
-            .get_symbols_mut()
-            .add_symbol_with_value(name, val as i64)
-    }
+    // pub fn add_symbol_with_value(
+    //     &mut self,
+    //     name: &str,
+    //     val: usize,
+    // ) -> Result<SymbolScopeId, SymbolError> {
+    //     self.ctx
+    //         .get_symbols_mut()
+    //         .add_symbol_with_value(name, val as i64)
+    // }
 
     // pub fn set_pc_symbol(&mut self, val: usize) -> Result<u64, SymbolError> {
     //     self.ctx
@@ -109,9 +100,9 @@ impl<'a> AsmCtx<'a> {
         self.ctx.get_symbols_mut().remove_symbol_name(name);
     }
 
-    pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
-        self.ctx.get_source_file_loader_mut()
-    }
+    // pub fn loader_mut(&mut self) -> &mut SourceFileLoader {
+    //     self.ctx.get_source_file_loader_mut()
+    // }
 
     pub fn add_bin_to_write<P: AsRef<Path>>(
         &mut self,
@@ -147,10 +138,6 @@ impl<'a> AsmCtx<'a> {
         emu::utils::fileutils::abs_path_from_cwd(path)
     }
 
-    fn write_bin_file_data<P: AsRef<Path>, C: AsRef<[u8]>>(&mut self, path: P, data: C) -> PathBuf {
-        let path = self.get_abs_path(&path);
-        self.loader_mut().write(path, data)
-    }
 
     pub fn eval_macro_args(&mut self, scope_id: u64, caller_id: AstNodeId, tree: &AstTree) -> bool {
         let node = tree.get(caller_id).unwrap();

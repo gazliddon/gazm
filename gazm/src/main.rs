@@ -3,7 +3,6 @@
 // #![deny(clippy::pedantic)]
 mod parse6809;
 mod item6809;
-mod as6809;
 mod asmctx;
 mod ast;
 mod astformat;

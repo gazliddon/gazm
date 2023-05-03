@@ -113,6 +113,7 @@ fn iter_items_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &I
             .and_then(|id| node.tree().get(id).map(|n| (n.id(), &n.value().item)))
     })
 }
+#[allow(dead_code)]
 fn iter_values_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &ItemWithPos)> {
     let mut i = get_ids_recursive(node).into_iter();
     iter::from_fn(move || {
@@ -217,11 +218,11 @@ impl<'a> Ast<'a> {
         })
     }
 
-    pub fn detach_nodes_by_id<I: Iterator<Item = AstNodeId>>(&mut self, i: I) {
-        for id in i {
-            self.tree.get_mut(id).unwrap().detach();
-        }
-    }
+    // pub fn detach_nodes_by_id<I: Iterator<Item = AstNodeId>>(&mut self, i: I) {
+    //     for id in i {
+    //         self.tree.get_mut(id).unwrap().detach();
+    //     }
+    // }
 
     pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> Vec<AstNodeId>
     where
@@ -451,18 +452,18 @@ impl<'a> Ast<'a> {
         self.eval_node(first_child.id())
     }
 
-    pub fn set_symbol(
-        &mut self,
-        value: i64,
-        symbol_id: SymbolScopeId,
-        _node_id: AstNodeId,
-    ) -> Result<(), UserError> {
-        self.ctx
-            .asm_out
-            .symbols
-            .set_symbol(symbol_id, value)
-            .map_err(|_| panic!())
-    }
+    // pub fn set_symbol(
+    //     &mut self,
+    //     value: i64,
+    //     symbol_id: SymbolScopeId,
+    //     _node_id: AstNodeId,
+    // ) -> Result<(), UserError> {
+    //     self.ctx
+    //         .asm_out
+    //         .symbols
+    //         .set_symbol(symbol_id, value)
+    //         .map_err(|_| panic!())
+    // }
 
     pub fn add_symbol<S>(
         &mut self,
@@ -699,6 +700,7 @@ pub fn to_priority(i: &Item) -> Option<usize> {
 }
 
 impl Term {
+    #[allow(dead_code)]
     pub fn new(node: &AstNodeRef) -> Self {
         Self {
             node: node.id(),
