@@ -1,17 +1,22 @@
-use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolTable, SymbolWriter, SymbolResolutionBarrier, SymbolTree};
+use super::{
+    SymbolError, SymbolInfo, SymbolQuery, SymbolResolutionBarrier, SymbolScopeId, SymbolTable,
+    SymbolTree, SymbolWriter,
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 pub struct SymbolNav<'a> {
     current_scope_id: u64,
-    sym_tree: &'a mut SymbolTree
+    sym_tree: &'a mut SymbolTree,
 }
 
 impl<'a> SymbolNav<'a> {
-
-    pub fn new(sym_tree: &'a mut SymbolTree, current_scope_id: u64, ) -> Self {
-        let _ = sym_tree.get_node_id_from_scope_id(current_scope_id).expect("Invalid ID");
+    pub fn new(sym_tree: &'a mut SymbolTree, current_scope_id: u64) -> Self {
+        let _ = sym_tree
+            .get_node_id_from_scope_id(current_scope_id)
+            .expect("Invalid ID");
         Self {
-            current_scope_id, sym_tree
+            current_scope_id,
+            sym_tree,
         }
     }
 
@@ -20,7 +25,10 @@ impl<'a> SymbolNav<'a> {
     }
 
     pub fn pop_scope(&mut self) {
-        let n = self.sym_tree.get_node_from_id(self.current_scope_id).expect("Invalid id");
+        let n = self
+            .sym_tree
+            .get_node_from_id(self.current_scope_id)
+            .expect("Invalid id");
         if let Some(n) = n.parent() {
             self.current_scope_id = n.value().get_scope_id()
         }
@@ -35,7 +43,8 @@ impl<'a> SymbolNav<'a> {
     }
 
     pub fn get_current_scope_symbols(&self) -> &SymbolTable {
-        self.sym_tree.get_symbols_from_id(self.current_scope_id)
+        self.sym_tree
+            .get_symbols_from_id(self.current_scope_id)
             .unwrap()
     }
 
@@ -62,7 +71,8 @@ impl<'a> SymbolNav<'a> {
     }
 
     pub fn create_or_get_scope_id(&mut self, name: &str) -> u64 {
-        self.sym_tree.create_or_get_scope_for_parent(name,self.current_scope_id)
+        self.sym_tree
+            .create_or_get_scope_for_parent(name, self.current_scope_id)
     }
 }
 
@@ -74,7 +84,8 @@ impl<'a> SymbolQuery for SymbolNav<'a> {
 
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         let scope = self.sym_tree.get_current_scope_id();
-        self.sym_tree.resolve_label(name, scope, SymbolResolutionBarrier::default())
+        self.sym_tree
+            .resolve_label(name, scope, SymbolResolutionBarrier::default())
     }
 }
 
@@ -107,8 +118,10 @@ impl<'a> SymbolWriter for SymbolNav<'a> {
     }
 
     fn add_reference_symbol(&mut self, name: &str, val: i64) {
-        let mut node = self.sym_tree.get_node_mut_from_id(self.current_scope_id).unwrap();
+        let mut node = self
+            .sym_tree
+            .get_node_mut_from_id(self.current_scope_id)
+            .unwrap();
         node.value().add_reference_symbol(name, val)
     }
 }
-
