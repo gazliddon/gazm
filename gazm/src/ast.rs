@@ -141,25 +141,30 @@ impl<'a> Ast<'a> {
         self.replace_node(old_node_id, new_node_id);
     }
 
-    pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
-        let root_id = ctx.asm_out.symbols.get_root_id();
-
-        let mut ret = Self {
+    fn base(tree: AstTree, ctx: &'a mut Context) -> Self {
+        Self {
             tree,
             ctx,
             macro_defs: vec![],
-        };
+        }
+    }
 
-        ret.inline_includes()?;
-        ret.create_scopes()?;
-        ret.postfix_expressions()?;
-        ret.rename_locals();
-        ret.process_macros()?;
-        ret.generate_struct_symbols(root_id)?;
-        ret.scope_assignments()?;
-        ret.scope_labels()?;
-        ret.evaluate_assignments()?;
+    fn process(&mut self) -> Result<(), UserError> {
+        self.inline_includes()?;
+        self.create_scopes()?;
+        self.postfix_expressions()?;
+        self.rename_locals();
+        self.process_macros()?;
+        self.generate_struct_symbols()?;
+        self.scope_assignments()?;
+        self.scope_labels()?;
+        self.evaluate_assignments()?;
+        Ok(())
+    }
 
+    pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
+        let mut ret = Self::base(tree, ctx);
+        ret.process()?;
         Ok(ret)
     }
 
@@ -487,7 +492,9 @@ impl<'a> Ast<'a> {
             })
     }
 
-    fn generate_struct_symbols(&mut self, current_scope_id: u64) -> Result<(), UserError> {
+    fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
+        let current_scope_id = self.ctx.asm_out.symbols.get_root_id();
+
         info("Generating symbols for struct definitions", |x| {
             use Item::*;
 
