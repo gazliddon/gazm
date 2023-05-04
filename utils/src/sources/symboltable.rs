@@ -274,11 +274,19 @@ mod new {
 ////////////////////////////////////////////////////////////////////////////////
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
-enum LabelResolutionBarrier {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default, Copy, PartialOrd)]
+pub enum SymbolResolutionBarrier {
+    Local = 0,
+    Module = 1,
     #[default]
-    None,
-    Module,
+    Global = 2,
+}
+
+impl SymbolResolutionBarrier {
+    pub fn can_pass_barrier(&self, i : SymbolResolutionBarrier) -> bool {
+        i >= *self
+    }
+
 }
 
 /// Holds information about symbols
@@ -286,12 +294,12 @@ enum LabelResolutionBarrier {
 pub struct SymbolTable {
     scope: String,
     fqn_scope: String,
-    pub info: HashMap<u64, SymbolInfo>,
+    info: HashMap<u64, SymbolInfo>,
     name_to_id: HashMap<String, u64>,
     ref_name_to_value: HashMap<String, i64>,
     highest_id: u64,
     scope_id: u64,
-    label_resolution_barrier: LabelResolutionBarrier,
+    symbol_resolution_barrier: SymbolResolutionBarrier,
 }
 
 pub enum SymbolKind {
@@ -332,7 +340,6 @@ impl SymbolQuery for SymbolTable {
         } else {
             Err(SymbolError::NotFound)
         }
-
     }
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         let symbol_id = *self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
@@ -341,7 +348,7 @@ impl SymbolQuery for SymbolTable {
 }
 
 impl SymbolWriter for SymbolTable {
-    fn set_symbol(&mut self, symbol_id : SymbolScopeId, val : i64) -> Result<(), SymbolError> {
+    fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
         if self.scope_id == symbol_id.scope_id {
             self.set_value(symbol_id.symbol_id, val)
         } else {
@@ -372,7 +379,7 @@ impl SymbolWriter for SymbolTable {
 
         if let Some(id) = self.name_to_id.get(&name) {
             let x = self.info.get(id).unwrap();
-            Err(SymbolError::AlreadyDefined(( *id, x.value )))
+            Err(SymbolError::AlreadyDefined((*id, x.value)))
         } else {
             let x_id = self.get_next_id();
 
@@ -382,7 +389,7 @@ impl SymbolWriter for SymbolTable {
                 scope_id: self.scope_id,
             };
 
-            let info = SymbolInfo::new(&name,None,id,&self.fqn_scope);
+            let info = SymbolInfo::new(&name, None, id, &self.fqn_scope);
             self.info.insert(x_id, info);
             Ok(id)
         }
@@ -395,6 +402,10 @@ impl SymbolWriter for SymbolTable {
 }
 
 impl SymbolTable {
+    pub fn get_symbol_resoultion_barrier(&self) -> SymbolResolutionBarrier {
+        self.symbol_resolution_barrier
+    }
+
     pub fn get_scope_name(&self) -> &str {
         &self.scope
     }
@@ -402,14 +413,32 @@ impl SymbolTable {
         &self.fqn_scope
     }
 
-    pub fn new_with_scope(name: &str, fqn_scope: &str, scope_id : u64) -> Self {
+    pub fn get_symbol_info_hash(&self) -> &HashMap<u64, SymbolInfo> {
+        &self.info
+    }
+
+    pub fn new(
+        name: &str,
+        fqn_scope: &str,
+        scope_id: u64,
+        symbol_resolution_barrier: SymbolResolutionBarrier,
+    ) -> Self {
         Self {
             scope: name.to_string(),
             highest_id: 1,
             fqn_scope: fqn_scope.to_string(),
             scope_id,
+            symbol_resolution_barrier,
             ..Default::default()
         }
+    }
+
+    pub fn get_symbols(&self) -> Vec<&SymbolInfo> {
+        self.info.values().collect()
+    }
+
+    pub fn get_scope_id(&self) -> u64 {
+        self.scope_id
     }
 
     fn get(&self, id: u64) -> Result<&SymbolInfo, SymbolError> {
@@ -434,13 +463,5 @@ impl SymbolTable {
         let ret = self.highest_id;
         self.highest_id += 1;
         ret
-    }
-
-    pub fn get_symbols(&self) -> Vec<&SymbolInfo> {
-        self.info.values().collect()
-    }
-
-    pub fn get_scope_id(&self) -> u64 {
-        self.scope_id
     }
 }

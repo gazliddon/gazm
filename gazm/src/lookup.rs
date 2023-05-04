@@ -2,7 +2,7 @@
 use crate::ast::{ iter_refs_recursive, AstTree};
 use crate::item::{Item, LabelDefinition};
 use emu::utils::sources::{
-    Position, SymbolError, SymbolInfo, SymbolScopeId, SymbolTable, SymbolTree,
+    Position, SymbolError, SymbolInfo, SymbolScopeId, SymbolTable, SymbolTree,SymbolResolutionBarrier
 };
 use emu::utils::Stack;
 use std::collections::HashMap;
@@ -53,7 +53,7 @@ impl<'a> Navigator<'a> {
     }
 
     pub fn resolve_label(&self, _name: &str) -> Result<&SymbolInfo, SymbolError> {
-        self.syms.resolve_label(_name, self.current_scope_id)
+        self.syms.resolve_label(_name, self.current_scope_id, SymbolResolutionBarrier::default())
     }
 
     pub fn set_scope(&mut self, scope_id: u64) -> Result<(), NavError> {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::ser::SerializeMap;
 
-use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolTable, SymbolWriter};
+use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolTable, SymbolWriter, SymbolResolutionBarrier};
 
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
@@ -22,7 +22,7 @@ pub struct SymbolTree {
 
 impl Default for SymbolTree {
     fn default() -> Self {
-        let root = SymbolTable::new_with_scope("", "", 0);
+        let root = SymbolTable::new("", "", 0, SymbolResolutionBarrier::default());
         let tree = SymbolTreeTree::new(root);
         let current_scope = tree.root().id();
         let mut scope_id_to_node_id: HashMap<u64, SymbolNodeId> = Default::default();
@@ -186,17 +186,19 @@ impl SymbolTree {
         Some(scope_id)
     }
 
-    pub fn resolve_label(&self, name: &str, scope_id: u64) -> Result<&SymbolInfo, SymbolError> {
-        let scope_id = self
-            .scope_id_to_node_id
-            .get(&scope_id)
-            .ok_or(SymbolError::InvalidScope)?;
-        let mut node = self.tree.get(*scope_id);
+    pub fn resolve_label(&self, name: &str, scope_id: u64, barrier: SymbolResolutionBarrier) -> Result<&SymbolInfo, SymbolError> {
+
+        let scope_id = self.get_scope_node_id_from_id(scope_id)?;
+        let mut node = self.tree.get(scope_id);
 
         while node.is_some() {
             if let Some(n) = node {
                 if let Ok(v) = n.value().get_symbol_info(name) {
                     return Ok(v);
+                }
+
+                if !n.value().get_symbol_resoultion_barrier().can_pass_barrier(barrier) {
+                    break;
                 }
             }
             node = node.and_then(|n| n.parent());
@@ -214,7 +216,7 @@ impl SymbolQuery for SymbolTree {
 
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         let scope = self.get_current_scope_id();
-        self.resolve_label(name, scope)
+        self.resolve_label(name, scope, SymbolResolutionBarrier::default())
     }
 }
 
@@ -277,7 +279,7 @@ impl SymbolTree {
         let parent_fqn = self.get_fqn_from_id(parent_id);
         let fqn = format!("{parent_fqn}::{name}");
         let scope_id = self.get_next_scope_id();
-        SymbolTable::new_with_scope(name, &fqn, scope_id)
+        SymbolTable::new(name, &fqn, scope_id, super::SymbolResolutionBarrier::default())
     }
 
 }
@@ -369,7 +371,7 @@ pub fn display_tree(
     let depth = depth + 1;
     let spaces = " ".repeat(depth * 4);
 
-    let mut vars: Vec<_> = node.value().info.values().collect();
+    let mut vars: Vec<_> = node.value().get_symbol_info_hash().values().collect();
     vars.sort_by(|a, b| a.name().partial_cmp(b.name()).unwrap());
 
     for v in vars {
