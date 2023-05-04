@@ -12,6 +12,8 @@ mod sourcefiles;
 mod error;
 mod sourceinfo;
 mod textedit;
+mod symbolnav;
+
 
 pub use position::*;
 pub use sourcestore::*;
@@ -23,4 +25,5 @@ pub use sourcefiles::*;
 pub use error::*;
 pub use sourceinfo::*;
 pub use textedit::*;
+pub use symbolnav::*;
 

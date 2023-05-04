@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::ser::SerializeMap;
 
-use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolTable, SymbolWriter, SymbolResolutionBarrier};
+use super::{SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolTable, SymbolWriter, SymbolResolutionBarrier, SymbolNav};
 
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
@@ -206,71 +206,6 @@ impl SymbolTree {
         SymbolNav::new(self, scope_id)
     }
 }
-////////////////////////////////////////////////////////////////////////////////
-pub struct SymbolNav<'a> {
-    current_scope_id: u64,
-    sym_tree: &'a mut SymbolTree
-}
-
-impl<'a> SymbolNav<'a> {
-    pub fn new(sym_tree: &'a mut SymbolTree, current_scope_id: u64, ) -> Self {
-        let _ = sym_tree.get_node_id_from_scope_id(current_scope_id).expect("Invalid ID");
-        Self {
-            current_scope_id, sym_tree
-        }
-    }
-
-    pub fn get_tree(&self) -> &SymbolTree {
-        &self.sym_tree
-    }
-    pub fn pop_scope(&mut self) {
-        let n = self.sym_tree.get_node_from_id(self.current_scope_id).expect("Invalid id");
-        if let Some(n) = n.parent() {
-            self.current_scope_id = n.value().get_scope_id()
-        }
-    }
-
-    pub fn set_root(&mut self) {
-        self.current_scope_id = self.sym_tree.tree.root().value().get_scope_id()
-    }
-
-    pub fn get_current_scope(&self) -> u64 {
-        self.current_scope_id
-    }
-
-    pub fn get_current_scope_symbols(&self) -> &SymbolTable {
-        self.sym_tree.get_symbols_from_id(self.current_scope_id)
-            .unwrap()
-    }
-
-    pub fn get_current_scope_fqn(&self) -> String {
-        self.sym_tree.get_fqn_from_id(self.current_scope_id)
-    }
-
-    pub fn set_current_scope_from_id(&mut self, id: u64) -> Result<(), SymbolError> {
-        self.sym_tree.get_node_mut_from_id(id)?;
-        self.current_scope_id = id;
-        Ok(())
-    }
-
-    pub fn get_current_scope_id(&self) -> u64 {
-        self.current_scope_id
-    }
-
-    // enters the child scope below the current_scope
-    // If it doesn't exist then create it
-    pub fn set_current_scope(&mut self, name: &str) -> u64 {
-        let new_scope_node_id = self.create_or_get_scope_id(name);
-        self.current_scope_id = new_scope_node_id;
-        new_scope_node_id
-    }
-
-    pub fn create_or_get_scope_id(&mut self, name: &str) -> u64 {
-        self.sym_tree.create_or_get_scope_for_parent(name,self.current_scope_id)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 impl SymbolQuery for SymbolTree {
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
         let node = self.get_node_from_id(id.scope_id)?;
@@ -286,7 +221,7 @@ impl SymbolQuery for SymbolTree {
 //////////////////////////////////////////////////////////////////////////////// 
 // Private implementation funcs
 impl SymbolTree {
-    fn create_or_get_scope_for_parent(&mut self, name: &str, id: u64) -> u64 {
+    pub fn create_or_get_scope_for_parent(&mut self, name: &str, id: u64) -> u64 {
         let node = self.get_node_from_id(id).expect("Invalid scope");
 
         for c in node.children() {
@@ -298,7 +233,7 @@ impl SymbolTree {
         self.insert_new_table(name, id, SymbolResolutionBarrier::default())
     }
 
-    fn get_node_mut_from_id(&mut self, scope_id: u64) -> Result<SymbolNodeMut, SymbolError> {
+    pub fn get_node_mut_from_id(&mut self, scope_id: u64) -> Result<SymbolNodeMut, SymbolError> {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         self.tree.get_mut(node_id).ok_or(SymbolError::InvalidScope)
     }
@@ -316,14 +251,14 @@ impl SymbolTree {
             .ok_or(SymbolError::InvalidScope)
     }
 
-    fn get_node_id_from_scope_id(&self, scope_id: u64) -> Result<SymbolNodeId, SymbolError> {
+    pub fn get_node_id_from_scope_id(&self, scope_id: u64) -> Result<SymbolNodeId, SymbolError> {
         self.scope_id_to_node_id
             .get(&scope_id)
             .cloned()
             .ok_or(SymbolError::InvalidScope)
     }
 
-    fn get_node_from_id(&self, scope_id: u64) -> Result<SymbolNodeRef, SymbolError> {
+    pub fn get_node_from_id(&self, scope_id: u64) -> Result<SymbolNodeRef, SymbolError> {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         self.tree.get(node_id).ok_or(SymbolError::InvalidScope)
     }
