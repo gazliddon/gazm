@@ -232,7 +232,7 @@ impl SymbolTree {
                 return id;
             }
         }
-        self.insert_new_table(name, id)
+        self.insert_new_table(name, id, SymbolResolutionBarrier::default())
     }
 
     fn get_node_mut_from_id(&mut self, scope_id: u64) -> Result<SymbolNodeMut, SymbolError> {
@@ -265,8 +265,8 @@ impl SymbolTree {
         self.tree.get(node_id).ok_or(SymbolError::InvalidScope)
     }
 
-    fn insert_new_table(&mut self, name: &str, parent_id: u64) -> u64 {
-        let tab = self.create_new_table(name, parent_id);
+    fn insert_new_table(&mut self, name: &str, parent_id: u64, barrier: SymbolResolutionBarrier) -> u64 {
+        let tab = self.create_new_table(name, parent_id, barrier);
         let tab_id = tab.get_scope_id();
         let parent_id = self.scope_id_to_node_id.get(&parent_id).unwrap();
         let mut parent_mut = self.tree.get_mut(*parent_id).unwrap();
@@ -275,11 +275,11 @@ impl SymbolTree {
         n.value().get_scope_id()
     }
 
-    fn create_new_table(&mut self, name: &str, parent_id: u64) -> SymbolTable {
+    fn create_new_table(&mut self, name: &str, parent_id: u64, barrier: SymbolResolutionBarrier) -> SymbolTable {
         let parent_fqn = self.get_fqn_from_id(parent_id);
         let fqn = format!("{parent_fqn}::{name}");
         let scope_id = self.get_next_scope_id();
-        SymbolTable::new(name, &fqn, scope_id, super::SymbolResolutionBarrier::default())
+        SymbolTable::new(name, &fqn, scope_id, barrier)
     }
 
 }
@@ -293,8 +293,8 @@ impl SymbolTree {
         walk_syms(
             self.tree.root(),
             self.get_current_scope_fqn(),
-            &mut |name: &str, value: Option<i64>| {
-                hm.insert(name.to_string(), value);
+            &mut |si| {
+                hm.insert(si.name().to_string(), si.value);
             },
         );
 
@@ -328,7 +328,7 @@ impl SymbolTree {
             if let Some(new_id) = get_subscope(n, part) {
                 scope_id = new_id.value().get_scope_id();
             } else {
-                let new_scope_id = self.insert_new_table(part, n_id);
+                let new_scope_id = self.insert_new_table(part, n_id, SymbolResolutionBarrier::default());
                 scope_id = new_scope_id
             }
         }
@@ -338,16 +338,12 @@ impl SymbolTree {
     }
 }
 
-
-
-
 pub fn walk_syms<F>(node: SymbolNodeRef, scope: String, f: &mut F)
 where
-    F: FnMut(&str, Option<i64>),
+    F: FnMut(&SymbolInfo),
 {
     for info in node.value().get_symbols() {
-        let fqn = format!("{scope}::{}", info.name());
-        f(&fqn, info.value)
+        f(info)
     }
 
     for n in node.children() {
@@ -357,7 +353,7 @@ where
 }
 
 pub fn print_syms(node: SymbolNodeRef, scope: String) {
-    walk_syms(node, scope, &mut |name, val| println!("{name} = {val:?}"))
+    walk_syms(node, scope, &mut |sym| println!("{} = {:?}", sym.scoped_name(), sym.value))
 }
 
 pub fn display_tree(
