@@ -231,6 +231,15 @@ impl SymbolQuery for SymbolTree {
 ////////////////////////////////////////////////////////////////////////////////
 // Private implementation funcs
 impl SymbolTree {
+    pub fn set_symbol_from_id(
+        &mut self,
+        symbol_id: SymbolScopeId,
+        val: i64,
+    ) -> Result<(), SymbolError> {
+        let mut x = self.get_node_mut_from_id(symbol_id.scope_id)?;
+        x.value().set_symbol(symbol_id, val)
+    }
+
     pub fn create_or_get_scope_for_parent(&mut self, name: &str, id: u64) -> u64 {
         let node = self.get_node_from_id(id).expect("Invalid scope");
 
@@ -408,33 +417,28 @@ impl std::fmt::Display for SymbolTree {
 }
 
 impl SymbolWriter for SymbolTree {
-    fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
-        let mut nav = self.get_symbol_nav(self.current_scope_id);
-        nav.set_symbol(symbol_id, val)
-    }
-
     fn add_symbol_with_value(
         &mut self,
         name: &str,
         value: i64,
     ) -> Result<SymbolScopeId, SymbolError> {
-        let mut nav = self.get_symbol_nav(self.current_scope_id);
-        nav.add_symbol_with_value(name, value)
+        self.get_symbol_nav(self.current_scope_id)
+            .add_symbol_with_value(name, value)
     }
 
     fn remove_symbol_name(&mut self, name: &str) {
-        let mut nav = self.get_symbol_nav(self.current_scope_id);
-        nav.remove_symbol_name(name)
+        self.get_symbol_nav(self.current_scope_id)
+        .remove_symbol_name(name)
     }
 
     fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
-        let mut nav = self.get_symbol_nav(self.current_scope_id);
-        nav.add_symbol(name)
+        self.get_symbol_nav(self.current_scope_id)
+        .add_symbol(name)
     }
 
     fn add_reference_symbol(&mut self, name: &str, val: i64) {
-        let mut nav = self.get_symbol_nav(self.current_scope_id);
-        nav.add_reference_symbol(name, val)
+        self.get_symbol_nav(self.current_scope_id)
+        .add_reference_symbol(name, val)
     }
 }
 

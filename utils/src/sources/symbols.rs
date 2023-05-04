@@ -44,7 +44,7 @@ pub trait SymbolWriter {
     fn remove_symbol_name(&mut self, name: &str);
     fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError>;
     fn add_reference_symbol(&mut self, name: &str, val: i64);
-    fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError>;
+    // fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError>;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -74,6 +74,7 @@ impl<'a> SymbolNav<'a> {
         self.sym_tree
             .create_or_get_scope_for_parent(name, self.current_scope_id)
     }
+
 }
 
 impl<'a> SymbolQuery for SymbolNav<'a> {
@@ -90,10 +91,9 @@ impl<'a> SymbolQuery for SymbolNav<'a> {
 }
 
 impl<'a> SymbolWriter for SymbolNav<'a> {
-    fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
-        let mut x = self.sym_tree.get_node_mut_from_id(symbol_id.scope_id)?;
-        x.value().set_symbol(symbol_id, val)
-    }
+    // fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
+    //     self.sym_tree.set_symbol_from_id(symbol_id, val)
+    // }
 
     fn add_symbol_with_value(
         &mut self,

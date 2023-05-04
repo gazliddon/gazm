@@ -108,10 +108,13 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
     let tree = Ast::from_nodes(ctx, tokens)?;
 
     let id = tree.root().id();
+    let root_id = ctx.get_symbols().get_root_id();
+
 
     let mut asm_ctx = AsmCtx {
         fixer_upper: FixerUpper::new(),
         ctx,
+        current_scope_id: root_id,
     };
 
     size_tree(&mut asm_ctx, id, &tree)?;

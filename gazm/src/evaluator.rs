@@ -63,7 +63,7 @@ impl Context {
                             // Success, add the symbol!
                             self.asm_out
                                 .symbols
-                                .set_symbol(*symbol_id, value)
+                                .set_symbol_from_id(*symbol_id, value)
                                 .expect("Unexpected failure to add macro param symbol");
                             args_evaled += 1;
                         }

@@ -283,10 +283,9 @@ pub enum SymbolResolutionBarrier {
 }
 
 impl SymbolResolutionBarrier {
-    pub fn can_pass_barrier(&self, i : SymbolResolutionBarrier) -> bool {
+    pub fn can_pass_barrier(&self, i: SymbolResolutionBarrier) -> bool {
         i >= *self
     }
-
 }
 
 /// Holds information about symbols
@@ -348,14 +347,6 @@ impl SymbolQuery for SymbolTable {
 }
 
 impl SymbolWriter for SymbolTable {
-    fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
-        if self.scope_id == symbol_id.scope_id {
-            self.set_value(symbol_id.symbol_id, val)
-        } else {
-            Err(SymbolError::NotFound)
-        }
-    }
-
     fn add_symbol_with_value(
         &mut self,
         name: &str,
@@ -402,6 +393,13 @@ impl SymbolWriter for SymbolTable {
 }
 
 impl SymbolTable {
+    pub fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
+        if self.scope_id == symbol_id.scope_id {
+            self.set_value(symbol_id.symbol_id, val)
+        } else {
+            Err(SymbolError::NotFound)
+        }
+    }
     pub fn get_symbol_resoultion_barrier(&self) -> SymbolResolutionBarrier {
         self.symbol_resolution_barrier
     }

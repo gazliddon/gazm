@@ -638,7 +638,7 @@ impl<'a> Ast<'a> {
                         match eval(symbols, expr) {
                             Ok(value) => {
                                 symbols
-                                    .set_symbol(label_id, value)
+                                    .set_symbol_from_id(label_id, value)
                                     .expect("Can't set symbols");
                             }
 

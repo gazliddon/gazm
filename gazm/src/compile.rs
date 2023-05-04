@@ -356,7 +356,7 @@ impl<'a> Compiler<'a> {
 
         match i {
             ScopeId(scope_id) => {
-                ctx.set_scope_from_id(scope_id).unwrap();
+                ctx.set_current_scope_id(scope_id).unwrap();
             }
 
             GrabMem => self.grab_mem(ctx, id)?,
@@ -408,13 +408,13 @@ impl<'a> Compiler<'a> {
                 }
 
                 let prev_scop = ctx.get_current_scope_id();
-                ctx.set_scope_from_id(scope_id).unwrap();
+                ctx.set_current_scope_id(scope_id).unwrap();
 
                 for c_node in m_node.children() {
                     self.compile_node(ctx, c_node.id())?;
                 }
 
-                ctx.set_scope_from_id(prev_scop).unwrap();
+                ctx.set_current_scope_id(prev_scop).unwrap();
             }
 
             TokenizedFile(..) => {
