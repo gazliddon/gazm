@@ -79,12 +79,7 @@ fn get_subscope<'a>(n: SymbolNodeRef<'a>, name: &str) -> Option<SymbolNodeRef<'a
 /// All rely on current scope
 impl SymbolTree {
     pub fn pop_scope(&mut self) {
-        let id = self
-            .get_node_id_from_scope_id(self.current_scope_id)
-            .unwrap();
-
-        let n = self.tree.get(id).unwrap();
-
+        let n = self.get_node_from_id(self.current_scope_id).expect("Invalid id");
         if let Some(n) = n.parent() {
             self.current_scope_id = n.value().get_scope_id()
         }
@@ -206,8 +201,76 @@ impl SymbolTree {
 
         Err(SymbolError::NotFound)
     }
+
+    pub fn get_symbol_nav(&mut self, scope_id: u64) -> SymbolNav {
+        SymbolNav::new(self, scope_id)
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
+pub struct SymbolNav<'a> {
+    current_scope_id: u64,
+    sym_tree: &'a mut SymbolTree
 }
 
+impl<'a> SymbolNav<'a> {
+    pub fn new(sym_tree: &'a mut SymbolTree, current_scope_id: u64, ) -> Self {
+        let _ = sym_tree.get_node_id_from_scope_id(current_scope_id).expect("Invalid ID");
+        Self {
+            current_scope_id, sym_tree
+        }
+    }
+
+    pub fn get_tree(&self) -> &SymbolTree {
+        &self.sym_tree
+    }
+    pub fn pop_scope(&mut self) {
+        let n = self.sym_tree.get_node_from_id(self.current_scope_id).expect("Invalid id");
+        if let Some(n) = n.parent() {
+            self.current_scope_id = n.value().get_scope_id()
+        }
+    }
+
+    pub fn set_root(&mut self) {
+        self.current_scope_id = self.sym_tree.tree.root().value().get_scope_id()
+    }
+
+    pub fn get_current_scope(&self) -> u64 {
+        self.current_scope_id
+    }
+
+    pub fn get_current_scope_symbols(&self) -> &SymbolTable {
+        self.sym_tree.get_symbols_from_id(self.current_scope_id)
+            .unwrap()
+    }
+
+    pub fn get_current_scope_fqn(&self) -> String {
+        self.sym_tree.get_fqn_from_id(self.current_scope_id)
+    }
+
+    pub fn set_current_scope_from_id(&mut self, id: u64) -> Result<(), SymbolError> {
+        self.sym_tree.get_node_mut_from_id(id)?;
+        self.current_scope_id = id;
+        Ok(())
+    }
+
+    pub fn get_current_scope_id(&self) -> u64 {
+        self.current_scope_id
+    }
+
+    // enters the child scope below the current_scope
+    // If it doesn't exist then create it
+    pub fn set_current_scope(&mut self, name: &str) -> u64 {
+        let new_scope_node_id = self.create_or_get_scope_id(name);
+        self.current_scope_id = new_scope_node_id;
+        new_scope_node_id
+    }
+
+    pub fn create_or_get_scope_id(&mut self, name: &str) -> u64 {
+        self.sym_tree.create_or_get_scope_for_parent(name,self.current_scope_id)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 impl SymbolQuery for SymbolTree {
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
         let node = self.get_node_from_id(id.scope_id)?;
@@ -409,7 +472,7 @@ impl SymbolWriter for SymbolTree {
     fn remove_symbol_name(&mut self, name: &str) {
         let mut node = self
             .get_node_mut_from_id(self.current_scope_id)
-            .unwrap();
+            .expect("invalide node");
         node.value().remove_symbol_name(name)
     }
 
