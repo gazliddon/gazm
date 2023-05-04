@@ -215,18 +215,48 @@ impl SymbolTree {
     pub fn get_symbol_nav(&mut self, scope_id: u64) -> SymbolNav {
         SymbolNav::new(self, scope_id)
     }
+
+    pub fn get_symbol_reader(&self, scope_id: u64) -> SymbolTreeReader {
+        SymbolTreeReader::new( self , scope_id)
+    }
 }
-impl SymbolQuery for SymbolTree {
-    fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-        let node = self.get_node_from_id(id.scope_id)?;
-        node.value().get_symbol_info_from_id(id)
+
+pub struct SymbolTreeReader<'a> {
+    current_scope: u64,
+    syms: &'a SymbolTree
+}
+
+impl<'a> SymbolTreeReader<'a> {
+    pub fn new(syms: &'a SymbolTree, current_scope: u64) -> Self {
+        Self {
+            syms, current_scope
+        }
+    }
+}
+
+impl<'a> SymbolQuery for SymbolTreeReader<'a> {
+    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
+        let scope = self.syms.get_current_scope_id();
+        self.syms.resolve_label(name, scope, SymbolResolutionBarrier::default())
     }
 
-    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-        let scope = self.get_current_scope_id();
-        self.resolve_label(name, scope, SymbolResolutionBarrier::default())
+    fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
+        let node = self.syms.get_node_from_id(id.scope_id)?;
+        node.value().get_symbol_info_from_id(id)
     }
 }
+
+// impl SymbolQuery for SymbolTree {
+//     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
+//         let node = self.get_node_from_id(id.scope_id)?;
+//         node.value().get_symbol_info_from_id(id)
+//     }
+
+//     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
+//         let scope = self.get_current_scope_id();
+//         self.resolve_label(name, scope, SymbolResolutionBarrier::default())
+//     }
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Private implementation funcs

@@ -142,6 +142,8 @@ impl<'a> Ast<'a> {
     }
 
     pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
+        let root_id = ctx.asm_out.symbols.get_root_id();
+
         let mut ret = Self {
             tree,
             ctx,
@@ -153,7 +155,7 @@ impl<'a> Ast<'a> {
         ret.postfix_expressions()?;
         ret.rename_locals();
         ret.process_macros()?;
-        ret.generate_struct_symbols()?;
+        ret.generate_struct_symbols(root_id)?;
         ret.scope_assignments()?;
         ret.scope_labels()?;
         ret.evaluate_assignments()?;
@@ -427,14 +429,15 @@ impl<'a> Ast<'a> {
         UserError::from_text(msg, si, is_failure)
     }
 
-    fn eval_node(&self, id: AstNodeId) -> Result<i64, UserError> {
+    fn eval_node(&self, id: AstNodeId, current_scope_id: u64) -> Result<i64, UserError> {
         use super::eval::eval;
         let node = self.tree.get(id).unwrap();
         let item = &node.value().item;
         let err = |m| self.node_error(m, id, true);
 
         if let Item::PostFixExpr = item {
-            eval(&self.ctx.asm_out.symbols, node).map_err(|e| self.convert_error(e.into()))
+            let reader = self.ctx.asm_out.symbols.get_symbol_reader(current_scope_id);
+            eval(&reader, node).map_err(|e| self.convert_error(e.into()))
         } else {
             Err(err(&format!(
                 "Incorrect item type for evalulation : {item:?}"
@@ -442,14 +445,14 @@ impl<'a> Ast<'a> {
         }
     }
 
-    fn eval_node_child(&self, id: AstNodeId) -> Result<i64, UserError> {
+    fn eval_node_child(&self, id: AstNodeId, current_scope_id: u64) -> Result<i64, UserError> {
         let err = |m| self.node_error(m, id, true);
         let node = self.tree.get(id).unwrap();
         let first_child = node
             .first_child()
             .ok_or_else(|| err("Can't find a child node"))?;
 
-        self.eval_node(first_child.id())
+        self.eval_node(first_child.id(),current_scope_id)
     }
 
     // pub fn set_symbol(
@@ -484,7 +487,7 @@ impl<'a> Ast<'a> {
             })
     }
 
-    fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
+    fn generate_struct_symbols(&mut self, current_scope_id: u64) -> Result<(), UserError> {
         info("Generating symbols for struct definitions", |x| {
             use Item::*;
 
@@ -504,7 +507,7 @@ impl<'a> Ast<'a> {
                         let i = &self.tree.get(c_id).unwrap().value().item;
 
                         if let StructEntry(entry_name) = i {
-                            let value = self.eval_node_child(c_id)?;
+                            let value = self.eval_node_child(c_id,current_scope_id)?;
                             let scoped_name = format!("{name}.{entry_name}");
                             self.add_symbol(current, &scoped_name, c_id)?;
                             x.debug(format!("Struct: Set {scoped_name} to {current}"));
@@ -562,7 +565,9 @@ impl<'a> Ast<'a> {
 
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
-                    let id = symbols
+                    let id = symbols.get_current_scope_id();
+                    let reader = symbols.get_symbol_reader(id);
+                    let id = reader
                         .get_symbol_info(name)
                         .expect("Internal error getting symbol info")
                         .symbol_id;
@@ -634,8 +639,10 @@ impl<'a> Ast<'a> {
                         let label_id = *label_id;
                         let tree = &mut self.tree;
                         let expr = tree.get(id).unwrap().first_child().unwrap();
+                        let current_scope_id = symbols.get_current_scope_id();
+                        let reader = symbols.get_symbol_reader(current_scope_id);
 
-                        match eval(symbols, expr) {
+                        match eval(&reader, expr) {
                             Ok(value) => {
                                 symbols
                                     .set_symbol_from_id(label_id, value)

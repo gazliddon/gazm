@@ -1,4 +1,5 @@
 use emu::utils;
+use tokio::runtime::TryCurrentError;
 use utils::eval;
 
 use crate::ast::{AstNodeId, AstNodeRef};
@@ -7,7 +8,7 @@ use eval::GetPriority;
 
 use std::fmt::Display;
 
-use crate::error::AstError;
+use crate::error::{AstError, UserError};
 use utils::sources::{Position, SymbolQuery};
 use utils::Stack;
 use crate::item6809::MC6809 ;

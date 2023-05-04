@@ -70,6 +70,7 @@ impl<'a> Compiler<'a> {
         id: AstNodeId,
         imode: IndexParseType,
         indirect: bool,
+        current_scope_id: u64,
     ) -> GResult<()> {
         use item6809::IndexParseType::*;
 
@@ -87,7 +88,7 @@ impl<'a> Compiler<'a> {
             }
 
             ExtendedIndirect => {
-                let (val, _) = ctx.ctx.eval_first_arg(node)?;
+                let (val, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 ctx.binary_mut().write_uword_check_size(val)?;
             }
 
@@ -122,9 +123,9 @@ impl<'a> Compiler<'a> {
     }
 
     /// Grab memory and copy it the PC
-    fn grab_mem(&self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+    fn grab_mem(&self, ctx: &mut AsmCtx, id: AstNodeId, current_scope_id: u64) -> GResult<()> {
         let (n, _) = self.get_node_item(ctx, id);
-        let args = ctx.ctx.eval_n_args(n, 2)?;
+        let args = ctx.ctx.eval_n_args(n, 2, current_scope_id)?;
         let source = args[0];
         let size = args[1];
 
@@ -147,9 +148,10 @@ impl<'a> Compiler<'a> {
         ctx: &mut AsmCtx,
         id: AstNodeId,
         path: P,
+        current_scope_id: u64
     ) -> GResult<()> {
         let (node, _) = self.get_node_item(ctx, id);
-        let (physical_address, count) = ctx.ctx.eval_two_args(node)?;
+        let (physical_address, count) = ctx.ctx.eval_two_args(node, current_scope_id)?;
 
         ctx.add_bin_to_write(
             &path,
@@ -188,12 +190,13 @@ impl<'a> Compiler<'a> {
     }
 
     /// Compile an opcode
-    fn opcode(
+    fn compile_opcode(
         &self,
         ctx: &mut AsmCtx,
         id: AstNodeId,
         ins: &Instruction,
         amode: &AddrModeParseType,
+        current_scope_id: u64,
     ) -> GResult<()> {
         use emu::isa::AddrModeEnum::*;
 
@@ -213,28 +216,28 @@ impl<'a> Compiler<'a> {
         match ins_amode {
             Indexed => {
                 if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                    self.compile_indexed(ctx, id, *imode, *indirect)?;
+                    self.compile_indexed(ctx, id, *imode, *indirect, current_scope_id)?;
                 }
             }
 
             Immediate8 => {
-                let (arg, _) = ctx.ctx.eval_first_arg(node)?;
+                let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 ctx.binary_mut().write_byte_check_size(arg)?;
             }
 
             Direct => {
-                let (arg, _) = ctx.ctx.eval_first_arg(node)?;
+                let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 ctx.binary_mut().write_byte_check_size(arg & 0xff)?;
             }
 
             Extended | Immediate16 => {
-                let (arg, _) = ctx.ctx.eval_first_arg(node)?;
+                let (arg, _) = ctx.ctx.eval_first_arg(node,current_scope_id)?;
                 ctx.binary_mut().write_word_check_size(arg)?;
             }
 
             Relative => {
                 use crate::binary::BinaryError::*;
-                let (arg, arg_id) = ctx.ctx.eval_first_arg(node)?;
+                let (arg, arg_id) = ctx.ctx.eval_first_arg(node,current_scope_id)?;
                 let (arg_n, _) = self.get_node_item(ctx, arg_id);
                 let val = arg - (pc as i64 + ins.size as i64);
                 // offset is from PC after Instruction and operand has been fetched
@@ -265,7 +268,7 @@ impl<'a> Compiler<'a> {
             Relative16 => {
                 use crate::binary::BinaryError::*;
 
-                let (arg, arg_id) = ctx.ctx.eval_first_arg(node)?;
+                let (arg, arg_id) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 let (arg_n, _) = self.get_node_item(ctx, arg_id);
 
                 let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
@@ -354,14 +357,16 @@ impl<'a> Compiler<'a> {
 
         let mut do_source_mapping = ctx.ctx.opts.lst_file.is_some();
 
+        let current_scope_id = ctx.get_current_scope_id();
+
         match i {
             ScopeId(scope_id) => {
                 ctx.set_current_scope_id(scope_id).unwrap();
             }
 
-            GrabMem => self.grab_mem(ctx, id)?,
+            GrabMem => self.grab_mem(ctx, id, current_scope_id)?,
 
-            WriteBin(file_name) => self.add_binary_to_write(ctx, id, &file_name)?,
+            WriteBin(file_name) => self.add_binary_to_write(ctx, id, &file_name, current_scope_id)?,
 
             IncBinRef(file_name) => {
                 self.inc_bin_ref(ctx, &file_name)?;
@@ -387,7 +392,7 @@ impl<'a> Compiler<'a> {
             }
 
             Cpu( OpCode(_, ins, amode) ) => {
-                self.opcode(ctx, id, &ins, &amode)?;
+                self.compile_opcode(ctx, id, &ins, &amode, current_scope_id)?;
             }
 
             MacroCallProcessed {
@@ -422,8 +427,9 @@ impl<'a> Compiler<'a> {
             }
 
             Fdb(..) => {
+
                 for n in node.children() {
-                    let x = ctx.ctx.eval_node(n)?;
+                    let x = ctx.ctx.eval_node(n, current_scope_id)?;
                     ctx.binary_mut().write_word_check_size(x)?;
                 }
 
@@ -433,7 +439,7 @@ impl<'a> Compiler<'a> {
 
             Fcb(..) => {
                 for n in node.children() {
-                    let x = ctx.ctx.eval_node(n)?;
+                    let x = ctx.ctx.eval_node(n, current_scope_id)?;
                     ctx.binary_mut().write_byte_check_size(x)?;
                 }
                 let (phys_range, range) = ctx.binary().range_to_write_address(pc);
@@ -449,7 +455,7 @@ impl<'a> Compiler<'a> {
             }
 
             Zmb => {
-                let (bytes, _) = ctx.ctx.eval_first_arg(node)?;
+                let (bytes, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..bytes {
                     ctx.binary_mut().write_byte(0)?;
                 }
@@ -458,7 +464,7 @@ impl<'a> Compiler<'a> {
             }
 
             Zmd => {
-                let (words, _) = ctx.ctx.eval_first_arg(node)?;
+                let (words, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..words {
                     ctx.binary_mut().write_word(0)?;
                 }
@@ -468,7 +474,7 @@ impl<'a> Compiler<'a> {
             }
 
             Fill => {
-                let (byte, size) = ctx.ctx.eval_two_args(node)?;
+                let (byte, size) = ctx.ctx.eval_two_args(node, current_scope_id)?;
 
                 for _ in 0..size {
                     ctx.binary_mut().write_ubyte_check_size(byte)?;
@@ -479,7 +485,7 @@ impl<'a> Compiler<'a> {
             }
 
             Exec => {
-                let (exec_addr, _) = ctx.ctx.eval_first_arg(node)?;
+                let (exec_addr, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 ctx.set_exec_addr(exec_addr as usize);
             }
 
