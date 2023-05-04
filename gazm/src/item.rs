@@ -11,14 +11,13 @@ use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
 use emu::utils::sources::Position;
 
-use crate::item6809::{self, Item6809 };
+use crate::item6809::{self, MC6809::{self,OpCode, SetDp}};
 
 use emu::utils::sources::SymbolScopeId;
 
 impl<'a> CtxTrait for Span<'a> {}
 
 pub type Node = BaseNode<Item, Position>;
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum StructMemberType {
@@ -91,17 +90,9 @@ impl std::fmt::Display for LabelDefinition {
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
-    // TODO This will be a passed parameter
-    Item6809(Item6809),
-   
-    // And all of these will be in the above Item
-    SetDp6809,
-    OpCode6809(String, Box<Instruction>, item6809::AddrModeParseType),
-    Operand6809(item6809::AddrModeParseType),
-    OperandIndexed6809(item6809::IndexParseType, bool),
-    Pc6809,
-    RegisterSet6809(HashSet<RegEnum>),
+    Cpu(MC6809),
 
+    Pc,
 
     BlankLine,
     Skip(usize),
@@ -139,7 +130,6 @@ pub enum Item {
 
     Comment(String),
     Number(i64, ParsedFrom),
-
 
     Include(PathBuf),
     Require(PathBuf),
@@ -180,10 +170,6 @@ pub enum Item {
 }
 
 impl Item {
-    pub fn operand_from_index_mode(imode: item6809::IndexParseType, indirect: bool) -> Self {
-        Self::OperandIndexed6809(imode, indirect)
-    }
-
     pub fn from_number(n: i64, p: ParsedFrom) -> Self {
         Item::Number(n, p)
     }
@@ -222,8 +208,8 @@ impl BaseNode<Item, Position> {
         Self::new(item, p)
     }
 
-    pub fn from_item_span(item: Item, sp: Span) -> Self {
-        Self::new(item, span_to_pos(sp))
+    pub fn from_item_span<I: Into<Item>>(item: I, sp: Span) -> Self {
+        Self::new(item.into(), span_to_pos(sp))
     }
 
     pub fn from_number(n: i64, _p: ParsedFrom, sp: Span) -> Self {
@@ -255,7 +241,7 @@ impl Display for BaseNode<Item, Position> {
                 format!("{name} equ *")
             }
 
-            Pc6809 => "*".to_string(),
+            Pc => "*".to_string(),
 
             Label(LabelDefinition::Text(name)) | LocalLabel(LabelDefinition::Text(name)) => {
                 name.clone()
@@ -297,17 +283,17 @@ impl Display for BaseNode<Item, Position> {
                 format!("({})", join_children(""))
             }
 
-            OpCode6809(txt,_ins, addr_type) => {
-                format!("{txt} {addr_type:?}")
-            }
-
             TokenizedFile(file, _) => {
                 let header = format!("; included file {}", file.to_string_lossy());
                 let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 format!("{}\n{}", header, children.join("\n"))
             }
 
-            SetDp6809 => {
+            Cpu(OpCode(txt, _ins, addr_type)) => {
+                format!("{txt} {addr_type:?}")
+            }
+
+            Cpu(SetDp) => {
                 let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 children.join("\n")
             }

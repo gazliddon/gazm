@@ -8,7 +8,8 @@ pub trait Messageize {
     fn info(self) -> ColoredString;
     fn success(self) -> ColoredString;
 }
-#[derive(Default,Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize)]
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd, Deserialize)]
 pub enum Verbosity {
     #[default]
     Silent = 0,
@@ -17,7 +18,6 @@ pub enum Verbosity {
     Interesting = 3,
     Debug = 4,
 }
-
 
 impl<'a> Messageize for &'a str {
     fn error(self) -> ColoredString {
@@ -266,3 +266,4 @@ macro_rules! debug_mess {
 
 pub(crate) use debug_mess;
 pub(crate) use status_mess;
+pub(crate) use info_mess;

@@ -1,5 +1,4 @@
 # Nice
-
 * https://github.com/lukaslueg/built/tree/master/example_project
 * https://github.com/windwp/nvim-autopairs
 
@@ -31,10 +30,6 @@
 * Make this generic in some way?
     * We only want certain nodes mapped?
 
-# AST Navigation
-```rust
-    let x = 10;
-```
 ## Require
 - [ ] Change scope syntax to be in a block?
 

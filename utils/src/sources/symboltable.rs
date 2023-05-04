@@ -274,8 +274,15 @@ mod new {
 ////////////////////////////////////////////////////////////////////////////////
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+enum LabelResolutionBarrier {
+    #[default]
+    None,
+    Module,
+}
+
 /// Holds information about symbols
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
 pub struct SymbolTable {
     scope: String,
     fqn_scope: String,
@@ -284,6 +291,7 @@ pub struct SymbolTable {
     ref_name_to_value: HashMap<String, i64>,
     highest_id: u64,
     scope_id: u64,
+    label_resolution_barrier: LabelResolutionBarrier,
 }
 
 pub enum SymbolKind {
@@ -333,7 +341,6 @@ impl SymbolQuery for SymbolTable {
 }
 
 impl SymbolWriter for SymbolTable {
-
     fn set_symbol(&mut self, symbol_id : SymbolScopeId, val : i64) -> Result<(), SymbolError> {
         if self.scope_id == symbol_id.scope_id {
             self.set_value(symbol_id.symbol_id, val)
@@ -350,15 +357,6 @@ impl SymbolWriter for SymbolTable {
         let nstr: String = name.into();
         let id = self.add_symbol(&nstr)?;
         self.set_value(id.symbol_id, value)?;
-
-        if let Some(expected) = self.ref_name_to_value.get(&nstr) {
-            if *expected != value {
-                return Err(SymbolError::Mismatch {
-                    expected: *expected,
-                });
-            }
-        }
-
         Ok(id)
     }
 
@@ -407,12 +405,10 @@ impl SymbolTable {
     pub fn new_with_scope(name: &str, fqn_scope: &str, scope_id : u64) -> Self {
         Self {
             scope: name.to_string(),
-            info: Default::default(),
-            name_to_id: Default::default(),
-            ref_name_to_value: Default::default(),
             highest_id: 1,
             fqn_scope: fqn_scope.to_string(),
-            scope_id
+            scope_id,
+            ..Default::default()
         }
     }
 

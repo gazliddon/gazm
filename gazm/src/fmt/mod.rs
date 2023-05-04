@@ -2,6 +2,7 @@ use crate::ctx::Opts;
 use crate::error::GResult;
 use crate::item::Node;
 use crate::item::{Item, LabelDefinition};
+use crate::item6809::MC6809::{self,OpCode};
 
 use itertools::Itertools;
 
@@ -93,7 +94,7 @@ pub fn render_nodes(nodes: &[Node], text: String) -> String {
                     columns[1] = format!("\"{}\"", file.to_string_lossy())
                 }
 
-                OpCode6809(txt,_ins, _addr_mode) => {
+                Cpu( OpCode(txt,_ins, _addr_mode)  )=> {
                     let arg = get_operand(n, &text);
                     // let original_txt = text[n.ctx.range.clone()].to_string().replace('\t', " ");
                     columns[1] = txt.to_owned().to_lowercase();

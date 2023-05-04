@@ -10,6 +10,7 @@ use std::fmt::Display;
 use crate::error::AstError;
 use utils::sources::{Position, SymbolQuery};
 use utils::Stack;
+use crate::item6809::MC6809 ;
 
 use thiserror::Error;
 
@@ -111,7 +112,7 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
             .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
 
-        Pc6809 => symbols
+        Pc => symbols
             .get_value("*")
             .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,

@@ -3,13 +3,21 @@ use crate::{
     ast::{AstNodeId, AstNodeRef, AstTree},
     error::GResult,
     item::{self, Item, LabelDefinition},
-    item6809::AddrModeParseType,
     parse::util::{ByteSize, ByteSizes},
+};
+
+use crate::{
+    item6809::{
+        AddrModeParseType,
+        MC6809::{self, OpCode, SetDp},
+    },
     parse6809::opcodes::get_opcode_info,
 };
 
-use emu::utils::sources::{ SymbolWriter,SymbolScopeId } ;
-use emu::isa::AddrModeEnum;
+use emu::{
+    isa::AddrModeEnum,
+    utils::sources::{SymbolScopeId, SymbolWriter},
+};
 
 use std::path::Path;
 
@@ -28,7 +36,9 @@ pub fn size_tree(ctx: &mut AsmCtx, id: AstNodeId, tree: &AstTree) -> GResult<()>
     let sizer = Sizer::new(tree);
     ctx.set_root_scope();
 
-    let pc_id = ctx.ctx.get_symbols_mut()
+    let pc_id = ctx
+        .ctx
+        .get_symbols_mut()
         .add_symbol_with_value("*", 0)
         .expect("Can't add symbol for pc");
 
@@ -49,7 +59,7 @@ impl<'a> Sizer<'a> {
 
         let (node, i) = self.get_node_item(ctx_mut, id);
 
-        if let OpCode6809(text,ins, AddrModeParseType::Indexed(pmode, indirect)) = i {
+        if let Cpu(OpCode(text, ins, AddrModeParseType::Indexed(pmode, indirect))) = i {
             use crate::item6809::IndexParseType::*;
             pc += ins.size;
 
@@ -89,7 +99,8 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode6809(text,ins, AddrModeParseType::Indexed(new_amode, indirect));
+                    let new_item =
+                        OpCode(text, ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item);
                 }
@@ -107,8 +118,8 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode6809(text,ins, AddrModeParseType::Indexed(new_amode, indirect));
-
+                    let new_item =
+                        OpCode(text, ins, AddrModeParseType::Indexed(new_amode, indirect));
                     ctx_mut.add_fixup(id, new_item);
                 }
 
@@ -189,8 +200,7 @@ impl<'a> Sizer<'a> {
                 pc += bytes as usize;
             }
 
-            OpCode6809(text,ins, amode) => {
-
+            Cpu(OpCode(text, ins, amode)) => {
                 match amode {
                     AddrModeParseType::Extended(false) => {
                         // If there is a direct page set AND
@@ -213,7 +223,11 @@ impl<'a> Sizer<'a> {
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
-                                    let new_item = OpCode6809(text.clone(),Box::new(new_ins), AddrModeParseType::Direct);
+                                    let new_item = Cpu(OpCode(
+                                        text.clone(),
+                                        Box::new(new_ins),
+                                        AddrModeParseType::Direct,
+                                    ));
                                     ctx.add_fixup(id, new_item);
                                 }
                             }
@@ -236,9 +250,9 @@ impl<'a> Sizer<'a> {
                 // TODO: should two types of item rather than this
                 // conditional
                 let pcv = if node.first_child().is_some() {
-                    ctx.set_symbol_value(pc_symbol_id, pc).expect("Can't set PC symbol value");
+                    ctx.set_symbol_value(pc_symbol_id, pc)
+                        .expect("Can't set PC symbol value");
                     ctx.ctx.eval_first_arg(node)?.0
-
                 } else {
                     // Otherwise it's just the current PC
                     pc as i64
@@ -282,7 +296,7 @@ impl<'a> Sizer<'a> {
                 pc += c as usize;
             }
 
-            SetDp6809 => {
+            Cpu(SetDp) => {
                 let (dp, _) = ctx.ctx.eval_first_arg(node)?;
                 ctx.set_dp(dp);
             }

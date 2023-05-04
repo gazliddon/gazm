@@ -271,7 +271,7 @@ impl<'a> Ast<'a> {
                 let val = &macro_call_node.value();
                 match &val.item {
                     ScopeId(scope_id) => {
-                        syms.set_scope_from_id(*scope_id)
+                        syms.set_current_scope_from_id(*scope_id)
                             .expect("Can't set scope id");
                     }
 
@@ -534,7 +534,7 @@ impl<'a> Ast<'a> {
             if let Scope(scope) = &item {
                 let symbols = &mut self.ctx.asm_out.symbols;
                 symbols.set_root();
-                let id = symbols.set_scope(scope.as_str());
+                let id = symbols.set_current_scope(scope.as_str());
                 let mut x = self.tree.get_mut(node_id).unwrap();
                 x.value().item = ScopeId(id);
             }
@@ -556,7 +556,7 @@ impl<'a> Ast<'a> {
                 // Track scope correctly
                 ScopeId(scope_id) => {
                     symbols
-                        .set_scope_from_id(*scope_id)
+                        .set_current_scope_from_id(*scope_id)
                         .expect("Can't set scope");
                 }
 
@@ -591,7 +591,7 @@ impl<'a> Ast<'a> {
                 match &item {
                     ScopeId(scope_id) => {
                         symbols
-                            .set_scope_from_id(*scope_id)
+                            .set_current_scope_from_id(*scope_id)
                             .expect("Can't set scope");
                     }
 
@@ -626,7 +626,7 @@ impl<'a> Ast<'a> {
                 match &self.tree.get(id).unwrap().value().item {
                     ScopeId(scope_id) => {
                         symbols
-                            .set_scope_from_id(*scope_id)
+                            .set_current_scope_from_id(*scope_id)
                             .expect("Can't set scope");
                     }
 

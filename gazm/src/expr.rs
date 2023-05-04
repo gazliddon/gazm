@@ -5,6 +5,7 @@ use super::labels::parse_label;
 use crate::error::IResult;
 use crate::locate::{matched_span, Span, span_to_pos};
 use crate::parse::util;
+use crate::item6809::MC6809 ;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{char as nom_char, multispace0};
@@ -44,7 +45,7 @@ fn parse_bracketed_expr(input: Span) -> IResult<Node> {
 pub fn parse_pc(input: Span) -> IResult<Node> {
     let (rest, _matched) = nom_char('*')(input)?;
     let matched_span = matched_span(input, rest);
-    Ok((rest, Node::from_item_span(Item::Pc6809, matched_span)))
+    Ok((rest, Node::from_item_span(Item::Pc, matched_span)))
 }
 
 pub fn parse_non_unary_term(input: Span) -> IResult<Node> {

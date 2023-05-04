@@ -10,6 +10,7 @@ use crate::{
     labels::get_just_label,
     locate::{Span,matched_span, span_to_pos},
     parse::util::{self, match_escaped_str, match_file_name},
+    item6809::MC6809::SetDp ,
 };
 
 use nom::{
@@ -24,7 +25,7 @@ use nom::{
 use expr::parse_expr;
 
 
-fn parse_expr_arg(input: Span, item : Item) -> IResult<Node> { 
+fn parse_expr_arg<I: Into<Item>>(input: Span, item : I) -> IResult<Node> { 
     let (rest, matched) = parse_expr(input)?;
     let node = Node::from_item_span(item, input).with_child(matched);
     Ok((rest, node))
@@ -39,7 +40,7 @@ fn parse_exec_arg(input: Span) -> IResult<Node> {
 }
 
 fn parse_setdp_arg(input: Span) -> IResult<Node> {
-    parse_expr_arg(input, Item::SetDp6809)
+    parse_expr_arg(input, SetDp)
 }
 
 fn parse_rmb_arg(input: Span) -> IResult<Node> {

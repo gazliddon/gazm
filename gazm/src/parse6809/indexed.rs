@@ -7,6 +7,7 @@ use crate::{
     item::{Item, Node},
     locate::{matched_span, Span},
     parse::util::{wrapped_chars, ws},
+    item6809::MC6809::{self, OperandIndexed},
 };
 
 use nom::{
@@ -118,7 +119,7 @@ fn parse_offset(input: Span) -> IResult<Node> {
 
     let offset = IndexParseType::ConstantOffset(reg);
     let ctx = matched_span(input, rest);
-    let item = Item::operand_from_index_mode(offset, false);
+    let item = MC6809::operand_from_index_mode(offset, false);
 
     let matched = Node::from_item_span(item, ctx).with_child(expr);
     Ok((rest, matched))
@@ -130,7 +131,7 @@ fn parse_pc_offset(input: Span) -> IResult<Node> {
 
     let offset = IndexParseType::PCOffset;
     let ctx = matched_span(input, rest);
-    let item = Item::operand_from_index_mode(offset, false);
+    let item = MC6809::operand_from_index_mode(offset, false);
 
     let matched = Node::from_item_span(item, ctx).with_child(expr);
     Ok((rest, matched))
@@ -138,7 +139,7 @@ fn parse_pc_offset(input: Span) -> IResult<Node> {
 
 fn parse_extended_indirect(input: Span) -> IResult<Node> {
     let (rest, matched) = wrapped_chars('[', ws(parse_expr), ']')(input)?;
-    let item = Item::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
+    let item = MC6809::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
     let ctx = matched_span(input, rest);
     let matched = Node::from_item_span(item, ctx).with_child(matched);
     Ok((rest, matched))
@@ -147,7 +148,7 @@ fn parse_extended_indirect(input: Span) -> IResult<Node> {
 fn parse_no_arg_indexed(input: Span) -> IResult<Node> {
     let (rest, matched) = get_no_arg_indexed(input)?;
     let ctx = matched_span(input, rest);
-    let matched = Node::from_item_span(Item::OperandIndexed6809(matched, false), ctx);
+    let matched = Node::from_item_span(OperandIndexed(matched, false), ctx);
     Ok((rest, matched))
 }
 
@@ -166,7 +167,7 @@ fn parse_no_arg_indexed_allowed_indirect(input: Span) -> IResult<Node> {
             Err(parse_failure(err, ctx))
         }
         _ => {
-            let matched = Node::from_item_span(Item::OperandIndexed6809(matched, false), ctx);
+            let matched = Node::from_item_span(OperandIndexed(matched, false), ctx);
             Ok((rest, matched))
         }
     }
@@ -180,8 +181,8 @@ fn parse_indexed_indirect(input: Span) -> IResult<Node> {
     ));
     let (rest, mut matched) = wrapped_chars('[', ws(indexed_indirect), ']')(input)?;
 
-    if let Item::OperandIndexed6809(amode, _) = matched.item {
-        matched.item = Item::OperandIndexed6809(amode, true);
+    if let Item::Cpu( OperandIndexed(amode, _) ) = matched.item {
+        matched.item = OperandIndexed(amode, true).into();
     } else {
         panic!("Should not happen")
     };
@@ -272,7 +273,7 @@ mod test {
         ];
 
         for (indirect, input, desired) in to_try {
-            let desired = Item::operand_from_index_mode(desired, indirect);
+            let desired = I68::operand_from_index_mode(desired, indirect);
             // println!("Testing {} -> {:?}", input, desired);
             let res = parse_indexed(input.into());
             // println!("{:#?}", res);

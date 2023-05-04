@@ -36,7 +36,7 @@ impl Context {
             let old_scope = self.asm_out.symbols.get_current_scope_id();
             self.asm_out
                 .symbols
-                .set_scope_from_id(eval_scope_id)
+                .set_current_scope_from_id(eval_scope_id)
                 .unwrap();
 
             // println!("Evaling macro argos for {_name}");
@@ -77,7 +77,7 @@ impl Context {
             });
 
             // Pop the macro scope
-            self.asm_out.symbols.set_scope_from_id(old_scope).unwrap();
+            self.asm_out.symbols.set_current_scope_from_id(old_scope).unwrap();
             // Return if all args were evaluated or not
             num_of_args == args_evaled
         } else {

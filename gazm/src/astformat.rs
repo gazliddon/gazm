@@ -1,6 +1,6 @@
 use crate::ast::*;
 use crate::item::{self, Item, LabelDefinition};
-use crate::item6809;
+use crate::item6809::{self, MC6809::{self, OpCode} };
 
 impl<'a> std::fmt::Display for Ast<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -59,7 +59,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{name} equ *")
             }
 
-            Pc6809 => "*".to_string(),
+            Pc => "*".to_string(),
 
             Label(LabelDefinition::Text(name)) => name.clone(),
             LocalLabel(name) => format!("!{name}"),
@@ -113,7 +113,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             TokenizedFile(_, _) => join_kids("\n"),
 
-            OpCode6809(_,ins, item6809::AddrModeParseType::Inherent) => ins.action.clone(),
+            Cpu(OpCode(_,ins, item6809::AddrModeParseType::Inherent)) => ins.action.clone(),
 
             StructDef(name) => {
                 let body = join_kids(",\n");
@@ -133,7 +133,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("fcb {}", join_kids(","))
             }
 
-            OpCode6809(_,instruction, amode) => {
+            Cpu( OpCode(_,instruction, amode) ) => {
                 use crate::item6809::AddrModeParseType::*;
 
                 let ind = |s: String, indirect: &bool| -> String {

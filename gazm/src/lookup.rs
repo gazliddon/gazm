@@ -40,7 +40,7 @@ impl<'a> Navigator<'a> {
 
     fn get_scope(&self, scope_id: u64) -> Result<&SymbolTable, NavError> {
         self.syms
-            .get_scope_symbols_from_id(scope_id)
+            .get_symbols_from_id(scope_id)
             .map_err(NavError::SymbolError)
     }
 
@@ -138,6 +138,10 @@ impl LabelUsageAndDefintions {
             }
         }
         None
+    }
+
+    pub fn find_scope_at_pos(&self, _p : &Position) -> u64 {
+        panic!()
     }
 
     pub fn find_symbol_defined_at_pos(&self, p : &Position) -> Option<SymbolScopeId> { 

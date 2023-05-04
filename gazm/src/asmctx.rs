@@ -28,9 +28,9 @@ impl<'a> AsmCtx<'a> {
         &mut self.ctx.asm_out.binary
     }
 
-    pub fn add_fixup(&mut self, id: AstNodeId, v: Item) -> (u64, AstNodeId) {
+    pub fn add_fixup<I: Into<Item>>(&mut self, id: AstNodeId, v: I) -> (u64, AstNodeId) {
         let scope = self.ctx.get_symbols().get_current_scope();
-        self.fixer_upper.add_fixup(scope, id, v);
+        self.fixer_upper.add_fixup(scope, id, v.into());
         (scope, id)
     }
 
@@ -61,7 +61,7 @@ impl<'a> AsmCtx<'a> {
     // }
 
     pub fn set_scope_from_id(&mut self, scope_id: u64) -> Result<(), SymbolError> {
-        self.ctx.get_symbols_mut().set_scope_from_id(scope_id)
+        self.ctx.get_symbols_mut().set_current_scope_from_id(scope_id)
     }
 
     pub fn get_current_scope_id(&self) -> u64 {

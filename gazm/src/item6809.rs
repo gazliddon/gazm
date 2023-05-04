@@ -1,4 +1,5 @@
 
+use std::arch::aarch64::vld2_lane_p8;
 use std::fmt::Display;
 use std::{collections::HashSet, path::PathBuf};
 use thin_vec::ThinVec;
@@ -7,6 +8,7 @@ use crate::ast::AstNodeId;
 use crate::error::ParseError;
 use crate::locate::span_to_pos;
 use crate::locate::Span;
+use crate::item::Item;
 use crate::node::{BaseNode, CtxTrait};
 use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
@@ -213,13 +215,24 @@ impl AddrModeParseType {
     }
 }
 
+impl From<MC6809> for Item {
+    fn from(value: MC6809) -> Self {
+        Item::Cpu(value)
+    }
+}
+
 // TODO: Ultimately this contains all of the CPU dependent AST node items
 #[derive(Debug, PartialEq, Clone)]
-pub enum Item6809 {
+pub enum MC6809 {
     SetDp,
     OpCode(String, Box<Instruction>, AddrModeParseType),
     Operand(AddrModeParseType),
     OperandIndexed(IndexParseType, bool),
-    Pc,
     RegisterSet(HashSet<RegEnum>),
+}
+
+impl MC6809 {
+    pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> Item {
+        MC6809::OperandIndexed(imode, indirect).into()
+    }
 }

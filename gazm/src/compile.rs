@@ -4,14 +4,13 @@ use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
     error::{GResult, GazmErrorKind, UserError},
-    item::{self, Item},
-    item6809::{self, AddrModeParseType, IndexParseType},
-    messages::{ debug_mess, messages },
     info_mess,
-    status_mess,
+    item::{self, Item},
+    item6809::{self, AddrModeParseType, IndexParseType, MC6809::{ OpCode, self, SetDp}},
+    messages::{debug_mess, messages},
     regutils::*,
+    status_mess,
 };
-
 
 use emu::{isa::Instruction, utils::sources::ItemType};
 
@@ -35,7 +34,6 @@ impl<'a> Compiler<'a> {
 
     pub fn new(tree: &'a AstTree) -> GResult<Self> {
         let ret = Self { tree };
-
         Ok(ret)
     }
 
@@ -82,7 +80,6 @@ impl<'a> Compiler<'a> {
         debug_mess!("{} {:?}", si.line_str, imode);
 
         ctx.binary_mut().write_byte(idx_byte)?;
-
 
         match imode {
             PCOffset | ConstantOffset(..) => {
@@ -180,7 +177,8 @@ impl<'a> Compiler<'a> {
 
         ctx.binary_mut().bin_reference(&bin_ref, &data);
 
-        info_mess!("Adding binary reference {} for {:05X} - {:05X}",
+        info_mess!(
+            "Adding binary reference {} for {:05X} - {:05X}",
             file.to_string_lossy(),
             dest,
             dest + data.len()
@@ -297,7 +295,7 @@ impl<'a> Compiler<'a> {
             RegisterSet => {
                 let rset = &node.first_child().unwrap().value().item;
 
-                if let Item::RegisterSet6809(regs) = rset {
+                if let Item::Cpu( MC6809::RegisterSet(regs) ) = rset {
                     let flags = registers_to_flags(regs);
                     ctx.binary_mut().write_byte(flags)?;
                 } else {
@@ -319,16 +317,12 @@ impl<'a> Compiler<'a> {
         file: P,
         r: &std::ops::Range<usize>,
     ) -> GResult<()> {
-
         status_mess!(
             "Including Binary {} :  offset: {:04X} len: {:04X}",
             file.as_ref().to_string_lossy(),
             r.start,
             r.len()
         );
-
-
-
 
         let (.., bin) = ctx.read_binary_chunk(file, r.clone())?;
 
@@ -392,11 +386,13 @@ impl<'a> Compiler<'a> {
                 ctx.binary_mut().set_write_offset(offset);
             }
 
-            OpCode6809(_,ins, amode) => {
+            Cpu( OpCode(_, ins, amode) ) => {
                 self.opcode(ctx, id, &ins, &amode)?;
             }
 
-            MacroCallProcessed { scope_id, macro_id, .. } => {
+            MacroCallProcessed {
+                scope_id, macro_id, ..
+            } => {
                 do_source_mapping = false;
                 let (m_node, _) = self.get_node_item(ctx, macro_id);
                 let ret = ctx.ctx.eval_macro_args(scope_id, node);
@@ -488,7 +484,7 @@ impl<'a> Compiler<'a> {
             }
 
             IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
-            | StructDef(..) | MacroDef(..) | MacroCall(..) | SetDp6809 => (),
+            | StructDef(..) | MacroDef(..) | MacroCall(..) | Cpu(SetDp) => (),
             _ => {
                 panic!("Can't compile {i:?}");
             }
