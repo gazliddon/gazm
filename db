@@ -1,0 +1,1 @@
+cargo build --bin gazm && rust-lldb -o "br s -n rust_panic" ./target/debug/gazm -- build ~/development/stargate

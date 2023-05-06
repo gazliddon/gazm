@@ -11,9 +11,6 @@ pub struct SymbolNav<'a> {
 
 impl<'a> SymbolNav<'a> {
     pub fn new(sym_tree: &'a mut SymbolTree, current_scope_id: u64) -> Self {
-        let _ = sym_tree
-            .get_node_id_from_scope_id(current_scope_id)
-            .expect("Invalid ID");
         Self {
             current_scope_id,
             sym_tree,
@@ -53,7 +50,6 @@ impl<'a> SymbolNav<'a> {
     }
 
     pub fn set_current_scope_from_id(&mut self, id: u64) -> Result<(), SymbolError> {
-        self.sym_tree.get_node_mut_from_id(id)?;
         self.current_scope_id = id;
         Ok(())
     }
@@ -65,14 +61,10 @@ impl<'a> SymbolNav<'a> {
     // enters the child scope below the current_scope
     // If it doesn't exist then create it
     pub fn set_current_scope(&mut self, name: &str) -> u64 {
-        let new_scope_node_id = self.create_or_get_scope_id(name);
+        let new_scope_node_id = self.sym_tree
+            .create_or_get_scope_for_parent(name, self.current_scope_id);
         self.current_scope_id = new_scope_node_id;
         new_scope_node_id
-    }
-
-    pub fn create_or_get_scope_id(&mut self, name: &str) -> u64 {
-        self.sym_tree
-            .create_or_get_scope_for_parent(name, self.current_scope_id)
     }
 
 }
@@ -84,16 +76,12 @@ impl<'a> SymbolQuery for SymbolNav<'a> {
     }
 
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-        let scope = self.sym_tree.get_current_scope_id();
         self.sym_tree
-            .resolve_label(name, scope, SymbolResolutionBarrier::default())
+            .resolve_label(name, self.current_scope_id, SymbolResolutionBarrier::default())
     }
 }
 
 impl<'a> SymbolWriter for SymbolNav<'a> {
-    // fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
-    //     self.sym_tree.set_symbol_from_id(symbol_id, val)
-    // }
 
     fn add_symbol_with_value(
         &mut self,

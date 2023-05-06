@@ -16,7 +16,6 @@ pub type SymbolNodeMut<'a> = ego_tree::NodeMut<'a, SymbolTable>;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SymbolTree {
     pub tree: ego_tree::Tree<SymbolTable>,
-    current_scope_id: u64,
     next_scope_id: u64,
     scope_id_to_node_id: HashMap<u64, SymbolNodeId>,
 }
@@ -31,7 +30,6 @@ impl Default for SymbolTree {
 
         Self {
             tree,
-            current_scope_id: 0,
             next_scope_id: 1,
             scope_id_to_node_id,
         }
@@ -76,62 +74,19 @@ fn get_subscope<'a>(n: SymbolNodeRef<'a>, name: &str) -> Option<SymbolNodeRef<'a
     n.children().find(|c| c.value().get_scope_name() == name)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/// All rely on current scope
-impl SymbolTree {
-    pub fn pop_scope(&mut self) {
-        let n = self
-            .get_node_from_id(self.current_scope_id)
-            .expect("Invalid id");
-        if let Some(n) = n.parent() {
-            self.current_scope_id = n.value().get_scope_id()
-        }
-    }
-
-    pub fn set_root(&mut self) {
-        self.current_scope_id = self.tree.root().value().get_scope_id()
-    }
-
-    pub fn get_current_scope(&self) -> u64 {
-        self.current_scope_id
-    }
-
-    pub fn get_current_scope_symbols(&self) -> &SymbolTable {
-        self.get_symbols_from_id(self.current_scope_id).unwrap()
-    }
-
-    pub fn get_current_scope_fqn(&self) -> String {
-        self.get_fqn_from_id(self.current_scope_id)
-    }
-
-    pub fn set_current_scope_from_id(&mut self, id: u64) -> Result<(), SymbolError> {
-        self.get_node_mut_from_id(id)?;
-        self.current_scope_id = id;
-        Ok(())
-    }
-
-    pub fn get_current_scope_id(&self) -> u64 {
-        self.current_scope_id
-    }
-
-    // enters the child scope below the current_scope
-    // If it doesn't exist then create it
-    pub fn set_current_scope(&mut self, name: &str) -> u64 {
-        let new_scope_node_id = self.create_or_get_scope_id(name);
-        self.current_scope_id = new_scope_node_id;
-        new_scope_node_id
-    }
-
-    pub fn create_or_get_scope_id(&mut self, name: &str) -> u64 {
-        self.create_or_get_scope_for_parent(name, self.current_scope_id)
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Public functions
 impl SymbolTree {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn remove_symbol_for_id(&mut self, name: &str, scope_id: u64) -> Result<(), SymbolError> {
+        let node_id = self.get_node_id_from_scope_id(scope_id)?;
+        let mut node_mut = self.tree.get_mut(node_id).unwrap();
+        node_mut.value().remove_symbol_name(name);
+        Ok(())
     }
 
     pub fn add_symbols_to_scope(
@@ -151,9 +106,11 @@ impl SymbolTree {
         self.tree.root().value().get_scope_id()
     }
 
+
     pub fn get_symbols_from_id(&self, scope_id: u64) -> Result<&SymbolTable, SymbolError> {
         self.get_node_from_id(scope_id).map(|n| n.value())
     }
+
     pub fn get_fqn_from_id(&self, scope_id: u64) -> String {
         let scope = self.get_symbols_from_id(scope_id).expect("Invalid scope");
         scope.get_scope_fqn_name().to_owned()
@@ -216,28 +173,38 @@ impl SymbolTree {
         SymbolNav::new(self, scope_id)
     }
 
+    pub fn get_root_symbol_nav(&mut self) -> SymbolNav { 
+        SymbolNav::new(self, self.get_root_id())
+    }
+
+
     pub fn get_symbol_reader(&self, scope_id: u64) -> SymbolTreeReader {
-        SymbolTreeReader::new( self , scope_id)
+        SymbolTreeReader::new(self, scope_id)
     }
 }
 
 pub struct SymbolTreeReader<'a> {
     current_scope: u64,
-    syms: &'a SymbolTree
+    syms: &'a SymbolTree,
 }
 
 impl<'a> SymbolTreeReader<'a> {
     pub fn new(syms: &'a SymbolTree, current_scope: u64) -> Self {
         Self {
-            syms, current_scope
+            syms,
+            current_scope,
         }
+    }
+    pub fn get_current_symbols(&self) -> &SymbolTable {
+        self.syms.get_symbols_from_id(self.current_scope).unwrap()
     }
 }
 
 impl<'a> SymbolQuery for SymbolTreeReader<'a> {
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-        let scope = self.syms.get_current_scope_id();
-        self.syms.resolve_label(name, scope, SymbolResolutionBarrier::default())
+        let scope = self.current_scope;
+        self.syms
+            .resolve_label(name, scope, SymbolResolutionBarrier::default())
     }
 
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
@@ -245,18 +212,6 @@ impl<'a> SymbolQuery for SymbolTreeReader<'a> {
         node.value().get_symbol_info_from_id(id)
     }
 }
-
-// impl SymbolQuery for SymbolTree {
-//     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-//         let node = self.get_node_from_id(id.scope_id)?;
-//         node.value().get_symbol_info_from_id(id)
-//     }
-
-//     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-//         let scope = self.get_current_scope_id();
-//         self.resolve_label(name, scope, SymbolResolutionBarrier::default())
-//     }
-// }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Private implementation funcs
@@ -282,7 +237,7 @@ impl SymbolTree {
         self.insert_new_table(name, id, SymbolResolutionBarrier::default())
     }
 
-    pub fn get_node_mut_from_id(&mut self, scope_id: u64) -> Result<SymbolNodeMut, SymbolError> {
+    pub fn get_node_mut_from_id(&mut self, scope_id: u64) -> Result< SymbolNodeMut, SymbolError> {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         self.tree.get_mut(node_id).ok_or(SymbolError::InvalidScope)
     }
@@ -344,13 +299,15 @@ impl SymbolTree {
 // Functions to do with serialization
 impl SymbolTree {
     pub fn to_hash_map(&self) -> HashMap<String, Option<i64>> {
-        let mut hm: HashMap<String, Option<i64>> = HashMap::new();
+        // let mut hm: HashMap<String, Option<i64>> = HashMap::new();
 
-        walk_syms(self.tree.root(), self.get_current_scope_fqn(), &mut |si| {
-            hm.insert(si.name().to_string(), si.value);
-        });
+        // walk_syms(self.tree.root(), self.get_current_scope_fqn(), &mut |si| {
+        //     hm.insert(si.name().to_string(), si.value);
+        // });
+        // hm
 
-        hm
+        panic!()
+
     }
 
     pub fn to_json(&self) -> String {
@@ -446,51 +403,25 @@ impl std::fmt::Display for SymbolTree {
     }
 }
 
-impl SymbolWriter for SymbolTree {
-    fn add_symbol_with_value(
-        &mut self,
-        name: &str,
-        value: i64,
-    ) -> Result<SymbolScopeId, SymbolError> {
-        self.get_symbol_nav(self.current_scope_id)
-            .add_symbol_with_value(name, value)
-    }
-
-    fn remove_symbol_name(&mut self, name: &str) {
-        self.get_symbol_nav(self.current_scope_id)
-        .remove_symbol_name(name)
-    }
-
-    fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
-        self.get_symbol_nav(self.current_scope_id)
-        .add_symbol(name)
-    }
-
-    fn add_reference_symbol(&mut self, name: &str, val: i64) {
-        self.get_symbol_nav(self.current_scope_id)
-        .add_reference_symbol(name, val)
-    }
-}
-
 #[allow(unused_imports)]
 mod test {
     use super::*;
 
     #[test]
     fn test_sym_tree() {
-        let mut st = SymbolTree::default();
+        // let mut st = SymbolTree::default();
 
-        let _ = st.add_symbol_with_value("root_gaz", 100);
+        // let _ = st.add_symbol_with_value("root_gaz", 100);
 
-        st.set_current_scope("scope_a");
-        let _ = st.add_symbol_with_value("gaz", 100);
-        let _ = st.add_symbol_with_value("root_gaz", 100);
+        // st.set_current_scope("scope_a");
+        // let _ = st.add_symbol_with_value("gaz", 100);
+        // let _ = st.add_symbol_with_value("root_gaz", 100);
 
-        let scope_fqn = st.get_current_scope_fqn();
-        println!("SCOPE is {scope_fqn}");
-        st.pop_scope();
+        // let scope_fqn = st.get_current_scope_fqn();
+        // println!("SCOPE is {scope_fqn}");
+        // st.pop_scope();
 
-        let scope_fqn = st.get_current_scope_fqn();
-        println!("SCOPE is {scope_fqn}");
+        // let scope_fqn = st.get_current_scope_fqn();
+        // println!("SCOPE is {scope_fqn}");
     }
 }

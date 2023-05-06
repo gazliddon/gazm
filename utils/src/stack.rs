@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, ops::Deref};
+use std::{collections::VecDeque, ops::{Deref, DerefMut}};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Stack<OP: Clone> {
     stack: VecDeque<OP>,
@@ -22,6 +22,14 @@ impl<A: Clone> Deref for Stack<A> {
     fn deref(&self) -> &Self::Target {
         &self.stack
     }
+}
+impl<A: Clone> DerefMut for Stack<A> {
+    // type Target = VecDeque<A>;
+
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.stack
+    }
+
 }
 // Todo some error for illegal pops
 impl<OP: Clone> Stack<OP> {

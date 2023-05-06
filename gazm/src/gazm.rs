@@ -5,11 +5,41 @@ use crate::error::GResult;
 use crate::item::Node;
 
 use emu::utils::sources::{EditResult,  TextEditTrait};
-use emu::utils::PathSearcher;
+use emu::utils::{PathSearcher, Stack};
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+#[derive(Default)]
+pub struct ScopeTracker {
+    stack: Stack<u64>,
+}
+
+impl ScopeTracker {
+    pub fn new(scope_id : u64) -> Self {
+        let mut ret = Self {
+            ..Default::default()
+        };
+        ret.stack.push(scope_id);
+        ret
+    }
+
+    pub fn scope(&self) -> u64 {
+        *self.stack.front().unwrap()
+    }
+    pub fn set_scope(&mut self, scope_id: u64) {
+        let r = self.stack.front_mut().unwrap();
+        *r = scope_id;
+    }
+
+    pub fn push(&mut self, scope:u64) {
+        self.stack.push(scope)
+    }
+
+    pub fn pop(&mut self) -> u64 {
+        self.stack.pop().unwrap().clone()
+    }
+}
 
 pub struct Assembler {
     pub ctx: Context,
@@ -107,16 +137,12 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
 
     let tree = Ast::from_nodes(ctx, tokens)?;
 
-    let id = tree.root().id();
-    let root_id = ctx.get_symbols().get_root_id();
-
-
     let mut asm_ctx = AsmCtx {
         fixer_upper: FixerUpper::new(),
         ctx,
-        current_scope_id: root_id,
     };
 
+    let id = tree.root().id();
     size_tree(&mut asm_ctx, id, &tree)?;
     compile(&mut asm_ctx, &tree)?;
 

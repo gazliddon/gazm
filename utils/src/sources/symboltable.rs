@@ -368,16 +368,16 @@ impl SymbolWriter for SymbolTable {
             let x = self.info.get(id).unwrap();
             Err(SymbolError::AlreadyDefined((*id, x.value)))
         } else {
-            let x_id = self.get_next_id();
+            let new_symbol_id = self.get_next_id();
 
-            self.name_to_id.insert(name.clone(), x_id);
+            self.name_to_id.insert(name.clone(), new_symbol_id);
             let id = SymbolScopeId {
-                symbol_id: x_id,
+                symbol_id: new_symbol_id,
                 scope_id: self.scope_id,
             };
 
             let info = SymbolInfo::new(&name, None, id, &self.fqn_scope);
-            self.info.insert(x_id, info);
+            self.info.insert(new_symbol_id, info);
             Ok(id)
         }
     }

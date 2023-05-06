@@ -12,7 +12,6 @@ use crate::ctx::Context;
 pub struct AsmCtx<'a> {
     pub ctx: &'a mut Context,
     pub fixer_upper: FixerUpper,
-    pub current_scope_id: u64,
 }
 
 impl<'a> AsmCtx<'a> {
@@ -28,14 +27,12 @@ impl<'a> AsmCtx<'a> {
         &mut self.ctx.asm_out.binary
     }
 
-    pub fn add_fixup<I: Into<Item>>(&mut self, id: AstNodeId, v: I) -> (u64, AstNodeId) {
-        let scope_id = self.get_current_scope_id();
+    pub fn add_fixup<I: Into<Item>>(&mut self, id: AstNodeId, v: I, scope_id: u64) -> (u64, AstNodeId) {
         self.fixer_upper.add_fixup(scope_id, id, v.into());
         (scope_id, id)
     }
 
-    pub fn get_fixup_or_default(&self, id: AstNodeId, i: &Item) -> Item {
-        let scope_id = self.get_current_scope_id();
+    pub fn get_fixup_or_default(&self, id: AstNodeId, i: &Item, scope_id: u64) -> Item {
         self.fixer_upper.get_fixup_or_default(scope_id, id, i)
     }
 
@@ -47,31 +44,12 @@ impl<'a> AsmCtx<'a> {
         }
     }
 
-    pub fn set_root_scope(&mut self) {
-        let root_id = self.ctx.get_symbols().get_root_id();
-        self.set_current_scope_id(root_id).expect("invalid scope_id")
-    }
-
-    pub fn set_current_scope_id(&mut self, scope_id: u64) -> Result<(), SymbolError> {
-        self.current_scope_id = scope_id;
-        self.ctx.get_symbols_mut().set_current_scope_from_id(scope_id)
-    }
-
-    pub fn get_current_scope_id(&self) -> u64 {
-        // TODO should return current scope
-        self.ctx.get_symbols().get_current_scope_id()
-    }
-
     pub fn set_symbol_value(
         &mut self,
         symbol_id: SymbolScopeId,
         val: usize,
     ) -> Result<(), SymbolError> {
         self.ctx.get_symbols_mut().set_symbol_from_id(symbol_id, val as i64)
-    }
-
-    pub fn remove_symbol(&mut self, name: &str) {
-        self.ctx.get_symbols_mut().remove_symbol_name(name);
     }
 
     pub fn add_bin_to_write<P: AsRef<Path>>(

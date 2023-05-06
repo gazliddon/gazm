@@ -5,6 +5,7 @@ pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 
 use crate::error::{AstError, UserError};
 use crate::eval::{EvalError, EvalErrorEnum};
+use crate::gazm::ScopeTracker;
 use crate::scopes::ScopeBuilder;
 
 use crate::ctx::Context;
@@ -13,8 +14,10 @@ use crate::item::{Item, LabelDefinition, Node};
 use crate::messages::*;
 use emu::utils::eval::{to_postfix, GetPriority};
 use emu::utils::sources::{
-    Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolWriter,
+    AsmSource, Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolTree,
+    SymbolWriter,
 };
+use tower_lsp::lsp_types::request::WillRenameFiles;
 
 use crate::info_mess;
 
@@ -23,6 +26,10 @@ use std::iter;
 ////////////////////////////////////////////////////////////////////////////////
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
     tree.get(id).unwrap().children().map(|c| c.id()).collect()
+}
+
+fn is_problem(p: &Position) -> bool {
+    p.src == AsmSource::FileId(4) && p.line == 19 && p.col == 12
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -87,11 +94,40 @@ where
         get_recursive(n, f);
     }
 }
+fn get_recursive_track_scope<F>(node: AstNodeRef, f: &mut F, scope_id: u64)
+where
+    F: FnMut(AstNodeRef, u64),
+{
+    if let Item::Scope(name) = &node.value().item {
+        panic!("WHUT? {name}")
+    }
+
+    let new_scope_id = if let Item::ScopeId(new_scope_id) = node.value().item {
+        new_scope_id
+    } else {
+        f(node, scope_id);
+        scope_id
+    };
+
+    for n in node.children() {
+        get_recursive_track_scope(n, f, new_scope_id);
+    }
+}
 
 /// Return a vec of depth first node ids
 fn get_ids_recursive(node: AstNodeRef) -> Vec<AstNodeId> {
     let mut ret = vec![];
     get_recursive(node, &mut |x: AstNodeRef| ret.push(x.id()));
+    ret
+}
+/// Return a vec of depth first node ids
+fn get_ids_recursive_track_scope(node: AstNodeRef, current_scope_id: u64) -> Vec<(AstNodeId, u64)> {
+    let mut ret = vec![];
+    get_recursive_track_scope(
+        node,
+        &mut |x: AstNodeRef, scope_id: u64| ret.push((x.id(), scope_id)),
+        current_scope_id,
+    );
     ret
 }
 
@@ -100,10 +136,28 @@ pub fn iter_ids_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeId> {
     let mut i = get_ids_recursive(node).into_iter();
     iter::from_fn(move || i.next())
 }
+/// Depth first iteration of all node ids tracking scope
+pub fn iter_ids_recursive_track_scope(
+    node: AstNodeRef,
+    scope_id: u64,
+) -> impl Iterator<Item = (AstNodeId, u64)> {
+    let mut i = get_ids_recursive_track_scope(node, scope_id).into_iter();
+    iter::from_fn(move || i.next())
+}
 
 pub fn iter_refs_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeRef> {
     let mut i = get_ids_recursive(node).into_iter();
     iter::from_fn(move || i.next().and_then(|id| node.tree().get(id)))
+}
+pub fn iter_refs_recursive_track_scope(
+    node: AstNodeRef,
+    scope_id: u64,
+) -> impl Iterator<Item = (AstNodeRef, u64)> {
+    let mut i = get_ids_recursive_track_scope(node, scope_id).into_iter();
+    iter::from_fn(move || {
+        i.next()
+            .and_then(|(id, scope_id)| node.tree().get(id).map(|n| (n, scope_id)))
+    })
 }
 
 fn iter_items_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &Item)> {
@@ -150,11 +204,11 @@ impl<'a> Ast<'a> {
     }
 
     fn process(&mut self) -> Result<(), UserError> {
-        self.inline_includes()?;
         self.create_scopes()?;
+        self.inline_includes()?;
         self.postfix_expressions()?;
         self.rename_locals();
-        self.process_macros()?;
+        self.process_macros_definitions()?;
         self.generate_struct_symbols()?;
         self.scope_assignments()?;
         self.scope_labels()?;
@@ -197,10 +251,7 @@ impl<'a> Ast<'a> {
                 // Go through the ids and get the tokens to insert into this AST
                 for (id, actual_file) in include_ids {
                     if let Some(tokens) = self.ctx.get_tokens_from_full_path(&actual_file) {
-                        info_mess!(
-                            "Inlining {} - HAD TOKENS",
-                            actual_file.to_string_lossy()
-                        );
+                        info_mess!("Inlining {} - HAD TOKENS", actual_file.to_string_lossy());
                         let new_node_id = create_ast_node(&mut self.tree, &tokens.node);
                         self.replace_node(id, new_node_id);
                     } else {
@@ -248,8 +299,8 @@ impl<'a> Ast<'a> {
         .collect()
     }
 
-    pub fn process_macros(&mut self) -> Result<(), UserError> {
-        info("Processing macros", |_| {
+    pub fn process_macros_definitions(&mut self) -> Result<(), UserError> {
+        info("Processing macro definitions", |_| {
             // TODO: should be written in a way that can detect
             // redefinitions of a macro
             use std::collections::HashMap;
@@ -269,24 +320,25 @@ impl<'a> Ast<'a> {
                 })
                 .collect();
 
-            self.ctx.asm_out.symbols.set_root();
-
             let mut mcalls = vec![];
+
+            let root_scope_id = self.symbols().get_root_id();
+
+            let mut scopes = ScopeTracker::new(root_scope_id);
 
             for (i, macro_call_node) in iter_refs_recursive(self.tree.root()).enumerate() {
                 let syms = &mut self.ctx.asm_out.symbols;
                 let val = &macro_call_node.value();
                 match &val.item {
-                    ScopeId(scope_id) => {
-                        syms.set_current_scope_from_id(*scope_id)
-                            .expect("Can't set scope id");
-                    }
+                    ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
                     MacroCall(name) => {
                         // Create a unique name for this macro application scope
                         let caller_scope_name = format!("%MACRO%_{name}_{i}");
+
                         // Create the scope
-                        let macro_caller_scope_id = syms.create_or_get_scope_id(&caller_scope_name);
+                        let macro_caller_scope_id =
+                            syms.create_or_get_scope_for_parent(&caller_scope_name, scopes.scope());
 
                         let (macro_id, params) = mdefs.get(name).ok_or_else(|| {
                             self.node_error("Can't find macro", macro_call_node.id(), false)
@@ -457,34 +509,21 @@ impl<'a> Ast<'a> {
             .first_child()
             .ok_or_else(|| err("Can't find a child node"))?;
 
-        self.eval_node(first_child.id(),current_scope_id)
+        self.eval_node(first_child.id(), current_scope_id)
     }
-
-    // pub fn set_symbol(
-    //     &mut self,
-    //     value: i64,
-    //     symbol_id: SymbolScopeId,
-    //     _node_id: AstNodeId,
-    // ) -> Result<(), UserError> {
-    //     self.ctx
-    //         .asm_out
-    //         .symbols
-    //         .set_symbol(symbol_id, value)
-    //         .map_err(|_| panic!())
-    // }
 
     pub fn add_symbol<S>(
         &mut self,
         value: i64,
         name: S,
         id: AstNodeId,
+        current_scope_id: u64,
     ) -> Result<SymbolScopeId, UserError>
     where
         S: Into<String>,
     {
-        self.ctx
-            .asm_out
-            .symbols
+        let mut writer = self.ctx.asm_out.symbols.get_symbol_nav(current_scope_id);
+        writer
             .add_symbol_with_value(&name.into(), value)
             .map_err(|e| {
                 let msg = format!("Symbol error {e:?}");
@@ -498,7 +537,7 @@ impl<'a> Ast<'a> {
         info("Generating symbols for struct definitions", |x| {
             use Item::*;
 
-            self.ctx.asm_out.symbols.set_root();
+            // self.ctx.asm_out.symbols.set_root();
 
             // let mut symbols = self.symbols.clone();
             for id in iter_ids_recursive(self.tree.root()) {
@@ -514,16 +553,16 @@ impl<'a> Ast<'a> {
                         let i = &self.tree.get(c_id).unwrap().value().item;
 
                         if let StructEntry(entry_name) = i {
-                            let value = self.eval_node_child(c_id,current_scope_id)?;
+                            let value = self.eval_node_child(c_id, current_scope_id)?;
                             let scoped_name = format!("{name}.{entry_name}");
-                            self.add_symbol(current, &scoped_name, c_id)?;
+                            self.add_symbol(current, &scoped_name, c_id, current_scope_id)?;
                             x.debug(format!("Struct: Set {scoped_name} to {current}"));
                             current += value;
                         }
                     }
 
                     let scoped_name = format!("{name}.size");
-                    self.add_symbol(current, &scoped_name, id)?;
+                    self.add_symbol(current, &scoped_name, id, current_scope_id)?;
                 }
             }
 
@@ -536,15 +575,14 @@ impl<'a> Ast<'a> {
     fn create_scopes(&mut self) -> Result<(), UserError> {
         use Item::*;
 
-        self.ctx.asm_out.symbols.set_root();
+        let root_id = self.ctx.asm_out.symbols.get_root_id();
 
         for node_id in iter_ids_recursive(self.tree.root()) {
             let item = self.tree.get(node_id).unwrap().value().item.clone();
 
             if let Scope(scope) = &item {
-                let symbols = &mut self.ctx.asm_out.symbols;
-                symbols.set_root();
-                let id = symbols.set_current_scope(scope.as_str());
+                let mut writer = self.ctx.asm_out.symbols.get_symbol_nav(root_id);
+                let id = writer.set_current_scope(scope.as_str());
                 let mut x = self.tree.get_mut(node_id).unwrap();
                 x.value().item = ScopeId(id);
             }
@@ -553,31 +591,49 @@ impl<'a> Ast<'a> {
         Ok(())
     }
 
+    fn symbols(&self) -> &SymbolTree {
+        self.ctx.get_symbols()
+    }
+
+    fn symbols_mut(&mut self) -> &mut SymbolTree {
+        self.ctx.get_symbols_mut()
+    }
+
     fn scope_labels(&mut self) -> Result<(), UserError> {
         use Item::*;
+        let root_node = self.tree.root();
+        let root_scope_id = self.symbols().get_root_id();
 
-        self.ctx.asm_out.symbols.set_root();
+        let mut current_scope_id = root_scope_id;
 
-        for node_id in iter_ids_recursive(self.tree.root()) {
-            let item = self.tree.get(node_id).unwrap().value().item.clone();
-            let symbols = &mut self.ctx.asm_out.symbols;
+        for node_id in iter_ids_recursive(root_node) {
+            let value = self.tree.get(node_id).unwrap().value();
+            let item = value.item.clone();
+            let pos = value.pos.clone();
 
             match &item {
-                // Track scope correctly
-                ScopeId(scope_id) => {
-                    symbols
-                        .set_current_scope_from_id(*scope_id)
-                        .expect("Can't set scope");
+                Scope(name) => {
+                    panic!("Should not happen {name}")
                 }
+
+                ScopeId(scope_id) => current_scope_id = *scope_id,
 
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
-                    let id = symbols.get_current_scope_id();
-                    let reader = symbols.get_symbol_reader(id);
-                    let id = reader
-                        .get_symbol_info(name)
-                        .expect("Internal error getting symbol info")
-                        .symbol_id;
+                    let si = self.ctx.sources().get_source_info(&pos).unwrap();
+
+                    let err = if is_problem(&pos) {
+                        format!(
+                            "Current scope {} name {name} {si:#?} cs_id:{current_scope_id}",
+                            self.ctx.asm_out.symbols.get_fqn_from_id(current_scope_id)
+                        )
+                    } else {
+                        "not a problen?".to_owned()
+                    };
+
+                    let symbols = &mut self.ctx.asm_out.symbols;
+                    let reader = symbols.get_symbol_reader(current_scope_id);
+                    let id = reader.get_symbol_info(name).expect(&err).symbol_id;
                     let mut x = self.tree.get_mut(node_id).unwrap();
                     x.value().item = Label(id.into());
                 }
@@ -593,28 +649,31 @@ impl<'a> Ast<'a> {
     fn scope_assignments(&mut self) -> Result<(), UserError> {
         info("Correctly scoping assignments", |_| {
             use Item::*;
-
-            self.ctx.asm_out.symbols.set_root();
+            let root_id = self.ctx.asm_out.symbols.get_root_id();
+            let mut current_scope = root_id;
 
             for node_id in iter_ids_recursive(self.tree.root()) {
-                let symbols = &mut self.ctx.asm_out.symbols;
-                let item = self.tree.get(node_id).unwrap().value().item.clone();
+                let value = self.tree.get(node_id).unwrap().value();
+                let item = &value.item;
 
-                match &item {
-                    ScopeId(scope_id) => {
-                        symbols
-                            .set_current_scope_from_id(*scope_id)
-                            .expect("Can't set scope");
-                    }
+                match item {
+                    Scope(name) => panic!("Whut? {name}"),
+
+                    ScopeId(scope_id) => current_scope = *scope_id,
 
                     AssignmentFromPc(LabelDefinition::Text(name)) => {
-                        let sym_id = symbols.add_symbol(name).unwrap();
-                        let mut x = self.tree.get_mut(node_id).unwrap();
-                        x.value().item = AssignmentFromPc(sym_id.into());
+                        let name = name.clone();
+
+                        let mut writer = self.ctx.get_symbols_mut().get_symbol_nav(current_scope);
+                        let sym_id = writer.add_symbol(&name).unwrap();
+                        let mut this_node_mut = self.tree.get_mut(node_id).unwrap();
+                        this_node_mut.value().item = AssignmentFromPc(sym_id.into());
                     }
 
                     Assignment(LabelDefinition::Text(name)) => {
-                        let sym_id = symbols.add_symbol(name).unwrap();
+                        let symbols = &mut self.ctx.asm_out.symbols;
+                        let mut writer = symbols.get_symbol_nav(current_scope);
+                        let sym_id = writer.add_symbol(name).unwrap();
                         let mut x = self.tree.get_mut(node_id).unwrap();
                         x.value().item = Assignment(sym_id.into());
                     }
@@ -630,23 +689,20 @@ impl<'a> Ast<'a> {
         info("Evaluating assignments", |_| {
             use super::eval::eval;
             use Item::*;
+            let mut current_scope_id = self.ctx.get_symbols().get_root_id();
 
             let symbols = &mut self.ctx.asm_out.symbols;
-            symbols.set_root();
 
             for id in iter_ids_recursive(self.tree.root()) {
                 match &self.tree.get(id).unwrap().value().item {
                     ScopeId(scope_id) => {
-                        symbols
-                            .set_current_scope_from_id(*scope_id)
-                            .expect("Can't set scope");
+                        current_scope_id = *scope_id;
                     }
 
                     Assignment(LabelDefinition::Scoped(label_id)) => {
                         let label_id = *label_id;
                         let tree = &mut self.tree;
                         let expr = tree.get(id).unwrap().first_child().unwrap();
-                        let current_scope_id = symbols.get_current_scope_id();
                         let reader = symbols.get_symbol_reader(current_scope_id);
 
                         match eval(&reader, expr) {

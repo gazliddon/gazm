@@ -34,13 +34,6 @@ impl Context {
             params_vec_of_id, ..
         } = &caller_node.value().item
         {
-            let old_scope = self.asm_out.symbols.get_current_scope_id();
-
-            self.asm_out
-                .symbols
-                .set_current_scope_from_id(eval_scope_id)
-                .unwrap();
-
             let mut args_evaled = 0;
             let num_of_args = params_vec_of_id.len();
             // Set the scope to this macros scope
@@ -77,9 +70,7 @@ impl Context {
                 }
             });
 
-            // Pop the macro scope
-            self.asm_out.symbols.set_current_scope_from_id(old_scope).unwrap();
-            // Return if all args were evaluated or not
+            
             num_of_args == args_evaled
         } else {
             panic!()
@@ -98,14 +89,14 @@ impl Context {
         node.children().map(|n| n.id()).collect()
     }
 
-    pub fn eval_node(&self, node: AstNodeRef, _current_scope_id: u64) -> GResult<i64> {
+    pub fn eval_node(&self, node: AstNodeRef, current_scope_id: u64) -> GResult<i64> {
         let info = self.get_source_info(&node.value().pos).unwrap();
-        let reader = self.asm_out.symbols.get_symbol_reader(_current_scope_id);
+        let reader = self.asm_out.symbols.get_symbol_reader(current_scope_id);
 
         eval(&reader, node).map_err(|err| {
             let e = match &err.source {
                 crate::eval::EvalErrorEnum::SymbolNotFoud(name) => {
-                    let scope = self.get_symbols().get_current_scope_fqn();
+                    let scope = self.get_symbols().get_fqn_from_id(current_scope_id);
                     let mut err = err.clone();
                     err.source =
                         crate::eval::EvalErrorEnum::SymbolNotFoud(format!("{scope}::{name}"));

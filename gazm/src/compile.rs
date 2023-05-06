@@ -4,9 +4,13 @@ use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
     error::{GResult, GazmErrorKind, UserError},
+    gazm::ScopeTracker,
     info_mess,
     item::{self, Item},
-    item6809::{self, AddrModeParseType, IndexParseType, MC6809::{ OpCode, self, SetDp}},
+    item6809::{
+        self, AddrModeParseType, IndexParseType,
+        MC6809::{self, OpCode, SetDp},
+    },
     messages::{debug_mess, messages},
     regutils::*,
     status_mess,
@@ -15,25 +19,45 @@ use crate::{
 use emu::{isa::Instruction, utils::sources::ItemType};
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
-    let compiler = Compiler::new(tree)?;
-    ctx.set_root_scope();
-    compiler.compile_node(ctx, tree.root().id())
+    let root_id = ctx.ctx.get_symbols().get_root_id();
+
+    let mut compiler = Compiler::new(tree, root_id)?;
+    compiler.compile_root(ctx)
 }
 
 struct Compiler<'a> {
     tree: &'a AstTree,
+    scopes: ScopeTracker,
 }
 
 impl<'a> Compiler<'a> {
-    fn get_node_item(&self, ctx: &AsmCtx, id: AstNodeId) -> (AstNodeRef, Item) {
+    fn get_node_item(&self, ctx: &AsmCtx, id: AstNodeId) -> (AstNodeId, Item) {
+        let (node, i) = self.get_node_item_ref(ctx, id);
+        (node.id(), i)
+    }
+
+    fn get_node_item_ref(&self, ctx: &AsmCtx, id: AstNodeId) -> (AstNodeRef, Item) {
         let node = self.tree.get(id).unwrap();
         let this_i = &node.value().item;
-        let i = ctx.get_fixup_or_default(id, this_i);
+        let i = ctx.get_fixup_or_default(id, this_i, self.scopes.scope());
         (node, i)
     }
 
-    pub fn new(tree: &'a AstTree) -> GResult<Self> {
-        let ret = Self { tree };
+    fn get_item(&self, ctx: &AsmCtx, id: AstNodeId) -> Item {
+        let i = &self.get_node(id).value().item;
+        ctx.get_fixup_or_default(id, i, self.scopes.scope())
+    }
+
+    fn get_node(&self, id: AstNodeId) -> AstNodeRef {
+        let node = self.tree.get(id).unwrap();
+        node
+    }
+
+    pub fn new(tree: &'a AstTree, current_scope_id: u64) -> GResult<Self> {
+        let ret = Self {
+            tree,
+            scopes: ScopeTracker::new(current_scope_id),
+        };
         Ok(ret)
     }
 
@@ -43,14 +67,14 @@ impl<'a> Compiler<'a> {
         id: AstNodeId,
         e: crate::binary::BinaryError,
     ) -> GazmErrorKind {
-        let (n, _) = self.get_node_item(ctx, id);
+        let n = self.get_node(id);
         let info = &ctx.ctx.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
         UserError::from_text(msg, info, true).into()
     }
 
     fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GazmErrorKind {
-        let (n, _) = self.get_node_item(ctx, id);
+        let n = self.get_node(id);
         let p = 1 << (bits - 1);
 
         let message = if val < 0 {
@@ -65,17 +89,16 @@ impl<'a> Compiler<'a> {
     }
 
     fn compile_indexed(
-        &self,
+        &mut self,
         ctx: &mut AsmCtx,
         id: AstNodeId,
         imode: IndexParseType,
         indirect: bool,
-        current_scope_id: u64,
     ) -> GResult<()> {
         use item6809::IndexParseType::*;
 
         let idx_byte = imode.get_index_byte(indirect);
-        let (node, _) = self.get_node_item(ctx, id);
+        let node = self.get_node(id);
 
         let si = ctx.ctx.get_source_info(&node.value().pos).unwrap();
         debug_mess!("{} {:?}", si.line_str, imode);
@@ -88,6 +111,7 @@ impl<'a> Compiler<'a> {
             }
 
             ExtendedIndirect => {
+                let current_scope_id = self.scopes.scope();
                 let (val, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 ctx.binary_mut().write_uword_check_size(val)?;
             }
@@ -115,7 +139,7 @@ impl<'a> Compiler<'a> {
         id: AstNodeId,
         i: ItemType,
     ) {
-        let pos = self.get_node_item(ctx, id).0.value().pos.clone();
+        let pos = self.get_node(id).value().pos.clone();
         ctx.ctx
             .asm_out
             .source_map
@@ -123,9 +147,9 @@ impl<'a> Compiler<'a> {
     }
 
     /// Grab memory and copy it the PC
-    fn grab_mem(&self, ctx: &mut AsmCtx, id: AstNodeId, current_scope_id: u64) -> GResult<()> {
-        let (n, _) = self.get_node_item(ctx, id);
-        let args = ctx.ctx.eval_n_args(n, 2, current_scope_id)?;
+    fn grab_mem(&self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+        let node = self.get_node(id);
+        let args = ctx.ctx.eval_n_args(node, 2, self.scopes.scope())?;
         let source = args[0];
         let size = args[1];
 
@@ -148,9 +172,10 @@ impl<'a> Compiler<'a> {
         ctx: &mut AsmCtx,
         id: AstNodeId,
         path: P,
-        current_scope_id: u64
     ) -> GResult<()> {
-        let (node, _) = self.get_node_item(ctx, id);
+        let current_scope_id = self.scopes.scope();
+
+        let node = self.get_node(id);
         let (physical_address, count) = ctx.ctx.eval_two_args(node, current_scope_id)?;
 
         ctx.add_bin_to_write(
@@ -191,16 +216,15 @@ impl<'a> Compiler<'a> {
 
     /// Compile an opcode
     fn compile_opcode(
-        &self,
+        &mut self,
         ctx: &mut AsmCtx,
         id: AstNodeId,
-        ins: &Instruction,
-        amode: &AddrModeParseType,
-        current_scope_id: u64,
+        ins: Instruction,
+        amode: AddrModeParseType,
     ) -> GResult<()> {
         use emu::isa::AddrModeEnum::*;
 
-        let (node, _) = self.get_node_item(ctx, id);
+        let node = self.get_node(id);
 
         // let x = messages();
         let pc = ctx.binary().get_write_address();
@@ -213,10 +237,12 @@ impl<'a> Compiler<'a> {
             ctx.binary_mut().write_byte(ins.opcode as u8)?;
         }
 
+        let current_scope_id = self.scopes.scope();
+
         match ins_amode {
             Indexed => {
                 if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                    self.compile_indexed(ctx, id, *imode, *indirect, current_scope_id)?;
+                    self.compile_indexed(ctx, id, imode, indirect)?;
                 }
             }
 
@@ -231,14 +257,14 @@ impl<'a> Compiler<'a> {
             }
 
             Extended | Immediate16 => {
-                let (arg, _) = ctx.ctx.eval_first_arg(node,current_scope_id)?;
+                let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 ctx.binary_mut().write_word_check_size(arg)?;
             }
 
             Relative => {
                 use crate::binary::BinaryError::*;
-                let (arg, arg_id) = ctx.ctx.eval_first_arg(node,current_scope_id)?;
-                let (arg_n, _) = self.get_node_item(ctx, arg_id);
+                let (arg, arg_id) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
+                let arg_n = self.get_node(arg_id);
                 let val = arg - (pc as i64 + ins.size as i64);
                 // offset is from PC after Instruction and operand has been fetched
                 let res = ctx
@@ -269,7 +295,7 @@ impl<'a> Compiler<'a> {
                 use crate::binary::BinaryError::*;
 
                 let (arg, arg_id) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                let (arg_n, _) = self.get_node_item(ctx, arg_id);
+                let arg_n = self.get_node(arg_id);
 
                 let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
                 // offset is from PC after Instruction and operand has been fetched
@@ -286,10 +312,7 @@ impl<'a> Compiler<'a> {
 
             RegisterPair => {
                 if let AddrModeParseType::RegisterPair(a, b) = amode {
-                    ctx.ctx
-                        .asm_out
-                        .binary
-                        .write_byte(reg_pair_to_flags(*a, *b))?;
+                    ctx.ctx.asm_out.binary.write_byte(reg_pair_to_flags(a, b))?;
                 } else {
                     panic!("Whut!")
                 }
@@ -298,7 +321,7 @@ impl<'a> Compiler<'a> {
             RegisterSet => {
                 let rset = &node.first_child().unwrap().value().item;
 
-                if let Item::Cpu( MC6809::RegisterSet(regs) ) = rset {
+                if let Item::Cpu(MC6809::RegisterSet(regs)) = rset {
                     let flags = registers_to_flags(regs);
                     ctx.binary_mut().write_byte(flags)?;
                 } else {
@@ -339,34 +362,40 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn compile_children(&self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
-        let (node, _) = self.get_node_item(ctx, id);
-        for c in node.children() {
-            self.compile_node(ctx, c.id())?;
+    fn compile_children(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+        let node = self.get_node(id);
+
+        let kids: Vec<_> = node.children().map(|n| n.id()).collect();
+
+        for c in kids {
+            self.compile_node(ctx, c)?;
         }
         Ok(())
     }
 
-    fn compile_node(&self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+    fn compile_in_scope(&mut self, ctx: &mut AsmCtx, scope_id: u64) -> GResult<()> {
+        self.scopes.set_scope(scope_id);
+        self.compile_node(ctx, self.tree.root().id())
+    }
+
+    fn compile_root(&mut self, ctx: &mut AsmCtx) -> GResult<()> {
+        self.compile_in_scope(ctx, ctx.ctx.get_symbols().get_root_id())
+    }
+
+    fn compile_node(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
         use item::Item::*;
 
-        let (node, i) = self.get_node_item(ctx, id);
-
+        let (node_id, i) = self.get_node_item(ctx, id);
         let mut pc = ctx.binary().get_write_address();
-        let pos = node.value().pos.clone();
-
         let mut do_source_mapping = ctx.ctx.opts.lst_file.is_some();
-
-        let current_scope_id = ctx.get_current_scope_id();
+        let current_scope_id = self.scopes.scope();
 
         match i {
-            ScopeId(scope_id) => {
-                ctx.set_current_scope_id(scope_id).unwrap();
-            }
+            ScopeId(scope_id) => self.scopes.set_scope(scope_id),
 
-            GrabMem => self.grab_mem(ctx, id, current_scope_id)?,
+            GrabMem => self.grab_mem(ctx, id)?,
 
-            WriteBin(file_name) => self.add_binary_to_write(ctx, id, &file_name, current_scope_id)?,
+            WriteBin(file_name) => self.add_binary_to_write(ctx, id, &file_name)?,
 
             IncBinRef(file_name) => {
                 self.inc_bin_ref(ctx, &file_name)?;
@@ -391,18 +420,19 @@ impl<'a> Compiler<'a> {
                 ctx.binary_mut().set_write_offset(offset);
             }
 
-            Cpu( OpCode(_, ins, amode) ) => {
-                self.compile_opcode(ctx, id, &ins, &amode, current_scope_id)?;
+            Cpu(OpCode(_, ins, amode)) => {
+                self.compile_opcode(ctx, id, *ins, amode)?;
             }
 
             MacroCallProcessed {
                 scope_id, macro_id, ..
             } => {
+                let node = self.get_node(node_id);
                 do_source_mapping = false;
-                let (m_node, _) = self.get_node_item(ctx, macro_id);
                 let ret = ctx.ctx.eval_macro_args(scope_id, node);
 
                 if !ret {
+                    let pos = &node.value().pos;
                     let si = ctx.ctx.get_source_info(&pos).unwrap();
                     return Err(UserError::from_text(
                         "Couldn't evaluate all macro args",
@@ -412,14 +442,18 @@ impl<'a> Compiler<'a> {
                     .into());
                 }
 
-                let prev_scop = ctx.get_current_scope_id();
-                ctx.set_current_scope_id(scope_id).unwrap();
+                self.scopes.push(scope_id);
 
-                for c_node in m_node.children() {
-                    self.compile_node(ctx, c_node.id())?;
+                {
+                    let m_node = self.get_node(macro_id);
+                    let kids: Vec<_> = m_node.children().map(|n| n.id()).collect();
+
+                    for c_node in kids {
+                        self.compile_node(ctx, c_node)?;
+                    }
                 }
 
-                ctx.set_current_scope_id(prev_scop).unwrap();
+                self.scopes.pop();
             }
 
             TokenizedFile(..) => {
@@ -427,6 +461,7 @@ impl<'a> Compiler<'a> {
             }
 
             Fdb(..) => {
+                let node = self.get_node(node_id);
 
                 for n in node.children() {
                     let x = ctx.ctx.eval_node(n, current_scope_id)?;
@@ -438,6 +473,7 @@ impl<'a> Compiler<'a> {
             }
 
             Fcb(..) => {
+                let node = self.get_node(node_id);
                 for n in node.children() {
                     let x = ctx.ctx.eval_node(n, current_scope_id)?;
                     ctx.binary_mut().write_byte_check_size(x)?;
@@ -455,6 +491,7 @@ impl<'a> Compiler<'a> {
             }
 
             Zmb => {
+                let node = self.get_node(node_id);
                 let (bytes, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..bytes {
                     ctx.binary_mut().write_byte(0)?;
@@ -464,6 +501,7 @@ impl<'a> Compiler<'a> {
             }
 
             Zmd => {
+                let node = self.get_node(node_id);
                 let (words, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..words {
                     ctx.binary_mut().write_word(0)?;
@@ -474,6 +512,7 @@ impl<'a> Compiler<'a> {
             }
 
             Fill => {
+                let node = self.get_node(node_id);
                 let (byte, size) = ctx.ctx.eval_two_args(node, current_scope_id)?;
 
                 for _ in 0..size {
@@ -485,6 +524,7 @@ impl<'a> Compiler<'a> {
             }
 
             Exec => {
+                let node = self.get_node(node_id);
                 let (exec_addr, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 ctx.set_exec_addr(exec_addr as usize);
             }
@@ -497,6 +537,7 @@ impl<'a> Compiler<'a> {
         }
 
         if do_source_mapping {
+            let node = self.get_node(node_id);
             ctx.add_source_mapping(&node.value().pos, pc);
         }
 
