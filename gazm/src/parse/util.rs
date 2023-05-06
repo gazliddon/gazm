@@ -1,4 +1,4 @@
-use crate::expr::parse_expr;
+use crate::parse::expr::parse_expr;
 use crate::item::{Item, Node};
 use crate::labels;
 use crate::numbers;

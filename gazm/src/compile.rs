@@ -97,12 +97,9 @@ impl<'a> Compiler<'a> {
         use item6809::IndexParseType::*;
 
         let idx_byte = imode.get_index_byte(indirect);
-        let node = self.get_node(id);
-
-        let si = ctx.ctx.get_source_info(&node.value().pos).unwrap();
-        debug_mess!("{} {:?}", si.line_str, imode);
-
         ctx.binary_mut().write_byte(idx_byte)?;
+
+        let node = self.get_node(id);
 
         match imode {
             PCOffset | ConstantOffset(..) => {
@@ -110,8 +107,7 @@ impl<'a> Compiler<'a> {
             }
 
             ExtendedIndirect => {
-                let current_scope_id = self.scopes.scope();
-                let (val, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
+                let (val, _) = ctx.ctx.eval_first_arg(node, self.scopes.scope())?;
                 ctx.binary_mut().write_uword_check_size(val)?;
             }
 
@@ -218,25 +214,21 @@ impl<'a> Compiler<'a> {
         &mut self,
         ctx: &mut AsmCtx,
         id: AstNodeId,
-        ins: Instruction,
+        ins: &Instruction,
         amode: AddrModeParseType,
     ) -> GResult<()> {
         use emu::isa::AddrModeEnum::*;
 
         let node = self.get_node(id);
-
-        // let x = messages();
         let pc = ctx.binary().get_write_address();
-
         let ins_amode = ins.addr_mode;
+        let current_scope_id = self.scopes.scope();
 
         if ins.opcode > 0xff {
             ctx.binary_mut().write_word(ins.opcode as u16)?;
         } else {
             ctx.binary_mut().write_byte(ins.opcode as u8)?;
         }
-
-        let current_scope_id = self.scopes.scope();
 
         match ins_amode {
             Indexed => {
@@ -319,7 +311,6 @@ impl<'a> Compiler<'a> {
 
             RegisterSet => {
                 let rset = &node.first_child().unwrap().value().item;
-
                 if let Item::Cpu(MC6809::RegisterSet(regs)) = rset {
                     let flags = registers_to_flags(regs);
                     ctx.binary_mut().write_byte(flags)?;
@@ -363,22 +354,17 @@ impl<'a> Compiler<'a> {
 
     fn compile_children(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
         let node = self.get_node(id);
-
         let kids: Vec<_> = node.children().map(|n| n.id()).collect();
-
         for c in kids {
             self.compile_node(ctx, c)?;
         }
         Ok(())
     }
 
-    fn compile_in_scope(&mut self, ctx: &mut AsmCtx, scope_id: u64) -> GResult<()> {
+    fn compile_root(&mut self, ctx: &mut AsmCtx) -> GResult<()> {
+        let scope_id = ctx.ctx.get_symbols().get_root_id();
         self.scopes.set_scope(scope_id);
         self.compile_node(ctx, self.tree.root().id())
-    }
-
-    fn compile_root(&mut self, ctx: &mut AsmCtx) -> GResult<()> {
-        self.compile_in_scope(ctx, ctx.ctx.get_symbols().get_root_id())
     }
 
     fn compile_node(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
@@ -420,7 +406,7 @@ impl<'a> Compiler<'a> {
             }
 
             Cpu(OpCode(_, ins, amode)) => {
-                self.compile_opcode(ctx, id, *ins, amode)?;
+                self.compile_opcode(ctx, id, &ins, amode)?;
             }
 
             MacroCallProcessed {

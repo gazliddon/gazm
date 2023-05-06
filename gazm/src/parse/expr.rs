@@ -1,16 +1,22 @@
 // Parse expressions
-//
-use super::item::{Item, Node};
-use super::labels::parse_label;
-use crate::error::IResult;
-use crate::locate::{matched_span, Span, span_to_pos};
-use crate::parse::util;
-use crate::item6809::MC6809 ;
-use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::character::complete::{char as nom_char, multispace0};
-use nom::multi::many0;
-use nom::sequence::{preceded, separated_pair};
+
+use super::util;
+
+use crate::{
+    error::IResult,
+    item::{Item, Node},
+    item6809::MC6809,
+    labels::parse_label,
+    locate::{matched_span, span_to_pos, Span},
+};
+
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{char as nom_char, multispace0},
+    multi::many0,
+    sequence::{preceded, separated_pair},
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Operands
@@ -63,7 +69,7 @@ fn parse_unary_term(input: Span) -> IResult<Node> {
         separated_pair(parse_unary_op, multispace0, parse_non_unary_term)(input)?;
 
     let matched_span = matched_span(input, rest);
-    let node = Node::new_with_children(Item::UnaryTerm, &vec![op, term], span_to_pos( matched_span) );
+    let node = Node::new_with_children(Item::UnaryTerm, &vec![op, term], span_to_pos(matched_span));
     Ok((rest, node))
 }
 
@@ -84,7 +90,6 @@ fn parse_binary_op(input: Span) -> IResult<Node> {
     use nom::combinator::map;
     // let (rest, matched) = one_of(ops)(input)?;
     // let op = to_op(matched).unwrap();
-
 
     let (rest, op) = alt((
         map(tag("+"), |_| Item::Add),
@@ -115,9 +120,9 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
     let (rest, vs) = many0(preceded(multispace0, parse_op_term))(rest)?;
 
     let mut vec_ret = vec![term];
-    vec_ret.extend(vs.into_iter().flat_map(|(o,t)| [o,t]));
+    vec_ret.extend(vs.into_iter().flat_map(|(o, t)| [o, t]));
     let matched_span = span_to_pos(matched_span(input, rest));
-    let node = Node::new_with_children(Item::Expr, &vec_ret,matched_span);
+    let node = Node::new_with_children(Item::Expr, &vec_ret, matched_span);
     Ok((rest, node))
 }
 
@@ -126,8 +131,8 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
 #[allow(unused_imports)]
 mod test {
     use super::*;
-    use pretty_assertions::assert_eq;
     use emu::utils::sources::AsmSource;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_brackets() {

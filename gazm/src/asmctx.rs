@@ -77,12 +77,15 @@ impl<'a> AsmCtx<'a> {
         Ok(path)
     }
 
-    fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
-        let path = self
+    fn get_expanded_path<P: AsRef<Path>>(&self, path: P) -> PathBuf { 
+        self
             .ctx
-            .opts
-            .vars
-            .expand_vars(path.as_ref().to_string_lossy());
+            .get_vars()
+            .expand_vars_in_path(&path)
+    }
+
+    fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
+        let path = self.get_expanded_path(path);
         emu::utils::fileutils::abs_path_from_cwd(path)
     }
 
@@ -93,22 +96,13 @@ impl<'a> AsmCtx<'a> {
     }
 
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
-
-        let path = self
-            .ctx
-            .opts
-            .vars
-            .expand_vars(path.as_ref().to_string_lossy());
+        let path = self.get_expanded_path(&path);
         let ret = self.ctx.get_source_file_loader().get_size(path)?;
         Ok(ret)
     }
 
     pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self
-            .ctx
-            .opts
-            .vars
-            .expand_vars(path.as_ref().to_string_lossy());
+        let path = self.get_expanded_path(path);
         let ret = self.ctx.get_source_file_loader_mut().read_binary(path)?;
         Ok(ret)
     }
@@ -118,11 +112,7 @@ impl<'a> AsmCtx<'a> {
         path: P,
         r: std::ops::Range<usize>,
     ) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self
-            .ctx
-            .opts
-            .vars
-            .expand_vars(path.as_ref().to_string_lossy());
+        let path = self.get_expanded_path(&path);
         let ret = self
             .ctx
             .get_source_file_loader_mut()

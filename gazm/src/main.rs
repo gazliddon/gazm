@@ -17,7 +17,6 @@ mod doc;
 mod error;
 mod eval;
 mod evaluator;
-mod expr;
 mod fixerupper;
 mod fmt;
 mod gazm;

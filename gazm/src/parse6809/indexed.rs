@@ -3,7 +3,7 @@ use super::register::{get_index_reg, get_pc_reg, get_reg};
 use crate::{
     item6809::IndexParseType,
     error::IResult,
-    expr::parse_expr,
+    parse::expr::parse_expr,
     item::{Item, Node},
     locate::{matched_span, Span},
     parse::util::{wrapped_chars, ws},

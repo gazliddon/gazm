@@ -98,7 +98,7 @@ pub struct MacroCall {
 }
 
 pub fn parse_macro_call(input: Span) -> IResult<Node> {
-    use crate::expr::parse_expr;
+    use crate::parse::expr::parse_expr;
     use crate::item::Item;
     let sep = ws(tag(","));
 

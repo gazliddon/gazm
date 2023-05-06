@@ -16,7 +16,6 @@ pub mod doc;
 pub mod error;
 pub mod eval;
 pub mod evaluator;
-pub mod expr;
 pub mod fixerupper;
 pub mod fmt;
 pub mod gazm;

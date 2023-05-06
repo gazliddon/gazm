@@ -1,5 +1,6 @@
 pub mod util;
-mod comments;
+pub mod expr;
 
+mod comments;
 
 pub use comments::*;

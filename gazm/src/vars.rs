@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::{ Path,PathBuf };
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Vars {
@@ -35,5 +36,9 @@ impl Vars {
             ret = ret.replace(&from, to);
         }
         ret
+    }
+    pub fn expand_vars_in_path<P: AsRef<Path>>(&self, p: P) -> PathBuf {
+        let r = self.expand_vars(p.as_ref().to_string_lossy());
+        PathBuf::from(r)
     }
 }

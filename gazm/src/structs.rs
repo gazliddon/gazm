@@ -58,7 +58,7 @@ fn get_struct_entry(
 }
 
 fn parse_struct_entry(input: Span<'_>) -> IResult<Node> {
-    use crate::expr::parse_expr;
+    use crate::parse::expr::parse_expr;
 
     let (rest, (name, entry_type, array_exp, _)) = get_struct_entry(input)?;
     let size = entry_type.to_size_item();
