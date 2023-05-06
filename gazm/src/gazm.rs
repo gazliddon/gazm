@@ -142,8 +142,7 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
         ctx,
     };
 
-    let id = tree.root().id();
-    size_tree(&mut asm_ctx, id, &tree)?;
+    size_tree(&mut asm_ctx, &tree)?;
     compile(&mut asm_ctx, &tree)?;
 
     let lookup = LabelUsageAndDefintions::new(&tree, &ctx.asm_out.symbols);

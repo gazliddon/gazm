@@ -343,25 +343,28 @@ impl SymbolQuery for SymbolTable {
 }
 
 impl SymbolWriter for SymbolTable {
-    fn add_symbol_with_value(
+    fn create_and_set_symbol(
         &mut self,
         name: &str,
         value: i64,
     ) -> Result<SymbolScopeId, SymbolError> {
         let nstr: String = name.into();
-        let id = self.add_symbol(&nstr)?;
+        let id = self.create_symbol(&nstr)?;
         self.set_value(id.symbol_id, value)?;
         Ok(id)
     }
 
-    fn remove_symbol_name(&mut self, name: &str) {
+    fn remove_symbol(&mut self, name: &str) -> Result<(),SymbolError>{
         if let Some(id) = self.name_to_id.get(name).cloned() {
             self.name_to_id.remove(name);
             self.info.remove(&id);
+            Ok(())
+        } else {
+            Err(SymbolError::NotFound)
         }
     }
 
-    fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
+    fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
         let name: String = name.into();
 
         if let Some(id) = self.name_to_id.get(&name) {

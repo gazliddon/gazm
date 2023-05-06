@@ -4,6 +4,7 @@ use super::{
 };
 use serde::ser::SerializeMap;
 use std::collections::HashMap;
+use thin_vec::ThinVec;
 
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
@@ -85,20 +86,19 @@ impl SymbolTree {
     pub fn remove_symbol_for_id(&mut self, name: &str, scope_id: u64) -> Result<(), SymbolError> {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         let mut node_mut = self.tree.get_mut(node_id).unwrap();
-        node_mut.value().remove_symbol_name(name);
-        Ok(())
+        node_mut.value().remove_symbol(name)
     }
 
     pub fn add_symbols_to_scope(
         &mut self,
         scope_id: u64,
         names: &[String],
-    ) -> Result<Vec<SymbolScopeId>, SymbolError> {
+    ) -> Result<ThinVec<SymbolScopeId>, SymbolError> {
         let mut node = self.get_node_mut_from_id(scope_id)?;
         let syms = node.value();
 
-        let ret: Result<Vec<SymbolScopeId>, SymbolError> =
-            names.iter().map(|name| syms.add_symbol(name)).collect();
+        let ret: Result<ThinVec<SymbolScopeId>, SymbolError> =
+            names.iter().map(|name| syms.create_symbol(name)).collect();
         ret
     }
 
@@ -180,6 +180,10 @@ impl SymbolTree {
 
     pub fn get_symbol_reader(&self, scope_id: u64) -> SymbolTreeReader {
         SymbolTreeReader::new(self, scope_id)
+    }
+
+    pub fn get_root_symbol_reader(&self, ) -> SymbolTreeReader {
+        self.get_symbol_reader(self.get_root_id())
     }
 }
 
@@ -344,7 +348,7 @@ impl SymbolTree {
         }
 
         let mut n = self.get_node_mut_from_id(scope_id).unwrap();
-        n.value().add_symbol_with_value(sym, val.unwrap()).unwrap();
+        n.value().create_and_set_symbol(sym, val.unwrap()).unwrap();
     }
 }
 

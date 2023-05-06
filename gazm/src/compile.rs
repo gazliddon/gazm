@@ -20,7 +20,6 @@ use emu::{isa::Instruction, utils::sources::ItemType};
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
     let root_id = ctx.ctx.get_symbols().get_root_id();
-
     let mut compiler = Compiler::new(tree, root_id)?;
     compiler.compile_root(ctx)
 }

@@ -14,23 +14,16 @@ use crate::item::{Item, LabelDefinition, Node};
 use crate::messages::*;
 use emu::utils::eval::{to_postfix, GetPriority};
 use emu::utils::sources::{
-    AsmSource, Position, SourceErrorType, SourceInfo, SymbolQuery, SymbolScopeId, SymbolTree,
-    SymbolWriter,
+    AsmSource, Position, SourceErrorType, SourceInfo, SymbolError, SymbolQuery, SymbolScopeId,
+    SymbolTree, SymbolWriter, SymbolNav, SymbolTreeReader, SymbolInfo,
 };
+use emu::utils::symbols::SymbolReader;
+use thin_vec::ThinVec;
 use tower_lsp::lsp_types::request::WillRenameFiles;
 
 use crate::info_mess;
 
 use std::iter;
-
-////////////////////////////////////////////////////////////////////////////////
-fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
-    tree.get(id).unwrap().children().map(|c| c.id()).collect()
-}
-
-fn is_problem(p: &Position) -> bool {
-    p.src == AsmSource::FileId(4) && p.line == 19 && p.col == 12
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ItemWithPos {
@@ -45,35 +38,6 @@ impl ItemWithPos {
             pos: n.ctx.clone(),
         }
     }
-}
-
-pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
-    let ipos = ItemWithPos::new(node);
-    let mut this_node = parent.append(ipos);
-
-    for n in &node.children {
-        add_node(&mut this_node, n);
-    }
-}
-
-pub fn create_ast_node(tree: &mut AstTree, node: &Node) -> AstNodeId {
-    let ipos = ItemWithPos::new(node);
-
-    let mut this_node = tree.orphan(ipos);
-
-    for n in &node.children {
-        add_node(&mut this_node, n);
-    }
-    this_node.id()
-}
-
-pub fn make_tree(node: &Node) -> AstTree {
-    let mut ret = AstTree::new(ItemWithPos::new(node));
-
-    for c in &node.children {
-        add_node(&mut ret.root_mut(), c);
-    }
-    ret
 }
 
 #[derive(Debug)]
@@ -175,32 +139,17 @@ fn iter_values_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &
             .and_then(|id| node.tree().get(id).map(|n| (n.id(), n.value())))
     })
 }
-
 impl<'a> Ast<'a> {
-    fn replace_node(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
-        let mut old_node = self
-            .tree
-            .get_mut(old_node_id)
-            .expect("can't retrieve old node");
-        old_node.insert_id_after(new_node_id);
-        old_node.detach();
+    pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
+        let mut ret = Self::base(tree, ctx);
+        ret.process()?;
+        Ok(ret)
     }
 
-    fn replace_node_take_children(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
-        let mut replacement_node = self
-            .tree
-            .get_mut(new_node_id)
-            .expect("Can't fetch replacement node");
-        replacement_node.reparent_from_id_append(old_node_id);
-        self.replace_node(old_node_id, new_node_id);
-    }
-
-    fn base(tree: AstTree, ctx: &'a mut Context) -> Self {
-        Self {
-            tree,
-            ctx,
-            macro_defs: vec![],
-        }
+    pub fn from_nodes(ctx: &'a mut Context, node: &Node) -> Result<AstTree, UserError> {
+        let tree = make_tree(node);
+        let r = Self::new(tree, ctx)?;
+        Ok(r.tree)
     }
 
     fn process(&mut self) -> Result<(), UserError> {
@@ -216,16 +165,12 @@ impl<'a> Ast<'a> {
         Ok(())
     }
 
-    pub fn new(tree: AstTree, ctx: &'a mut Context) -> Result<Self, UserError> {
-        let mut ret = Self::base(tree, ctx);
-        ret.process()?;
-        Ok(ret)
-    }
-
-    pub fn from_nodes(ctx: &'a mut Context, node: &Node) -> Result<AstTree, UserError> {
-        let tree = make_tree(node);
-        let r = Self::new(tree, ctx)?;
-        Ok(r.tree)
+    fn base(tree: AstTree, ctx: &'a mut Context) -> Self {
+        Self {
+            tree,
+            ctx,
+            macro_defs: vec![],
+        }
     }
 
     /// Find all of the includes in this AST and replace with the
@@ -276,29 +221,6 @@ impl<'a> Ast<'a> {
         })
     }
 
-    // pub fn detach_nodes_by_id<I: Iterator<Item = AstNodeId>>(&mut self, i: I) {
-    //     for id in i {
-    //         self.tree.get_mut(id).unwrap().detach();
-    //     }
-    // }
-
-    pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> Vec<AstNodeId>
-    where
-        I: Iterator<Item = AstNodeId>,
-        F: Fn(AstNodeRef) -> bool,
-    {
-        i.filter(|id| {
-            let node = self.tree.get(*id).unwrap();
-            if f(node) {
-                self.tree.get_mut(*id).unwrap().detach();
-                true
-            } else {
-                false
-            }
-        })
-        .collect()
-    }
-
     pub fn process_macros_definitions(&mut self) -> Result<(), UserError> {
         info("Processing macro definitions", |_| {
             // TODO: should be written in a way that can detect
@@ -322,7 +244,7 @@ impl<'a> Ast<'a> {
 
             let mut mcalls = vec![];
 
-            let root_scope_id = self.symbols().get_root_id();
+            let root_scope_id = self.ctx.get_symbols().get_root_id();
 
             let mut scopes = ScopeTracker::new(root_scope_id);
 
@@ -345,7 +267,7 @@ impl<'a> Ast<'a> {
                         })?;
 
                         mcalls.push((
-                            macro_id,
+                            *macro_id,
                             macro_caller_scope_id,
                             params,
                             macro_call_node.id(),
@@ -358,23 +280,21 @@ impl<'a> Ast<'a> {
 
             // Create new nodes to replace the current macro call nodes
             // let mut nodes_to_change: Vec<(AstNodeId, AstNodeId)> = vec![];
-            for (macro_id, caller_scope_id, params, caller_node_id, pos) in mcalls.into_iter() {
-                let syms = &mut self.ctx.asm_out.symbols;
-                let params_vec = syms.add_symbols_to_scope(caller_scope_id, params).unwrap();
+            for (macro_id, scope_id, params, caller_node_id, pos) in mcalls.into_iter() {
+                let params_vec_of_id: ThinVec<_> = self
+                    .ctx
+                    .get_symbols_mut()
+                    .add_symbols_to_scope(scope_id, params)
+                    .unwrap()
+                    .into();
 
-                // Create the node we'll replace
-                let replacement_id = self
-                    .tree
-                    .orphan(ItemWithPos {
-                        item: MacroCallProcessed {
-                            macro_id: *macro_id,
-                            scope_id: caller_scope_id,
-                            params_vec_of_id: params_vec.into(),
-                        },
-                        pos,
-                    })
-                    .id();
+                let item = MacroCallProcessed {
+                    macro_id,
+                    scope_id,
+                    params_vec_of_id,
+                };
 
+                let replacement_id = self.create_orphan(item, pos);
                 self.replace_node_take_children(caller_node_id, replacement_id);
             }
 
@@ -388,7 +308,7 @@ impl<'a> Ast<'a> {
     }
 
     fn rename_locals(&mut self) {
-        info("Scoping locals into globals", |x| {
+        info("Renaming locals into globals", |x| {
             let mut scopes = ScopeBuilder::new();
 
             let rename = |fqn: &String, name: &String| {
@@ -512,27 +432,34 @@ impl<'a> Ast<'a> {
         self.eval_node(first_child.id(), current_scope_id)
     }
 
-    pub fn add_symbol<S>(
+    pub fn add_and_set_symbol(
         &mut self,
         value: i64,
-        name: S,
+        name: &str,
         id: AstNodeId,
-        current_scope_id: u64,
-    ) -> Result<SymbolScopeId, UserError>
-    where
-        S: Into<String>,
-    {
-        let mut writer = self.ctx.asm_out.symbols.get_symbol_nav(current_scope_id);
-        writer
-            .add_symbol_with_value(&name.into(), value)
-            .map_err(|e| {
-                let msg = format!("Symbol error {e:?}");
-                self.node_error(msg, id, false)
-            })
+        scopes: &ScopeTracker,
+    ) -> Result<SymbolScopeId, UserError> {
+        let symbol_id = self
+            .create_sym(name, &scopes)
+            .map_err(|e| self.sym_to_user_error(e, id))?;
+        self.ctx
+            .get_symbols_mut()
+            .set_symbol_from_id(symbol_id, value)
+            .map_err(|e| self.sym_to_user_error(e, id))?;
+        Ok(symbol_id)
+    }
+
+    fn sym_to_user_error(&self, e: SymbolError, id: AstNodeId) -> UserError {
+        let msg = format!("Symbol error {e:?}");
+        self.node_error(msg, id, false)
+    }
+
+    fn root_scope_tracker(&self) -> ScopeTracker {
+        ScopeTracker::new(self.ctx.asm_out.symbols.get_root_id())
     }
 
     fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
-        let current_scope_id = self.ctx.asm_out.symbols.get_root_id();
+        let scopes = self.root_scope_tracker();
 
         info("Generating symbols for struct definitions", |x| {
             use Item::*;
@@ -553,16 +480,16 @@ impl<'a> Ast<'a> {
                         let i = &self.tree.get(c_id).unwrap().value().item;
 
                         if let StructEntry(entry_name) = i {
-                            let value = self.eval_node_child(c_id, current_scope_id)?;
+                            let value = self.eval_node_child(c_id, scopes.scope())?;
                             let scoped_name = format!("{name}.{entry_name}");
-                            self.add_symbol(current, &scoped_name, c_id, current_scope_id)?;
+                            self.add_and_set_symbol(current, &scoped_name, c_id, &scopes)?;
                             x.debug(format!("Struct: Set {scoped_name} to {current}"));
                             current += value;
                         }
                     }
 
                     let scoped_name = format!("{name}.size");
-                    self.add_symbol(current, &scoped_name, id, current_scope_id)?;
+                    self.add_and_set_symbol(current, &scoped_name, id, &scopes)?;
                 }
             }
 
@@ -575,67 +502,47 @@ impl<'a> Ast<'a> {
     fn create_scopes(&mut self) -> Result<(), UserError> {
         use Item::*;
 
-        let root_id = self.ctx.asm_out.symbols.get_root_id();
+        let scopes = self.root_scope_tracker();
 
         for node_id in iter_ids_recursive(self.tree.root()) {
-            let item = self.tree.get(node_id).unwrap().value().item.clone();
+            let item = &self.tree.get(node_id).unwrap().value().item.clone();
 
-            if let Scope(scope) = &item {
-                let mut writer = self.ctx.asm_out.symbols.get_symbol_nav(root_id);
-                let id = writer.set_current_scope(scope.as_str());
-                let mut x = self.tree.get_mut(node_id).unwrap();
-                x.value().item = ScopeId(id);
+            if let Scope(scope) = item {
+                let id = self.get_writer(&scopes).create_or_set_scope(scope.as_str());
+                self.alter_node(node_id, |ipos| ipos.item = ScopeId(id));
             }
         }
 
         Ok(())
     }
 
-    fn symbols(&self) -> &SymbolTree {
-        self.ctx.get_symbols()
+    fn get_writer(&mut self, scopes: &ScopeTracker) -> SymbolNav {
+        self.ctx.asm_out.symbols.get_symbol_nav(scopes.scope())
     }
 
-    fn symbols_mut(&mut self) -> &mut SymbolTree {
-        self.ctx.get_symbols_mut()
+    fn get_reader(&self, scopes: &ScopeTracker) -> SymbolTreeReader {
+        self.ctx.asm_out.symbols.get_symbol_reader(scopes.scope())
     }
 
     fn scope_labels(&mut self) -> Result<(), UserError> {
         use Item::*;
         let root_node = self.tree.root();
-        let root_scope_id = self.symbols().get_root_id();
-
-        let mut current_scope_id = root_scope_id;
+        let mut scopes = self.root_scope_tracker();
 
         for node_id in iter_ids_recursive(root_node) {
             let value = self.tree.get(node_id).unwrap().value();
-            let item = value.item.clone();
-            let pos = value.pos.clone();
 
-            match &item {
-                Scope(name) => {
-                    panic!("Should not happen {name}")
-                }
-
-                ScopeId(scope_id) => current_scope_id = *scope_id,
+            match &value.item {
+                ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
-                    let si = self.ctx.sources().get_source_info(&pos).unwrap();
+                    let symbol_id = self.get_reader(&scopes)
+                        .get_symbol_info(name)
+                        .map_err(|e| self.sym_to_user_error(e, node_id))?
+                        .symbol_id;
 
-                    let err = if is_problem(&pos) {
-                        format!(
-                            "Current scope {} name {name} {si:#?} cs_id:{current_scope_id}",
-                            self.ctx.asm_out.symbols.get_fqn_from_id(current_scope_id)
-                        )
-                    } else {
-                        "not a problen?".to_owned()
-                    };
-
-                    let symbols = &mut self.ctx.asm_out.symbols;
-                    let reader = symbols.get_symbol_reader(current_scope_id);
-                    let id = reader.get_symbol_info(name).expect(&err).symbol_id;
-                    let mut x = self.tree.get_mut(node_id).unwrap();
-                    x.value().item = Label(id.into());
+                    self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
                 }
 
                 _ => (),
@@ -649,33 +556,27 @@ impl<'a> Ast<'a> {
     fn scope_assignments(&mut self) -> Result<(), UserError> {
         info("Correctly scoping assignments", |_| {
             use Item::*;
-            let root_id = self.ctx.asm_out.symbols.get_root_id();
-            let mut current_scope = root_id;
+            let mut scopes = self.root_scope_tracker();
 
             for node_id in iter_ids_recursive(self.tree.root()) {
                 let value = self.tree.get(node_id).unwrap().value();
-                let item = &value.item;
+                let item = &value.item.clone();
 
                 match item {
-                    Scope(name) => panic!("Whut? {name}"),
-
-                    ScopeId(scope_id) => current_scope = *scope_id,
+                    ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
                     AssignmentFromPc(LabelDefinition::Text(name)) => {
-                        let name = name.clone();
-
-                        let mut writer = self.ctx.get_symbols_mut().get_symbol_nav(current_scope);
-                        let sym_id = writer.add_symbol(&name).unwrap();
-                        let mut this_node_mut = self.tree.get_mut(node_id).unwrap();
-                        this_node_mut.value().item = AssignmentFromPc(sym_id.into());
+                        let sym_id = self.create_sym(name, &scopes).expect("Can't create sym");
+                        self.alter_node(node_id, |ipos| {
+                            ipos.item = AssignmentFromPc(sym_id.into());
+                        });
                     }
 
                     Assignment(LabelDefinition::Text(name)) => {
-                        let symbols = &mut self.ctx.asm_out.symbols;
-                        let mut writer = symbols.get_symbol_nav(current_scope);
-                        let sym_id = writer.add_symbol(name).unwrap();
-                        let mut x = self.tree.get_mut(node_id).unwrap();
-                        x.value().item = Assignment(sym_id.into());
+                        let sym_id = self.create_sym(name, &scopes).expect("Can't create sym");
+                        self.alter_node(node_id, |ipos| {
+                            ipos.item = Assignment(sym_id.into());
+                        });
                     }
                     _ => (),
                 }
@@ -689,38 +590,29 @@ impl<'a> Ast<'a> {
         info("Evaluating assignments", |_| {
             use super::eval::eval;
             use Item::*;
-            let mut current_scope_id = self.ctx.get_symbols().get_root_id();
 
-            let symbols = &mut self.ctx.asm_out.symbols;
+            let mut scopes = self.root_scope_tracker();
 
             for id in iter_ids_recursive(self.tree.root()) {
                 match &self.tree.get(id).unwrap().value().item {
                     ScopeId(scope_id) => {
-                        current_scope_id = *scope_id;
+                        scopes.set_scope(*scope_id);
                     }
 
                     Assignment(LabelDefinition::Scoped(label_id)) => {
                         let label_id = *label_id;
-                        let tree = &mut self.tree;
-                        let expr = tree.get(id).unwrap().first_child().unwrap();
-                        let reader = symbols.get_symbol_reader(current_scope_id);
+                        let expr = self.tree.get(id).unwrap().first_child().unwrap();
+                        let reader = self.ctx.get_symbols().get_symbol_reader(scopes.scope());
+                        let res = eval(&reader, expr);
 
-                        match eval(&reader, expr) {
-                            Ok(value) => {
-                                symbols
-                                    .set_symbol_from_id(label_id, value)
-                                    .expect("Can't set symbols");
-                            }
+                        match res {
+                            Ok(value) => self.set_sym(label_id, value).expect("Can't set symbol"),
 
                             Err(EvalError {
                                 source: EvalErrorEnum::CotainsPcReference,
                                 ..
                             }) => {
-                                let assignment = Item::AssignmentFromPc(label_id.into());
-                                tree.get_mut(id)
-                                    .expect("Can't get assignment node")
-                                    .value()
-                                    .item = assignment;
+                                self.alter_node(id, |ipos| ipos.item = Item::AssignmentFromPc(label_id.into()));
                             }
 
                             Err(e) => {
@@ -731,6 +623,7 @@ impl<'a> Ast<'a> {
                     _ => (),
                 }
             }
+            info_mess!("Done");
 
             Ok(())
         })
@@ -738,6 +631,63 @@ impl<'a> Ast<'a> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Node management stuff
+impl<'a> Ast<'a> {
+    fn replace_node(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
+        let mut old_node = self
+            .tree
+            .get_mut(old_node_id)
+            .expect("can't retrieve old node");
+        old_node.insert_id_after(new_node_id);
+        old_node.detach();
+    }
+
+    fn replace_node_take_children(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
+        let mut replacement_node = self
+            .tree
+            .get_mut(new_node_id)
+            .expect("Can't fetch replacement node");
+        replacement_node.reparent_from_id_append(old_node_id);
+        self.replace_node(old_node_id, new_node_id);
+    }
+
+    pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> Vec<AstNodeId>
+    where
+        I: Iterator<Item = AstNodeId>,
+        F: Fn(AstNodeRef) -> bool,
+    {
+        i.filter(|id| {
+            let node = self.tree.get(*id).unwrap();
+            if f(node) {
+                self.tree.get_mut(*id).unwrap().detach();
+                true
+            } else {
+                false
+            }
+        })
+        .collect()
+    }
+    fn create_orphan(&mut self, item: Item, pos: Position) -> AstNodeId {
+        self.tree.orphan(ItemWithPos { item, pos }).id()
+    }
+
+    fn create_sym(&mut self, name: &str, scopes: &ScopeTracker) -> Result<SymbolScopeId, SymbolError> {
+        let mut writer = self.ctx.get_symbols_mut().get_symbol_nav(scopes.scope());
+        writer.create_symbol(name)
+    }
+
+    fn set_sym(&mut self, id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
+        self.ctx.get_symbols_mut().set_symbol_from_id(id, val)
+    }
+
+    fn alter_node<F>(&mut self, node_id: AstNodeId, f: F)
+    where
+        F: Fn(&mut ItemWithPos),
+    {
+        let mut this_node_mut = self.tree.get_mut(node_id).unwrap();
+        f(&mut this_node_mut.value())
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -786,4 +736,41 @@ impl From<AstNodeRef<'_>> for Term {
             priority: to_priority(&node.value().item),
         }
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
+    let ipos = ItemWithPos::new(node);
+    let mut this_node = parent.append(ipos);
+
+    for n in &node.children {
+        add_node(&mut this_node, n);
+    }
+}
+fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
+    tree.get(id).unwrap().children().map(|c| c.id()).collect()
+}
+
+fn is_problem(p: &Position) -> bool {
+    p.src == AsmSource::FileId(4) && p.line == 19 && p.col == 12
+}
+
+pub fn create_ast_node(tree: &mut AstTree, node: &Node) -> AstNodeId {
+    let ipos = ItemWithPos::new(node);
+
+    let mut this_node = tree.orphan(ipos);
+
+    for n in &node.children {
+        add_node(&mut this_node, n);
+    }
+    this_node.id()
+}
+
+pub fn make_tree(node: &Node) -> AstTree {
+    let mut ret = AstTree::new(ItemWithPos::new(node));
+
+    for c in &node.children {
+        add_node(&mut ret.root_mut(), c);
+    }
+    ret
 }

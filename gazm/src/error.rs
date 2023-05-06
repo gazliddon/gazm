@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::ast::{AstNodeId, AstNodeRef};
 use crate::doc::ErrorDocType;
 use crate::locate::span_to_pos;
@@ -6,6 +8,13 @@ use crate::binary;
 use emu::utils::SearchError;
 use emu::utils::sources::{Position, SourceInfo, EditErrorKind, SourceErrorType};
 use thiserror::Error;
+
+pub struct InternalErrorKind {
+    msg : String,
+    file: PathBuf,
+    line: usize,
+    col: usize,
+}
 
 pub type GResult<T> = Result<T, GazmErrorKind>;
 
@@ -27,7 +36,6 @@ pub enum GazmErrorKind {
     FileError(#[from] SearchError),
     #[error(transparent)]
     SourceError(#[from] SourceErrorType),
-
 }
 
 

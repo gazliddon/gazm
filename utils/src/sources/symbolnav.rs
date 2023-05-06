@@ -17,11 +17,11 @@ impl<'a> SymbolNav<'a> {
         }
     }
 
-    pub fn get_tree(&self) -> &SymbolTree {
-        &self.sym_tree
+    pub fn new_root(sym_tree: &'a mut SymbolTree) -> Self {
+        Self::new(sym_tree, sym_tree.get_root_id())
     }
 
-    pub fn pop_scope(&mut self) {
+    pub fn pop(&mut self) {
         let n = self
             .sym_tree
             .get_node_from_id(self.current_scope_id)
@@ -31,36 +31,32 @@ impl<'a> SymbolNav<'a> {
         }
     }
 
-    pub fn set_root(&mut self) {
+    pub fn goto_root(&mut self) {
         self.current_scope_id = self.sym_tree.tree.root().value().get_scope_id()
     }
 
-    pub fn get_current_scope(&self) -> u64 {
+    pub fn get_scope(&self) -> u64 {
         self.current_scope_id
     }
 
-    pub fn get_current_scope_symbols(&self) -> &SymbolTable {
+    pub fn get_scope_symbols(&self) -> &SymbolTable {
         self.sym_tree
             .get_symbols_from_id(self.current_scope_id)
             .unwrap()
     }
 
-    pub fn get_current_scope_fqn(&self) -> String {
+    pub fn get_scope_fqn(&self) -> String {
         self.sym_tree.get_fqn_from_id(self.current_scope_id)
     }
 
-    pub fn set_current_scope_from_id(&mut self, id: u64) -> Result<(), SymbolError> {
+    pub fn set_scope_from_id(&mut self, id: u64) -> Result<(), SymbolError> {
         self.current_scope_id = id;
         Ok(())
     }
 
-    pub fn get_current_scope_id(&self) -> u64 {
-        self.current_scope_id
-    }
-
     // enters the child scope below the current_scope
     // If it doesn't exist then create it
-    pub fn set_current_scope(&mut self, name: &str) -> u64 {
+    pub fn create_or_set_scope(&mut self, name: &str) -> u64 {
         let new_scope_node_id = self.sym_tree
             .create_or_get_scope_for_parent(name, self.current_scope_id);
         self.current_scope_id = new_scope_node_id;
@@ -82,27 +78,25 @@ impl<'a> SymbolQuery for SymbolNav<'a> {
 }
 
 impl<'a> SymbolWriter for SymbolNav<'a> {
-
-    fn add_symbol_with_value(
+    fn create_and_set_symbol(
         &mut self,
         name: &str,
         value: i64,
     ) -> Result<SymbolScopeId, SymbolError> {
         let mut node = self.sym_tree.get_node_mut_from_id(self.current_scope_id)?;
-        node.value().add_symbol_with_value(name, value)
+        node.value().create_and_set_symbol(name, value)
     }
 
-    fn remove_symbol_name(&mut self, name: &str) {
+    fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError>{
         let mut node = self
             .sym_tree
-            .get_node_mut_from_id(self.current_scope_id)
-            .expect("invalide node");
-        node.value().remove_symbol_name(name)
+            .get_node_mut_from_id(self.current_scope_id)?;
+        node.value().remove_symbol(name)
     }
 
-    fn add_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
+    fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
         let mut node = self.sym_tree.get_node_mut_from_id(self.current_scope_id)?;
-        node.value().add_symbol(name)
+        node.value().create_symbol(name)
     }
 
     fn add_reference_symbol(&mut self, name: &str, val: i64) {

@@ -2,16 +2,14 @@ use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
     error::GResult,
+    gazm::ScopeTracker,
     item::{self, Item, LabelDefinition},
-    parse::util::{ByteSize, ByteSizes}, gazm::ScopeTracker,
-};
-
-use crate::{
     item6809::{
         AddrModeParseType,
         MC6809::{self, OpCode, SetDp},
     },
-    parse6809::opcodes::get_opcode_info,
+    parse::util::{ByteSize, ByteSizes},
+    parse6809::opcodes::get_opcode_info, info_mess,
 };
 
 use emu::{
@@ -21,8 +19,6 @@ use emu::{
 
 use std::path::Path;
 
-use Item::*;
-
 /// Ast tree sizer
 /// gets the size of everything
 /// assigns values to labels that
@@ -30,46 +26,75 @@ use Item::*;
 struct Sizer<'a> {
     tree: &'a AstTree,
     scopes: ScopeTracker,
+    pc: usize,
+    pc_symbol_id: SymbolScopeId,
 }
 
-pub fn size_tree(ctx: &mut AsmCtx, id: AstNodeId, tree: &AstTree) -> GResult<()> {
-    let root_scope_id = ctx.ctx.get_symbols().get_root_id();
-    let mut writer = ctx.ctx.get_symbols_mut().get_symbol_nav(root_scope_id);
+pub fn size_tree(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
+    crate::messages::info("Sizing tree", |_x| {
+        let _sizer = Sizer::try_new(tree, ctx)?;
+        info_mess!("done");
+        Ok(())
+    })
 
-    let mut sizer = Sizer::new(tree, root_scope_id);
-
-    let pc_id = 
-        writer.add_symbol_with_value("*", 0)
-        .expect("Can't add symbol for pc");
-
-    let _ = sizer.size_node(ctx, 0, id, pc_id)?;
-
-    let mut writer = ctx.ctx.get_symbols_mut().get_symbol_nav(root_scope_id);
-    writer.remove_symbol_name("*");
-
-    Ok(())
 }
 
 impl<'a> Sizer<'a> {
-    pub fn new(tree: &'a AstTree, curr_scope_id: u64) -> Self {
-        Self {  tree , scopes: ScopeTracker::new(curr_scope_id)}
+    fn advance_pc(&mut self, val: usize) {
+        assert!(self.pc < 65536);
+        self.pc += val;
     }
 
-    fn get_current_scope_id(&self) -> u64{
-        self.scopes.scope()
+    fn get_pc(&self) -> usize {
+        self.pc
     }
 
-    fn set_current_scope_id(&mut self, scope_id: u64)  {
-        self.scopes.set_scope(scope_id)
+    fn set_pc(&mut self, val: usize) {
+        self.pc = val;
+        assert!(self.pc < 65536);
     }
 
-    fn size_indexed(&mut self, ctx_mut: &mut AsmCtx, mut pc: usize, id: AstNodeId, ) -> GResult<usize> {
-        let node = self.get_node(id);
-        let i = &node.value().item;
+    pub fn try_new(tree: &'a AstTree, ctx: &mut AsmCtx) -> GResult<Sizer<'a>> {
+        let pc = 0;
+        let mut writer = ctx.ctx.get_symbols_mut().get_root_symbol_nav();
 
-        if let Cpu(OpCode(text, ins, AddrModeParseType::Indexed(pmode, indirect))) = i {
+        let pc_symbol_id = writer
+            .create_and_set_symbol("*", pc)
+            .expect("Can't add symbol for pc");
+
+        let root_id = ctx.ctx.get_symbols().get_root_id();
+
+        let mut ret = Self {
+            tree,
+            scopes: ScopeTracker::new(root_id),
+            pc: 0,
+            pc_symbol_id,
+        };
+
+        let id = ret.tree.root().id();
+        ret.size_node(ctx, id)?;
+
+        let mut writer = ctx.ctx.get_symbols_mut().get_root_symbol_nav();
+        writer.remove_symbol("*").expect("Can't remove pc symbol");
+
+        Ok(ret)
+    }
+
+    fn size_indexed(&mut self, ctx_mut: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+        use Item::*;
+        // let i = &self.get_node(id).value().item;
+
+        if let Cpu(OpCode(text, ins, AddrModeParseType::Indexed(pmode, indirect))) =
+            &self.get_node(id).value().item
+        {
+            let current_scope_id = self.scopes.scope();
+            let pmode = pmode.clone();
+            let indirect = indirect.clone();
+            let text = text.clone();
+            let ins = ins.clone();
+
+            self.advance_pc(ins.size);
             use crate::item6809::IndexParseType::*;
-            pc += ins.size;
 
             match pmode {
                 Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..) | Sub(..)
@@ -82,12 +107,13 @@ impl<'a> Sizer<'a> {
                 | Constant5BitOffset(..) => {}
 
                 ConstantOffset(r) => {
-                    let (v, _) = ctx_mut.ctx.eval_first_arg(node, self.get_current_scope_id())?;
+                    let node = self.get_node(id);
+                    let (v, _) = ctx_mut.ctx.eval_first_arg(node, current_scope_id)?;
 
                     let mut bs = v.byte_size();
 
                     if let ByteSizes::Bits5(val) = bs {
-                        if *indirect {
+                        if indirect {
                             // Indirect constant offset does not support
                             // 5 bit offsets so promote to 8 bit
                             bs = ByteSizes::Byte(val);
@@ -95,60 +121,68 @@ impl<'a> Sizer<'a> {
                     }
 
                     let new_amode = match bs {
-                        ByteSizes::Zero => Zero(*r),
-                        ByteSizes::Bits5(v) => Constant5BitOffset(*r, v),
+                        ByteSizes::Zero => Zero(r),
+                        ByteSizes::Bits5(v) => Constant5BitOffset(r, v),
                         ByteSizes::Word(v) => {
-                            pc += 2;
-                            ConstantWordOffset(*r, v)
+                            self.advance_pc(2);
+                            ConstantWordOffset(r, v)
                         }
                         ByteSizes::Byte(v) => {
-                            pc += 1;
-                            ConstantByteOffset(*r, v)
+                            self.advance_pc(1);
+                            ConstantByteOffset(r, v)
                         }
                     };
 
-                    let new_item =
-                        OpCode(text.clone(), ins.clone(), AddrModeParseType::Indexed(new_amode, *indirect));
+                    let new_item = OpCode(
+                        text.clone(),
+                        ins.clone(),
+                        AddrModeParseType::Indexed(new_amode, indirect),
+                    );
 
-                    ctx_mut.add_fixup(id, new_item, self.get_current_scope_id());
+                    ctx_mut.add_fixup(id, new_item, current_scope_id);
                 }
 
                 PCOffset => {
-                    let (v, _) = ctx_mut.ctx.eval_first_arg(node, self.get_current_scope_id())?;
-                    pc += 1;
+                    let node = self.get_node(id);
+                    let (v, _) = ctx_mut.ctx.eval_first_arg(node, current_scope_id)?;
+                    self.advance_pc(1);
 
                     let new_amode = match v.byte_size() {
                         ByteSizes::Zero => PcOffsetByte(0),
                         ByteSizes::Bits5(v) | ByteSizes::Byte(v) => PcOffsetByte(v),
                         ByteSizes::Word(v) => {
-                            pc += 1;
+                            self.advance_pc(1);
                             PcOffsetWord(v)
                         }
                     };
 
-                    let new_item =
-                        OpCode(text.clone(), ins.clone(), AddrModeParseType::Indexed(new_amode, *indirect).clone());
-                    ctx_mut.add_fixup(id, new_item, self.get_current_scope_id());
+                    let new_item = OpCode(
+                        text.clone(),
+                        ins.clone(),
+                        AddrModeParseType::Indexed(new_amode, indirect).clone(),
+                    );
+                    ctx_mut.add_fixup(id, new_item, current_scope_id);
                 }
 
-                ExtendedIndirect => pc += 2,
+                ExtendedIndirect => {
+                    self.advance_pc(2);
+                }
             };
-            return Ok(pc);
+            Ok(())
+        } else {
+            panic!()
         }
-        panic!()
     }
 
-    fn size_node(
-        &mut self,
-        ctx: &mut AsmCtx,
-        mut pc: usize,
-        id: AstNodeId,
-        pc_symbol_id: SymbolScopeId,
-    ) -> GResult<usize> {
+    fn size_node(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
         use item::Item::*;
 
         let node = self.get_node(id);
         let i = &node.value().item.clone();
+        let current_scope_id = self.scopes.scope();
+
+        ctx.set_symbol_value(self.pc_symbol_id, self.get_pc())
+            .expect("Can't set PC symbol value");
 
         match &i {
             MacroCallProcessed {
@@ -161,38 +195,38 @@ impl<'a> Sizer<'a> {
                 let m_node = self.get_node(*macro_id);
                 let kids: Vec<_> = m_node.children().map(|n| n.id()).collect();
                 for c in kids {
-                    pc = self.size_node(ctx, pc, c, pc_symbol_id)?;
+                    self.size_node(ctx, c)?;
                 }
 
                 self.scopes.pop();
             }
 
-            ScopeId(scope_id) => {
-                self.set_current_scope_id(*scope_id);
-            }
+            ScopeId(scope_id) => self.scopes.set_scope(*scope_id),
 
             GrabMem => {
-                let args = ctx.ctx.eval_n_args(node, 2,self.get_current_scope_id())?;
+                let args = ctx.ctx.eval_n_args(node, 2, current_scope_id)?;
                 let size = args[1];
-                pc += size as usize;
+                self.advance_pc(size as usize);
             }
 
             Org => {
-                let (value, _) = ctx.ctx.eval_first_arg(node, self.get_current_scope_id())?;
-                pc = value as usize;
-                ctx.add_fixup(id, Item::SetPc(pc), self.get_current_scope_id());
+                let pc = ctx.ctx.eval_first_arg(node, current_scope_id)?.0 as usize;
+                ctx.add_fixup(id, Item::SetPc(pc), current_scope_id);
+                self.set_pc(pc);
             }
 
-            SetPc(val) => pc = *val,
+            SetPc(val) => {
+                self.set_pc(*val);
+            }
 
             Put => {
-                let (value, _) = ctx.ctx.eval_first_arg(node,self.get_current_scope_id())?;
-                let offset = (value - pc as i64) as isize;
-                ctx.add_fixup(id, Item::SetPutOffset(offset), self.get_current_scope_id());
+                let (value, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
+                let offset = (value - self.get_pc() as i64) as isize;
+                ctx.add_fixup(id, Item::SetPutOffset(offset), current_scope_id);
             }
 
             Rmb => {
-                let (bytes, _) = ctx.ctx.eval_first_arg(node,self.get_current_scope_id())?;
+                let (bytes, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
 
                 if bytes < 0 {
                     return Err(ctx
@@ -201,9 +235,8 @@ impl<'a> Sizer<'a> {
                         .into());
                 };
 
-                ctx.add_fixup(id, Item::Skip(bytes as usize), self.get_current_scope_id());
-
-                pc += bytes as usize;
+                ctx.add_fixup(id, Item::Skip(bytes as usize), current_scope_id);
+                self.advance_pc(bytes as usize);
             }
 
             Cpu(OpCode(text, ins, amode)) => {
@@ -222,7 +255,7 @@ impl<'a> Sizer<'a> {
                             .and_then(|ins| ctx.ctx.asm_out.direct_page.map(|dp| (ins, dp)));
 
                         if let Some((new_ins, dp)) = dp_info {
-                            if let Ok((value, _)) = ctx.ctx.eval_first_arg(node, self.get_current_scope_id()) {
+                            if let Ok((value, _)) = ctx.ctx.eval_first_arg(node, current_scope_id) {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
                                 if top_byte == dp {
@@ -234,76 +267,71 @@ impl<'a> Sizer<'a> {
                                         Box::new(new_ins),
                                         AddrModeParseType::Direct,
                                     ));
-                                    ctx.add_fixup(id, new_item, self.get_current_scope_id());
+                                    ctx.add_fixup(id, new_item, current_scope_id);
                                 }
                             }
                         }
-
-                        pc += size;
+                        self.advance_pc(size);
                     }
 
                     AddrModeParseType::Indexed(..) => {
-                        pc = self.size_indexed(ctx, pc, id)?;
+                        self.size_indexed(ctx, id)?;
                     }
 
                     _ => {
-                        pc += ins.size;
+                        self.advance_pc(ins.size);
                     }
                 };
             }
 
             AssignmentFromPc(LabelDefinition::Scoped(symbol_id)) => {
-                // TODO: should two types of item rather than this
-                // conditional
                 let pcv = if node.first_child().is_some() {
-                    ctx.set_symbol_value(pc_symbol_id, pc)
-                        .expect("Can't set PC symbol value");
-                    ctx.ctx.eval_first_arg(node, self.get_current_scope_id())?.0
+                    // If we have an arg then evaluate the arg
+                    ctx.ctx.eval_first_arg(node, current_scope_id)?.0
                 } else {
                     // Otherwise it's just the current PC
-                    pc as i64
+                    self.get_pc() as i64
                 };
+
                 ctx.set_symbol_value(*symbol_id, pcv as usize).unwrap();
             }
 
             TokenizedFile(..) => {
                 for c in ctx.ctx.get_children(node) {
-                    pc = self.size_node(ctx, pc, c, pc_symbol_id)?;
+                    self.size_node(ctx, c)?;
                 }
             }
 
-            Fdb(num_of_words) => {
-                pc += *num_of_words * 2;
-            }
+            Fdb(num_of_words) => self.advance_pc(*num_of_words * 2),
 
             Fcb(num_of_bytes) => {
-                pc += *num_of_bytes;
+                self.advance_pc(*num_of_bytes);
             }
 
             Fcc(text) => {
-                pc += text.as_bytes().len();
+                self.advance_pc(text.as_bytes().len());
             }
 
             Zmb => {
-                let (v, _) = ctx.ctx.eval_first_arg(node, self.get_current_scope_id())?;
+                let (v, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 assert!(v >= 0);
-                pc += v as usize;
+                self.advance_pc(v as usize)
             }
 
             Zmd => {
-                let (v, _) = ctx.ctx.eval_first_arg(node, self.get_current_scope_id())?;
+                let (v, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 assert!(v >= 0);
-                pc += (v * 2) as usize;
+                self.advance_pc((v * 2) as usize)
             }
 
             Fill => {
-                let (_, c) = ctx.ctx.eval_two_args(node, self.get_current_scope_id())?;
+                let (_, c) = ctx.ctx.eval_two_args(node, current_scope_id)?;
                 assert!(c >= 0);
-                pc += c as usize;
+                self.advance_pc(c as usize);
             }
 
             Cpu(SetDp) => {
-                let (dp, _) = ctx.ctx.eval_first_arg(node, self.get_current_scope_id())?;
+                let (dp, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 ctx.set_dp(dp);
             }
 
@@ -314,8 +342,8 @@ impl<'a> Sizer<'a> {
                     r: r.clone(),
                 };
 
-                ctx.add_fixup(id, new_item, self.get_current_scope_id());
-                pc += r.len();
+                ctx.add_fixup(id, new_item, current_scope_id);
+                self.advance_pc(r.len())
             }
 
             PostFixExpr | WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..)
@@ -327,7 +355,7 @@ impl<'a> Sizer<'a> {
             }
         };
 
-        Ok(pc)
+        Ok(())
     }
 
     fn get_binary_extents<P: AsRef<Path>>(
@@ -336,19 +364,17 @@ impl<'a> Sizer<'a> {
         file_name: P,
         node: AstNodeRef,
     ) -> GResult<std::ops::Range<usize>> {
+        use itertools::Itertools;
+
         let data_len = ctx.get_file_size(file_name.as_ref())?;
 
         let mut r = 0..data_len;
 
-        let mut c = node.children();
+        let current_scope_id = self.scopes.scope();
 
-        let offset_size = c
-            .next()
-            .and_then(|offset| c.next().map(|size| (offset, size)));
-
-        if let Some((offset, size)) = offset_size {
-            let offset = ctx.ctx.eval_node(offset,self.get_current_scope_id())?;
-            let size = ctx.ctx.eval_node(size,self.get_current_scope_id())?;
+        if let Some((offset, size)) = node.children().collect_tuple() {
+            let offset = ctx.ctx.eval_node(offset, current_scope_id)?;
+            let size = ctx.ctx.eval_node(size, current_scope_id)?;
             let offset_usize = offset as usize;
             let size_usize = size as usize;
             let last = (offset_usize + size_usize) - 1;
@@ -361,19 +387,14 @@ impl<'a> Sizer<'a> {
 
             r.start = offset_usize;
             r.end = offset_usize + size_usize;
+        } else {
+            panic!("Should not happen!")
         }
 
         Ok(r)
     }
 
     fn get_node(&self, id: AstNodeId) -> AstNodeRef {
-        self.tree.get(id).unwrap()
+        self.tree.get(id).expect("Can't fetch node")
     }
-
-    // fn get_node_item(&self, ctx: &AsmCtx, id: AstNodeId) -> (AstNodeRef, Item) {
-    //     let node = self.tree.get(id).unwrap();
-    //     let this_i = &node.value().item;
-    //     let i = ctx.get_fixup_or_default(id, this_i, self.get_current_scope_id());
-    //     (node, i)
-    // }
 }
