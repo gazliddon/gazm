@@ -1,14 +1,17 @@
 /// Parses text into a load of structured tokens
 use nom::{
     branch::alt,
-    bytes::complete::is_not,
-    character::complete::{line_ending, multispace0},
+    bytes::complete::{is_not, tag},
+    character::complete::{anychar, line_ending, multispace0},
     combinator::{cut, not, opt, recognize},
     multi::many0,
-    sequence::{preceded, terminated},
+    sequence::{pair, preceded, terminated},
 };
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    task::ready,
+};
 
 use tryvial::try_block;
 
@@ -20,8 +23,8 @@ use crate::{
     labels::parse_label,
     locate::Span,
     macros::{get_macro_def, get_scope_block, parse_macro_call},
-    parse6809::opcodes::parse_opcode,
     parse::util::{parse_assignment, ws},
+    parse6809::opcodes::parse_opcode,
     structs::{get_struct, parse_struct_definition},
 };
 
@@ -81,6 +84,27 @@ pub struct Tokens {
     pub opts: Opts,
     pub parse_errors: Vec<ParseError>,
     pub includes: Vec<(Position, PathBuf)>,
+    docs: DocTracker,
+}
+
+#[derive(Default)]
+struct DocTracker {
+    doc_lines: Vec<String>,
+}
+
+impl DocTracker {
+    pub fn has_docs(&self) -> bool {
+        !self.doc_lines.is_empty()
+    }
+
+    pub fn add_doc_line(&mut self, doc: &str) {
+        self.doc_lines.push(doc.to_string())
+    }
+    pub fn flush_docs(&mut self) -> String {
+        let ret = self.doc_lines.join("\n");
+        *self = Default::default();
+        ret
+    }
 }
 
 impl Tokens {
@@ -92,8 +116,24 @@ impl Tokens {
         tokens.parse_to_tokens(text).map(|_| tokens)
     }
 
+    // Add a node with no doc
     fn add_node(&mut self, node: Node) {
+        let doc = self.docs.flush_docs();
+
+        if !doc.is_empty() {
+            println!("DISCARDED DOC LINE {doc}")
+        }
+
         self.tokens.push(node);
+    }
+
+    fn add_node_with_doc(&mut self, mut node: Node) {
+        let doc = self.docs.flush_docs();
+        if !doc.is_empty() {
+            let doc_node = Node::new(Item::Doc(doc), node.ctx.clone());
+            node.add_child(doc_node)
+        }
+        self.add_node(node)
     }
 
     fn trailing_text<'a>(&'a mut self, input: Span<'a>) -> IResult<()> {
@@ -115,6 +155,11 @@ impl Tokens {
             return Ok((input, ()));
         }
 
+        if let Ok((rest, doc)) = get_doc_line(input) {
+            self.docs.add_doc_line(&doc);
+            return self.trailing_text(rest);
+        }
+
         if let Ok((rest, node)) = parse_comments(self.opts.star_comments, input) {
             self.add_node(node);
             return self.trailing_text(rest);
@@ -122,14 +167,14 @@ impl Tokens {
 
         // If we find an equate, parse and return
         if let Ok((rest, equate)) = ws(parse_assignment)(input) {
-            self.add_node(equate);
+            self.add_node_with_doc(equate);
             return self.trailing_text(rest);
         }
 
         // If this is a label, add the label and carry on
         if let Ok((rest, label)) = ws(parse_label_not_macro)(input) {
             let node = mk_pc_equate(&label);
-            self.add_node(node);
+            self.add_node_with_doc(node);
             input = rest;
         }
 
@@ -140,7 +185,6 @@ impl Tokens {
             if let Item::Include(name) = &node.item {
                 self.add_include_with_pos(node.ctx.clone(), name.clone())
             }
-
             self.add_node(node);
             self.trailing_text(rest)
         } else {
@@ -157,7 +201,6 @@ impl Tokens {
     }
 
     fn parse_to_tokens(&mut self, input: Span) -> GResult<()> {
-
         let mut source = input;
 
         while !source.is_empty() {
@@ -212,4 +255,11 @@ impl Tokens {
 
         Ok(())
     }
+}
+
+pub fn get_doc_line(input: Span) -> IResult<Span> {
+    let rest = input;
+    let (rest, matched) = get_line(rest)?;
+    let (_, matched) = preceded(ws(tag(";;;")), recognize(many0(anychar)))(matched)?;
+    Ok((rest, matched))
 }

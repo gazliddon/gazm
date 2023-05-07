@@ -48,6 +48,7 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
         ret.children = thin_vec![child];
         ret
     }
+
     pub fn add_child(&mut self, n: Self) {
         self.children.push(n)
     }

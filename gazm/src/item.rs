@@ -91,9 +91,8 @@ impl std::fmt::Display for LabelDefinition {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
     Cpu(MC6809),
-
+    Doc(String),
     Pc,
-
     BlankLine,
     Skip(usize),
     LocalAssignment(LabelDefinition),

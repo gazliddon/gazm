@@ -6,18 +6,15 @@ use nom::{
     multi::separated_list0,
     sequence::separated_pair,
 };
-use crate::parse::strip_comments;
-
-use crate::locate::{matched_span, span_to_pos};
 
 use crate::{
+    error::IResult,
+    item::{Item, Node, StructMemberType},
     labels::get_just_label,
+    locate::{matched_span, span_to_pos, Span},
+    parse::strip_comments,
     parse::util::{wrapped_chars, ws},
 };
-
-use crate::error::IResult;
-use crate::item::{Item, Node, StructMemberType};
-use crate::locate::Span;
 
 fn parse_block(input: Span<'_>) -> IResult<Span> {
     ws(wrapped_chars('{', is_not("}"), '}'))(input)
@@ -70,7 +67,7 @@ fn parse_struct_entry(input: Span<'_>) -> IResult<Node> {
         Node::from_item_span(Item::Number(1, crate::item::ParsedFrom::FromExpr), input)
     };
 
-    let children= vec![
+    let children = vec![
         multiplier,
         Node::from_item_span(Item::Mul, input),
         Node::from_item_span(size, input),
@@ -92,7 +89,11 @@ pub fn parse_struct_definition(input: Span<'_>) -> IResult<Node> {
 
     if spare.is_empty() {
         let matched_span = matched_span(input, rest);
-        let res = Node::new_with_children(Item::StructDef(name.to_string()), &entries, span_to_pos( matched_span ));
+        let res = Node::new_with_children(
+            Item::StructDef(name.to_string()),
+            &entries,
+            span_to_pos(matched_span),
+        );
         Ok((rest, res))
     } else {
         let m = "Unexpected text in struct definition, missing comma on previous line?";

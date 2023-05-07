@@ -7,6 +7,7 @@ use emu::utils::sources::{
 };
 use log::{error, info};
 use serde_json::Value;
+use std::cmp::max;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tower_lsp::jsonrpc;
@@ -444,16 +445,25 @@ impl LanguageServer for Backend {
         let ret = with_state(&self.asm_ctx, |asm_ctx| -> Option<SymbolInfo> {
             let id = asm_ctx.ctx.find_symbol_id(position, uri)?;
             let reader = asm_ctx.ctx.get_symbols().get_symbol_reader(id.scope_id);
-
             let si = reader.get_symbol_info_from_id(id).unwrap();
             Some(si.clone())
         });
 
         let reply = if let Some(si) = ret {
+            let value = si
+                .value
+                .map(|x| format!("{x:5} 0x{x:04x}"))
+                .unwrap_or("UNDEFINED".to_owned());
+            let scoped_name = si.scoped_name();
+            let name = si.name();
+
+            let to_print = vec![("full name", scoped_name), ("value", &value)];
+            let text = tabulate(&to_print, 10).join("\n");
+
             let reply = Hover {
                 contents: HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,
-                    value: format!("# Symbol Information for {}\n_full name:_ {}", si.name(), si.scoped_name()),
+                    value: format!("# Symbol {name}\n{text}"),
                 }),
                 range: None,
             };
@@ -464,4 +474,12 @@ impl LanguageServer for Backend {
 
         Ok(reply)
     }
+}
+
+fn tabulate(tabs: &[(&str, &str)], min_width: usize) -> Vec<String> {
+    let max_len = tabs.iter().map(|(f, _)| f.len()).max().unwrap();
+    let width = max(min_width, max_len + 4);
+    tabs.into_iter()
+        .map(|(f, v)| format!("{:width$}{v}", format!("_{f}_:"), width = width))
+        .collect::<Vec<_>>()
 }

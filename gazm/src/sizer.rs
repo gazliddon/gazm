@@ -1,3 +1,6 @@
+/// Take the AST and work out the sizes of everything
+/// Resolve labels where we can
+
 use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},

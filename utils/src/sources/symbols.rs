@@ -55,7 +55,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SymbolInfo {
     name: String,
-    fqn: String,
+    scoped_name: String,
     pub value: Option<i64>,
     pub symbol_id: SymbolScopeId,
 }
@@ -66,20 +66,15 @@ impl SymbolInfo {
             name: name.to_string(),
             value,
             symbol_id,
-            fqn: fqn.to_string(),
+            scoped_name : format!("{fqn}::{name}")
         }
     }
 
     pub fn name(&self) -> &str {
         &self.name
     }
-
-    pub fn scope(&self) -> &str {
-        &self.fqn
-    }
-
-    pub fn scoped_name(&self) -> String {
-        format!("{}::{}", self.fqn, self.name)
+    pub fn scoped_name(&self) -> &str {
+        &self.scoped_name
     }
 }
 

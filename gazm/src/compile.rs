@@ -1,3 +1,4 @@
+/// Take the sized AST and compile it into binary
 use std::path::Path;
 
 use crate::{

@@ -11,11 +11,11 @@ use crate::scopes::ScopeBuilder;
 use crate::ctx::Context;
 use crate::item::{Item, LabelDefinition, Node};
 
-use crate::messages::*;
+use crate::{messages::*, node};
 use emu::utils::eval::{to_postfix, GetPriority};
 use emu::utils::sources::{
-    AsmSource, Position, SourceErrorType, SourceInfo, SymbolError, SymbolQuery, SymbolScopeId,
-    SymbolTree, SymbolWriter, SymbolNav, SymbolTreeReader, SymbolInfo,
+    AsmSource, Position, SourceErrorType, SourceInfo, SymbolError, SymbolInfo, SymbolNav,
+    SymbolQuery, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolWriter,
 };
 use emu::utils::symbols::SymbolReader;
 use thin_vec::ThinVec;
@@ -23,6 +23,7 @@ use tower_lsp::lsp_types::request::WillRenameFiles;
 
 use crate::info_mess;
 
+use std::collections::HashMap;
 use std::iter;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -153,8 +154,10 @@ impl<'a> Ast<'a> {
     }
 
     fn process(&mut self) -> Result<(), UserError> {
-        self.create_scopes()?;
+
         self.inline_includes()?;
+        self.gather_docs()?;
+        self.create_scopes()?;
         self.postfix_expressions()?;
         self.rename_locals();
         self.process_macros_definitions()?;
@@ -162,6 +165,23 @@ impl<'a> Ast<'a> {
         self.scope_assignments()?;
         self.scope_labels()?;
         self.evaluate_assignments()?;
+        Ok(())
+    }
+
+    /// Remove all doc nodes
+    /// and put into a doc databse
+    fn gather_docs(&mut self) -> Result<(), UserError> {
+        let mut doc_map: HashMap<AstNodeId, String> = HashMap::new();
+
+        for id in iter_ids_recursive(self.tree.root()) {
+            let node = self.tree.get(id).unwrap();
+
+            if let Item::Doc(text) = &node.value().item {
+                let parent_id = node.parent().unwrap().id();
+                doc_map.insert(parent_id, text.to_string());
+                self.tree.get_mut(id).unwrap().detach();
+            } 
+        }
         Ok(())
     }
 
@@ -537,7 +557,8 @@ impl<'a> Ast<'a> {
 
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
-                    let symbol_id = self.get_reader(&scopes)
+                    let symbol_id = self
+                        .get_reader(&scopes)
                         .get_symbol_info(name)
                         .map_err(|e| self.sym_to_user_error(e, node_id))?
                         .symbol_id;
@@ -612,7 +633,9 @@ impl<'a> Ast<'a> {
                                 source: EvalErrorEnum::CotainsPcReference,
                                 ..
                             }) => {
-                                self.alter_node(id, |ipos| ipos.item = Item::AssignmentFromPc(label_id.into()));
+                                self.alter_node(id, |ipos| {
+                                    ipos.item = Item::AssignmentFromPc(label_id.into())
+                                });
                             }
 
                             Err(e) => {
@@ -671,7 +694,11 @@ impl<'a> Ast<'a> {
         self.tree.orphan(ItemWithPos { item, pos }).id()
     }
 
-    fn create_sym(&mut self, name: &str, scopes: &ScopeTracker) -> Result<SymbolScopeId, SymbolError> {
+    fn create_sym(
+        &mut self,
+        name: &str,
+        scopes: &ScopeTracker,
+    ) -> Result<SymbolScopeId, SymbolError> {
         let mut writer = self.ctx.get_symbols_mut().get_symbol_nav(scopes.scope());
         writer.create_symbol(name)
     }
