@@ -1,0 +1,17 @@
+==================
+Docs
+==================
+
+;;; Hello
+;;; Hello2
+;;; Hello3
+
+hello ;;; Doc
+
+---
+(source_file
+    (doc)
+    (doc)
+    (doc)
+    (label)
+    (doc))
