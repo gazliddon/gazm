@@ -136,6 +136,8 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
     use crate::sizer::size_tree;
 
     let tree = Ast::from_nodes(ctx, tokens)?;
+    let docs = tree.docs;
+    let tree = tree.tree;
 
     let mut asm_ctx = AsmCtx {
         fixer_upper: FixerUpper::new(),
@@ -145,9 +147,8 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
     size_tree(&mut asm_ctx, &tree)?;
     compile(&mut asm_ctx, &tree)?;
 
-    let lookup = LabelUsageAndDefintions::new(&tree, &ctx.asm_out.symbols);
+    let lookup = LabelUsageAndDefintions::new(&tree, &ctx.asm_out.symbols, docs);
     ctx.asm_out.ast = Some(tree);
     ctx.asm_out.lookup = Some(lookup);
-
     Ok(())
 }

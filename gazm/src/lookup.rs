@@ -1,8 +1,9 @@
 // Lookup where labels are defined and referenced
-use crate::ast::{ iter_refs_recursive, AstTree};
+use crate::ast::{iter_refs_recursive, AstNodeId, AstTree};
 use crate::item::{Item, LabelDefinition};
 use emu::utils::sources::{
-    Position, SymbolError, SymbolInfo, SymbolScopeId, SymbolTable, SymbolTree,SymbolResolutionBarrier
+    Position, SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, SymbolTable,
+    SymbolTree,
 };
 use emu::utils::Stack;
 use std::collections::HashMap;
@@ -53,7 +54,11 @@ impl<'a> Navigator<'a> {
     }
 
     pub fn resolve_label(&self, _name: &str) -> Result<&SymbolInfo, SymbolError> {
-        self.syms.resolve_label(_name, self.current_scope_id, SymbolResolutionBarrier::default())
+        self.syms.resolve_label(
+            _name,
+            self.current_scope_id,
+            SymbolResolutionBarrier::default(),
+        )
     }
 
     pub fn set_scope(&mut self, scope_id: u64) -> Result<(), NavError> {
@@ -77,13 +82,15 @@ impl<'a> Navigator<'a> {
 
 pub struct LabelUsageAndDefintions {
     reference_pos_and_id: Vec<(Position, SymbolScopeId)>,
-    _symbols: SymbolTree,
-    symbol_id_to_definition: HashMap<SymbolScopeId, Position>,
+    pub symbols: SymbolTree,
+    symbol_id_to_definition_pos: HashMap<SymbolScopeId, Position>,
+    pos_node_id: Vec<(Position, AstNodeId)>,
+    tree: AstTree,
+    docs: HashMap<AstNodeId, String>,
 }
 
-
 impl LabelUsageAndDefintions {
-    pub fn new(tree: &AstTree, _syms: &SymbolTree) -> Self {
+    pub fn new(tree: &AstTree, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self {
         use Item::*;
 
         let mut reference_pos_and_id: Vec<(Position, SymbolScopeId)> = vec![];
@@ -108,11 +115,50 @@ impl LabelUsageAndDefintions {
             }
         }
 
+        let mut pos_node_id = vec![];
+
+        for n in iter_refs_recursive(tree.root()) {
+            let v = n.value();
+            if matches!(
+                v.item,
+                Label(LabelDefinition::Scoped(..))
+                    | AssignmentFromPc(..)
+                    | Assignment(..)
+                    | LocalAssignment(..)
+                    | LocalAssignmentFromPc(..)
+                    | LocalLabel(LabelDefinition::Scoped(..))
+            ) {
+                pos_node_id.push((v.pos.clone(), n.id()))
+            }
+        }
+
         Self {
             reference_pos_and_id,
-            _symbols: _syms.clone(),
-            symbol_id_to_definition,
+            symbols: _syms.clone(),
+            symbol_id_to_definition_pos: symbol_id_to_definition,
+            tree: tree.clone(),
+            pos_node_id,
+            docs,
         }
+    }
+
+    pub fn find_symbol_docs(&self, symbol_id: SymbolScopeId) -> Option<String> {
+        self.symbol_id_to_definition_pos.get(&symbol_id).and_then(|p| self.find_docs(p))
+    }
+
+    pub fn find_node_id_from_pos(&self, pos: &Position) -> Vec<AstNodeId> {
+        let ret = self
+            .pos_node_id
+            .iter()
+            .filter_map(|(p, id)| if p.overlaps(pos) { Some(*id) } else { None })
+            .collect();
+        ret
+    }
+
+    pub fn find_docs(&self, pos: &Position) -> Option<String> {
+        let nodes = self.find_node_id_from_pos(pos);
+        let node_id = nodes.get(0)?;
+        self.docs.get(node_id).cloned()
     }
 
     pub fn find_references(&self, id: SymbolScopeId) -> Vec<(Position, SymbolScopeId)> {
@@ -131,7 +177,7 @@ impl LabelUsageAndDefintions {
         }
     }
 
-    pub fn find_symbol_referenced_at_pos(&self, p : &Position) -> Option<SymbolScopeId> {
+    pub fn find_symbol_referenced_at_pos(&self, p: &Position) -> Option<SymbolScopeId> {
         for (pos, id) in self.reference_pos_and_id.iter() {
             if p.overlaps(pos) {
                 return Some(*id);
@@ -140,14 +186,14 @@ impl LabelUsageAndDefintions {
         None
     }
 
-    pub fn find_scope_at_pos(&self, _p : &Position) -> u64 {
+    pub fn find_scope_at_pos(&self, _p: &Position) -> u64 {
         panic!()
     }
 
-    pub fn find_symbol_defined_at_pos(&self, p : &Position) -> Option<SymbolScopeId> { 
-        for (id, pos) in self.symbol_id_to_definition.iter() {
-            if p.overlaps(pos)  {
-                return Some(*id)
+    pub fn find_symbol_defined_at_pos(&self, p: &Position) -> Option<SymbolScopeId> {
+        for (id, pos) in self.symbol_id_to_definition_pos.iter() {
+            if p.overlaps(pos) {
+                return Some(*id);
             }
         }
         None
@@ -156,14 +202,11 @@ impl LabelUsageAndDefintions {
     /// Finds a symbol id at Pos
     /// Searches both references and definitions
     pub fn find_symbol_id_at_pos(&self, p: &Position) -> Option<SymbolScopeId> {
-        self.find_symbol_referenced_at_pos(p).or_else(|| {
-            self.find_symbol_defined_at_pos(p)
-        })
+        self.find_symbol_referenced_at_pos(p)
+            .or_else(|| self.find_symbol_defined_at_pos(p))
     }
 
     pub fn find_definition(&self, id: SymbolScopeId) -> Option<&Position> {
-        self.symbol_id_to_definition.get(&id)
+        self.symbol_id_to_definition_pos.get(&id)
     }
-
 }
-

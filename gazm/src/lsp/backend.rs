@@ -1,9 +1,10 @@
+use crate::ast::AstNodeId;
 use crate::ctx::{Context, Opts};
 use crate::error::{GResult, GazmErrorKind};
 use crate::gazm::{with_state, Assembler};
 use crate::lookup::LabelUsageAndDefintions;
 use emu::utils::sources::{
-    Position as GazmPosition, SymbolInfo, SymbolQuery, SymbolScopeId, TextEdit, TextPos,
+    AsmSource, Position as GazmPosition, SymbolInfo, SymbolQuery, SymbolScopeId, TextEdit, TextPos,
 };
 use log::{error, info};
 use serde_json::Value;
@@ -43,6 +44,26 @@ impl Context {
         })
     }
 
+    fn find_node_id(&self, position: &Position, uri: &Url) -> Option<Vec<AstNodeId>> {
+        self.do_pos_lookup_work(position, uri, |pos, lookup| {
+            Some(lookup.find_node_id_from_pos(pos))
+        })
+    }
+
+    fn lookup_ref(&self) -> Option<&LabelUsageAndDefintions> {
+        self.asm_out.lookup.as_ref()
+    }
+
+    fn find_docs(&self, position: &Position, uri: &Url) -> Option<String> {
+        // is there a symbol referenced of defined here?
+        if let Some(symbol_id) = self.find_symbol_referenced_or_defined(position, uri) {
+            self.lookup_ref()
+                .and_then(|lookup| lookup.find_symbol_docs(symbol_id))
+        } else {
+            self.do_pos_lookup_work(position, uri, |pos, lookup| lookup.find_docs(pos))
+        }
+    }
+
     fn make_loc(&self, pos: &GazmPosition) -> Location {
         let path = self.asm_source_to_path(&pos.src).expect("Whoops");
         make_location(pos.line, pos.col, path)
@@ -62,7 +83,6 @@ impl Context {
             }
         })
     }
-
     fn do_pos_lookup_work<R>(
         &self,
         position: &Position,
@@ -70,12 +90,22 @@ impl Context {
         f: impl FnOnce(&GazmPosition, &LabelUsageAndDefintions) -> Option<R>,
     ) -> Option<R> {
         self.to_file_path_position(position, uri)
-            .and_then(|(p, _)| {
-                self.asm_out
-                    .lookup
-                    .as_ref()
-                    .and_then(|lookup| f(&p, lookup))
-            })
+            .and_then(|(p, _)| self.lookup_ref().and_then(|lookup| f(&p, lookup)))
+    }
+
+    fn find_symbol_referenced_or_defined(
+        &self,
+        position: &Position,
+        uri: &Url,
+    ) -> Option<SymbolScopeId> {
+        self.find_symbol_id(position, uri)
+            .or(self.find_definition_id(position, uri))
+    }
+
+    fn find_definition_id(&self, position: &Position, uri: &Url) -> Option<SymbolScopeId> {
+        self.do_pos_lookup_work(position, uri, |pos, lookup| {
+            lookup.find_symbol_id_at_pos(pos)
+        })
     }
 
     fn find_definition(&self, position: &Position, uri: &Url) -> Option<Location> {
@@ -92,25 +122,24 @@ impl Context {
 
     fn to_file_path_position(
         &self,
-        pos: &Position,
+        lsp_pos: &Position,
         uri: &Url,
-    ) -> Option<(emu::utils::sources::Position, PathBuf)> {
-        let text_pos = position_to_text_pos(pos);
-
+    ) -> Option<(GazmPosition, PathBuf)> {
+        let pos = position_to_text_pos(lsp_pos);
         uri.to_file_path().ok().and_then(|p| {
             self.sources().get_source(p).ok().and_then(|(id, sf)| {
                 sf.source
-                    .start_pos_to_index(&text_pos)
-                    .ok()
+                    .start_pos_to_index(&pos)
                     .map(|start_pos| {
-                        let p = emu::utils::sources::Position::new(
-                            text_pos.line(),
-                            text_pos.char(),
+                        let p = GazmPosition::new(
+                            pos.line(),
+                            pos.char(),
                             start_pos..start_pos + 1,
-                            emu::utils::sources::AsmSource::FileId(id),
+                            AsmSource::FileId(id),
                         );
                         (p, sf.file.clone())
                     })
+                    .ok()
             })
         })
     }
@@ -294,23 +323,21 @@ impl LanguageServer for Backend {
                 )),
 
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
-                declaration_provider: Some(DeclarationCapability::Simple(true)),
-
+                // declaration_provider: Some(DeclarationCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
 
-                completion_provider: Some(CompletionOptions {
-                    resolve_provider: Some(false),
-                    trigger_characters: Some(vec![".".to_string()]),
-                    work_done_progress_options: Default::default(),
-                    all_commit_characters: None,
-                }),
+                // completion_provider: Some(CompletionOptions {
+                //     resolve_provider: Some(false),
+                //     trigger_characters: Some(vec![".".to_string()]),
+                //     work_done_progress_options: Default::default(),
+                //     all_commit_characters: None,
+                // }),
 
-                execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["dummy.do_something".to_string()],
-                    work_done_progress_options: Default::default(),
-                }),
-
+                // execute_command_provider: Some(ExecuteCommandOptions {
+                //     commands: vec!["dummy.do_something".to_string()],
+                //     work_done_progress_options: Default::default(),
+                // }),
                 workspace: Some(WorkspaceServerCapabilities {
                     workspace_folders: Some(WorkspaceFoldersServerCapabilities {
                         supported: Some(true),
@@ -449,6 +476,11 @@ impl LanguageServer for Backend {
             Some(si.clone())
         });
 
+        let doc_text = with_state(&self.asm_ctx, |asm_ctx| -> Option<String> {
+            asm_ctx.ctx.find_docs(position, uri)
+        })
+        .unwrap_or("".to_string());
+
         let reply = if let Some(si) = ret {
             let value = si
                 .value
@@ -460,10 +492,16 @@ impl LanguageServer for Backend {
             let to_print = vec![("full name", scoped_name), ("value", &value)];
             let text = tabulate(&to_print, 10).join("\n");
 
+            let doc_text = if doc_text.is_empty() {
+                doc_text
+            } else {
+                format!("\n## Doc\n{doc_text}")
+            };
+
             let reply = Hover {
                 contents: HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,
-                    value: format!("# Symbol {name}\n{text}"),
+                    value: format!("# Symbol {name}\n{text}\n{doc_text}"),
                 }),
                 range: None,
             };

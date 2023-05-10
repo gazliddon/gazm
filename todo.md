@@ -2,6 +2,14 @@
 * https://github.com/lukaslueg/built/tree/master/example_project
 * https://github.com/windwp/nvim-autopairs
 
+# Full scope symbol resoltion
+
+* Overtime replace stargate EQ4 equates with direct references to scoped label
+* start with SLEEP
+    * remove from EQ4
+    * chnage all references to SLEEP to ::background::SLEEP
+
+
 # Parsing
 * Add in scope operators for symbol Parsing
 * A symbol may have a path and that path might be absolute or relative

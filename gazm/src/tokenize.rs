@@ -5,7 +5,7 @@ use nom::{
     character::complete::{anychar, line_ending, multispace0},
     combinator::{cut, not, opt, recognize},
     multi::many0,
-    sequence::{pair, preceded, terminated},
+    sequence::{pair, preceded, terminated, tuple},
 };
 
 use std::{
@@ -30,14 +30,39 @@ use crate::{
 
 use emu::utils::sources::Position;
 
-fn get_line(input: Span) -> IResult<Span> {
-    let (rest, line) = cut(preceded(
-        multispace0,
-        terminated(recognize(many0(is_not("\r\n"))), opt(line_ending)),
-    ))(input)?;
-
-    Ok((rest, line))
+fn get_line_cut(input: Span) -> IResult<Span> {
+    cut(get_line)(input)
 }
+
+fn get_line(input: Span) -> IResult<Span> {
+    ws(terminated(
+        recognize(many0(is_not("\r\n"))),
+        opt(line_ending),
+    ))(input)
+}
+
+// pub fn opt_2<I, E: nom::error::ParseError<I>, F>() -> impl FnMut(I) -> nom::IResult<I, I, E>
+// where
+//     F: nom::Parser<I, I, E>,
+//     I: Clone
+//         + nom::UnspecializedInput
+//         + nom::InputTakeAtPosition
+//         + nom::InputTake
+//         + nom::InputIter
+//         + nom::Slice<std::ops::RangeFrom<usize>>
+//         + nom::Slice<std::ops::RangeTo<usize>>
+//         + nom::Slice<std::ops::Range<usize>>
+//         + nom::InputLength
+//         + nom::Offset,
+//     <I as nom::InputTakeAtPosition>::Item: Clone + nom::AsChar,
+// {
+//     move |input: I| {
+//         cut(preceded(
+//             multispace0,
+//             terminated(recognize(many0(is_not("\r\n"))), opt(line_ending)),
+//         ))(input)
+//     }
+// }
 
 fn parse_comments(stars: bool, input: Span) -> IResult<Node> {
     use crate::parse::{parse_comment, parse_star_comment};
@@ -64,7 +89,7 @@ fn parse_trailing_line_text<'a>(opts: &Opts, input: Span<'a>) -> IResult<'a, Nod
 
 fn parse_label_not_macro(input: Span) -> IResult<Node> {
     let (_, _) = not(parse_macro_call)(input)?;
-    parse_label(input)
+    ws(parse_label)(input)
 }
 
 fn mk_pc_equate(node: &Node) -> Node {
@@ -107,6 +132,12 @@ impl DocTracker {
     }
 }
 
+fn parse_pc_label(input: Span) -> IResult<Node> {
+    let (rest, matched) = parse_label_not_macro(input)?;
+    let node = mk_pc_equate(&matched);
+    Ok((rest, node))
+}
+
 impl Tokens {
     pub fn from_text(opts: &Opts, text: Span) -> GResult<Self> {
         let mut tokens = Self {
@@ -121,7 +152,11 @@ impl Tokens {
         let doc = self.docs.flush_docs();
 
         if !doc.is_empty() {
-            println!("DISCARDED DOC LINE {doc}")
+            // TODO - do something about this
+        }
+
+        if let Item::Include(name) = &node.item {
+            self.add_include_with_pos(node.ctx.clone(), name.clone())
         }
 
         self.tokens.push(node);
@@ -146,50 +181,60 @@ impl Tokens {
         }
     }
 
-    fn tokenize_line<'a>(&'a mut self, line: Span<'a>) -> IResult<()> {
-        let mut input = line;
-
-        if line.is_empty() && self.opts.encode_blank_lines {
-            let node = Node::from_item_span(Item::BlankLine, line);
+    fn tokenize_line<'a>(&'a mut self, input: Span<'a>) -> IResult<()> {
+        let rest = if input.is_empty() && self.opts.encode_blank_lines {
+            let node = Node::from_item_span(Item::BlankLine, input);
             self.add_node(node);
             return Ok((input, ()));
-        }
-
-        if let Ok((rest, doc)) = get_doc_line(input) {
+        } else if let Ok((rest, doc)) = get_doc_line(input) {
             self.docs.add_doc_line(&doc);
-            return self.trailing_text(rest);
-        }
-
-        if let Ok((rest, node)) = parse_comments(self.opts.star_comments, input) {
+            rest
+        } else if let Ok((rest, node)) = parse_comments(self.opts.star_comments, input) {
             self.add_node(node);
-            return self.trailing_text(rest);
+            rest
         }
-
         // If we find an equate, parse and return
-        if let Ok((rest, equate)) = ws(parse_assignment)(input) {
-            self.add_node_with_doc(equate);
-            return self.trailing_text(rest);
-        }
-
-        // If this is a label, add the label and carry on
-        if let Ok((rest, label)) = ws(parse_label_not_macro)(input) {
-            let node = mk_pc_equate(&label);
-            self.add_node_with_doc(node);
-            input = rest;
-        }
-
-        // if this is an opcode parse and return
-        if let Ok((rest, node)) =
-            alt((ws(parse_command), ws(parse_opcode), ws(parse_macro_call)))(input)
-        {
-            if let Item::Include(name) = &node.item {
-                self.add_include_with_pos(node.ctx.clone(), name.clone())
+        else if let Ok((rest, ( equate, doc ))) = ws(tuple(( parse_assignment, opt(parse_doc_line)  )))(input) {
+            // Lol: if we have a doc line at the end of this line
+            // then add it to the docs
+            if let Some(Node { item: Item::Doc(doc), ..}) = doc {
+                self.docs.add_doc_line(&doc);
             }
-            self.add_node(node);
-            self.trailing_text(rest)
-        } else {
-            self.trailing_text(input)
+            self.add_node_with_doc(equate);
+            rest
         }
+        // if this is an opcode parse and return
+        else if let Ok((rest, (opt_label, node,doc))) = ws(tuple((
+            opt(parse_pc_label),
+            alt((parse_command, parse_opcode, parse_macro_call)),
+            opt(parse_doc_line)
+        )))(input)
+        {
+            // Lol: if we have a doc line at the end of this line
+            // then add it to the docs
+            if let Some(Node { item: Item::Doc(doc), ..}) = doc {
+                self.docs.add_doc_line(&doc);
+            }
+
+            if let Some(label) = opt_label {
+                self.add_node_with_doc(label);
+            }
+
+            self.add_node(node);
+            rest
+        }
+        // If this just a label
+        else if let Ok((rest, ( label, doc ))) = ws(tuple((  parse_pc_label, opt(parse_doc_line)  )))(input) {
+            if let Some(Node { item: Item::Doc(doc), ..}) = doc {
+                self.docs.add_doc_line(&doc);
+            }
+            self.add_node_with_doc(label);
+            rest
+        } else {
+            return self.trailing_text(input)
+        };
+
+        self.trailing_text(rest)
     }
 
     fn take_tokens(self) -> Vec<Node> {
@@ -239,7 +284,7 @@ impl Tokens {
                     self.add_node(matched);
                     source = rest;
                 } else {
-                    let (rest, line) = get_line(source)?;
+                    let (rest, line) = get_line_cut(source)?;
                     source = rest;
                     self.tokenize_line(line)?;
                 }
@@ -259,7 +304,14 @@ impl Tokens {
 
 pub fn get_doc_line(input: Span) -> IResult<Span> {
     let rest = input;
-    let (rest, matched) = get_line(rest)?;
+    let (rest, matched) = get_line_cut(rest)?;
     let (_, matched) = preceded(ws(tag(";;;")), recognize(many0(anychar)))(matched)?;
     Ok((rest, matched))
+}
+
+pub fn parse_doc_line(input: Span) -> IResult<Node> {
+    use Item::*;
+    let (rest,matched) = get_doc_line(input)?;
+    let node = Node::from_item_span(Doc(matched.to_string()), input);
+    Ok((rest, node))
 }

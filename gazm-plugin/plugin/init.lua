@@ -14,3 +14,4 @@ if tsparsers ~= nil then
         -- filetype = "68", -- if filetype does not match the parser name
     }
 end
+

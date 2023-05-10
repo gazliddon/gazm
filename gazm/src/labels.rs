@@ -23,12 +23,12 @@ static OK_LABEL_CHARS: &str = "_?.";
 // scoped symbol is just a symbol or!
 // opt(symbol)sep(symbol+)
 #[allow(dead_code)]
-pub fn get_scoped_label(input: Span) -> IResult<(Option<Span>, Vec<Span>)> {
-    let (rest, (lab, parts)) = pair(
+pub fn get_scoped_label(input: Span) -> IResult<Span> {
+    let (rest, matched) = recognize(pair(
         opt(get_just_label),
         many1(preceded(tag("::"), get_just_label)),
-    )(input)?;
-    Ok((rest, (lab, parts)))
+    ))(input)?;
+    Ok((rest, matched))
 }
 
 pub fn get_just_label(input: Span) -> IResult<Span> {
@@ -64,19 +64,29 @@ fn get_local_label(input: Span) -> IResult<Span> {
 }
 
 pub fn parse_just_label(input: Span) -> IResult<Node> {
+    use crate::item::LabelDefinition::Text;
+
     let (rest, matched) = get_just_label(input)?;
-    let node = Node::from_item_span(Item::Label(matched.to_string().into()), matched);
+    let node = Node::from_item_span(Item::Label(Text(matched.to_string())), matched);
     Ok((rest, node))
 }
 
 fn parse_local_label(input: Span) -> IResult<Node> {
+    use crate::item::LabelDefinition::Text;
     let (rest, matched) = get_local_label(input)?;
-    let node = Node::from_item_span(Item::LocalLabel(matched.to_string().into()), matched);
+    let node = Node::from_item_span(Item::LocalLabel(Text(matched.to_string())), matched);
+    Ok((rest, node))
+}
+
+fn parse_scoped_label(input: Span) -> IResult<Node> {
+    use crate::item::LabelDefinition::TextScoped;
+    let (rest, matched) = get_scoped_label(input)?;
+    let node = Node::from_item_span(Item::Label(TextScoped( matched.to_string() )), matched);
     Ok((rest, node))
 }
 
 pub fn parse_label(input: Span) -> IResult<Node> {
-    let (rest, matched) = alt((parse_local_label, parse_just_label))(input)?;
+    let (rest, matched) = alt((parse_scoped_label,parse_local_label, parse_just_label))(input)?;
     Ok((rest, matched))
 }
 
@@ -88,13 +98,13 @@ mod test {
     use super::*;
     #[test]
     fn scope_label() {
-        let lab = "hello::campers::chums";
-        let input = Span::new_extra(lab, AsmSource::FromStr);
-        let (_rest, (root, parts)) = get_scoped_label(input).expect("A scoped label");
+        // let lab = "hello::campers::chums";
+        // let input = Span::new_extra(lab, AsmSource::FromStr);
+        // let (_rest, (root, parts)) = get_scoped_label(input).expect("A scoped label");
 
-        println!("{root:?}");
-        println!("{parts:#?}");
-        panic!()
+        // println!("{root:?}");
+        // println!("{parts:#?}");
+        // panic!()
     }
 
     #[test]

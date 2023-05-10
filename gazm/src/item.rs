@@ -11,7 +11,10 @@ use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
 use emu::utils::sources::Position;
 
-use crate::item6809::{self, MC6809::{self,OpCode, SetDp}};
+use crate::item6809::{
+    self,
+    MC6809::{self, OpCode, SetDp},
+};
 
 use emu::utils::sources::SymbolScopeId;
 
@@ -36,7 +39,7 @@ impl StructMemberType {
             Self::Word => Number(2, ParsedFrom::FromExpr),
             Self::DWord => Number(4, ParsedFrom::FromExpr),
             Self::QWord => Number(8, ParsedFrom::FromExpr),
-            Self::UserType(name) => Label(format!("{name}.size").into()),
+            Self::UserType(name) => Label(LabelDefinition::Text(format!("{name}.size"))),
         }
     }
 }
@@ -59,7 +62,28 @@ pub enum ParsedFrom {
 #[derive(Debug, PartialEq, Hash, Clone)]
 pub enum LabelDefinition {
     Text(String),
+    TextScoped(String),
     Scoped(SymbolScopeId),
+}
+
+impl LabelDefinition {
+    pub fn map_string<F>(&self, f: F) -> Self
+    where
+        F: FnOnce(&str) -> String,
+    {
+        match self {
+            LabelDefinition::TextScoped(x) => LabelDefinition::TextScoped(f(x)),
+            LabelDefinition::Text(x) => LabelDefinition::Text(f(x)),
+            LabelDefinition::Scoped(_) => self.clone(),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            LabelDefinition::TextScoped(x) | LabelDefinition::Text(x) => x.clone(),
+            LabelDefinition::Scoped(x) => format!("{x:?}"),
+        }
+    }
 }
 
 impl From<SymbolScopeId> for LabelDefinition {
@@ -67,22 +91,13 @@ impl From<SymbolScopeId> for LabelDefinition {
         Self::Scoped(value)
     }
 }
-impl From<&String> for LabelDefinition {
-    fn from(value: &String) -> Self {
-        Self::Text(value.clone())
-    }
-}
-impl From<String> for LabelDefinition {
-    fn from(value: String) -> Self {
-        Self::Text(value)
-    }
-}
 
 impl std::fmt::Display for LabelDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LabelDefinition::Scoped(x) => write!(f, "Scoped({},{})", x.scope_id, x.scope_id),
-            LabelDefinition::Text(x) => write!(f, "Text({x})"),
+            LabelDefinition::Scoped(x) => write!(f, "Scoped({},{})", x.scope_id, x.symbol_id),
+            LabelDefinition::TextScoped(x) => write!(f, "fully scoped {x}"),
+            LabelDefinition::Text(x) => write!(f, "unscoped: {x}"),
         }
     }
 }
@@ -198,6 +213,15 @@ impl Item {
             Some(n)
         } else {
             None
+        }
+    }
+    pub fn unwrap_label_id(&self) -> Option<SymbolScopeId> {
+        use Item::*;
+        use LabelDefinition::Scoped;
+
+        match self {
+            Label(Scoped(id)) | LocalLabel(Scoped(id)) => Some(*id),
+            _ => None,
         }
     }
 }
