@@ -61,9 +61,8 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Pc => "*".to_string(),
 
-            Label(LabelDefinition::Text(name)) => name.clone(),
+            Label(name) => format!("{name}"),
             LocalLabel(name) => format!("!{name}"),
-
             Comment(comment) => format!("; {comment}"),
 
 

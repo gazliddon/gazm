@@ -96,8 +96,8 @@ impl std::fmt::Display for LabelDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LabelDefinition::Scoped(x) => write!(f, "Scoped({},{})", x.scope_id, x.symbol_id),
-            LabelDefinition::TextScoped(x) => write!(f, "fully scoped {x}"),
-            LabelDefinition::Text(x) => write!(f, "unscoped: {x}"),
+            LabelDefinition::TextScoped(x) => write!(f, "{x}"),
+            LabelDefinition::Text(x) => write!(f, "{x}"),
         }
     }
 }
@@ -266,8 +266,8 @@ impl Display for BaseNode<Item, Position> {
 
             Pc => "*".to_string(),
 
-            Label(LabelDefinition::Text(name)) | LocalLabel(LabelDefinition::Text(name)) => {
-                name.clone()
+            Label(name) | LocalLabel(name) => {
+                format!("{name}")
             }
 
             Comment(comment) => comment.clone(),

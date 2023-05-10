@@ -273,7 +273,7 @@ mod test {
         ];
 
         for (indirect, input, desired) in to_try {
-            let desired = I68::operand_from_index_mode(desired, indirect);
+            let desired = MC6809::operand_from_index_mode(desired, indirect);
             // println!("Testing {} -> {:?}", input, desired);
             let res = parse_indexed(input.into());
             // println!("{:#?}", res);

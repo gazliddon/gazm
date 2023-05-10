@@ -11,7 +11,7 @@ use nom::{
     bytes::complete::{is_a, tag},
     character::complete::{alpha1, alphanumeric1},
     combinator::{all_consuming, opt, recognize},
-    multi::{ many0, many1 },
+    multi::{many0, many1},
     sequence::{pair, preceded},
 };
 
@@ -81,12 +81,12 @@ fn parse_local_label(input: Span) -> IResult<Node> {
 fn parse_scoped_label(input: Span) -> IResult<Node> {
     use crate::item::LabelDefinition::TextScoped;
     let (rest, matched) = get_scoped_label(input)?;
-    let node = Node::from_item_span(Item::Label(TextScoped( matched.to_string() )), matched);
+    let node = Node::from_item_span(Item::Label(TextScoped(matched.to_string())), matched);
     Ok((rest, node))
 }
 
 pub fn parse_label(input: Span) -> IResult<Node> {
-    let (rest, matched) = alt((parse_scoped_label,parse_local_label, parse_just_label))(input)?;
+    let (rest, matched) = alt((parse_scoped_label, parse_local_label, parse_just_label))(input)?;
     Ok((rest, matched))
 }
 
@@ -98,24 +98,32 @@ mod test {
     use super::*;
     #[test]
     fn scope_label() {
-        // let lab = "hello::campers::chums";
-        // let input = Span::new_extra(lab, AsmSource::FromStr);
-        // let (_rest, (root, parts)) = get_scoped_label(input).expect("A scoped label");
+        let to_test = vec!["hello::campers::chums", "::test"];
 
-        // println!("{root:?}");
-        // println!("{parts:#?}");
-        // panic!()
+        for lab in to_test {
+            let input = Span::new_extra(lab, AsmSource::FromStr);
+            let (rest, matched) = get_scoped_label(input).expect("A scoped label");
+            let matched = matched.to_string();
+            assert_eq!(matched, lab);
+            assert!(rest.is_empty());
+        }
     }
 
     #[test]
     fn test_parse_label() {
-        let input = Span::new_extra("hello ;;", AsmSource::FromStr);
-        let (rest, matched) = parse_label(input).unwrap();
-        assert_eq!(" ;;", *rest);
-        assert_eq!("hello", &matched.to_string());
+        let test_data = vec!["@pooo","hello::campers::chums", "test", "!spanner"];
+
+        for label_text in test_data {
+            let extra_text = "  ;;";
+            let lab = format!("{label_text}{extra_text}");
+            let input = Span::new_extra(&lab, AsmSource::FromStr);
+            let (rest, matched) = parse_label(input).unwrap();
+            assert_eq!(extra_text, *rest);
+            assert_eq!(label_text, &matched.to_string());
+        }
     }
     #[test]
-    fn test_parse_opcode_like_lable() {
+    fn test_parse_opcode_like_label() {
         let input = Span::new_extra("swi3_vec ;;", AsmSource::FromStr);
         let (rest, matched) = parse_label(input).unwrap();
         assert_eq!(" ;;", *rest);
@@ -123,7 +131,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_local_abel() {
+    fn test_parse_local_label() {
         let input = Span::new_extra("@hello\n", AsmSource::FromStr);
         let (rest, matched) = parse_label(input).unwrap();
         assert_eq!("\n", *rest);
