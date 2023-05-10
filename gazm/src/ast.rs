@@ -14,8 +14,8 @@ use crate::item::{Item, LabelDefinition, Node};
 use crate::{messages::*, node};
 use emu::utils::eval::{to_postfix, GetPriority};
 use emu::utils::sources::{
-    AsmSource, Position, SourceErrorType, SourceInfo, SymbolError, SymbolInfo, SymbolNav,
-    SymbolQuery, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolWriter,
+    AsmSource, Position, ScopedName, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
+    SymbolNav, SymbolQuery, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolWriter,
 };
 use emu::utils::symbols::SymbolReader;
 use thin_vec::ThinVec;
@@ -304,8 +304,8 @@ impl<'a> Ast<'a> {
 
     fn rename_locals(&mut self) {
         info("Renaming locals into globals", |_x| {
-            use LabelDefinition::*;
             use Item::*;
+            use LabelDefinition::*;
 
             let mut label_scopes = ScopeBuilder::new();
 
@@ -316,7 +316,6 @@ impl<'a> Ast<'a> {
             // Expand all local labels to have a scoped name
             // and change all locals to globals
             for v in self.tree.values_mut() {
-
                 let fqn = label_scopes.get_current_fqn();
 
                 match &v.item {
@@ -491,16 +490,36 @@ impl<'a> Ast<'a> {
         self.ctx.asm_out.symbols.get_symbol_reader(scopes.scope())
     }
 
+    fn get_symbol_id(
+        &self,
+        scoped_name: &ScopedName,
+        node_id: AstNodeId,
+    ) -> Result<SymbolScopeId, UserError> {
+        let symbol_id = self
+            .ctx
+            .get_symbols()
+            .get_symbol_info_from_scoped_name(&scoped_name)
+            .map(|si| si.symbol_id)
+            .map_err(|e| self.sym_to_user_error(e, node_id))?;
+        Ok(symbol_id)
+    }
+
     fn scope_labels(&mut self) -> Result<(), UserError> {
         use Item::*;
         let root_node = self.tree.root();
         let mut scopes = self.root_scope_tracker();
 
         for node_id in iter_ids_recursive(root_node) {
-            let value = self.tree.get(node_id).unwrap().value();
+            let value = self.tree.get(node_id).unwrap().value().clone();
 
             match &value.item {
                 ScopeId(scope_id) => scopes.set_scope(*scope_id),
+
+                Label(LabelDefinition::TextScoped(name)) => {
+                    let scoped_name = ScopedName::new(&name);
+                    let symbol_id = self.get_symbol_id(&scoped_name, node_id)?;
+                    self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                }
 
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {

@@ -67,14 +67,30 @@ pub enum LabelDefinition {
 }
 
 impl LabelDefinition {
+    pub fn get_text(&self) -> Option<&str> {
+        match self {
+            LabelDefinition::TextScoped(x) | LabelDefinition::Text(x) => Some(x),
+            LabelDefinition::Scoped(_) => None,
+        }
+    }
+
+    pub fn get_id(&self) -> Option<SymbolScopeId> {
+        use LabelDefinition::*;
+        match self {
+            TextScoped(..) | LabelDefinition::Text(..) => None,
+            Scoped(id) => Some(*id),
+        }
+    }
+
     pub fn map_string<F>(&self, f: F) -> Self
     where
         F: FnOnce(&str) -> String,
     {
+        use LabelDefinition::*;
         match self {
-            LabelDefinition::TextScoped(x) => LabelDefinition::TextScoped(f(x)),
-            LabelDefinition::Text(x) => LabelDefinition::Text(f(x)),
-            LabelDefinition::Scoped(_) => self.clone(),
+            TextScoped(x) => LabelDefinition::TextScoped(f(x)),
+            Text(x) => LabelDefinition::Text(f(x)),
+            Scoped(_) => self.clone(),
         }
     }
 
@@ -215,6 +231,15 @@ impl Item {
             None
         }
     }
+    pub fn unwrap_label_text(&self) -> Option<&str> {
+        use Item::*;
+        use LabelDefinition::*;
+        match self {
+            Label(x) | LocalLabel(x) => x.get_text(),
+            _ => None,
+        }
+    }
+
     pub fn unwrap_label_id(&self) -> Option<SymbolScopeId> {
         use Item::*;
         use LabelDefinition::Scoped;

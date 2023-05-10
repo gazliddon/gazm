@@ -10,7 +10,7 @@ use nom::{
 use crate::{
     error::IResult,
     item::{Item, Node, StructMemberType},
-    labels::get_just_label,
+    parse::labels::get_just_label,
     locate::{matched_span, span_to_pos, Span},
     parse::strip_comments,
     parse::util::{wrapped_chars, ws},

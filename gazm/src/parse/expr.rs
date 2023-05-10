@@ -6,7 +6,7 @@ use crate::{
     error::IResult,
     item::{Item, Node},
     item6809::MC6809,
-    labels::parse_label,
+    parse::labels::parse_label,
     locate::{matched_span, span_to_pos, Span},
 };
 

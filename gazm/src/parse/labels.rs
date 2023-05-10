@@ -58,7 +58,6 @@ fn get_local_label(input: Span) -> IResult<Span> {
 
     // let loc_tags = is_a(LOCAL_LABEL_PREFIX);
     // let postfix_parse = recognize(pair(get_just_label, loc_tags));
-
     // alt((postfix_parse, prefix_parse))(input)
     prefix_parse(input)
 }
@@ -111,6 +110,7 @@ mod test {
 
     #[test]
     fn test_parse_label() {
+
         let test_data = vec!["@pooo","hello::campers::chums", "test", "!spanner"];
 
         for label_text in test_data {

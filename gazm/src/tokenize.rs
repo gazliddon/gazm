@@ -20,10 +20,12 @@ use crate::{
     ctx::Opts,
     error::{GResult, IResult, ParseError},
     item::{Item, Node},
-    labels::parse_label,
     locate::Span,
-    macros::{get_macro_def, get_scope_block, parse_macro_call},
-    parse::util::{parse_assignment, ws},
+    parse::{
+        macros::{get_macro_def, get_scope_block, parse_macro_call},
+        util::{parse_assignment, ws},
+        labels::parse_label,
+    },
     parse6809::opcodes::parse_opcode,
     structs::{get_struct, parse_struct_definition},
 };
@@ -194,25 +196,35 @@ impl Tokens {
             rest
         }
         // If we find an equate, parse and return
-        else if let Ok((rest, ( equate, doc ))) = ws(tuple(( parse_assignment, opt(parse_doc_line)  )))(input) {
+        else if let Ok((rest, (equate, doc))) =
+            ws(tuple((parse_assignment, opt(parse_doc_line))))(input)
+        {
             // Lol: if we have a doc line at the end of this line
             // then add it to the docs
-            if let Some(Node { item: Item::Doc(doc), ..}) = doc {
+            if let Some(Node {
+                item: Item::Doc(doc),
+                ..
+            }) = doc
+            {
                 self.docs.add_doc_line(&doc);
             }
             self.add_node_with_doc(equate);
             rest
         }
         // if this is an opcode parse and return
-        else if let Ok((rest, (opt_label, node,doc))) = ws(tuple((
+        else if let Ok((rest, (opt_label, node, doc))) = ws(tuple((
             opt(parse_pc_label),
             alt((parse_command, parse_opcode, parse_macro_call)),
-            opt(parse_doc_line)
+            opt(parse_doc_line),
         )))(input)
         {
             // Lol: if we have a doc line at the end of this line
             // then add it to the docs
-            if let Some(Node { item: Item::Doc(doc), ..}) = doc {
+            if let Some(Node {
+                item: Item::Doc(doc),
+                ..
+            }) = doc
+            {
                 self.docs.add_doc_line(&doc);
             }
 
@@ -224,14 +236,20 @@ impl Tokens {
             rest
         }
         // If this just a label
-        else if let Ok((rest, ( label, doc ))) = ws(tuple((  parse_pc_label, opt(parse_doc_line)  )))(input) {
-            if let Some(Node { item: Item::Doc(doc), ..}) = doc {
+        else if let Ok((rest, (label, doc))) =
+            ws(tuple((parse_pc_label, opt(parse_doc_line))))(input)
+        {
+            if let Some(Node {
+                item: Item::Doc(doc),
+                ..
+            }) = doc
+            {
                 self.docs.add_doc_line(&doc);
             }
             self.add_node_with_doc(label);
             rest
         } else {
-            return self.trailing_text(input)
+            return self.trailing_text(input);
         };
 
         self.trailing_text(rest)
@@ -311,7 +329,7 @@ pub fn get_doc_line(input: Span) -> IResult<Span> {
 
 pub fn parse_doc_line(input: Span) -> IResult<Node> {
     use Item::*;
-    let (rest,matched) = get_doc_line(input)?;
+    let (rest, matched) = get_doc_line(input)?;
     let node = Node::from_item_span(Doc(matched.to_string()), input);
     Ok((rest, node))
 }

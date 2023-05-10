@@ -75,6 +75,58 @@ fn get_subscope<'a>(n: SymbolNodeRef<'a>, name: &str) -> Option<SymbolNodeRef<'a
     n.children().find(|c| c.value().get_scope_name() == name)
 }
 
+pub struct ScopedName<'a> {
+    input: &'a str,
+    symbol: &'a str,
+    path: ThinVec<&'a str>,
+    absolute: bool,
+}
+
+////////////////////////////////////////////////////////////////////////////////
+impl<'a> ScopedName<'a> {
+
+    pub fn is_abs(&self) -> bool {
+        self.absolute
+    }
+
+    pub fn is_relative(&self) -> bool {
+        !self.is_abs()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol
+    }
+
+    pub fn path(&self) -> &[&str] {
+        &self.path
+    }
+
+    pub fn new(input: &'a str) -> Self {
+        let splits : ThinVec<_> = input.split("::").collect();
+        let len = splits.len();
+
+        let (path,symbol) = match len {
+            0 => panic!(),
+            _ => (&splits[0..len-1],splits[len-1] ),
+        };
+
+        let absolute = !path.is_empty() && path[0].is_empty();
+
+        let path : ThinVec<_> = if absolute {
+            path[1..].into_iter().map(|p| *p).collect()
+        } else {
+            path.into_iter().map(|p| *p).collect()
+        };
+
+        Self {
+            input,
+            symbol,
+            path,
+            absolute
+        }
+    }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Public functions
@@ -105,7 +157,6 @@ impl SymbolTree {
     pub fn get_root_id(&self) -> u64 {
         self.tree.root().value().get_scope_id()
     }
-
 
     pub fn get_symbols_from_id(&self, scope_id: u64) -> Result<&SymbolTable, SymbolError> {
         self.get_node_from_id(scope_id).map(|n| n.value())
@@ -184,6 +235,27 @@ impl SymbolTree {
 
     pub fn get_root_symbol_reader(&self, ) -> SymbolTreeReader {
         self.get_symbol_reader(self.get_root_id())
+    }
+
+    pub fn get_symbol_info_from_scoped_name(&self, _name: &ScopedName) -> Result<&SymbolInfo,SymbolError> {
+        assert!(_name.is_abs());
+
+        let scopes = _name.path();
+        let name = _name.symbol();
+
+        let mut current_node = self.tree.root();
+
+        for x in scopes.iter() {
+            for c in current_node.children() {
+                if c.value().get_scope_name() == *x {
+                    current_node = c;
+                    break;
+                }
+                return Err(SymbolError::InvalidScope);
+            }
+        }
+
+        current_node.value().get_symbol_info(name)
     }
 }
 

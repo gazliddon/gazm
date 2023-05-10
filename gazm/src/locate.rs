@@ -2,6 +2,16 @@ use nom::InputTake;
 use nom_locate::LocatedSpan;
 use emu::utils::sources::{AsmSource, Position};
 
+use crate::ctx::Opts;
+
+
+// TODO: Replace ASM source with this?
+#[derive(Clone, Debug, Copy)]
+pub struct ParseCtx<'a> {
+    opts: &'a Opts,
+    src: AsmSource,
+}
+
 pub type Span<'a> = LocatedSpan<&'a str, AsmSource>;
 
 pub fn to_range(input: Span, rest: Span) -> std::ops::Range<usize> {
@@ -10,7 +20,7 @@ pub fn to_range(input: Span, rest: Span) -> std::ops::Range<usize> {
     start..end
 }
 
-pub fn matched_span<'a>(input: Span<'a>, rest: Span<'a>) -> Span<'a> {
+pub fn matched_span<'a>(input: Span<'a>, rest: Span) -> Span<'a> {
     let r = to_range(input, rest);
     input.take(r.len())
 }

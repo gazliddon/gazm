@@ -1,6 +1,6 @@
 use crate::parse::expr::parse_expr;
 use crate::item::{Item, Node};
-use crate::labels;
+use crate::parse::labels;
 use crate::numbers;
 
 use crate::error::{IResult, ParseError};

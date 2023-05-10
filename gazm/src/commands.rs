@@ -7,7 +7,7 @@ type CommandParseFn = fn(Span) -> IResult<Node>;
 use crate::{
     error::IResult,
     item::{Item, Node},
-    labels::get_just_label,
+    parse::labels::get_just_label,
     locate::{Span,matched_span, span_to_pos},
     parse::util::{self, match_escaped_str, match_file_name},
     item6809::MC6809::SetDp ,
