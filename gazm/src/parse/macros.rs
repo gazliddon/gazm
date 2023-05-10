@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
-use crate::error::{IResult, UserError};
-use crate::item::Node;
-use crate::locate::{matched_span, span_to_pos, Span};
+use crate::{
+    error::{IResult, UserError},
+    item::Node,
+};
 
-use super::labels::get_just_label;
-use super::util::{get_block, sep_list0, wrapped_chars, ws};
+use super::{
+    labels::get_just_label,
+    util::{get_block, sep_list0, wrapped_chars, ws},
+    locate::{matched_span, span_to_pos, Span},
+};
 
 use emu::utils::sources::{Position, SourceFiles};
 

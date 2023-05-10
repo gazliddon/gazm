@@ -1,17 +1,22 @@
-use crate::parse::expr::parse_expr;
-use crate::item::{Item, Node};
-use crate::parse::labels;
-use crate::numbers;
+use crate::{
+    error::{IResult, ParseError},
+    item::{Item, Node},
+};
 
-use crate::error::{IResult, ParseError};
-use crate::locate::{matched_span, Span};
+use nom::{
+    bytes::complete::{escaped, is_not, tag, tag_no_case, take_while},
+    character::complete::{char as nom_char, multispace0, multispace1, one_of},
+    combinator::cut,
+    multi::separated_list0,
+    sequence::{preceded, separated_pair, terminated, tuple},
+};
 
-use nom::bytes::complete::{escaped, is_not, tag, tag_no_case, take_while, };
-
-use nom::character::complete::{char as nom_char, multispace0, multispace1, one_of, };
-use nom::combinator::cut;
-use nom::multi::separated_list0;
-use nom::sequence::{preceded, separated_pair, terminated, tuple};
+use super::{
+    expr::parse_expr,
+    labels,
+    locate::{matched_span, Span},
+    numbers,
+};
 
 pub static LIST_SEP: &str = ",";
 
@@ -61,14 +66,14 @@ mod p2 {
         <I as InputIter>::Item: AsChar,
     {
         move |input: I| {
-            let (input, _) = nom_char(open) (input)?;
+            let (input, _) = nom_char(open)(input)?;
             let (input, matched) = inner.parse(input)?;
             let (input, _) = ws(nom_char(close))(input)?;
             Ok((input, matched))
         }
     }
 
-    pub fn ws< F, I, O, E: ParseError<I>>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
+    pub fn ws<F, I, O, E: ParseError<I>>(mut inner: F) -> impl FnMut(I) -> IResult<I, O, E>
     where
         F: Parser<I, O, E>,
         I: InputTakeAtPosition,
@@ -134,8 +139,8 @@ pub fn match_file_name(input: Span) -> IResult<Span> {
 ////////////////////////////////////////////////////////////////////////////////
 // Number
 pub fn parse_number(input: Span) -> IResult<Node> {
-    let (rest, ( num, parsed_from )) = numbers::get_number(input)?;
-    let matched = crate::locate::matched_span(input, rest);
+    let (rest, (num, parsed_from)) = numbers::get_number(input)?;
+    let matched = matched_span(input, rest);
     let node = Node::from_number(num, parsed_from, matched);
     Ok((rest, node))
 }
@@ -173,7 +178,7 @@ impl ByteSizes {
             Self::Zero => Self::Zero,
             Self::Bits5(v) => Self::Byte(*v),
             Self::Byte(v) => Self::Word(*v as i16),
-            Self::Word(v) => Self::Word(*v ),
+            Self::Word(v) => Self::Word(*v),
         };
     }
 }

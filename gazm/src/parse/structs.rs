@@ -10,11 +10,15 @@ use nom::{
 use crate::{
     error::IResult,
     item::{Item, Node, StructMemberType},
-    parse::labels::get_just_label,
-    locate::{matched_span, span_to_pos, Span},
-    parse::strip_comments,
-    parse::util::{wrapped_chars, ws},
 };
+
+use super:: {
+    strip_comments,
+    util::{wrapped_chars, ws},
+    labels::get_just_label,
+    locate::{matched_span, span_to_pos, Span},
+};
+
 
 fn parse_block(input: Span<'_>) -> IResult<Span> {
     ws(wrapped_chars('{', is_not("}"), '}'))(input)

@@ -1,15 +1,17 @@
 use crate::item::{Item, Node};
-use nom::character::complete::not_line_ending;
-use nom::bytes::complete::take_until;
-use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::combinator::recognize;
-use nom::sequence::{preceded, tuple};
 
-use crate::error::IResult;
-use crate::locate::Span;
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    bytes::complete::take_until,
+    character::complete::not_line_ending,
+    combinator::recognize,
+    sequence::{preceded, tuple},
+};
 
-use crate::parse::util::ws;
+use crate::error::{ IResult,ParseError, };
+
+use super::{locate::Span, util::ws};
 
 static COMMENT: &str = ";";
 
@@ -36,7 +38,6 @@ pub fn parse_star_comment(input: Span) -> IResult<Node> {
     let node = Node::from_item_span(Comment(matched.to_string()), input);
     Ok((rest, node))
 }
-
 
 // Strips comment if there
 pub fn strip_comments(input: Span) -> IResult<Option<Node>> {

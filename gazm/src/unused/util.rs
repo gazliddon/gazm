@@ -1,17 +1,18 @@
-use crate::expr::parse_expr;
-use crate::item::{Item, Node};
-use crate::labels;
-use crate::numbers;
+use crate::{
+    error::{IResult, ParseError},
+    expr::parse_expr,
+    item::{Item, Node},
+    locate::{matched_span, Span},
+    numbers,
+};
 
-use crate::error::{IResult, ParseError};
-use crate::locate::{matched_span, Span};
-
-use nom::bytes::complete::{escaped, is_not, tag, tag_no_case, take_while};
-
-use nom::character::complete::{char as nom_char, multispace0, multispace1, one_of};
-use nom::combinator::cut;
-use nom::multi::{separated_list0, separated_list1};
-use nom::sequence::{preceded, separated_pair, terminated, tuple};
+use nom::{
+    bytes::complete::{escaped, is_not, tag, tag_no_case, take_while},
+    character::complete::{char as nom_char, multispace0, multispace1, one_of},
+    combinator::cut,
+    multi::{separated_list0, separated_list1},
+    sequence::{preceded, separated_pair, terminated, tuple},
+};
 
 pub static LIST_SEP: &str = ",";
 
@@ -102,45 +103,25 @@ where
     }
 }
 
-pub fn parse_assignment(input: Span) -> IResult<Node> {
-    use labels::parse_label;
-
-    let sep = tuple((multispace1, tag_no_case("equ"), multispace1));
-
-    let (rest, (label, arg)) = ws(separated_pair(parse_label, sep, parse_expr))(input)?;
-
-    let matched_span = matched_span(input, rest);
-
-    let item = match label.item {
-        Item::Label(name) => Item::Assignment(name),
-        Item::LocalLabel(name) => Item::LocalAssignment(name),
-        _ => panic!(),
-    };
-
-    let ret = Node::from_item_span(item, matched_span).with_child(arg);
-
-    Ok((rest, ret))
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Escaped string
-pub fn match_str(input: Span) -> IResult<Span> {
+fn match_str(input: Span) -> IResult<Span> {
     let term = "\"n\\";
     let body = take_while(move |c| !term.contains(c));
     escaped(body, '\\', one_of(term))(input)
 }
 
-pub fn match_escaped_str(input: Span) -> IResult<Span> {
+fn match_escaped_str(input: Span) -> IResult<Span> {
     preceded(nom_char('\"'), cut(terminated(match_str, nom_char('\"'))))(input)
 }
-pub fn match_file_name(input: Span) -> IResult<Span> {
+fn match_file_name(input: Span) -> IResult<Span> {
     let body = take_while(move |c| c != '"');
     wrapped_chars('"', body, '"')(input)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Number
-pub fn parse_number(input: Span) -> IResult<Node> {
+fn parse_number(input: Span) -> IResult<Node> {
     let (rest, num) = numbers::get_number(input)?;
     let matched = super::locate::matched_span(input, rest);
     let ret = Node::from_number(num, matched);
@@ -198,7 +179,6 @@ impl ByteSize for i64 {
 // Tests
 #[allow(unused_imports)]
 mod test {
-
     use emu::utils::sources::AsmSource;
 
     use super::*;

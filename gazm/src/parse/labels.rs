@@ -1,10 +1,11 @@
 use crate::{
-    commands::command_token,
+    error::parse_error,
     error::IResult,
-    item::{Item, Node},
-    locate::Span,
+    item::{Item, LabelDefinition::Text, LabelDefinition::TextScoped, Node},
     parse6809::opcodes::opcode_just_token,
 };
+
+use super::{commands::command_token, locate::Span};
 
 use nom::{
     branch::alt,
@@ -32,7 +33,6 @@ pub fn get_scoped_label(input: Span) -> IResult<Span> {
 }
 
 pub fn get_just_label(input: Span) -> IResult<Span> {
-    use crate::error::parse_error;
     // match a label identifier
     let (rest, matched) = recognize(pair(
         alt((alpha1, is_a(OK_LABEL_CHARS))),
@@ -63,22 +63,18 @@ fn get_local_label(input: Span) -> IResult<Span> {
 }
 
 pub fn parse_just_label(input: Span) -> IResult<Node> {
-    use crate::item::LabelDefinition::Text;
-
     let (rest, matched) = get_just_label(input)?;
     let node = Node::from_item_span(Item::Label(Text(matched.to_string())), matched);
     Ok((rest, node))
 }
 
 fn parse_local_label(input: Span) -> IResult<Node> {
-    use crate::item::LabelDefinition::Text;
     let (rest, matched) = get_local_label(input)?;
     let node = Node::from_item_span(Item::LocalLabel(Text(matched.to_string())), matched);
     Ok((rest, node))
 }
 
 fn parse_scoped_label(input: Span) -> IResult<Node> {
-    use crate::item::LabelDefinition::TextScoped;
     let (rest, matched) = get_scoped_label(input)?;
     let node = Node::from_item_span(Item::Label(TextScoped(matched.to_string())), matched);
     Ok((rest, node))
@@ -110,8 +106,7 @@ mod test {
 
     #[test]
     fn test_parse_label() {
-
-        let test_data = vec!["@pooo","hello::campers::chums", "test", "!spanner"];
+        let test_data = vec!["@pooo", "hello::campers::chums", "test", "!spanner"];
 
         for label_text in test_data {
             let extra_text = "  ;;";

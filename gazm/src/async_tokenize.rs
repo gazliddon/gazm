@@ -2,7 +2,7 @@ use crate::ctx::{Context, Opts};
 use crate::error::{GResult, GazmErrorKind, ParseError};
 use crate::info_mess;
 use crate::item::{Item, Node};
-use crate::locate::{span_to_pos, Span};
+use crate::parse::locate::{span_to_pos, Span};
 use crate::tokenize::Tokens;
 
 use emu::utils::{sources, PathSearcher, Stack};

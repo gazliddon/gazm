@@ -1,6 +1,6 @@
 use crate::parse::expr;
 use crate::item6809::AddrModeParseType;
-use crate::locate::matched_span;
+use crate::parse::locate::matched_span;
 use crate::parse6809::register;
 use crate::item6809::MC6809::{self, Operand, OperandIndexed, OpCode};
 use crate::item::{Item, Node};
@@ -18,7 +18,7 @@ use nom::combinator::recognize;
 use nom::sequence::{pair, preceded};
 
 use crate::error::IResult;
-use crate::locate::Span;
+use crate::parse::locate::Span;
 
 ////////////////////////////////////////////////////////////////////////////////
 // opcode parsing

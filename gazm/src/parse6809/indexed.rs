@@ -5,7 +5,7 @@ use crate::{
     error::IResult,
     parse::expr::parse_expr,
     item::{Item, Node},
-    locate::{matched_span, Span},
+    parse::locate::{matched_span, Span},
     parse::util::{wrapped_chars, ws},
     item6809::MC6809::{self, OperandIndexed},
 };

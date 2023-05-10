@@ -1,9 +1,9 @@
 use crate::{
     error::{IResult, ParseError},
-    locate::Span,
     item::ParsedFrom,
 };
 
+use super::locate::Span;
 
 use nom::{
     branch::alt,
@@ -13,7 +13,6 @@ use nom::{
     multi::many1,
     sequence::preceded,
 };
-
 
 #[allow(dead_code)]
 mod new {
@@ -93,45 +92,6 @@ mod new {
     }
 }
 
-// pub fn tag<T, Input, Error: ParseError<Input>>(
-// tag: T,
-// ) -> impl Fn(Input) -> IResult<Input, Input, Error>
-// where
-// Input: InputTake + Compare<T>,
-// T: InputLength + Clone,
-// {
-// move |i: Input| {
-//     let tag_len = tag.input_len();
-//     let t = tag.clone();
-//     let res: IResult<_, _, Error> = match i.compare(t) {
-//     CompareResult::Ok => Ok(i.take_split(tag_len)),
-//     _ => {
-//         let e: ErrorKind = ErrorKind::Tag;
-//         Err(Err::Error(Error::from_error_kind(i, e)))
-//     }
-//     };
-//     res
-// }
-// }
-
-// pub fn separated_list1<I, O, O2, E, F, G>(
-//     mut sep: G,
-//     mut f: F,
-// ) -> impl FnMut(I) -> nom::IResult<I, Vec<O>, E>
-// where
-//     I: Clone + nom::InputLength,
-//     F: nom::Parser<I, O, E>,
-//     G: nom::Parser<I, O2, E>,
-//     E: nom::error::ParseError<I>,
-// {
-//     panic!()
-// }
-
-// pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
-
-// fn num_get(input: Span) -> IResult<Span> {
-//     recognize(many1(alt((alphanumeric1, is_a("_")))))(input)
-// }
 #[allow(dead_code)]
 mod newp {
     use super::*;

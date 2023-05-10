@@ -1,16 +1,18 @@
-use crate::parse::expr;
 use lazy_static::lazy_static;
+
 use std::{collections::HashMap, path::PathBuf};
 
-type CommandParseFn = fn(Span) -> IResult<Node>;
+use super::{
+    expr::parse_expr,
+    labels::get_just_label,
+    util::{self, match_escaped_str, match_file_name},
+    locate::{matched_span, span_to_pos, Span},
+};
 
 use crate::{
     error::IResult,
     item::{Item, Node},
-    parse::labels::get_just_label,
-    locate::{Span,matched_span, span_to_pos},
-    parse::util::{self, match_escaped_str, match_file_name},
-    item6809::MC6809::SetDp ,
+    item6809::MC6809::SetDp,
 };
 
 use nom::{
@@ -22,10 +24,9 @@ use nom::{
     sequence::{preceded, separated_pair, tuple},
 };
 
-use expr::parse_expr;
+type CommandParseFn = fn(Span) -> IResult<Node>;
 
-
-fn parse_expr_arg<I: Into<Item>>(input: Span, item : I) -> IResult<Node> { 
+fn parse_expr_arg<I: Into<Item>>(input: Span, item: I) -> IResult<Node> {
     let (rest, matched) = parse_expr(input)?;
     let node = Node::from_item_span(item, input).with_child(matched);
     Ok((rest, node))
@@ -160,7 +161,6 @@ fn parse_zmd_arg(input: Span) -> IResult<Node> {
     let node = Node::from_item_span(Item::Zmd, input).with_child(matched);
     Ok((rest, node))
 }
-
 
 fn parse_put_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = parse_expr(input)?;

@@ -1,12 +1,15 @@
 // Parse expressions
 
-use super::util;
 
 use crate::{
     error::IResult,
     item::{Item, Node},
     item6809::MC6809,
-    parse::labels::parse_label,
+};
+
+use super::{
+    util,
+    labels::parse_label,
     locate::{matched_span, span_to_pos, Span},
 };
 

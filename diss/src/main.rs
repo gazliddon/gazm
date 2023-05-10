@@ -141,7 +141,7 @@ use emu::{
 };
 
 use emu::utils::rle::Run;
-use gazm::{commands::parse_command, numbers::*};
+use gazm::{parse::commands::parse_command, parse::numbers::*};
 use nom_locate::LocatedSpan;
 
 pub fn parse() -> clap::ArgMatches {

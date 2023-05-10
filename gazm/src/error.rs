@@ -1,16 +1,20 @@
 use std::path::PathBuf;
 
-use crate::ast::{AstNodeId, AstNodeRef};
-use crate::doc::ErrorDocType;
-use crate::locate::span_to_pos;
-use crate::locate::Span;
-use crate::binary;
-use emu::utils::SearchError;
-use emu::utils::sources::{Position, SourceInfo, EditErrorKind, SourceErrorType};
+use crate::{
+    ast::{AstNodeId, AstNodeRef},
+    binary,
+    parse::locate::{span_to_pos, Span},
+};
+
+use emu::{
+    utils::sources::{EditErrorKind, Position, SourceErrorType, SourceInfo},
+    utils::SearchError,
+};
+
 use thiserror::Error;
 
 pub struct InternalErrorKind {
-    msg : String,
+    msg: String,
     file: PathBuf,
     line: usize,
     col: usize,
@@ -37,8 +41,6 @@ pub enum GazmErrorKind {
     #[error(transparent)]
     SourceError(#[from] SourceErrorType),
 }
-
-
 
 impl From<String> for GazmErrorKind {
     fn from(x: String) -> Self {
@@ -164,7 +166,7 @@ impl AstError {
 
 impl std::fmt::Display for AstError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (line,col) = self.pos.line_col_from_one();
+        let (line, col) = self.pos.line_col_from_one();
 
         let err_string = self
             .message
@@ -181,7 +183,7 @@ impl std::error::Error for UserError {}
 
 #[derive(PartialEq, Clone)]
 pub struct UserError {
-    pub data : Box<UserErrorData>
+    pub data: Box<UserErrorData>,
 }
 
 #[derive(PartialEq, Clone)]
@@ -242,7 +244,7 @@ impl UserErrorData {
         let mut s = String::new();
 
         let pos = &self.pos;
-        let (line,col) = pos.line_col_from_one();
+        let (line, col) = pos.line_col_from_one();
 
         let line_num = format!("{line}");
         let spaces = " ".repeat(1 + line_num.len());
@@ -278,9 +280,7 @@ impl AsRef<UserErrorData> for UserError {
 
 impl From<UserErrorData> for UserError {
     fn from(value: UserErrorData) -> Self {
-        Self {
-            data: value.into()
-        }
+        Self { data: value.into() }
     }
 }
 
@@ -303,7 +303,7 @@ impl UserError {
     }
 
     pub fn from_parse_error(err: &ParseError, sources: &emu::utils::sources::SourceFiles) -> Self {
-        let data = UserErrorData::from_parse_error(err,sources);
+        let data = UserErrorData::from_parse_error(err, sources);
         data.into()
     }
 }
@@ -349,7 +349,7 @@ impl ErrorCollector {
         Self {
             _max_errors,
             errors_remaining: _max_errors,
-            errors: Default::default()
+            errors: Default::default(),
         }
     }
 

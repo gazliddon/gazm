@@ -17,7 +17,7 @@ pub struct DissCtx {
     pub data: MemBlock<byteorder::BigEndian>,
 }
 
-use gazm::numbers::*;
+use gazm::parse::numbers::*;
 
 impl DissCtx {
     pub fn from_matches(_m: clap::ArgMatches) -> Result<Self, Box<dyn std::error::Error>> {

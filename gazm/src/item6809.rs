@@ -1,20 +1,23 @@
-
 use std::arch::aarch64::vld2_lane_p8;
 use std::fmt::Display;
 use std::{collections::HashSet, path::PathBuf};
 use thin_vec::ThinVec;
 
-use crate::ast::AstNodeId;
-use crate::error::ParseError;
-use crate::locate::span_to_pos;
-use crate::locate::Span;
-use crate::item::Item;
-use crate::node::{BaseNode, CtxTrait};
-use emu::cpu::{IndexedFlags, RegEnum};
-use emu::isa::Instruction;
-use emu::utils::sources::Position;
+use crate::{
+    ast::AstNodeId,
+    error::ParseError,
+    item::Item,
+    node::{BaseNode, CtxTrait},
+    parse::locate::span_to_pos,
+    parse::locate::Span,
+};
 
-use emu::utils::sources::SymbolScopeId;
+use emu::{
+    cpu::{IndexedFlags, RegEnum},
+    isa::Instruction,
+    utils::sources::Position,
+    utils::sources::SymbolScopeId,
+};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {

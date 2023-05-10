@@ -8,26 +8,24 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
 };
 
-use std::{
-    path::{Path, PathBuf},
-    task::ready,
-};
-
+use std::path::{Path, PathBuf};
 use tryvial::try_block;
 
 use crate::{
-    commands::parse_command,
     ctx::Opts,
     error::{GResult, IResult, ParseError},
     item::{Item, Node},
-    locate::Span,
     parse::{
+        locate::Span,
+        commands::parse_command,
+        labels::parse_label,
         macros::{get_macro_def, get_scope_block, parse_macro_call},
         util::{parse_assignment, ws},
-        labels::parse_label,
+        structs::{get_struct, parse_struct_definition},
+        locate::span_to_pos,
     },
+
     parse6809::opcodes::parse_opcode,
-    structs::{get_struct, parse_struct_definition},
 };
 
 use emu::utils::sources::Position;
@@ -42,29 +40,6 @@ fn get_line(input: Span) -> IResult<Span> {
         opt(line_ending),
     ))(input)
 }
-
-// pub fn opt_2<I, E: nom::error::ParseError<I>, F>() -> impl FnMut(I) -> nom::IResult<I, I, E>
-// where
-//     F: nom::Parser<I, I, E>,
-//     I: Clone
-//         + nom::UnspecializedInput
-//         + nom::InputTakeAtPosition
-//         + nom::InputTake
-//         + nom::InputIter
-//         + nom::Slice<std::ops::RangeFrom<usize>>
-//         + nom::Slice<std::ops::RangeTo<usize>>
-//         + nom::Slice<std::ops::Range<usize>>
-//         + nom::InputLength
-//         + nom::Offset,
-//     <I as nom::InputTakeAtPosition>::Item: Clone + nom::AsChar,
-// {
-//     move |input: I| {
-//         cut(preceded(
-//             multispace0,
-//             terminated(recognize(many0(is_not("\r\n"))), opt(line_ending)),
-//         ))(input)
-//     }
-// }
 
 fn parse_comments(stars: bool, input: Span) -> IResult<Node> {
     use crate::parse::{parse_comment, parse_star_comment};
@@ -285,7 +260,7 @@ impl Tokens {
             if let Ok((rest, (name, params, body))) = get_macro_def(source) {
                 let macro_tokes = Tokens::from_text(&self.opts, body)?.take_tokens();
 
-                let pos = crate::locate::span_to_pos(body);
+                let pos = span_to_pos(body);
                 let name = name.to_string();
                 let params = params.iter().map(ToString::to_string).collect();
 

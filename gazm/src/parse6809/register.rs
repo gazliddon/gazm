@@ -1,7 +1,7 @@
 use crate::{
     error::IResult,
     item::{Item, Node},
-    locate::Span,
+    parse::locate::Span,
     parse::util,
     item6809::MC6809::{self,RegisterSet},
 };
