@@ -28,7 +28,7 @@ impl<'a> Navigator<'a> {
     pub fn new(syms: &'a SymbolTree) -> Self {
         Self {
             syms,
-            current_scope_id: syms.get_root_id(),
+            current_scope_id: syms.get_root_scope_id(),
             scope_stack: Default::default(),
         }
     }
@@ -53,7 +53,7 @@ impl<'a> Navigator<'a> {
         self.current_scope_id
     }
 
-    pub fn resolve_label(&self, _name: &str) -> Result<&SymbolInfo, SymbolError> {
+    pub fn resolve_label(&self, _name: &str) -> Result<SymbolScopeId, SymbolError> {
         self.syms.resolve_label(
             _name,
             self.current_scope_id,

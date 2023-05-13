@@ -471,7 +471,7 @@ impl LanguageServer for Backend {
 
         let ret = with_state(&self.asm_ctx, |asm_ctx| -> Option<SymbolInfo> {
             let id = asm_ctx.ctx.find_symbol_id(position, uri)?;
-            let reader = asm_ctx.ctx.get_symbols().get_symbol_reader(id.scope_id);
+            let reader = asm_ctx.ctx.get_symbols().get_reader(id.scope_id);
             let si = reader.get_symbol_info_from_id(id).unwrap();
             Some(si.clone())
         });

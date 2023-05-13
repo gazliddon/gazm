@@ -1,33 +1,35 @@
 // Code to handle
 // source level debugging functions
 
+mod error;
 pub mod fileloader;
 mod position;
+mod scopedname;
+mod sourcefile;
+mod sourcefiles;
+mod sourceinfo;
 mod sourcestore;
+mod symbolnav;
 mod symbols;
 mod symboltable;
 mod symboltree;
-mod sourcefile;
-mod sourcefiles;
-mod error;
-mod sourceinfo;
-mod textedit;
-mod symbolnav;
-mod scopedname;
+mod symboltree_serde;
 mod symboltreereader;
+mod symboltreewriter;
+mod textedit;
 
-
+pub use error::*;
 pub use position::*;
-pub use sourcestore::*;
-pub use symbols::*;
-pub use symboltree::*;
-pub use symboltable::*;
+pub use scopedname::*;
 pub use sourcefile::*;
 pub use sourcefiles::*;
-pub use error::*;
 pub use sourceinfo::*;
-pub use textedit::*;
+pub use sourcestore::*;
 pub use symbolnav::*;
-pub use scopedname::*;
+pub use symbols::*;
+pub use symboltable::*;
+pub use symboltree::*;
+pub use symboltree_serde::*;
 pub use symboltreereader::*;
-
+pub use symboltreewriter::*;
+pub use textedit::*;

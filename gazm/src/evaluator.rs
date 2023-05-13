@@ -41,7 +41,7 @@ impl Context {
 
             // Lazy evaluation of parameters
             it.for_each(|(symbol_id, arg_value)| {
-                let reader = self.asm_out.symbols.get_symbol_reader(eval_scope_id);
+                let reader = self.asm_out.symbols.get_reader(eval_scope_id);
                 let si = reader.get_symbol_info_from_id(*symbol_id);
 
                 match &si {
@@ -91,7 +91,7 @@ impl Context {
 
     pub fn eval_node(&self, node: AstNodeRef, current_scope_id: u64) -> GResult<i64> {
         let info = self.get_source_info(&node.value().pos).unwrap();
-        let reader = self.asm_out.symbols.get_symbol_reader(current_scope_id);
+        let reader = self.asm_out.symbols.get_reader(current_scope_id);
 
         eval(&reader, node).map_err(|err| {
             let e = match &err.source {

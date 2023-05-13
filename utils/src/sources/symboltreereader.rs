@@ -22,8 +22,9 @@ impl<'a> SymbolTreeReader<'a> {
 impl<'a> SymbolQuery for SymbolTreeReader<'a> {
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
         let scope = self.current_scope;
-        self.syms
-            .resolve_label(name, scope, SymbolResolutionBarrier::default())
+        let id = self.syms
+            .resolve_label(name, scope, SymbolResolutionBarrier::default())?;
+        self.get_symbol_info_from_id(id)
     }
 
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {

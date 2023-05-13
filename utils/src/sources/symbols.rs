@@ -11,7 +11,9 @@ pub trait Value {
 
 pub trait SymbolQuery {
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError>;
-    fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError>;
+    fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
+        panic!()
+    }
 
     fn get_value(&self, name: &str) -> Result<i64, SymbolError> {
         let si = self.get_symbol_info(name)?;

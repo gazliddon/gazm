@@ -20,7 +20,7 @@ use crate::{
 use emu::{isa::Instruction, utils::sources::ItemType};
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
-    let root_id = ctx.ctx.get_symbols().get_root_id();
+    let root_id = ctx.ctx.get_symbols().get_root_scope_id();
     let mut compiler = Compiler::new(tree, root_id)?;
     compiler.compile_root(ctx)
 }
@@ -363,7 +363,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn compile_root(&mut self, ctx: &mut AsmCtx) -> GResult<()> {
-        let scope_id = ctx.ctx.get_symbols().get_root_id();
+        let scope_id = ctx.ctx.get_symbols().get_root_scope_id();
         self.scopes.set_scope(scope_id);
         self.compile_node(ctx, self.tree.root().id())
     }

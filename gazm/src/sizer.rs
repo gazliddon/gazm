@@ -59,13 +59,13 @@ impl<'a> Sizer<'a> {
 
     pub fn try_new(tree: &'a AstTree, ctx: &mut AsmCtx) -> GResult<Sizer<'a>> {
         let pc = 0;
-        let mut writer = ctx.ctx.get_symbols_mut().get_root_symbol_nav();
+        let mut writer = ctx.ctx.get_symbols_mut().get_root_writer();
 
         let pc_symbol_id = writer
             .create_and_set_symbol("*", pc)
             .expect("Can't add symbol for pc");
 
-        let root_id = ctx.ctx.get_symbols().get_root_id();
+        let root_id = ctx.ctx.get_symbols().get_root_scope_id();
 
         let mut ret = Self {
             tree,
@@ -77,7 +77,7 @@ impl<'a> Sizer<'a> {
         let id = ret.tree.root().id();
         ret.size_node(ctx, id)?;
 
-        let mut writer = ctx.ctx.get_symbols_mut().get_root_symbol_nav();
+        let mut writer = ctx.ctx.get_symbols_mut().get_root_writer();
         writer.remove_symbol("*").expect("Can't remove pc symbol");
 
         Ok(ret)
