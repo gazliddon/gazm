@@ -15,7 +15,7 @@ use crate::{messages::*, node};
 use emu::utils::eval::{to_postfix, GetPriority};
 use emu::utils::sources::{
     AsmSource, Position, ScopedName, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
-    SymbolNav, SymbolQuery, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolWriter,
+    SymbolWriter, SymbolQuery, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter,
 };
 use emu::utils::symbols::SymbolReader;
 use thin_vec::ThinVec;
@@ -128,23 +128,64 @@ impl<'a> Ast<'a> {
     }
 
     fn process(&mut self) -> Result<(), UserError> {
-        self.inline_includes()?;
-        self.docs = self.gather_docs()?;
-        self.create_scopes()?;
-        self.postfix_expressions()?;
-        self.rename_locals();
-        self.process_macros_definitions()?;
-        self.generate_struct_symbols()?;
-        self.scope_assignments()?;
-        self.scope_labels()?;
-        self.evaluate_assignments()?;
+        info("Parsing to AST", |_| {
+            self.inline_includes()?;
+            self.gather_docs()?;
+            self.create_scopes()?;
+            self.postfix_expressions()?;
+            self.rename_locals();
+            self.process_macros_definitions()?;
+            self.generate_struct_symbols()?;
+            self.scope_assignments()?;
+            self.process_imports()?;
+            self.scope_labels()?;
+            self.evaluate_assignments()?;
+            info_mess!("Done");
+            Ok(())
+        })
+    }
 
+    /// Bring all of the imports needed into the correct namespaces
+    fn process_imports(&mut self) -> Result<(), UserError> {
+        use Item::*;
+        let mut scopes = self.root_scope_tracker();
+
+        for node_id in iter_ids_recursive(self.tree.root()) {
+            let node = self.tree.get(node_id).unwrap();
+            
+            match &node.value().item {
+                ScopeId(scope_id) => {
+                    scopes.set_scope(*scope_id)
+                },
+
+                Import{path, imports} => {
+
+                    let changes : ThinVec<_> = imports.iter().map(|i| {
+                        let i = format!("{path}::{i}");
+                        let i = ScopedName::new(&i);
+                        assert!(i.is_abs());
+                        let si = self.ctx.get_symbols().get_symbol_info_from_scoped_name(&i).expect("Can't find symbol!");
+                        (i.symbol().to_string(),si.symbol_id)
+                    }).collect();
+
+                    let mut writer = self.get_writer(&scopes);
+
+                    for (name,id) in &changes {
+                        writer.add_reference_symbol(name, *id)
+                    }
+
+                    self.tree.get_mut(node_id).unwrap().detach();
+                },
+
+                _ => (),
+            }
+        }
         Ok(())
     }
 
     /// Remove all doc nodes
     /// and put into a doc databse
-    fn gather_docs(&mut self) -> Result<HashMap<AstNodeId, String>, UserError> {
+    fn gather_docs(&mut self) -> Result<(), UserError> {
         let mut doc_map: HashMap<AstNodeId, String> = HashMap::new();
 
         for id in iter_ids_recursive(self.tree.root()) {
@@ -156,7 +197,10 @@ impl<'a> Ast<'a> {
                 self.tree.get_mut(id).unwrap().detach();
             }
         }
-        Ok(doc_map)
+
+        self.docs = doc_map;
+
+        Ok(())
     }
 
     fn base(tree: AstTree, ctx: &'a mut Context) -> Self {
@@ -240,7 +284,6 @@ impl<'a> Ast<'a> {
             let mut mcalls = vec![];
 
             let root_scope_id = self.ctx.get_symbols().get_root_id();
-
             let mut scopes = ScopeTracker::new(root_scope_id);
 
             for (i, macro_call_node) in iter_refs_recursive(self.tree.root()).enumerate() {
@@ -293,6 +336,7 @@ impl<'a> Ast<'a> {
                 self.replace_node_take_children(caller_node_id, replacement_id);
             }
 
+            self.macro_defs = mdefs.values().into_iter().map(|(a, _)| *a).collect();
             Ok(())
         })
     }
@@ -482,7 +526,7 @@ impl<'a> Ast<'a> {
         Ok(())
     }
 
-    fn get_writer(&mut self, scopes: &ScopeTracker) -> SymbolNav {
+    fn get_writer(&mut self, scopes: &ScopeTracker) -> SymbolTreeWriter {
         self.ctx.asm_out.symbols.get_symbol_nav(scopes.scope())
     }
 
@@ -490,7 +534,7 @@ impl<'a> Ast<'a> {
         self.ctx.asm_out.symbols.get_symbol_reader(scopes.scope())
     }
 
-    fn get_symbol_id(
+    fn get_scoped_symbol_id(
         &self,
         scoped_name: &ScopedName,
         node_id: AstNodeId,
@@ -504,35 +548,65 @@ impl<'a> Ast<'a> {
         Ok(symbol_id)
     }
 
+    fn get_unscoped_symbol_id(
+        &self,
+        name: &str,
+        scopes: &ScopeTracker,
+        node_id: AstNodeId,
+    ) -> Result<SymbolScopeId, UserError> {
+        let id = self
+            .get_reader(&scopes)
+            .get_symbol_info(name)
+            .map_err(|e| self.sym_to_user_error(e, node_id))?
+            .symbol_id;
+        Ok(id)
+    }
+
     fn scope_labels(&mut self) -> Result<(), UserError> {
         use Item::*;
+
         let root_node = self.tree.root();
         let mut scopes = self.root_scope_tracker();
 
-        for node_id in iter_ids_recursive(root_node) {
-            let value = self.tree.get(node_id).unwrap().value().clone();
+        let nodes = get_ids_recursive(root_node);
+
+        for node_id in &nodes {
+            let value = self.tree.get(*node_id).unwrap().value().clone();
 
             match &value.item {
                 ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
-                Label(LabelDefinition::TextScoped(name)) => {
-                    let scoped_name = ScopedName::new(&name);
-                    let symbol_id = self.get_symbol_id(&scoped_name, node_id)?;
-                    self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
-                }
-
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
-                    let symbol_id = self
-                        .get_reader(&scopes)
-                        .get_symbol_info(name)
-                        .map_err(|e| self.sym_to_user_error(e, node_id))?
-                        .symbol_id;
+                    let symbol_id = self.get_unscoped_symbol_id(name, &scopes, *node_id)?;
+                    self.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                }
 
-                    self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                Label(LabelDefinition::TextScoped(name)) => {
+                    let scoped_name = ScopedName::new(&name);
+                    let symbol_id = self.get_scoped_symbol_id(&scoped_name, *node_id)?;
+                    self.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
                 }
 
                 _ => (),
+            }
+        }
+
+        for mac_nodes in self.macro_defs.clone().into_iter() {
+            let node = self.tree.get(mac_nodes).unwrap();
+
+            for node_id in get_ids_recursive(node).into_iter() {
+                let value = self.tree.get(node_id).unwrap().value().clone();
+
+                match &value.item {
+                    Label(LabelDefinition::TextScoped(name)) => {
+                        let scoped_name = ScopedName::new(&name);
+                        let symbol_id = self.get_scoped_symbol_id(&scoped_name, node_id)?;
+                        self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                    }
+
+                    _ => (),
+                }
             }
         }
 

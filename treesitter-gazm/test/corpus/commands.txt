@@ -14,24 +14,10 @@ Example
     INCBIN "file" , 1,2
     incbin "file"
     org 10
-
     include "ksjkjska"
 
     exec_addr $ff
-
-    /*
-
-
-        ["incbinref", strOptExprs($)],
-        ["bsz", commaSep1($._expression)],
-        ["fill", commaSep1($._expression)],
-        ["fdb", commaSep1($._expression)],
-        ["fcc", commaSep1($.string_literal)],
-        ["fcb", seq($._expression, repeat(seq(',', $._expression)))],
-        ["zmb", commaSep1($._expression)],
-        ["zmd", commaSep1($._expression)],
-        ["rmb", commaSep1($._expression)],
-    */
+	import ::hello::x
 
 ---
 (source_file
@@ -79,12 +65,10 @@ Example
 
 (include (string_literal))
 
-
 (exec_addr (hex_num))
 
-(comment)
 
-    )
+(importer (global_scoped_id)))
 
 
 

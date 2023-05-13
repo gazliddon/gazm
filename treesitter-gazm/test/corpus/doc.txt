@@ -10,8 +10,8 @@ hello ;;; Doc
 
 ---
 (source_file
-    (doc)
-    (doc)
-    (doc)
+    (doc (doc_text))
+    (doc (doc_text))
+    (doc (doc_text))
     (label)
-    (doc))
+    (doc (doc_text)))

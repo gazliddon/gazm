@@ -6,7 +6,7 @@ pub mod numbers;
 pub mod commands;
 pub mod structs;
 pub mod locate;
+pub mod comments;
+pub mod error;
+pub mod import;
 
-mod comments;
-
-pub use comments::*;

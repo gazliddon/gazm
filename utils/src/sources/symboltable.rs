@@ -1,4 +1,4 @@
-use super::{Position, SymbolError, SymbolInfo, SymbolQuery, SymbolScopeId, SymbolWriter};
+use super::{Position, SymbolError, SymbolInfo, SymbolScopeId, SymbolWriter};
 
 use std::{collections::HashMap, fmt::Display};
 
@@ -296,7 +296,7 @@ pub struct SymbolTable {
     fqn_scope: String,
     info: HashMap<u64, SymbolInfo>,
     name_to_id: HashMap<String, u64>,
-    ref_name_to_value: HashMap<String, i64>,
+    ref_name_to_value: HashMap<String, SymbolScopeId>,
     highest_id: u64,
     scope_id: u64,
     symbol_resolution_barrier: SymbolResolutionBarrier,
@@ -328,19 +328,27 @@ impl Display for SymbolTable {
     }
 }
 
-impl SymbolQuery for SymbolTable {
-    fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-        if self.scope_id == id.scope_id {
-            self.info.get(&id.symbol_id).ok_or(SymbolError::NotFound)
-        } else {
-            Err(SymbolError::NotFound)
-        }
-    }
-    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-        let symbol_id = *self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
-        self.get(symbol_id)
-    }
-}
+// impl SymbolQuery for SymbolTable {
+//     fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
+//         panic!()
+//         // if self.scope_id == id.scope_id {
+//         //     self.info.get(&id.symbol_id).ok_or(SymbolError::NotFound)
+//         // } else {
+//         //     Err(SymbolError::NotFound)
+//         // }
+//     }
+
+//     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
+//         let symbol_id = *self.name_to_id.get(name).ok_or(SymbolError::NotFound)?;
+//         self.get(symbol_id)
+//     }
+
+//     fn get_value_from_id(&self, _id: SymbolScopeId) -> Result<i64, SymbolError> {
+//         todo!()
+//     }
+
+
+// }
 
 impl SymbolWriter for SymbolTable {
     fn create_and_set_symbol(
@@ -385,13 +393,33 @@ impl SymbolWriter for SymbolTable {
         }
     }
 
-    fn add_reference_symbol(&mut self, name: &str, val: i64) {
-        let res = self.ref_name_to_value.insert(name.to_string(), val);
-        assert!(res.is_none());
+    fn add_reference_symbol(&mut self, name: &str, symbol_id: SymbolScopeId) {
+        if self.get_symbol_info(name).is_ok() {
+            panic!("Can't add reference {name}: Symbol already exists in this scope!")
+        }
+
+        self.ref_name_to_value.insert(name.to_string(), symbol_id);
     }
 }
 
 impl SymbolTable {
+    pub fn get_symbol_id(&self, _name: &str) -> Result<u64,SymbolError>  {
+        self.name_to_id.get(_name).ok_or(SymbolError::NotFound).cloned()
+    }
+
+    pub fn get_symbol_info(&self, _name: &str) -> Result<&SymbolInfo, SymbolError> {
+        let id = self.get_symbol_id(_name)?;
+        self.get_symbol_info_from_id(id)
+    }
+
+    pub fn get_symbol_info_from_id(&self, _id: u64) -> Result<&SymbolInfo,SymbolError>{
+        self.get(_id)
+    }
+
+    fn get_reference_symbol_id(&self, name: &str) -> Option<SymbolScopeId>{
+        self.ref_name_to_value.get(name).cloned()
+    }
+
     pub fn set_symbol(&mut self, symbol_id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
         if self.scope_id == symbol_id.scope_id {
             self.set_value(symbol_id.symbol_id, val)
@@ -399,6 +427,7 @@ impl SymbolTable {
             Err(SymbolError::NotFound)
         }
     }
+
     pub fn get_symbol_resoultion_barrier(&self) -> SymbolResolutionBarrier {
         self.symbol_resolution_barrier
     }
@@ -444,10 +473,6 @@ impl SymbolTable {
 
     fn get_mut(&mut self, id: u64) -> Result<&mut SymbolInfo, SymbolError> {
         self.info.get_mut(&id).ok_or(SymbolError::NotFound)
-    }
-
-    fn symbol_exists(&self, id: u64) -> bool {
-        self.get(id).is_ok()
     }
 
     fn set_value(&mut self, id: u64, value: i64) -> Result<(), SymbolError> {

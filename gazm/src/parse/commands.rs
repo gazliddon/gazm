@@ -1,10 +1,12 @@
+use emu::utils::sources::ScopedName;
 use lazy_static::lazy_static;
+use thin_vec::{ ThinVec,thin_vec };
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, };
 
 use super::{
     expr::parse_expr,
-    labels::get_just_label,
+    labels::{get_just_label, get_scoped_label},
     util::{self, match_escaped_str, match_file_name},
     locate::{matched_span, span_to_pos, Span},
 };
@@ -72,6 +74,23 @@ fn parse_include_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = match_escaped_str(input)?;
     let matched = matched.to_string();
     let node = Node::from_item_span(Item::Include(PathBuf::from(&matched)), input);
+    Ok((rest, node))
+}
+
+fn parse_import_arg(input: Span) -> IResult<Node> {
+    // import { proc, tie tag scoon } from ::background
+
+    // TODO change the syntax to the below
+    // need to move out of command as it's a multi-line statement
+    // import ::background::{proc, tie, tag}
+    // import ::background::proc
+    
+    let (rest, matched) = get_scoped_label(input)?;
+    let matched = matched.to_string();
+    let scoped_name = ScopedName::new(&matched);
+    let imports : ThinVec<_> = thin_vec![scoped_name.symbol().to_string()];
+    let item = Item::Import { path: scoped_name.path_as_string(), imports};
+    let node = Node::from_item_span(item, input);
     Ok((rest, node))
 }
 
@@ -213,6 +232,7 @@ lazy_static! {
             ("include", parse_include_arg),
             ("exec_addr", parse_exec_arg),
             ("require", parse_require_arg),
+            ("import", parse_import_arg),
         ];
         v.into_iter().collect()
     };

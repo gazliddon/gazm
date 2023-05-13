@@ -13,6 +13,8 @@ mod error;
 mod sourceinfo;
 mod textedit;
 mod symbolnav;
+mod scopedname;
+mod symboltreereader;
 
 
 pub use position::*;
@@ -26,4 +28,6 @@ pub use error::*;
 pub use sourceinfo::*;
 pub use textedit::*;
 pub use symbolnav::*;
+pub use scopedname::*;
+pub use symboltreereader::*;
 

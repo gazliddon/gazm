@@ -204,10 +204,6 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
 
     Ok(s.pop().expect("Can't pop top!"))
 }
-pub fn eval_symboltree(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<i64, EvalError> {
-    let ret = eval_internal(symbols, n)?;
-    Ok(ret.unrwap_number().unwrap())
-}
 
 pub fn eval(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<i64, EvalError> {
     let ret = eval_internal(symbols, n)?;

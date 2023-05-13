@@ -11,7 +11,6 @@ pub trait Value {
 
 pub trait SymbolQuery {
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError>;
-
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError>;
 
     fn get_value(&self, name: &str) -> Result<i64, SymbolError> {
@@ -43,7 +42,7 @@ pub trait SymbolWriter {
     ) -> Result<SymbolScopeId, SymbolError>;
     fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError>;
     fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError>;
-    fn add_reference_symbol(&mut self, name: &str, val: i64);
+    fn add_reference_symbol(&mut self, name: &str, id: SymbolScopeId);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

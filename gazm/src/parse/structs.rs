@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super:: {
-    strip_comments,
+    comments::strip_comments,
     util::{wrapped_chars, ws},
     labels::get_just_label,
     locate::{matched_span, span_to_pos, Span},

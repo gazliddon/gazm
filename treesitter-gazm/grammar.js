@@ -78,6 +78,10 @@ module.exports = grammar({
             optional($._incbinargs)
         ),
 
+        importer: $ => seq(asRegex('import'),
+             $.global_scoped_id
+        ),
+
         incbinref: $ => seq(asRegex( 'incbinref' ),
             field('file', $.string_literal),
             optional($._incbinargs)
@@ -131,6 +135,7 @@ module.exports = grammar({
             $.zmb,
             $.zmd,
             $.rmb,
+			$.importer,
         ),
 
         struct_def: $ => seq("struct", $._identifier, '{', commaSep($.struct_elem), optional(','), '}'),
@@ -147,18 +152,19 @@ module.exports = grammar({
             $._line
         )), '}'),
 
-        doc: $ => token(seq(';;;', /(\\(.|\r?\n)|[^\\\n])*/)),
+        doc_text : $ => /(\\(.|\r?\n)|[^\\\n])*/,
+        doc: $ => seq(';;;', $.doc_text),
 
         // http://stackoverflow.com/questions/13014947/regex-to-match-a-c-style-multiline-comment/36328890#36328890
-        comment: $ => token(choice(
+        comment: $ => choice(
             seq(';', /(\\(.|\r?\n)|[^\\\n])*/),
             seq('//', /(\\(.|\r?\n)|[^\\\n])*/),
             seq(
                 '/*',
                 /[^*]*\*+([^/*][^*]*\*+)*/,
-                '/'
-            )
-        )),
+                    '/'
+                )
+            ),
 
         free_comment: $ => seq(
             '/*',
@@ -359,6 +365,8 @@ module.exports = grammar({
             $._arg),
 
         _identifier: $ => choice($.local_label, $.label),
+
+		global_scoped_id: $ => repeat1(seq("::",$._global_label )),
 
         label: $ => $._global_label,
         local_label: $ => seq(/[@!]/, $._global_label),

@@ -4,12 +4,12 @@ use super::{
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-pub struct SymbolNav<'a> {
+pub struct SymbolTreeWriter<'a> {
     current_scope_id: u64,
     sym_tree: &'a mut SymbolTree,
 }
 
-impl<'a> SymbolNav<'a> {
+impl<'a> SymbolTreeWriter<'a> {
     pub fn new(sym_tree: &'a mut SymbolTree, current_scope_id: u64) -> Self {
         Self {
             current_scope_id,
@@ -32,7 +32,7 @@ impl<'a> SymbolNav<'a> {
     }
 
     pub fn goto_root(&mut self) {
-        self.current_scope_id = self.sym_tree.tree.root().value().get_scope_id()
+        self.current_scope_id = self.sym_tree.get_root_id();
     }
 
     pub fn get_scope(&self) -> u64 {
@@ -65,10 +65,9 @@ impl<'a> SymbolNav<'a> {
 
 }
 
-impl<'a> SymbolQuery for SymbolNav<'a> {
+impl<'a> SymbolQuery for SymbolTreeWriter<'a> {
     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-        let node = self.sym_tree.get_node_from_id(id.scope_id)?;
-        node.value().get_symbol_info_from_id(id)
+        self.sym_tree.get_symbol_info_from_id(id)
     }
 
     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
@@ -77,7 +76,7 @@ impl<'a> SymbolQuery for SymbolNav<'a> {
     }
 }
 
-impl<'a> SymbolWriter for SymbolNav<'a> {
+impl<'a> SymbolWriter for SymbolTreeWriter<'a> {
     fn create_and_set_symbol(
         &mut self,
         name: &str,
@@ -99,7 +98,7 @@ impl<'a> SymbolWriter for SymbolNav<'a> {
         node.value().create_symbol(name)
     }
 
-    fn add_reference_symbol(&mut self, name: &str, val: i64) {
+    fn add_reference_symbol(&mut self, name: &str, val: SymbolScopeId) {
         let mut node = self
             .sym_tree
             .get_node_mut_from_id(self.current_scope_id)

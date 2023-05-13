@@ -1,7 +1,9 @@
 use super::{
-    SymbolError, SymbolInfo, SymbolNav, SymbolQuery, SymbolResolutionBarrier, SymbolScopeId,
-    SymbolTable, SymbolWriter,
+    SymbolTreeReader,
+    SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId,
+    SymbolTable, SymbolWriter, ScopedName, SymbolTreeWriter,
 };
+
 use serde::ser::SerializeMap;
 use std::collections::HashMap;
 use thin_vec::ThinVec;
@@ -16,7 +18,7 @@ pub type SymbolNodeMut<'a> = ego_tree::NodeMut<'a, SymbolTable>;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SymbolTree {
-    pub tree: ego_tree::Tree<SymbolTable>,
+    tree: ego_tree::Tree<SymbolTable>,
     next_scope_id: u64,
     scope_id_to_node_id: HashMap<u64, SymbolNodeId>,
 }
@@ -75,59 +77,6 @@ fn get_subscope<'a>(n: SymbolNodeRef<'a>, name: &str) -> Option<SymbolNodeRef<'a
     n.children().find(|c| c.value().get_scope_name() == name)
 }
 
-pub struct ScopedName<'a> {
-    input: &'a str,
-    symbol: &'a str,
-    path: ThinVec<&'a str>,
-    absolute: bool,
-}
-
-////////////////////////////////////////////////////////////////////////////////
-impl<'a> ScopedName<'a> {
-
-    pub fn is_abs(&self) -> bool {
-        self.absolute
-    }
-
-    pub fn is_relative(&self) -> bool {
-        !self.is_abs()
-    }
-
-    pub fn symbol(&self) -> &str {
-        self.symbol
-    }
-
-    pub fn path(&self) -> &[&str] {
-        &self.path
-    }
-
-    pub fn new(input: &'a str) -> Self {
-        let splits : ThinVec<_> = input.split("::").collect();
-        let len = splits.len();
-
-        let (path,symbol) = match len {
-            0 => panic!(),
-            _ => (&splits[0..len-1],splits[len-1] ),
-        };
-
-        let absolute = !path.is_empty() && path[0].is_empty();
-
-        let path : ThinVec<_> = if absolute {
-            path[1..].into_iter().map(|p| *p).collect()
-        } else {
-            path.into_iter().map(|p| *p).collect()
-        };
-
-        Self {
-            input,
-            symbol,
-            path,
-            absolute
-        }
-    }
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 // Public functions
 impl SymbolTree {
@@ -168,6 +117,7 @@ impl SymbolTree {
     }
 
     pub fn get_id_from_fqn(&self, name: &str) -> Option<SymbolNodeId> {
+        // TODAY! Rewrite with scoped name
         let fqn = split_fqn(name);
 
         let mut scope_id = self.tree.root().id();
@@ -220,12 +170,12 @@ impl SymbolTree {
         Err(SymbolError::NotFound)
     }
 
-    pub fn get_symbol_nav(&mut self, scope_id: u64) -> SymbolNav {
-        SymbolNav::new(self, scope_id)
+    pub fn get_symbol_nav(&mut self, scope_id: u64) -> SymbolTreeWriter {
+        SymbolTreeWriter::new(self, scope_id)
     }
 
-    pub fn get_root_symbol_nav(&mut self) -> SymbolNav { 
-        SymbolNav::new(self, self.get_root_id())
+    pub fn get_root_symbol_nav(&mut self) -> SymbolTreeWriter { 
+        SymbolTreeWriter::new(self, self.get_root_id())
     }
 
 
@@ -235,6 +185,11 @@ impl SymbolTree {
 
     pub fn get_root_symbol_reader(&self, ) -> SymbolTreeReader {
         self.get_symbol_reader(self.get_root_id())
+    }
+
+    pub fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo,SymbolError> {
+        let tab = self.get_symbols_from_id(id.scope_id).expect("Can't find symbol tabke");
+        tab.get_symbol_info_from_id(id.symbol_id)
     }
 
     pub fn get_symbol_info_from_scoped_name(&self, _name: &ScopedName) -> Result<&SymbolInfo,SymbolError> {
@@ -256,36 +211,6 @@ impl SymbolTree {
         }
 
         current_node.value().get_symbol_info(name)
-    }
-}
-
-pub struct SymbolTreeReader<'a> {
-    current_scope: u64,
-    syms: &'a SymbolTree,
-}
-
-impl<'a> SymbolTreeReader<'a> {
-    pub fn new(syms: &'a SymbolTree, current_scope: u64) -> Self {
-        Self {
-            syms,
-            current_scope,
-        }
-    }
-    pub fn get_current_symbols(&self) -> &SymbolTable {
-        self.syms.get_symbols_from_id(self.current_scope).unwrap()
-    }
-}
-
-impl<'a> SymbolQuery for SymbolTreeReader<'a> {
-    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-        let scope = self.current_scope;
-        self.syms
-            .resolve_label(name, scope, SymbolResolutionBarrier::default())
-    }
-
-    fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-        let node = self.syms.get_node_from_id(id.scope_id)?;
-        node.value().get_symbol_info_from_id(id)
     }
 }
 

@@ -9,7 +9,7 @@ use crate::parse::locate::Span;
 use crate::node::{BaseNode, CtxTrait};
 use emu::cpu::{IndexedFlags, RegEnum};
 use emu::isa::Instruction;
-use emu::utils::sources::Position;
+use emu::utils::sources::{Position, ScopedName};
 
 use crate::item6809::{
     self,
@@ -121,6 +121,7 @@ impl std::fmt::Display for LabelDefinition {
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
+    Import{path: String, imports: ThinVec<String> },
     Cpu(MC6809),
     Doc(String),
     Pc,

@@ -2,7 +2,7 @@
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
-    character::complete::{anychar, line_ending, multispace0},
+    character::complete::{anychar, line_ending, multispace0, char as nom_char},
     combinator::{cut, not, opt, recognize},
     multi::many0,
     sequence::{pair, preceded, terminated, tuple},
@@ -15,17 +15,19 @@ use crate::{
     ctx::Opts,
     error::{GResult, IResult, ParseError},
     item::{Item, Node},
+    parse6809::opcodes::parse_opcode,
+
     parse::{
-        locate::Span,
         commands::parse_command,
+        comments::{parse_comment, parse_star_comment},
         labels::parse_label,
-        macros::{get_macro_def, get_scope_block, parse_macro_call},
-        util::{parse_assignment, ws},
-        structs::{get_struct, parse_struct_definition},
         locate::span_to_pos,
+        locate::Span,
+        macros::{get_macro_def, get_scope_block, parse_macro_call},
+        structs::{get_struct, parse_struct_definition},
+        util::{parse_assignment, ws},
     },
 
-    parse6809::opcodes::parse_opcode,
 };
 
 use emu::utils::sources::Position;
@@ -42,7 +44,6 @@ fn get_line(input: Span) -> IResult<Span> {
 }
 
 fn parse_comments(stars: bool, input: Span) -> IResult<Node> {
-    use crate::parse::{parse_comment, parse_star_comment};
     if stars {
         if let Ok((rest, comment)) = parse_star_comment(input) {
             return Ok((rest, comment));
@@ -298,7 +299,7 @@ impl Tokens {
 pub fn get_doc_line(input: Span) -> IResult<Span> {
     let rest = input;
     let (rest, matched) = get_line_cut(rest)?;
-    let (_, matched) = preceded(ws(tag(";;;")), recognize(many0(anychar)))(matched)?;
+    let (_, matched) = preceded(tuple(( multispace0, tag(";;;"),opt(nom_char(' '))  )), recognize(many0(anychar)))(matched)?;
     Ok((rest, matched))
 }
 

@@ -2,8 +2,10 @@
 * https://github.com/lukaslueg/built/tree/master/example_project
 * https://github.com/windwp/nvim-autopairs
 
-# Full scope symbol resoltion
+# Namespace importing
 
+
+# Full scope symbol resolution
 * Overtime replace stargate EQ4 equates with direct references to scoped label
 * start with SLEEP
     * remove from EQ4
