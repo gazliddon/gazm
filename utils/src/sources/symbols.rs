@@ -44,7 +44,6 @@ pub trait SymbolWriter {
     ) -> Result<SymbolScopeId, SymbolError>;
     fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError>;
     fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError>;
-    fn add_reference_symbol(&mut self, name: &str, id: SymbolScopeId);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,8 +81,9 @@ impl SymbolInfo {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SymbolError {
     InvalidScope,
-    AlreadyDefined((u64, Option<i64>)),
+    AlreadyDefined(SymbolScopeId),
     Mismatch { expected: i64 },
     NotFound,
     NoValue,
+    InvalidId,
 }

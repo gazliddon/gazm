@@ -1,6 +1,6 @@
+use super::{SymbolError, SymbolNodeRef, SymbolResolutionBarrier, SymbolScopeId, SymbolTree};
 use serde::ser::SerializeMap;
 use std::collections::HashMap;
-use super::{SymbolTree, SymbolNodeRef, SymbolWriter, SymbolResolutionBarrier};
 
 fn split_fqn(text: &str) -> Vec<&str> {
     text.split("::").collect()
@@ -31,13 +31,15 @@ impl<'de> serde::Deserialize<'de> for SymbolTree {
         let hm: HashMap<String, Option<i64>> = serde::Deserialize::deserialize(_deserializer)?;
 
         for (k, v) in hm {
-            ret.add_fqn(&k, v)
+            let symbol_id = ret.create_fqn(&k).unwrap();
+            if let Some(v) = v {
+                ret.set_symbol_from_id(symbol_id, v).unwrap();
+            }
         }
 
         Ok(ret)
     }
 }
-
 
 impl SymbolTree {
     pub fn to_hash_map(&self) -> HashMap<String, Option<i64>> {
@@ -49,8 +51,14 @@ impl SymbolTree {
         serde_json::to_string_pretty(&hm).unwrap()
     }
 
+    // pub fn create_and_set_fqn(&mut self, text: &str, val : i64) -> Result<SymbolScopeId, SymbolError> {
+    //     let symbol_id = self.create_fqn(text)?;
+    //     self.set_symbol_from_id(symbol_id, val)?;
+    //     Ok(symbol_id)
+    // }
+
     // This is shit, much shame
-    pub fn add_fqn(&mut self, text: &str, val: Option<i64>) {
+    pub fn create_fqn(&mut self, text: &str) -> Result<SymbolScopeId, SymbolError> {
         let items: Vec<_> = split_fqn(text);
 
         let (path, sym) = match items.len() {
@@ -77,7 +85,7 @@ impl SymbolTree {
             }
         }
 
-        let mut n = self.get_node_mut_from_id(scope_id).unwrap();
-        n.value().create_and_set_symbol(sym, val.unwrap()).unwrap();
+        let symbol_id = self.create_symbol_in_scope(scope_id, sym)?;
+        Ok(symbol_id)
     }
 }

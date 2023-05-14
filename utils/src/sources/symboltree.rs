@@ -4,7 +4,7 @@ use thin_vec::ThinVec;
 use super::{
     SymbolTreeReader,
     SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId,
-    SymbolTable, SymbolWriter, ScopedName, SymbolTreeWriter,
+    SymbolTable, ScopedName, SymbolTreeWriter,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -74,6 +74,12 @@ impl SymbolTree {
         Ok(symbol_id)
     }
 
+    pub fn set_value_for_id(&mut self, id: SymbolScopeId, val : i64) -> Result<(),SymbolError> {
+        let x = self.scope_id_to_symbol_info.get_mut(&id).ok_or(SymbolError::NotFound)?;
+        x.value = Some(val);
+        Ok(())
+    }
+
     pub fn get_root_scope_id(&self) -> u64 {
         self.tree.root().value().get_scope_id()
     }
@@ -132,8 +138,8 @@ impl SymbolTree {
         self.get_reader(self.get_root_scope_id())
     }
 
-    pub fn get_symbol_info_from_id(&self, _id: SymbolScopeId) -> Result<&SymbolInfo,SymbolError> {
-        panic!()
+    pub fn get_symbol_info_from_id(&self, symbol_id: SymbolScopeId) -> Result<&SymbolInfo,SymbolError> {
+        self.scope_id_to_symbol_info.get(&symbol_id).ok_or(SymbolError::InvalidId)
     }
 
     pub fn get_symbol_info_from_scoped_name(&self, name: &ScopedName) -> Result<&SymbolInfo,SymbolError> {

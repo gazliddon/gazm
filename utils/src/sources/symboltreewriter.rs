@@ -57,6 +57,13 @@ impl<'a> SymbolTreeWriter<'a> {
         new_scope_node_id
     }
 
+    pub fn add_reference_symbol(&mut self, name: &str, val: SymbolScopeId) -> Result<(),SymbolError> {
+        let mut node = self
+            .sym_tree
+            .get_node_mut_from_id(self.current_scope_id)
+            .unwrap();
+        node.value().add_reference_symbol(name, val)
+    }
 }
 
 impl<'a> SymbolQuery for SymbolTreeWriter<'a> {
@@ -75,29 +82,19 @@ impl<'a> SymbolWriter for SymbolTreeWriter<'a> {
     fn create_and_set_symbol(
         &mut self,
         name: &str,
-        value: i64,
+        val: i64,
     ) -> Result<SymbolScopeId, SymbolError> {
-        let mut node = self.sym_tree.get_node_mut_from_id(self.current_scope_id)?;
-        node.value().create_and_set_symbol(name, value)
+        let symbol_id = self.create_symbol(name)?;
+        self.sym_tree.set_symbol_from_id(symbol_id, val)?;
+        Ok(symbol_id)
     }
 
     fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError>{
-        let mut node = self
-            .sym_tree
-            .get_node_mut_from_id(self.current_scope_id)?;
-        node.value().remove_symbol(name)
+        self.sym_tree.remove_symbol_for_id(name, self.current_scope_id)
     }
 
     fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
-        let mut node = self.sym_tree.get_node_mut_from_id(self.current_scope_id)?;
-        node.value().create_symbol(name)
+        self.sym_tree.create_symbol_in_scope(self.current_scope_id, name)
     }
 
-    fn add_reference_symbol(&mut self, name: &str, val: SymbolScopeId) {
-        let mut node = self
-            .sym_tree
-            .get_node_mut_from_id(self.current_scope_id)
-            .unwrap();
-        node.value().add_reference_symbol(name, val)
-    }
 }

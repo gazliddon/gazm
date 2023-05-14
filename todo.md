@@ -4,6 +4,9 @@
 
 # Namespace importing
 
+Writing to symbols
+
+
 
 # Full scope symbol resolution
 * Overtime replace stargate EQ4 equates with direct references to scoped label

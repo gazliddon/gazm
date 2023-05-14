@@ -175,7 +175,7 @@ impl<'a> Ast<'a> {
                     let mut writer = self.get_writer(&scopes);
 
                     for (name, id) in &changes {
-                        writer.add_reference_symbol(name, *id)
+                        writer.add_reference_symbol(name, *id).unwrap();
                     }
 
                     self.tree.get_mut(node_id).unwrap().detach();
@@ -471,6 +471,7 @@ impl<'a> Ast<'a> {
     }
 
     fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
+
         let scopes = self.get_root_scope_tracker();
 
         info("Generating symbols for struct definitions", |x| {
@@ -492,10 +493,13 @@ impl<'a> Ast<'a> {
                         let i = &self.tree.get(c_id).unwrap().value().item;
 
                         if let StructEntry(entry_name) = i {
+                            info_mess!("Generating struct entry: {name} {entry_name}");
                             let value = self.eval_node_child(c_id, scopes.scope())?;
                             let scoped_name = format!("{name}.{entry_name}");
+                            info_mess!("About to create sym: {name} {entry_name}");
                             self.create_and_set_symbol(current, &scoped_name, c_id, &scopes)?;
                             x.debug(format!("Struct: Set {scoped_name} to {current}"));
+                            info_mess!("Done");
                             current += value;
                         }
                     }
@@ -765,10 +769,15 @@ impl<'a> Ast<'a> {
         scopes: &ScopeTracker,
     ) -> Result<SymbolScopeId, UserError> {
         let mut writer = self.ctx.get_symbols_mut().get_writer(scopes.scope());
-        let symbol_id = writer
-            .create_symbol(name)
-            .map_err(|e| self.sym_to_user_error(e, id))?;
-        Ok(symbol_id)
+        writer.create_symbol(name)
+            .map_err(|e| self.sym_to_user_error(e, id))
+
+
+        // let syms = self.ctx.get_symbols_mut();
+        // let sym_id = syms.create_symbol_in_scope(scopes.scope(), name)
+        //     .map_err(|e| self.sym_to_user_error(e, id))?;
+
+        // Ok(sym_id)
     }
 
     pub fn create_and_set_symbol(
@@ -779,9 +788,7 @@ impl<'a> Ast<'a> {
         scopes: &ScopeTracker,
     ) -> Result<SymbolScopeId, UserError> {
         let symbol_id = self.create_symbol(name, id, scopes)?;
-        self.ctx
-            .get_symbols_mut()
-            .set_symbol_from_id(symbol_id, value)
+        self.ctx.get_symbols_mut().set_symbol_from_id(symbol_id, value)
             .map_err(|e| self.sym_to_user_error(e, id))?;
         Ok(symbol_id)
     }
