@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use thin_vec::ThinVec;
 
 use super::{
-    SymbolTreeReader,
-    SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId,
-    SymbolTable, ScopedName, SymbolTreeWriter,
+    ScopedName, SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, SymbolTable,
+    SymbolTreeReader, SymbolTreeWriter,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,10 +15,10 @@ pub type SymbolNodeMut<'a> = ego_tree::NodeMut<'a, SymbolTable>;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SymbolTree {
-    pub  tree: ego_tree::Tree<SymbolTable>,
-    pub  next_scope_id: u64,
-    pub  scope_id_to_node_id: HashMap<u64, SymbolNodeId>,
-    pub  scope_id_to_symbol_info: HashMap<SymbolScopeId, SymbolInfo>,
+    pub tree: ego_tree::Tree<SymbolTable>,
+    pub next_scope_id: u64,
+    pub scope_id_to_node_id: HashMap<u64, SymbolNodeId>,
+    pub scope_id_to_symbol_info: HashMap<SymbolScopeId, SymbolInfo>,
 }
 
 impl Default for SymbolTree {
@@ -34,12 +33,10 @@ impl Default for SymbolTree {
             tree,
             next_scope_id: 1,
             scope_id_to_node_id,
-            scope_id_to_symbol_info : Default::default(),
+            scope_id_to_symbol_info: Default::default(),
         }
     }
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Public functions
@@ -59,23 +56,32 @@ impl SymbolTree {
         scope_id: u64,
         names: &[String],
     ) -> Result<ThinVec<SymbolScopeId>, SymbolError> {
-        let ret: Result<ThinVec<SymbolScopeId>, SymbolError> =
-            names.iter().map(|name| self.create_symbol_in_scope(scope_id,name)).collect();
+        let ret: Result<ThinVec<SymbolScopeId>, SymbolError> = names
+            .iter()
+            .map(|name| self.create_symbol_in_scope(scope_id, name))
+            .collect();
         ret
     }
 
-    pub fn create_symbol_in_scope(&mut self, scope_id: u64, name: &str) -> Result<SymbolScopeId, SymbolError> {
+    pub fn create_symbol_in_scope(
+        &mut self,
+        scope_id: u64,
+        name: &str,
+    ) -> Result<SymbolScopeId, SymbolError> {
         let mut node = self.get_node_mut_from_id(scope_id)?;
         let syms = node.value();
         let symbol_id = syms.create_symbol(name)?;
-        let si = SymbolInfo::new(name,None,symbol_id,syms.get_scope_fqn_name());
+        let si = SymbolInfo::new(name, None, symbol_id, syms.get_scope_fqn_name());
 
         self.scope_id_to_symbol_info.insert(symbol_id, si);
         Ok(symbol_id)
     }
 
-    pub fn set_value_for_id(&mut self, id: SymbolScopeId, val : i64) -> Result<(),SymbolError> {
-        let x = self.scope_id_to_symbol_info.get_mut(&id).ok_or(SymbolError::NotFound)?;
+    pub fn set_value_for_id(&mut self, id: SymbolScopeId, val: i64) -> Result<(), SymbolError> {
+        let x = self
+            .scope_id_to_symbol_info
+            .get_mut(&id)
+            .ok_or(SymbolError::NotFound)?;
         x.value = Some(val);
         Ok(())
     }
@@ -99,25 +105,25 @@ impl SymbolTree {
         scope_id: u64,
         barrier: SymbolResolutionBarrier,
     ) -> Result<SymbolScopeId, SymbolError> {
-        let scope_id = self.get_scope_node_id_from_id(scope_id)?;
-        let mut node = self.tree.get(scope_id);
+        let node_scope_id = self.get_scope_node_id_from_id(scope_id)?;
+        let mut node = self.tree.get(node_scope_id);
 
-        while node.is_some() {
-            if let Some(n) = node {
-                if let Ok(v) = n.value().get_symbol_id(name) {
-                    return Ok(v);
-                }
 
-                if !n
-                    .value()
-                    .get_symbol_resoultion_barrier()
-                    .can_pass_barrier(barrier)
-                {
-                    break;
-                }
+        while let Some(n) = node {
+            if let Ok(v) = n.value().get_symbol_id(name) {
+                return Ok(v);
+            }
+
+            if !n
+                .value()
+                .get_symbol_resoultion_barrier()
+                .can_pass_barrier(barrier)
+            {
+                break;
             }
             node = node.and_then(|n| n.parent());
         }
+
 
         Err(SymbolError::NotFound)
     }
@@ -126,7 +132,7 @@ impl SymbolTree {
         SymbolTreeWriter::new(self, scope_id)
     }
 
-    pub fn get_root_writer(&mut self) -> SymbolTreeWriter { 
+    pub fn get_root_writer(&mut self) -> SymbolTreeWriter {
         SymbolTreeWriter::new(self, self.get_root_scope_id())
     }
 
@@ -138,11 +144,19 @@ impl SymbolTree {
         self.get_reader(self.get_root_scope_id())
     }
 
-    pub fn get_symbol_info_from_id(&self, symbol_id: SymbolScopeId) -> Result<&SymbolInfo,SymbolError> {
-        self.scope_id_to_symbol_info.get(&symbol_id).ok_or(SymbolError::InvalidId)
+    pub fn get_symbol_info_from_id(
+        &self,
+        symbol_id: SymbolScopeId,
+    ) -> Result<&SymbolInfo, SymbolError> {
+        self.scope_id_to_symbol_info
+            .get(&symbol_id)
+            .ok_or(SymbolError::InvalidId)
     }
 
-    pub fn get_symbol_info_from_scoped_name(&self, name: &ScopedName) -> Result<&SymbolInfo,SymbolError> {
+    pub fn get_symbol_info_from_scoped_name(
+        &self,
+        name: &ScopedName,
+    ) -> Result<&SymbolInfo, SymbolError> {
         assert!(name.is_abs());
 
         let scopes = name.path();
@@ -160,14 +174,25 @@ impl SymbolTree {
             }
         }
 
-        self.get_symbol_info(name,current_node.value().get_scope_id())
-
+        self.get_symbol_info(name, current_node.value().get_scope_id())
     }
 
-    pub fn get_symbol_info(&self, name: &str, scope_id: u64) -> Result<&SymbolInfo, SymbolError>{
+    pub fn get_symbol_info(&self, name: &str, scope_id: u64) -> Result<&SymbolInfo, SymbolError> {
         let n = self.get_symbols_from_id(scope_id)?;
         let id = n.get_symbol_id(name)?;
-        self.scope_id_to_symbol_info.get(&id).ok_or(SymbolError::NotFound)
+        self.scope_id_to_symbol_info
+            .get(&id)
+            .ok_or(SymbolError::NotFound)
+    }
+
+    pub fn add_reference_symbol(
+        &mut self,
+        name: &str,
+        scope_id: u64,
+        symbol_id: SymbolScopeId,
+    ) -> Result<(), SymbolError> {
+        let mut node = self.get_node_from_id_mut(scope_id).expect("Invalid scope");
+        node.value().add_reference_symbol(name, symbol_id)
     }
 
     pub fn create_or_get_scope_for_parent(&mut self, name: &str, id: u64) -> u64 {
@@ -187,7 +212,10 @@ impl SymbolTree {
         symbol_id: SymbolScopeId,
         val: i64,
     ) -> Result<(), SymbolError> {
-        let mut x = self.scope_id_to_symbol_info.get_mut(&symbol_id).ok_or(SymbolError::InvalidScope)?;
+        let mut x = self
+            .scope_id_to_symbol_info
+            .get_mut(&symbol_id)
+            .ok_or(SymbolError::InvalidScope)?;
         x.value = Some(val);
         Ok(())
     }
@@ -196,19 +224,22 @@ impl SymbolTree {
 ////////////////////////////////////////////////////////////////////////////////
 // Private implementation funcs
 impl SymbolTree {
-    pub (crate) fn get_tree(&self) -> &SymbolTreeTree {
+    pub(crate) fn get_tree(&self) -> &SymbolTreeTree {
         &self.tree
-    } 
+    }
 
-    pub (crate) fn get_tree_mut(&mut self) -> &mut SymbolTreeTree {
+    pub(crate) fn get_tree_mut(&mut self) -> &mut SymbolTreeTree {
         &mut self.tree
-    } 
+    }
 
-    pub (crate) fn get_node_mut_from_id(&mut self, scope_id: u64) -> Result< SymbolNodeMut, SymbolError> {
+    pub(crate) fn get_node_mut_from_id(
+        &mut self,
+        scope_id: u64,
+    ) -> Result<SymbolNodeMut, SymbolError> {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         self.tree.get_mut(node_id).ok_or(SymbolError::InvalidScope)
     }
-    pub (crate) fn get_next_scope_id(&mut self) -> u64 {
+    pub(crate) fn get_next_scope_id(&mut self) -> u64 {
         let ret = self.next_scope_id;
         self.next_scope_id += 1;
         ret
@@ -221,19 +252,30 @@ impl SymbolTree {
             .ok_or(SymbolError::InvalidScope)
     }
 
-    pub (crate) fn get_node_id_from_scope_id(&self, scope_id: u64) -> Result<SymbolNodeId, SymbolError> {
+    pub(crate) fn get_node_id_from_scope_id(
+        &self,
+        scope_id: u64,
+    ) -> Result<SymbolNodeId, SymbolError> {
         self.scope_id_to_node_id
             .get(&scope_id)
             .cloned()
             .ok_or(SymbolError::InvalidScope)
     }
 
-    pub (crate) fn get_node_from_id(&self, scope_id: u64) -> Result<SymbolNodeRef, SymbolError> {
+    pub(crate) fn get_node_from_id(&self, scope_id: u64) -> Result<SymbolNodeRef, SymbolError> {
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         self.tree.get(node_id).ok_or(SymbolError::InvalidScope)
     }
 
-    pub (crate) fn insert_new_table(
+    pub(crate) fn get_node_from_id_mut(
+        &mut self,
+        scope_id: u64,
+    ) -> Result<SymbolNodeMut, SymbolError> {
+        let node_id = self.get_node_id_from_scope_id(scope_id)?;
+        self.tree.get_mut(node_id).ok_or(SymbolError::InvalidScope)
+    }
+
+    pub(crate) fn insert_new_table(
         &mut self,
         name: &str,
         parent_id: u64,

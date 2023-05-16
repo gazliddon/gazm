@@ -516,7 +516,7 @@ impl<'a> Compiler<'a> {
             }
 
             IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
-            | StructDef(..) | MacroDef(..) | MacroCall(..) | Cpu(SetDp) => (),
+            | StructDef(..) | MacroDef(..) | MacroCall(..) | Cpu(SetDp) | Import => (),
             _ => {
                 panic!("Can't compile {i:?}");
             }

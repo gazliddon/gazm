@@ -17,7 +17,7 @@ use crate::{
 
 use emu::{
     isa::AddrModeEnum,
-    utils::sources::{SymbolScopeId, SymbolWriter},
+    utils::sources::SymbolScopeId,
 };
 
 use std::path::Path;
@@ -350,7 +350,7 @@ impl<'a> Sizer<'a> {
             }
 
             PostFixExpr | WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..)
-            | StructDef(..) | MacroDef(..) | MacroCall(..) => (),
+            | StructDef(..) | MacroDef(..) | MacroCall(..) | Import=> (),
 
             _ => {
                 let msg = format!("Unable to size {i:?}");

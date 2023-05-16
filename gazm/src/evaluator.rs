@@ -1,6 +1,6 @@
 use emu::utils::sources::{
     fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
-    SymbolQuery, SymbolScopeId, SymbolTree, SymbolWriter,
+    SymbolScopeId, SymbolTree, 
 };
 
 use crate::ast::{AstNodeId, AstNodeRef};
@@ -9,21 +9,6 @@ use crate::error::{GResult, UserError};
 use crate::eval::eval;
 use crate::item::Item::*;
 
-/// Evaluates things
-// pub struct Evaluator<'a> {
-//     symbols: &'a mut SymbolTree,
-//     source_file_loader: &'a mut SourceFileLoader,
-// }
-
-// impl<'a> SymbolQuery for Evaluator<'a> {
-//     fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-//         self.symbols.get_symbol_info(name)
-//     }
-
-//     fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-//         self.symbols.get_symbol_info_from_id(id)
-//     }
-// }
 
 impl Context {
     /// Evaluate all macro args

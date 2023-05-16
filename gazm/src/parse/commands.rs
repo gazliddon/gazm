@@ -1,14 +1,14 @@
 use emu::utils::sources::ScopedName;
 use lazy_static::lazy_static;
-use thin_vec::{ ThinVec,thin_vec };
+use thin_vec::{thin_vec, ThinVec};
 
-use std::{collections::HashMap, path::PathBuf, };
+use std::{collections::HashMap, path::PathBuf};
 
 use super::{
     expr::parse_expr,
     labels::{get_just_label, get_scoped_label},
-    util::{self, match_escaped_str, match_file_name},
     locate::{matched_span, span_to_pos, Span},
+    util::{self, match_escaped_str, match_file_name},
 };
 
 use crate::{
@@ -78,19 +78,21 @@ fn parse_include_arg(input: Span) -> IResult<Node> {
 }
 
 fn parse_import_arg(input: Span) -> IResult<Node> {
-    // import { proc, tie tag scoon } from ::background
-
-    // TODO change the syntax to the below
-    // need to move out of command as it's a multi-line statement
-    // import ::background::{proc, tie, tag}
-    // import ::background::proc
-    
     let (rest, matched) = get_scoped_label(input)?;
-    let matched = matched.to_string();
     let scoped_name = ScopedName::new(&matched);
-    let imports : ThinVec<_> = thin_vec![scoped_name.symbol().to_string()];
-    let item = Item::Import { path: scoped_name.path_as_string(), imports};
-    let node = Node::from_item_span(item, input);
+
+    assert!(scoped_name.is_abs());
+
+    let raw_imports = vec![matched];
+
+    let imports: Vec<_> = raw_imports
+        .into_iter()
+        .map(|i| {
+            let item = Item::Label(crate::item::LabelDefinition::TextScoped(i.to_string()));
+            Node::from_item_span(item, i)
+        })
+        .collect();
+    let node = Node::new_with_children(Item::Import, &imports, span_to_pos(matched));
     Ok((rest, node))
 }
 

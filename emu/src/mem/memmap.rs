@@ -19,7 +19,7 @@ pub struct MemMap {
 
 impl fmt::Debug for MemMap {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut strs: Vec<String> = Vec::new();
+        let mut strs: Vec<String> = Vec::with_capacity(self.all_memory.len());
 
         for m in &self.all_memory {
             let r = m.get_range();
@@ -95,7 +95,7 @@ impl MemMap {
 
     pub fn new() -> Self {
         Self {
-            all_memory: Vec::new(),
+            all_memory: Vec::with_capacity(64*1024),
             name: "all memory".to_string(),
         }
     }

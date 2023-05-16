@@ -121,7 +121,8 @@ impl std::fmt::Display for LabelDefinition {
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
-    Import{path: String, imports: ThinVec<String> },
+    Import,
+
     Cpu(MC6809),
     Doc(String),
     Pc,

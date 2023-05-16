@@ -25,7 +25,7 @@ pub struct SymbolTable {
     scope: String,
     fqn_scope: String,
     name_to_id: HashMap<String, u64>,
-    ref_name_to_value: HashMap<String, SymbolScopeId>,
+    ref_name_to_symbol_id: HashMap<String, SymbolScopeId>,
     highest_id: u64,
     scope_id: u64,
     symbol_resolution_barrier: SymbolResolutionBarrier,
@@ -54,11 +54,12 @@ impl Display for SymbolTable {
 }
 
 impl SymbolTable {
-    pub fn get_symbol_id(&self, name: &str) -> Result<SymbolScopeId, SymbolError> {
+    pub(crate) fn get_symbol_id(&self, name: &str) -> Result<SymbolScopeId, SymbolError> {
         // Is this a ref id?
-        if let Some(id) = self.ref_name_to_value.get(name) {
+        if let Some(id) = self.ref_name_to_symbol_id.get(name) {
             Ok(*id)
         } else {
+
             let symbol_id = self
                 .name_to_id
                 .get(name)
@@ -94,18 +95,18 @@ impl SymbolTable {
             .map(|_| ())
     }
 
-    pub fn get_symbol_resoultion_barrier(&self) -> SymbolResolutionBarrier {
+    pub(crate) fn get_symbol_resoultion_barrier(&self) -> SymbolResolutionBarrier {
         self.symbol_resolution_barrier
     }
 
-    pub fn get_scope_name(&self) -> &str {
+    pub(crate) fn get_scope_name(&self) -> &str {
         &self.scope
     }
-    pub fn get_scope_fqn_name(&self) -> &str {
+    pub(crate) fn get_scope_fqn_name(&self) -> &str {
         &self.fqn_scope
     }
 
-    pub fn new(
+    pub(crate) fn new(
         name: &str,
         fqn_scope: &str,
         scope_id: u64,
@@ -121,52 +122,26 @@ impl SymbolTable {
         }
     }
 
-    pub fn get_symbols(&self) -> Vec<&SymbolInfo> {
+    pub(crate) fn get_symbols(&self) -> Vec<&SymbolInfo> {
         panic!()
     }
 
-    pub fn get_scope_id(&self) -> u64 {
+    pub(crate) fn get_scope_id(&self) -> u64 {
         self.scope_id
     }
 
-    pub fn add_reference_symbol(
+    pub(crate) fn add_reference_symbol(
         &mut self,
         name: &str,
-        val: SymbolScopeId,
+        symbol_id: SymbolScopeId,
     ) -> Result<(), SymbolError> {
-        if let Some(id) = self.ref_name_to_value.get(name) {
+        if let Some(id) = self.ref_name_to_symbol_id.get(name) {
             Err(SymbolError::AlreadyDefined(*id))
         } else {
-            self.ref_name_to_value.insert(name.to_string(), val);
+            self.ref_name_to_symbol_id.insert(name.to_string(), symbol_id);
             Ok(())
         }
     }
-}
-
-impl SymbolTable {
-    // fn get(&self, id: u64) -> Result<SymbolScopeId, SymbolError> {
-    //     self.info.get(&id).ok_or(SymbolError::NotFound)?;
-    //     Ok(SymbolScopeId { scope_id: self.scope_id, symbol_id: u64 })
-
-    // }
-
-    fn get_ref_from_name(&self, name: &str) -> Option<SymbolScopeId> {
-        self.ref_name_to_value.get(name).cloned()
-    }
-
-    // pub (crate)fn get_symbol_info_hash(&self) -> &HashMap<u64, SymbolInfo> {
-    //     &self.info
-    // }
-
-    // fn get_mut(&mut self, id: u64) -> Result<&mut SymbolInfo, SymbolError> {
-    //     self.info.get_mut(&id).ok_or(SymbolError::NotFound)
-    // }
-
-    // fn set_value(&mut self, id: u64, value: i64) -> Result<(), SymbolError> {
-    //     let i = self.get_mut(id)?;
-    //     i.value = Some(value);
-    //     Ok(())
-    // }
 
     fn get_next_id(&mut self) -> u64 {
         let ret = self.highest_id;

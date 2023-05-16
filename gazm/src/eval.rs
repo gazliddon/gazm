@@ -1,4 +1,5 @@
 use emu::utils;
+use emu::utils::sources::{SymbolScopeId, SymbolTreeReader};
 use tokio::runtime::TryCurrentError;
 use utils::eval;
 
@@ -9,9 +10,9 @@ use eval::GetPriority;
 use std::fmt::Display;
 
 use crate::error::{AstError, UserError};
-use utils::sources::{Position, SymbolQuery};
+use crate::item6809::MC6809;
+use utils::sources::{Position, SymbolError, SymbolInfo};
 use utils::Stack;
-use crate::item6809::MC6809 ;
 
 use thiserror::Error;
 
@@ -87,36 +88,44 @@ impl GetPriority for Item {
 ///  - PostFixExpr containing only labels and numbers
 ///  - UnaryTerm
 ///  - Must eval to a number
-fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalError> {
+fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, EvalError> {
     use Item::*;
 
     let i = &n.value().item;
+
+    let get_sym_value = |name: &str, e| {
+        symbols
+            .get_symbol_info(name)
+            .and_then(|si| si.value.clone().ok_or(utils::sources::SymbolError::NoValue))
+            .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
+            .map_err(|_| EvalError::new(e, n))
+    };
 
     let rez = match i {
         PostFixExpr => eval_postfix(symbols, n)?,
 
         Label(LabelDefinition::Scoped(id)) => {
+
             symbols
-                .get_value_from_id(*id)
-                .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
-                .map_err(|_| {
-                    let name = symbols
-                        .get_symbol_info_from_id(*id)
-                        .expect("Interal error")
-                        .name().to_string();
-                    EvalError::new(EvalErrorEnum::SymbolNotFoud(name), n)
-                })?
+            .get_symbol_info_from_id(*id)
+            .and_then(|si| si.value.clone().ok_or(SymbolError::NoValue))
+            .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
+            .map_err(|_| {
+
+                // let name = symbols
+                //     .get_symbol_info_from_id(*id)
+                //     .expect("Interal error")
+                //     .name()
+                //     .to_string();
+                // EvalError::new(EvalErrorEnum::SymbolNotFoud(name), n);
+                EvalError::new(EvalErrorEnum::CotainsPcReference,n)
+            })?},
+
+        Label(LabelDefinition::Text(name)) => {
+            get_sym_value(name, EvalErrorEnum::SymbolNotFoud(name.to_string()))?
         }
 
-        Label(LabelDefinition::Text(name)) => symbols
-            .get_value(name)
-            .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
-            .map_err(|_| EvalError::new(EvalErrorEnum::SymbolNotFoud(name.to_string()), n))?,
-
-        Pc => symbols
-            .get_value("*")
-            .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
-            .map_err(|_| EvalError::new(EvalErrorEnum::CotainsPcReference, n))?,
+        Pc => get_sym_value("*", EvalErrorEnum::CotainsPcReference)?,
 
         UnaryTerm => {
             let mut c = n.children();
@@ -150,9 +159,9 @@ fn eval_internal(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalE
 }
 
 /// Evaluates a postfix expression
-fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalError> {
-    use Item::*;
+fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, EvalError> {
     use std::panic;
+    use Item::*;
 
     let mut s: Stack<Item> = Stack::with_capacity(1024);
     let mut items: Vec<(AstNodeRef, Item)> = Vec::with_capacity(1024);
@@ -170,7 +179,6 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
             items.push((c, item));
         }
     }
-
 
     for (cn, i) in &items {
         if i.is_op() {
@@ -204,8 +212,12 @@ fn eval_postfix(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<Item, EvalEr
 
     Ok(s.pop().expect("Can't pop top!"))
 }
+pub fn eval_symboltree(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError> {
+    let ret = eval_internal(symbols, n)?;
+    Ok(ret.unrwap_number().unwrap())
+}
 
-pub fn eval(symbols: &dyn SymbolQuery, n: AstNodeRef) -> Result<i64, EvalError> {
+pub fn eval(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError> {
     let ret = eval_internal(symbols, n)?;
     Ok(ret.unrwap_number().unwrap())
 }

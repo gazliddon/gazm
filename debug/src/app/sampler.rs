@@ -48,14 +48,18 @@ impl<T: CanSample> Sampler<T> {
         let v = self.samples.iter().min_by(|a, b| a.partial_cmp(b).unwrap());
         *v.unwrap()
     }
+
+    fn with_capacity(x : usize) {
+        let mut samples = Vec::with_capacity(x);
+        let max_size = 60;
+        samples.reserve_exact(max_size);
+        Self { samples, max_size }
+    }
 }
 
 impl<T : CanSample> Default for Sampler<T> {
     fn default() -> Self {
-        let mut samples = Vec::new();
-        let max_size = 60;
-        samples.reserve_exact(max_size);
-        Self { samples, max_size }
-
+        Self::with_capacity(20)
     }
+
 }

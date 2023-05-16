@@ -4,7 +4,7 @@ use crate::error::{GResult, GazmErrorKind};
 use crate::gazm::{with_state, Assembler};
 use crate::lookup::LabelUsageAndDefintions;
 use emu::utils::sources::{
-    AsmSource, Position as GazmPosition, SymbolInfo, SymbolQuery, SymbolScopeId, TextEdit, TextPos,
+    AsmSource, Position as GazmPosition, SymbolInfo, SymbolScopeId, TextEdit, TextPos,
 };
 use log::{error, info};
 use serde_json::Value;

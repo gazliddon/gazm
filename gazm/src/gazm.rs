@@ -10,7 +10,7 @@ use emu::utils::{PathSearcher, Stack};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct ScopeTracker {
     stack: Stack<u64>,
 }

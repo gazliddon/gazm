@@ -15,7 +15,7 @@ use crate::{messages::*, node};
 use emu::utils::eval::{to_postfix, GetPriority};
 use emu::utils::sources::{
     AsmSource, Position, ScopedName, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
-    SymbolQuery, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter, SymbolWriter,
+    SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter,
 };
 use emu::utils::symbols::SymbolReader;
 use thin_vec::ThinVec;
@@ -148,43 +148,62 @@ impl<'a> Ast<'a> {
     /// Bring all of the imports needed into the correct namespaces
     fn process_imports(&mut self) -> Result<(), UserError> {
         use Item::*;
-        let mut scopes = self.get_root_scope_tracker();
 
-        for node_id in iter_ids_recursive(self.tree.root()) {
-            let node = self.tree.get(node_id).unwrap();
+        info("Processing imports", |_| {
+            info_mess!("Import labels");
 
-            match &node.value().item {
-                ScopeId(scope_id) => scopes.set_scope(*scope_id),
+            let mut scopes = self.get_root_scope_tracker();
 
-                Import { path, imports } => {
-                    let changes: ThinVec<_> = imports
-                        .iter()
-                        .map(|i| {
-                            let i = format!("{path}::{i}");
-                            let i = ScopedName::new(&i);
-                            assert!(i.is_abs());
-                            let si = self
-                                .ctx
-                                .get_symbols()
-                                .get_symbol_info_from_scoped_name(&i)
-                                .expect("Can't find symbol!");
-                            (i.symbol().to_string(), si.symbol_id)
-                        })
-                        .collect();
+            for node_id in iter_ids_recursive(self.tree.root()) {
+                let node = self.tree.get(node_id).unwrap();
+                match &node.value().item {
+                    ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
-                    let mut writer = self.get_writer(&scopes);
+                    Import => {
+                        let ids : Vec<_> = node.children().map(|n| n.id()).collect();
 
-                    for (name, id) in &changes {
-                        writer.add_reference_symbol(name, *id).unwrap();
+                        self.scope_labels_node(node_id, scopes.clone())?;
+
+                        for kid_id in ids {
+                            let item = &self.tree.get(kid_id).expect("Internal error").value().item;
+
+                            if let Label(LabelDefinition::Scoped(symbol_id)) = item {
+                                let name = self
+                                    .ctx
+                                    .get_symbols()
+                                    .get_symbol_info_from_id(*symbol_id)
+                                    .unwrap()
+                                    .name()
+                                    .to_owned();
+                                self.ctx
+                                    .get_symbols_mut()
+                                    .add_reference_symbol(&name, scopes.scope(), *symbol_id)
+                                    .unwrap();
+                            } else {
+                                println!("{:?}", item);
+                                panic!()
+                            }
+                        }
                     }
 
-                    self.tree.get_mut(node_id).unwrap().detach();
+                    _ => (),
                 }
-
-                _ => (),
             }
-        }
-        Ok(())
+
+            info_mess!("Importing symbols");
+
+            let mut scopes = self.get_root_scope_tracker();
+            for node_id in iter_ids_recursive(self.tree.root()) {
+                let node = self.tree.get(node_id).unwrap();
+
+                match &node.value().item {
+                    ScopeId(scope_id) => scopes.set_scope(*scope_id),
+                    _ => (),
+                }
+            }
+            info_mess!("Done");
+            Ok(())
+        })
     }
 
     /// Remove all doc nodes
@@ -471,7 +490,6 @@ impl<'a> Ast<'a> {
     }
 
     fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
-
         let scopes = self.get_root_scope_tracker();
 
         info("Generating symbols for struct definitions", |x| {
@@ -568,11 +586,14 @@ impl<'a> Ast<'a> {
         Ok(id)
     }
 
-    fn scope_labels(&mut self) -> Result<(), UserError> {
+    fn scope_labels_node(
+        &mut self,
+        id: AstNodeId,
+        mut scopes: ScopeTracker,
+    ) -> Result<(), UserError> {
         use Item::*;
 
-        let root_node = self.tree.root();
-        let mut scopes = self.get_root_scope_tracker();
+        let root_node = self.tree.get(id).unwrap();
 
         let nodes = get_ids_recursive(root_node);
 
@@ -597,31 +618,47 @@ impl<'a> Ast<'a> {
                 _ => (),
             }
         }
+        Ok(())
+    }
 
-        for mac_nodes in self.macro_defs.clone().into_iter() {
-            let node = self.tree.get(mac_nodes).unwrap();
+    fn scope_labels(&mut self) -> Result<(), UserError> {
+        info("Scoping labels", |_| {
+            let root_node_id = self.tree.root().id();
 
-            for node_id in get_ids_recursive(node).into_iter() {
-                let value = self.tree.get(node_id).unwrap().value().clone();
+            let scopes = self.get_root_scope_tracker();
 
-                match &value.item {
-                    Label(LabelDefinition::TextScoped(name)) => {
-                        let scoped_name = ScopedName::new(&name);
-                        let symbol_id = self.get_scoped_symbol_id(&scoped_name, node_id)?;
-                        self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
+            info_mess!("Scoping AST labels");
+            self.scope_labels_node(root_node_id, scopes)?;
+
+            use Item::*;
+
+            info_mess!("Scoping macro labels");
+
+            for mac_nodes in self.macro_defs.clone().into_iter() {
+                let node = self.tree.get(mac_nodes).unwrap();
+
+                for node_id in get_ids_recursive(node).into_iter() {
+                    let value = self.tree.get(node_id).unwrap().value().clone();
+
+                    match &value.item {
+                        Label(LabelDefinition::TextScoped(name)) => {
+                            let scoped_name = ScopedName::new(&name);
+                            let symbol_id = self.get_scoped_symbol_id(&scoped_name, node_id)?;
+                            self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                        }
+
+                        _ => (),
                     }
-
-                    _ => (),
                 }
             }
-        }
-
-        Ok(())
+            info_mess!("Done");
+            Ok(())
+        })
     }
 
     /// Traverse through all assignments and reserve a label for them at the correct scope
     fn scope_assignments(&mut self) -> Result<(), UserError> {
-        info("Correctly scoping assignments", |_| {
+        info("Scoping assignments", |_| {
             use Item::*;
             let mut scopes = self.get_root_scope_tracker();
 
@@ -662,9 +699,7 @@ impl<'a> Ast<'a> {
 
             for node_id in iter_ids_recursive(self.tree.root()) {
                 match &self.tree.get(node_id).unwrap().value().item {
-                    ScopeId(scope_id) => {
-                        scopes.set_scope(*scope_id);
-                    }
+                    ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
                     Assignment(LabelDefinition::Scoped(label_id)) => {
                         let label_id = *label_id;
@@ -687,6 +722,8 @@ impl<'a> Ast<'a> {
                             }
 
                             Err(e) => {
+                                let reader = self.ctx.get_symbols().get_reader(scopes.scope());
+                                println!("{:#?}", reader.get_current_symbols_2());
                                 return Err(self.convert_error(e.into()));
                             }
                         }
@@ -769,9 +806,9 @@ impl<'a> Ast<'a> {
         scopes: &ScopeTracker,
     ) -> Result<SymbolScopeId, UserError> {
         let mut writer = self.ctx.get_symbols_mut().get_writer(scopes.scope());
-        writer.create_symbol(name)
+        writer
+            .create_symbol(name)
             .map_err(|e| self.sym_to_user_error(e, id))
-
 
         // let syms = self.ctx.get_symbols_mut();
         // let sym_id = syms.create_symbol_in_scope(scopes.scope(), name)
@@ -788,7 +825,9 @@ impl<'a> Ast<'a> {
         scopes: &ScopeTracker,
     ) -> Result<SymbolScopeId, UserError> {
         let symbol_id = self.create_symbol(name, id, scopes)?;
-        self.ctx.get_symbols_mut().set_symbol_from_id(symbol_id, value)
+        self.ctx
+            .get_symbols_mut()
+            .set_symbol_from_id(symbol_id, value)
             .map_err(|e| self.sym_to_user_error(e, id))?;
         Ok(symbol_id)
     }

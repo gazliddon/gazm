@@ -4,7 +4,7 @@ use crate::item::Item;
 use crate::{binary, fixerupper::FixerUpper};
 use emu::utils::sources::{self, BinToWrite, Position, SymbolScopeId};
 use sources::fileloader::{FileIo, SourceFileLoader};
-use sources::{ SymbolError, SymbolWriter};
+use sources::{ SymbolError, };
 use std::path::{Path, PathBuf};
 
 use crate::ctx::Context;

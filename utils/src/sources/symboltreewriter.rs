@@ -1,6 +1,6 @@
 use super::{
-    SymbolError, SymbolInfo, SymbolQuery, SymbolResolutionBarrier, SymbolScopeId, 
-    SymbolTree, SymbolWriter,
+    SymbolError, SymbolScopeId, 
+    SymbolTree, 
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,29 +57,16 @@ impl<'a> SymbolTreeWriter<'a> {
         new_scope_node_id
     }
 
-    pub fn add_reference_symbol(&mut self, name: &str, val: SymbolScopeId) -> Result<(),SymbolError> {
-        let mut node = self
-            .sym_tree
-            .get_node_mut_from_id(self.current_scope_id)
-            .unwrap();
-        node.value().add_reference_symbol(name, val)
-    }
-}
-
-impl<'a> SymbolQuery for SymbolTreeWriter<'a> {
-    fn get_symbol_info_from_id(&self, id: SymbolScopeId) -> Result<&SymbolInfo, SymbolError> {
-        self.sym_tree.get_symbol_info_from_id(id)
+    pub fn dump_scope(&self) {
+        let x = self.sym_tree.get_node_from_id(self.current_scope_id).unwrap();
+        println!("{:#?}", x.value())
     }
 
-    fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo, SymbolError> {
-        let id = self.sym_tree
-            .resolve_label(name, self.current_scope_id, SymbolResolutionBarrier::default())?;
-        self.get_symbol_info_from_id(id)
+    pub fn add_reference_symbol(&mut self, name: &str, id: SymbolScopeId) -> Result<(),SymbolError> {
+        self.sym_tree.add_reference_symbol(name, self.current_scope_id,id)
     }
-}
 
-impl<'a> SymbolWriter for SymbolTreeWriter<'a> {
-    fn create_and_set_symbol(
+    pub fn create_and_set_symbol(
         &mut self,
         name: &str,
         val: i64,
@@ -89,12 +76,12 @@ impl<'a> SymbolWriter for SymbolTreeWriter<'a> {
         Ok(symbol_id)
     }
 
-    fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError>{
+    pub fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError>{
         self.sym_tree.remove_symbol_for_id(name, self.current_scope_id)
     }
 
-    fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
+    pub fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
         self.sym_tree.create_symbol_in_scope(self.current_scope_id, name)
     }
-
 }
+

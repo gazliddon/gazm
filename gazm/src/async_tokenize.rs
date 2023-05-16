@@ -201,7 +201,9 @@ where
                     Tokens(tokes) => {
                         let req = &tokes.request;
                         info_mess!("TOKES: Got {}", req.full_file_name.to_string_lossy());
-                        incs.extend(ctx.get_full_paths_with_parent(&tokes.includes, parent)?);
+                        let full_paths = ctx.get_full_paths_with_parent(&tokes.includes, parent)?;
+                        incs.reserve(full_paths.len());
+                        incs.extend(full_paths)
                     }
                     // If I don't have tokens then add it to a q of requestes
                     Request(req) => {
