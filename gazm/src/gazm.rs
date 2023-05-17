@@ -5,7 +5,7 @@ use crate::opts::Opts;
 use crate::error::GResult;
 use crate::item::Node;
 
-use emu::utils::sources::{EditResult,  TextEditTrait};
+use emu::utils::sources::{EditResult,  TextEditTrait, SourceLine};
 use emu::utils::{PathSearcher, Stack};
 
 use std::path::Path;
@@ -55,7 +55,7 @@ impl From<Assembler> for Context {
 impl Assembler {
     /// Create an Assembler
     pub fn new(opts: Opts) -> Self {
-        let ctx = Context::from(opts);
+        let ctx = Context::try_from(opts).expect("Can't create context");
         Self { ctx }
     }
 

@@ -14,8 +14,9 @@ use crate::{
     },
     messages::{debug_mess, messages},
     regutils::*,
-    status_mess,
+    status_mess, binary::BinaryError,
 };
+
 
 use emu::{isa::Instruction, utils::sources::ItemType};
 
@@ -72,6 +73,14 @@ impl<'a> Compiler<'a> {
         let msg = e.to_string();
         UserError::from_text(msg, info, true).into()
     }
+    fn binary_error_map<T>(
+        &self,
+        ctx: &AsmCtx,
+        id: AstNodeId,
+        e : Result<T,BinaryError>
+    ) -> Result<T,GazmErrorKind> {
+        e.map_err(|e| self.binary_error(ctx, id, e))
+    }
 
     fn relative_error(&self, ctx: &AsmCtx, id: AstNodeId, val: i64, bits: usize) -> GazmErrorKind {
         let n = self.get_node(id);
@@ -87,6 +96,8 @@ impl<'a> Compiler<'a> {
         let msg = message;
         UserError::from_text(msg, info, true).into()
     }
+
+
 
     fn compile_indexed(
         &mut self,
@@ -109,15 +120,20 @@ impl<'a> Compiler<'a> {
 
             ExtendedIndirect => {
                 let (val, _) = ctx.ctx.eval_first_arg(node, self.scopes.scope())?;
-                ctx.binary_mut().write_uword_check_size(val)?;
+
+                let res= ctx.binary_mut().write_uword_check_size(val);
+                self.binary_error_map(ctx,id,res)?;
+
             }
 
             ConstantWordOffset(_, val) | PcOffsetWord(val) => {
-                ctx.binary_mut().write_iword_check_size(val as i64)?;
+                let res = ctx.binary_mut().write_iword_check_size(val as i64);
+                self.binary_error_map(ctx,id,res)?;
             }
 
             ConstantByteOffset(_, val) | PcOffsetByte(val) => {
-                ctx.binary_mut().write_ibyte_check_size(val as i64)?;
+                let res= ctx.binary_mut().write_ibyte_check_size(val as i64);
+                self.binary_error_map(ctx,id,res)?;
             }
             _ => (),
         }
@@ -151,9 +167,11 @@ impl<'a> Compiler<'a> {
 
         let bytes = ctx
             .binary()
-            .get_bytes(source as usize, size as usize)
-            .map_err(|e| self.binary_error(ctx, id, e))?
-            .to_vec();
+            .get_bytes(source as usize, size as usize);
+
+
+        let bytes = self.binary_error_map(ctx,id,bytes)?.to_vec();
+
 
         ctx.binary_mut()
             .write_bytes(&bytes)
@@ -200,6 +218,7 @@ impl<'a> Compiler<'a> {
 
         ctx.binary_mut().bin_reference(&bin_ref, &data);
 
+
         info_mess!(
             "Adding binary reference {} for {:05X} - {:05X}",
             file.to_string_lossy(),
@@ -225,11 +244,13 @@ impl<'a> Compiler<'a> {
         let ins_amode = ins.addr_mode;
         let current_scope_id = self.scopes.scope();
 
-        if ins.opcode > 0xff {
-            ctx.binary_mut().write_word(ins.opcode as u16)?;
+        let res = if ins.opcode > 0xff {
+            ctx.binary_mut().write_word(ins.opcode as u16)
         } else {
-            ctx.binary_mut().write_byte(ins.opcode as u8)?;
-        }
+            ctx.binary_mut().write_byte(ins.opcode as u8)
+        };
+
+        self.binary_error_map(ctx, id, res)?;
 
         match ins_amode {
             Indexed => {
@@ -240,17 +261,20 @@ impl<'a> Compiler<'a> {
 
             Immediate8 => {
                 let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                ctx.binary_mut().write_byte_check_size(arg)?;
+                let res = ctx.binary_mut().write_byte_check_size(arg);
+                self.binary_error_map(ctx, id, res)?;
             }
 
             Direct => {
                 let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                ctx.binary_mut().write_byte_check_size(arg & 0xff)?;
+                let res =ctx.binary_mut().write_byte_check_size(arg & 0xff);
+                self.binary_error_map(ctx, id, res)?;
             }
 
             Extended | Immediate16 => {
                 let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                ctx.binary_mut().write_word_check_size(arg)?;
+                let res =ctx.binary_mut().write_word_check_size(arg);
+                self.binary_error_map(ctx, id, res)?;
             }
 
             Relative => {
@@ -275,7 +299,8 @@ impl<'a> Compiler<'a> {
                     Err(_) => {
                         if ctx.ctx.opts.ignore_relative_offset_errors {
                             // messages::warning("Skipping writing relative offset");
-                            ctx.binary_mut().write_ibyte_check_size(0)?;
+                            let res = ctx.binary_mut().write_ibyte_check_size(0);
+                            self.binary_error_map(ctx, id, res)?;
                         } else {
                             res?;
                         }
@@ -304,7 +329,8 @@ impl<'a> Compiler<'a> {
 
             RegisterPair => {
                 if let AddrModeParseType::RegisterPair(a, b) = amode {
-                    ctx.ctx.asm_out.binary.write_byte(reg_pair_to_flags(a, b))?;
+                    let res = ctx.ctx.asm_out.binary.write_byte(reg_pair_to_flags(a, b));
+                    self.binary_error_map(ctx, id, res)?;
                 } else {
                     panic!("Whut!")
                 }
@@ -314,7 +340,8 @@ impl<'a> Compiler<'a> {
                 let rset = &node.first_child().unwrap().value().item;
                 if let Item::Cpu(MC6809::RegisterSet(regs)) = rset {
                     let flags = registers_to_flags(regs);
-                    ctx.binary_mut().write_byte(flags)?;
+                    let res = ctx.binary_mut().write_byte(flags);
+                    self.binary_error_map(ctx, id, res)?;
                 } else {
                     panic!("Whut!")
                 }

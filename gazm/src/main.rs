@@ -35,6 +35,8 @@ mod vars;
 mod opts;
 
 use anyhow::{Context, Result};
+use emu::utils::sources::SourceDatabase;
+use ::gazm::opts::BinReference;
 use opts::{ Opts, BuildType };
 use error::GResult;
 use messages::{info, messages};

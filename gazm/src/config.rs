@@ -11,6 +11,7 @@ struct LoadedYamlConfig {
     // project: Project,
     checksums: Option<HashMap<String, CheckSum>>,
     lsp: Option<LspConfig>,
+    bin_reference: Option<()>,
 }
 
 pub struct YamlConfig {
@@ -52,6 +53,7 @@ impl YamlConfig {
             .into_iter()
             .collect::<Vec<(String, String)>>()
             .into();
+
         opts.checksums = toml.checksums.clone().unwrap_or_default();
         opts.assemble_dir = run_dir;
         opts.lsp_config = toml.lsp.unwrap_or_default();

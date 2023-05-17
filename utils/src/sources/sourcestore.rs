@@ -68,6 +68,12 @@ pub struct Mapping {
     pub physical_mem_range: std::ops::Range<usize>,
     pub item_type: ItemType,
 }
+impl Mapping {
+    pub fn contains(&self, addr : usize) -> bool {
+        self.physical_mem_range.contains(&addr)
+    }
+
+}
 
 use crate::Stack;
 
@@ -98,6 +104,10 @@ impl SourceMapping {
 
     fn is_expanding_macro(&self) -> bool {
         !self.macro_stack.is_empty()
+    }
+
+    pub fn get_mapping(&self, addr : usize) -> Option<&Mapping> {
+        self.phys_addr_to_mapping.get(addr)
     }
 
     pub fn add_mapping(

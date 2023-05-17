@@ -81,6 +81,7 @@ pub enum BinaryError {
     IllegalWrite(MemoryLocation),
     #[error("Asked for zero bytes")]
     AskedForZeroBytes,
+
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -320,6 +321,17 @@ impl Binary {
             if r.range.contains(&physical) {
                 let x = BinaryError::Halt(loc);
                 return Err(x);
+            }
+        }
+
+        if let Some(expected) = self.get_expected(physical) {
+            if expected != val {
+                let loc = self.get_write_location();
+                return Err(BinaryError::DoesNotMatchReference {
+                   addr: loc.physical,
+                    logical_addr: loc.logical,
+                    val: val as usize, expected: expected as usize,
+                })
             }
         }
 

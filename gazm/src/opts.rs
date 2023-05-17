@@ -38,6 +38,12 @@ pub enum BuildType {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct BinReference {
+    pub file: PathBuf,
+    pub addr: usize,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct CheckSum {
     pub addr: usize,
     pub size: usize,
@@ -65,6 +71,7 @@ pub struct Opts {
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
     pub no_async: bool,
+    pub bin_references: Vec<BinReference>,
 
     #[serde(skip)]
     pub do_includes: bool,
@@ -102,6 +109,7 @@ impl Default for Opts {
             max_errors: 10,
             vars: Default::default(),
             checksums: Default::default(),
+            bin_references: Default::default(),
             build_type: BuildType::Build,
             lsp_config: Default::default(),
             do_includes: true,

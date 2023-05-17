@@ -1,6 +1,6 @@
 use crate::ast::AstTree;
 use crate::async_tokenize::TokenizeResult;
-use crate::binary::{self, AccessType, Binary};
+use crate::binary::{self, AccessType, Binary, BinRef};
 use crate::error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError};
 use crate::lookup::LabelUsageAndDefintions;
 use crate::lsp::LspConfig;
@@ -10,8 +10,9 @@ use crate::vars::Vars;
 use crate::{astformat, status_err};
 
 
-use crate::opts::Opts;
+use crate::opts::{Opts, BinReference};
 
+use anyhow::__private::kind::BoxedKind;
 use emu::utils::{
     hash::get_hash,
     sources::{
@@ -52,7 +53,6 @@ pub struct AsmOut {
     pub source_map: SourceMapping,
     pub lst_file: LstFile,
     pub exec_addr: Option<usize>,
-    // pub bin_chunks: Vec<BinWriteDesc>,
     pub bin_to_write_chunks: Vec<BinToWrite>,
     pub ast: Option<AstTree>,
     pub lookup: Option<LabelUsageAndDefintions>,
@@ -105,11 +105,11 @@ impl Context {
     }
 
     pub fn reset_output(&mut self) {
-        self.asm_out = AsmOut::from(&self.opts)
+        self.asm_out = AsmOut::try_from(&self.opts).expect("Can't reset ouput")
     }
 
     pub fn reset_all(&mut self) {
-        let new_ctx = Context::from(self.opts.clone());
+        let new_ctx = Context::try_from(self.opts.clone()).expect("can't reset all");
         *self = new_ctx;
     }
 
@@ -398,26 +398,55 @@ impl Default for Context {
         }
     }
 }
+use std::fs::File;
+use std::io::Read;
+
+fn get_file_as_byte_vec<P: AsRef<Path>>(filename: P) -> Result<Vec<u8>,std::io::Error> {
+    let mut f = File::open(&filename)?;
+    let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
+    let mut buffer = vec![0; metadata.len() as usize];
+    f.read(&mut buffer)?;
+    Ok(buffer)
+}
 
 /// Create a Context from the command line Opts
-impl From<&Opts> for AsmOut {
-    fn from(opts: &Opts) -> Self {
-        Self {
-            errors: ErrorCollector::new(opts.max_errors),
-            binary: Binary::new(opts.mem_size, AccessType::ReadWrite),
-            ..Default::default()
+impl TryFrom<&Opts> for AsmOut {
+    type Error = String;
+    fn try_from(opts: &Opts) -> Result<AsmOut,String> {
+        let mut binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
+
+        for BinReference{file, addr} in &opts.bin_references {
+            let x = get_file_as_byte_vec(file).map_err(|e| e.to_string())?;
+            let bin_ref = BinRef {
+                file: file.clone(),
+                dest: *addr,
+                start: 0,
+                size: x.len(),
+            };
+            binary.bin_reference(&bin_ref, &x)
         }
+
+        let ret = Self {
+            errors: ErrorCollector::new(opts.max_errors),
+            binary,
+            ..Default::default()
+        };
+
+        Ok(ret)
     }
 }
 
 /// Create a Context from the command line Opts
-impl From<Opts> for Context {
-    fn from(opts: Opts) -> Self {
-        let asm_out = AsmOut::from(&opts);
-        Self {
+impl TryFrom<Opts> for Context {
+    type Error = String;
+    fn try_from(opts: Opts) -> Result<Self,String> {
+        let asm_out = AsmOut::try_from(&opts)?;
+
+        let ret = Self {
             asm_out,
             opts,
             ..Default::default()
-        }
+        };
+    Ok(ret)
     }
 }

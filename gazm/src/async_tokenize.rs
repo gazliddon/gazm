@@ -259,7 +259,7 @@ mod test {
     fn mk_ctx(config: &YamlConfig) -> crate::ctx::Context {
         let mut dir = config.file.clone();
         dir.pop();
-        let mut ctx = crate::ctx::Context::from(config.opts.clone());
+        let mut ctx = crate::ctx::Context::try_from(config.opts.clone()).expect("Can't make context");
         ctx.get_source_file_loader_mut().add_search_path(&dir);
         ctx.get_source_file_loader_mut()
             .add_search_path(format!("{}/src", dir.to_string_lossy()));
