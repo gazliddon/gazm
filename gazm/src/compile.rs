@@ -424,6 +424,7 @@ impl<'a> Compiler<'a> {
 
             SetPc(new_pc) => {
                 ctx.binary_mut().set_write_address(new_pc, 0);
+
                 pc = new_pc;
                 debug_mess!("Set PC to {:02X}", pc);
             }
@@ -478,7 +479,8 @@ impl<'a> Compiler<'a> {
 
                 for n in node.children() {
                     let x = ctx.ctx.eval_node(n, current_scope_id)?;
-                    ctx.binary_mut().write_word_check_size(x)?;
+                    let e = ctx.binary_mut().write_word_check_size(x);
+                    self.binary_error_map(ctx, id, e)?;
                 }
 
                 let (phys_range, range) = ctx.binary().range_to_write_address(pc);
@@ -489,7 +491,8 @@ impl<'a> Compiler<'a> {
                 let node = self.get_node(node_id);
                 for n in node.children() {
                     let x = ctx.ctx.eval_node(n, current_scope_id)?;
-                    ctx.binary_mut().write_byte_check_size(x)?;
+                    let e = ctx.binary_mut().write_byte_check_size(x);
+                    self.binary_error_map(ctx, id, e)?;
                 }
                 let (phys_range, range) = ctx.binary().range_to_write_address(pc);
                 self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
@@ -497,7 +500,8 @@ impl<'a> Compiler<'a> {
 
             Fcc(text) => {
                 for c in text.as_bytes() {
-                    ctx.binary_mut().write_byte(*c)?;
+                    let e = ctx.binary_mut().write_byte(*c);
+                    self.binary_error_map(ctx, id, e)?;
                 }
                 let (phys_range, range) = ctx.binary().range_to_write_address(pc);
                 self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
@@ -507,7 +511,8 @@ impl<'a> Compiler<'a> {
                 let node = self.get_node(node_id);
                 let (bytes, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..bytes {
-                    ctx.binary_mut().write_byte(0)?;
+                    let e = ctx.binary_mut().write_byte(0);
+                    self.binary_error_map(ctx, id, e)?;
                 }
                 let (phys_range, range) = ctx.binary().range_to_write_address(pc);
                 self.add_mapping(ctx, phys_range, range, id, ItemType::Command);
@@ -517,7 +522,8 @@ impl<'a> Compiler<'a> {
                 let node = self.get_node(node_id);
                 let (words, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..words {
-                    ctx.binary_mut().write_word(0)?;
+                    let e= ctx.binary_mut().write_word(0);
+                    self.binary_error_map(ctx, id, e)?;
                 }
 
                 let (phys_range, range) = ctx.binary().range_to_write_address(pc);
@@ -529,7 +535,8 @@ impl<'a> Compiler<'a> {
                 let (byte, size) = ctx.ctx.eval_two_args(node, current_scope_id)?;
 
                 for _ in 0..size {
-                    ctx.binary_mut().write_ubyte_check_size(byte)?;
+                    let e = ctx.binary_mut().write_ubyte_check_size(byte);
+                    self.binary_error_map(ctx, id, e)?;
                 }
 
                 let (phys_range, range) = ctx.binary().range_to_write_address(pc);
