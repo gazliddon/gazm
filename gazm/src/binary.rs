@@ -314,7 +314,7 @@ impl Binary {
         }
 
         if physical >= self.data.len() {
-            panic!("Address out of bounds!")
+            return Err(BinaryError::IllegalWrite(loc));
         }
 
         for r in &self.watches {
