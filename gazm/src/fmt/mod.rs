@@ -1,4 +1,4 @@
-use crate::ctx::Opts;
+use crate::opts::Opts;
 use crate::error::GResult;
 use crate::item::Node;
 use crate::item::{Item, LabelDefinition};

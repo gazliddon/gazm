@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use tryvial::try_block;
 
 use crate::{
-    ctx::Opts,
+    opts::Opts,
     error::{GResult, IResult, ParseError},
     item::{Item, Node},
     parse6809::opcodes::parse_opcode,

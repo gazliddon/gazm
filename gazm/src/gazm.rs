@@ -1,6 +1,7 @@
 use crate::ast::Ast;
 use crate::async_tokenize;
-use crate::ctx::{Context, Opts};
+use crate::ctx::Context;
+use crate::opts::Opts;
 use crate::error::GResult;
 use crate::item::Node;
 

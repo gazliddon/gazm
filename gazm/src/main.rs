@@ -32,9 +32,10 @@ mod sizer;
 mod token_store;
 mod tokenize;
 mod vars;
+mod opts;
 
 use anyhow::{Context, Result};
-use ctx::Opts;
+use opts::{ Opts, BuildType };
 use error::GResult;
 use messages::{info, messages};
 
@@ -67,18 +68,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut asm = gazm::Assembler::new(opts.clone());
 
     match opts.build_type {
-        ctx::BuildType::Format => {
+        BuildType::Format => {
             status_mess!("Format file");
             fmt::fmt(&opts)?;
         }
 
-        ctx::BuildType::Lsp => {
+        BuildType::Lsp => {
             status_mess!("LSP");
             lsp::do_lsp(opts)?;
         }
 
         // Build of check to see if build is okay
-        ctx::BuildType::Build | ctx::BuildType::Check => {
+        BuildType::Build | BuildType::Check => {
             status_mess!("{BANNER}");
             mess.indent();
             status_mess!("Verbosity: {:?}", &opts.verbose);
@@ -90,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             asm.assemble()?;
 
             // Only write outputs if this is of buildtype Build
-            if opts.build_type == ctx::BuildType::Build {
+            if opts.build_type == BuildType::Build {
                 asm.write_outputs()?;
             }
 

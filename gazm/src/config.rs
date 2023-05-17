@@ -1,4 +1,4 @@
-use crate::ctx::{CheckSum, Opts};
+use crate::opts::{CheckSum, Opts};
 use crate::lsp::LspConfig;
 use serde::Deserialize;
 use std::collections::HashMap;

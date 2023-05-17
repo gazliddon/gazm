@@ -1,4 +1,5 @@
-use crate::ctx::{Context, Opts};
+use crate::opts::Opts;
+use crate::ctx::Context;
 use crate::error::{GResult, GazmErrorKind, ParseError};
 use crate::info_mess;
 use crate::item::{Item, Node};
@@ -167,6 +168,7 @@ impl Context {
         }
     }
 }
+
 
 pub fn tokenize_no_async(ctx: &mut Context) -> GResult<()> {
     tokenize(ctx, |to_tokenize| {

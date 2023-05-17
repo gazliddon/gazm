@@ -1,4 +1,4 @@
-use crate::ctx::{ BuildType,Opts };
+use crate::opts::{ BuildType,Opts };
 use crate::messages::Verbosity;
 use crate::config;
 

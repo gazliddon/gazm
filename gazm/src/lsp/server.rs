@@ -1,5 +1,5 @@
 use super::backend::Backend;
-use crate::ctx::Opts;
+use crate::opts::Opts;
 use log::info;
 use log::LevelFilter;
 use serde::Deserialize;

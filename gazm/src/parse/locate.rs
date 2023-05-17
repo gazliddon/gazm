@@ -2,7 +2,7 @@ use nom::InputTake;
 use nom_locate::LocatedSpan;
 use emu::utils::sources::{AsmSource, Position};
 
-use crate::ctx::Opts;
+use crate::opts::Opts;
 
 
 // TODO: Replace ASM source with this?

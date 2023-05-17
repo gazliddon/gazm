@@ -31,3 +31,4 @@ pub mod sizer;
 pub mod token_store;
 pub mod tokenize;
 pub mod vars;
+pub mod opts;

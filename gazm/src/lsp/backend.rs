@@ -1,5 +1,6 @@
 use crate::ast::AstNodeId;
-use crate::ctx::{Context, Opts};
+use crate::opts::Opts;
+use crate::ctx::Context;
 use crate::error::{GResult, GazmErrorKind};
 use crate::gazm::{with_state, Assembler};
 use crate::lookup::LabelUsageAndDefintions;
@@ -323,7 +324,9 @@ impl LanguageServer for Backend {
                 )),
 
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+
                 // declaration_provider: Some(DeclarationCapability::Simple(true)),
+                //
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
 
