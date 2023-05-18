@@ -1,3 +1,8 @@
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
+
 use crate::{
     ast::AstTree,
     astformat,
@@ -17,17 +22,15 @@ use emu::utils::{
     sources::{
         fileloader::{FileIo, SourceFileLoader},
         AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
-        SourceFiles, SourceMapping, SymbolTree, TextEditTrait,
+        SourceFiles, SourceMapping, TextEditTrait,
     },
+    symbols::SymbolTree,
     PathSearcher,
 };
 
 use anyhow::{Context as AnyContext, Result};
 use itertools::Itertools;
 use serde::Deserialize;
-
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BuildType {

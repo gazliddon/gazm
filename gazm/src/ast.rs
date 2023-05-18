@@ -1,28 +1,28 @@
-use thin_vec::ThinVec;
-use tower_lsp::lsp_types::request::WillRenameFiles;
-use std::collections::HashMap;
-use std::iter;
-
 use crate::{
     ctx::Context,
     error::{AstError, UserError},
     eval::{EvalError, EvalErrorEnum},
     gazm::ScopeTracker,
-    info_mess,
     item::{Item, LabelDefinition, Node},
     messages::*,
     node,
     scopes::ScopeBuilder,
+    info_mess,
 };
 
 use emu::utils::{
     eval::{to_postfix, GetPriority},
-    sources::{
-        AsmSource, Position, ScopedName, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
-        SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter,
+    sources::{AsmSource, Position, SourceErrorType, SourceInfo},
+    symbols::{
+        ScopedName, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader,
+        SymbolTreeWriter,
     },
-    symbols::SymbolReader,
 };
+
+use thin_vec::ThinVec;
+use tower_lsp::lsp_types::request::WillRenameFiles;
+use std::collections::HashMap;
+use std::iter;
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;
 pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
@@ -901,6 +901,10 @@ pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
 }
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
     tree.get(id).unwrap().children().map(|c| c.id()).collect()
+}
+
+fn is_problem(p: &Position) -> bool {
+    p.src == AsmSource::FileId(4) && p.line == 19 && p.col == 12
 }
 
 pub fn create_ast_node(tree: &mut AstTree, node: &Node) -> AstNodeId {

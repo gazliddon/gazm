@@ -1,11 +1,7 @@
 use super::{
     IdTraits, ScopeErrorKind, ScopeId, ScopeMut, ScopePath, ScopeRef, ScopeResult, Scopes,
-    ValueTraits,
+    ValueTraits, SymbolReader,SymbolId, SymbolWriter
 };
-
-use super::{SymbolId, SymbolWriter};
-
-use crate::symbols::SymbolReader;
 
 pub struct ScopeCursor<'a, V: ValueTraits, ID: IdTraits> {
     scopes: &'a mut Scopes<V, ID>,
@@ -120,8 +116,8 @@ mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
-    type Symbols = Scopes<String, usize>;
-    type SymbolId = crate::symbols::SymbolId<usize>;
+    type Symbols = super::Scopes<String, usize>;
+    type SymbolId = super::SymbolId<usize>;
 
     #[test]
     fn test_cursor() {

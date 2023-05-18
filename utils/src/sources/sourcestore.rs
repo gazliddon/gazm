@@ -1,4 +1,5 @@
-use super::{SourceFile, SourceFiles, AsmSource, Position, SymbolTree, TextEditTrait, error::*};
+use super::{SourceFile, SourceFiles, AsmSource, Position, TextEditTrait, error::*};
+use crate::symbols::SymbolTree;
 use path_clean::PathClean;
 use std::collections::HashMap;
 use std::fs;

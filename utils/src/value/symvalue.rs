@@ -1,21 +1,16 @@
 use crate::sources::Position;
-use crate::symbols;
+use crate::expsymbols;
 
-use symbols::{
-    // SymbolTable,
+use expsymbols::{
     Scopes,
-    // IdTraits,
     ValueTraits,
-    // SymbolReader,
 };
 
 // use symbols::*;
 
 use super::Value;
-
-
 pub type Symbols = Scopes<SymbolValue, usize>;
-pub type SymbolId = symbols::SymbolId<usize>;
+pub type SymbolId = expsymbols::SymbolId<usize>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SymbolValue {
@@ -58,7 +53,7 @@ impl Default for SymbolValue {
 mod test {
 
     use super::*;
-    use crate::symbols::{ SymbolWriter, SymbolReader };
+    use crate::expsymbols::{ SymbolWriter, SymbolReader };
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
 

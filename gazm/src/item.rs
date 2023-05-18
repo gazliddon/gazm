@@ -2,21 +2,25 @@ use std::fmt::Display;
 use std::{collections::HashSet, path::PathBuf};
 use thin_vec::ThinVec;
 
-use crate::ast::AstNodeId;
-use crate::error::ParseError;
-use crate::parse::locate::span_to_pos;
-use crate::parse::locate::Span;
-use crate::node::{BaseNode, CtxTrait};
-use emu::cpu::{IndexedFlags, RegEnum};
-use emu::isa::Instruction;
-use emu::utils::sources::{Position, ScopedName};
-
-use crate::item6809::{
-    self,
-    MC6809::{self, OpCode, SetDp},
+use emu::{
+    cpu::{IndexedFlags, RegEnum},
+    isa::Instruction,
+    utils::{
+        sources::Position,
+        symbols::{ScopedName, SymbolScopeId},
+    },
 };
 
-use emu::utils::sources::SymbolScopeId;
+use crate::{
+    ast::AstNodeId,
+    error::ParseError,
+    item6809::{
+        self,
+        MC6809::{self, OpCode, SetDp},
+    },
+    node::{BaseNode, CtxTrait},
+    parse::locate::{span_to_pos, Span},
+};
 
 impl<'a> CtxTrait for Span<'a> {}
 

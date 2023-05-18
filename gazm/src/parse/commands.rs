@@ -1,8 +1,8 @@
-use emu::utils::sources::ScopedName;
 use lazy_static::lazy_static;
 use thin_vec::{thin_vec, ThinVec};
-
 use std::{collections::HashMap, path::PathBuf};
+
+use emu::utils::symbols::ScopedName;
 
 use super::{
     expr::parse_expr,

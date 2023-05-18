@@ -16,7 +16,7 @@ use emu::{
     cpu::{IndexedFlags, RegEnum},
     isa::Instruction,
     utils::sources::Position,
-    utils::sources::SymbolScopeId,
+    utils::symbols::SymbolScopeId,
 };
 
 #[derive(Debug, PartialEq, Clone, Copy)]

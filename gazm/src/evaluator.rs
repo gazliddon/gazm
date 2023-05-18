@@ -1,14 +1,15 @@
-use emu::utils::sources::{
-    fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
-    SymbolScopeId, SymbolTree, 
+use emu::utils::{
+    sources::{fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo},
+    symbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTree},
 };
 
-use crate::ast::{AstNodeId, AstNodeRef};
-use crate::ctx::Context;
-use crate::error::{GResult, UserError};
-use crate::eval::eval;
-use crate::item::Item::*;
-
+use crate::{
+    ast::{AstNodeId, AstNodeRef},
+    ctx::Context,
+    error::{GResult, UserError},
+    eval::eval,
+    item::Item::*,
+};
 
 impl Context {
     /// Evaluate all macro args
@@ -55,7 +56,6 @@ impl Context {
                 }
             });
 
-            
             num_of_args == args_evaled
         } else {
             panic!()
@@ -107,7 +107,11 @@ impl Context {
         UserError::from_text(err, &info, is_failure)
     }
 
-    pub fn eval_first_arg(&self, node: AstNodeRef, current_scope_id: u64) -> GResult<(i64, AstNodeId)> {
+    pub fn eval_first_arg(
+        &self,
+        node: AstNodeRef,
+        current_scope_id: u64,
+    ) -> GResult<(i64, AstNodeId)> {
         let c = node
             .first_child()
             .ok_or_else(|| self.user_error("Missing argument", node, true))?;
@@ -121,11 +125,15 @@ impl Context {
         Ok((args[0], args[1]))
     }
 
-    pub fn eval_n_args(&self, node: AstNodeRef, n: usize, current_scope_id: u64) -> GResult<Vec<i64>> {
+    pub fn eval_n_args(
+        &self,
+        node: AstNodeRef,
+        n: usize,
+        current_scope_id: u64,
+    ) -> GResult<Vec<i64>> {
         node.children()
             .take(n)
             .map(|node| self.eval_node(node, current_scope_id))
             .collect()
     }
 }
-

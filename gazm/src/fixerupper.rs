@@ -1,7 +1,7 @@
 use crate::item::Item;
 use crate::ast::AstNodeId;
 use std::collections::HashMap;
-use emu::utils::sources::SymbolNodeId;
+use emu::utils::symbols::SymbolNodeId;
 
 #[derive(Debug,Hash, PartialEq, Eq)]
 pub struct FixKey {

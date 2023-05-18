@@ -1,26 +1,38 @@
-use crate::ast::AstNodeId;
-use crate::opts::Opts;
-use crate::ctx::Context;
-use crate::error::{GResult, GazmErrorKind};
-use crate::gazm::{with_state, Assembler};
-use crate::lookup::LabelUsageAndDefintions;
-use emu::utils::sources::{
-    AsmSource, Position as GazmPosition, SymbolInfo, SymbolScopeId, TextEdit, TextPos,
+use crate::{
+    ast::AstNodeId,
+    ctx::Context,
+    error::{GResult, GazmErrorKind},
+    gazm::{with_state, Assembler},
+    lookup::LabelUsageAndDefintions,
+    opts::Opts,
 };
+
+use emu::utils::{
+    sources::{AsmSource, Position as GazmPosition, TextEdit, TextPos},
+    symbols::{SymbolInfo, SymbolScopeId},
+};
+
+
+use std::{
+    cmp::max,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
+
 use log::{error, info};
 use serde_json::Value;
-use std::cmp::max;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use tower_lsp::jsonrpc;
-use tower_lsp::jsonrpc::Result as TResult;
-use tower_lsp::lsp_types::request::{
-    GotoDeclarationParams, GotoDeclarationResponse, GotoImplementationParams,
-    GotoImplementationResponse, GotoTypeDefinitionParams, GotoTypeDefinitionResponse,
+
+use tower_lsp::{
+    jsonrpc,
+    jsonrpc::Result as TResult,
+    lsp_types::request::{
+        GotoDeclarationParams, GotoDeclarationResponse, GotoImplementationParams,
+        GotoImplementationResponse, GotoTypeDefinitionParams, GotoTypeDefinitionResponse,
+    },
+    lsp_types::Position,
+    lsp_types::*,
+    {Client, LanguageServer},
 };
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer};
 
 pub struct Backend {
     pub client: Client,

@@ -22,7 +22,6 @@ mod item;
 mod lookup;
 mod lsp;
 mod messages;
-mod newsyms;
 mod node;
 mod parse;
 mod regutils;

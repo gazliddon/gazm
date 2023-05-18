@@ -2,9 +2,9 @@ use crate::ast::{AstNodeId, AstNodeRef, AstTree};
 use crate::error::GResult;
 use crate::item::Item;
 use crate::{binary, fixerupper::FixerUpper};
-use emu::utils::sources::{self, BinToWrite, Position, SymbolScopeId};
+use emu::utils::sources::{self, BinToWrite, Position, };
+use emu::utils::symbols::{self, SymbolScopeId, SymbolError};
 use sources::fileloader::{FileIo, SourceFileLoader};
-use sources::{ SymbolError, };
 use std::path::{Path, PathBuf};
 
 use crate::ctx::Context;

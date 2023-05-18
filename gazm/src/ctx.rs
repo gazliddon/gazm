@@ -1,25 +1,26 @@
-use crate::ast::AstTree;
-use crate::async_tokenize::TokenizeResult;
-use crate::binary::{self, AccessType, Binary, BinRef};
-use crate::error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError};
-use crate::lookup::LabelUsageAndDefintions;
-use crate::lsp::LspConfig;
-use crate::messages::{status_mess, Verbosity};
-use crate::token_store::TokenStore;
-use crate::vars::Vars;
-use crate::{astformat, status_err};
+use crate::{
+    ast::AstTree,
+    astformat,
+    async_tokenize::TokenizeResult,
+    binary::{self, AccessType, BinRef, Binary},
+    error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
+    lookup::LabelUsageAndDefintions,
+    lsp::LspConfig,
+    messages::{status_mess, Verbosity},
+    opts::{BinReference, Opts},
+    status_err,
+    token_store::TokenStore,
+    vars::Vars,
+};
 
-
-use crate::opts::{Opts, BinReference};
-
-use anyhow::__private::kind::BoxedKind;
 use emu::utils::{
     hash::get_hash,
     sources::{
         fileloader::{FileIo, SourceFileLoader},
         AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
-        SourceFiles, SourceMapping, SymbolTree, TextEditTrait,
+        SourceFiles, SourceMapping, TextEditTrait,
     },
+    symbols::SymbolTree,
     PathSearcher,
 };
 
@@ -29,12 +30,10 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-
 fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String {
     let z: Vec<String> = i.map(|s| s.as_ref().to_string_lossy().into()).collect();
     z.join(sep)
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct WriteBin {
@@ -42,7 +41,6 @@ pub struct WriteBin {
     pub start: usize,
     pub size: usize,
 }
-
 
 #[derive(Debug, Clone, Default)]
 pub struct AsmOut {
@@ -188,7 +186,7 @@ impl Context {
         let id = if let Ok((id, _)) = self.source_file_loader.sources.get_source(&path) {
             id
         } else {
-            let sf= self
+            let sf = self
                 .source_file_loader
                 .read_source(&path)
                 .map_err(to_gazm)?;
@@ -401,7 +399,7 @@ impl Default for Context {
 use std::fs::File;
 use std::io::Read;
 
-fn get_file_as_byte_vec<P: AsRef<Path>>(filename: P) -> Result<Vec<u8>,std::io::Error> {
+fn get_file_as_byte_vec<P: AsRef<Path>>(filename: P) -> Result<Vec<u8>, std::io::Error> {
     let mut f = File::open(&filename)?;
     let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
@@ -412,10 +410,10 @@ fn get_file_as_byte_vec<P: AsRef<Path>>(filename: P) -> Result<Vec<u8>,std::io::
 /// Create a Context from the command line Opts
 impl TryFrom<&Opts> for AsmOut {
     type Error = String;
-    fn try_from(opts: &Opts) -> Result<AsmOut,String> {
+    fn try_from(opts: &Opts) -> Result<AsmOut, String> {
         let mut binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
 
-        for BinReference{file, addr} in &opts.bin_references {
+        for BinReference { file, addr } in &opts.bin_references {
             let x = get_file_as_byte_vec(file).map_err(|e| e.to_string())?;
             let bin_ref = BinRef {
                 file: file.clone(),
@@ -439,7 +437,7 @@ impl TryFrom<&Opts> for AsmOut {
 /// Create a Context from the command line Opts
 impl TryFrom<Opts> for Context {
     type Error = String;
-    fn try_from(opts: Opts) -> Result<Self,String> {
+    fn try_from(opts: Opts) -> Result<Self, String> {
         let asm_out = AsmOut::try_from(&opts)?;
 
         let ret = Self {
@@ -447,6 +445,6 @@ impl TryFrom<Opts> for Context {
             opts,
             ..Default::default()
         };
-    Ok(ret)
+        Ok(ret)
     }
 }

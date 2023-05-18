@@ -1,12 +1,18 @@
-// Lookup where labels are defined and referenced
-use crate::ast::{iter_refs_recursive, AstNodeId, AstTree};
-use crate::item::{Item, LabelDefinition};
-use emu::utils::sources::{
-    Position, SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, SymbolTable,
-    SymbolTree,
-};
-use emu::utils::Stack;
 use std::collections::HashMap;
+
+use crate::{
+    ast::{iter_refs_recursive, AstNodeId, AstTree},
+    item::{Item, LabelDefinition},
+};
+
+use emu::utils::{
+    sources::Position,
+    symbols::{
+        SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, SymbolTable, SymbolTree,
+    },
+    Stack,
+};
+
 
 #[allow(dead_code)]
 pub struct Navigator<'a> {
@@ -143,7 +149,9 @@ impl LabelUsageAndDefintions {
     }
 
     pub fn find_symbol_docs(&self, symbol_id: SymbolScopeId) -> Option<String> {
-        self.symbol_id_to_definition_pos.get(&symbol_id).and_then(|p| self.find_docs(p))
+        self.symbol_id_to_definition_pos
+            .get(&symbol_id)
+            .and_then(|p| self.find_docs(p))
     }
 
     pub fn find_node_id_from_pos(&self, pos: &Position) -> Vec<AstNodeId> {

@@ -1,6 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Traits
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub struct SymbolScopeId {
     pub scope_id: u64,
@@ -10,8 +9,6 @@ pub struct SymbolScopeId {
 ////////////////////////////////////////////////////////////////////////////////
 use serde::{Deserialize, Serialize};
 
-// use crate::symbols::{ValueTraits, };
-// use super::SymbolTree;
 /// Holds information about a symbol
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SymbolInfo {

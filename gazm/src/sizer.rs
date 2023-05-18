@@ -17,7 +17,7 @@ use crate::{
 
 use emu::{
     isa::AddrModeEnum,
-    utils::sources::SymbolScopeId,
+    utils::symbols::SymbolScopeId,
 };
 
 use std::path::Path;

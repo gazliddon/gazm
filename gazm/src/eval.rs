@@ -1,18 +1,22 @@
-use emu::utils;
-use emu::utils::sources::{SymbolScopeId, SymbolTreeReader};
 use tokio::runtime::TryCurrentError;
-use utils::eval;
 
-use crate::ast::{AstNodeId, AstNodeRef};
-use crate::item::{Item, LabelDefinition, ParsedFrom};
 use eval::GetPriority;
 
 use std::fmt::Display;
 
-use crate::error::{AstError, UserError};
-use crate::item6809::MC6809;
-use utils::sources::{Position, SymbolError, SymbolInfo};
-use utils::Stack;
+use crate::{
+    ast::{AstNodeId, AstNodeRef},
+    error::{AstError, UserError},
+    item::{Item, LabelDefinition, ParsedFrom},
+    item6809::MC6809,
+};
+
+use emu::utils::{
+    eval,
+    sources::Position,
+    symbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTreeReader},
+    Stack,
+};
 
 use thiserror::Error;
 
@@ -96,7 +100,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
     let get_sym_value = |name: &str, e| {
         symbols
             .get_symbol_info(name)
-            .and_then(|si| si.value.clone().ok_or(utils::sources::SymbolError::NoValue))
+            .and_then(|si| si.value.clone().ok_or(SymbolError::NoValue))
             .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(e, n))
     };
@@ -105,21 +109,20 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
         PostFixExpr => eval_postfix(symbols, n)?,
 
         Label(LabelDefinition::Scoped(id)) => {
-
             symbols
-            .get_symbol_info_from_id(*id)
-            .and_then(|si| si.value.clone().ok_or(SymbolError::NoValue))
-            .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
-            .map_err(|_| {
-
-                // let name = symbols
-                //     .get_symbol_info_from_id(*id)
-                //     .expect("Interal error")
-                //     .name()
-                //     .to_string();
-                // EvalError::new(EvalErrorEnum::SymbolNotFoud(name), n);
-                EvalError::new(EvalErrorEnum::CotainsPcReference,n)
-            })?},
+                .get_symbol_info_from_id(*id)
+                .and_then(|si| si.value.clone().ok_or(SymbolError::NoValue))
+                .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
+                .map_err(|_| {
+                    // let name = symbols
+                    //     .get_symbol_info_from_id(*id)
+                    //     .expect("Interal error")
+                    //     .name()
+                    //     .to_string();
+                    // EvalError::new(EvalErrorEnum::SymbolNotFoud(name), n);
+                    EvalError::new(EvalErrorEnum::CotainsPcReference, n)
+                })?
+        }
 
         Label(LabelDefinition::Text(name)) => {
             get_sym_value(name, EvalErrorEnum::SymbolNotFoud(name.to_string()))?

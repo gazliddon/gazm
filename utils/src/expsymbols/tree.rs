@@ -304,7 +304,7 @@ mod test {
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
     type Symbols = Scopes<String, usize>;
-    type SymbolId = crate::symbols::SymbolId<usize>;
+    type SymbolId = super::SymbolId<usize>;
     impl ValueTraits for String {}
 
     #[test]

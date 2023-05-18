@@ -5,12 +5,11 @@ pub use value_ops::*;
 
 pub use symvalue::*;
 
-use crate::symbols::{IdTraits, ValueTraits,Scopes,SymbolWriter, SymbolPath};
-use crate::sources::SymbolTree;
+use crate::expsymbols::{IdTraits, ValueTraits,Scopes,SymbolWriter, SymbolPath};
+use crate::symbols::SymbolTree;
 
 impl<V: ValueTraits + From<Option<i64>>, ID: IdTraits> From<SymbolTree> for Scopes<V,ID> {
     fn from(value: SymbolTree) -> Self {
-
         let mut scopes : Scopes<V,ID> = Scopes::new();
 
         let x = value.to_hash_map();
