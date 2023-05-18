@@ -1,13 +1,15 @@
-use crate::ast::{AstNodeId, AstNodeRef, AstTree};
-use crate::error::GResult;
-use crate::item::Item;
-use crate::{binary, fixerupper::FixerUpper};
-use emu::utils::sources::{self, BinToWrite, Position, };
-use emu::utils::symbols::{self, SymbolScopeId, SymbolError};
+use crate::{
+    ast::{AstNodeId, AstNodeRef, AstTree},
+    error::GResult,
+    item::Item,
+    symbols::{self, SymbolError, SymbolScopeId},
+    {binary, fixerupper::FixerUpper},
+ctx::Context,
+};
+
+use emu::utils::sources::{self, BinToWrite, Position};
 use sources::fileloader::{FileIo, SourceFileLoader};
 use std::path::{Path, PathBuf};
-
-use crate::ctx::Context;
 
 pub struct AsmCtx<'a> {
     pub ctx: &'a mut Context,
@@ -27,7 +29,12 @@ impl<'a> AsmCtx<'a> {
         &mut self.ctx.asm_out.binary
     }
 
-    pub fn add_fixup<I: Into<Item>>(&mut self, id: AstNodeId, v: I, scope_id: u64) -> (u64, AstNodeId) {
+    pub fn add_fixup<I: Into<Item>>(
+        &mut self,
+        id: AstNodeId,
+        v: I,
+        scope_id: u64,
+    ) -> (u64, AstNodeId) {
         self.fixer_upper.add_fixup(scope_id, id, v.into());
         (scope_id, id)
     }
@@ -49,7 +56,9 @@ impl<'a> AsmCtx<'a> {
         symbol_id: SymbolScopeId,
         val: usize,
     ) -> Result<(), SymbolError> {
-        self.ctx.get_symbols_mut().set_symbol_from_id(symbol_id, val as i64)
+        self.ctx
+            .get_symbols_mut()
+            .set_symbol_from_id(symbol_id, val as i64)
     }
 
     pub fn add_bin_to_write<P: AsRef<Path>>(
@@ -64,7 +73,8 @@ impl<'a> AsmCtx<'a> {
             .ctx
             .asm_out
             .binary
-            .get_bytes(physical_address, count)?.to_vec();
+            .get_bytes(physical_address, count)?
+            .to_vec();
 
         let path = self.get_abs_path(path);
         // Save a record of the file Written
@@ -77,18 +87,14 @@ impl<'a> AsmCtx<'a> {
         Ok(path)
     }
 
-    fn get_expanded_path<P: AsRef<Path>>(&self, path: P) -> PathBuf { 
-        self
-            .ctx
-            .get_vars()
-            .expand_vars_in_path(&path)
+    fn get_expanded_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
+        self.ctx.get_vars().expand_vars_in_path(&path)
     }
 
     fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
         let path = self.get_expanded_path(path);
         emu::utils::fileutils::abs_path_from_cwd(path)
     }
-
 
     pub fn eval_macro_args(&mut self, scope_id: u64, caller_id: AstNodeId, tree: &AstTree) -> bool {
         let node = tree.get(caller_id).unwrap();

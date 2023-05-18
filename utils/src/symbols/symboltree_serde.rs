@@ -1,14 +1,28 @@
-use super::{SymbolError, SymbolNodeRef, SymbolResolutionBarrier, SymbolScopeId, SymbolTree};
-use serde::ser::SerializeMap;
+use super::{
+    ScopeIdTraits, SymIdTraits, SymbolError, SymbolNodeRef, SymbolResolutionBarrier, SymbolScopeId,
+    SymbolTree,
+};
+use serde::{ser::SerializeMap, Deserialize};
 use std::collections::HashMap;
 
 fn split_fqn(text: &str) -> Vec<&str> {
     text.split("::").collect()
 }
-fn get_subscope<'a>(n: SymbolNodeRef<'a>, name: &str) -> Option<SymbolNodeRef<'a>> {
+fn get_subscope<'a, SCOPEID, SYMID>(
+    n: SymbolNodeRef<'a, SCOPEID, SYMID>,
+    name: &str,
+) -> Option<SymbolNodeRef<'a, SCOPEID, SYMID>>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
     n.children().find(|c| c.value().get_scope_name() == name)
 }
-impl serde::Serialize for SymbolTree {
+impl<SCOPEID, SYMID, V> serde::Serialize for SymbolTree<SCOPEID, SYMID, V>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -22,13 +36,18 @@ impl serde::Serialize for SymbolTree {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for SymbolTree {
+impl<'de, SCOPEID, SYMID, V> serde::Deserialize<'de> for SymbolTree<SCOPEID, SYMID, V>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+    V : Deserialize<'de>,
+{
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let mut ret = Self::new();
-        let hm: HashMap<String, Option<i64>> = serde::Deserialize::deserialize(_deserializer)?;
+        let hm: HashMap<String, Option<V>> = serde::Deserialize::deserialize(_deserializer)?;
 
         for (k, v) in hm {
             let symbol_id = ret.create_fqn(&k).unwrap();
@@ -39,9 +58,23 @@ impl<'de> serde::Deserialize<'de> for SymbolTree {
 
         Ok(ret)
     }
+
+    fn deserialize_in_place<D>(_deserializer: D, _place: &mut Self) -> Result<(), D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        panic!()
+        // Default implementation just delegates to `deserialize` impl.
+        // *place = try!(Deserialize::deserialize(deserializer));
+        // Ok(())
+    }
 }
 
-impl SymbolTree {
+impl<SCOPEID, SYMID, V> SymbolTree<SCOPEID, SYMID, V>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
     pub fn to_hash_map(&self) -> HashMap<String, Option<i64>> {
         panic!()
     }
@@ -58,7 +91,10 @@ impl SymbolTree {
     // }
 
     // This is shit, much shame
-    pub fn create_fqn(&mut self, text: &str) -> Result<SymbolScopeId, SymbolError> {
+    pub fn create_fqn(
+        &mut self,
+        text: &str,
+    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
         let items: Vec<_> = split_fqn(text);
 
         let (path, sym) = match items.len() {

@@ -21,7 +21,7 @@ pub mod item;
 pub mod lookup;
 pub mod lsp;
 pub mod messages;
-// pub mod newsyms;
+pub mod symbols;
 pub mod node;
 pub mod parse;
 pub mod regutils;

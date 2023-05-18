@@ -5,13 +5,10 @@ use crate::{
     gazm::{with_state, Assembler},
     lookup::LabelUsageAndDefintions,
     opts::Opts,
-};
-
-use emu::utils::{
-    sources::{AsmSource, Position as GazmPosition, TextEdit, TextPos},
     symbols::{SymbolInfo, SymbolScopeId},
 };
 
+use emu::utils::sources::{AsmSource, Position as GazmPosition, TextEdit, TextPos};
 
 use std::{
     cmp::max,

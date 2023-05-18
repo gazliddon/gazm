@@ -11,6 +11,7 @@ use crate::{
     status_err,
     token_store::TokenStore,
     vars::Vars,
+    symbols::SymbolTree,
 };
 
 use emu::utils::{
@@ -20,7 +21,6 @@ use emu::utils::{
         AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
         SourceFiles, SourceMapping, TextEditTrait,
     },
-    symbols::SymbolTree,
     PathSearcher,
 };
 

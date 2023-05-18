@@ -32,6 +32,7 @@ mod token_store;
 mod tokenize;
 mod vars;
 mod opts;
+mod symbols;
 
 use anyhow::{Context, Result};
 use emu::utils::sources::SourceDatabase;

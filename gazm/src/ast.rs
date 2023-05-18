@@ -3,26 +3,26 @@ use crate::{
     error::{AstError, UserError},
     eval::{EvalError, EvalErrorEnum},
     gazm::ScopeTracker,
+    info_mess,
     item::{Item, LabelDefinition, Node},
     messages::*,
     node,
     scopes::ScopeBuilder,
-    info_mess,
+    symbols::{
+        SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter,
+    },
 };
 
 use emu::utils::{
     eval::{to_postfix, GetPriority},
     sources::{AsmSource, Position, SourceErrorType, SourceInfo},
-    symbols::{
-        ScopedName, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader,
-        SymbolTreeWriter,
-    },
+    symbols::ScopedName,
 };
 
-use thin_vec::ThinVec;
-use tower_lsp::lsp_types::request::WillRenameFiles;
 use std::collections::HashMap;
 use std::iter;
+use thin_vec::ThinVec;
+use tower_lsp::lsp_types::request::WillRenameFiles;
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;
 pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;

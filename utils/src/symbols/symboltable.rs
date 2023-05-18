@@ -1,4 +1,4 @@
-use super::{SymbolError, SymbolInfo, SymbolScopeId};
+use super::{ ScopeIdTraits, SymbolError,  SymbolScopeId, SymIdTraits};
 
 use std::{collections::HashMap, fmt::Display};
 
@@ -19,25 +19,37 @@ impl SymbolResolutionBarrier {
     }
 }
 
+impl<SCOPEID, SYMID> Default for SymbolTable<SCOPEID, SYMID> 
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    fn default() -> Self {
+        panic!()
+    }
+}
+
 /// Holds information about symbols
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
-pub struct SymbolTable {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct SymbolTable<SCOPEID, SYMID>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
     scope: String,
     fqn_scope: String,
-    name_to_id: HashMap<String, u64>,
-    ref_name_to_symbol_id: HashMap<String, SymbolScopeId>,
-    highest_id: u64,
-    scope_id: u64,
+    name_to_id: HashMap<String, SYMID>,
+    ref_name_to_symbol_id: HashMap<String, SymbolScopeId<SCOPEID, SYMID>>,
+    highest_id: SYMID,
+    scope_id: SCOPEID,
     symbol_resolution_barrier: SymbolResolutionBarrier,
 }
 
-pub enum SymbolKind {
-    Undefined,
-    Number,
-    MacroDefinition { node: u64 },
-}
-
-impl Display for SymbolTable {
+impl<SCOPEID, SYMID> Display for SymbolTable<SCOPEID, SYMID>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         panic!()
         // writeln!(f, "Scope: {}", self.scope)?;
@@ -53,13 +65,19 @@ impl Display for SymbolTable {
     }
 }
 
-impl SymbolTable {
-    pub(crate) fn get_symbol_id(&self, name: &str) -> Result<SymbolScopeId, SymbolError> {
+impl<SCOPEID, SYMID> SymbolTable<SCOPEID, SYMID>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    pub(crate) fn get_symbol_id(
+        &self,
+        name: &str,
+    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError<SCOPEID,SYMID>> {
         // Is this a ref id?
         if let Some(id) = self.ref_name_to_symbol_id.get(name) {
             Ok(*id)
         } else {
-
             let symbol_id = self
                 .name_to_id
                 .get(name)
@@ -73,7 +91,10 @@ impl SymbolTable {
         }
     }
 
-    pub(crate) fn create_symbol(&mut self, name: &str) -> Result<SymbolScopeId, SymbolError> {
+    pub(crate) fn create_symbol(
+        &mut self,
+        name: &str,
+    ) -> Result<SymbolScopeId<SCOPEID, SYMID>, SymbolError<SCOPEID, SYMID>> {
         if let Ok(id) = self.get_symbol_id(name) {
             Err(SymbolError::AlreadyDefined(id))
         } else {
@@ -88,7 +109,7 @@ impl SymbolTable {
         }
     }
 
-    pub(crate) fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError> {
+    pub(crate) fn remove_symbol(&mut self, name: &str) -> Result<(), SymbolError<SCOPEID,SYMID>> {
         self.name_to_id
             .remove(name)
             .ok_or(SymbolError::NotFound)
@@ -109,12 +130,12 @@ impl SymbolTable {
     pub(crate) fn new(
         name: &str,
         fqn_scope: &str,
-        scope_id: u64,
+        scope_id: SCOPEID,
         symbol_resolution_barrier: SymbolResolutionBarrier,
     ) -> Self {
         Self {
             scope: name.to_string(),
-            highest_id: 1,
+            highest_id: 1.into(),
             fqn_scope: fqn_scope.to_string(),
             scope_id,
             symbol_resolution_barrier,
@@ -122,30 +143,27 @@ impl SymbolTable {
         }
     }
 
-    pub(crate) fn get_symbols(&self) -> Vec<&SymbolInfo> {
-        panic!()
-    }
-
-    pub(crate) fn get_scope_id(&self) -> u64 {
+    pub(crate) fn get_scope_id(&self) -> SCOPEID {
         self.scope_id
     }
 
     pub(crate) fn add_reference_symbol(
         &mut self,
         name: &str,
-        symbol_id: SymbolScopeId,
-    ) -> Result<(), SymbolError> {
+        symbol_id: SymbolScopeId<SCOPEID,SYMID>,
+    ) -> Result<(), SymbolError<SCOPEID, SYMID>> {
         if let Some(id) = self.ref_name_to_symbol_id.get(name) {
             Err(SymbolError::AlreadyDefined(*id))
         } else {
-            self.ref_name_to_symbol_id.insert(name.to_string(), symbol_id);
+            self.ref_name_to_symbol_id
+                .insert(name.to_string(), symbol_id);
             Ok(())
         }
     }
 
-    fn get_next_id(&mut self) -> u64 {
+    fn get_next_id(&mut self) -> SYMID {
         let ret = self.highest_id;
         self.highest_id += 1;
-        ret
+        ret.into()
     }
 }

@@ -7,11 +7,12 @@ use emu::{
     isa::Instruction,
     utils::{
         sources::Position,
-        symbols::{ScopedName, SymbolScopeId},
+        symbols::ScopedName,
     },
 };
 
 use crate::{
+    symbols::SymbolScopeId,
     ast::AstNodeId,
     error::ParseError,
     item6809::{

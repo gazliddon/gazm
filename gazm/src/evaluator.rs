@@ -1,7 +1,4 @@
-use emu::utils::{
-    sources::{fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo},
-    symbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTree},
-};
+use emu::utils::sources::{fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo};
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},
@@ -9,6 +6,7 @@ use crate::{
     error::{GResult, UserError},
     eval::eval,
     item::Item::*,
+    symbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTree},
 };
 
 impl Context {

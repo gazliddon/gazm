@@ -3,34 +3,40 @@ use std::collections::HashMap;
 use crate::{
     ast::{iter_refs_recursive, AstNodeId, AstTree},
     item::{Item, LabelDefinition},
+    symbols::{
+        SymbolError, SymbolInfo, 
+        SymbolScopeId, SymbolTree,
+        ScopeId,
+        SymbolTable,
+    },
 };
 
 use emu::utils::{
     sources::Position,
-    symbols::{
-        SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, SymbolTable, SymbolTree,
-    },
     Stack,
+    symbols::SymbolResolutionBarrier,
 };
 
-
 #[allow(dead_code)]
-pub struct Navigator<'a> {
+pub struct Navigator<'a>
+{
     syms: &'a SymbolTree,
-    current_scope_id: u64,
-    scope_stack: Stack<u64>,
+    current_scope_id: ScopeId,
+    scope_stack: Stack<ScopeId>,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum NavError {
+pub enum NavError
+{
     UnableToPop,
-    ScopeIdNotFound(u64),
+    ScopeIdNotFound(ScopeId),
     SymbolError(SymbolError),
 }
 
 #[allow(dead_code)]
-impl<'a> Navigator<'a> {
+impl<'a, > Navigator<'a, >
+{
     pub fn new(syms: &'a SymbolTree) -> Self {
         Self {
             syms,
@@ -39,7 +45,7 @@ impl<'a> Navigator<'a> {
         }
     }
 
-    pub fn new_with_id(syms: &'a SymbolTree, id: u64) -> Result<Self, NavError> {
+    pub fn new_with_id(syms: &'a SymbolTree, id: ScopeId) -> Result<Self, NavError> {
         let mut ret = Self::new(syms);
         ret.set_scope(id)?;
         Ok(ret)
@@ -51,7 +57,7 @@ impl<'a> Navigator<'a> {
             .map_err(NavError::SymbolError)
     }
 
-    fn check_scope(&self, scope_id: u64) -> Result<(), NavError> {
+    fn check_scope(&self, scope_id: ScopeId) -> Result<(), NavError> {
         self.get_scope(scope_id).map(|_| ())
     }
 

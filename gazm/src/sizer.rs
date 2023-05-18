@@ -13,11 +13,11 @@ use crate::{
     },
     parse::util::{ByteSize, ByteSizes},
     parse6809::opcodes::get_opcode_info, info_mess,
+    symbols::SymbolScopeId,
 };
 
 use emu::{
     isa::AddrModeEnum,
-    utils::symbols::SymbolScopeId,
 };
 
 use std::path::Path;

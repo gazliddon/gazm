@@ -1,9 +1,10 @@
-use super::{SourceFile, SourceFiles, AsmSource, Position, TextEditTrait, error::*};
-use crate::symbols::SymbolTree;
+use super::{SourceFile, SourceFiles, AsmSource, Position, TextEditTrait, error::*, };
 use path_clean::PathClean;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use crate::symbols::SymbolTree;
 
 pub trait LocationTrait: Clone {
     fn get_line_number(&self) -> usize;
@@ -171,7 +172,7 @@ pub struct SourceDatabase {
     pub exec_addr: Option<usize>,
     pub file_name: PathBuf,
 
-    pub symbols: SymbolTree,
+    pub symbols: SymbolTree<u64,u64,i64>,
     #[serde(skip)]
     range_to_mapping: HashMap<std::ops::Range<usize>, Mapping>,
     #[serde(skip)]
@@ -238,7 +239,7 @@ impl SourceDatabase {
     pub fn new(
         mappings: &SourceMapping,
         sources: &SourceFiles,
-        symbols: &SymbolTree,
+        symbols: &SymbolTree<u64,u64,i64>,
         written: &[BinWriteDesc],
         exec_addr: Option<usize>,
     ) -> Self {

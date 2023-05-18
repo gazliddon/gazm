@@ -1,30 +1,62 @@
+use serde::{Deserialize, Serialize};
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Traits
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Hash, Copy)]
-pub struct SymbolScopeId {
-    pub scope_id: u64,
-    pub symbol_id: u64,
+pub struct SymbolScopeId<SCOPEID , SYMID >
+where
+    SCOPEID: std::hash::Hash + std::ops::AddAssign<u64>,
+    SYMID: std::hash::Hash,
+{
+    pub scope_id: SCOPEID,
+    pub symbol_id: SYMID,
 }
+
+pub trait ScopeIdTraits:
+    std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy
+{
+}
+
+pub trait SymIdTraits:
+    std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy
+{
+}
+
+impl ScopeIdTraits for u64 {}
+impl SymIdTraits for u64 {}
 
 ////////////////////////////////////////////////////////////////////////////////
-use serde::{Deserialize, Serialize};
-
 /// Holds information about a symbol
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-pub struct SymbolInfo {
+pub struct SymbolInfo<SCOPEID, SYMID,SYMVALUE> 
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+    {
     name: String,
     scoped_name: String,
-    pub value: Option<i64>,
-    pub symbol_id: SymbolScopeId,
+    pub value: Option<SYMVALUE>,
+    pub symbol_id: SymbolScopeId<SCOPEID,SYMID>,
 }
 
-impl SymbolInfo {
-    pub fn new(name: &str, value: Option<i64>, symbol_id: SymbolScopeId, fqn: &str) -> Self {
+impl<SCOPEID, SYMID, SYMVALUE> SymbolInfo<SCOPEID, SYMID, SYMVALUE>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    pub fn new(
+        name: &str,
+        value: Option<SYMVALUE>,
+        symbol_id: SymbolScopeId<SCOPEID, SYMID>,
+        fqn: &str,
+    ) -> Self {
         Self {
             name: name.to_string(),
             value,
             symbol_id,
-            scoped_name : format!("{fqn}::{name}")
+            scoped_name: format!("{fqn}::{name}"),
         }
     }
 
@@ -36,12 +68,26 @@ impl SymbolInfo {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum SymbolError {
+#[derive(PartialEq, Eq, Clone)]
+pub enum SymbolError<SCOPEID, SYMID>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
     InvalidScope,
-    AlreadyDefined(SymbolScopeId),
-    Mismatch { expected: i64 },
+    AlreadyDefined(SymbolScopeId<SCOPEID,SYMID>),
+    Mismatch,
     NotFound,
     NoValue,
     InvalidId,
+}
+
+impl<SCOPEID, SYMID> std::fmt::Debug for SymbolError<SCOPEID, SYMID>
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        panic!()
+    }
 }
