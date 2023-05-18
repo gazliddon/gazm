@@ -22,6 +22,7 @@ pub struct TokenizeRequest {
     pub parent: Option<PathBuf>,
     pub source: String,
     pub opts: Opts,
+    pub include_stack : IncludeStack,
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +67,7 @@ impl TokenizeRequest {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-#[derive(Clone, Default)]
+#[derive(Clone, Default,Debug)]
 #[allow(dead_code)]
 pub struct IncludeStack {
     include_stack: Stack<PathBuf>,
@@ -162,6 +163,7 @@ impl Context {
                 parent,
                 source: sf.source.source.clone(),
                 opts: self.opts.clone(),
+                include_stack: Default::default(),
             };
 
             Ok(GetTokensResult::Request(toke_req.into()))
@@ -175,6 +177,7 @@ pub fn tokenize_no_async(ctx: &mut Context) -> GResult<()> {
         to_tokenize.into_iter().map(|req| req.try_into()).collect()
     })
 }
+
 pub fn tokenize_async(ctx: &mut Context) -> GResult<()> {
     tokenize(ctx, |to_tokenize| {
         use rayon::prelude::*;
@@ -192,11 +195,16 @@ where
     let mut files_to_process = vec![(ctx.get_project_file(), None)];
 
     while !files_to_process.is_empty() {
+
         let size = files_to_process.len();
+
         let (to_tokenize, mut incs_to_process) = files_to_process.iter().try_fold(
             (Vec::with_capacity(size), Vec::with_capacity(size)),
             |(mut to_tok, mut incs), (req_file, parent)| {
                 use GetTokensResult::*;
+
+                // TODO: Replace parent with incstack
+
                 let tokes = ctx.get_tokens(req_file, parent.clone())?;
 
                 match tokes {

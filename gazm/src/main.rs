@@ -106,3 +106,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use std::path::PathBuf;
+
+    use super::*;
+    use pretty_assertions::*;
+
+    use ctx::Context;
+
+    fn make_opts(file_name: &str) -> Opts {
+        let mut ret = Opts::default();
+        ret.project_file = PathBuf::from(file_name);
+        ret.build_type = BuildType::Check;
+        ret
+    }
+
+    #[test]
+    fn test_circ() {
+        let opts  = make_opts("assets/test_src/circular_inc.gazm");
+        let mut asm = gazm::Assembler::new(opts.clone());
+        let res = asm.assemble();
+        println!("{res:#?}");
+        assert!(res.is_ok());
+    }
+
+
+}

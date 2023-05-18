@@ -1,0 +1,3 @@
+    scope hello
+
+    include "circular_inc.gazm"

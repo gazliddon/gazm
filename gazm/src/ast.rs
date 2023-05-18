@@ -1,30 +1,33 @@
+use thin_vec::ThinVec;
+use tower_lsp::lsp_types::request::WillRenameFiles;
+use std::collections::HashMap;
+use std::iter;
+
+use crate::{
+    ctx::Context,
+    error::{AstError, UserError},
+    eval::{EvalError, EvalErrorEnum},
+    gazm::ScopeTracker,
+    info_mess,
+    item::{Item, LabelDefinition, Node},
+    messages::*,
+    node,
+    scopes::ScopeBuilder,
+};
+
+use emu::utils::{
+    eval::{to_postfix, GetPriority},
+    sources::{
+        AsmSource, Position, ScopedName, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
+        SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter,
+    },
+    symbols::SymbolReader,
+};
+
 pub type AstTree = ego_tree::Tree<ItemWithPos>;
 pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
 pub type AstNodeId = ego_tree::NodeId;
 pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
-
-use crate::error::{AstError, UserError};
-use crate::eval::{EvalError, EvalErrorEnum};
-use crate::gazm::ScopeTracker;
-use crate::scopes::ScopeBuilder;
-
-use crate::ctx::Context;
-use crate::item::{Item, LabelDefinition, Node};
-
-use crate::{messages::*, node};
-use emu::utils::eval::{to_postfix, GetPriority};
-use emu::utils::sources::{
-    AsmSource, Position, ScopedName, SourceErrorType, SourceInfo, SymbolError, SymbolInfo,
-    SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter,
-};
-use emu::utils::symbols::SymbolReader;
-use thin_vec::ThinVec;
-use tower_lsp::lsp_types::request::WillRenameFiles;
-
-use crate::info_mess;
-
-use std::collections::HashMap;
-use std::iter;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ItemWithPos {
@@ -160,7 +163,7 @@ impl<'a> Ast<'a> {
                     ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
                     Import => {
-                        let ids : Vec<_> = node.children().map(|n| n.id()).collect();
+                        let ids: Vec<_> = node.children().map(|n| n.id()).collect();
 
                         self.scope_labels_node(node_id, scopes.clone())?;
 
@@ -898,10 +901,6 @@ pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
 }
 fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
     tree.get(id).unwrap().children().map(|c| c.id()).collect()
-}
-
-fn is_problem(p: &Position) -> bool {
-    p.src == AsmSource::FileId(4) && p.line == 19 && p.col == 12
 }
 
 pub fn create_ast_node(tree: &mut AstTree, node: &Node) -> AstNodeId {
