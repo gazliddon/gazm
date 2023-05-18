@@ -1,19 +1,15 @@
-mod symbolnav;
 mod symbols;
-mod symboltable;
-mod symboltree;
-mod symboltree_serde;
-mod symboltreewriter;
-mod symboltreereader;
 mod scopedname;
 
+pub mod symboltreereader;
+pub mod symboltreewriter;
+pub mod symboltree_serde;
+pub mod symboltree;
+pub mod symboltable;
+pub mod symbolnav;
 
-pub use symbolnav::*;
 pub use symbols::*;
-pub use symboltable::*;
-pub use symboltree::*;
-pub use symboltree_serde::*;
-pub use symboltreewriter::*;
-pub use symboltreereader::*;
+pub use symboltable::SymbolResolutionBarrier;
 pub use scopedname::*;
+pub use symboltree::*;
 

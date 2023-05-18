@@ -1,5 +1,4 @@
 use super::{ ScopeIdTraits, SymbolError,  SymbolScopeId, SymIdTraits};
-
 use std::{collections::HashMap, fmt::Display};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,7 +18,6 @@ impl SymbolResolutionBarrier {
     }
 }
 
-
 /// Holds information about symbols
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
 pub struct SymbolTable<SCOPEID, SYMID>
@@ -38,21 +36,16 @@ where
 
 impl<SCOPEID, SYMID> Display for SymbolTable<SCOPEID, SYMID>
 where
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
+    SCOPEID: ScopeIdTraits + std::fmt::Debug,
+    SYMID: SymIdTraits + std::fmt::Debug,
 {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        panic!()
-        // writeln!(f, "Scope: {}", self.scope)?;
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Scope: {}", self.scope)?;
 
-        // for (name, id) in &self.name_to_id {
-        //     let val = self.get(*id).unwrap();
-        //     match &val.value {
-        //         Some(val) => writeln!(f, "{name} = {val:04X} ({val})")?,
-        //         _ => writeln!(f, "{name} = undefined",)?,
-        //     }
-        // }
-        // Ok(())
+        for (name, id) in &self.name_to_id {
+                 writeln!(f, "{name} = {id:#?}",)?;
+        }
+        Ok(())
     }
 }
 

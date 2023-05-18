@@ -725,8 +725,7 @@ impl<'a> Ast<'a> {
                             }
 
                             Err(e) => {
-                                let reader = self.ctx.get_symbols().get_reader(scopes.scope());
-                                println!("{:#?}", reader.get_current_symbols_2());
+                                let _reader = self.ctx.get_symbols().get_reader(scopes.scope());
                                 return Err(self.convert_error(e.into()));
                             }
                         }

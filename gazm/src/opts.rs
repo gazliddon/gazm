@@ -24,7 +24,6 @@ use emu::utils::{
         AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
         SourceFiles, SourceMapping, TextEditTrait,
     },
-    symbols::SymbolTree,
     PathSearcher,
 };
 

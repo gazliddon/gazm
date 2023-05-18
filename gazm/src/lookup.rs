@@ -7,7 +7,6 @@ use crate::{
         SymbolError, SymbolInfo, 
         SymbolScopeId, SymbolTree,
         ScopeId,
-        SymbolTable,
     },
 };
 
@@ -51,14 +50,12 @@ impl<'a, > Navigator<'a, >
         Ok(ret)
     }
 
-    fn get_scope(&self, scope_id: u64) -> Result<&SymbolTable, NavError> {
-        self.syms
-            .get_symbols_from_id(scope_id)
-            .map_err(NavError::SymbolError)
-    }
-
-    fn check_scope(&self, scope_id: ScopeId) -> Result<(), NavError> {
-        self.get_scope(scope_id).map(|_| ())
+    fn check_scope(&self, scope: ScopeId) -> Result<(), NavError> {
+        if self.syms.scope_exists(scope) {
+            Ok(())
+        } else {
+            Err(NavError::SymbolError(emu::utils::symbols::SymbolError::NoValue))
+        }
     }
 
     pub fn get_current_scope_id(&self) -> u64 {

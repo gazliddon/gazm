@@ -1,5 +1,5 @@
 /// Trait for navigating around a symbol tree
-use super::{ScopedName, SymbolError, SymbolTree, ScopeIdTraits, SymIdTraits};
+use super::{ScopedName, SymbolError, symboltree::SymbolTree, ScopeIdTraits, SymIdTraits};
 
 pub enum NavError {}
 

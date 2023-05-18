@@ -2,25 +2,21 @@ use std::collections::HashMap;
 use thin_vec::ThinVec;
 
 use super::{
-    ScopeIdTraits, ScopedName, SymIdTraits, SymbolError, SymbolInfo,
-    SymbolResolutionBarrier, SymbolScopeId, SymbolTable, SymbolTreeReader, SymbolTreeWriter,
+    symboltable::SymbolTable, symboltreereader::SymbolTreeReader,
+    symboltreewriter::SymbolTreeWriter, ScopeIdTraits, ScopedName, SymIdTraits, SymbolError,
+    SymbolInfo, SymbolResolutionBarrier, SymbolScopeId,
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // SymbolTree
-pub type SymbolTreeTree<SCOPEID , SYMID > =
-    ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>;
+type SymbolTreeTree<SCOPEID, SYMID> = ego_tree::Tree<SymbolTable<SCOPEID, SYMID>>;
 
-pub type SymbolNodeRef<'a, SCOPEID , SYMID > =
-    ego_tree::NodeRef<'a, SymbolTable<SCOPEID, SYMID>>;
-
-pub type SymbolNodeId = ego_tree::NodeId;
-
-pub type SymbolNodeMut<'a, SCOPEID , SYMID > =
-    ego_tree::NodeMut<'a, SymbolTable<SCOPEID, SYMID>>;
+pub (crate) type SymbolNodeRef<'a, SCOPEID, SYMID> = ego_tree::NodeRef<'a, SymbolTable<SCOPEID, SYMID>>;
+pub (crate) type SymbolNodeId = ego_tree::NodeId;
+pub (crate) type SymbolNodeMut<'a, SCOPEID, SYMID> = ego_tree::NodeMut<'a, SymbolTable<SCOPEID, SYMID>>;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct SymbolTree<SCOPEID , SYMID , SYMVALUE >
+pub struct SymbolTree<SCOPEID, SYMID, SYMVALUE>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
@@ -32,7 +28,7 @@ where
         HashMap<SymbolScopeId<SCOPEID, SYMID>, SymbolInfo<SCOPEID, SYMID, SYMVALUE>>,
 }
 
-impl<SCOPEID, SYMID,SYMVALUE> Default for SymbolTree<SCOPEID, SYMID, SYMVALUE>
+impl<SCOPEID, SYMID, SYMVALUE> Default for SymbolTree<SCOPEID, SYMID, SYMVALUE>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
@@ -121,6 +117,10 @@ where
 
     pub fn get_root_scope_id(&self) -> SCOPEID {
         self.tree.root().value().get_scope_id()
+    }
+
+    pub fn scope_exists(&self, scope: SCOPEID) -> bool {
+        self.get_node_from_id(scope).map(|n| n.value()).is_ok()
     }
 
     pub fn get_symbols_from_id(
@@ -261,19 +261,11 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 // Private implementation funcs
-impl<SCOPEID, SYMID, V> SymbolTree<SCOPEID, SYMID,V>
+impl<SCOPEID, SYMID, V> SymbolTree<SCOPEID, SYMID, V>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
 {
-    pub(crate) fn get_tree(&self) -> &SymbolTreeTree<SCOPEID, SYMID> {
-        &self.tree
-    }
-
-    pub(crate) fn get_tree_mut(&mut self) -> &mut SymbolTreeTree<SCOPEID, SYMID> {
-        &mut self.tree
-    }
-
     pub(crate) fn get_node_mut_from_id(
         &mut self,
         scope_id: SCOPEID,
@@ -281,6 +273,7 @@ where
         let node_id = self.get_node_id_from_scope_id(scope_id)?;
         self.tree.get_mut(node_id).ok_or(SymbolError::InvalidScope)
     }
+
     pub(crate) fn get_next_scope_id(&mut self) -> SCOPEID {
         let ret = self.next_scope_id;
         self.next_scope_id += 1;
@@ -353,9 +346,9 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 // Functions to do with serialization
-fn walk_syms<F, SCOPEID, SYMID,V>(_node: SymbolNodeRef<SCOPEID,SYMID>, _scope: String, _f: &mut F)
+fn walk_syms<F, SCOPEID, SYMID, V>(_node: SymbolNodeRef<SCOPEID, SYMID>, _scope: String, _f: &mut F)
 where
-    F: FnMut(&SymbolInfo<SCOPEID, SYMID,V>),
+    F: FnMut(&SymbolInfo<SCOPEID, SYMID, V>),
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
 {
@@ -370,22 +363,22 @@ where
     // }
 }
 
-pub fn print_syms<SCOPEID, SYMID,V>(node: SymbolNodeRef<SCOPEID,SYMID>, scope: String)
+pub fn print_syms<SCOPEID, SYMID, V>(node: SymbolNodeRef<SCOPEID, SYMID>, scope: String)
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
-    V : std::fmt::Debug,
+    V: std::fmt::Debug,
 {
-    walk_syms(node, scope, &mut |sym: &SymbolInfo<SCOPEID, SYMID,V>| {
+    walk_syms(node, scope, &mut |sym: &SymbolInfo<SCOPEID, SYMID, V>| {
         println!("{} = {:?}", sym.scoped_name(), sym.value)
     })
 }
 
-pub fn display_tree<SCOPEID,SYMID,V>(
+pub fn display_tree<SCOPEID, SYMID, V>(
     _out: &mut std::fmt::Formatter<'_>,
-    _node: SymbolNodeRef<SCOPEID,SYMID>,
+    _node: SymbolNodeRef<SCOPEID, SYMID>,
     _depth: usize,
-) -> Result<(), std::fmt::Error> 
+) -> Result<(), std::fmt::Error>
 where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
@@ -393,16 +386,14 @@ where
     panic!()
 }
 
-impl<SCOPEID,SYMID,V> std::fmt::Display for SymbolTree<SCOPEID,SYMID,V> 
-
+impl<SCOPEID, SYMID, V> std::fmt::Display for SymbolTree<SCOPEID, SYMID, V>
 where
     SCOPEID: ScopeIdTraits + std::fmt::Debug,
     SYMID: SymIdTraits + std::fmt::Debug,
-    V : std::fmt::Debug
-
+    V: std::fmt::Debug,
 {
     fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        display_tree::<SCOPEID,SYMID,V>(out, self.tree.root(), 0)
+        display_tree::<SCOPEID, SYMID, V>(out, self.tree.root(), 0)
     }
 }
 

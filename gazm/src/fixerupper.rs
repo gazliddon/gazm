@@ -1,12 +1,11 @@
 use crate::item::Item;
 use crate::ast::AstNodeId;
 use std::collections::HashMap;
-use emu::utils::symbols::SymbolNodeId;
 
 #[derive(Debug,Hash, PartialEq, Eq)]
 pub struct FixKey {
     scope: u64,
-    id: SymbolNodeId,
+    id: AstNodeId,
 }
 
 #[derive(Debug, Default)]

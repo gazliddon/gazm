@@ -1,5 +1,5 @@
 use super::{
-    SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, SymbolTable, SymbolTree, ScopeIdTraits, SymIdTraits,
+    SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, symboltree::SymbolTree, ScopeIdTraits, SymIdTraits,
 };
 
 pub struct SymbolTreeReader<'a, SCOPEID, SYMID,SYMVALUE>
@@ -25,14 +25,6 @@ where
 
     pub fn syms(&self) -> &SymbolTree<SCOPEID, SYMID,SYMVALUE> {
         self.syms
-    }
-
-    pub fn get_current_symbols_2(&self) -> &SymbolTable<SCOPEID, SYMID> {
-        if let Ok(id) = self.syms.get_symbols_from_id(self.current_scope) {
-            id
-        } else {
-            panic!("Change this to an error returning function")
-        }
     }
 
     pub fn get_symbol_info(&self, name: &str) -> Result<&SymbolInfo<SCOPEID,SYMID,SYMVALUE>, SymbolError<SCOPEID, SYMID>> {
