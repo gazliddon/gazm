@@ -19,18 +19,9 @@ impl SymbolResolutionBarrier {
     }
 }
 
-impl<SCOPEID, SYMID> Default for SymbolTable<SCOPEID, SYMID> 
-where
-    SCOPEID: ScopeIdTraits,
-    SYMID: SymIdTraits,
-{
-    fn default() -> Self {
-        panic!()
-    }
-}
 
 /// Holds information about symbols
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
 pub struct SymbolTable<SCOPEID, SYMID>
 where
     SCOPEID: ScopeIdTraits,

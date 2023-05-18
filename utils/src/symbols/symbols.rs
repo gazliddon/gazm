@@ -14,12 +14,12 @@ where
 }
 
 pub trait ScopeIdTraits:
-    std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy
+    std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy + Default
 {
 }
 
 pub trait SymIdTraits:
-    std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy
+    std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy + Default
 {
 }
 
