@@ -16,8 +16,10 @@ use emu::{
     cpu::{IndexedFlags, RegEnum},
     isa::Instruction,
     utils::sources::Position,
-    utils::symbols::SymbolScopeId,
 };
+
+
+use symbols::SymbolScopeId;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {

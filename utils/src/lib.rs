@@ -12,6 +12,5 @@ mod stack;
 pub use location::*;
 pub use stack::*;
 pub use pathsearcher::*;
-pub mod symbols;
 
 

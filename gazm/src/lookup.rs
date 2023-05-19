@@ -3,22 +3,15 @@ use std::collections::HashMap;
 use crate::{
     ast::{iter_refs_recursive, AstNodeId, AstTree},
     item::{Item, LabelDefinition},
-    symbols::{
-        SymbolError, SymbolInfo, 
-        SymbolScopeId, SymbolTree,
-        ScopeId,
-    },
+    symbols::{ScopeId, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree},
 };
 
-use emu::utils::{
-    sources::Position,
-    Stack,
-    symbols::SymbolResolutionBarrier,
-};
+use emu::utils::{sources::Position, Stack};
+
+use symbols::SymbolResolutionBarrier;
 
 #[allow(dead_code)]
-pub struct Navigator<'a>
-{
+pub struct Navigator<'a> {
     syms: &'a SymbolTree,
     current_scope_id: ScopeId,
     scope_stack: Stack<ScopeId>,
@@ -26,16 +19,14 @@ pub struct Navigator<'a>
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum NavError
-{
+pub enum NavError {
     UnableToPop,
     ScopeIdNotFound(ScopeId),
     SymbolError(SymbolError),
 }
 
 #[allow(dead_code)]
-impl<'a, > Navigator<'a, >
-{
+impl<'a> Navigator<'a> {
     pub fn new(syms: &'a SymbolTree) -> Self {
         Self {
             syms,
@@ -54,7 +45,9 @@ impl<'a, > Navigator<'a, >
         if self.syms.scope_exists(scope) {
             Ok(())
         } else {
-            Err(NavError::SymbolError(emu::utils::symbols::SymbolError::NoValue))
+            Err(NavError::SymbolError(
+                symbols::SymbolError::NoValue,
+            ))
         }
     }
 

@@ -16,8 +16,9 @@ use crate::{
 use emu::utils::{
     eval::{to_postfix, GetPriority},
     sources::{AsmSource, Position, SourceErrorType, SourceInfo},
-    symbols::ScopedName,
 };
+
+use symbols::ScopedName;
 
 use std::collections::HashMap;
 use std::iter;

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::symbols::symboltree::SymbolTree;
+use symbols::symboltree::SymbolTree;
 
 pub trait LocationTrait: Clone {
     fn get_line_number(&self) -> usize;

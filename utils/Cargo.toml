@@ -24,3 +24,5 @@ serde_yaml = "*"
 sha1="*"
 thin-vec="*"
 thiserror="*"
+symbols = {path = "../symbols"}
+

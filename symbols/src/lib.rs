@@ -1,14 +1,16 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+#![allow(dead_code)]
+mod symbols;
+mod scopedname;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod symboltreereader;
+pub mod symboltreewriter;
+pub mod symboltree_serde;
+pub mod symboltree;
+pub mod symboltable;
+pub mod symbolnav;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use symbols::*;
+pub use symboltable::SymbolResolutionBarrier;
+pub use scopedname::*;
+pub use symboltree::*;
+

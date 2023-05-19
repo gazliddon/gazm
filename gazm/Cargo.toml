@@ -10,6 +10,7 @@ clap = { version = "3.1.5", features = ["derive", "color"] }
 colored = "*"
 ego-tree="*"
 emu = {path = "../emu"}
+symbols = {path = "../symbols"}
 env_logger="*"
 itertools="*"
 lazy_static = "*"

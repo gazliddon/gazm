@@ -642,6 +642,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "simple-logging",
+ "symbols",
  "thin-vec",
  "thiserror",
  "tokio",
@@ -1569,6 +1570,14 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 [[package]]
 name = "symbols"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ego-tree",
+ "regex",
+ "serde",
+ "serde_json",
+ "thin-vec",
+]
 
 [[package]]
 name = "syn"
@@ -1949,6 +1958,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha1 0.10.5",
+ "symbols",
  "thin-vec",
  "thiserror",
 ]
