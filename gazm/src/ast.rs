@@ -9,7 +9,8 @@ use crate::{
     node,
     scopes::ScopeBuilder,
     symbols::{
-        SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter, ScopedName,
+        ScopedName, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader,
+        SymbolTreeWriter,
     },
 };
 
@@ -17,7 +18,6 @@ use emu::utils::{
     eval::{to_postfix, GetPriority},
     sources::{AsmSource, Position, SourceErrorType, SourceInfo},
 };
-
 
 use std::collections::HashMap;
 use std::iter;
@@ -196,14 +196,15 @@ impl<'a> Ast<'a> {
             info_mess!("Importing symbols");
 
             let mut scopes = self.get_root_scope_tracker();
+
             for node_id in iter_ids_recursive(self.tree.root()) {
                 let node = self.tree.get(node_id).unwrap();
 
-                match &node.value().item {
-                    ScopeId(scope_id) => scopes.set_scope(*scope_id),
-                    _ => (),
+                if let ScopeId(scope_id) = &node.value().item {
+                    scopes.set_scope(*scope_id)
                 }
             }
+
             info_mess!("Done");
             Ok(())
         })
@@ -345,7 +346,7 @@ impl<'a> Ast<'a> {
             for (macro_id, scope_id, params, caller_node_id, pos) in mcalls.into_iter() {
                 let params_vec_of_id: Result<ThinVec<_>, _> = params
                     .iter()
-                    .map(|p| self.create_symbol(&p, caller_node_id, &ScopeTracker::new(scope_id)))
+                    .map(|p| self.create_symbol(p, caller_node_id, &ScopeTracker::new(scope_id)))
                     .collect();
 
                 let item = MacroCallProcessed {
@@ -359,7 +360,7 @@ impl<'a> Ast<'a> {
                 self.replace_node_take_children(caller_node_id, replacement_id);
             }
 
-            self.macro_defs = mdefs.values().into_iter().map(|(a, _)| *a).collect();
+            self.macro_defs = mdefs.values().map(|(a, _)| *a).collect();
 
             Ok(())
         })
@@ -569,7 +570,7 @@ impl<'a> Ast<'a> {
         let symbol_id = self
             .ctx
             .get_symbols()
-            .get_symbol_info_from_scoped_name(&scoped_name)
+            .get_symbol_info_from_scoped_name(scoped_name)
             .map(|si| si.symbol_id)
             .map_err(|e| self.sym_to_user_error(e, node_id))?;
         Ok(symbol_id)
@@ -582,7 +583,7 @@ impl<'a> Ast<'a> {
         node_id: AstNodeId,
     ) -> Result<SymbolScopeId, UserError> {
         let id = self
-            .get_reader(&scopes)
+            .get_reader(scopes)
             .get_symbol_info(name)
             .map_err(|e| self.sym_to_user_error(e, node_id))?
             .symbol_id;
@@ -613,7 +614,7 @@ impl<'a> Ast<'a> {
                 }
 
                 Label(LabelDefinition::TextScoped(name)) => {
-                    let scoped_name = ScopedName::new(&name);
+                    let scoped_name = ScopedName::new(name);
                     let symbol_id = self.get_scoped_symbol_id(&scoped_name, *node_id)?;
                     self.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
                 }
@@ -643,14 +644,10 @@ impl<'a> Ast<'a> {
                 for node_id in get_ids_recursive(node).into_iter() {
                     let value = self.tree.get(node_id).unwrap().value().clone();
 
-                    match &value.item {
-                        Label(LabelDefinition::TextScoped(name)) => {
-                            let scoped_name = ScopedName::new(&name);
-                            let symbol_id = self.get_scoped_symbol_id(&scoped_name, node_id)?;
-                            self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
-                        }
-
-                        _ => (),
+                    if let Label(LabelDefinition::TextScoped(name)) = &value.item {
+                        let scoped_name = ScopedName::new(name);
+                        let symbol_id = self.get_scoped_symbol_id(&scoped_name, node_id)?;
+                        self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
                     }
                 }
             }
@@ -786,7 +783,7 @@ impl<'a> Ast<'a> {
         F: Fn(&mut ItemWithPos),
     {
         let mut this_node_mut = self.tree.get_mut(node_id).unwrap();
-        f(&mut this_node_mut.value())
+        f(this_node_mut.value())
     }
 
     fn set_symbol(

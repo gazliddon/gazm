@@ -97,7 +97,7 @@ impl LabelDefinition {
         }
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn as_string(&self) -> String {
         match self {
             LabelDefinition::TextScoped(x) | LabelDefinition::Text(x) => x.clone(),
             LabelDefinition::Scoped(x) => format!("{x:?}"),

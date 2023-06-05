@@ -1,4 +1,3 @@
-use byteorder::ByteOrder;
 use mem::memmap::MemMap;
 use serde::Deserialize;
 
@@ -18,7 +17,7 @@ pub struct MemInit {
     last: usize,
 }
 
-fn create_regions_from_str<E: ByteOrder>(input: &str) -> serde_yaml::Result<MemMap> {
+fn create_regions_from_str(input: &str) -> serde_yaml::Result<MemMap> {
     use mem::MemMapIO;
 
     let mut mm = mem::memmap::MemMap::new();

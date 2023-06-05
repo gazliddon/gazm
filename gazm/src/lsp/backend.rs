@@ -529,7 +529,7 @@ impl LanguageServer for Backend {
 fn tabulate(tabs: &[(&str, &str)], min_width: usize) -> Vec<String> {
     let max_len = tabs.iter().map(|(f, _)| f.len()).max().unwrap();
     let width = max(min_width, max_len + 4);
-    tabs.into_iter()
+    tabs.iter()
         .map(|(f, v)| format!("{:width$}{v}", format!("_{f}_:"), width = width))
         .collect::<Vec<_>>()
 }

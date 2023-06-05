@@ -1,12 +1,10 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-
 use super::{SourceFiles, SourceFile};
-use anyhow::{anyhow, Result};
-
 use crate::pathsearcher::{PathSearcher, Paths, SearchError};
 
 use std::collections::HashSet;
+use std::fs;
+use std::path::{Path, PathBuf};
+use anyhow::{anyhow, Result};
 
 #[derive(Debug, Clone)]
 pub struct SourceFileLoader {

@@ -1,4 +1,3 @@
-///! In memory representation of all source file
 use super::{AsmSource, Position, SResult, SourceErrorType, SourceFile, SourceInfo};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

@@ -447,7 +447,7 @@ impl<'a> Compiler<'a> {
 
                 if !ret {
                     let pos = &node.value().pos;
-                    let si = ctx.ctx.get_source_info(&pos).unwrap();
+                    let si = ctx.ctx.get_source_info(pos).unwrap();
                     return Err(UserError::from_text(
                         "Couldn't evaluate all macro args",
                         &si,

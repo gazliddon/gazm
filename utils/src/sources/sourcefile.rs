@@ -1,7 +1,6 @@
 use super::Position;
 use super::{ TextEditTrait, TextFile };
 use std::fmt::Debug;
-///! In memrory representation of a source file
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]

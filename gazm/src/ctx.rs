@@ -403,7 +403,7 @@ fn get_file_as_byte_vec<P: AsRef<Path>>(filename: P) -> Result<Vec<u8>, std::io:
     let mut f = File::open(&filename)?;
     let metadata = std::fs::metadata(&filename).expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer)?;
+    let _read = f.read(&mut buffer)?;
     Ok(buffer)
 }
 

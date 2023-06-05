@@ -1,8 +1,9 @@
 // Code to handle
 // source level debugging functions
 
-mod error;
 pub mod fileloader;
+
+mod error;
 mod position;
 mod sourcefile;
 mod sourcefiles;

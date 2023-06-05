@@ -38,7 +38,7 @@ impl ScopeTracker {
     }
 
     pub fn pop(&mut self) -> u64 {
-        self.stack.pop().unwrap().clone()
+        self.stack.pop().unwrap()
     }
 }
 

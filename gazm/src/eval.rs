@@ -100,7 +100,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
     let get_sym_value = |name: &str, e| {
         symbols
             .get_symbol_info(name)
-            .and_then(|si| si.value.clone().ok_or(SymbolError::NoValue))
+            .and_then(|si| si.value.ok_or(SymbolError::NoValue))
             .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
             .map_err(|_| EvalError::new(e, n))
     };
@@ -111,7 +111,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
         Label(LabelDefinition::Scoped(id)) => {
             symbols
                 .get_symbol_info_from_id(*id)
-                .and_then(|si| si.value.clone().ok_or(SymbolError::NoValue))
+                .and_then(|si| si.value.ok_or(SymbolError::NoValue))
                 .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
                 .map_err(|_| {
                     // let name = symbols

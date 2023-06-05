@@ -407,21 +407,25 @@ impl<'a> Context<'a> {
         self.st16::<A>(r)
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn lsla_asla<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZVC.bits(), u8::asl);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn lslb_aslb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZVC.bits(), u8::asl);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn asra<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZVC.bits(), u8::asr);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn asrb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZVC.bits(), u8::asr);
         Ok(())
@@ -440,6 +444,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn abx<A: AddressLines>(&mut self) -> CpuResult<()> {
         let x = self.regs.x;
         self.regs.x = x.wrapping_add(u16::from(self.regs.b));
@@ -496,6 +501,7 @@ impl<'a> Context<'a> {
         self.branch::<A>(cond)
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn rts<A: AddressLines>(&mut self) -> CpuResult<()> {
         let pc = self.pop_word(true)?;
         self.set_next_pc(pc as usize);
@@ -596,12 +602,14 @@ impl<'a> Context<'a> {
 
     ////////////////////////////////////////////////////////////////////////////////
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn clra<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.regs.a = 0;
         self.post_clear();
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn clrb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.regs.b = 0;
         self.post_clear();
@@ -656,11 +664,13 @@ impl<'a> Context<'a> {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
+    #[allow(clippy::extra_unused_type_parameters)]
     fn coma<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZVC.bits(), u8::com);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn comb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZVC.bits(), u8::com);
         Ok(())
@@ -672,11 +682,13 @@ impl<'a> Context<'a> {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
+    #[allow(clippy::extra_unused_type_parameters)]
     fn deca<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZV.bits(), u8::dec);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn decb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZV.bits(), u8::dec);
         Ok(())
@@ -688,10 +700,12 @@ impl<'a> Context<'a> {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
+    #[allow(clippy::extra_unused_type_parameters)]
     fn inca<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZV.bits(), u8::inc);
         Ok(())
     }
+    #[allow(clippy::extra_unused_type_parameters)]
     fn incb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZV.bits(), u8::inc);
         Ok(())
@@ -703,11 +717,13 @@ impl<'a> Context<'a> {
 
     ////////////////////////////////////////////////////////////////////////////////
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn lsra<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZC.bits(), u8::lsr);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn lsrb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZC.bits(), u8::lsr);
         Ok(())
@@ -740,6 +756,7 @@ impl<'a> Context<'a> {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
+    #[allow(clippy::extra_unused_type_parameters)]
     fn daa<A: AddressLines>(&mut self) -> CpuResult<()> {
         // fuck sakes
         let a = u32::from(self.regs.a);
@@ -1067,6 +1084,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn mul<A: AddressLines>(&mut self) -> CpuResult<()> {
         let i0 = self.regs.a;
         let i1 = self.regs.b;
@@ -1117,11 +1135,13 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn nega<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZVC.bits(), u8::neg);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn negb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZVC.bits(), u8::neg);
         Ok(())
@@ -1129,6 +1149,7 @@ impl<'a> Context<'a> {
 
     ////////////////////////////////////////////////////////////////////////////////
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn nop<A: AddressLines>(&mut self) -> CpuResult<()> {
         Ok(())
     }
@@ -1139,11 +1160,13 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn rola<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZVC.bits(), u8::rol);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn rolb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZVC.bits(), u8::rol);
         Ok(())
@@ -1155,10 +1178,12 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn rora<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZC.bits(), u8::ror);
         Ok(())
     }
+    #[allow(clippy::extra_unused_type_parameters)]
     fn rorb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZC.bits(), u8::ror);
         Ok(())
@@ -1182,11 +1207,13 @@ impl<'a> Context<'a> {
         self.modb_2::<A>(Flags::NZVC.bits(), u8::sub).map(|_| ())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn tsta<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.moda(Flags::NZV.bits(), u8::tst);
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn tstb<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.modb(Flags::NZV.bits(), u8::tst);
         Ok(())
@@ -1198,6 +1225,7 @@ impl<'a> Context<'a> {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
+    #[allow(clippy::extra_unused_type_parameters)]
     fn sex<A: AddressLines>(&mut self) -> CpuResult<()> {
         if self.regs.b & 0x80 == 0x80 {
             self.regs.a = 0xff;
@@ -1211,6 +1239,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn swi_base<A: AddressLines>(&mut self, vec: usize, flags: Flags) -> CpuResult<()> {
         macro_rules! push8 {
             ($val:expr) => {{
@@ -1269,6 +1298,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn rti<A: AddressLines>(&mut self) -> CpuResult<()> {
         // pop CC
         // regs if E flag is set
@@ -1289,10 +1319,12 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn cwai<A: AddressLines>(&mut self) -> CpuResult<()> {
         self.unimplemented()
     }
 
+    #[allow(clippy::extra_unused_type_parameters)]
     fn sync<A: AddressLines>(&mut self) -> CpuResult<()> {
         // are any of the interrupts disabled or any interrupts asserting?
         if self.regs.flags.intersects(Flags::I | Flags::F) || !self.pins.waiting_for_irq {

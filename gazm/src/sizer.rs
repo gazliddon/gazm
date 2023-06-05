@@ -1,24 +1,22 @@
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
-
 use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
     error::GResult,
     gazm::ScopeTracker,
+    info_mess,
     item::{self, Item, LabelDefinition},
     item6809::{
         AddrModeParseType,
         MC6809::{self, OpCode, SetDp},
     },
     parse::util::{ByteSize, ByteSizes},
-    parse6809::opcodes::get_opcode_info, info_mess,
+    parse6809::opcodes::get_opcode_info,
     symbols::SymbolScopeId,
 };
 
-use emu::{
-    isa::AddrModeEnum,
-};
+use emu::isa::AddrModeEnum;
 
 use std::path::Path;
 
@@ -39,7 +37,6 @@ pub fn size_tree(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
         info_mess!("done");
         Ok(())
     })
-
 }
 
 impl<'a> Sizer<'a> {
@@ -91,8 +88,8 @@ impl<'a> Sizer<'a> {
             &self.get_node(id).value().item
         {
             let current_scope_id = self.scopes.scope();
-            let pmode = pmode.clone();
-            let indirect = indirect.clone();
+            let pmode = *pmode;
+            let indirect = *indirect;
             let text = text.clone();
             let ins = ins.clone();
 
@@ -136,11 +133,8 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode(
-                        text.clone(),
-                        ins.clone(),
-                        AddrModeParseType::Indexed(new_amode, indirect),
-                    );
+                    let new_item =
+                        OpCode(text, ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                     ctx_mut.add_fixup(id, new_item, current_scope_id);
                 }
@@ -160,9 +154,9 @@ impl<'a> Sizer<'a> {
                     };
 
                     let new_item = OpCode(
-                        text.clone(),
-                        ins.clone(),
-                        AddrModeParseType::Indexed(new_amode, indirect).clone(),
+                        text,
+                        ins,
+                        AddrModeParseType::Indexed(new_amode, indirect),
                     );
                     ctx_mut.add_fixup(id, new_item, current_scope_id);
                 }
@@ -350,7 +344,7 @@ impl<'a> Sizer<'a> {
             }
 
             PostFixExpr | WriteBin(..) | IncBinRef(..) | Assignment(..) | Comment(..)
-            | StructDef(..) | MacroDef(..) | MacroCall(..) | Import=> (),
+            | StructDef(..) | MacroDef(..) | MacroCall(..) | Import => (),
 
             _ => {
                 let msg = format!("Unable to size {i:?}");

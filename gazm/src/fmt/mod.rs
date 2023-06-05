@@ -76,7 +76,7 @@ pub fn render_nodes(nodes: &[Node], text: String) -> String {
                 }
 
                 Assignment(name) => {
-                    columns[0] = name.to_string();
+                    columns[0] = name.as_string();
                     columns[1] = format!("equ {}", &text[n.children[0].ctx.range.clone()]);
                 }
 
