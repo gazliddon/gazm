@@ -9,7 +9,7 @@ use crate::{
     node,
     scopes::ScopeBuilder,
     symbols::{
-        SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter,
+        SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter, ScopedName,
     },
 };
 
@@ -18,7 +18,6 @@ use emu::utils::{
     sources::{AsmSource, Position, SourceErrorType, SourceInfo},
 };
 
-use symbols::ScopedName;
 
 use std::collections::HashMap;
 use std::iter;
@@ -798,7 +797,7 @@ impl<'a> Ast<'a> {
     ) -> Result<(), UserError> {
         self.ctx
             .get_symbols_mut()
-            .set_symbol_from_id(symbol_id, val)
+            .set_symbol_for_id(symbol_id, val)
             .map_err(|e| self.sym_to_user_error(e, node_id))
     }
 
@@ -830,7 +829,7 @@ impl<'a> Ast<'a> {
         let symbol_id = self.create_symbol(name, id, scopes)?;
         self.ctx
             .get_symbols_mut()
-            .set_symbol_from_id(symbol_id, value)
+            .set_symbol_for_id(symbol_id, value)
             .map_err(|e| self.sym_to_user_error(e, id))?;
         Ok(symbol_id)
     }

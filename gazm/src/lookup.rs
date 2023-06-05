@@ -3,12 +3,11 @@ use std::collections::HashMap;
 use crate::{
     ast::{iter_refs_recursive, AstNodeId, AstTree},
     item::{Item, LabelDefinition},
-    symbols::{ScopeId, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree},
+    symbols::{ScopeId, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolResolutionBarrier},
 };
 
 use emu::utils::{sources::Position, Stack};
 
-use symbols::SymbolResolutionBarrier;
 
 #[allow(dead_code)]
 pub struct Navigator<'a> {
@@ -46,7 +45,7 @@ impl<'a> Navigator<'a> {
             Ok(())
         } else {
             Err(NavError::SymbolError(
-                symbols::SymbolError::NoValue,
+                crate::symbols::SymbolError::NoValue,
             ))
         }
     }

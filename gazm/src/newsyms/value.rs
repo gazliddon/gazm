@@ -1,7 +1,7 @@
-use emu::utils;
+use emu::utils::eval;
 
-use utils::eval::OperationError;
-use utils::eval::OperationErrorKind;
+use eval::OperationError;
+use eval::OperationErrorKind;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum EvalResultType {}

@@ -3,15 +3,6 @@ use serde::{Deserialize, Serialize};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Traits
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Hash, Copy)]
-pub struct SymbolScopeId<SCOPEID , SYMID >
-where
-    SCOPEID: std::hash::Hash + std::ops::AddAssign<u64>,
-    SYMID: std::hash::Hash,
-{
-    pub scope_id: SCOPEID,
-    pub symbol_id: SYMID,
-}
 
 pub trait ScopeIdTraits:
     std::hash::Hash + std::ops::AddAssign<u64> + std::clone::Clone + std::cmp::Eq + From<u64> + Copy + Default
@@ -25,6 +16,30 @@ pub trait SymIdTraits:
 
 impl ScopeIdTraits for u64 {}
 impl SymIdTraits for u64 {}
+
+////////////////////////////////////////////////////////////////////////////////
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Hash, Copy)]
+pub struct SymbolScopeId<SCOPEID , SYMID >
+where
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    pub scope_id: SCOPEID,
+    pub symbol_id: SYMID,
+}
+
+impl <SCOPEID,SYMID> SymbolScopeId<SCOPEID,SYMID> 
+    where
+
+    SCOPEID: ScopeIdTraits,
+    SYMID: SymIdTraits,
+{
+    pub fn new(scope_id: SCOPEID, symbol_id : SYMID) -> Self {
+        Self {
+            scope_id, symbol_id
+        }
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Holds information about a symbol

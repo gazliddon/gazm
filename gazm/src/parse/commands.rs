@@ -1,8 +1,6 @@
 use lazy_static::lazy_static;
-use thin_vec::{thin_vec, ThinVec};
 use std::{collections::HashMap, path::PathBuf};
-
-use symbols::ScopedName;
+use thin_vec::{thin_vec, ThinVec};
 
 use super::{
     expr::parse_expr,
@@ -15,6 +13,7 @@ use crate::{
     error::IResult,
     item::{Item, Node},
     item6809::MC6809::SetDp,
+    symbols::ScopedName,
 };
 
 use nom::{

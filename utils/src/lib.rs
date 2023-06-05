@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 mod location;
 mod pathsearcher;
-pub mod value;
+// pub mod value;
 pub mod eval;
-pub mod expsymbols;
+// pub mod expsymbols;
 pub mod hash;
 pub mod fileutils;
 pub mod rle;
@@ -13,4 +13,5 @@ pub use location::*;
 pub use stack::*;
 pub use pathsearcher::*;
 
+pub use symbols;
 

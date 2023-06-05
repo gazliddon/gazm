@@ -58,7 +58,7 @@ impl<'a> AsmCtx<'a> {
     ) -> Result<(), SymbolError> {
         self.ctx
             .get_symbols_mut()
-            .set_symbol_from_id(symbol_id, val as i64)
+            .set_symbol_for_id(symbol_id, val as i64)
     }
 
     pub fn add_bin_to_write<P: AsRef<Path>>(

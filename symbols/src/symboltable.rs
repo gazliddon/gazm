@@ -54,6 +54,13 @@ where
     SCOPEID: ScopeIdTraits,
     SYMID: SymIdTraits,
 {
+    pub (crate) fn get_reference_syms(&self) -> &HashMap<String, SymbolScopeId<SCOPEID,SYMID>> {
+        &self.ref_name_to_symbol_id
+    }
+    pub (crate) fn get_syms(&self) -> &HashMap<String, SYMID> {
+        &self.name_to_id
+    }
+
     pub(crate) fn get_symbol_id(
         &self,
         name: &str,

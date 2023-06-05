@@ -19,7 +19,7 @@ use emu::{
 };
 
 
-use symbols::SymbolScopeId;
+use crate::symbols::SymbolScopeId;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {

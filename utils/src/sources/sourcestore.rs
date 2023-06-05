@@ -172,6 +172,7 @@ pub struct SourceDatabase {
     pub exec_addr: Option<usize>,
     pub file_name: PathBuf,
 
+    #[serde(skip)]
     pub symbols: SymbolTree<u64,u64,i64>,
     #[serde(skip)]
     range_to_mapping: HashMap<std::ops::Range<usize>, Mapping>,

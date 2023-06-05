@@ -8,9 +8,8 @@ use emu::{
     utils::sources::Position,
 };
 
-use symbols::ScopedName;
-
 use crate::{
+    symbols::ScopedName,
     ast::AstNodeId,
     error::ParseError,
     item6809::{
