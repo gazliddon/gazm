@@ -12,7 +12,8 @@ use crate::{
         self, AddrModeParseType, IndexParseType,
         MC6809::{self, OpCode, SetDp},
     },
-    messages::{debug_mess, messages},
+    debug_mess,
+    messages::messages,
     regutils::*,
     status_mess, binary::BinaryError,
 };

@@ -1,45 +1,4 @@
-#![allow(unused_imports)]
-#![allow(dead_code)]
-// #![deny(clippy::pedantic)]
-mod asmctx;
-mod ast;
-mod astformat;
-mod async_tokenize;
-mod binary;
-mod cli;
-mod compile;
-mod config;
-mod ctx;
-mod error;
-mod eval;
-mod evaluator;
-mod fixerupper;
-mod fmt;
-mod gazm;
-mod item;
-mod item6809;
-mod lookup;
-mod lsp;
-mod messages;
-mod node;
-mod opts;
-mod parse;
-mod parse6809;
-mod regutils;
-mod scopes;
-mod sections;
-mod sizer;
-mod symbols;
-mod token_store;
-mod tokenize;
-mod vars;
-
-use ::gazm::opts::BinReference;
-use anyhow::{Context, Result};
-use emu::utils::sources::SourceDatabase;
-use error::GResult;
-use messages::{info, messages};
-use opts::{BuildType, Opts};
+use gazm::{fmt,messages,lsp,opts::{BuildType, Opts}, gazm::Assembler,status_mess, info_mess};
 
 static BANNER: &str = r#"
   __ _  __ _ _____ __ ___
@@ -52,7 +11,7 @@ static BANNER: &str = r#"
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::env::{current_dir, set_current_dir};
 
-    let matches = cli::parse();
+    let matches = gazm::cli::parse();
 
     let opts = Opts::from_arg_matches(matches)?;
 
@@ -67,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::set_current_dir(assemble_dir)?;
     }
 
-    let mut asm = gazm::Assembler::new(opts.clone());
+    let mut asm = Assembler::new(opts.clone());
 
     match opts.build_type {
         BuildType::Format => {
