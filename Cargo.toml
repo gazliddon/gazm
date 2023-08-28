@@ -1,5 +1,6 @@
 [workspace]
 members = ["utils", "emu","gazm", "diss"]
+resolver = "2"
 
 [profile.release]
 debug = true
