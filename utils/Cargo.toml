@@ -25,5 +25,5 @@ sha1="*"
 thin-vec="*"
 thiserror="*"
 # symbols = {path = "../symbols"}
-symbols = {path = "../../ploy/crates/symbols"}
+symbols = {path = "../../crates/symbols"}
 

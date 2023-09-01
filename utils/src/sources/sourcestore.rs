@@ -251,18 +251,13 @@ impl SourceDatabase {
         }
 
         let mut ret = Self {
-            source_files: Default::default(),
-            source_file_to_id: Default::default(),
-            mappings: mappings.clone(),
             id_to_source_file,
-            symbols: symbols.clone(),
-            range_to_mapping: Default::default(),
-            addr_to_mapping: Default::default(),
-            phys_addr_to_mapping: Default::default(),
-            loc_to_mapping: Default::default(),
-            bin_written: written.to_vec(),
             exec_addr,
-            file_name: PathBuf::new(),
+            mappings: mappings.clone(),
+            symbols: symbols.clone(),
+            bin_written: written.to_vec(),
+
+            ..Default::default()
         };
 
         ret.post_deserialize();
@@ -272,6 +267,8 @@ impl SourceDatabase {
     pub fn from_json<P: AsRef<Path>>(sym_file: P) -> Result<Self, SourceErrorType> {
         use std::io::ErrorKind;
         let file_name = sym_file.as_ref().to_string_lossy();
+
+        println!("Trying to load {:?}", sym_file.as_ref().to_string_lossy());
 
         let symstr = std::fs::read_to_string(&sym_file).map_err(|e| match e.kind() {
             ErrorKind::NotFound => SourceErrorType::FileNotFound(file_name.to_string()),
