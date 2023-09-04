@@ -15,9 +15,10 @@ use crate::{
 };
 
 use emu::utils::{
-    eval::{to_postfix, GetPriority},
     sources::{AsmSource, Position, SourceErrorType, SourceInfo},
 };
+
+use eval::{to_postfix, GetPriority};
 
 use std::collections::HashMap;
 use std::iter;

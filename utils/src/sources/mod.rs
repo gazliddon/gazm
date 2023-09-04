@@ -2,6 +2,7 @@
 // source level debugging functions
 
 pub mod fileloader;
+pub mod location;
 
 mod error;
 mod position;

@@ -13,7 +13,6 @@ use crate::{
 };
 
 use emu::utils::{
-    eval,
     sources::Position,
     Stack,
 };
