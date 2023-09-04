@@ -70,6 +70,7 @@ pub struct Mapping {
     pub physical_mem_range: std::ops::Range<usize>,
     pub item_type: ItemType,
 }
+
 impl Mapping {
     pub fn contains(&self, addr : usize) -> bool {
         self.physical_mem_range.contains(&addr)
@@ -163,6 +164,7 @@ impl BinToWrite {
         }
     }
 }
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SourceDatabase {
