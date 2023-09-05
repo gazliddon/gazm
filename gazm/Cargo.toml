@@ -32,6 +32,7 @@ tower-lsp = { git = "https://github.com/gazliddon/tower-lsp", version = "*" }
 tryvial="*"
 eval = {path = "../../crates/eval"}
 symbols = {path = "../../crates/symbols"}
+utils = {path = "../utils"}
 
 
 [dev-dependencies]

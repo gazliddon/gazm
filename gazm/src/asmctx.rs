@@ -7,7 +7,7 @@ use crate::{
     ctx::Context,
 };
 
-use emu::utils::sources::{self, BinToWrite, Position};
+use utils::sources::{self, BinToWrite, Position};
 use sources::fileloader::{FileIo, SourceFileLoader};
 use std::path::{Path, PathBuf};
 
@@ -93,7 +93,7 @@ impl<'a> AsmCtx<'a> {
 
     fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
         let path = self.get_expanded_path(path);
-        emu::utils::fileutils::abs_path_from_cwd(path)
+        utils::fileutils::abs_path_from_cwd(path)
     }
 
     pub fn eval_macro_args(&mut self, scope_id: u64, caller_id: AstNodeId, tree: &AstTree) -> bool {

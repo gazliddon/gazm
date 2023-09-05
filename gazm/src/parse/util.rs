@@ -207,7 +207,7 @@ impl ByteSize for i64 {
 #[allow(unused_imports)]
 mod test {
 
-    use emu::utils::sources::AsmSource;
+    use utils::sources::AsmSource;
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};

@@ -135,7 +135,7 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
 #[allow(unused_imports)]
 mod test {
     use super::*;
-    use emu::utils::sources::AsmSource;
+    use utils::sources::AsmSource;
     use pretty_assertions::assert_eq;
 
     #[test]

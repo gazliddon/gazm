@@ -15,8 +15,9 @@ use crate::{
 use emu::{
     cpu::{IndexedFlags, RegEnum},
     isa::Instruction,
-    utils::sources::Position,
 };
+
+use utils::sources::Position;
 
 
 use crate::symbols::SymbolScopeId;

@@ -6,7 +6,7 @@ use crate::{
     gazmsymbols::{ScopeId, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolResolutionBarrier},
 };
 
-use emu::utils::{sources::Position, Stack};
+use utils::{sources::Position, Stack};
 
 
 #[allow(dead_code)]

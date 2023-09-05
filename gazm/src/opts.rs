@@ -18,7 +18,7 @@ use crate::{
     vars::Vars,
 };
 
-use emu::utils::{
+use utils::{
     hash::get_hash,
     sources::{
         fileloader::{FileIo, SourceFileLoader},

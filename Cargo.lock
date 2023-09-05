@@ -445,6 +445,7 @@ dependencies = [
  "rustyline",
  "shellexpand",
  "thiserror",
+ "utils",
 ]
 
 [[package]]
@@ -477,7 +478,6 @@ dependencies = [
  "sha1 0.10.5",
  "sha1 0.5.0",
  "thiserror",
- "utils",
 ]
 
 [[package]]
@@ -694,6 +694,7 @@ dependencies = [
  "toml",
  "tower-lsp",
  "tryvial",
+ "utils",
 ]
 
 [[package]]

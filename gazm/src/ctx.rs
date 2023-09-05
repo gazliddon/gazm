@@ -15,7 +15,7 @@ use crate::{
     gazmsymbols::SymbolTree,
 };
 
-use emu::utils::{
+use utils::{
     hash::get_hash,
     sources::{
         fileloader::{FileIo, SourceFileLoader},

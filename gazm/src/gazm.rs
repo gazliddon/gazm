@@ -5,8 +5,8 @@ use crate::opts::Opts;
 use crate::error::GResult;
 use crate::item::Node;
 
-use emu::utils::sources::{EditResult,  TextEditTrait, SourceLine};
-use emu::utils::{PathSearcher, Stack};
+use utils::sources::{EditResult,  TextEditTrait, SourceLine};
+use utils::{PathSearcher, Stack};
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};

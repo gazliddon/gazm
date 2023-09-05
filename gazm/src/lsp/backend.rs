@@ -8,7 +8,7 @@ use crate::{
 gazmsymbols::{SymbolInfo, SymbolScopeId},
 };
 
-use emu::utils::sources::{AsmSource, Position as GazmPosition, TextEdit, TextPos};
+use utils::sources::{AsmSource, Position as GazmPosition, TextEdit, TextPos};
 
 use std::{
     cmp::max,

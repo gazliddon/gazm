@@ -12,7 +12,7 @@ use crate::{
     gazmsymbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTreeReader},
 };
 
-use emu::utils::{
+use utils::{
     sources::Position,
     Stack,
 };

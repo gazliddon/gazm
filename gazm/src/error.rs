@@ -6,9 +6,9 @@ use crate::{
     parse::locate::{span_to_pos, Span},
 };
 
-use emu::{
-    utils::sources::{EditErrorKind, Position, SourceErrorType, SourceInfo},
-    utils::SearchError,
+use utils::{
+    sources::{EditErrorKind, Position, SourceErrorType, SourceInfo},
+    SearchError,
 };
 
 use thiserror::Error;
@@ -225,7 +225,7 @@ impl UserErrorData {
         }
     }
 
-    pub fn from_parse_error(err: &ParseError, sources: &emu::utils::sources::SourceFiles) -> Self {
+    pub fn from_parse_error(err: &ParseError, sources: &utils::sources::SourceFiles) -> Self {
         let si = sources.get_source_info(&err.pos).unwrap();
 
         Self {
@@ -302,7 +302,7 @@ impl UserError {
         self.data.pretty()
     }
 
-    pub fn from_parse_error(err: &ParseError, sources: &emu::utils::sources::SourceFiles) -> Self {
+    pub fn from_parse_error(err: &ParseError, sources: &utils::sources::SourceFiles) -> Self {
         let data = UserErrorData::from_parse_error(err, sources);
         data.into()
     }

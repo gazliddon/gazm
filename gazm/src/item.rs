@@ -5,20 +5,21 @@ use thin_vec::ThinVec;
 use emu::{
     cpu::{IndexedFlags, RegEnum},
     isa::Instruction,
-    utils::sources::Position,
 };
 
+use utils::sources::Position;
+
 use crate::{
-    symbols::ScopedName,
     ast::AstNodeId,
     error::ParseError,
+    gazmsymbols::SymbolScopeId,
     item6809::{
         self,
         MC6809::{self, OpCode, SetDp},
     },
     node::{BaseNode, CtxTrait},
     parse::locate::{span_to_pos, Span},
-    gazmsymbols::SymbolScopeId,
+    symbols::ScopedName,
 };
 
 impl<'a> CtxTrait for Span<'a> {}

@@ -6,7 +6,7 @@ use crate::item::{Item, Node};
 use crate::parse::locate::{span_to_pos, Span};
 use crate::tokenize::Tokens;
 
-use emu::utils::{sources, PathSearcher, Stack};
+use utils::{sources, PathSearcher, Stack};
 use sources::{AsmSource, Position};
 
 use itertools::Itertools;
