@@ -12,7 +12,7 @@ use crate::{
     status_err,
     token_store::TokenStore,
     vars::Vars,
-    symbols::SymbolTree,
+    gazmsymbols::SymbolTree,
 };
 
 use emu::utils::{

@@ -4,9 +4,9 @@ use crate::{
     ast::{AstNodeId, AstNodeRef},
     ctx::Context,
     error::{GResult, UserError},
-    eval::eval,
+    gazmeval::eval,
     item::Item::*,
-    symbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTree},
+    gazmsymbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTree},
 };
 
 impl Context {
@@ -78,11 +78,11 @@ impl Context {
 
         eval(&reader, node).map_err(|err| {
             let e = match &err.source {
-                crate::eval::EvalErrorEnum::SymbolNotFoud(name) => {
+                crate::gazmeval::EvalErrorEnum::SymbolNotFoud(name) => {
                     let scope = self.get_symbols().get_fqn_from_id(current_scope_id);
                     let mut err = err.clone();
                     err.source =
-                        crate::eval::EvalErrorEnum::SymbolNotFoud(format!("{scope}::{name}"));
+                        crate::gazmeval::EvalErrorEnum::SymbolNotFoud(format!("{scope}::{name}"));
                     UserError::from_ast_error(err.into(), &info)
                 }
                 _ => UserError::from_ast_error(err.into(), &info),

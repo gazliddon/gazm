@@ -30,7 +30,9 @@ tokio-util = { version = "*", optional = true, features = ["codec"] }
 toml="*"
 tower-lsp = { git = "https://github.com/gazliddon/tower-lsp", version = "*" }
 tryvial="*"
-eval = {path = "../crates/eval"}
+eval = {path = "../../crates/eval"}
+symbols = {path = "../../crates/symbols"}
+
 
 [dev-dependencies]
 criterion = "0.3"

@@ -2,9 +2,9 @@ use crate::{
     ast::{AstNodeId, AstNodeRef, AstTree},
     error::GResult,
     item::Item,
-    symbols::{self, SymbolError, SymbolScopeId},
+    gazmsymbols::{self, SymbolError, SymbolScopeId},
     {binary, fixerupper::FixerUpper},
-ctx::Context,
+    ctx::Context,
 };
 
 use emu::utils::sources::{self, BinToWrite, Position};

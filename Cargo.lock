@@ -686,6 +686,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "simple-logging",
+ "symbols",
  "thin-vec",
  "thiserror",
  "tokio",

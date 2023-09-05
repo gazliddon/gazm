@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     ast::{iter_refs_recursive, AstNodeId, AstTree},
     item::{Item, LabelDefinition},
-    symbols::{ScopeId, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolResolutionBarrier},
+    gazmsymbols::{ScopeId, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolResolutionBarrier},
 };
 
 use emu::utils::{sources::Position, Stack};

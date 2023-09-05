@@ -24,5 +24,5 @@ serde_yaml = "*"
 sha1="*"
 thin-vec="*"
 thiserror="*"
-symbols = {path = "../crates/symbols", features=["serde_support"]}
+symbols = {path = "../../crates/symbols", features=["serde_support"]}
 

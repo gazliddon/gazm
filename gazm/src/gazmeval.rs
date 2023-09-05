@@ -9,7 +9,7 @@ use crate::{
     error::{AstError, UserError},
     item::{Item, LabelDefinition, ParsedFrom},
     item6809::MC6809,
-    symbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTreeReader},
+    gazmsymbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTreeReader},
 };
 
 use emu::utils::{

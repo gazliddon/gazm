@@ -1,14 +1,14 @@
 use crate::{
     ctx::Context,
     error::{AstError, UserError},
-    eval::{EvalError, EvalErrorEnum},
+    gazmeval::{EvalError, EvalErrorEnum},
     gazm::ScopeTracker,
     info_mess,
     item::{Item, LabelDefinition, Node},
     messages::*,
     node,
     scopes::ScopeBuilder,
-    symbols::{
+    gazmsymbols::{
         ScopedName, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader,
         SymbolTreeWriter,
     },
@@ -465,7 +465,7 @@ impl<'a> Ast<'a> {
     }
 
     fn eval_node(&self, id: AstNodeId, current_scope_id: u64) -> Result<i64, UserError> {
-        use super::eval::eval;
+        use super::gazmeval::eval;
         let node = self.tree.get(id).unwrap();
         let item = &node.value().item;
         let err = |m| self.node_error(m, id, true);
@@ -693,7 +693,7 @@ impl<'a> Ast<'a> {
 
     fn evaluate_assignments(&mut self) -> Result<(), UserError> {
         info("Evaluating assignments", |_| {
-            use super::eval::eval;
+            use super::gazmeval::eval;
             use Item::*;
 
             let mut scopes = self.get_root_scope_tracker();

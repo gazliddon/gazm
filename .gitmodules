@@ -1,3 +1,0 @@
-[submodule "crates"]
-	path = crates
-	url = git@github.com:/gazliddon/crates.git

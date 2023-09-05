@@ -5,7 +5,7 @@ use crate::{
     gazm::{with_state, Assembler},
     lookup::LabelUsageAndDefintions,
     opts::Opts,
-    symbols::{SymbolInfo, SymbolScopeId},
+gazmsymbols::{SymbolInfo, SymbolScopeId},
 };
 
 use emu::utils::sources::{AsmSource, Position as GazmPosition, TextEdit, TextPos};

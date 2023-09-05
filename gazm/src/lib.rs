@@ -12,7 +12,7 @@ pub mod compile;
 pub mod config;
 pub mod ctx;
 pub mod error;
-pub mod eval;
+pub mod gazmeval;
 pub mod evaluator;
 pub mod fixerupper;
 pub mod fmt;
@@ -21,7 +21,7 @@ pub mod item;
 pub mod lookup;
 pub mod lsp;
 pub mod messages;
-pub mod symbols;
+pub mod gazmsymbols;
 pub mod node;
 pub mod parse;
 pub mod regutils;
@@ -32,4 +32,9 @@ pub mod token_store;
 pub mod tokenize;
 pub mod vars;
 pub mod opts;
+
+// Re-exports
+pub use symbols;
+pub use eval;
+
 

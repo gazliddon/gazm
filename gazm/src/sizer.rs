@@ -13,7 +13,7 @@ use crate::{
     },
     parse::util::{ByteSize, ByteSizes},
     parse6809::opcodes::get_opcode_info,
-    symbols::SymbolScopeId,
+    gazmsymbols::SymbolScopeId,
 };
 
 use emu::isa::AddrModeEnum;
