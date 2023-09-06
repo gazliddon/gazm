@@ -3,6 +3,7 @@
 mod commands;
 mod diss;
 mod term;
+use gazm::emu;
 use emu::{cpu::CpuErr, mem::MemBlock};
 use thiserror::Error;
 

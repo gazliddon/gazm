@@ -1,5 +1,7 @@
 use anyhow::Context;
 use clap::{Arg, Command};
+use gazm::emu;
+
 use emu::cpu::{IndexModes, IndexedFlags, InstructionDecoder};
 use emu::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo, InstructionType};
 use emu::mem::MemReader;

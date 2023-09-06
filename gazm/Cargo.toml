@@ -9,7 +9,6 @@ anyhow="*"
 clap = { version = "3.1.5", features = ["derive", "color"] }
 colored = "*"
 ego-tree="*"
-emu = {path = "../emu6809"}
 env_logger="*"
 itertools="*"
 lazy_static = "*"
@@ -30,8 +29,11 @@ tokio-util = { version = "*", optional = true, features = ["codec"] }
 toml="*"
 tower-lsp = { git = "https://github.com/gazliddon/tower-lsp", version = "*" }
 tryvial="*"
+
 eval = {path = "../../crates/eval"}
+emu = {path = "../../crates/emu6809"}
 symbols = {path = "../../crates/symbols"}
+
 utils = {path = "../utils"}
 
 

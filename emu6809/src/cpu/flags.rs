@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 
 bitflags::bitflags! {
@@ -44,7 +43,7 @@ impl Flags {
         self.bits = val
     }
 
-    pub fn set_w_mask(&mut self, mask: u8, val: u8) {
+    pub fn write_with_mask(&mut self, mask: u8, val: u8) {
         self.bits = (self.bits & !mask) | (val & mask)
     }
 

@@ -435,7 +435,6 @@ dependencies = [
  "clap 3.2.25",
  "colored",
  "ego-tree",
- "emu",
  "gazm",
  "lazy_static",
  "nom",

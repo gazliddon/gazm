@@ -67,7 +67,7 @@ pub fn nzvch<T: GazAlu>(f: &mut Flags, write_mask: u8, a: u32, b: u32, r: u32) -
         | get_carry::<T>(a, b, r)
         | get_half::<T>(a, b, r);
 
-    f.set_w_mask(write_mask & my_mask, new_bits);
+    f.write_with_mask(write_mask & my_mask, new_bits);
 
     T::from_u32(r)
 }
@@ -77,7 +77,7 @@ pub fn nzv<T: GazAlu>(f: &mut Flags, write_mask: u8, a: u32, b: u32, r: u32) -> 
 
     let new_bits = get_negative::<T>(r) | get_zero::<T>(r) | get_overflow::<T>(a, b, r);
 
-    f.set_w_mask(write_mask & my_mask, new_bits);
+    f.write_with_mask(write_mask & my_mask, new_bits);
 
     T::from_u32(r)
 }
@@ -85,7 +85,7 @@ pub fn nzv<T: GazAlu>(f: &mut Flags, write_mask: u8, a: u32, b: u32, r: u32) -> 
 pub fn nz<T: GazAlu>(f: &mut Flags, write_mask: u8, r: u32) -> T {
     let write_mask = (Flags::N | Flags::Z).bits() & write_mask;
 
-    f.set_w_mask(write_mask, get_negative::<T>(r) | get_zero::<T>(r));
+    f.write_with_mask(write_mask, get_negative::<T>(r) | get_zero::<T>(r));
 
     T::from_u32(r)
 }
@@ -106,7 +106,7 @@ pub trait GazAlu:
     }
 
     fn eor(f: &mut Flags, write_mask: u8, a: u32, b: u32) -> Self {
-        f.set_w_mask(write_mask, 0);
+        f.write_with_mask(write_mask, 0);
 
         let r = a ^ b;
 
@@ -118,7 +118,7 @@ pub trait GazAlu:
 
         let v = r == (Self::mask() >> 1) || r == Self::mask();
 
-        f.set_w_mask(write_mask, a_or_b(v, Flags::V.bits(), 0));
+        f.write_with_mask(write_mask, a_or_b(v, Flags::V.bits(), 0));
 
         nz::<Self>(f, write_mask, r);
 
@@ -129,7 +129,7 @@ pub trait GazAlu:
         let r = a.wrapping_add(1) & Self::mask();
         let v = (r == 0) || r == Self::hi_bit_mask();
 
-        f.set_w_mask(write_mask, a_or_b(v, Flags::V.bits(), 0));
+        f.write_with_mask(write_mask, a_or_b(v, Flags::V.bits(), 0));
 
         nz::<Self>(f, write_mask, r);
 
@@ -156,7 +156,7 @@ pub trait GazAlu:
     }
 
     fn tst(f: &mut Flags, write_mask: u8, a: u32) -> Self {
-        f.set_w_mask(write_mask, 0);
+        f.write_with_mask(write_mask, 0);
         nz::<Self>(f, write_mask, a)
     }
 
@@ -166,7 +166,7 @@ pub trait GazAlu:
         let c_bits = a_or_b(test_negative::<Self>(a), Flags::C.bits(), 0);
         let v_bits = a_or_b(test_negative::<Self>(a ^ r), Flags::V.bits(), 0);
 
-        f.set_w_mask(write_mask, v_bits | c_bits);
+        f.write_with_mask(write_mask, v_bits | c_bits);
         nz::<Self>(f, write_mask, r)
     }
 
@@ -183,7 +183,7 @@ pub trait GazAlu:
 
     fn and(f: &mut Flags, write_mask: u8, a: u32, b: u32) -> Self {
         let r = a & b;
-        f.set_w_mask(write_mask, 0);
+        f.write_with_mask(write_mask, 0);
         nz::<Self>(f, write_mask, r)
     }
 
@@ -200,7 +200,7 @@ pub trait GazAlu:
         new_f.set(Flags::N, n);
         new_f.set(Flags::Z, z);
 
-        f.set_w_mask(write_mask, new_f.bits());
+        f.write_with_mask(write_mask, new_f.bits());
 
         Self::from_u32(r)
     }
@@ -210,20 +210,20 @@ pub trait GazAlu:
 
         let cbits = a_or_b(true_false(&(r & 0x80)), Flags::C.bits(), 0);
 
-        f.set_w_mask(write_mask, cbits);
+        f.write_with_mask(write_mask, cbits);
         nz::<Self>(f, write_mask, r)
     }
 
     fn lsr(f: &mut Flags, write_mask: u8, a: u32) -> Self {
         let cbits = a_or_b(true_false(&(a & 1)), Flags::C.bits(), 0);
 
-        f.set_w_mask(write_mask & Flags::C.bits(), cbits);
+        f.write_with_mask(write_mask & Flags::C.bits(), cbits);
 
         nz::<Self>(f, write_mask, a >> 1)
     }
 
     fn or(f: &mut Flags, write_mask: u8, a: u32, b: u32) -> Self {
-        f.set_w_mask(write_mask, 0);
+        f.write_with_mask(write_mask, 0);
         nz::<Self>(f, write_mask, a | b)
     }
 
@@ -242,7 +242,7 @@ pub trait GazAlu:
 
         fl |= get_zero::<Self>(r);
 
-        f.set_w_mask(write_mask, fl);
+        f.write_with_mask(write_mask, fl);
 
         Self::from_u32(r)
     }
@@ -260,7 +260,7 @@ pub trait GazAlu:
             new_bits |= Flags::V.bits();
         }
 
-        f.set_w_mask(write_mask, new_bits);
+        f.write_with_mask(write_mask, new_bits);
 
         nz::<Self>(f, write_mask, r)
     }
@@ -274,7 +274,7 @@ pub trait GazAlu:
 
         let r = a >> 1 | a_or_b(f.contains(Flags::C), Self::hi_bit_mask(), 0);
 
-        f.set_w_mask(write_mask, new_bits);
+        f.write_with_mask(write_mask, new_bits);
 
         nz::<Self>(f, write_mask, r)
     }
