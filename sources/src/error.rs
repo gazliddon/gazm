@@ -1,4 +1,3 @@
-
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum SourceErrorType {
     #[error("Sort this out gaz")]
