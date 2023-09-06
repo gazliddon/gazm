@@ -1,12 +1,12 @@
 use gazm::{fmt,messages,lsp,opts::{BuildType, Opts}, gazm::Assembler,status_mess, info_mess};
 
-static BANNER: &str = r#"
+static BANNER: &str = r"
   __ _  __ _ _____ __ ___
  / _` |/ _` |_  / '_ ` _ \
 | (_| | (_| |/ /| | | | | |
  \__, |\__,_/___|_| |_| |_|
  |___/ 6898 Assembler
-"#;
+";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::env::{current_dir, set_current_dir};
