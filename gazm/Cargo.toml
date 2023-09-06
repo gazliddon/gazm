@@ -9,7 +9,7 @@ anyhow="*"
 clap = { version = "3.1.5", features = ["derive", "color"] }
 colored = "*"
 ego-tree="*"
-emu = {path = "../emu"}
+emu = {path = "../emu6809"}
 env_logger="*"
 itertools="*"
 lazy_static = "*"
