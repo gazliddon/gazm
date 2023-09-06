@@ -8,10 +8,8 @@ edition = "2021"
 [dependencies]
 lazy_static = "1.4.0"
 pretty_assertions="*"
-# emu = {path = "../../crates/emu6809"}
 clap = { version = "3.1.5", features = ["derive", "color"] }
 gazm = {path = "../gazm"}
-utils = {path="../utils"}
 colored = "2"
 ego-tree="*"
 anyhow="*"

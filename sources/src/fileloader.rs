@@ -1,5 +1,5 @@
 use super::{SourceFiles, SourceFile};
-use crate::pathsearcher::{PathSearcher, Paths, SearchError};
+use utils::{PathSearcher, Paths, SearchError};
 
 use std::collections::HashSet;
 use std::fs;
@@ -23,8 +23,8 @@ impl Default for SourceFileLoader {
 }
 
 pub trait FileIo: PathSearcher {
-    fn mk_error(&self, e: crate::pathsearcher::SearchError) -> anyhow::Error {
-        use crate::pathsearcher::SearchError::*;
+    fn mk_error(&self, e: utils::SearchError) -> anyhow::Error {
+        use utils::SearchError::*;
 
         match e {
             FileNotFound(f, v) => {
@@ -60,7 +60,7 @@ pub trait FileIo: PathSearcher {
             .map_err(|e| self.mk_error(e))?;
 
         let ret = fs::read_to_string(path.clone())?;
-        let abs_path = crate::fileutils::abs_path_from_cwd(&path);
+        let abs_path = utils::fileutils::abs_path_from_cwd(&path);
         self.add_to_files_read(abs_path);
         Ok((path, ret))
     }
@@ -90,7 +90,7 @@ pub trait FileIo: PathSearcher {
              "Can't write bin file {}", path.to_string_lossy() 
                 ));
 
-        let abs_path = crate::fileutils::abs_path_from_cwd(&path);
+        let abs_path = utils::fileutils::abs_path_from_cwd(&path);
 
         self.add_to_files_written(abs_path);
 

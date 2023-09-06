@@ -211,7 +211,7 @@ mod test {
 
     use emu::cpu::RegEnum;
     use pretty_assertions::{assert_eq, assert_ne};
-    use utils::sources::Position;
+    use sources::Position;
 
     use super::*;
 

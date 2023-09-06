@@ -1,4 +1,3 @@
-use utils::symbols;
 
 pub type ScopeId = u64;
 pub type SymbolId = u64;

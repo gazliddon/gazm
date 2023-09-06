@@ -1,5 +1,5 @@
 [workspace]
-members = ["utils","gazm", "diss"]
+members = ["sources","gazm", "diss"]
 resolver = "2"
 
 [profile.release]

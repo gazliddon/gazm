@@ -141,7 +141,7 @@ use emu::{
     mem::{MemReader, MemoryIO},
 };
 
-use utils::rle::Run;
+use gazm::utils::rle::Run;
 use gazm::{parse::commands::parse_command, parse::numbers::*};
 use nom_locate::LocatedSpan;
 
@@ -202,7 +202,7 @@ fn do_command(dbg_ctx: &mut DebugCtx, text: &str, x: commands::Command, sg: &mut
         Command::LoadSym(file) => {
             println!("Loading {}", file.to_string_lossy());
 
-            let sd = utils::sources::SourceDatabase::from_json(file);
+            let sd = gazm::sources::SourceDatabase::from_json(file);
 
             match sd {
                 Ok(sd) => {

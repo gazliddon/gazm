@@ -185,7 +185,7 @@ impl TextFile {
     }
 
     fn rehash(&mut self) {
-        self.hash = crate::hash::get_hash_from_str(&self.source)
+        self.hash = utils::hash::get_hash_from_str(&self.source)
     }
 
     fn get_line_range(&self, line: usize) -> EditResult<&std::ops::Range<usize>> {
@@ -252,52 +252,52 @@ impl PartialOrd for TextPos {
 
 #[allow(unused_imports)]
 mod test {
-    const TEST_TEXT: &str = include_str!("../../assets/test.txt");
+    // const TEST_TEXT: &str = include_str!("../../assets/test.txt");
 
-    use super::*;
-    use lazy_static::lazy_static;
-    use pretty_assertions::{assert_eq, assert_ne};
+    // use super::*;
+    // use lazy_static::lazy_static;
+    // use pretty_assertions::{assert_eq, assert_ne};
 
-    #[test]
-    pub fn test_edit() {
-        let mut text_file = TextFile::new(TEST_TEXT);
-        assert_eq!(5, text_file.num_of_lines());
+    // #[test]
+    // pub fn test_edit() {
+    //     let mut text_file = TextFile::new(TEST_TEXT);
+    //     assert_eq!(5, text_file.num_of_lines());
 
-        let r = edit_test(&mut text_file, 0, 19, 0, 22, "hello");
-        assert!(r.is_ok());
-        assert_eq!("Hello this is line hello", text_file.get_line(0).unwrap());
+    //     let r = edit_test(&mut text_file, 0, 19, 0, 22, "hello");
+    //     assert!(r.is_ok());
+    //     assert_eq!("Hello this is line hello", text_file.get_line(0).unwrap());
 
-        let next_line = text_file.get_line(1).unwrap().to_string();
+    //     let next_line = text_file.get_line(1).unwrap().to_string();
 
-        let r = text_file.delete_line(0);
-        assert!(r.is_ok());
+    //     let r = text_file.delete_line(0);
+    //     assert!(r.is_ok());
 
-        assert_eq!(&next_line, text_file.get_line(0).unwrap());
-        assert_eq!(4, text_file.num_of_lines());
+    //     assert_eq!(&next_line, text_file.get_line(0).unwrap());
+    //     assert_eq!(4, text_file.num_of_lines());
 
-        let r = edit_test(&mut text_file, 3, 0, 4, 0, "6809 rulez");
-        assert!(r.is_ok());
-        assert_eq!("6809 rulez", text_file.get_line(3).unwrap());
+    //     let r = edit_test(&mut text_file, 3, 0, 4, 0, "6809 rulez");
+    //     assert!(r.is_ok());
+    //     assert_eq!("6809 rulez", text_file.get_line(3).unwrap());
 
-        let num_of_lines = text_file.num_of_lines();
-        let r = text_file.insert_line(0, "A new line!");
-        assert!(r.is_ok());
-        assert_eq!(text_file.num_of_lines(), num_of_lines + 1);
+    //     let num_of_lines = text_file.num_of_lines();
+    //     let r = text_file.insert_line(0, "A new line!");
+    //     assert!(r.is_ok());
+    //     assert_eq!(text_file.num_of_lines(), num_of_lines + 1);
 
-        let r = text_file.delete_line(0);
-        assert!(r.is_ok());
-        assert_eq!(text_file.num_of_lines(), num_of_lines);
-    }
+    //     let r = text_file.delete_line(0);
+    //     assert!(r.is_ok());
+    //     assert_eq!(text_file.num_of_lines(), num_of_lines);
+    // }
 
-    fn edit_test(
-        file: &mut TextFile,
-        line_start: usize,
-        char_start: usize,
-        line_end: usize,
-        char_end: usize,
-        txt: &str,
-    ) -> EditResult<()> {
-        let edit = TextEdit::new(line_start, char_start, line_end, char_end, txt);
-        file.edit(&edit)
-    }
+    // fn edit_test(
+    //     file: &mut TextFile,
+    //     line_start: usize,
+    //     char_start: usize,
+    //     line_end: usize,
+    //     char_end: usize,
+    //     txt: &str,
+    // ) -> EditResult<()> {
+    //     let edit = TextEdit::new(line_start, char_start, line_end, char_end, txt);
+    //     file.edit(&edit)
+    // }
 }

@@ -6,7 +6,8 @@ use crate::{
     gazmsymbols::{ScopeId, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolResolutionBarrier},
 };
 
-use utils::{sources::Position, Stack};
+use utils::Stack;
+use sources::Position;
 
 
 #[allow(dead_code)]

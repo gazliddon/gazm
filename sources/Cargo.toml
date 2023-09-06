@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "sources"
 version = "0.2.0"
 authors = ["Gaz Liddon"]
 edition = "2021"
@@ -25,4 +25,5 @@ sha1="*"
 thin-vec="*"
 thiserror="*"
 symbols = {path = "../../crates/symbols", features=["serde_support"]}
+utils = {path = "../../crates/utils"}
 

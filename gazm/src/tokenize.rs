@@ -30,7 +30,7 @@ use crate::{
 
 };
 
-use utils::sources::Position;
+use sources::Position;
 
 fn get_line_cut(input: Span) -> IResult<Span> {
     cut(get_line)(input)

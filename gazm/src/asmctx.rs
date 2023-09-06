@@ -7,7 +7,7 @@ use crate::{
     ctx::Context,
 };
 
-use utils::sources::{self, BinToWrite, Position};
+use sources::{self, BinToWrite, Position};
 use sources::fileloader::{FileIo, SourceFileLoader};
 use std::path::{Path, PathBuf};
 

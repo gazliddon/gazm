@@ -37,5 +37,7 @@ pub mod opts;
 pub use symbols;
 pub use eval;
 pub use emu;
+pub use utils;
+pub use sources;
 
 

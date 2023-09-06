@@ -7,7 +7,7 @@ use crate::{
     lookup::LabelUsageAndDefintions,
     lsp::LspConfig,
     status_mess,
-    messages::{Verbosity},
+    messages::Verbosity,
     opts::{BinReference, Opts},
     status_err,
     token_store::TokenStore,
@@ -17,13 +17,13 @@ use crate::{
 
 use utils::{
     hash::get_hash,
-    sources::{
+    PathSearcher,
+};
+use sources::{
         fileloader::{FileIo, SourceFileLoader},
         AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
         SourceFiles, SourceMapping, TextEditTrait,
-    },
-    PathSearcher,
-};
+    };
 
 use anyhow::{Context as AnyContext, Result};
 use itertools::Itertools;

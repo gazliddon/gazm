@@ -11,22 +11,18 @@ use crate::{
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     lookup::LabelUsageAndDefintions,
     lsp::LspConfig,
-    status_mess,
     messages::Verbosity,
-    status_err,
+    status_err, status_mess,
     token_store::TokenStore,
     vars::Vars,
 };
-
-use utils::{
-    hash::get_hash,
-    sources::{
-        fileloader::{FileIo, SourceFileLoader},
-        AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
-        SourceFiles, SourceMapping, TextEditTrait,
-    },
-    PathSearcher,
+use sources::{
+    fileloader::{FileIo, SourceFileLoader},
+    AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
+    SourceFiles, SourceMapping, TextEditTrait,
 };
+
+use utils::{hash::get_hash, PathSearcher};
 
 use anyhow::{Context as AnyContext, Result};
 use itertools::Itertools;

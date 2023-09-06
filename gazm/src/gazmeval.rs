@@ -7,15 +7,13 @@ use std::fmt::Display;
 use crate::{
     ast::{AstNodeId, AstNodeRef},
     error::{AstError, UserError},
+    gazmsymbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTreeReader},
     item::{Item, LabelDefinition, ParsedFrom},
     item6809::MC6809,
-    gazmsymbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTreeReader},
 };
 
-use utils::{
-    sources::Position,
-    Stack,
-};
+use sources::Position;
+use utils::Stack;
 
 use thiserror::Error;
 
