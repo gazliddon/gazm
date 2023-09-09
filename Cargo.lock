@@ -1180,12 +1180,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quick-error"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
-
-[[package]]
 name = "quote"
 version = "1.0.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1450,7 +1444,6 @@ dependencies = [
  "path-clean",
  "pathdiff",
  "pretty_assertions",
- "quick-error",
  "regex",
  "serde",
  "serde_json",
@@ -1841,7 +1834,6 @@ dependencies = [
  "path-clean",
  "pathdiff",
  "pretty_assertions",
- "quick-error",
  "regex",
  "serde",
  "serde_json",
