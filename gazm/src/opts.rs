@@ -56,6 +56,7 @@ pub struct CheckSum {
 pub struct Opts {
     pub assemble_dir: Option<PathBuf>,
     pub verbose: Verbosity,
+    pub source_mapping: Option<String>,
     pub syms_file: Option<String>,
     pub trailing_comments: bool,
     pub star_comments: bool,
@@ -93,7 +94,7 @@ impl Default for Opts {
         Self {
             assemble_dir: Default::default(),
             verbose: Verbosity::Silent,
-            syms_file: Default::default(),
+            source_mapping: Default::default(),
             trailing_comments: false,
             star_comments: false,
             ignore_relative_offset_errors: false,
@@ -113,6 +114,7 @@ impl Default for Opts {
             lsp_config: Default::default(),
             do_includes: true,
             no_async: false,
+            syms_file: None,
         }
     }
 }

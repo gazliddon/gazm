@@ -4,31 +4,25 @@ use crate::{
     async_tokenize::TokenizeResult,
     binary::{self, AccessType, BinRef, Binary},
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
+    gazmsymbols::{Serializable, SymbolTree},
     lookup::LabelUsageAndDefintions,
     lsp::LspConfig,
-    status_mess,
     messages::Verbosity,
     opts::{BinReference, Opts},
-    status_err,
+    status_err, status_mess,
     token_store::TokenStore,
     vars::Vars,
-    gazmsymbols::SymbolTree,
 };
 
-use utils::{
-    hash::get_hash,
-    PathSearcher,
-};
 use sources::{
-        fileloader::{FileIo, SourceFileLoader},
-        AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
-        SourceFiles, SourceMapping, TextEditTrait,
-    };
+    fileloader::{FileIo, SourceFileLoader},
+    AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
+    SourceFiles, SourceMapping, TextEditTrait,
+};
 
+use utils::{hash::get_hash, PathSearcher};
 use anyhow::{Context as AnyContext, Result};
 use itertools::Itertools;
-use serde::Deserialize;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String {
@@ -252,18 +246,27 @@ impl Context {
         self.write_bin_chunks()?;
         self.checksum_report();
         self.write_lst_file()?;
+        self.write_source_mapping()?;
         self.write_sym_file()?;
         self.write_deps_file()?;
-
         Ok(())
+    }
+
+    fn write_file<P: AsRef<Path>>(&mut self, p: P, txt: &str) -> GResult<String> {
+        let full_file_name = self.get_vars().expand_vars(p.as_ref().to_string_lossy());
+        std::fs::write(&full_file_name, txt)
+            .with_context(|| format!("Unable to write {full_file_name}"))?;
+        Ok(full_file_name)
     }
 
     pub fn write_lst_file(&mut self) -> GResult<()> {
         if let Some(lst_file) = &self.opts.lst_file {
             let lst_file = self.get_vars().expand_vars(lst_file);
+
             use std::fs;
 
             let text = self.asm_out.lst_file.lines.join("\n");
+
             fs::write(&lst_file, text)
                 .with_context(|| format!("Unable to write list file {lst_file}"))?;
             status_mess!("Written lst file {lst_file}");
@@ -276,7 +279,9 @@ impl Context {
         if let Some(ast_file) = &self.opts.ast_file {
             let ast_file = self.get_vars().expand_vars(ast_file.to_string_lossy());
             status_mess!("Writing ast: {}", ast_file);
+
             status_err!("Not done!");
+
             if let Some(ast) = &self.asm_out.ast {
                 let x = astformat::as_string(ast.root());
                 println!("{x}");
@@ -286,9 +291,10 @@ impl Context {
         }
         Ok(())
     }
+
     pub fn write_deps_file(&mut self) -> GResult<()> {
         if let Some(deps) = &self.opts.deps_file {
-            if let Some(sym_file) = &self.opts.syms_file {
+            if let Some(sym_file) = &self.opts.source_mapping {
                 let sym_file = self.get_vars().expand_vars(sym_file);
                 let sf = self.get_source_file_loader();
                 let read = join_paths(sf.get_files_read().iter(), " \\\n");
@@ -307,16 +313,27 @@ impl Context {
     }
 
     pub fn write_sym_file(&mut self) -> GResult<()> {
-        if let Some(sym_file) = &self.opts.syms_file {
+        if let Some(syms_file) = &self.opts.syms_file {
+            let serialized: Serializable = self.get_symbols().into();
+            let json_text = serde_json::to_string_pretty(&serialized).unwrap();
+            let file_name = self.write_file(syms_file.clone(), &json_text)?;
+            status_mess!("Writen symbols file: {}", file_name);
+        }
+
+        Ok(())
+    }
+
+    pub fn write_source_mapping(&mut self) -> GResult<()> {
+        if let Some(sym_file) = &self.opts.source_mapping {
             let sym_file = self.get_vars().expand_vars(sym_file);
             let sd: SourceDatabase = (&*self).into();
-            status_mess!("Writing symbols: {}", &sym_file);
-
-            sd.write_json(&sym_file)
+            let file_name = sd
+                .write_json(&sym_file)
                 .with_context(|| format!("Unable to write {sym_file}"))?;
-        } else {
-            status_mess!("No syms!");
+
+            status_mess!("Written source mappings {file_name}");
         }
+
         Ok(())
     }
 

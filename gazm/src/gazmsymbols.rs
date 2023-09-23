@@ -11,4 +11,6 @@ pub type SymbolTreeWriter<'a> = symbols::symboltreewriter::SymbolTreeWriter<'a,S
 pub type SymbolTreeReader<'a> = symbols::symboltreereader::SymbolTreeReader<'a,ScopeId,SymbolId,SymValue>;
 pub type SymbolTree = symbols::SymbolTree<ScopeId,SymbolId,SymValue>;
 
+pub type Serializable = symbols::serialize::Seriablizable<ScopeId,SymbolId,SymValue>;
+
 pub use symbols::prelude::{ SymbolResolutionBarrier, ScopedName };

@@ -112,7 +112,7 @@ impl Opts {
             Some(("asm", m)) => {
                 let mut opts = Opts {
                     deps_file: m.value_of("deps").map(String::from),
-                    syms_file: m.value_of("symbol-file").map(String::from),
+                    source_mapping: m.value_of("source-mapping").map(String::from),
                     as6809_lst: m.value_of("as6809-lst").map(String::from),
                     as6809_sym: m.value_of("as6809-sym").map(String::from),
                     trailing_comments: m.is_present("trailing-comments"),
