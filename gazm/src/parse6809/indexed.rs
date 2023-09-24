@@ -208,7 +208,7 @@ pub fn parse_indexed(input: Span) -> IResult<Node> {
 #[allow(unused_imports)]
 mod test {
     use super::*;
-    use emu::cpu::RegEnum::*;
+    use emu6809::cpu::RegEnum::*;
     use nom::combinator::{all_consuming, opt, recognize};
     use nom::multi::many0_count;
     use pretty_assertions::{assert_eq, assert_ne};

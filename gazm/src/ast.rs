@@ -16,7 +16,7 @@ use crate::{
 
 use sources::{AsmSource, Position, SourceErrorType, SourceInfo} ;
 
-use eval::{to_postfix, GetPriority};
+use grl_eval::{to_postfix, GetPriority};
 
 use std::collections::HashMap;
 use std::iter;

@@ -1,6 +1,6 @@
 use tokio::runtime::TryCurrentError;
 
-use eval::GetPriority;
+use grl_eval::GetPriority;
 
 use std::fmt::Display;
 

@@ -30,11 +30,11 @@ toml="*"
 tower-lsp = { git = "https://github.com/gazliddon/tower-lsp", version = "*" }
 tryvial="*"
 
-sources = {path = "../../crates/sources"}
-eval = {path = "../../crates/eval"}
-emu = {path = "../../crates/emu6809", package="emu6809"}
-symbols = {path = "../../crates/symbols"}
-utils = {path = "../../crates/utils"}
+grl-eval = "*"
+emu6809 = "*"
+symbols = {version="*", package="grl-symbols"}
+sources = {version="*", package = "grl-sources"}
+utils = { version =  "*", package="grl-utils" }
 
 [dev-dependencies]
 criterion = "0.3"

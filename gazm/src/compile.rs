@@ -19,7 +19,7 @@ use crate::{
 };
 
 
-use emu::isa::Instruction;
+use emu6809::isa;
 use sources::ItemType;
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
@@ -236,10 +236,10 @@ impl<'a> Compiler<'a> {
         &mut self,
         ctx: &mut AsmCtx,
         id: AstNodeId,
-        ins: &Instruction,
+        ins: &isa::Instruction,
         amode: AddrModeParseType,
     ) -> GResult<()> {
-        use emu::isa::AddrModeEnum::*;
+        use isa::AddrModeEnum::*;
 
         let node = self.get_node(id);
         let pc = ctx.binary().get_write_address();

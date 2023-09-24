@@ -1,24 +1,27 @@
-use crate::parse::expr;
-use crate::item6809::AddrModeParseType;
-use crate::parse::locate::matched_span;
-use crate::parse6809::register;
-use crate::item6809::MC6809::{self, Operand, OperandIndexed, OpCode};
-use crate::item::{Item, Node};
+use crate::{
+    error::IResult,
+    item::{Item, Node},
+    item6809::{
+        AddrModeParseType,
+        MC6809::{self, OpCode, Operand, OperandIndexed},
+    },
+    parse::{
+        expr,
+        locate::{matched_span, Span},
+    },
+    parse6809::register,
+};
 
-use emu::isa::AddrModeEnum;
-use emu::isa::{Dbase, Instruction, InstructionInfo};
-use nom::character::complete::digit0;
+use emu6809::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo};
 
-use nom::branch::alt;
-
-use nom::character::complete::{alpha1, multispace1};
-
-use nom::bytes::complete::tag;
-use nom::combinator::recognize;
-use nom::sequence::{pair, preceded};
-
-use crate::error::IResult;
-use crate::parse::locate::Span;
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::digit0,
+    character::complete::{alpha1, multispace1},
+    combinator::recognize,
+    sequence::{pair, preceded},
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // opcode parsing
@@ -41,7 +44,7 @@ pub fn opcode_token(input: Span) -> IResult<(&InstructionInfo, Span)> {
     if let Some(op_code) = OPCODES_REC.get_opcode(&matched) {
         Ok((rest, (op_code, matched)))
     } else {
-        let m  = format!("I wanted an opcode, got !{matched}!");
+        let m = format!("I wanted an opcode, got !{matched}!");
         Err(parse_error(&m, input))
     }
 }
@@ -155,8 +158,8 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
     }?;
 
     let amode = match arg.item {
-        Cpu( Operand (amode)) => amode,
-        Cpu( OperandIndexed(amode, indirect) ) => AddrModeParseType::Indexed(amode, indirect),
+        Cpu(Operand(amode)) => amode,
+        Cpu(OperandIndexed(amode, indirect)) => AddrModeParseType::Indexed(amode, indirect),
         _ => todo!("Need an error here {:?}", arg.item),
     };
 
@@ -195,25 +198,20 @@ fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
 }
 
 pub fn parse_opcode(input: Span) -> IResult<Node> {
-
-    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)
-        .map_err(|_| {
-            let msg = format!("Expected op code : got {input}");
-            crate::error::parse_error(&msg, input) }
-            )?;
+    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input).map_err(|_| {
+        let msg = format!("Expected op code : got {input}");
+        crate::error::parse_error(&msg, input)
+    })?;
     Ok((rest, item))
 }
 
 #[allow(unused_imports)]
 mod test {
+    use super::*;
 
     use std::os::unix::prelude::JoinHandleExt;
-
-    use emu::cpu::RegEnum;
     use pretty_assertions::{assert_eq, assert_ne};
     use sources::Position;
-
-    use super::*;
 
     #[test]
     fn test_parse_misc() {

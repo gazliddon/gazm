@@ -1,8 +1,7 @@
-use std::fmt::Display;
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet, fmt::Display, path::PathBuf};
 use thin_vec::ThinVec;
 
-use emu::{
+use emu6809::{
     cpu::{IndexedFlags, RegEnum},
     isa::Instruction,
 };

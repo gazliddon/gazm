@@ -6,7 +6,7 @@ use crate::{
     item6809::MC6809::{self,RegisterSet},
 };
 
-use emu::cpu::RegEnum;
+use emu6809::cpu::RegEnum;
 
 use nom::{
     bytes::complete::tag,
@@ -19,7 +19,7 @@ use std::collections::HashSet;
 
 // Register parsing
 
-pub fn get_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
+pub fn get_reg(input: Span) -> IResult<RegEnum> {
     use RegEnum::*;
 
     let (rest, input) = alpha1(input)?;
@@ -45,7 +45,7 @@ pub fn get_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
     Ok((rest, reg))
 }
 
-pub fn get_index_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
+pub fn get_index_reg(input: Span) -> IResult<RegEnum> {
     let (rest, reg) = get_reg(input)?;
 
     if reg.is_valid_for_index() {
@@ -56,7 +56,7 @@ pub fn get_index_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
     }
 }
 
-pub fn get_pc_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
+pub fn get_pc_reg(input: Span) -> IResult<RegEnum> {
     let (rest, reg) = get_reg(input)?;
     if reg == RegEnum::PC {
         Ok((rest, reg))
@@ -65,13 +65,13 @@ pub fn get_pc_reg(input: Span) -> IResult<emu::cpu::RegEnum> {
     }
 }
 
-pub fn get_reg_pair(input: Span) -> IResult<(emu::cpu::RegEnum, emu::cpu::RegEnum)> {
+pub fn get_reg_pair(input: Span) -> IResult<(RegEnum, RegEnum)> {
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));
     let (rest, matched) = separated_pair(get_reg, sep, get_reg)(input)?;
     Ok((rest, matched))
 }
 
-fn get_reg_set(input: Span) -> IResult<HashSet<emu::cpu::RegEnum>> {
+fn get_reg_set(input: Span) -> IResult<HashSet<RegEnum>> {
     let mut hash_ret = HashSet::new();
 
     let sep = tuple((multispace0, tag(util::LIST_SEP), multispace0));

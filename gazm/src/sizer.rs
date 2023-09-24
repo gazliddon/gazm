@@ -16,7 +16,7 @@ use crate::{
     gazmsymbols::SymbolScopeId,
 };
 
-use emu::isa::AddrModeEnum;
+use emu6809::isa::AddrModeEnum;
 
 use std::path::Path;
 

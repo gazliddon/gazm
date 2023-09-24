@@ -12,7 +12,7 @@ use crate::{
     parse::locate::Span,
 };
 
-use emu::{
+use emu6809::{
     cpu::{IndexedFlags, RegEnum},
     isa::Instruction,
 };

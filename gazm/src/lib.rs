@@ -35,8 +35,8 @@ pub mod opts;
 
 // Re-exports
 pub use symbols;
-pub use eval;
-pub use emu;
+pub use grl_eval;
+pub use emu6809;
 pub use utils;
 pub use sources;
 
