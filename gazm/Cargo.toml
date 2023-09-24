@@ -33,7 +33,7 @@ tryvial="*"
 grl-eval = "*"
 emu6809 = "*"
 grl-symbols = "*"
-sources = {version="*", package = "grl-sources"}
+grl-sources = "*"
 grl-utils = "*"
 
 [dev-dependencies]

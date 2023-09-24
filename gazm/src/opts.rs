@@ -16,7 +16,7 @@ use crate::{
     token_store::TokenStore,
     vars::Vars,
 };
-use sources::{
+use grl_sources::{
     fileloader::{FileIo, SourceFileLoader},
     AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
     SourceFiles, SourceMapping, TextEditTrait,

@@ -5,7 +5,7 @@ use crate::opts::Opts;
 use crate::error::GResult;
 use crate::item::Node;
 
-use sources::{EditResult,  TextEditTrait, SourceLine};
+use grl_sources::{EditResult,  TextEditTrait, SourceLine};
 use grl_utils::{PathSearcher, Stack};
 
 use std::path::Path;

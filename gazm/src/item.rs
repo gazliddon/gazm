@@ -6,7 +6,7 @@ use emu6809::{
     isa::Instruction,
 };
 
-use sources::Position;
+use grl_sources::Position;
 
 use crate::{
     ast::AstNodeId,

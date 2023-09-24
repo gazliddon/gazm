@@ -12,7 +12,7 @@ use crate::{
     item6809::MC6809,
 };
 
-use sources::Position;
+use grl_sources::Position;
 use grl_utils::Stack;
 
 use thiserror::Error;

@@ -58,7 +58,7 @@ pub fn strip_comments(input: Span) -> IResult<Option<Node>> {
 // tests
 #[allow(unused_imports)]
 mod test {
-    use sources::Position;
+    use grl_sources::Position;
 
     use super::*;
     use pretty_assertions::assert_eq;

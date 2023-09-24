@@ -20,7 +20,7 @@ use crate::{
 
 
 use emu6809::isa;
-use sources::ItemType;
+use grl_sources::ItemType;
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
     let root_id = ctx.ctx.get_symbols().get_root_scope_id();

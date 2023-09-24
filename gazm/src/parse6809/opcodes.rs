@@ -211,7 +211,7 @@ mod test {
 
     use std::os::unix::prelude::JoinHandleExt;
     use pretty_assertions::{assert_eq, assert_ne};
-    use sources::Position;
+    use grl_sources::Position;
 
     #[test]
     fn test_parse_misc() {

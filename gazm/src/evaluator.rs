@@ -1,4 +1,4 @@
-use sources::{fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo};
+use grl_sources::{fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo};
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},

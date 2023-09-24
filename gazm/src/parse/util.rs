@@ -207,7 +207,7 @@ impl ByteSize for i64 {
 #[allow(unused_imports)]
 mod test {
 
-    use sources::AsmSource;
+    use grl_sources::AsmSource;
 
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};

@@ -15,7 +15,7 @@ use emu6809::{
     isa::Instruction,
 };
 
-use sources::Position;
+use grl_sources::Position;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {

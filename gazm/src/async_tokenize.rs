@@ -7,7 +7,7 @@ use crate::parse::locate::{span_to_pos, Span};
 use crate::tokenize::Tokens;
 
 use grl_utils::{PathSearcher, Stack};
-use sources::{self,AsmSource, Position};
+use grl_sources::{AsmSource, Position};
 
 use itertools::Itertools;
 use std::path::{Path, PathBuf};

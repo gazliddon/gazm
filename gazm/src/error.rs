@@ -6,7 +6,7 @@ use crate::{
     parse::locate::{span_to_pos, Span},
 };
 
-use sources::{EditErrorKind, Position, SourceErrorType, SourceInfo};
+use grl_sources::{EditErrorKind, Position, SourceErrorType, SourceFiles, SourceInfo};
 use grl_utils::SearchError;
 
 use thiserror::Error;
@@ -223,7 +223,7 @@ impl UserErrorData {
         }
     }
 
-    pub fn from_parse_error(err: &ParseError, sources: &sources::SourceFiles) -> Self {
+    pub fn from_parse_error(err: &ParseError, sources: &SourceFiles) -> Self {
         let si = sources.get_source_info(&err.pos).unwrap();
 
         Self {
@@ -300,7 +300,7 @@ impl UserError {
         self.data.pretty()
     }
 
-    pub fn from_parse_error(err: &ParseError, sources: &sources::SourceFiles) -> Self {
+    pub fn from_parse_error(err: &ParseError, sources: &SourceFiles) -> Self {
         let data = UserErrorData::from_parse_error(err, sources);
         data.into()
     }

@@ -8,7 +8,7 @@ use crate::{
     item::{Item, LabelDefinition},
 };
 
-use sources::Position;
+use grl_sources::Position;
 use grl_utils::Stack;
 
 #[allow(dead_code)]

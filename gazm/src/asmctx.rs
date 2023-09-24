@@ -7,8 +7,7 @@ use crate::{
     ctx::Context,
 };
 
-use sources::{self, BinToWrite, Position};
-use sources::fileloader::{FileIo, SourceFileLoader};
+use grl_sources::{self, BinToWrite, Position, fileloader::{FileIo, SourceFileLoader}};
 use std::path::{Path, PathBuf};
 
 pub struct AsmCtx<'a> {

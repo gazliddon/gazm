@@ -1,6 +1,6 @@
 use nom::InputTake;
 use nom_locate::LocatedSpan;
-use sources::{AsmSource, Position};
+use grl_sources::{AsmSource, Position};
 
 use crate::opts::Opts;
 

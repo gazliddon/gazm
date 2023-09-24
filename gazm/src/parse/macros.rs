@@ -11,7 +11,7 @@ use super::{
     locate::{matched_span, span_to_pos, Span},
 };
 
-use sources::{Position, SourceFiles};
+use grl_sources::{Position, SourceFiles};
 
 use nom::{
     bytes::complete::{is_not, tag},
