@@ -37,7 +37,7 @@ pub mod opts;
 pub use grl_symbols;
 pub use grl_eval;
 pub use emu6809;
-pub use utils;
+pub use grl_utils;
 pub use sources;
 
 

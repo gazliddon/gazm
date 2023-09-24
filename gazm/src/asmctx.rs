@@ -93,7 +93,7 @@ impl<'a> AsmCtx<'a> {
 
     fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
         let path = self.get_expanded_path(path);
-        utils::fileutils::abs_path_from_cwd(path)
+        grl_utils::fileutils::abs_path_from_cwd(path)
     }
 
     pub fn eval_macro_args(&mut self, scope_id: u64, caller_id: AstNodeId, tree: &AstTree) -> bool {

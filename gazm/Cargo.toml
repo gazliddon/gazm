@@ -34,7 +34,7 @@ grl-eval = "*"
 emu6809 = "*"
 grl-symbols = "*"
 sources = {version="*", package = "grl-sources"}
-utils = { version =  "*", package="grl-utils" }
+grl-utils = "*"
 
 [dev-dependencies]
 criterion = "0.3"

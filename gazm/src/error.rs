@@ -7,7 +7,7 @@ use crate::{
 };
 
 use sources::{EditErrorKind, Position, SourceErrorType, SourceInfo};
-use utils::SearchError;
+use grl_utils::SearchError;
 
 use thiserror::Error;
 

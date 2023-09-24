@@ -13,7 +13,7 @@ use crate::{
 };
 
 use sources::Position;
-use utils::Stack;
+use grl_utils::Stack;
 
 use thiserror::Error;
 

@@ -20,7 +20,7 @@ use sources::{
     SourceFiles, SourceMapping, TextEditTrait,
 };
 
-use utils::{hash::get_hash, PathSearcher};
+use grl_utils::{hash::get_hash, PathSearcher};
 use anyhow::{Context as AnyContext, Result};
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
