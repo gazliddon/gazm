@@ -2,13 +2,14 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{iter_refs_recursive, AstNodeId, AstTree},
+    gazmsymbols::{
+        ScopeId, SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, SymbolTree,
+    },
     item::{Item, LabelDefinition},
-    gazmsymbols::{ScopeId, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolResolutionBarrier},
 };
 
-use utils::Stack;
 use sources::Position;
-
+use utils::Stack;
 
 #[allow(dead_code)]
 pub struct Navigator<'a> {
@@ -45,9 +46,7 @@ impl<'a> Navigator<'a> {
         if self.syms.scope_exists(scope) {
             Ok(())
         } else {
-            Err(NavError::SymbolError(
-                crate::symbols::SymbolError::NoValue,
-            ))
+            Err(NavError::SymbolError(SymbolError::NoValue))
         }
     }
 

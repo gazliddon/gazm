@@ -32,7 +32,7 @@ tryvial="*"
 
 grl-eval = "*"
 emu6809 = "*"
-symbols = {version="*", package="grl-symbols"}
+grl-symbols = "*"
 sources = {version="*", package = "grl-sources"}
 utils = { version =  "*", package="grl-utils" }
 

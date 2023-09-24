@@ -1,6 +1,4 @@
-use std::arch::aarch64::vld2_lane_p8;
-use std::fmt::Display;
-use std::{collections::HashSet, path::PathBuf};
+use std::{fmt::Display,collections::HashSet, path::PathBuf};
 use thin_vec::ThinVec;
 
 use crate::{
@@ -8,8 +6,8 @@ use crate::{
     error::ParseError,
     item::Item,
     node::{BaseNode, CtxTrait},
-    parse::locate::span_to_pos,
-    parse::locate::Span,
+    parse::locate::{ span_to_pos,Span },
+    gazmsymbols::SymbolScopeId
 };
 
 use emu6809::{
@@ -18,9 +16,6 @@ use emu6809::{
 };
 
 use sources::Position;
-
-
-use crate::symbols::SymbolScopeId;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {

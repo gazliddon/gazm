@@ -18,7 +18,7 @@ use crate::{
     },
     node::{BaseNode, CtxTrait},
     parse::locate::{span_to_pos, Span},
-    symbols::ScopedName,
+    gazmsymbols::ScopedName,
 };
 
 impl<'a> CtxTrait for Span<'a> {}

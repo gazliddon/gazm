@@ -34,7 +34,7 @@ pub mod vars;
 pub mod opts;
 
 // Re-exports
-pub use symbols;
+pub use grl_symbols;
 pub use grl_eval;
 pub use emu6809;
 pub use utils;
