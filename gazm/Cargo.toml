@@ -36,7 +36,6 @@ grl-utils = {path = "../../crates/grl-utils"}
 grl-eval = {path="../../crates/grl-eval"}
 
 [dev-dependencies]
-criterion = "0.5.1"
 pretty_assertions="1.4.0"
 
 [[bench]]
