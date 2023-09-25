@@ -6,8 +6,9 @@ use crate::{
     parse::locate::{span_to_pos, Span},
 };
 
-use grl_sources::{EditErrorKind, Position, SourceErrorType, SourceFiles, SourceInfo};
-use grl_utils::SearchError;
+use grl_sources::{
+    grl_utils::SearchError, EditErrorKind, Position, SourceErrorType, SourceFiles, SourceInfo,
+};
 
 use thiserror::Error;
 

@@ -8,8 +8,7 @@ use crate::{
     tokenize::Tokens,
 };
 
-use grl_sources::{AsmSource, Position};
-use grl_utils::Stack;
+use grl_sources::{grl_utils::Stack, AsmSource, Position};
 
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
@@ -250,9 +249,9 @@ where
 #[allow(dead_code)]
 #[cfg(test)]
 mod test {
+    use grl_utils::PathSearcher;
     use std::path;
     use std::{thread::current, time::Instant};
-    use grl_utils::PathSearcher;
 
     use crate::config::YamlConfig;
     use crate::messages::Verbosity;

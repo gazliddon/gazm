@@ -14,11 +14,11 @@ use crate::{
 
 use grl_sources::{
     fileloader::{FileIo, SourceFileLoader},
+    grl_utils::{hash::get_hash, PathSearcher},
     AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
     SourceFiles, SourceMapping, TextEditTrait,
 };
 
-use grl_utils::{hash::get_hash, PathSearcher};
 use anyhow::{Context as AnyContext, Result};
 use itertools::Itertools;
 use std::path::{Path, PathBuf};

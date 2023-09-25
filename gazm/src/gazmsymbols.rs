@@ -1,4 +1,4 @@
-
+use grl_sources::grl_symbols;
 pub type ScopeId = u64;
 pub type SymbolId = u64;
 pub type SymValue = i64;

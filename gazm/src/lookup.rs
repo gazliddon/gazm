@@ -8,8 +8,7 @@ use crate::{
     item::{Item, LabelDefinition},
 };
 
-use grl_sources::Position;
-use grl_utils::Stack;
+use grl_sources::{ Position, grl_utils::Stack };
 
 #[allow(dead_code)]
 pub struct Navigator<'a> {

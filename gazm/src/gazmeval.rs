@@ -9,8 +9,7 @@ use crate::{
 };
 
 use grl_eval::GetPriority;
-use grl_sources::Position;
-use grl_utils::Stack;
+use grl_sources::{grl_utils::Stack, Position};
 
 #[derive(Error, Debug, Clone)]
 pub enum EvalErrorEnum {

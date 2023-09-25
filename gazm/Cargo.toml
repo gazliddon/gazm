@@ -29,8 +29,8 @@ tryvial="0.2.0"
 
 emu6809 = {path="../../crates/emu6809"}
 grl-sources = {path = "../../crates/grl-sources"}
-grl-symbols = {path = "../../crates/grl-symbols"}
-grl-utils = {path = "../../crates/grl-utils"}
+# grl-symbols = {path = "../../crates/grl-symbols"}
+# grl-utils = {path = "../../crates/grl-utils"}
 grl-eval = {path="../../crates/grl-eval"}
 
 [dev-dependencies]

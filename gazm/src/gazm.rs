@@ -1,7 +1,9 @@
 use crate::{ast::Ast, async_tokenize, ctx::Context, error::GResult, item::Node, opts::Opts};
 
-use grl_sources::{EditResult, TextEditTrait};
-use grl_utils::{PathSearcher, Stack};
+use grl_sources::{
+    grl_utils::{PathSearcher, Stack},
+    EditResult, TextEditTrait,
+};
 
 use std::{
     path::Path,
