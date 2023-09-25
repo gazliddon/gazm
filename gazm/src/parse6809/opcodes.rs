@@ -206,6 +206,7 @@ pub fn parse_opcode(input: Span) -> IResult<Node> {
 }
 
 #[allow(unused_imports)]
+#[test]
 mod test {
     use super::*;
 

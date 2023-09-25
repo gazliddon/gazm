@@ -115,6 +115,7 @@ pub fn parse_reg_set_1(input: Span) -> IResult<Node> {
 }
 
 #[allow(unused_imports)]
+#[test]
 mod test {
 
     use super::*;

@@ -57,6 +57,7 @@ pub fn strip_comments(input: Span) -> IResult<Option<Node>> {
 ////////////////////////////////////////////////////////////////////////////////
 // tests
 #[allow(unused_imports)]
+#[test]
 mod test {
     use grl_sources::Position;
 

@@ -248,6 +248,7 @@ where
 
 #[allow(unused_imports)]
 #[allow(dead_code)]
+#[test]
 mod test {
     use std::path;
     use std::{thread::current, time::Instant};

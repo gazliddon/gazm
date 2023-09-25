@@ -78,6 +78,7 @@ pub fn parse_macro_call(input: Span) -> IResult<Node> {
 }
 
 #[allow(unused_imports)]
+#[test]
 mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};

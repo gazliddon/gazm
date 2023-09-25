@@ -13,10 +13,3 @@ panic = "abort"
 strip = true
 
 
-[patch.crates-io]
-grl-symbols = {path = "../crates/grl-symbols"}
-grl-utils = {path = "../crates/grl-utils"}
-grl-sources = {path = "../crates/grl-sources"}
-grl-eval = {path = "../crates/grl-eval"}
-emu6809 = {path="../crates/emu6809"}
-
