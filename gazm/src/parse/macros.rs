@@ -74,14 +74,14 @@ pub fn parse_macro_call(input: Span) -> IResult<Node> {
 }
 
 #[allow(unused_imports)]
-#[test]
+#[cfg(test)]
 mod test {
     use super::*;
     use pretty_assertions::{assert_eq, assert_ne};
     #[test]
     fn test_scopes() {
         let body = "scope2 background {a} aka kj akj a";
-        let sp = Span::new_extra(body, emu::utils::sources::AsmSource::FromStr);
+        let sp = Span::new_extra(body, grl_sources::AsmSource::FromStr);
 
         if let Ok((rest, (name, body))) = get_scope_block(sp) {
             assert_eq!(&name.to_string(), "background");

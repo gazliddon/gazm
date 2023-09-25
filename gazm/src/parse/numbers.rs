@@ -182,7 +182,7 @@ pub fn get_number(input: Span) -> IResult<( i64, ParsedFrom )> {
 // Tests
 #[allow(unused_imports)]
 #[allow(dead_code)]
-#[test]
+#[cfg(test)]
 mod test {
 
     use super::{*, new::{NumberLiteralKind, NumberLiteral}};

@@ -206,7 +206,7 @@ pub fn parse_indexed(input: Span) -> IResult<Node> {
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 #[allow(unused_imports)]
-#[test]
+#[cfg(test)]
 mod test {
     use super::*;
     use emu6809::cpu::RegEnum::*;

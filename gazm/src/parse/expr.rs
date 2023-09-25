@@ -132,7 +132,7 @@ pub fn parse_expr(input: Span) -> IResult<Node> {
 ////////////////////////////////////////////////////////////////////////////////
 
 #[allow(unused_imports)]
-#[test]
+#[cfg(test)]
 mod test {
     use super::*;
     use grl_sources::AsmSource;

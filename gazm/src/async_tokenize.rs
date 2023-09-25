@@ -248,10 +248,11 @@ where
 
 #[allow(unused_imports)]
 #[allow(dead_code)]
-#[test]
+#[cfg(test)]
 mod test {
     use std::path;
     use std::{thread::current, time::Instant};
+    use grl_utils::PathSearcher;
 
     use crate::config::YamlConfig;
     use crate::messages::Verbosity;

@@ -205,7 +205,7 @@ impl ByteSize for i64 {
 ////////////////////////////////////////////////////////////////////////////////
 // Tests
 #[allow(unused_imports)]
-#[test]
+#[cfg(test)]
 mod test {
 
     use grl_sources::AsmSource;
