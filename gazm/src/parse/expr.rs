@@ -4,7 +4,6 @@
 use crate::{
     error::IResult,
     item::{Item, Node},
-    item6809::MC6809,
 };
 
 use super::{

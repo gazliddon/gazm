@@ -6,8 +6,6 @@ use crate::{
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     gazmsymbols::{Serializable, SymbolTree},
     lookup::LabelUsageAndDefintions,
-    lsp::LspConfig,
-    messages::Verbosity,
     opts::{BinReference, Opts},
     status_err, status_mess,
     token_store::TokenStore,

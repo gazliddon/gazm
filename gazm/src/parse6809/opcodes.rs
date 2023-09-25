@@ -3,7 +3,7 @@ use crate::{
     item::{Item, Node},
     item6809::{
         AddrModeParseType,
-        MC6809::{self, OpCode, Operand, OperandIndexed},
+        MC6809::{OpCode, Operand, OperandIndexed},
     },
     parse::{
         expr,
@@ -51,7 +51,6 @@ pub fn opcode_token(input: Span) -> IResult<(&InstructionInfo, Span)> {
 
 fn parse_immediate(input: Span) -> IResult<Node> {
     use AddrModeParseType::*;
-    use Item::*;
     let (rest, matched) = preceded(tag("#"), expr::parse_expr)(input)?;
     let node = Node::from_item_span(Operand(Immediate), input).with_child(matched);
     Ok((rest, node))
@@ -59,7 +58,6 @@ fn parse_immediate(input: Span) -> IResult<Node> {
 
 fn parse_force_dp(input: Span) -> IResult<Node> {
     use crate::item6809::AddrModeParseType::*;
-    use Item::*;
     let (rest, matched) = preceded(tag("<"), expr::parse_expr)(input)?;
     let node = Node::from_item_span(Operand(Direct), input).with_child(matched);
     Ok((rest, node))
@@ -67,14 +65,12 @@ fn parse_force_dp(input: Span) -> IResult<Node> {
 
 fn parse_force_extended(input: Span) -> IResult<Node> {
     use crate::item6809::AddrModeParseType::*;
-    use Item::*;
     let (rest, matched) = preceded(tag(">"), expr::parse_expr)(input)?;
     let node = Node::from_item_span(Operand(Extended(true)), input).with_child(matched);
     Ok((rest, node))
 }
 
 fn parse_reg_set(input: Span) -> IResult<Node> {
-    use Item::*;
 
     let (rest, matched) = register::parse_reg_set_1(input)?;
     let matched =
@@ -83,7 +79,6 @@ fn parse_reg_set(input: Span) -> IResult<Node> {
 }
 fn parse_opcode_reg_pair(input: Span) -> IResult<Node> {
     use nom::combinator::map;
-    use Item::*;
     let reg_map =
         |(a, b)| Node::from_item_span(Operand(AddrModeParseType::RegisterPair(a, b)), input);
 
@@ -94,7 +89,6 @@ fn parse_opcode_reg_pair(input: Span) -> IResult<Node> {
 
 fn parse_extended(input: Span) -> IResult<Node> {
     use AddrModeParseType::*;
-    use Item::*;
     let (rest, matched) = expr::parse_expr(input)?;
     let res = Node::from_item_span(Operand(Extended(false)), input).with_child(matched);
     Ok((rest, res))
@@ -176,7 +170,6 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
 
 fn parse_opcode_no_arg(input: Span) -> IResult<Node> {
     use AddrModeEnum::*;
-    use Item::*;
 
     let (rest, (info, text)) = opcode_token(input)?;
     let matched_span = matched_span(input, rest);
@@ -206,7 +199,7 @@ pub fn parse_opcode(input: Span) -> IResult<Node> {
 }
 
 #[allow(unused_imports)]
-#[test]
+#[cfg(test)]
 mod test {
     use super::*;
 

@@ -13,7 +13,6 @@ use crate::{
         MC6809::{self, OpCode, SetDp},
     },
     debug_mess,
-    messages::messages,
     regutils::*,
     status_mess, binary::BinaryError,
 };
@@ -46,10 +45,10 @@ impl<'a> Compiler<'a> {
         (node, i)
     }
 
-    fn get_item(&self, ctx: &AsmCtx, id: AstNodeId) -> Item {
-        let i = &self.get_node(id).value().item;
-        ctx.get_fixup_or_default(id, i, self.scopes.scope())
-    }
+    // fn get_item(&self, ctx: &AsmCtx, id: AstNodeId) -> Item {
+    //     let i = &self.get_node(id).value().item;
+    //     ctx.get_fixup_or_default(id, i, self.scopes.scope())
+    // }
 
     fn get_node(&self, id: AstNodeId) -> AstNodeRef {
         let node = self.tree.get(id).unwrap();

@@ -23,8 +23,7 @@ use tower_lsp::{
     jsonrpc,
     jsonrpc::Result as TResult,
     lsp_types::request::{
-        GotoDeclarationParams, GotoDeclarationResponse, GotoImplementationParams,
-        GotoImplementationResponse, GotoTypeDefinitionParams, GotoTypeDefinitionResponse,
+        GotoDeclarationParams, GotoDeclarationResponse, 
     },
     lsp_types::Position,
     lsp_types::*,
@@ -54,11 +53,11 @@ impl Context {
         })
     }
 
-    fn find_node_id(&self, position: &Position, uri: &Url) -> Option<Vec<AstNodeId>> {
-        self.do_pos_lookup_work(position, uri, |pos, lookup| {
-            Some(lookup.find_node_id_from_pos(pos))
-        })
-    }
+    // fn find_node_id(&self, position: &Position, uri: &Url) -> Option<Vec<AstNodeId>> {
+    //     self.do_pos_lookup_work(position, uri, |pos, lookup| {
+    //         Some(lookup.find_node_id_from_pos(pos))
+    //     })
+    // }
 
     fn lookup_ref(&self) -> Option<&LabelUsageAndDefintions> {
         self.asm_out.lookup.as_ref()

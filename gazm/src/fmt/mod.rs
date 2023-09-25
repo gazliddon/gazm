@@ -1,8 +1,9 @@
-use crate::opts::Opts;
-use crate::error::GResult;
-use crate::item::Node;
-use crate::item::{Item, LabelDefinition};
-use crate::item6809::MC6809::{self,OpCode};
+use crate::{
+    error::GResult,
+    item::{Item, LabelDefinition, Node},
+    item6809::MC6809::OpCode,
+    opts::Opts,
+};
 
 use itertools::Itertools;
 
@@ -20,11 +21,7 @@ pub fn fmt(_opts: &Opts) -> GResult<String> {
 
 use std::fmt::Write;
 
-fn get_operand(
-    node: &Node,
-    text: &str,
-) ->  String {
-
+fn get_operand(node: &Node, text: &str) -> String {
     if node.children.is_empty() {
         "".to_owned()
     } else {
@@ -94,7 +91,7 @@ pub fn render_nodes(nodes: &[Node], text: String) -> String {
                     columns[1] = format!("\"{}\"", file.to_string_lossy())
                 }
 
-                Cpu( OpCode(txt,_ins, _addr_mode)  )=> {
+                Cpu(OpCode(txt, _ins, _addr_mode)) => {
                     let arg = get_operand(n, &text);
                     // let original_txt = text[n.ctx.range.clone()].to_string().replace('\t', " ");
                     columns[1] = txt.to_owned().to_lowercase();

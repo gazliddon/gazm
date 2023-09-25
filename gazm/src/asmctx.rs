@@ -1,13 +1,13 @@
 use crate::{
-    ast::{AstNodeId, AstNodeRef, AstTree},
+    ast::{AstNodeId, AstTree},
     error::GResult,
     item::Item,
-    gazmsymbols::{self, SymbolError, SymbolScopeId},
+    gazmsymbols::{SymbolError, SymbolScopeId},
     {binary, fixerupper::FixerUpper},
     ctx::Context,
 };
 
-use grl_sources::{self, BinToWrite, Position, fileloader::{FileIo, SourceFileLoader}};
+use grl_sources::{self, BinToWrite, Position, fileloader::FileIo};
 use std::path::{Path, PathBuf};
 
 pub struct AsmCtx<'a> {

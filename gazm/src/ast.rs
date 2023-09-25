@@ -6,10 +6,9 @@ use crate::{
     info_mess,
     item::{Item, LabelDefinition, Node},
     messages::*,
-    node,
     scopes::ScopeBuilder,
     gazmsymbols::{
-        ScopedName, SymbolError, SymbolInfo, SymbolScopeId, SymbolTree, SymbolTreeReader,
+        ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader,
         SymbolTreeWriter,
     },
 };
@@ -21,7 +20,6 @@ use grl_eval::{to_postfix, GetPriority};
 use std::collections::HashMap;
 use std::iter;
 use thin_vec::ThinVec;
-use tower_lsp::lsp_types::request::WillRenameFiles;
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;
 pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
@@ -60,25 +58,6 @@ where
 
     for n in node.children() {
         get_recursive(n, f);
-    }
-}
-fn get_recursive_track_scope<F>(node: AstNodeRef, f: &mut F, scope_id: u64)
-where
-    F: FnMut(AstNodeRef, u64),
-{
-    if let Item::Scope(name) = &node.value().item {
-        panic!("WHUT? {name}")
-    }
-
-    let new_scope_id = if let Item::ScopeId(new_scope_id) = node.value().item {
-        new_scope_id
-    } else {
-        f(node, scope_id);
-        scope_id
-    };
-
-    for n in node.children() {
-        get_recursive_track_scope(n, f, new_scope_id);
     }
 }
 
@@ -290,7 +269,6 @@ impl<'a> Ast<'a> {
         info("Processing macro definitions", |_| {
             // TODO: should be written in a way that can detect
             // redefinitions of a macro
-            use std::collections::HashMap;
             use Item::{MacroCall, MacroCallProcessed, ScopeId};
 
             // Detach all of the MacroDef nodes
@@ -898,9 +876,9 @@ fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
     tree.get(id).unwrap().children().map(|c| c.id()).collect()
 }
 
-fn is_problem(p: &Position) -> bool {
-    p.src == AsmSource::FileId(4) && p.line == 19 && p.col == 12
-}
+// fn is_problem(p: &Position) -> bool {
+//     p.src == AsmSource::FileId(4) && p.line == 19 && p.col == 12
+// }
 
 pub fn create_ast_node(tree: &mut AstTree, node: &Node) -> AstNodeId {
     let ipos = ItemWithPos::new(node);

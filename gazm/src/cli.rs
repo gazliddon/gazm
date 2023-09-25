@@ -2,7 +2,8 @@ use crate::config;
 use crate::messages::Verbosity;
 use crate::opts::{BuildType, Opts};
 
-use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, ArgMatches, Command, builder::PathBufValueParser, ArgAction,value_parser};
+
 use std::path::PathBuf;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -66,7 +67,7 @@ struct Overides {
     pub verbosity: Option<Verbosity>,
 }
 impl Overides {
-    pub fn new(matches: &clap::ArgMatches) -> Self {
+    pub fn new(matches: &ArgMatches) -> Self {
         Overides {
             no_async: matches.index_of("no-async").map(|_| true),
             verbosity: Some(match matches.get_count("verbose") {
@@ -97,7 +98,7 @@ impl Overides {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Opts {
-    pub fn from_arg_matches(orig_matches: clap::ArgMatches) -> ConfigError<Opts> {
+    pub fn from_arg_matches(orig_matches: ArgMatches) -> ConfigError<Opts> {
         let overides = Overides::new(&orig_matches);
 
         let ret = match orig_matches.subcommand() {
@@ -218,7 +219,7 @@ lazy_static::lazy_static! {
     static ref BUILD_INFO : BuildInfo = BuildInfo::new();
 }
 
-pub fn parse() -> clap::ArgMatches {
+pub fn parse() -> ArgMatches {
     Command::new(BUILD_INFO.crate_name.as_str())
         .about("6809 assembler")
         .author(BUILD_INFO.authors.as_str())
@@ -229,8 +230,7 @@ pub fn parse() -> clap::ArgMatches {
             Arg::new("verbose")
                 .long("verbose")
                 .help("Verbose mode")
-                .action(clap::ArgAction::Count)
-                // .multiple_occurrences(true)
+                .action(ArgAction::Count)
                 .short('v'),
         )
         .arg(
@@ -260,6 +260,7 @@ pub fn parse() -> clap::ArgMatches {
                 .arg(
                     Arg::new("project-file")
                         // .multiple_values(false)
+                        .value_parser(PathBufValueParser::new())
                         .required(true),
                 )
                 .arg(
@@ -268,6 +269,7 @@ pub fn parse() -> clap::ArgMatches {
                         .long("symbol-file")
                         .help("symbol file")
                         .num_args(1)
+                        .value_parser(PathBufValueParser::new())
                         .short('s'),
                 )
                 .arg(
@@ -319,8 +321,7 @@ pub fn parse() -> clap::ArgMatches {
                         .help("Maxium amount of non fatal errors allowed before failing")
                         .long("max-errors")
                         .num_args(1)
-                        .use_value_delimiter(false)
-                        .value_parser(clap::value_parser!(usize))
+                        .value_parser(value_parser!(usize))
                         .short('m'),
                 )
                 .arg(
@@ -328,7 +329,7 @@ pub fn parse() -> clap::ArgMatches {
                         .help("Output AST")
                         .long("ast-file")
                         .num_args(1)
-                        .use_value_delimiter(false),
+                        .value_parser(PathBufValueParser::new())
                 )
                 .arg(
                     Arg::new("lst-file")
@@ -336,7 +337,7 @@ pub fn parse() -> clap::ArgMatches {
                         .long("lst-file")
                         .short('l')
                         .num_args(1)
-                        .use_value_delimiter(false),
+                        .value_parser(PathBufValueParser::new())
                 )
                 .arg(
                     Arg::new("mem-size")
@@ -344,8 +345,7 @@ pub fn parse() -> clap::ArgMatches {
                         .help("Size of output binary")
                         .long("mem-size")
                         .num_args(1)
-                        .use_value_delimiter(false)
-                        .value_parser(clap::value_parser!(usize)),
+                        .value_parser(value_parser!(usize)),
                 ),
         )
         .get_matches()

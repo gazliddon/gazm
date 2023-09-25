@@ -1,13 +1,15 @@
-use crate::opts::Opts;
-use crate::ctx::Context;
-use crate::error::{GResult, GazmErrorKind, ParseError};
-use crate::info_mess;
-use crate::item::{Item, Node};
-use crate::parse::locate::{span_to_pos, Span};
-use crate::tokenize::Tokens;
+use crate::{
+    ctx::Context,
+    error::{GResult, GazmErrorKind, ParseError},
+    info_mess,
+    item::{Item, Node},
+    opts::Opts,
+    parse::locate::{span_to_pos, Span},
+    tokenize::Tokens,
+};
 
-use grl_utils::{PathSearcher, Stack};
 use grl_sources::{AsmSource, Position};
+use grl_utils::Stack;
 
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
@@ -22,7 +24,7 @@ pub struct TokenizeRequest {
     pub parent: Option<PathBuf>,
     pub source: String,
     pub opts: Opts,
-    pub include_stack : IncludeStack,
+    pub include_stack: IncludeStack,
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +69,7 @@ impl TokenizeRequest {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-#[derive(Clone, Default,Debug)]
+#[derive(Clone, Default, Debug)]
 #[allow(dead_code)]
 pub struct IncludeStack {
     include_stack: Stack<PathBuf>,
@@ -171,7 +173,6 @@ impl Context {
     }
 }
 
-
 pub fn tokenize_no_async(ctx: &mut Context) -> GResult<()> {
     tokenize(ctx, |to_tokenize| {
         to_tokenize.into_iter().map(|req| req.try_into()).collect()
@@ -195,7 +196,6 @@ where
     let mut files_to_process = vec![(ctx.get_project_file(), None)];
 
     while !files_to_process.is_empty() {
-
         let size = files_to_process.len();
 
         let (to_tokenize, mut incs_to_process) = files_to_process.iter().try_fold(
@@ -268,7 +268,8 @@ mod test {
     fn mk_ctx(config: &YamlConfig) -> crate::ctx::Context {
         let mut dir = config.file.clone();
         dir.pop();
-        let mut ctx = crate::ctx::Context::try_from(config.opts.clone()).expect("Can't make context");
+        let mut ctx =
+            crate::ctx::Context::try_from(config.opts.clone()).expect("Can't make context");
         ctx.get_source_file_loader_mut().add_search_path(&dir);
         ctx.get_source_file_loader_mut()
             .add_search_path(format!("{}/src", dir.to_string_lossy()));

@@ -3,7 +3,7 @@ use crate::{
     item::{Item, Node},
     parse::locate::Span,
     parse::util,
-    item6809::MC6809::{self,RegisterSet},
+    item6809::MC6809::RegisterSet,
 };
 
 use emu6809::cpu::RegEnum;

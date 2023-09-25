@@ -1,11 +1,6 @@
-use crate::ast::Ast;
-use crate::async_tokenize;
-use crate::ctx::Context;
-use crate::opts::Opts;
-use crate::error::GResult;
-use crate::item::Node;
+use crate::{ast::Ast, async_tokenize, ctx::Context, error::GResult, item::Node, opts::Opts};
 
-use grl_sources::{EditResult,  TextEditTrait, SourceLine};
+use grl_sources::{EditResult, TextEditTrait};
 use grl_utils::{PathSearcher, Stack};
 
 use std::path::Path;
@@ -17,7 +12,7 @@ pub struct ScopeTracker {
 }
 
 impl ScopeTracker {
-    pub fn new(scope_id : u64) -> Self {
+    pub fn new(scope_id: u64) -> Self {
         let mut ret = Self {
             ..Default::default()
         };
@@ -33,7 +28,7 @@ impl ScopeTracker {
         *r = scope_id;
     }
 
-    pub fn push(&mut self, scope:u64) {
+    pub fn push(&mut self, scope: u64) {
         self.stack.push(scope)
     }
 

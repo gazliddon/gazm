@@ -1,6 +1,6 @@
 use crate::ast::*;
-use crate::item::{self, Item, LabelDefinition};
-use crate::item6809::{self, MC6809::{self, OpCode} };
+use crate::item::Item;
+use crate::item6809::{self, MC6809::OpCode };
 
 impl<'a> std::fmt::Display for Ast<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

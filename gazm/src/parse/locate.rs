@@ -4,14 +4,6 @@ use grl_sources::{AsmSource, Position};
 
 use crate::opts::Opts;
 
-
-// TODO: Replace ASM source with this?
-#[derive(Clone, Debug, Copy)]
-pub struct ParseCtx<'a> {
-    opts: &'a Opts,
-    src: AsmSource,
-}
-
 pub type Span<'a> = LocatedSpan<&'a str, AsmSource>;
 
 pub fn to_range(input: Span, rest: Span) -> std::ops::Range<usize> {

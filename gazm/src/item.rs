@@ -1,10 +1,5 @@
-use std::{collections::HashSet, fmt::Display, path::PathBuf};
+use std::{fmt::Display, path::PathBuf};
 use thin_vec::ThinVec;
-
-use emu6809::{
-    cpu::{IndexedFlags, RegEnum},
-    isa::Instruction,
-};
 
 use grl_sources::Position;
 
@@ -12,13 +7,9 @@ use crate::{
     ast::AstNodeId,
     error::ParseError,
     gazmsymbols::SymbolScopeId,
-    item6809::{
-        self,
-        MC6809::{self, OpCode, SetDp},
-    },
+    item6809::MC6809::{self, OpCode, SetDp},
     node::{BaseNode, CtxTrait},
     parse::locate::{span_to_pos, Span},
-    gazmsymbols::ScopedName,
 };
 
 impl<'a> CtxTrait for Span<'a> {}
@@ -238,7 +229,6 @@ impl Item {
     }
     pub fn unwrap_label_text(&self) -> Option<&str> {
         use Item::*;
-        use LabelDefinition::*;
         match self {
             Label(x) | LocalLabel(x) => x.get_text(),
             _ => None,

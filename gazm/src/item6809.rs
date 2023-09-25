@@ -1,21 +1,10 @@
-use std::{fmt::Display,collections::HashSet, path::PathBuf};
-use thin_vec::ThinVec;
+use std::collections::HashSet;
 
-use crate::{
-    ast::AstNodeId,
-    error::ParseError,
-    item::Item,
-    node::{BaseNode, CtxTrait},
-    parse::locate::{ span_to_pos,Span },
-    gazmsymbols::SymbolScopeId
-};
-
+use crate::item::Item;
 use emu6809::{
     cpu::{IndexedFlags, RegEnum},
     isa::Instruction,
 };
-
-use grl_sources::Position;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {

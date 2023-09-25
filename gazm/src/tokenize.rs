@@ -5,7 +5,7 @@ use nom::{
     character::complete::{anychar, line_ending, multispace0, char as nom_char},
     combinator::{cut, not, opt, recognize},
     multi::many0,
-    sequence::{pair, preceded, terminated, tuple},
+    sequence::{preceded, terminated, tuple},
 };
 
 use std::path::{Path, PathBuf};
@@ -96,9 +96,9 @@ struct DocTracker {
 }
 
 impl DocTracker {
-    pub fn has_docs(&self) -> bool {
-        !self.doc_lines.is_empty()
-    }
+    // pub fn has_docs(&self) -> bool {
+    //     !self.doc_lines.is_empty()
+    // }
 
     pub fn add_doc_line(&mut self, doc: &str) {
         self.doc_lines.push(doc.to_string())

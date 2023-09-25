@@ -141,7 +141,7 @@ impl Messages {
 }
 
 use std::mem::MaybeUninit;
-use std::sync::{Mutex, Once};
+use std::sync::Once;
 
 pub fn messages() -> &'static mut Messages {
     static mut SINGLETON: MaybeUninit<Messages> = MaybeUninit::uninit();

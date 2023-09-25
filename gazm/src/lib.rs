@@ -33,11 +33,5 @@ pub mod tokenize;
 pub mod vars;
 pub mod opts;
 
-// Re-exports
-pub use grl_symbols;
-pub use grl_eval;
-pub use emu6809;
-pub use grl_utils;
-pub use grl_sources;
 
 

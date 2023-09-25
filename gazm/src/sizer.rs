@@ -9,7 +9,7 @@ use crate::{
     item::{self, Item, LabelDefinition},
     item6809::{
         AddrModeParseType,
-        MC6809::{self, OpCode, SetDp},
+        MC6809::{OpCode, SetDp},
     },
     parse::util::{ByteSize, ByteSizes},
     parse6809::opcodes::get_opcode_info,

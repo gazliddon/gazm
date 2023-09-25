@@ -1,6 +1,5 @@
 use lazy_static::lazy_static;
 use std::{collections::HashMap, path::PathBuf};
-use thin_vec::{thin_vec, ThinVec};
 
 use super::{
     expr::parse_expr,

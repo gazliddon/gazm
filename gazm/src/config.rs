@@ -8,10 +8,8 @@ use std::path::PathBuf;
 struct LoadedYamlConfig {
     pub opts: Option<Opts>,
     vars: Option<HashMap<String, String>>,
-    // project: Project,
     checksums: Option<HashMap<String, CheckSum>>,
     lsp: Option<LspConfig>,
-    bin_reference: Option<()>,
 }
 
 pub struct YamlConfig {

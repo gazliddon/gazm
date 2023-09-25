@@ -1,15 +1,11 @@
-use tokio::runtime::TryCurrentError;
-
 use grl_eval::GetPriority;
-
 use std::fmt::Display;
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},
-    error::{AstError, UserError},
-    gazmsymbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTreeReader},
+    error::AstError,
+    gazmsymbols::{SymbolError,  SymbolTreeReader},
     item::{Item, LabelDefinition, ParsedFrom},
-    item6809::MC6809,
 };
 
 use grl_sources::Position;

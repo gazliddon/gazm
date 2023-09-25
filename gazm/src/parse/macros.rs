@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use crate::{
-    error::{IResult, UserError},
+    error::IResult,
     item::Node,
 };
 
@@ -11,7 +9,7 @@ use super::{
     locate::{matched_span, span_to_pos, Span},
 };
 
-use grl_sources::{Position, SourceFiles};
+use grl_sources::Position;
 
 use nom::{
     bytes::complete::{is_not, tag},
@@ -21,8 +19,6 @@ use nom::{
     multi::separated_list0,
     sequence::separated_pair,
 };
-
-use regex::Regex;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Macros

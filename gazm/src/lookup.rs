@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     ast::{iter_refs_recursive, AstNodeId, AstTree},
     gazmsymbols::{
-        ScopeId, SymbolError, SymbolInfo, SymbolResolutionBarrier, SymbolScopeId, SymbolTree,
+        ScopeId, SymbolError, SymbolResolutionBarrier, SymbolScopeId, SymbolTree,
     },
     item::{Item, LabelDefinition},
 };
@@ -86,7 +86,7 @@ pub struct LabelUsageAndDefintions {
     pub symbols: SymbolTree,
     symbol_id_to_definition_pos: HashMap<SymbolScopeId, Position>,
     pos_node_id: Vec<(Position, AstNodeId)>,
-    tree: AstTree,
+    // tree: AstTree,
     docs: HashMap<AstNodeId, String>,
 }
 
@@ -137,7 +137,7 @@ impl LabelUsageAndDefintions {
             reference_pos_and_id,
             symbols: _syms.clone(),
             symbol_id_to_definition_pos: symbol_id_to_definition,
-            tree: tree.clone(),
+            // tree: tree.clone(),
             pos_node_id,
             docs,
         }

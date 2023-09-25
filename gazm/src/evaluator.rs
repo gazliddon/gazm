@@ -1,4 +1,4 @@
-use grl_sources::{fileloader::SourceFileLoader, Position, SourceErrorType, SourceInfo};
+use grl_sources::{Position, SourceErrorType, SourceInfo};
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},
@@ -6,7 +6,7 @@ use crate::{
     error::{GResult, UserError},
     gazmeval::eval,
     item::Item::*,
-    gazmsymbols::{SymbolError, SymbolInfo, SymbolScopeId, SymbolTree},
+    gazmsymbols::{SymbolInfo, SymbolTree},
 };
 
 impl Context {

@@ -11,13 +11,6 @@ use grl_utils::SearchError;
 
 use thiserror::Error;
 
-pub struct InternalErrorKind {
-    msg: String,
-    file: PathBuf,
-    line: usize,
-    col: usize,
-}
-
 pub type GResult<T> = Result<T, GazmErrorKind>;
 
 #[derive(Error, Debug, Clone)]

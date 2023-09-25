@@ -1,4 +1,5 @@
 use crate::item::{Item, Node};
+use crate::error::IResult;
 
 use nom::{
     branch::alt,
@@ -9,9 +10,7 @@ use nom::{
     sequence::{preceded, tuple},
 };
 
-use crate::error::{ IResult,ParseError, };
-
-use super::{locate::Span, util::ws};
+use super::locate::Span;
 
 static COMMENT: &str = ";";
 

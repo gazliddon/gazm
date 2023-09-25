@@ -1,31 +1,15 @@
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use crate::{
-    ast::AstTree,
-    astformat,
-    async_tokenize::TokenizeResult,
-    binary::{self, AccessType, Binary},
-    error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
-    lookup::LabelUsageAndDefintions,
     lsp::LspConfig,
     messages::Verbosity,
-    status_err, status_mess,
-    token_store::TokenStore,
     vars::Vars,
 };
-use grl_sources::{
-    fileloader::{FileIo, SourceFileLoader},
-    AsmSource, BinToWrite, EditErrorKind, EditResult, Position, SourceDatabase, SourceFile,
-    SourceFiles, SourceMapping, TextEditTrait,
-};
 
-use grl_utils::{hash::get_hash, PathSearcher};
 
-use anyhow::{Context as AnyContext, Result};
-use itertools::Itertools;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
