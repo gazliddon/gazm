@@ -1,6 +1,6 @@
-use crate::opts::{ BuildType,Opts };
-use crate::messages::Verbosity;
 use crate::config;
+use crate::messages::Verbosity;
+use crate::opts::{BuildType, Opts};
 
 use clap::{Arg, ArgMatches, Command};
 use std::path::PathBuf;
@@ -28,7 +28,11 @@ impl std::fmt::Debug for ConfigErrorType {
 
 fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
     // Get the config file or use the default gazm.toml
-    let mut path: PathBuf = m.value_of("config-file").unwrap_or("gazm.toml").into();
+    let mut path: PathBuf = m
+        .get_one::<String>("config-file")
+        .cloned()
+        .unwrap_or("gazm.toml".to_string())
+        .into();
 
     // If the file is a directory then add gazm.toml to the file
     if path.is_dir() {
@@ -64,15 +68,13 @@ struct Overides {
 impl Overides {
     pub fn new(matches: &clap::ArgMatches) -> Self {
         Overides {
-            no_async: matches.is_present("no-async").then_some(true),
-            verbosity: matches.is_present("verbose").then(|| {
-                match matches.occurrences_of("verbose") {
-                    0 => Verbosity::Silent,
-                    1 => Verbosity::Normal,
-                    2 => Verbosity::Info,
-                    3 => Verbosity::Interesting,
-                    _ => Verbosity::Debug,
-                }
+            no_async: matches.index_of("no-async").map(|_| true),
+            verbosity: Some(match matches.get_count("verbose") {
+                0 => Verbosity::Silent,
+                1 => Verbosity::Normal,
+                2 => Verbosity::Info,
+                3 => Verbosity::Interesting,
+                _ => Verbosity::Debug,
             }),
         }
     }
@@ -105,45 +107,45 @@ impl Opts {
 
             Some(("fmt", m)) => {
                 let mut o = load_opts_with_build_type(m, BuildType::Format, &overides)?;
-                o.project_file = m.value_of("fmt-file").map(PathBuf::from).unwrap();
+                o.project_file = m.get_one::<String>("fmt-file").map(PathBuf::from).unwrap();
                 o
             }
 
             Some(("asm", m)) => {
                 let mut opts = Opts {
-                    deps_file: m.value_of("deps").map(String::from),
-                    source_mapping: m.value_of("source-mapping").map(String::from),
-                    as6809_lst: m.value_of("as6809-lst").map(String::from),
-                    as6809_sym: m.value_of("as6809-sym").map(String::from),
-                    trailing_comments: m.is_present("trailing-comments"),
-                    star_comments: m.is_present("star-comments"),
-                    ignore_relative_offset_errors: m.is_present("ignore-relative-offset-errors"),
-                    project_file: m.value_of("project-file").unwrap().into(),
-                    lst_file: m.value_of("lst-file").map(String::from),
-                    ast_file: m.value_of("ast-file").map(PathBuf::from),
+                    deps_file: m.get_one::<String>("deps").map(String::from),
+                    source_mapping: m.get_one::<String>("source-mapping").map(String::from),
+                    as6809_lst: m.get_one::<String>("as6809-lst").map(String::from),
+                    as6809_sym: m.get_one::<String>("as6809-sym").map(String::from),
+                    trailing_comments: m.contains_id("trailing-comments"),
+                    star_comments: m.contains_id("star-comments"),
+                    ignore_relative_offset_errors: m.contains_id("ignore-relative-offset-errors"),
+                    project_file: m.get_one::<String>("project-file").unwrap().into(),
+                    lst_file: m.get_one::<String>("lst-file").map(String::from),
+                    ast_file: m.get_one::<String>("ast-file").map(PathBuf::from),
                     assemble_dir: Some(std::env::current_dir().unwrap()),
                     ..Default::default()
                 };
 
-                if m.is_present("mem-size") {
+                if m.contains_id("mem-size") {
                     opts.mem_size = m
-                        .value_of("mem-size")
+                        .get_one::<String>("mem-size")
                         .map(|s| s.parse::<usize>().unwrap())
                         .unwrap();
                 }
 
-                if m.is_present("max-errors") {
+                if m.contains_id("max-errors") {
                     opts.max_errors = m
-                        .value_of("max-errors")
+                        .get_one::<String>("max-errors")
                         .map(|s| s.parse::<usize>().unwrap())
                         .unwrap();
                 }
 
-                if let Some(mut it) = m.values_of("set") {
-                    while let Some((var, value)) =
-                        it.next().and_then(|var| it.next().map(|val| (var, val)))
-                    {
-                        opts.vars.set_var(var, value)
+                if let Some(vals) = m.get_occurrences("set") {
+                    let vals: Vec<Vec<&String>> = vals.map(Iterator::collect).collect();
+                    for x in vals {
+                        opts.vars
+                            .set_var(x.get(0).unwrap().as_str(), &x.get(1).unwrap().as_str())
                     }
                 }
 
@@ -157,20 +159,20 @@ impl Opts {
     }
 }
 
-fn make_config_file_arg<'a>() -> Arg<'a> {
+fn make_config_file_arg() -> Arg {
     Arg::new("config-file")
         .help("load config file")
-        .multiple_values(false)
+        // .multiple_values(false)
         .index(1)
         .required(false)
         .default_value("gazm.toml")
 }
 
-fn make_config_file_command<'a>(command: &'a str, about: &'a str) -> Command<'a> {
-    Command::new(command)
-        .about(about)
-        .arg(make_config_file_arg())
-}
+// fn make_config_file_command(command: &str, about: &str) -> Command {
+//     Command::new(command)
+//         .about(about)
+//         .arg(make_config_file_arg())
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -227,52 +229,37 @@ pub fn parse() -> clap::ArgMatches {
             Arg::new("verbose")
                 .long("verbose")
                 .help("Verbose mode")
-                .multiple_occurrences(true)
+                .action(clap::ArgAction::Count)
+                // .multiple_occurrences(true)
                 .short('v'),
         )
         .arg(
             Arg::new("no-async")
                 .long("no-async")
-                .help("Disable async build")
-                .multiple_occurrences(false),
+                .help("Disable async build"),
         )
         .subcommand_required(true)
-        .subcommand(make_config_file_command(
-            "build",
-            "Build using the config file",
-        ))
-        .subcommand(make_config_file_command(
-            "check",
-            "Check syntax using the config file",
-        ))
-        .subcommand(make_config_file_command(
-            "lsp",
-            "Launch LSP using config file",
-        ))
         .subcommand(
-            Command::new("fmt")
-                .about("Format a file")
-                .arg(
-                    Arg::new("config-file")
-                        .help("load config file")
-                        .multiple_values(false)
-                        .index(1)
-                        .required(true),
-                )
-                .arg(
-                    Arg::new("fmt-file")
-                        .help("file to format")
-                        .multiple_values(false)
-                        .index(2)
-                        .required(true),
-                ),
+            Command::new("build")
+                .about("build using the config file")
+                .arg(make_config_file_arg()),
+        )
+        .subcommand(
+            Command::new("check")
+                .about("Check syntax using the config file")
+                .arg(make_config_file_arg()),
+        )
+        .subcommand(
+            Command::new("lsp")
+                .about("Launch LSP using config file")
+                .arg(make_config_file_arg()),
         )
         .subcommand(
             Command::new("asm")
                 .about("Assemble using command line switches")
                 .arg(
                     Arg::new("project-file")
-                        .multiple_values(false)
+                        // .multiple_values(false)
                         .required(true),
                 )
                 .arg(
@@ -280,7 +267,7 @@ pub fn parse() -> clap::ArgMatches {
                         .help("File symbols are written to")
                         .long("symbol-file")
                         .help("symbol file")
-                        .takes_value(true)
+                        .num_args(1)
                         .short('s'),
                 )
                 .arg(
@@ -304,26 +291,26 @@ pub fn parse() -> clap::ArgMatches {
                     Arg::new("as6809-lst")
                         .long("as6809-lst")
                         .help("Load in AS609 lst file to compare against")
-                        .takes_value(true),
+                        .num_args(1),
                 )
                 .arg(
                     Arg::new("as6809-sym")
                         .long("as6809-sym")
                         .help("Load in AS609 sym file to compare against")
-                        .takes_value(true),
+                        .num_args(1),
                 )
                 .arg(
                     Arg::new("deps")
                         .long("deps")
                         .help("Write a Makefile compatible deps file")
-                        .takes_value(true),
+                        .num_args(1),
                 )
                 .arg(
                     Arg::new("set")
                         .long("set")
                         .value_names(&["var", "value"])
-                        .takes_value(true)
-                        .multiple_occurrences(true)
+                        // .takes_value(true)
+                        // .multiple_occurrences(true)
                         .help("Set a value"),
                 )
                 .arg(
@@ -331,16 +318,16 @@ pub fn parse() -> clap::ArgMatches {
                         .default_value("5")
                         .help("Maxium amount of non fatal errors allowed before failing")
                         .long("max-errors")
-                        .takes_value(true)
+                        .num_args(1)
                         .use_value_delimiter(false)
-                        .validator(|s| s.parse::<usize>())
+                        .value_parser(clap::value_parser!(usize))
                         .short('m'),
                 )
                 .arg(
                     Arg::new("ast-file")
                         .help("Output AST")
                         .long("ast-file")
-                        .takes_value(true)
+                        .num_args(1)
                         .use_value_delimiter(false),
                 )
                 .arg(
@@ -348,7 +335,7 @@ pub fn parse() -> clap::ArgMatches {
                         .help("Output list file")
                         .long("lst-file")
                         .short('l')
-                        .takes_value(true)
+                        .num_args(1)
                         .use_value_delimiter(false),
                 )
                 .arg(
@@ -356,9 +343,9 @@ pub fn parse() -> clap::ArgMatches {
                         .default_value("65536")
                         .help("Size of output binary")
                         .long("mem-size")
-                        .takes_value(true)
+                        .num_args(1)
                         .use_value_delimiter(false)
-                        .validator(|s| s.parse::<usize>()),
+                        .value_parser(clap::value_parser!(usize)),
                 ),
         )
         .get_matches()

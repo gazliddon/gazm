@@ -6,7 +6,8 @@ authors= ["gazaxian"]
 
 [dependencies]
 anyhow="1.0.75"
-clap = { version = "3.1.5", features = ["derive", "color"] }
+# clap = { version = "3.1.5", features = ["derive", "color"] }
+clap = { version = "*", features = ["derive", "color"] }
 colored = "2.0.4"
 ego-tree="0.6.2"
 env_logger="0.10.0"
