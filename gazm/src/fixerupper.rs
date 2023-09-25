@@ -1,8 +1,8 @@
-use crate::item::Item;
-use crate::ast::AstNodeId;
+use crate::{ast::AstNodeId, item::Item};
+
 use std::collections::HashMap;
 
-#[derive(Debug,Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct FixKey {
     scope: u64,
     id: AstNodeId,
@@ -26,7 +26,7 @@ impl FixerUpper {
         self.fixups.get(&FixKey { scope, id })
     }
 
-    pub fn get_fixup_or_default(&self, scope: u64, id: AstNodeId, i : &Item) -> Item {
+    pub fn get_fixup_or_default(&self, scope: u64, id: AstNodeId, i: &Item) -> Item {
         self.get_fixup(scope, id).unwrap_or(i).clone()
     }
 }

@@ -2,21 +2,20 @@
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
-    character::complete::{anychar, line_ending, multispace0, char as nom_char},
+    character::complete::{anychar, char as nom_char, line_ending, multispace0},
     combinator::{cut, not, opt, recognize},
     multi::many0,
     sequence::{preceded, terminated, tuple},
 };
 
 use std::path::{Path, PathBuf};
+
 use tryvial::try_block;
 
 use crate::{
-    opts::Opts,
     error::{GResult, IResult, ParseError},
     item::{Item, Node},
-    parse6809::opcodes::parse_opcode,
-
+    opts::Opts,
     parse::{
         commands::parse_command,
         comments::{parse_comment, parse_star_comment},
@@ -27,7 +26,7 @@ use crate::{
         structs::{get_struct, parse_struct_definition},
         util::{parse_assignment, ws},
     },
-
+    parse6809::opcodes::parse_opcode,
 };
 
 use grl_sources::Position;
@@ -299,7 +298,10 @@ impl Tokens {
 pub fn get_doc_line(input: Span) -> IResult<Span> {
     let rest = input;
     let (rest, matched) = get_line_cut(rest)?;
-    let (_, matched) = preceded(tuple(( multispace0, tag(";;;"),opt(nom_char(' '))  )), recognize(many0(anychar)))(matched)?;
+    let (_, matched) = preceded(
+        tuple((multispace0, tag(";;;"), opt(nom_char(' ')))),
+        recognize(many0(anychar)),
+    )(matched)?;
     Ok((rest, matched))
 }
 

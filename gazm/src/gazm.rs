@@ -3,8 +3,10 @@ use crate::{ast::Ast, async_tokenize, ctx::Context, error::GResult, item::Node, 
 use grl_sources::{EditResult, TextEditTrait};
 use grl_utils::{PathSearcher, Stack};
 
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Default, Debug, Clone)]
 pub struct ScopeTracker {

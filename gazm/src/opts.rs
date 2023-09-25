@@ -1,14 +1,6 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-};
+use std::{collections::HashMap, path::PathBuf};
 
-use crate::{
-    lsp::LspConfig,
-    messages::Verbosity,
-    vars::Vars,
-};
-
+use crate::{lsp::LspConfig, messages::Verbosity, vars::Vars};
 
 use serde::Deserialize;
 

@@ -1,17 +1,16 @@
-use grl_eval::GetPriority;
 use std::fmt::Display;
+use thiserror::Error;
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},
     error::AstError,
-    gazmsymbols::{SymbolError,  SymbolTreeReader},
+    gazmsymbols::{SymbolError, SymbolTreeReader},
     item::{Item, LabelDefinition, ParsedFrom},
 };
 
+use grl_eval::GetPriority;
 use grl_sources::Position;
 use grl_utils::Stack;
-
-use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
 pub enum EvalErrorEnum {

@@ -1,7 +1,8 @@
+use thin_vec::{thin_vec, ThinVec};
+
 ////////////////////////////////////////////////////////////////////////////////
 // Node
 pub trait CtxTrait: Clone + std::fmt::Debug {}
-use thin_vec::{thin_vec, ThinVec};
 
 #[derive(PartialEq, Clone)]
 pub struct BaseNode<I: Clone, C: CtxTrait = Dummy> {
