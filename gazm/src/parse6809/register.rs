@@ -1,9 +1,9 @@
 use crate::{
     error::IResult,
     item::{Item, Node},
+    item6809::MC6809::RegisterSet,
     parse::locate::Span,
     parse::util,
-    item6809::MC6809::RegisterSet,
 };
 
 use emu6809::cpu::RegEnum;
@@ -91,7 +91,7 @@ fn get_reg_set(input: Span) -> IResult<HashSet<RegEnum>> {
 pub fn parse_reg_set_n(input: Span, n: usize) -> IResult<Node> {
     let (rest, matched) = parse_reg_set(input)?;
 
-    if let Item::Cpu(RegisterSet(regs)  )= &matched.item {
+    if let Item::Cpu(RegisterSet(regs)) = &matched.item {
         if regs.len() < n {
             return Err(crate::error::parse_error(
                 "Need at least 2 registers in list",

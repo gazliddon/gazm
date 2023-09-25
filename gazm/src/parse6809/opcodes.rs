@@ -71,7 +71,6 @@ fn parse_force_extended(input: Span) -> IResult<Node> {
 }
 
 fn parse_reg_set(input: Span) -> IResult<Node> {
-
     let (rest, matched) = register::parse_reg_set_1(input)?;
     let matched =
         Node::from_item_span(Operand(AddrModeParseType::RegisterSet), input).with_child(matched);
@@ -203,9 +202,9 @@ pub fn parse_opcode(input: Span) -> IResult<Node> {
 mod test {
     use super::*;
 
-    use std::os::unix::prelude::JoinHandleExt;
-    use pretty_assertions::{assert_eq, assert_ne};
     use grl_sources::Position;
+    use pretty_assertions::{assert_eq, assert_ne};
+    use std::os::unix::prelude::JoinHandleExt;
 
     #[test]
     fn test_parse_misc() {
