@@ -249,23 +249,23 @@ where
 #[allow(dead_code)]
 #[cfg(test)]
 mod test {
-    use grl_utils::PathSearcher;
+    use grl_sources::grl_utils::PathSearcher;
     use std::path;
     use std::{thread::current, time::Instant};
 
-    use crate::config::YamlConfig;
+    use crate::config::TomlConfig;
     use crate::messages::Verbosity;
 
     use super::*;
     #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
 
-    fn get_config<P: AsRef<Path>>(path: P) -> YamlConfig {
+    fn get_config<P: AsRef<Path>>(path: P) -> TomlConfig {
         println!("Trying to read {}", path.as_ref().to_string_lossy());
-        YamlConfig::new_from_file(&path)
+        TomlConfig::new_from_file(&path).unwrap()
     }
 
-    fn mk_ctx(config: &YamlConfig) -> crate::ctx::Context {
+    fn mk_ctx(config: &TomlConfig) -> crate::ctx::Context {
         let mut dir = config.file.clone();
         dir.pop();
         let mut ctx =

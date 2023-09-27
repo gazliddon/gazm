@@ -1,9 +1,11 @@
 use crate::config;
 use crate::messages::Verbosity;
 use crate::opts::{BuildType, Opts};
+use lazy_static::lazy_static;
 
 use clap::{Arg, ArgMatches, Command, builder::PathBufValueParser, ArgAction,value_parser};
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +19,8 @@ pub enum ConfigErrorType {
     InvalidDir(PathBuf),
     #[error("Can't find file {0}")]
     MissingConfigFile(PathBuf),
+    #[error("Parse Error in config file: {0}\nline: {2}, col: {3}\n{1}")]
+    ParseError(PathBuf,String, usize,usize),
 }
 
 impl std::fmt::Debug for ConfigErrorType {
@@ -27,7 +31,7 @@ impl std::fmt::Debug for ConfigErrorType {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
+fn load_config(m: &ArgMatches) -> ConfigError<config::TomlConfig> {
     // Get the config file or use the default gazm.toml
     let mut path: PathBuf = m
         .get_one::<String>("config-file")
@@ -44,9 +48,8 @@ fn load_config(m: &ArgMatches) -> ConfigError<config::YamlConfig> {
         return Err(ConfigErrorType::MissingConfigFile(path));
     }
 
-    let ret = config::YamlConfig::new_from_file(path);
+    config::TomlConfig::new_from_file(path)
 
-    Ok(ret)
 }
 
 fn load_opts_with_build_type(
@@ -169,63 +172,15 @@ fn make_config_file_arg() -> Arg {
         .default_value("gazm.toml")
 }
 
-// fn make_config_file_command(command: &str, about: &str) -> Command {
-//     Command::new(command)
-//         .about(about)
-//         .arg(make_config_file_arg())
-// }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-pub struct BuildInfo {
-    pub version: String,
-    pub authors: String,
-    pub bin_name: String,
-    pub crate_name: String,
-}
-
-impl Default for BuildInfo {
-    fn default() -> Self {
-        const UNKNOWN: &str = "UNKNOWN";
-        let version = option_env!("CARGO_PKG_VERSION")
-            .unwrap_or(UNKNOWN)
-            .to_string();
-        let authors = option_env!("CARGO_PKG_AUTHORS")
-            .unwrap_or(UNKNOWN)
-            .to_string();
-        let bin_name = option_env!("CARGO_BIN_NAME").unwrap_or(UNKNOWN).to_string();
-        let crate_name = option_env!("CARGO_CRATE_NAME")
-            .unwrap_or(UNKNOWN)
-            .to_string();
-
-        Self {
-            version,
-            authors,
-            bin_name,
-            crate_name,
-        }
-    }
-}
-
-impl BuildInfo {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-lazy_static::lazy_static! {
-    static ref BUILD_INFO : BuildInfo = BuildInfo::new();
-}
 
 pub fn parse() -> ArgMatches {
-    Command::new(BUILD_INFO.crate_name.as_str())
+
+    Command::new(clap::crate_name!())
         .about("6809 assembler")
-        .author(BUILD_INFO.authors.as_str())
-        .version(BUILD_INFO.version.as_str())
-        .bin_name(BUILD_INFO.bin_name.as_str())
-        // TODO: Look into using groups so replicate this into other subcommands
+        .author(clap::crate_authors!("\n"))
+        .version(clap::crate_version!())
         .arg(
             Arg::new("verbose")
                 .long("verbose")

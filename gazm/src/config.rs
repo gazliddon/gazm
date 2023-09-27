@@ -1,18 +1,23 @@
-use crate::opts::{CheckSum, Opts};
-use crate::lsp::LspConfig;
+use std::{collections::HashMap, path::PathBuf};
+
+use crate::{
+    cli::{ConfigError, ConfigErrorType},
+    lsp::LspConfig,
+    opts::{CheckSum, Opts},
+};
+
+use grl_sources::TextPos;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize, Default)]
-struct LoadedYamlConfig {
+struct LoadedTomlConfig {
     pub opts: Option<Opts>,
     vars: Option<HashMap<String, String>>,
     checksums: Option<HashMap<String, CheckSum>>,
     lsp: Option<LspConfig>,
 }
 
-pub struct YamlConfig {
+pub struct TomlConfig {
     pub file: PathBuf,
     pub opts: Opts,
 }
@@ -22,16 +27,8 @@ pub struct Project {
     pub name: String,
 }
 
-impl Default for YamlConfig {
-    fn default() -> Self {
-        let config_file = "./gazm.toml";
-        Self::new_from_file(config_file)
-    }
-}
-
-impl YamlConfig {
-    pub fn new_from_file<P: AsRef<std::path::Path>>(file: P) -> Self {
-
+impl TomlConfig {
+    pub fn new_from_file<P: AsRef<std::path::Path>>(file: P) -> ConfigError<Self> {
         let file = file.as_ref();
 
         let run_dir = file.parent().and_then(|p| {
@@ -41,24 +38,47 @@ impl YamlConfig {
         });
 
         let f = std::fs::read_to_string(file).expect("can't read");
-        let toml: LoadedYamlConfig = toml::from_str(&f).unwrap();
 
-        let mut opts = toml.opts.clone().unwrap_or_default();
-        opts.vars = toml
-            .vars
-            .clone()
-            .unwrap_or_default()
-            .into_iter()
-            .collect::<Vec<(String, String)>>()
-            .into();
+        let toml = toml::from_str::<LoadedTomlConfig>(&f);
 
-        opts.checksums = toml.checksums.clone().unwrap_or_default();
-        opts.assemble_dir = run_dir;
-        opts.lsp_config = toml.lsp.unwrap_or_default();
+        match toml {
+            Ok(toml) => {
+                let mut opts = toml.opts.clone().unwrap_or_default();
+                opts.vars = toml
+                    .vars
+                    .unwrap_or_default()
+                    .into_iter()
+                    .collect::<Vec<(String, String)>>()
+                    .into();
 
-        YamlConfig {
-            file : file.to_path_buf(),
-            opts,
+                opts.checksums = toml.checksums.clone().unwrap_or_default();
+                opts.assemble_dir = run_dir;
+                opts.lsp_config = toml.lsp.unwrap_or_default();
+
+                let config = TomlConfig {
+                    file: file.to_path_buf(),
+                    opts,
+                };
+
+                Ok(config)
+            }
+
+            // @TODO : Need to generate more info,
+            // line numbers etc
+            Err(err) => {
+                use grl_sources::TextFile;
+
+                let td = TextFile::new(&f);
+                let sp = err.span().expect("Trying to retrieve span");
+                let tp = td.offset_to_text_pos(sp.start).expect("trying to get line / col");
+
+                Err(ConfigErrorType::ParseError(
+                    file.to_path_buf(),
+                    err.message().to_owned(),
+                    tp.line() + 1,
+                    tp.char() + 1,
+                ))
+            }
         }
     }
 }
