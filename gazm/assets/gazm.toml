@@ -1,0 +1,11 @@
+[project]
+name = "6809all"
+
+[opts]
+verbose="Silent"
+mem-size = 65536
+project-file = "6809all.gazm"
+source-mapping = "6809all.map"
+syms-file = "6809all.sym"
+
+

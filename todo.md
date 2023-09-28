@@ -3,9 +3,7 @@
 * https://github.com/windwp/nvim-autopairs
 
 # Namespace importing
-
 Writing to symbols
-
 
 
 # Full scope symbol resolution

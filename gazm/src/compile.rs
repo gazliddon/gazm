@@ -4,6 +4,8 @@ use std::path::Path;
 use crate::{
     asmctx::AsmCtx,
     ast::{AstNodeId, AstNodeRef, AstTree},
+    binary::BinaryError,
+    debug_mess,
     error::{GResult, GazmErrorKind, UserError},
     gazm::ScopeTracker,
     info_mess,
@@ -12,24 +14,34 @@ use crate::{
         self, AddrModeParseType, IndexParseType,
         MC6809::{self, OpCode, SetDp},
     },
-    debug_mess,
     regutils::*,
-    status_mess, binary::BinaryError,
+    status_mess, gazmsymbols::SymbolScopeId,
 };
-
 
 use emu6809::isa;
 use grl_sources::ItemType;
 
 pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
+    let mut writer = ctx.ctx.get_symbols_mut().get_root_writer();
+
+    let pc_symbol_id = writer
+        .create_and_set_symbol("*", 0)
+        .expect("Can't add symbol for pc");
+
     let root_id = ctx.ctx.get_symbols().get_root_scope_id();
-    let mut compiler = Compiler::new(tree, root_id)?;
-    compiler.compile_root(ctx)
+    let mut compiler = Compiler::new(tree, root_id, pc_symbol_id)?;
+    compiler.compile_root(ctx)?;
+
+    let mut writer = ctx.ctx.get_symbols_mut().get_root_writer();
+    writer.remove_symbol("*").expect("Can't remove pc symbol");
+
+    Ok(())
 }
 
 struct Compiler<'a> {
     tree: &'a AstTree,
     scopes: ScopeTracker,
+    pc_symbol_id : SymbolScopeId,
 }
 
 impl<'a> Compiler<'a> {
@@ -55,10 +67,11 @@ impl<'a> Compiler<'a> {
         node
     }
 
-    pub fn new(tree: &'a AstTree, current_scope_id: u64) -> GResult<Self> {
+    pub fn new(tree: &'a AstTree, current_scope_id: u64, pc_symbol_id: SymbolScopeId) -> GResult<Self> {
         let ret = Self {
             tree,
             scopes: ScopeTracker::new(current_scope_id),
+            pc_symbol_id,
         };
         Ok(ret)
     }
@@ -78,8 +91,8 @@ impl<'a> Compiler<'a> {
         &self,
         ctx: &AsmCtx,
         id: AstNodeId,
-        e : Result<T,BinaryError>
-    ) -> Result<T,GazmErrorKind> {
+        e: Result<T, BinaryError>,
+    ) -> Result<T, GazmErrorKind> {
         e.map_err(|e| self.binary_error(ctx, id, e))
     }
 
@@ -97,8 +110,6 @@ impl<'a> Compiler<'a> {
         let msg = message;
         UserError::from_text(msg, info, true).into()
     }
-
-
 
     fn compile_indexed(
         &mut self,
@@ -122,19 +133,18 @@ impl<'a> Compiler<'a> {
             ExtendedIndirect => {
                 let (val, _) = ctx.ctx.eval_first_arg(node, self.scopes.scope())?;
 
-                let res= ctx.binary_mut().write_uword_check_size(val);
-                self.binary_error_map(ctx,id,res)?;
-
+                let res = ctx.binary_mut().write_uword_check_size(val);
+                self.binary_error_map(ctx, id, res)?;
             }
 
             ConstantWordOffset(_, val) | PcOffsetWord(val) => {
                 let res = ctx.binary_mut().write_iword_check_size(val as i64);
-                self.binary_error_map(ctx,id,res)?;
+                self.binary_error_map(ctx, id, res)?;
             }
 
             ConstantByteOffset(_, val) | PcOffsetByte(val) => {
-                let res= ctx.binary_mut().write_ibyte_check_size(val as i64);
-                self.binary_error_map(ctx,id,res)?;
+                let res = ctx.binary_mut().write_ibyte_check_size(val as i64);
+                self.binary_error_map(ctx, id, res)?;
             }
             _ => (),
         }
@@ -166,13 +176,9 @@ impl<'a> Compiler<'a> {
         let source = args[0];
         let size = args[1];
 
-        let bytes = ctx
-            .binary()
-            .get_bytes(source as usize, size as usize);
+        let bytes = ctx.binary().get_bytes(source as usize, size as usize);
 
-
-        let bytes = self.binary_error_map(ctx,id,bytes)?.to_vec();
-
+        let bytes = self.binary_error_map(ctx, id, bytes)?.to_vec();
 
         ctx.binary_mut()
             .write_bytes(&bytes)
@@ -218,7 +224,6 @@ impl<'a> Compiler<'a> {
         };
 
         ctx.binary_mut().bin_reference(&bin_ref, &data);
-
 
         info_mess!(
             "Adding binary reference {} for {:05X} - {:05X}",
@@ -268,13 +273,13 @@ impl<'a> Compiler<'a> {
 
             Direct => {
                 let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                let res =ctx.binary_mut().write_byte_check_size(arg & 0xff);
+                let res = ctx.binary_mut().write_byte_check_size(arg & 0xff);
                 self.binary_error_map(ctx, id, res)?;
             }
 
             Extended | Immediate16 => {
                 let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                let res =ctx.binary_mut().write_word_check_size(arg);
+                let res = ctx.binary_mut().write_word_check_size(arg);
                 self.binary_error_map(ctx, id, res)?;
             }
 
@@ -313,6 +318,7 @@ impl<'a> Compiler<'a> {
                 use crate::binary::BinaryError::*;
 
                 let (arg, arg_id) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
+
                 let arg_n = self.get_node(arg_id);
 
                 let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
@@ -403,6 +409,9 @@ impl<'a> Compiler<'a> {
         let mut pc = ctx.binary().get_write_address();
         let mut do_source_mapping = ctx.ctx.opts.lst_file.is_some();
         let current_scope_id = self.scopes.scope();
+
+        ctx.set_symbol_value(self.pc_symbol_id, pc)
+            .expect("Can't set PC symbol value");
 
         match i {
             ScopeId(scope_id) => self.scopes.set_scope(scope_id),
@@ -523,7 +532,7 @@ impl<'a> Compiler<'a> {
                 let node = self.get_node(node_id);
                 let (words, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..words {
-                    let e= ctx.binary_mut().write_word(0);
+                    let e = ctx.binary_mut().write_word(0);
                     self.binary_error_map(ctx, id, e)?;
                 }
 
