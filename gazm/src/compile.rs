@@ -542,7 +542,7 @@ impl<'a> Compiler<'a> {
 
             Fill => {
                 let node = self.get_node(node_id);
-                let (byte, size) = ctx.ctx.eval_two_args(node, current_scope_id)?;
+                let (size, byte) = ctx.ctx.eval_two_args(node, current_scope_id)?;
 
                 for _ in 0..size {
                     let e = ctx.binary_mut().write_ubyte_check_size(byte);

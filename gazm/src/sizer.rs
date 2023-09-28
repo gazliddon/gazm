@@ -322,9 +322,9 @@ impl<'a> Sizer<'a> {
             }
 
             Fill => {
-                let (_, c) = ctx.ctx.eval_two_args(node, current_scope_id)?;
-                assert!(c >= 0);
-                self.advance_pc(c as usize);
+                let (size, _val) = ctx.ctx.eval_two_args(node, current_scope_id)?;
+                assert!(size >= 0);
+                self.advance_pc(size as usize);
             }
 
             Cpu(SetDp) => {
