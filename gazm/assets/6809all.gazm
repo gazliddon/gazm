@@ -22,7 +22,6 @@ START	equ    *
 
 		ldx		#$feee
 		stx		$fff2		; swi3
-
 		lda		#$16		
 		sta		$fefa
 		sta		$fef1
@@ -42,7 +41,7 @@ START	equ    *
 
 		lda		#DIRECT/256
 		tfr		a,dp
-;;		setdp	DIRECT/256
+
 		setdp	$20
 
 		ldu		#SCRATCH+96
@@ -596,8 +595,7 @@ A_RTI	rti
 ;;		org		$2000
 
 		bsz		$2000-*
-
-DIRECT	equ		*
+DIRECT
 
 ;;		org		$2100
 
@@ -614,6 +612,7 @@ IND_RTS	fdb		A_RTS
 
 		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
 		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
+/// Scratch stuff
 SCRATCH fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
 		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
 		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
@@ -625,10 +624,10 @@ SCRATCH fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
 		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
 		fdb		$2300,$2302,$2304,$2306,$2308,$230a,$230c,$230e
 
-;;		org		$2f80
+;		org		$2f80
 		bsz		$2f80-*
 
-STACK	equ		*
+STACK
 
 		org		$100
 		rti				; swi3

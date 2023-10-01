@@ -19,7 +19,6 @@ Errors
 
 
 ## Symbol definition lookup
-
 Text file + pos
 Mapping of Position to symbol def
 
