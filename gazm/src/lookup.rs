@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{iter_refs_recursive, AstNodeId, AstTree},
+    ast::{iter_refs_recursive, AstNodeId, AstTree, AstWrapper},
     gazmsymbols::{
         ScopeId, SymbolError, SymbolResolutionBarrier, SymbolScopeId, SymbolTree,
     },
@@ -90,13 +90,13 @@ pub struct LabelUsageAndDefintions {
 }
 
 impl LabelUsageAndDefintions {
-    pub fn new(tree: &AstTree, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self {
+    pub fn new(tree: &AstWrapper, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self {
         use Item::*;
 
         let mut reference_pos_and_id: Vec<(Position, SymbolScopeId)> = vec![];
         let mut symbol_id_to_definition: HashMap<SymbolScopeId, Position> = HashMap::new();
 
-        for n in iter_refs_recursive(tree.root()) {
+        for n in iter_refs_recursive(tree.as_ref().root()) {
             let v = n.value();
             let pos = v.pos.clone();
 
@@ -117,7 +117,7 @@ impl LabelUsageAndDefintions {
 
         let mut pos_node_id = vec![];
 
-        for n in iter_refs_recursive(tree.root()) {
+        for n in iter_refs_recursive(tree.as_ref().root()) {
             let v = n.value();
             if matches!(
                 v.item,

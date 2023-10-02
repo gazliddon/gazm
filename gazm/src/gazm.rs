@@ -137,7 +137,7 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
 
     let tree = Ast::from_nodes(ctx, tokens)?;
     let docs = tree.docs;
-    let tree = tree.tree;
+    let tree = tree.ast_tree;
 
     let mut asm_ctx = AsmCtx {
         fixer_upper: FixerUpper::new(),

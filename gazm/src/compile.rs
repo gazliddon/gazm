@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::{
     asmctx::AsmCtx,
-    ast::{AstNodeId, AstNodeRef, AstTree},
+    ast::{AstNodeId, AstNodeRef, AstTree, AstWrapper},
     binary::BinaryError,
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
@@ -21,7 +21,7 @@ use crate::{
 use emu6809::isa;
 use grl_sources::ItemType;
 
-pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
+pub fn compile(ctx: &mut AsmCtx, tree: &AstWrapper) -> GResult<()> {
     let mut writer = ctx.ctx.get_symbols_mut().get_root_writer();
 
     let pc_symbol_id = writer
@@ -39,7 +39,7 @@ pub fn compile(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
 }
 
 struct Compiler<'a> {
-    tree: &'a AstTree,
+    tree: &'a AstWrapper,
     scopes: ScopeTracker,
     pc_symbol_id : SymbolScopeId,
 }
@@ -51,7 +51,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn get_node_item_ref(&self, ctx: &AsmCtx, id: AstNodeId) -> (AstNodeRef, Item) {
-        let node = self.tree.get(id).unwrap();
+        let node = self.tree.as_ref().get(id).unwrap();
         let this_i = &node.value().item;
         let i = ctx.get_fixup_or_default(id, this_i, self.scopes.scope());
         (node, i)
@@ -63,11 +63,11 @@ impl<'a> Compiler<'a> {
     // }
 
     fn get_node(&self, id: AstNodeId) -> AstNodeRef {
-        let node = self.tree.get(id).unwrap();
+        let node = self.tree.as_ref().get(id).unwrap();
         node
     }
 
-    pub fn new(tree: &'a AstTree, current_scope_id: u64, pc_symbol_id: SymbolScopeId) -> GResult<Self> {
+    pub fn new(tree: &'a AstWrapper, current_scope_id: u64, pc_symbol_id: SymbolScopeId) -> GResult<Self> {
         let ret = Self {
             tree,
             scopes: ScopeTracker::new(current_scope_id),
@@ -399,7 +399,7 @@ impl<'a> Compiler<'a> {
     fn compile_root(&mut self, ctx: &mut AsmCtx) -> GResult<()> {
         let scope_id = ctx.ctx.get_symbols().get_root_scope_id();
         self.scopes.set_scope(scope_id);
-        self.compile_node(ctx, self.tree.root().id())
+        self.compile_node(ctx, self.tree.as_ref().root().id())
     }
 
     fn compile_node(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {

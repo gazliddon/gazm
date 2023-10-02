@@ -2,7 +2,7 @@
 /// Resolve labels where we can
 use crate::{
     asmctx::AsmCtx,
-    ast::{AstNodeId, AstNodeRef, AstTree},
+    ast::{AstNodeId, AstNodeRef, AstTree, AstWrapper},
     error::GResult,
     gazm::ScopeTracker,
     info_mess,
@@ -25,13 +25,13 @@ use std::path::Path;
 /// assigns values to labels that
 /// are defined by value of PC
 struct Sizer<'a> {
-    tree: &'a AstTree,
+    tree: &'a AstWrapper,
     scopes: ScopeTracker,
     pc: usize,
     pc_symbol_id: SymbolScopeId,
 }
 
-pub fn size_tree(ctx: &mut AsmCtx, tree: &AstTree) -> GResult<()> {
+pub fn size_tree(ctx: &mut AsmCtx, tree: &AstWrapper) -> GResult<()> {
     crate::messages::info("Sizing tree", |_x| {
         let _sizer = Sizer::try_new(tree, ctx)?;
         info_mess!("done");
@@ -54,7 +54,7 @@ impl<'a> Sizer<'a> {
         assert!(self.pc < 65536);
     }
 
-    pub fn try_new(tree: &'a AstTree, ctx: &mut AsmCtx) -> GResult<Sizer<'a>> {
+    pub fn try_new(tree: &'a AstWrapper, ctx: &mut AsmCtx) -> GResult<Sizer<'a>> {
         let pc = 0;
         let mut writer = ctx.ctx.get_symbols_mut().get_root_writer();
 
@@ -71,7 +71,7 @@ impl<'a> Sizer<'a> {
             pc_symbol_id,
         };
 
-        let id = ret.tree.root().id();
+        let id = ret.tree.as_ref().root().id();
         ret.size_node(ctx, id)?;
 
         let mut writer = ctx.ctx.get_symbols_mut().get_root_writer();
@@ -392,6 +392,6 @@ impl<'a> Sizer<'a> {
     }
 
     fn get_node(&self, id: AstNodeId) -> AstNodeRef {
-        self.tree.get(id).expect("Can't fetch node")
+        self.tree.as_ref().get(id).expect("Can't fetch node")
     }
 }

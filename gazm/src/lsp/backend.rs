@@ -47,6 +47,7 @@ pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
 }
 
 impl Context {
+
     fn find_symbol_id(&self, position: &Position, uri: &Url) -> Option<SymbolScopeId> {
         self.do_pos_lookup_work(position, uri, |pos, lookup| {
             lookup.find_symbol_id_at_pos(pos)
@@ -480,6 +481,7 @@ impl LanguageServer for Backend {
         let uri = &params.text_document_position_params.text_document.uri;
         let position = &params.text_document_position_params.position;
 
+        // @TODO: get some infotmation about the AST node so we can decide what to do
         let ret = with_state(&self.asm_ctx, |asm_ctx| -> Option<SymbolInfo> {
             let id = asm_ctx.ctx.find_symbol_id(position, uri)?;
             let reader = asm_ctx.ctx.get_symbols().get_reader(id.scope_id);
@@ -493,27 +495,31 @@ impl LanguageServer for Backend {
         .unwrap_or("".to_string());
 
         let reply = if let Some(si) = ret {
+            let mut markup : Vec<String> = vec![];
+
             let value = si
                 .value
                 .map(|x| format!("{x:5} 0x{x:04x}"))
                 .unwrap_or("UNDEFINED".to_owned());
+
             let scoped_name = si.scoped_name();
             let name = si.name();
 
             let to_print = vec![("full name", scoped_name), ("value", &value)];
-            let text = tabulate(&to_print, 10).join("\n");
+            let mut text = tabulate(&to_print, 10);
 
-            let doc_text = if doc_text.is_empty() {
-                doc_text
-            } else {
-                format!("\n## Doc\n{doc_text}")
-            };
+            markup.push(format!( "**Symbol** `{name}`"));
+            markup.append(&mut text);
+
+            if !doc_text.is_empty(){
+                markup.push("---".to_string());
+                markup.push(doc_text.clone());
+            }
+
+            let markup = markup.into_iter().map(MarkedString::String);
 
             let reply = Hover {
-                contents: HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: format!("# Symbol {name}\n{text}\n{doc_text}"),
-                }),
+                contents: HoverContents::Array(markup.collect()),
                 range: None,
             };
             Some(reply)

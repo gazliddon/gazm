@@ -1,5 +1,5 @@
 use crate::{
-    ast::AstTree,
+    ast::{AstTree, AstWrapper},
     astformat,
     async_tokenize::TokenizeResult,
     binary::{self, AccessType, BinRef, Binary},
@@ -45,7 +45,7 @@ pub struct AsmOut {
     pub lst_file: LstFile,
     pub exec_addr: Option<usize>,
     pub bin_to_write_chunks: Vec<BinToWrite>,
-    pub ast: Option<AstTree>,
+    pub ast: Option<AstWrapper>,
     pub lookup: Option<LabelUsageAndDefintions>,
 }
 
@@ -281,7 +281,7 @@ impl Context {
             status_err!("Not done!");
 
             if let Some(ast) = &self.asm_out.ast {
-                let x = astformat::as_string(ast.root());
+                let x = astformat::as_string(ast.as_ref().root());
                 println!("{x}");
             } else {
                 status_err!("No AST file to write");

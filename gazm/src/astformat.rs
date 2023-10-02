@@ -5,7 +5,7 @@ use crate::item6809::{self, MC6809::OpCode };
 impl<'a> std::fmt::Display for Ast<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let wrapped = DisplayWrapper {
-            node: self.tree.root(),
+            node: self.get_tree().root(),
         };
         write!(f, "{wrapped}")
     }
