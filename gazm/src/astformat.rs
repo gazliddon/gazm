@@ -2,7 +2,7 @@ use crate::ast::*;
 use crate::item::Item;
 use crate::item6809::{self, MC6809::OpCode };
 
-impl<'a> std::fmt::Display for Ast<'a> {
+impl<'a> std::fmt::Display for AstCtx<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let wrapped = DisplayWrapper {
             node: self.get_tree().root(),

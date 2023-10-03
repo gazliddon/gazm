@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::{
     asmctx::AsmCtx,
-    ast::{AstNodeId, AstNodeRef, AstTree, AstWrapper},
+    ast::{AstNodeId, AstNodeRef, AstTree, Ast},
     binary::BinaryError,
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
@@ -21,7 +21,7 @@ use crate::{
 use emu6809::isa;
 use grl_sources::ItemType;
 
-pub fn compile(ctx: &mut AsmCtx, tree: &AstWrapper) -> GResult<()> {
+pub fn compile(ctx: &mut AsmCtx, tree: &Ast) -> GResult<()> {
     let mut writer = ctx.ctx.get_symbols_mut().get_root_writer();
 
     let pc_symbol_id = writer
@@ -39,7 +39,7 @@ pub fn compile(ctx: &mut AsmCtx, tree: &AstWrapper) -> GResult<()> {
 }
 
 struct Compiler<'a> {
-    tree: &'a AstWrapper,
+    tree: &'a Ast,
     scopes: ScopeTracker,
     pc_symbol_id : SymbolScopeId,
 }
@@ -67,7 +67,7 @@ impl<'a> Compiler<'a> {
         node
     }
 
-    pub fn new(tree: &'a AstWrapper, current_scope_id: u64, pc_symbol_id: SymbolScopeId) -> GResult<Self> {
+    pub fn new(tree: &'a Ast, current_scope_id: u64, pc_symbol_id: SymbolScopeId) -> GResult<Self> {
         let ret = Self {
             tree,
             scopes: ScopeTracker::new(current_scope_id),

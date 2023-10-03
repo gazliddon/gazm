@@ -38,31 +38,113 @@ impl ItemWithPos {
 }
 
 #[derive(Debug, Clone)]
-pub struct AstWrapper {
+pub struct Ast {
     pub tree: AstTree,
 }
 
-impl AstWrapper {
+impl Ast {
     pub fn new(tree: AstTree) -> Self {
-        Self {tree}
+        Self { tree }
     }
 
+    pub fn from_node(node: &Node) -> Self {
+        let mut ret = AstTree::new(ItemWithPos::new(node));
+
+        for c in &node.children {
+            Self::add_node(&mut ret.root_mut(), c);
+        }
+        Ast { tree: ret }
+    }
+
+    fn add_node(parent: &mut AstNodeMut, node: &Node) {
+        let ipos = ItemWithPos::new(node);
+        let mut this_node = parent.append(ipos);
+
+        for n in &node.children {
+            Self::add_node(&mut this_node, n);
+        }
+    }
+
+    pub fn get_kids_ids(&self, id: AstNodeId) -> Vec<AstNodeId> {
+        self.as_ref()
+            .get(id)
+            .unwrap()
+            .children()
+            .map(|c| c.id())
+            .collect()
+    }
+
+    pub fn create_ast_node(&mut self, node: &Node) -> AstNodeId {
+        let ipos = ItemWithPos::new(node);
+
+        let mut this_node = self.as_mut().orphan(ipos);
+
+        for n in &node.children {
+            Self::add_node(&mut this_node, n);
+        }
+        this_node.id()
+    }
+
+    pub fn replace_node(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
+        let mut old_node = self
+            .as_mut()
+            .get_mut(old_node_id)
+            .expect("can't retrieve old node");
+        old_node.insert_id_after(new_node_id);
+        old_node.detach();
+    }
+    pub fn replace_node_take_children(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
+        let mut replacement_node = self
+            .as_mut()
+            .get_mut(new_node_id)
+            .expect("Can't fetch replacement node");
+        replacement_node.reparent_from_id_append(old_node_id);
+        self.replace_node(old_node_id, new_node_id);
+    }
+
+    pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> Vec<AstNodeId>
+    where
+        I: Iterator<Item = AstNodeId>,
+        F: Fn(AstNodeRef) -> bool,
+    {
+        i.filter(|id| {
+            let node = self.as_ref().get(*id).unwrap();
+            if f(node) {
+                self.as_mut().get_mut(*id).unwrap().detach();
+                true
+            } else {
+                false
+            }
+        })
+        .collect()
+    }
+    pub fn create_orphan(&mut self, item: Item, pos: Position) -> AstNodeId {
+        self.as_mut().orphan(ItemWithPos { item, pos }).id()
+    }
+
+    pub fn alter_node<F>(&mut self, node_id: AstNodeId, f: F)
+    where
+        F: Fn(&mut ItemWithPos),
+    {
+        let mut this_node_mut = self.as_mut().get_mut(node_id).unwrap();
+        f(this_node_mut.value())
+    }
 }
 
-impl AsRef<AstTree> for AstWrapper {
+impl AsRef<AstTree> for Ast {
     fn as_ref(&self) -> &AstTree {
         &self.tree
     }
 }
-impl AsMut<AstTree> for AstWrapper {
+impl AsMut<AstTree> for Ast {
     fn as_mut(&mut self) -> &mut AstTree {
         &mut self.tree
     }
 }
 
 #[derive(Debug)]
-pub struct Ast<'a> {
-    pub ast_tree: AstWrapper,
+pub struct AstCtx<'a> {
+    pub ast_tree: Ast,
     pub macro_defs: Vec<AstNodeId>,
     pub ctx: &'a mut Context,
     pub docs: HashMap<AstNodeId, String>,
@@ -105,6 +187,7 @@ fn iter_items_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &I
             .and_then(|id| node.tree().get(id).map(|n| (n.id(), &n.value().item)))
     })
 }
+
 #[allow(dead_code)]
 fn iter_values_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &ItemWithPos)> {
     let mut i = get_ids_recursive(node).into_iter();
@@ -114,15 +197,15 @@ fn iter_values_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &
     })
 }
 
-impl<'a> Ast<'a> {
-    pub fn new(tree: AstWrapper, ctx: &'a mut Context) -> Result<Self, UserError> {
+impl<'a> AstCtx<'a> {
+    pub fn new(tree: Ast, ctx: &'a mut Context) -> Result<Self, UserError> {
         let mut ret = Self::base(tree, ctx);
         ret.process()?;
         Ok(ret)
     }
 
     pub fn from_nodes(ctx: &'a mut Context, node: &Node) -> Result<Self, UserError> {
-        let tree = make_tree(node);
+        let tree = Ast::from_node(node);
         let r = Self::new(tree, ctx)?;
         Ok(r)
     }
@@ -179,7 +262,8 @@ impl<'a> Ast<'a> {
                                 .get(kid_id)
                                 .expect("Internal error")
                                 .value()
-                                .item.clone();
+                                .item
+                                .clone();
 
                             if let Label(LabelDefinition::Scoped(symbol_id)) = item {
                                 let name = self
@@ -241,7 +325,7 @@ impl<'a> Ast<'a> {
         Ok(())
     }
 
-    fn base(tree: AstWrapper, ctx: &'a mut Context) -> Self {
+    fn base(tree: Ast, ctx: &'a mut Context) -> Self {
         Self {
             ast_tree: tree,
             ctx,
@@ -275,8 +359,8 @@ impl<'a> Ast<'a> {
                 for (id, actual_file) in include_ids {
                     if let Some(tokens) = self.ctx.get_tokens_from_full_path(&actual_file) {
                         info_mess!("Inlining {} - HAD TOKENS", actual_file.to_string_lossy());
-                        let new_node_id = create_ast_node(&mut self.ast_tree, &tokens.node);
-                        self.replace_node(id, new_node_id);
+                        let new_node_id = self.ast_tree.create_ast_node(&tokens.node);
+                        self.ast_tree.replace_node(id, new_node_id);
                     } else {
                         let x: Vec<_> = self
                             .ctx
@@ -307,6 +391,7 @@ impl<'a> Ast<'a> {
 
             // Detach all of the MacroDef nodes
             let detached = self
+                .ast_tree
                 .detach_nodes_filter(iter_ids_recursive(self.get_tree().root()), |nref| {
                     matches!(nref.value().item, Item::MacroDef(..))
                 });
@@ -326,14 +411,12 @@ impl<'a> Ast<'a> {
             let root = self.ast_tree.tree.root();
 
             for (i, macro_call_node) in iter_refs_recursive(root).enumerate() {
-
                 let val = &macro_call_node.value();
 
                 match &val.item {
                     ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
                     MacroCall(name) => {
-
                         let syms = &mut self.ctx.asm_out.symbols;
                         // Create a unique name for this macro application scope
                         let caller_scope_name = format!("%MACRO%_{name}_{i}");
@@ -372,9 +455,10 @@ impl<'a> Ast<'a> {
                     params_vec_of_id: params_vec_of_id?,
                 };
 
-                let replacement_id = self.create_orphan(item, pos);
+                let replacement_id = self.ast_tree.create_orphan(item, pos);
 
-                self.replace_node_take_children(caller_node_id, replacement_id);
+                self.ast_tree
+                    .replace_node_take_children(caller_node_id, replacement_id);
             }
 
             self.macro_defs = mdefs.values().map(|(a, _)| *a).collect();
@@ -533,7 +617,7 @@ impl<'a> Ast<'a> {
                     let mut current = 0;
                     x.debug(format!("Generating symbols for {name}"));
 
-                    let kids_ids = get_kids_ids(self.get_tree(), id);
+                    let kids_ids = self.ast_tree.get_kids_ids(id);
 
                     for c_id in kids_ids {
                         let i = &self.get_tree().get(c_id).unwrap().value().item;
@@ -567,17 +651,11 @@ impl<'a> Ast<'a> {
         let scopes = self.get_root_scope_tracker();
 
         for node_id in iter_ids_recursive(self.get_tree().root()) {
-            let item = &self
-                .get_tree()
-                .get(node_id)
-                .unwrap()
-                .value()
-                .item
-                .clone();
+            let item = &self.get_tree().get(node_id).unwrap().value().item.clone();
 
             if let Scope(scope) = item {
                 let id = self.get_writer(&scopes).create_or_set_scope(scope.as_str());
-                self.alter_node(node_id, |ipos| ipos.item = ScopeId(id));
+                self.ast_tree.alter_node(node_id, |ipos| ipos.item = ScopeId(id));
             }
         }
 
@@ -640,13 +718,13 @@ impl<'a> Ast<'a> {
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
                     let symbol_id = self.get_unscoped_symbol_id(name, &scopes, *node_id)?;
-                    self.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                    self.ast_tree.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
                 }
 
                 Label(LabelDefinition::TextScoped(name)) => {
                     let scoped_name = ScopedName::new(name);
                     let symbol_id = self.get_scoped_symbol_id(&scoped_name, *node_id)?;
-                    self.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                    self.ast_tree.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
                 }
 
                 _ => (),
@@ -677,7 +755,7 @@ impl<'a> Ast<'a> {
                     if let Label(LabelDefinition::TextScoped(name)) = &value.item {
                         let scoped_name = ScopedName::new(name);
                         let symbol_id = self.get_scoped_symbol_id(&scoped_name, node_id)?;
-                        self.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                        self.ast_tree.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
                     }
                 }
             }
@@ -701,14 +779,14 @@ impl<'a> Ast<'a> {
 
                     AssignmentFromPc(LabelDefinition::Text(name)) => {
                         let sym_id = self.create_symbol(name, node_id, &scopes)?;
-                        self.alter_node(node_id, |ipos| {
+                        self.ast_tree.alter_node(node_id, |ipos| {
                             ipos.item = AssignmentFromPc(sym_id.into());
                         });
                     }
 
                     Assignment(LabelDefinition::Text(name)) => {
                         let sym_id = self.create_symbol(name, node_id, &scopes)?;
-                        self.alter_node(node_id, |ipos| {
+                        self.ast_tree.alter_node(node_id, |ipos| {
                             ipos.item = Assignment(sym_id.into());
                         });
                     }
@@ -746,7 +824,7 @@ impl<'a> Ast<'a> {
                                 source: EvalErrorEnum::CotainsPcReference,
                                 ..
                             }) => {
-                                self.alter_node(node_id, |ipos| {
+                                self.ast_tree.alter_node(node_id, |ipos| {
                                     ipos.item = Item::AssignmentFromPc(label_id.into())
                                 });
                             }
@@ -769,53 +847,7 @@ impl<'a> Ast<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Node management stuff
-impl<'a> Ast<'a> {
-    fn replace_node(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
-        let mut old_node = self
-            .get_tree_mut()
-            .get_mut(old_node_id)
-            .expect("can't retrieve old node");
-        old_node.insert_id_after(new_node_id);
-        old_node.detach();
-    }
-
-    fn replace_node_take_children(&mut self, old_node_id: AstNodeId, new_node_id: AstNodeId) {
-        let mut replacement_node = self
-            .get_tree_mut()
-            .get_mut(new_node_id)
-            .expect("Can't fetch replacement node");
-        replacement_node.reparent_from_id_append(old_node_id);
-        self.replace_node(old_node_id, new_node_id);
-    }
-
-    pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> Vec<AstNodeId>
-    where
-        I: Iterator<Item = AstNodeId>,
-        F: Fn(AstNodeRef) -> bool,
-    {
-        i.filter(|id| {
-            let node = self.get_tree().get(*id).unwrap();
-            if f(node) {
-                self.get_tree_mut().get_mut(*id).unwrap().detach();
-                true
-            } else {
-                false
-            }
-        })
-        .collect()
-    }
-    fn create_orphan(&mut self, item: Item, pos: Position) -> AstNodeId {
-        self.get_tree_mut().orphan(ItemWithPos { item, pos }).id()
-    }
-
-    fn alter_node<F>(&mut self, node_id: AstNodeId, f: F)
-    where
-        F: Fn(&mut ItemWithPos),
-    {
-        let mut this_node_mut = self.get_tree_mut().get_mut(node_id).unwrap();
-        f(this_node_mut.value())
-    }
-
+impl<'a> AstCtx<'a> {
     fn set_symbol(
         &mut self,
         symbol_id: SymbolScopeId,
@@ -914,41 +946,4 @@ impl From<AstNodeRef<'_>> for Term {
             priority: to_priority(&node.value().item),
         }
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-pub fn add_node(parent: &mut AstNodeMut, node: &Node) {
-    let ipos = ItemWithPos::new(node);
-    let mut this_node = parent.append(ipos);
-
-    for n in &node.children {
-        add_node(&mut this_node, n);
-    }
-}
-fn get_kids_ids(tree: &AstTree, id: AstNodeId) -> Vec<AstNodeId> {
-    tree.get(id).unwrap().children().map(|c| c.id()).collect()
-}
-
-// fn is_problem(p: &Position) -> bool {
-//     p.src == AsmSource::FileId(4) && p.line == 19 && p.col == 12
-// }
-
-pub fn create_ast_node(tree: &mut AstWrapper, node: &Node) -> AstNodeId {
-    let ipos = ItemWithPos::new(node);
-
-    let mut this_node = tree.as_mut().orphan(ipos);
-
-    for n in &node.children {
-        add_node(&mut this_node, n);
-    }
-    this_node.id()
-}
-
-pub fn make_tree(node: &Node) -> AstWrapper {
-    let mut ret = AstTree::new(ItemWithPos::new(node));
-
-    for c in &node.children {
-        add_node(&mut ret.root_mut(), c);
-    }
-    AstWrapper { tree: ret }
 }

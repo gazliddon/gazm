@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AstNodeId, AstTree, AstWrapper},
+    ast::{AstNodeId, AstTree, Ast},
     ctx::Context,
     error::GResult,
     gazmsymbols::{SymbolError, SymbolScopeId},
@@ -95,7 +95,7 @@ impl<'a> AsmCtx<'a> {
         fileutils::abs_path_from_cwd(path)
     }
 
-    pub fn eval_macro_args(&mut self, scope_id: u64, caller_id: AstNodeId, tree: &AstWrapper) -> bool {
+    pub fn eval_macro_args(&mut self, scope_id: u64, caller_id: AstNodeId, tree: &Ast) -> bool {
         let node = tree.as_ref().get(caller_id).unwrap();
         self.ctx.eval_macro_args(scope_id, node)
     }

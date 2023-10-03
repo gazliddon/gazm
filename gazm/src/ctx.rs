@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AstTree, AstWrapper},
+    ast::{AstTree, Ast},
     astformat,
     async_tokenize::TokenizeResult,
     binary::{self, AccessType, BinRef, Binary},
@@ -45,7 +45,7 @@ pub struct AsmOut {
     pub lst_file: LstFile,
     pub exec_addr: Option<usize>,
     pub bin_to_write_chunks: Vec<BinToWrite>,
-    pub ast: Option<AstWrapper>,
+    pub ast: Option<Ast>,
     pub lookup: Option<LabelUsageAndDefintions>,
 }
 

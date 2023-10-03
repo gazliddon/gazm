@@ -1,4 +1,4 @@
-use crate::{ast::Ast, async_tokenize, ctx::Context, error::GResult, item::Node, opts::Opts};
+use crate::{ast::AstCtx, async_tokenize, ctx::Context, error::GResult, item::Node, opts::Opts};
 
 use grl_sources::{
     grl_utils::{PathSearcher, Stack},
@@ -137,7 +137,7 @@ pub fn assemble_tokens(ctx: &mut Context, tokens: &Node) -> GResult<()> {
     use crate::lookup::LabelUsageAndDefintions;
     use crate::sizer::size_tree;
 
-    let tree = Ast::from_nodes(ctx, tokens)?;
+    let tree = AstCtx::from_nodes(ctx, tokens)?;
     let docs = tree.docs;
     let tree = tree.ast_tree;
 
