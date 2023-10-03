@@ -1,11 +1,11 @@
 use crate::{
-    ast::AstNodeId,
+    ast::{AstNodeId, ItemWithPos},
     ctx::Context,
     error::{GResult, GazmErrorKind},
     gazm::{with_state, Assembler},
+    gazmsymbols::{SymbolInfo, SymbolScopeId},
     lookup::LabelUsageAndDefintions,
     opts::Opts,
-gazmsymbols::{SymbolInfo, SymbolScopeId},
 };
 
 use grl_sources::{AsmSource, Position as GazmPosition, TextEdit, TextPos};
@@ -22,9 +22,7 @@ use serde_json::Value;
 use tower_lsp::{
     jsonrpc,
     jsonrpc::Result as TResult,
-    lsp_types::request::{
-        GotoDeclarationParams, GotoDeclarationResponse, 
-    },
+    lsp_types::request::{GotoDeclarationParams, GotoDeclarationResponse},
     lsp_types::Position,
     lsp_types::*,
     {Client, LanguageServer},
@@ -47,18 +45,23 @@ pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
 }
 
 impl Context {
-
     fn find_symbol_id(&self, position: &Position, uri: &Url) -> Option<SymbolScopeId> {
         self.do_pos_lookup_work(position, uri, |pos, lookup| {
             lookup.find_symbol_id_at_pos(pos)
         })
     }
 
-    // fn find_node_id(&self, position: &Position, uri: &Url) -> Option<Vec<AstNodeId>> {
-    //     self.do_pos_lookup_work(position, uri, |pos, lookup| {
-    //         Some(lookup.find_node_id_from_pos(pos))
-    //     })
-    // }
+    pub fn find_nodes_at_location(&self, position: &Position, uri: &Url) -> Option<Vec<AstNodeId>> {
+        self.do_pos_lookup_work(position, uri, |pos, lookup| {
+            Some(lookup.find_nodes_from_pos(pos))
+        })
+    }
+
+    pub fn find_node_at_location(&self, position: &Position, uri: &Url) -> Option<AstNodeId> {
+        self.do_pos_lookup_work(position, uri, |pos, lookup| {
+            lookup.find_node_from_pos(pos)
+        })
+    }
 
     fn lookup_ref(&self) -> Option<&LabelUsageAndDefintions> {
         self.asm_out.lookup.as_ref()
@@ -156,6 +159,22 @@ impl Context {
 }
 
 impl Backend {
+    pub fn get_ast_node_at_file_pos(&self, position: &Position, uri : &Url) -> Option<(AstNodeId, ItemWithPos )> {
+        let value = with_state(&self.asm_ctx, |asm_ctx| -> Option<(AstNodeId, ItemWithPos )> {
+            if let Some(p) = asm_ctx.ctx.find_nodes_at_location(position, uri) {
+                if !p.is_empty() {
+                    if let Some(ast) = asm_ctx.ctx.asm_out.ast.as_ref() {
+                        let v = ast.as_ref().get(*p.first().unwrap()).unwrap().value();
+                        return Some((*p.first().unwrap(),v.clone() ))
+                    }
+                }
+            }
+            None
+        });
+
+        value
+    }
+
     pub fn new(client: Client, opts: Opts) -> Self {
         info!("Backend created!");
         let asm_ctx = Arc::new(Mutex::new(Assembler::new(opts)));
@@ -489,13 +508,17 @@ impl LanguageServer for Backend {
             Some(si.clone())
         });
 
+        if let Some((_id,value)) = self.get_ast_node_at_file_pos(position, uri) {
+            info!("Got node with value {:#?}", value);
+        }
+
         let doc_text = with_state(&self.asm_ctx, |asm_ctx| -> Option<String> {
             asm_ctx.ctx.find_docs(position, uri)
         })
         .unwrap_or("".to_string());
 
         let reply = if let Some(si) = ret {
-            let mut markup : Vec<String> = vec![];
+            let mut markup: Vec<String> = vec![];
 
             let value = si
                 .value
@@ -508,10 +531,10 @@ impl LanguageServer for Backend {
             let to_print = vec![("full name", scoped_name), ("value", &value)];
             let mut text = tabulate(&to_print, 10);
 
-            markup.push(format!( "**Symbol** `{name}`"));
+            markup.push(format!("**Symbol** `{name}`"));
             markup.append(&mut text);
 
-            if !doc_text.is_empty(){
+            if !doc_text.is_empty() {
                 markup.push("---".to_string());
                 markup.push(doc_text.clone());
             }

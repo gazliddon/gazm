@@ -56,6 +56,7 @@ module.exports = grammar({
         source_file: $ =>
 
             repeat(choice(
+                $.long_doc,
                 $.doc,
                 $.comment,
                 $.macro_def,
@@ -154,6 +155,9 @@ module.exports = grammar({
 
         doc_text : $ => /(\\(.|\r?\n)|[^\\\n])*/,
         doc: $ => seq(';;;', $.doc_text),
+
+        long_doc_text : $ => /[^\]]*/,
+        long_doc : $ => seq('[[', $.long_doc_text, ']]'),
 
         // http://stackoverflow.com/questions/13014947/regex-to-match-a-c-style-multiline-comment/36328890#36328890
         comment: $ => choice(

@@ -56,7 +56,7 @@ impl AsRef<AstTree> for AstWrapper {
 }
 impl AsMut<AstTree> for AstWrapper {
     fn as_mut(&mut self) -> &mut AstTree {
-        todo!()
+        &mut self.tree
     }
 }
 

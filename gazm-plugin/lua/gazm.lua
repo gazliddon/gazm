@@ -12,9 +12,12 @@ function M.setup()
         return get_script_file():parent():parent()
     end
 
+    local pdir = plugin_dir()
+    local ts_url = tostring(pdir:joinpath('treesitter-gazm'))
+
     if tsparsers ~= nil then
-        local ts_url = tostring(plugin_dir())
-        vim.opt.rtp:append(ts_url)
+        vim.opt.rtp:append(tostring(pdir))
+
         local parser_config = tsparsers.get_parser_configs()
 
         parser_config.gazm = {

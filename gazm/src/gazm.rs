@@ -95,6 +95,8 @@ impl Assembler {
         let r = self.ctx.edit_source_file(&file, |editable| f(editable))?;
         Ok(r)
     }
+
+
 }
 
 pub fn with_state<R, S>(data: &Arc<Mutex<S>>, f: impl FnOnce(&mut S) -> R) -> R {

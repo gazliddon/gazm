@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{iter_refs_recursive, AstNodeId, AstTree, AstWrapper},
-    gazmsymbols::{
-        ScopeId, SymbolError, SymbolResolutionBarrier, SymbolScopeId, SymbolTree,
-    },
+    gazmsymbols::{ScopeId, SymbolError, SymbolResolutionBarrier, SymbolScopeId, SymbolTree},
     item::{Item, LabelDefinition},
 };
 
-use grl_sources::{ Position, grl_utils::Stack };
+use grl_sources::{grl_utils::Stack, Position};
+use itertools::Itertools;
 
 #[allow(dead_code)]
 pub struct Navigator<'a> {
@@ -115,28 +114,22 @@ impl LabelUsageAndDefintions {
             }
         }
 
-        let mut pos_node_id = vec![];
+        use std::cmp::Ord;
 
-        for n in iter_refs_recursive(tree.as_ref().root()) {
-            let v = n.value();
-            if matches!(
-                v.item,
-                Label(LabelDefinition::Scoped(..))
-                    | AssignmentFromPc(..)
-                    | Assignment(..)
-                    | LocalAssignment(..)
-                    | LocalAssignmentFromPc(..)
-                    | LocalLabel(LabelDefinition::Scoped(..))
-            ) {
-                pos_node_id.push((v.pos.clone(), n.id()))
-            }
-        }
+        // Create a list of position -> node id
+        // sorted by length, smallest first
+        // smallest will be the enclosing span
+        let pos_node_id = iter_refs_recursive(tree.as_ref().root())
+            .map(|n| (n.value().pos.clone(), n.id()))
+            .sorted_by(|(a,_),(b,_)| {
+                Ord::cmp(&a.range.len(),&b.range.len())
+            })
+            .collect();
 
         Self {
             reference_pos_and_id,
             symbols: _syms.clone(),
             symbol_id_to_definition_pos: symbol_id_to_definition,
-            // tree: tree.clone(),
             pos_node_id,
             docs,
         }
@@ -148,7 +141,8 @@ impl LabelUsageAndDefintions {
             .and_then(|p| self.find_docs(p))
     }
 
-    pub fn find_node_id_from_pos(&self, pos: &Position) -> Vec<AstNodeId> {
+    /// Find nodes that overlaps with this position
+    pub fn find_nodes_from_pos(&self, pos: &Position) -> Vec<AstNodeId> {
         let ret = self
             .pos_node_id
             .iter()
@@ -157,12 +151,21 @@ impl LabelUsageAndDefintions {
         ret
     }
 
-    pub fn find_docs(&self, pos: &Position) -> Option<String> {
-        let nodes = self.find_node_id_from_pos(pos);
-        let node_id = nodes.get(0)?;
-        self.docs.get(node_id).cloned()
+    /// Find node that contains this position
+    /// will return the smallest node that intersects with this position
+    pub fn find_node_from_pos(&self, pos: &Position) -> Option<AstNodeId> {
+        self
+            .pos_node_id
+            .iter()
+            .find(|(p,_)| p.overlaps(pos))
+            .map(|(_p,id)| id.clone())
     }
 
+    pub fn find_docs(&self, pos: &Position) -> Option<String> {
+        self.find_node_from_pos(pos).and_then(|id| self.docs.get(&id)).cloned()
+    }
+
+    /// Find all references to this symbol
     pub fn find_references(&self, id: SymbolScopeId) -> Vec<(Position, SymbolScopeId)> {
         self.reference_pos_and_id
             .iter()
@@ -171,6 +174,7 @@ impl LabelUsageAndDefintions {
             .collect()
     }
 
+    /// Find all to this posiiton
     pub fn find_references_from_pos(&self, pos: &Position) -> Vec<(Position, SymbolScopeId)> {
         if let Some(id) = self.find_symbol_id_at_pos(pos) {
             self.find_references(id)
@@ -179,26 +183,16 @@ impl LabelUsageAndDefintions {
         }
     }
 
-    pub fn find_symbol_referenced_at_pos(&self, p: &Position) -> Option<SymbolScopeId> {
-        for (pos, id) in self.reference_pos_and_id.iter() {
-            if p.overlaps(pos) {
-                return Some(*id);
-            }
-        }
-        None
+    pub fn find_symbol_referenced_at_pos(&self, pos: &Position) -> Option<SymbolScopeId> {
+        self.reference_pos_and_id.iter().find(|(p,_)| p.overlaps(pos)).map(|(_,id)| *id)
     }
 
     pub fn find_scope_at_pos(&self, _p: &Position) -> u64 {
         panic!()
     }
 
-    pub fn find_symbol_defined_at_pos(&self, p: &Position) -> Option<SymbolScopeId> {
-        for (id, pos) in self.symbol_id_to_definition_pos.iter() {
-            if p.overlaps(pos) {
-                return Some(*id);
-            }
-        }
-        None
+    pub fn find_symbol_defined_at_pos(&self, pos: &Position) -> Option<SymbolScopeId> {
+        self.symbol_id_to_definition_pos.iter().find(|(_,p)| p.overlaps(pos)).map(|(id,_)| *id)
     }
 
     /// Finds a symbol id at Pos

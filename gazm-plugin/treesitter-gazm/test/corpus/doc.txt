@@ -5,6 +5,9 @@ Docs
 ;;; Hello
 ;;; Hello2
 ;;; Hello3
+[[cakjakjkaj
+ldkldk d ldk ldk 
+]]
 
 hello ;;; Doc
 
@@ -13,5 +16,6 @@ hello ;;; Doc
     (doc (doc_text))
     (doc (doc_text))
     (doc (doc_text))
+    (long_doc (long_doc_text))
     (label)
     (doc (doc_text)))
