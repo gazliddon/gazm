@@ -1,13 +1,13 @@
 local M = {}
 
 function M.init(opts)
+    local ok, lspconfig = pcall(require, 'lspconfig')
 
-    local lspconfig = require('lspconfig')
-
-    if lspconfig ~= nil then
+    if ok then
         local lsp_opts = opts.lsp
+
         local configs = require("lspconfig.configs")
-        local util = require 'lspconfig/util'
+        local util = require('lspconfig/util')
 
         local gazm = 'gazm';
 
@@ -18,7 +18,7 @@ function M.init(opts)
                 default_config = {
                     cmd = cmd,
                     filetypes = { 'gazm' },
-                    root_dir = util.root_pattern("gazm.toml"),
+                    root_dir = util.root_pattern,
                     settings = {},
                 },
             }

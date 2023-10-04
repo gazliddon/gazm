@@ -20,7 +20,7 @@ local id = vim.api.nvim_create_augroup("gazmgroup", {
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
     group = id,
     pattern = { "*.gazm" },
-    callback = function(_ev)
+    callback = function()
         if vim.bo.filetype ~= 'gazm' then
             vim.bo.filetype='gazm'
             -- @TODO errorformat

@@ -11,6 +11,4 @@ end
 M.plugin_dir_path = find_plugin_dir()
 M.plugin_dir = tostring(M.plugin_dir_path)
 
-print(M.plugin_dir)
-
 return M
