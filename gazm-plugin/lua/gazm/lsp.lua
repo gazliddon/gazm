@@ -8,17 +8,14 @@ function M.init(opts)
 
         local configs = require("lspconfig.configs")
         local util = require('lspconfig/util')
-
-        local gazm = 'gazm';
-
-        local cmd = { gazm, 'lsp', 'gazm.toml' }
+        local cmd = { 'gazm', 'lsp', 'gazm.toml' }
 
         if not configs.gazm then
             configs.gazm = {
                 default_config = {
                     cmd = cmd,
                     filetypes = { 'gazm' },
-                    root_dir = util.root_pattern,
+                    root_dir = util.root_pattern("gazm.toml"),
                     settings = {},
                 },
             }
