@@ -22,7 +22,7 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
     pattern = { "*.gazm" },
     callback = function()
         if vim.bo.filetype ~= 'gazm' then
-            vim.bo.filetype='gazm'
+            vim.bo.filetype = 'gazm'
             -- @TODO errorformat
             -- @TODO makeprg
         end
