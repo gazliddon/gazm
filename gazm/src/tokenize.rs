@@ -295,7 +295,7 @@ impl Tokens {
     }
 }
 
-pub fn get_doc_line(input: Span) -> IResult<Span> {
+fn get_doc_line(input: Span) -> IResult<Span> {
     let rest = input;
     let (rest, matched) = get_line_cut(rest)?;
     let (_, matched) = preceded(
@@ -305,7 +305,7 @@ pub fn get_doc_line(input: Span) -> IResult<Span> {
     Ok((rest, matched))
 }
 
-pub fn parse_doc_line(input: Span) -> IResult<Node> {
+fn parse_doc_line(input: Span) -> IResult<Node> {
     use Item::*;
     let (rest, matched) = get_doc_line(input)?;
     let node = Node::from_item_span(Doc(matched.to_string()), input);

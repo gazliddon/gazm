@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, tag_no_case},

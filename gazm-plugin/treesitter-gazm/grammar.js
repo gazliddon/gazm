@@ -3,6 +3,7 @@
 const fs = require('fs')
 
 const PREC = {
+    LONG_DOC: 100,
     PAREN_DECLARATOR: -10,
     ASSIGNMENT: -1,
     CONDITIONAL: -2,
@@ -54,7 +55,6 @@ module.exports = grammar({
 
     rules: {
         source_file: $ =>
-
             repeat(choice(
                 $.long_doc,
                 $.doc,
@@ -157,7 +157,7 @@ module.exports = grammar({
         doc: $ => seq(';;;', $.doc_text),
 
         long_doc_text : $ => /[^\]]*/,
-        long_doc : $ => seq('[[', $.long_doc_text, ']]'),
+        long_doc : $ => prec(PREC.LONG_DOC,seq('[[', $.long_doc_text, ']]')),
 
         // http://stackoverflow.com/questions/13014947/regex-to-match-a-c-style-multiline-comment/36328890#36328890
         comment: $ => choice(
@@ -281,7 +281,7 @@ module.exports = grammar({
         xfer_mnemonics: $ => mnemonicRegex('RegisterPair'),
         reg_xfer: $ => seq($._reg, ',', $._reg),
 
-        _arg: $ => choice($.immediate, $.extended, $.direct_page, $._indexed),
+        operand: $ => choice($.immediate, $.extended, $.direct_page, $._indexed),
 
         immediate: $ => seq('#', $._expression),
         extended: $ => $._expression,
@@ -366,7 +366,7 @@ module.exports = grammar({
 
         _opcode_arg: $ => seq(
             $.mnemonic,
-            $._arg),
+            $.operand),
 
         _identifier: $ => choice($.local_label, $.label),
 

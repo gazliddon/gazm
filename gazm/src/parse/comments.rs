@@ -1,3 +1,4 @@
+#![deny(unused_imports)]
 use crate::{ item::{Item, Node},error::IResult };
 
 use nom::{

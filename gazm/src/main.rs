@@ -1,4 +1,10 @@
-use gazm::{fmt,messages,lsp,opts::{BuildType, Opts}, gazm::Assembler,status_mess, info_mess};
+use gazm::{
+    fmt,
+    gazm::Assembler,
+    info_mess, lsp, messages,
+    opts::{BuildType, Opts},
+    status_mess,
+};
 
 static BANNER: &str = r"
   __ _  __ _ _____ __ ___

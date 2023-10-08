@@ -1,10 +1,8 @@
 local M = {}
-
 local paths = require("gazm.paths")
 
 function M.add_treesitter(opts)
-
-    local ok,tsparsers = pcall(require,"nvim-treesitter.parsers")
+    local ok, tsparsers = pcall(require, "nvim-treesitter.parsers")
 
     if ok ~= nil then
         local ts_url = tostring(paths.plugin_dir_path:joinpath('treesitter-gazm'))

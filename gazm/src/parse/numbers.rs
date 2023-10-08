@@ -1,3 +1,4 @@
+#![deny(unused_imports)]
 use crate::{
     error::{IResult, ParseError},
     item::ParsedFrom,

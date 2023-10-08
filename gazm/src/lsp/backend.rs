@@ -365,10 +365,11 @@ impl LanguageServer for Backend {
                 //     all_commit_characters: None,
                 // }),
 
-                // execute_command_provider: Some(ExecuteCommandOptions {
-                //     commands: vec!["dummy.do_something".to_string()],
-                //     work_done_progress_options: Default::default(),
-                // }),
+                execute_command_provider: Some(ExecuteCommandOptions {
+                    commands: vec!["dummy.do_something".to_string()],
+                    work_done_progress_options: Default::default(),
+                }),
+
                 workspace: Some(WorkspaceServerCapabilities {
                     workspace_folders: Some(WorkspaceFoldersServerCapabilities {
                         supported: Some(true),

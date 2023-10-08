@@ -1,3 +1,10 @@
+#![forbid(unused_imports)]
+
+use std::{collections::HashMap, iter};
+use grl_eval::{to_postfix, GetPriority};
+use grl_sources::{Position, SourceErrorType, SourceInfo};
+use thin_vec::{thin_vec, ThinVec};
+
 use crate::{
     ctx::Context,
     error::{AstError, UserError},
@@ -8,14 +15,7 @@ use crate::{
     item::{Item, LabelDefinition, Node},
     messages::*,
     scopes::ScopeBuilder,
-};
-
-use grl_eval::{to_postfix, GetPriority};
-use grl_sources::{AsmSource, Position, SourceErrorType, SourceInfo};
-
-use std::collections::HashMap;
-use std::iter;
-use thin_vec::ThinVec;
+}; 
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;
 pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
@@ -37,6 +37,7 @@ impl ItemWithPos {
     }
 }
 
+/// Ast
 #[derive(Debug, Clone)]
 pub struct Ast {
     pub tree: AstTree,
@@ -65,7 +66,7 @@ impl Ast {
         }
     }
 
-    pub fn get_kids_ids(&self, id: AstNodeId) -> Vec<AstNodeId> {
+    pub fn get_kids_ids(&self, id: AstNodeId) -> ThinVec<AstNodeId> {
         self.as_ref()
             .get(id)
             .unwrap()
@@ -102,7 +103,7 @@ impl Ast {
         self.replace_node(old_node_id, new_node_id);
     }
 
-    pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> Vec<AstNodeId>
+    pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> ThinVec<AstNodeId>
     where
         I: Iterator<Item = AstNodeId>,
         F: Fn(AstNodeRef) -> bool,
@@ -142,10 +143,12 @@ impl AsMut<AstTree> for Ast {
     }
 }
 
+/// AstCtx
+/// Used while checking ast semantics
 #[derive(Debug)]
 pub struct AstCtx<'a> {
     pub ast_tree: Ast,
-    pub macro_defs: Vec<AstNodeId>,
+    pub macro_defs: ThinVec<AstNodeId>,
     pub ctx: &'a mut Context,
     pub docs: HashMap<AstNodeId, String>,
 }
@@ -163,8 +166,8 @@ where
 }
 
 /// Return a vec of depth first node ids
-fn get_ids_recursive(node: AstNodeRef) -> Vec<AstNodeId> {
-    let mut ret = vec![];
+fn get_ids_recursive(node: AstNodeRef) -> ThinVec<AstNodeId> {
+    let mut ret = thin_vec![];
     get_recursive(node, &mut |x: AstNodeRef| ret.push(x.id()));
     ret
 }
@@ -329,7 +332,7 @@ impl<'a> AstCtx<'a> {
         Self {
             ast_tree: tree,
             ctx,
-            macro_defs: vec![],
+            macro_defs: thin_vec![],
             docs: Default::default(),
         }
     }
@@ -362,18 +365,12 @@ impl<'a> AstCtx<'a> {
                         let new_node_id = self.ast_tree.create_ast_node(&tokens.node);
                         self.ast_tree.replace_node(id, new_node_id);
                     } else {
-                        let x: Vec<_> = self
-                            .ctx
-                            .token_store
-                            .tokens
-                            .keys()
-                            .map(|k| k.to_string_lossy())
-                            .collect();
+                        let files = self.ctx.token_store.get_files();
 
                         panic!(
-                            "Can't find include tokens for {}\n{:?}",
+                            "Can't find include tokens for {}\nFiles Searched:\n{:?}",
                             actual_file.to_string_lossy(),
-                            x
+                            files
                         )
                     }
                 }
@@ -655,7 +652,8 @@ impl<'a> AstCtx<'a> {
 
             if let Scope(scope) = item {
                 let id = self.get_writer(&scopes).create_or_set_scope(scope.as_str());
-                self.ast_tree.alter_node(node_id, |ipos| ipos.item = ScopeId(id));
+                self.ast_tree
+                    .alter_node(node_id, |ipos| ipos.item = ScopeId(id));
             }
         }
 
@@ -718,13 +716,15 @@ impl<'a> AstCtx<'a> {
                 // Convert any label in tree to a lable reference
                 Label(LabelDefinition::Text(name)) => {
                     let symbol_id = self.get_unscoped_symbol_id(name, &scopes, *node_id)?;
-                    self.ast_tree.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                    self.ast_tree
+                        .alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
                 }
 
                 Label(LabelDefinition::TextScoped(name)) => {
                     let scoped_name = ScopedName::new(name);
                     let symbol_id = self.get_scoped_symbol_id(&scoped_name, *node_id)?;
-                    self.ast_tree.alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                    self.ast_tree
+                        .alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
                 }
 
                 _ => (),
@@ -755,7 +755,8 @@ impl<'a> AstCtx<'a> {
                     if let Label(LabelDefinition::TextScoped(name)) = &value.item {
                         let scoped_name = ScopedName::new(name);
                         let symbol_id = self.get_scoped_symbol_id(&scoped_name, node_id)?;
-                        self.ast_tree.alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
+                        self.ast_tree
+                            .alter_node(node_id, |ipos| ipos.item = Label(symbol_id.into()));
                     }
                 }
             }

@@ -2,7 +2,7 @@
 
 (string_literal) @string
 ; (mnemonic (immediate) @tag)
-(opcode (immediate) @operator) 
+(operand (immediate) @operator) 
 
 [(dec_num) (hex_num) (bin_num)] @number
 (mnemonic) @tag

@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![allow(unused_imports)]
 #![allow(dead_code)]
 pub mod item6809;
@@ -32,7 +33,4 @@ pub mod token_store;
 pub mod tokenize;
 pub mod vars;
 pub mod opts;
-
-
-
 

@@ -1,5 +1,4 @@
-// Parse expressions
-
+#![deny(unused_imports)]
 
 use crate::{
     error::IResult,

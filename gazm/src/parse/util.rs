@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use crate::{
     error::{IResult, ParseError},
     item::{Item, Node},
@@ -23,18 +25,12 @@ pub static LIST_SEP: &str = ",";
 pub use p2::{wrapped_chars, ws};
 
 mod p2 {
-    use nom::character::complete::char as nom_char;
-    use nom::character::complete::multispace0;
-    use nom::error::ParseError;
-    use nom::multi::separated_list1;
-    use nom::sequence::tuple;
-    use nom::AsChar;
-    use nom::IResult;
-    use nom::InputIter;
-    use nom::InputLength;
-    use nom::InputTakeAtPosition;
-    use nom::Parser;
-    use nom::Slice;
+    use nom::{
+        character::complete::char as nom_char, character::complete::multispace0, error::ParseError,
+        multi::separated_list1, sequence::tuple, AsChar, IResult, InputIter, InputLength,
+        InputTakeAtPosition, Parser, Slice,
+    };
+
     use std::ops::RangeFrom;
 
     pub fn sep_list1<F, I, O, E>(inner: F) -> impl FnMut(I) -> IResult<I, Vec<O>, E>

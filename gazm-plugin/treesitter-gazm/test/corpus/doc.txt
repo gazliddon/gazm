@@ -2,17 +2,17 @@
 Docs
 ==================
 
+hello
 ;;; Hello
 ;;; Hello2
 ;;; Hello3
-[[cakjakjkaj
-ldkldk d ldk ldk 
-]]
+[[cakjakjkaj]]
 
 hello ;;; Doc
 
 ---
 (source_file
+    (label)
     (doc (doc_text))
     (doc (doc_text))
     (doc (doc_text))

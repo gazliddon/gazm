@@ -1,3 +1,4 @@
+#![deny(unused_imports)]
 use crate::{
     error::parse_error,
     error::IResult,
@@ -5,7 +6,7 @@ use crate::{
     parse6809::opcodes::opcode_just_token,
 };
 
-use super::{commands::command_token, locate::Span};
+use super::{commands::command_token, locate::Span, };
 
 use nom::{
     branch::alt,

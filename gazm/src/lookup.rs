@@ -9,76 +9,7 @@ use crate::{
 use grl_sources::{grl_utils::Stack, Position};
 use itertools::Itertools;
 
-#[allow(dead_code)]
-pub struct Navigator<'a> {
-    syms: &'a SymbolTree,
-    current_scope_id: ScopeId,
-    scope_stack: Stack<ScopeId>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum NavError {
-    UnableToPop,
-    ScopeIdNotFound(ScopeId),
-    SymbolError(SymbolError),
-}
-
-#[allow(dead_code)]
-impl<'a> Navigator<'a> {
-    pub fn new(syms: &'a SymbolTree) -> Self {
-        Self {
-            syms,
-            current_scope_id: syms.get_root_scope_id(),
-            scope_stack: Default::default(),
-        }
-    }
-
-    pub fn new_with_id(syms: &'a SymbolTree, id: ScopeId) -> Result<Self, NavError> {
-        let mut ret = Self::new(syms);
-        ret.set_scope(id)?;
-        Ok(ret)
-    }
-
-    fn check_scope(&self, scope: ScopeId) -> Result<(), NavError> {
-        if self.syms.scope_exists(scope) {
-            Ok(())
-        } else {
-            Err(NavError::SymbolError(SymbolError::NoValue))
-        }
-    }
-
-    pub fn get_current_scope_id(&self) -> u64 {
-        self.current_scope_id
-    }
-
-    pub fn resolve_label(&self, _name: &str) -> Result<SymbolScopeId, SymbolError> {
-        self.syms.resolve_label(
-            _name,
-            self.current_scope_id,
-            SymbolResolutionBarrier::default(),
-        )
-    }
-
-    pub fn set_scope(&mut self, scope_id: u64) -> Result<(), NavError> {
-        self.check_scope(scope_id)?;
-        self.current_scope_id = scope_id;
-        Ok(())
-    }
-
-    pub fn push_scope(&mut self, scope_id: u64) -> Result<(), NavError> {
-        self.check_scope(scope_id)?;
-        self.scope_stack.push(scope_id);
-        Ok(())
-    }
-
-    pub fn pop_scope(&mut self) -> Result<u64, NavError> {
-        self.scope_stack.pop().ok_or(NavError::UnableToPop)
-    }
-}
-
 #[derive(Clone, Debug)]
-
 pub struct LabelUsageAndDefintions {
     reference_pos_and_id: Vec<(Position, SymbolScopeId)>,
     pub symbols: SymbolTree,

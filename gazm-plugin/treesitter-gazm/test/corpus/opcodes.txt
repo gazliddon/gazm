@@ -3,33 +3,34 @@ Opcodes
 ==================
 
 // Hello!
-    pshs a,b,d
 
     lda #$55
-    tfr a,cc
     lds #stack_top
 
     jsr clear_screen
-
     lda #0 + 10
+
     sync
 
     ;; copy the palette over
 
     lda #3+4*2
+    tfr a,cc
 
 ---
 
  (source_file
       (comment)
-      (opcode (mnemonic) (reg_set (a) (b) (d)))
 
-      (opcode (mnemonic) (immediate (hex_num)))
-      (opcode (mnemonic) (reg_xfer (a) (cc)))
-      (opcode (mnemonic) (immediate (label)))
-      (opcode (mnemonic) (extended (label)))
-      (opcode (mnemonic) (immediate (binary_expression (dec_num) (dec_num))))
+      (opcode (mnemonic) (operand (immediate (hex_num)) ))
+      (opcode (mnemonic) (operand (immediate (label)) ))
+      (opcode (mnemonic) (operand (extended (label)) ))
+
+      (opcode (mnemonic) (operand (immediate (binary_expression (dec_num) (dec_num))) ))
+
       (opcode (mnemonic))
       (comment)
-      (opcode (mnemonic) (immediate (binary_expression (dec_num) (binary_expression (dec_num) (dec_num))))))
+
+      (opcode (mnemonic) (operand (immediate (binary_expression (dec_num) (binary_expression (dec_num) (dec_num)))) ))
+      (opcode (mnemonic) (reg_xfer (a) (cc))))
 

@@ -1,8 +1,8 @@
+#![deny(unused_imports)]
 use nom::InputTake;
 use nom_locate::LocatedSpan;
 use grl_sources::{AsmSource, Position};
 
-use crate::opts::Opts;
 
 pub type Span<'a> = LocatedSpan<&'a str, AsmSource>;
 

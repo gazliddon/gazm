@@ -11,11 +11,11 @@ lda 0xff
 
 ---
     (source_file
-     (opcode (mnemonic) (extended (dec_num)))
-     (opcode (mnemonic) (extended (dec_num)))
-     (opcode (mnemonic) (extended (bin_num)))
-     (opcode (mnemonic) (extended (bin_num)))
-     (opcode (mnemonic) (extended (hex_num)))
-     (opcode (mnemonic) (extended (hex_num)))
+     (opcode (mnemonic) (operand (extended (dec_num)) ))
+     (opcode (mnemonic) (operand (extended (dec_num)) ))
+     (opcode (mnemonic) (operand (extended (bin_num)) ))
+     (opcode (mnemonic) (operand (extended (bin_num)) ))
+     (opcode (mnemonic) (operand (extended (hex_num)) ))
+     (opcode (mnemonic) (operand (extended (hex_num)) ))
      )
 

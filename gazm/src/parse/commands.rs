@@ -1,18 +1,19 @@
+#![deny(unused_imports)]
 use lazy_static::lazy_static;
 use std::{collections::HashMap, path::PathBuf};
 
 use super::{
     expr::parse_expr,
-    labels::{get_just_label, get_scoped_label},
+    labels::get_just_label,
     locate::{matched_span, span_to_pos, Span},
     util::{self, match_escaped_str, match_file_name},
+    import::*,
 };
 
 use crate::{
     error::IResult,
     item::{Item, Node},
     item6809::MC6809::SetDp,
-    gazmsymbols::ScopedName,
 };
 
 use nom::{
@@ -72,25 +73,6 @@ fn parse_include_arg(input: Span) -> IResult<Node> {
     let (rest, matched) = match_escaped_str(input)?;
     let matched = matched.to_string();
     let node = Node::from_item_span(Item::Include(PathBuf::from(&matched)), input);
-    Ok((rest, node))
-}
-
-fn parse_import_arg(input: Span) -> IResult<Node> {
-    let (rest, matched) = get_scoped_label(input)?;
-    let scoped_name = ScopedName::new(&matched);
-
-    assert!(scoped_name.is_abs());
-
-    let raw_imports = vec![matched];
-
-    let imports: Vec<_> = raw_imports
-        .into_iter()
-        .map(|i| {
-            let item = Item::Label(crate::item::LabelDefinition::TextScoped(i.to_string()));
-            Node::from_item_span(item, i)
-        })
-        .collect();
-    let node = Node::new_with_children(Item::Import, &imports, span_to_pos(matched));
     Ok((rest, node))
 }
 
