@@ -1,13 +1,14 @@
 #![deny(unused_imports)]
 use lazy_static::lazy_static;
+
 use std::{collections::HashMap, path::PathBuf};
 
 use super::{
     expr::parse_expr,
+    import::*,
     labels::get_just_label,
     locate::{matched_span, span_to_pos, Span},
     util::{self, match_escaped_str, match_file_name},
-    import::*,
 };
 
 use crate::{

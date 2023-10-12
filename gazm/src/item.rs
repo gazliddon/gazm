@@ -144,6 +144,7 @@ pub enum Item {
     SetPutOffset(isize),
 
     Scope(String),
+    Scope2,
     ScopeId(u64),
 
     Expr,
@@ -247,8 +248,8 @@ impl Item {
 }
 
 impl BaseNode<Item, Position> {
-    pub fn from_item_pos(item: Item, p: Position) -> Self {
-        Self::new(item, p)
+    pub fn from_item_pos<P: Into<Position>>(item: Item, p: P) -> Self {
+        Self::new(item, p.into())
     }
 
     pub fn from_item_span<I: Into<Item>>(item: I, sp: Span) -> Self {
@@ -257,6 +258,9 @@ impl BaseNode<Item, Position> {
 
     pub fn from_number(n: i64, _p: ParsedFrom, sp: Span) -> Self {
         Self::from_item_span(Item::Number(n, _p), sp)
+    }
+    pub fn from_number_pos<P:Into<Position>>(n: i64, pos: P) -> Self {
+        Self::new(Item::Number(n, ParsedFrom::FromExpr), pos.into())
     }
 
     pub fn with_span(self, sp: Span) -> Self {

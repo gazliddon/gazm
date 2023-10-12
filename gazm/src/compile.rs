@@ -3,11 +3,12 @@ use std::path::Path;
 
 use crate::{
     asmctx::AsmCtx,
-    ast::{AstNodeId, AstNodeRef, AstTree, Ast},
+    ast::{Ast, AstNodeId, AstNodeRef, AstTree},
     binary::BinaryError,
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
     gazm::ScopeTracker,
+    gazmsymbols::SymbolScopeId,
     info_mess,
     item::{self, Item},
     item6809::{
@@ -15,7 +16,7 @@ use crate::{
         MC6809::{self, OpCode, SetDp},
     },
     regutils::*,
-    status_mess, gazmsymbols::SymbolScopeId,
+    status_mess,
 };
 
 use emu6809::isa;
@@ -41,7 +42,7 @@ pub fn compile(ctx: &mut AsmCtx, tree: &Ast) -> GResult<()> {
 struct Compiler<'a> {
     tree: &'a Ast,
     scopes: ScopeTracker,
-    pc_symbol_id : SymbolScopeId,
+    pc_symbol_id: SymbolScopeId,
 }
 
 impl<'a> Compiler<'a> {
@@ -78,18 +79,20 @@ impl<'a> Compiler<'a> {
 
     fn binary_error(
         &self,
-        ctx: &AsmCtx,
+        ctx: &mut AsmCtx,
         id: AstNodeId,
         e: crate::binary::BinaryError,
     ) -> GazmErrorKind {
         let n = self.get_node(id);
         let info = &ctx.ctx.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
-        UserError::from_text(msg, info, true).into()
+        let err = UserError::from_text(msg, info, true).into();
+        err
     }
+
     fn binary_error_map<T>(
         &self,
-        ctx: &AsmCtx,
+        ctx: &mut AsmCtx,
         id: AstNodeId,
         e: Result<T, BinaryError>,
     ) -> Result<T, GazmErrorKind> {
@@ -121,7 +124,8 @@ impl<'a> Compiler<'a> {
         use item6809::IndexParseType::*;
 
         let idx_byte = imode.get_index_byte(indirect);
-        ctx.binary_mut().write_byte(idx_byte)?;
+
+        self.write_byte(idx_byte, ctx, id)?;
 
         let node = self.get_node(id);
 
@@ -176,9 +180,12 @@ impl<'a> Compiler<'a> {
         let source = args[0];
         let size = args[1];
 
-        let bytes = ctx.binary().get_bytes(source as usize, size as usize);
+        let bytes_ret = ctx
+            .binary()
+            .get_bytes(source as usize, size as usize)
+            .map(|n| n.to_vec());
 
-        let bytes = self.binary_error_map(ctx, id, bytes)?.to_vec();
+        let bytes = bytes_ret.map_err(|e| self.binary_error(ctx, id, e))?;
 
         ctx.binary_mut()
             .write_bytes(&bytes)
@@ -223,7 +230,7 @@ impl<'a> Compiler<'a> {
             dest,
         };
 
-        ctx.binary_mut().bin_reference(&bin_ref, &data);
+        ctx.binary_mut().add_bin_reference(&bin_ref, &data);
 
         info_mess!(
             "Adding binary reference {} for {:05X} - {:05X}",
@@ -232,6 +239,35 @@ impl<'a> Compiler<'a> {
             dest + data.len()
         );
 
+        Ok(())
+    }
+
+    fn write_word(&mut self, val: u16, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+        let ret = ctx.binary_mut().write_word(val);
+        self.binary_error_map(ctx, id, ret)?;
+        Ok(())
+    }
+
+    fn write_byte(&mut self, val: u8, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+        let ret = ctx.binary_mut().write_byte(val);
+        self.binary_error_map(ctx, id, ret)?;
+        Ok(())
+    }
+
+    fn write_byte_check_size(&mut self, val: i64, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+        let ret = ctx.binary_mut().write_byte_check_size(val);
+        self.binary_error_map(ctx, id, ret)?;
+        Ok(())
+    }
+    fn write_word_check_size(&mut self, val: i64, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+        let ret = ctx.binary_mut().write_word_check_size(val);
+        self.binary_error_map(ctx, id, ret)?;
+        Ok(())
+    }
+
+    fn write_byte_word_size(&mut self, val: i64, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+        let ret = ctx.binary_mut().write_word_check_size(val);
+        self.binary_error_map(ctx, id, ret)?;
         Ok(())
     }
 
@@ -245,18 +281,17 @@ impl<'a> Compiler<'a> {
     ) -> GResult<()> {
         use isa::AddrModeEnum::*;
 
-        let node = self.get_node(id);
         let pc = ctx.binary().get_write_address();
         let ins_amode = ins.addr_mode;
         let current_scope_id = self.scopes.scope();
 
-        let res = if ins.opcode > 0xff {
-            ctx.binary_mut().write_word(ins.opcode as u16)
+        if ins.opcode > 0xff {
+            self.write_word(ins.opcode as u16, ctx, id)
         } else {
-            ctx.binary_mut().write_byte(ins.opcode as u8)
-        };
+            self.write_byte(ins.opcode as u8, ctx, id)
+        }?;
 
-        self.binary_error_map(ctx, id, res)?;
+        let node = self.get_node(id);
 
         match ins_amode {
             Indexed => {
@@ -267,20 +302,17 @@ impl<'a> Compiler<'a> {
 
             Immediate8 => {
                 let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                let res = ctx.binary_mut().write_byte_check_size(arg);
-                self.binary_error_map(ctx, id, res)?;
+                self.write_byte_check_size(arg, ctx, id)?
             }
 
             Direct => {
                 let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                let res = ctx.binary_mut().write_byte_check_size(arg & 0xff);
-                self.binary_error_map(ctx, id, res)?;
+                self.write_byte_check_size(arg & 0xff, ctx, id)?
             }
 
             Extended | Immediate16 => {
                 let (arg, _) = ctx.ctx.eval_first_arg(node, current_scope_id)?;
-                let res = ctx.binary_mut().write_word_check_size(arg);
-                self.binary_error_map(ctx, id, res)?;
+                self.write_word_check_size(arg, ctx, id)?;
             }
 
             Relative => {
@@ -336,8 +368,8 @@ impl<'a> Compiler<'a> {
 
             RegisterPair => {
                 if let AddrModeParseType::RegisterPair(a, b) = amode {
-                    let res = ctx.ctx.asm_out.binary.write_byte(reg_pair_to_flags(a, b));
-                    self.binary_error_map(ctx, id, res)?;
+                    let val = reg_pair_to_flags(a, b);
+                    self.write_byte(val, ctx, id)?;
                 } else {
                     panic!("Whut!")
                 }
@@ -347,8 +379,7 @@ impl<'a> Compiler<'a> {
                 let rset = &node.first_child().unwrap().value().item;
                 if let Item::Cpu(MC6809::RegisterSet(regs)) = rset {
                     let flags = registers_to_flags(regs);
-                    let res = ctx.binary_mut().write_byte(flags);
-                    self.binary_error_map(ctx, id, res)?;
+                    self.write_byte(flags, ctx, id)?;
                 } else {
                     panic!("Whut!")
                 }
@@ -378,9 +409,7 @@ impl<'a> Compiler<'a> {
         let (.., bin) = ctx.read_binary_chunk(file, r.clone())?;
 
         for val in bin {
-            ctx.ctx
-                .asm_out
-                .binary
+            ctx.binary_mut()
                 .write_byte(val)
                 .map_err(|e| self.binary_error(ctx, id, e))?;
         }
@@ -402,7 +431,11 @@ impl<'a> Compiler<'a> {
         self.compile_node(ctx, self.tree.as_ref().root().id())
     }
 
-    fn compile_node(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
+    fn compile_node(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> { 
+        self.compile_node_error(ctx, id)
+    }
+
+    fn compile_node_error(&mut self, ctx: &mut AsmCtx, id: AstNodeId) -> GResult<()> {
         use item::Item::*;
 
         let (node_id, i) = self.get_node_item(ctx, id);

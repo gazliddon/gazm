@@ -3,7 +3,7 @@ use crate::messages::Verbosity;
 use crate::opts::{BuildType, Opts};
 use lazy_static::lazy_static;
 
-use clap::{Arg, ArgMatches, Command, builder::PathBufValueParser, ArgAction,value_parser};
+use clap::{builder::PathBufValueParser, value_parser, Arg, ArgAction, ArgMatches, Command};
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -20,7 +20,7 @@ pub enum ConfigErrorType {
     #[error("Can't find file {0}")]
     MissingConfigFile(PathBuf),
     #[error("Parse Error in config file: {0}\nline: {2}, col: {3}\n{1}")]
-    ParseError(PathBuf,String, usize,usize),
+    ParseError(PathBuf, String, usize, usize),
 }
 
 impl std::fmt::Debug for ConfigErrorType {
@@ -49,7 +49,6 @@ fn load_config(m: &ArgMatches) -> ConfigError<config::TomlConfig> {
     }
 
     config::TomlConfig::new_from_file(path)
-
 }
 
 fn load_opts_with_build_type(
@@ -115,6 +114,17 @@ impl Opts {
                 o
             }
 
+            Some(("test", m)) => {
+                let opts = Opts {
+                    build_type: BuildType::Test,
+                    project_file: m.get_one::<PathBuf>("project-file").unwrap().into(),
+                    assemble_dir: Some(std::env::current_dir().unwrap()),
+                    ..Default::default()
+                };
+
+                opts
+            }
+
             Some(("asm", m)) => {
                 let mut opts = Opts {
                     deps_file: m.get_one::<String>("deps").map(String::from),
@@ -172,11 +182,9 @@ fn make_config_file_arg() -> Arg {
         .default_value("gazm.toml")
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
 pub fn parse() -> ArgMatches {
-
     Command::new(clap::crate_name!())
         .about("6809 assembler")
         .author(clap::crate_authors!("\n"))
@@ -208,6 +216,13 @@ pub fn parse() -> ArgMatches {
             Command::new("lsp")
                 .about("Launch LSP using config file")
                 .arg(make_config_file_arg()),
+        )
+        .subcommand(
+            Command::new("test").about("Some test shit").arg(
+                Arg::new("project-file")
+                    .value_parser(PathBufValueParser::new())
+                    .required(true),
+            ),
         )
         .subcommand(
             Command::new("asm")
@@ -284,7 +299,7 @@ pub fn parse() -> ArgMatches {
                         .help("Output AST")
                         .long("ast-file")
                         .num_args(1)
-                        .value_parser(PathBufValueParser::new())
+                        .value_parser(PathBufValueParser::new()),
                 )
                 .arg(
                     Arg::new("lst-file")
@@ -292,7 +307,7 @@ pub fn parse() -> ArgMatches {
                         .long("lst-file")
                         .short('l')
                         .num_args(1)
-                        .value_parser(PathBufValueParser::new())
+                        .value_parser(PathBufValueParser::new()),
                 )
                 .arg(
                     Arg::new("mem-size")

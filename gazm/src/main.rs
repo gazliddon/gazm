@@ -3,7 +3,7 @@ use gazm::{
     gazm::Assembler,
     info_mess, lsp, messages,
     opts::{BuildType, Opts},
-    status_mess,
+    status_mess, frontend,
 };
 
 static BANNER: &str = r"
@@ -14,19 +14,12 @@ static BANNER: &str = r"
  |___/ 6898 Assembler
 ";
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    use std::env::{current_dir, set_current_dir};
 
-    let matches = gazm::cli::parse();
-
-    let opts = Opts::from_arg_matches(matches)?;
+fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
 
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
 
-    // Todo move directory handling into assemble_from_opts
-    // probably as a function of Opts
-    let cur_dir = current_dir().unwrap();
 
     if let Some(assemble_dir) = &opts.assemble_dir {
         std::env::set_current_dir(assemble_dir)?;
@@ -35,6 +28,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut asm = Assembler::new(opts.clone());
 
     match opts.build_type {
+        BuildType::Test => {
+            status_mess!("Testing! {}", opts.project_file.to_string_lossy());
+            frontend::test(&opts.project_file);
+            status_mess!("Done!");
+        },
+
         BuildType::Format => {
             status_mess!("Format file");
             fmt::fmt(&opts)?;
@@ -42,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         BuildType::Lsp => {
             status_mess!("LSP");
-            lsp::do_lsp(opts)?;
+            lsp::do_lsp(opts.clone())?;
         }
 
         // Build of check to see if build is okay
@@ -66,6 +65,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             info_mess!("")
         }
     };
+
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    use std::env::{current_dir, set_current_dir};
+
+    let matches = gazm::cli::parse();
+    let opts = Opts::from_arg_matches(matches)?;
+
+    // Todo move directory handling into assemble_from_opts
+    // probably as a function of Opts
+    let cur_dir = current_dir().unwrap();
+
+    let ret = do_build(&opts);
+
+    if let Err(ref e) = ret {
+        println!("{e}")
+    }
 
     set_current_dir(cur_dir)?;
 

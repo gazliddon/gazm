@@ -441,7 +441,7 @@ impl TryFrom<&Opts> for AsmOut {
                 start: 0,
                 size: x.len(),
             };
-            binary.bin_reference(&bin_ref, &x)
+            binary.add_bin_reference(&bin_ref, &x)
         }
 
         let ret = Self {

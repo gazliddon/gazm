@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
 
+use crate::error::GResult;
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum AccessType {
     ReadWrite,
@@ -16,6 +18,7 @@ pub struct BinRef {
     pub dest: usize,
 }
 
+/// Structure that holds what should be in this memory physical range
 #[derive(Debug, Clone)]
 struct BinRefChunk {
     physical_range: std::ops::Range<usize>,
@@ -62,15 +65,29 @@ impl std::fmt::Debug for MemoryLocation {
     }
 }
 
+#[derive(Clone)]
+pub struct ReferenceMismatch {
+    pub addr: usize,
+    pub logical_addr: usize,
+    pub val: usize,
+    pub expected: usize,
+}
+
+impl std::fmt::Debug for ReferenceMismatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReferenceMismatch")
+            .field("addr", &self.addr)
+            .field("logical_addr", &self.logical_addr)
+            .field("val", &self.val)
+            .field("expected", &self.expected)
+            .finish()
+    }
+}
+
 #[derive(Error, Debug, Clone)]
 pub enum BinaryError {
-    #[error("${addr:04X?} (${logical_addr:05X})(expected ${expected:02X?}, found ${val:02X?})")]
-    DoesNotMatchReference {
-        addr: usize,
-        logical_addr: usize,
-        val: usize,
-        expected: usize,
-    },
+    #[error("Mismatch: {0:?}")]
+    DoesNotMatchReference(ReferenceMismatch),
     #[error("Tried to write to {0:X?}")]
     InvalidWriteAddress(usize),
     #[error("Value {val} does not fit into a {dest_type}")]
@@ -81,7 +98,40 @@ pub enum BinaryError {
     IllegalWrite(MemoryLocation),
     #[error("Asked for zero bytes")]
     AskedForZeroBytes,
+}
 
+use num_traits::{bounds::UpperBounded, *};
+
+pub trait BinWriter {
+    fn write_byte(&mut self, val: u8) -> GResult<()>;
+    fn write_word(&mut self, val: u16) -> GResult<()>;
+
+    fn write_ibyte_checked<T>(&mut self, val: T) -> GResult<()>
+    where
+        T: PrimInt + FromPrimitive,
+    {
+        let lowest = T::from(-127).unwrap();
+        let highest = T::from(127).unwrap();
+
+        if val > highest || val < lowest {
+            panic!()
+        } else {
+            self.write_byte(val.to_i8().unwrap() as u8)
+        }
+    }
+
+    fn write_ubyte_checked<T>(&mut self, val: T) -> GResult<()>
+    where
+        T: PrimInt + FromPrimitive,
+    {
+        let highest = T::from(256).unwrap();
+
+        if val > highest {
+            panic!()
+        } else {
+            self.write_byte(val.to_u8().unwrap())
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -96,9 +146,12 @@ pub struct Watch {
 }
 
 impl Binary {
+    pub fn get_mismatches(&self) -> Vec<ReferenceMismatch> {
+        panic!()
+    }
+
     /// Returns ranges from from -> current write
     /// ( physical range, logical_range )
-
     pub fn range_to_write_address(
         &self,
         pc: usize,
@@ -110,11 +163,12 @@ impl Binary {
 
         (start..end, phys_start..phys_end)
     }
+
     pub fn add_watch(&mut self, range: std::ops::Range<usize>) {
         self.watches.push(Watch { range })
     }
 
-    pub fn bin_reference(&mut self, bin_ref: &BinRef, m: &[u8]) {
+    pub fn add_bin_reference(&mut self, bin_ref: &BinRef, m: &[u8]) {
         let chunk = BinRefChunk {
             physical_range: bin_ref.dest..bin_ref.dest + bin_ref.size,
             ref_data: m.into(),
@@ -123,6 +177,7 @@ impl Binary {
         self.bin_refs.push(chunk);
     }
 
+    /// Get the byte we expect to be at this address
     fn get_expected(&self, addr: usize) -> Option<u8> {
         for c in &self.bin_refs {
             if c.physical_range.contains(&addr) {
@@ -324,19 +379,20 @@ impl Binary {
             }
         }
 
+        self.data[physical] = val;
+        self.write_address += 1;
+
         if let Some(expected) = self.get_expected(physical) {
             if expected != val {
                 let loc = self.get_write_location();
-                return Err(BinaryError::DoesNotMatchReference {
-                   addr: loc.physical,
+                return Err(BinaryError::DoesNotMatchReference(ReferenceMismatch {
+                    addr: loc.physical,
                     logical_addr: loc.logical,
-                    val: val as usize, expected: expected as usize,
-                })
+                    val: val as usize,
+                    expected: expected as usize,
+                }));
             }
         }
-
-        self.data[physical] = val;
-        self.write_address += 1;
 
         Ok(WriteStatus::Checked)
     }
@@ -350,12 +406,14 @@ impl Binary {
 
     pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<WriteStatus, BinaryError> {
         let mut did_check = WriteStatus::Checked;
+
         for b in bytes {
             let ch = self.write_byte(*b)?;
             if ch == WriteStatus::NoCheck {
                 did_check = ch
             }
         }
+
         Ok(did_check)
     }
 
@@ -368,18 +426,17 @@ impl Binary {
         }
     }
 
-    pub fn get_bytes_range(&self, r: std::ops::Range<usize>) -> Result<&[u8],BinaryError> {
+    pub fn get_bytes_range(&self, r: std::ops::Range<usize>) -> Result<&[u8], BinaryError> {
         if r.is_empty() {
             Err(BinaryError::AskedForZeroBytes)
         } else {
-            Ok( &self.data[r] )
+            Ok(&self.data[r])
         }
     }
 
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {
         let hi = val >> 8;
         let lo = val & 0xff;
-
         self.write_byte(hi as u8)?;
         self.write_byte(lo as u8)
     }

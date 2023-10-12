@@ -28,24 +28,30 @@ tokio-util = { version = "0.7.9", features = ["codec"] }
 toml="0.8.0"
 tower-lsp = { git = "https://github.com/gazliddon/tower-lsp", version = "*" }
 tryvial="0.2.0"
+logos="*"
 
 emu6809 = {path="../../crates/emu6809"}
 grl-sources = {path = "../../crates/grl-sources"}
 grl-eval = {path="../../crates/grl-eval"}
+unraveler = {path="../../crates/unraveler"}
+
+num-traits = "*"
+strum = { version = "0.25", features = ["derive"] }
+regex = "*"
 
 [dev-dependencies]
 pretty_assertions="1.4.0"
 
-[profile.release]
-debug = true
+# [profile.release]
+# debug = true
 
-[profile.final]
-inherits = "release"
-lto = "fat"
-codegen-units = 1
-panic = "abort"
-strip = true
-debug = false
+# [profile.final]
+# inherits = "release"
+# lto = "fat"
+# codegen-units = 1
+# panic = "abort"
+# strip = true
+# debug = false
 
 
 
