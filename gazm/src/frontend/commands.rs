@@ -1,3 +1,4 @@
+/// Parse the assembler commands
 use std::{
     path::{Path, PathBuf},
     process::CommandArgs,
@@ -23,7 +24,7 @@ use unraveler::{
     tag, tuple, until, wrapped_cut, Collection, ParseError, ParseErrorKind, Parser, Severity,
 };
 
-fn command(
+pub fn command(
     command_kind: CommandKind,
 ) -> impl for<'a> FnMut(TSpan<'a>) -> PResult<TSpan>
 {

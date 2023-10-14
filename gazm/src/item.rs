@@ -49,7 +49,7 @@ pub enum ParsedFrom {
     Hex,
     Dec,
     Bin,
-    Char(char),
+    Char,
     FromExpr,
 }
 
@@ -262,6 +262,11 @@ impl BaseNode<Item, Position> {
     pub fn from_number_pos<P:Into<Position>>(n: i64, pos: P) -> Self {
         Self::new(Item::Number(n, ParsedFrom::FromExpr), pos.into())
     }
+    pub fn with_pos(self, sp: Position) -> Self {
+        let mut ret = self;
+        ret.ctx = sp;
+        ret
+    }
 
     pub fn with_span(self, sp: Span) -> Self {
         let mut ret = self;
@@ -309,8 +314,7 @@ impl Display for BaseNode<Item, Position> {
 
             Number(n, p) => match &p {
                 ParsedFrom::Hex => format!("${n:x}"),
-                ParsedFrom::FromExpr | ParsedFrom::Dec => n.to_string(),
-                ParsedFrom::Char(c) => format!("'{c}'"),
+                ParsedFrom::FromExpr | ParsedFrom::Dec | ParsedFrom::Char => n.to_string(),
                 ParsedFrom::Bin => format!("%{n:b}"),
             },
             UnaryTerm => join_children(""),

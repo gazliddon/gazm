@@ -1,7 +1,8 @@
+use super::{ TokenKind,ParseText,Token };
+
 pub type TSpan<'a> = unraveler::Span<'a, Token<ParseText<'a>>>;
 
 ////////////////////////////////////////////////////////////////////////////////
-use super::{ TokenKind,ParseText,Token };
 impl unraveler::Item for Token<ParseText<'_>> {
     type Kind = TokenKind;
 

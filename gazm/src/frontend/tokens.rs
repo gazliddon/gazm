@@ -8,7 +8,8 @@ use strum::{EnumIter, IntoEnumIterator};
 pub enum NumberKind {
     Hex,
     Dec,
-    Bin
+    Bin,
+    Char
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, EnumIter,Hash)]
@@ -76,26 +77,30 @@ fn get_num(txt: &str, re: &regex::Regex, radix : usize) -> i64 {
     i64::from_str_radix(&num_str, radix as u32).unwrap()
 }
 
-fn from_bin(lex: &mut Lexer<TokenKind>) -> Option<( NumberKind,i64 )> {
+fn from_bin(lex: &mut Lexer<TokenKind>) -> Option<( i64,NumberKind )> {
     let num = get_num(lex.slice(), &PRE_BIN, 2);
-    Some(( NumberKind::Bin, num ))
+    Some(( num, NumberKind::Bin ))
 }
 
-fn from_hex(lex: &mut Lexer<TokenKind>) -> Option<( NumberKind,i64 )> {
+fn from_hex(lex: &mut Lexer<TokenKind>) -> Option<( i64,NumberKind )> {
     let num = get_num(lex.slice(), &PRE_HEX, 16);
-    Some(( NumberKind::Hex,  num))
+    Some(( num,NumberKind::Hex))
+}
+fn from_char(lex: &mut Lexer<TokenKind>) -> Option<( i64,NumberKind )> {
+    let num = get_num(lex.slice(), &PRE_HEX, 16);
+    Some(( num,NumberKind::Hex))
 }
 
-fn from_dec(lex: &mut Lexer<TokenKind>) -> Option<( NumberKind, i64 )> {
+fn from_dec(lex: &mut Lexer<TokenKind>) -> Option<( i64,NumberKind )> {
     let num :i64=  lex.slice().replace("_", "").parse().unwrap();
-    Some(( NumberKind::Dec, num ))
+    Some(( num, NumberKind::Dec ))
 }
 
 
 // #[regex(r"([a-zA-Z-_]+[a-zA-Z0-9-_]*)(::[a-zA-Z-_]+[a-zA-Z0-9-_]*)+")]
 #[derive(Logos, Copy, Clone, Debug, PartialEq, Eq)]
 #[logos(skip r"[ \t\f\n]+")]
-#[logos(subpattern id_al = r"[!+\-*!a-zA-Z-_.]")]
+#[logos(subpattern id_al = r"[a-zA-Z_.]")]
 #[logos(subpattern id_alnum = r"(?&id_al)|[0-9]")]
 #[logos(subpattern id = r"(?&id_al)+(?&id_alnum)*")]
 #[logos(subpattern pre_hex = r"(0[xX]|\$)")]
@@ -113,7 +118,7 @@ pub enum TokenKind {
     #[regex(r"[0-9][0-9_]*",from_dec)]
     #[regex(r"(?&pre_hex)[0-9a-fA-F][0-9a-fA-F_]*", from_hex)]
     #[regex(r"(?&pre_bin)[0-1][0-1_]*",from_bin)]
-    Number(( NumberKind,i64 )),
+    Number(( i64,NumberKind )),
 
     #[token("[")]
     OpenSquareBracket,
@@ -157,14 +162,20 @@ pub enum TokenKind {
     #[regex(r"(?&id)(::(?&id))+")]
     FqnIdentifier,
 
-    #[regex("'.'")]
-    Char,
+    #[regex(r"'.'",from_char)]
+    Char((i64, NumberKind )),
 
     #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]
     QuotedString,
 
     #[token(",")]
     Comma,
+
+    #[token(">>")]
+    DoubleGreaterThan,
+
+    #[token("<<")]
+    DoubleLessThan,
 
     #[token(">")]
     GreaterThan,
@@ -183,6 +194,9 @@ pub enum TokenKind {
 
     #[token("!")]
     Pling,
+
+    #[token("@")]
+    At,
 }
 
 impl TokenKind {
@@ -275,3 +289,15 @@ pub fn to_tokens_kinds(source_file: &str) -> Vec<(TokenKind, std::ops::Range<usi
         })
         .collect()
 }
+
+pub fn to_tokens(source_file: &str) -> Vec<Token<ParseText>> {
+    let ret = to_tokens_kinds(source_file);
+
+    ret.into_iter().map(|(tk,r)|  {
+        let pt = ParseText::new(source_file,r.clone());
+        let t : Token<ParseText> = Token::new(tk,r.into(),pt);
+        t
+    }).collect()
+}
+
+

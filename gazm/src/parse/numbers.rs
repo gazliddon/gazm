@@ -160,7 +160,7 @@ fn get_char(input: Span) -> IResult<( i64, ParsedFrom )> {
     s.push(matched);
     let num_bytes = s.as_bytes();
     let num_of_bytes = num_bytes[0];
-    Ok((rest, ( num_of_bytes as i64, ParsedFrom::Char(matched) )))
+    Ok((rest, ( num_of_bytes as i64, ParsedFrom::Char)))
 }
 
 fn get_dec(input: Span) -> IResult<( i64, ParsedFrom )> {
