@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+
+use super::basetoken::{ TextSpan, Token as BaseToken };
+
 use emu6809::isa::Dbase;
 use logos::{Lexer, Logos};
 use strum::{EnumIter, IntoEnumIterator};
@@ -205,35 +208,17 @@ impl TokenKind {
     }
 }
 
-impl From<std::ops::Range<usize>> for TextSpan {
-    fn from(value: std::ops::Range<usize>) -> Self {
-        Self {
-            start: value.start,
-            len: value.len(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Copy, PartialEq, Default)]
-pub struct TextSpan {
-    pub start: usize,
-    pub len: usize,
-}
-
-impl TextSpan {
-    pub fn as_range(&self) -> std::ops::Range<usize> {
-        self.start..self.start + self.len
-    }
-    pub fn new(start: usize, len: usize) -> Self {
-        Self { start, len }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {
     pub base: &'a str,
     pub start: usize,
     pub len: usize,
+}
+
+impl<'a> AsRef<str> for ParseText<'a> {
+    fn as_ref(&self) -> &str {
+        &self.base[self.as_range()]
+    }
 }
 
 impl<'a> ParseText<'a> {
@@ -245,6 +230,7 @@ impl<'a> ParseText<'a> {
         }
     }
 }
+
 impl<'a> ParseText<'a> {
     pub fn get_text(&self) -> &str {
         &self.base[self.as_range()]
@@ -255,31 +241,7 @@ impl<'a> ParseText<'a> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
-pub struct Token<X: Clone> {
-    pub kind: TokenKind,
-    pub location: TextSpan,
-    pub extra: X,
-}
-
-impl<X: Clone> Token<X> {
-    pub fn new(kind: TokenKind, location: TextSpan, extra: X) -> Self {
-        Self {
-            kind,
-            location,
-            extra,
-        }
-    }
-}
-
-impl<X: Clone> Token<X> {
-    pub fn text_span(a: &[Self]) -> std::ops::Range<usize> {
-        let start = a.first().unwrap().location.start;
-        let end = a.last().unwrap().location.len + start;
-        start..end
-    }
-}
-
+pub type Token<'a> = BaseToken<ParseText<'a>>;
 pub fn to_tokens_kinds(source_file: &str) -> Vec<(TokenKind, std::ops::Range<usize>)> {
     TokenKind::lexer(source_file)
         .spanned()
@@ -290,12 +252,12 @@ pub fn to_tokens_kinds(source_file: &str) -> Vec<(TokenKind, std::ops::Range<usi
         .collect()
 }
 
-pub fn to_tokens(source_file: &str) -> Vec<Token<ParseText>> {
+pub fn to_tokens(source_file: &str) -> Vec<Token> {
     let ret = to_tokens_kinds(source_file);
 
     ret.into_iter().map(|(tk,r)|  {
         let pt = ParseText::new(source_file,r.clone());
-        let t : Token<ParseText> = Token::new(tk,r.into(),pt);
+        let t : Token = Token::new(tk,r.into(),pt);
         t
     }).collect()
 }

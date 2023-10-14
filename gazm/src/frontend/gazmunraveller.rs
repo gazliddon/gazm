@@ -1,9 +1,9 @@
 use super::{ TokenKind,ParseText,Token };
 
-pub type TSpan<'a> = unraveler::Span<'a, Token<ParseText<'a>>>;
+pub type TSpan<'a> = unraveler::Span<'a, Token<'a>>;
 
 ////////////////////////////////////////////////////////////////////////////////
-impl unraveler::Item for Token<ParseText<'_>> {
+impl unraveler::Item for Token<'_> {
     type Kind = TokenKind;
 
     fn get_kind(&self) -> Self::Kind {

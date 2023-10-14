@@ -1,98 +1,67 @@
 use grl_sources::Position;
 
-use tower_lsp::lsp_types::lsif::ItemKind;
 use unraveler::{
     all, alt, any, cut, is_a, many0, many1, many_until, match_item, not, opt, pair, preceded,
-    sep_list, sep_pair, succeeded, tag, tuple, until, wrapped_cut, Collection, ParseError,
+    sep_list, sep_pair, succeeded, tuple, until, wrapped_cut, Collection, ParseError,
     ParseErrorKind, Parser, Severity,
 };
 
 use super::{
-    concat, match_span, parse_label, parse_number, to_pos, IdentifierKind, NumberKind, PResult,
-    ParseText, TSpan, Token, TokenKind,
+    concat, match_span as ms, parse_label, parse_number, to_pos, IdentifierKind, NumberKind,
+    PResult, ParseText, TSpan, Token, TokenKind::{self,*},
 };
 
-use crate::{
-    async_tokenize::{GetTokensResult, IncludeErrorKind},
-    cli::parse,
-    error::IResult,
-    item::{Item, LabelDefinition, Node, ParsedFrom},
-    item6809::{IndexParseType, MC6809::SetDp},
-    parse::{
-        locate::{matched_span, span_to_pos},
-        util::match_str,
-    },
-};
+use crate::item::{Item, LabelDefinition, Node, ParsedFrom};
+
+pub fn op_to_node(input: TSpan, toke: TokenKind, item: Item) -> PResult<Node> {
+    let (rest, (sp, _)) = ms(toke)(input)?;
+    Ok((rest, Node::from_item_pos(item, to_pos(sp))))
+}
 
 pub fn parse_expr_list(input: TSpan) -> PResult<Vec<Node>> {
-    sep_list(parse_expr, tag(TokenKind::Comma))(input)
+    sep_list(parse_expr, Comma)(input)
 }
 
 pub fn parse_term(input: TSpan) -> PResult<Node> {
     alt((parse_unary_term, parse_non_unary_term))(input)
 }
 
-fn op_to_item(input: TSpan, toke: TokenKind, item: Item) -> PResult<Item> {
-    let (rest, _) = tag(toke)(input)?;
-    Ok((rest, item))
-}
-
 fn parse_unary_op(input: TSpan) -> PResult<Node> {
-    use nom::combinator::map;
-    let (rest, op) = alt((
-        |i| op_to_item(i, TokenKind::Minus, Item::Sub),
-        |i| op_to_item(i, TokenKind::GreaterThan, Item::UnaryGreaterThan),
-    ))(input)?;
-
-    let matched_span = to_pos(input);
-    let node = Node::from_item_pos(op, matched_span);
-
-    Ok((rest, node))
+    alt((
+        |i| op_to_node(i, Minus, Item::Sub),
+        |i| op_to_node(i, GreaterThan, Item::UnaryGreaterThan),
+    ))(input)
 }
 
-fn parse_pc(input: TSpan) -> PResult<Node> {
-    let (rest, _) = op_to_item(input, TokenKind::Star, Item::Pc)?;
-    let matched_span = to_pos(input);
-    Ok((rest, Node::from_item_pos(Item::Pc, matched_span)))
-}
-
-fn parse_bracketed_expr(_input: TSpan) -> PResult<Node> {
-    let (rest, mut matched) = preceded(tag(TokenKind::OpenBracket), parse_expr)(_input)?;
-    let (rest, _) = tag(TokenKind::CloseBracket)(rest)?;
-    let matched_span = to_pos(_input);
+fn parse_bracketed_expr(input: TSpan) -> PResult<Node> {
+    let (rest, (sp, mut matched)) = ms(wrapped_cut(OpenBracket, parse_expr, CloseBracket))(input)?;
     matched.item = Item::BracketedExpr;
-    Ok((rest, matched.with_pos(matched_span)))
+    Ok((rest, matched.with_pos(to_pos(sp))))
 }
 
 pub fn parse_non_unary_term(input: TSpan) -> PResult<Node> {
+    let parse_pc = |i| op_to_node(i, Star, Item::Pc);
     alt((parse_bracketed_expr, parse_number, parse_label, parse_pc))(input)
 }
 
 fn parse_unary_term(input: TSpan) -> PResult<Node> {
-    let (rest, (op, term)) = pair(parse_unary_op, parse_non_unary_term)(input)?;
-
-    let matched_span = to_pos(input);
-    let node = Node::new_with_children(Item::UnaryTerm, &vec![op, term], matched_span);
+    let (rest, (matched_span, (op, term))) = ms(pair(parse_unary_op, parse_non_unary_term))(input)?;
+    let node = Node::new_with_children(Item::UnaryTerm, &vec![op, term], to_pos(matched_span));
     Ok((rest, node))
 }
 
 fn parse_binary_op(input: TSpan) -> PResult<Node> {
-    use TokenKind::*;
-    let (rest, op) = alt((
-        |i| op_to_item(i, Plus, Item::Add),
-        |i| op_to_item(i, LessThan, Item::Sub),
-        |i| op_to_item(i, Star, Item::Mul),
-        |i| op_to_item(i, Slash, Item::Div),
-        |i| op_to_item(i, Bar, Item::BitOr),
-        |i| op_to_item(i, Ampersand, Item::BitAnd),
-        |i| op_to_item(i, Caret, Item::BitXor),
-        |i| op_to_item(i, DoubleGreaterThan, Item::ShiftRight),
-        |i| op_to_item(i, DoubleLessThan, Item::ShiftLeft),
-    ))(input)?;
-
-    let matched_span = to_pos(input);
-    let node = Node::from_item_pos(op, matched_span);
-    Ok((rest, node))
+    alt((
+        |i| op_to_node(i, Plus, Item::Add),
+        |i| op_to_node(i, LessThan, Item::Sub),
+        |i| op_to_node(i, Star, Item::Mul),
+        |i| op_to_node(i, Slash, Item::Div),
+        |i| op_to_node(i, Bar, Item::BitOr),
+        |i| op_to_node(i, Ampersand, Item::BitAnd),
+        |i| op_to_node(i, Caret, Item::BitXor),
+        |i| op_to_node(i, DoubleGreaterThan, Item::ShiftRight),
+        |i| op_to_node(i, DoubleLessThan, Item::ShiftLeft),
+    ))(input)
 }
 
 pub fn parse_op_term(input: TSpan) -> PResult<(Node, Node)> {
@@ -101,12 +70,9 @@ pub fn parse_op_term(input: TSpan) -> PResult<(Node, Node)> {
 }
 
 pub fn parse_expr(input: TSpan) -> PResult<Node> {
-    let (rest, (matched_span, (term, vs))) =
-        match_span(pair(parse_term, many0(parse_op_term)))(input)?;
-
+    let (rest, (sp, (term, vs))) = ms(pair(parse_term, many0(parse_op_term)))(input)?;
     let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
-
-    let node = Node::new_with_children(Item::Expr, &concat((term, vs)), to_pos(matched_span));
+    let node = Node::new_with_children(Item::Expr, &concat((term, vs)), to_pos(sp));
 
     Ok((rest, node))
 }
@@ -116,9 +82,7 @@ mod test {
     use thin_vec::ThinVec;
 
     use super::super::*;
-    use super::*;
-    use Item::*;
-    use ParsedFrom::*;
+    use crate::item::{ Item::{self,*}, Node, ParsedFrom::* };
 
     fn get_children_items(node: &Node) -> ThinVec<Item> {
         node.children.iter().map(|c| c.item.clone()).collect()

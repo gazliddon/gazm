@@ -1,3 +1,4 @@
+pub (crate) mod basetoken;
 mod tokens;
 mod ast;
 mod expr;
@@ -18,5 +19,6 @@ pub use gazmunraveller::*;
 pub use utils::*;
 pub use testit::*;
 pub use misc::*;
-pub use opcodes::*;
+
+
 
