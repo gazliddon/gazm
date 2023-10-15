@@ -33,12 +33,15 @@ pub enum CommandKind {
     Zmb,
     Zmd,
     Rmb,
+    Rmd,
     Rzb,
     Org,
     Include,
     Exec,
     Require,
     Import,
+    Struct,
+    Macro,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]

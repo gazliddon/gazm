@@ -31,4 +31,8 @@ impl<'a> ParseText<'a> {
     pub fn as_range(&self) -> std::ops::Range<usize> {
         self.start..self.start + self.len
     }
+
+    pub fn as_text_pos(&self) -> grl_sources::TextPos {
+        self.source_file.source.offset_to_text_pos(self.start).unwrap()
+    }
 }

@@ -47,7 +47,9 @@ pub fn parse_non_unary_term(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_unary_term(input: TSpan) -> PResult<Node> {
-    let (rest, (matched_span, (op, term))) = ms(pair(parse_unary_op, parse_non_unary_term))(input)?;
+    let (rest, (matched_span, (op, term))) = ms(
+        pair(parse_unary_op, parse_non_unary_term)
+    )(input)?;
     let node = Node::new_with_children(Item::UnaryTerm, &vec![op, term], to_pos(matched_span));
     Ok((rest, node))
 }
@@ -75,7 +77,7 @@ pub fn parse_expr(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (term, vs))) = ms(pair(parse_term, many0(parse_op_term)))(input)?;
 
     if vs.is_empty() && term.item.is_number() {
-        Ok((rest,term))
+        Ok((rest, term))
     } else {
         let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
         let node = Node::new_with_children(Item::Expr, &concat((term, vs)), to_pos(sp));
@@ -97,7 +99,7 @@ mod test {
     #[test]
     fn test_expr() {
         let test = [
-            ("3", Num(3,Dec), vec![]),
+            ("3", Num(3, Dec), vec![]),
             (
                 "3 * 4 + 0x1 + (10  + 4)",
                 Item::Expr,
@@ -123,7 +125,7 @@ mod test {
 
             let (rest, matched) = parse_expr(span).unwrap();
             let (item, items) = get_items(&matched);
-            println!("\tItem: {:?} : {:?}", item,items);
+            println!("\tItem: {:?} : {:?}", item, items);
             assert_eq!(&item, i);
             assert!(rest.is_empty());
             assert_eq!(&items, wanted);

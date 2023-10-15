@@ -10,6 +10,8 @@ mod utils;
 mod testit;
 mod misc;
 mod opcodes;
+mod structs;
+mod macros;
 
 pub use tokens::*;
 pub use ast::*;
@@ -20,6 +22,7 @@ pub use gazmunraveller::*;
 pub use utils::*;
 pub use testit::*;
 pub use misc::*;
-
+pub use macros::*;
+pub use structs::*;
 
 

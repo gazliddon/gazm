@@ -31,7 +31,7 @@ pub fn parse_number(input: TSpan) -> PResult<Node> {
     }
 }
 
-fn get_label<F: Fn(String) -> LabelDefinition>(
+pub (crate) fn get_label<F: Fn(String) -> LabelDefinition>(
     input: TSpan,
     mut tag_kind: TokenKind,
     to_label_def: F,
@@ -49,7 +49,7 @@ fn parse_local_label(input: TSpan) -> PResult<Node> {
     Ok((rest, node))
 }
 
-fn parse_non_scoped_label(input: TSpan) -> PResult<Node> {
+pub fn parse_non_scoped_label(input: TSpan) -> PResult<Node> {
     use {IdentifierKind::*, LabelDefinition::Text};
     get_label(input, Identifier(Label), Text)
 }

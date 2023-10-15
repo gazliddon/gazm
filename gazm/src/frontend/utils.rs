@@ -8,15 +8,26 @@ use unraveler::{Collection, ParseError, Parser, Splitter};
 
 pub fn to_pos(input: TSpan) -> Position {
     assert!(!input.is_empty());
-    let p1 = input.first().unwrap().extra.as_range();
-    let p2 = input.last().unwrap().extra.as_range();
-    let r = p1.start..p2.end;
-    Position::new(0, 0, r, grl_sources::AsmSource::FromStr)
+
+    let extra_start = &input.first().unwrap().extra;
+    let extra_end = &input.last().unwrap().extra;
+
+    let r = extra_start.as_range().start..extra_end.as_range().end;
+    let tp = extra_start.as_text_pos();
+    let file = extra_start.source_file.file_id;
+
+    Position::new(
+        tp.line(),
+        tp.char(),
+        r,
+        grl_sources::AsmSource::FileId(file),
+    )
 }
 
 pub fn get_text(sp: TSpan) -> String {
-    sp.first().unwrap().extra.get_text().to_owned()
+    get_str(&sp).to_owned()
 }
+
 pub fn get_str<'a>(sp: &'a TSpan<'a>) -> &'a str {
     sp.first().unwrap().extra.get_text()
 }
@@ -29,8 +40,9 @@ where
     x.into_iter().chain(xxs.1).collect()
 }
 
-pub fn match_span<P, I, O, E>(mut p: P) -> impl FnMut(I) -> Result<(I, (I, O)), E>
+pub fn match_span<P, I, O, E>(mut p: P) -> impl FnMut(I) -> Result<(I, (I, O)), E> + Copy + Clone
 where
+    I : Clone + Copy,
     P: Parser<I, O, E>,
     I: Splitter<E> + Collection,
     E: unraveler::ParseError<I>,
@@ -47,12 +59,30 @@ use super::{to_tokens, Token};
 use crate::item::{Item, Node};
 use grl_sources::SourceFile;
 
-pub fn get_items(node: &Node) -> (Item,ThinVec<Item>) {
+pub fn get_items(node: &Node) -> (Item, ThinVec<Item>) {
     let items = node.children.iter().map(|c| c.item.clone()).collect();
-    (node.item.clone(),items)
+    (node.item.clone(), items)
 }
 
 pub fn create_source_file(text: &str) -> SourceFile {
     grl_sources::SourceFile::new("No file", text, 0)
+}
+
+use super::{ MyError, TokenKind, PResult };
+use unraveler::wrapped_cut;
+
+pub fn parse_block<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
+where
+    P: Parser<TSpan<'a>, O, MyError>,
+{
+    use TokenKind::{CloseBrace, OpenBrace};
+    move |i| wrapped_cut(OpenBrace, p, CloseBrace)(i)
+}
+pub fn parse_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
+where
+    P: Parser<TSpan<'a>, O, MyError>,
+{
+    use TokenKind::{CloseBracket, OpenBracket};
+    move |i| wrapped_cut(OpenBracket, p, CloseBracket)(i)
 }
 

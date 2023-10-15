@@ -23,6 +23,7 @@ use super::{
 use IdentifierKind::Command;
 
 use grl_sources::Position;
+
 use unraveler::{
     all, alt, cut, is_a, many0, many1, many_until, not, opt, pair, preceded, sep_pair, succeeded,
     tuple, until, wrapped_cut, Collection, ParseError, ParseErrorKind, Parser, Severity,
@@ -199,6 +200,10 @@ pub(crate) fn parse_setdp(_input: TSpan) -> PResult<Node> {
 pub(crate) fn parse_rmb(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Rmb, Item::Rmb)(_input)
 }
+
+pub(crate) fn parse_rmd(_input: TSpan) -> PResult<Node> {
+    simple_command(CommandKind::Rmd, Item::Rmd)(_input)
+}
 pub(crate) fn parse_zmd(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Zmd, Item::Zmd)(_input)
 }
@@ -207,7 +212,7 @@ pub(crate) fn parse_exec(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Exec, Item::Exec)(_input)
 }
 
-pub fn parse_commands(input: TSpan) -> PResult<Node> {
+pub fn parse_command(input: TSpan) -> PResult<Node> {
     use crate::item6809::MC6809;
     use CommandKind::*;
 
@@ -225,6 +230,7 @@ pub fn parse_commands(input: TSpan) -> PResult<Node> {
         parse_fcc,
         parse_zmd,
         parse_rmb,
+        parse_rmd,
         parse_org,
         parse_include,
         parse_exec,
@@ -278,7 +284,7 @@ mod test {
         check(rest, matched);
 
         // test the command parser
-        let (rest, matched) = parse_commands(span).unwrap();
+        let (rest, matched) = parse_command(span).unwrap();
         check(rest, matched);
     }
 
