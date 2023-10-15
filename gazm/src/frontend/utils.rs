@@ -11,8 +11,7 @@ pub fn to_pos(input: TSpan) -> Position {
     let p1 = input.first().unwrap().extra.as_range();
     let p2 = input.last().unwrap().extra.as_range();
     let r = p1.start..p2.end;
-    let p = Position::new(0, 0, r, grl_sources::AsmSource::FromStr);
-    p
+    Position::new(0, 0, r, grl_sources::AsmSource::FromStr)
 }
 
 pub fn get_text(sp: TSpan) -> String {
@@ -27,7 +26,7 @@ where
     II: IntoIterator<Item = I>,
 {
     let x = thin_vec::thin_vec![xxs.0];
-    x.into_iter().chain(xxs.1.into_iter()).into_iter().collect()
+    x.into_iter().chain(xxs.1).collect()
 }
 
 pub fn match_span<P, I, O, E>(mut p: P) -> impl FnMut(I) -> Result<(I, (I, O)), E>
@@ -54,7 +53,6 @@ pub fn get_items(node: &Node) -> (Item,ThinVec<Item>) {
 }
 
 pub fn create_source_file(text: &str) -> SourceFile {
-    let source_file = grl_sources::SourceFile::new("No file", text, 0);
-    source_file
+    grl_sources::SourceFile::new("No file", text, 0)
 }
 

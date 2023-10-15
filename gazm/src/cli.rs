@@ -12,6 +12,7 @@ use std::path::PathBuf;
 pub type ConfigError<T> = Result<T, ConfigErrorType>;
 
 #[derive(thiserror::Error, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum ConfigErrorType {
     #[error("Missing config file argument")]
     MissingConfigArg,
@@ -159,7 +160,7 @@ impl Opts {
                     let vals: Vec<Vec<&String>> = vals.map(Iterator::collect).collect();
                     for x in vals {
                         opts.vars
-                            .set_var(x.get(0).unwrap().as_str(), &x.get(1).unwrap().as_str())
+                            .set_var(x.get(0).unwrap().as_str(), x.get(1).unwrap().as_str())
                     }
                 }
 
@@ -280,7 +281,7 @@ pub fn parse() -> ArgMatches {
                 .arg(
                     Arg::new("set")
                         .long("set")
-                        .value_names(&["var", "value"])
+                        .value_names(["var", "value"])
                         // .takes_value(true)
                         // .multiple_occurrences(true)
                         .help("Set a value"),

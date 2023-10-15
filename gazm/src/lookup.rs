@@ -89,7 +89,7 @@ impl LabelUsageAndDefintions {
             .pos_node_id
             .iter()
             .find(|(p,_)| p.overlaps(pos))
-            .map(|(_p,id)| id.clone())
+            .map(|(_p,id)| *id)
     }
 
     pub fn find_docs(&self, pos: &Position) -> Option<String> {

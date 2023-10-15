@@ -30,11 +30,10 @@ use unraveler::{
 
 use super::match_span as ms;
 
-
 fn get_quoted_string(input: TSpan) -> PResult<String> {
     let (rest, matched) = TokenKind::QuotedString.parse(input)?;
     let txt = get_text(matched);
-    let text = &txt[1..txt.len()-1];
+    let text = &txt[1..txt.len() - 1];
     Ok((rest, text.into()))
 }
 

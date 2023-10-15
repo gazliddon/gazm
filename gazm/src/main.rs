@@ -36,12 +36,12 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
 
         BuildType::Format => {
             status_mess!("Format file");
-            fmt::fmt(&opts)?;
+            fmt::fmt(opts)?;
         }
 
         BuildType::Lsp => {
             status_mess!("LSP");
-            lsp::do_lsp(opts.clone())?;
+            lsp::do_lsp(opts)?;
         }
 
         // Build of check to see if build is okay

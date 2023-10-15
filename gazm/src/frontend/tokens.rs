@@ -68,8 +68,8 @@ fn identifier(lex: &mut Lexer<TokenKind>) -> Option<IdentifierKind> {
     let lc_com = lex.slice().to_lowercase();
 
     if let Some(c) = COMS.get(&lc_com) {
-        Some(IdentifierKind::Command(c.clone()))
-    } else if let Some(..) = DBASE.get_opcode(&lc_com) {
+        Some(IdentifierKind::Command(*c))
+    } else if DBASE.get_opcode(&lc_com).is_some() {
         Some(IdentifierKind::Opcode)
     } else {
         Some(IdentifierKind::Label)
@@ -78,7 +78,7 @@ fn identifier(lex: &mut Lexer<TokenKind>) -> Option<IdentifierKind> {
 
 fn get_num(txt: &str, re: &regex::Regex, radix : usize) -> i64 {
     let caps = re.captures(txt).unwrap();
-    let num_str = caps.get(2).unwrap().as_str().replace("_", "");
+    let num_str = caps.get(2).unwrap().as_str().replace('_', "");
     i64::from_str_radix(&num_str, radix as u32).unwrap()
 }
 
@@ -97,7 +97,7 @@ fn from_char(lex: &mut Lexer<TokenKind>) -> Option<( i64,NumberKind )> {
 }
 
 fn from_dec(lex: &mut Lexer<TokenKind>) -> Option<( i64,NumberKind )> {
-    let num :i64=  lex.slice().replace("_", "").parse().unwrap();
+    let num :i64=  lex.slice().replace('_', "").parse().unwrap();
     Some(( num, NumberKind::Dec ))
 }
 

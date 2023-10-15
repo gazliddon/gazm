@@ -86,8 +86,7 @@ impl<'a> Compiler<'a> {
         let n = self.get_node(id);
         let info = &ctx.ctx.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
-        let err = UserError::from_text(msg, info, true).into();
-        err
+        UserError::from_text(msg, info, true).into()
     }
 
     fn binary_error_map<T>(
