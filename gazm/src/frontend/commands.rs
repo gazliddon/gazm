@@ -30,15 +30,12 @@ use unraveler::{
 
 use super::match_span as ms;
 
-// pub fn command(command_kind: CommandKind) -> impl for<'a> FnMut(TSpan<'a>) -> PResult<TSpan> {
-//     use IdentifierKind::*;
-//     use TokenKind::*;
-//     move |i| tag(Identifier(Command(command_kind.clone())))(i)
-// }
 
 fn get_quoted_string(input: TSpan) -> PResult<String> {
     let (rest, matched) = TokenKind::QuotedString.parse(input)?;
-    Ok((rest, get_text(matched)))
+    let txt = get_text(matched);
+    let text = &txt[1..txt.len()-1];
+    Ok((rest, text.into()))
 }
 
 fn get_file_name(input: TSpan) -> PResult<PathBuf> {
@@ -305,7 +302,7 @@ mod test {
     #[test]
     fn test_parse_writebin() {
         let text = "writebin \"out.bin\",0,10";
-        let desired = Item::WriteBin("\"out.bin\"".into());
+        let desired = Item::WriteBin("out.bin".into());
         let desired_args = [Num(0, Dec), Num(10, Dec)];
         test_command(parse_writebin, text, desired, &desired_args);
     }
@@ -313,12 +310,12 @@ mod test {
     #[test]
     fn test_parse_incbin() {
         let text = "incbin \"a\", 10,10";
-        let desired = Item::IncBin("\"a\"".into());
+        let desired = Item::IncBin("a".into());
         let desired_args = [Num(10, Dec), Num(10, Dec)];
         test_command(parse_incbin, text, desired, &desired_args);
 
         let text = "incbin \"a\"";
-        let desired = Item::IncBin("\"a\"".into());
+        let desired = Item::IncBin("a".into());
         let desired_args = [];
         test_command(parse_incbin, text, desired, &desired_args);
     }
@@ -326,7 +323,7 @@ mod test {
     #[test]
     fn test_parse_incbin_ref() {
         let text = "incbinref \"a\", 10,20";
-        let desired = Item::IncBinRef("\"a\"".into());
+        let desired = Item::IncBinRef("a".into());
         let desired_args = [Num(10, Dec), Num(20, Dec)];
         test_command(super::parse_incbin_ref, text, desired, &desired_args);
     }
@@ -384,7 +381,7 @@ mod test {
     #[test]
     fn test_parse_fcc() {
         let text = "fcc \"Hello!\"";
-        let desired = Item::Fcc("\"Hello!\"".into());
+        let desired = Item::Fcc("Hello!".into());
         test_command(super::parse_fcc, text, desired, &[]);
     }
 
@@ -415,7 +412,7 @@ mod test {
     #[test]
     fn test_parse_include() {
         let text = "include \"a\"";
-        let desired = Item::Include("\"a\"".into());
+        let desired = Item::Include("a".into());
         let desired_args = [];
         test_command(parse_include, text, desired, &desired_args);
     }
@@ -431,7 +428,7 @@ mod test {
     #[test]
     fn test_parse_require() {
         let text = "require \"a\"";
-        let desired = Item::Require("\"a\"".into());
+        let desired = Item::Require("a".into());
         let desired_args = [];
         test_command(parse_require, text, desired, &desired_args);
     }
