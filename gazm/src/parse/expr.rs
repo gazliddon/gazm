@@ -100,8 +100,8 @@ fn parse_binary_op(input: Span) -> IResult<Node> {
         map(tag("|"), |_| Item::BitOr),
         map(tag("&"), |_| Item::BitAnd),
         map(tag("^"), |_| Item::BitXor),
-        map(tag(">>"), |_| Item::ShiftRight),
-        map(tag("<<"), |_| Item::ShiftLeft),
+        map(tag(">>"), |_| Item::ShiftR),
+        map(tag("<<"), |_| Item::ShiftL),
     ))(input)?;
 
     let matched_span = matched_span(input, rest);

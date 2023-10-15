@@ -1,5 +1,6 @@
 use grl_sources::Position;
 
+use itertools::Itertools;
 use unraveler::{
     all, alt, any, cut, is_a, many0, many1, many_until, match_item, not, opt, pair, preceded,
     sep_list, sep_pair, succeeded, tuple, until, wrapped_cut, Collection, ParseError,
@@ -8,7 +9,8 @@ use unraveler::{
 
 use super::{
     concat, match_span as ms, parse_label, parse_number, to_pos, IdentifierKind, NumberKind,
-    PResult, ParseText, TSpan, Token, TokenKind::{self,*},
+    PResult, TSpan, Token,
+    TokenKind::{self, *},
 };
 
 use crate::item::{Item, LabelDefinition, Node, ParsedFrom};
@@ -59,8 +61,8 @@ fn parse_binary_op(input: TSpan) -> PResult<Node> {
         |i| op_to_node(i, Bar, Item::BitOr),
         |i| op_to_node(i, Ampersand, Item::BitAnd),
         |i| op_to_node(i, Caret, Item::BitXor),
-        |i| op_to_node(i, DoubleGreaterThan, Item::ShiftRight),
-        |i| op_to_node(i, DoubleLessThan, Item::ShiftLeft),
+        |i| op_to_node(i, DoubleGreaterThan, Item::ShiftR),
+        |i| op_to_node(i, DoubleLessThan, Item::ShiftL),
     ))(input)
 }
 
@@ -71,10 +73,14 @@ pub fn parse_op_term(input: TSpan) -> PResult<(Node, Node)> {
 
 pub fn parse_expr(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (term, vs))) = ms(pair(parse_term, many0(parse_op_term)))(input)?;
-    let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
-    let node = Node::new_with_children(Item::Expr, &concat((term, vs)), to_pos(sp));
 
-    Ok((rest, node))
+    if vs.is_empty() && term.item.is_number() {
+        Ok((rest,term))
+    } else {
+        let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
+        let node = Node::new_with_children(Item::Expr, &concat((term, vs)), to_pos(sp));
+        Ok((rest, node))
+    }
 }
 
 #[cfg(test)]
@@ -82,39 +88,43 @@ mod test {
     use thin_vec::ThinVec;
 
     use super::super::*;
-    use crate::item::{ Item::{self,*}, Node, ParsedFrom::* };
-
-    fn get_children_items(node: &Node) -> ThinVec<Item> {
-        node.children.iter().map(|c| c.item.clone()).collect()
-    }
+    use crate::item::{
+        Item::{self, *},
+        Node,
+        ParsedFrom::*,
+    };
 
     #[test]
     fn test_expr() {
         let test = [
+            ("3", Num(3,Dec), vec![]),
             (
                 "3 * 4 + 0x1 + (10  + 4)",
+                Item::Expr,
                 vec![
-                    Number(3, Dec),
+                    Num(3, Dec),
                     Mul,
-                    Number(4, Dec),
+                    Num(4, Dec),
                     Add,
-                    Number(1, Hex),
+                    Num(1, Hex),
                     Add,
                     BracketedExpr,
                 ],
             ),
-            ("-1 + -3", vec![UnaryTerm, Add, UnaryTerm]),
-            ("1>>3", vec![Number(1, Dec), ShiftRight, Number(3, Dec)]),
+            ("-1 + -3", Expr, vec![UnaryTerm, Add, UnaryTerm]),
+            ("1>>3", Expr, vec![Num(1, Dec), ShiftR, Num(3, Dec)]),
         ];
 
-        for (text, wanted) in test.iter() {
+        for (text, i, wanted) in test.iter() {
             println!("Parsing {text}");
-            let tokens = to_tokens(&text);
+            let source_file = create_source_file(text);
+            let tokens = to_tokens(&source_file);
             let span = tokens.as_slice().into();
 
             let (rest, matched) = parse_expr(span).unwrap();
-            let items = get_children_items(&matched);
-
+            let (item, items) = get_items(&matched);
+            println!("\tItem: {:?} : {:?}", item,items);
+            assert_eq!(&item, i);
             assert!(rest.is_empty());
             assert_eq!(&items, wanted);
         }

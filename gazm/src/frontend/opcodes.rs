@@ -8,7 +8,7 @@ use unraveler::{
     Parser, Severity,
 };
 
-use super::{to_pos, IdentifierKind, NumberKind, PResult, ParseText, TSpan, Token, TokenKind::{self,*}};
+use super::{to_pos, IdentifierKind, NumberKind, PResult, TSpan, Token, TokenKind::{self,*}};
 
 use crate::{
     async_tokenize::{GetTokensResult, IncludeErrorKind},

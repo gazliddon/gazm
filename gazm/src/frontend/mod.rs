@@ -1,4 +1,5 @@
 pub (crate) mod basetoken;
+pub (crate) mod parsetext;
 mod tokens;
 mod ast;
 mod expr;

@@ -1,4 +1,4 @@
-use super::{ TokenKind,ParseText,Token };
+use super::{ TokenKind,Token };
 
 pub type TSpan<'a> = unraveler::Span<'a, Token<'a>>;
 

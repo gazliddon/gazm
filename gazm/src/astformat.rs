@@ -84,7 +84,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
-            Number(n, _) => n.to_string(),
+            Num(n, _) => n.to_string(),
             // UnaryMinus => "-".to_string(),
             UnaryTerm => {
                 format!("!{:?} {:?}", child_item(0), child_item(1))
@@ -123,9 +123,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{name} : {}", child_string(0))
             }
 
-            ShiftRight => ">>".into(),
+            ShiftR => ">>".into(),
 
-            ShiftLeft => "<<".into(),
+            ShiftL => "<<".into(),
             Fcc(text) => format!("{text:?}"),
             Fdb(_) | 
             Fcb(_) => {

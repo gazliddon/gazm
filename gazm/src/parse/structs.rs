@@ -70,7 +70,7 @@ fn parse_struct_entry(input: Span<'_>) -> IResult<Node> {
         let (_, matched) = parse_expr(expr)?;
         matched
     } else {
-        Node::from_item_span(Item::Number(1, crate::item::ParsedFrom::FromExpr), input)
+        Node::from_item_span(Item::Num(1, crate::item::ParsedFrom::FromExpr), input)
     };
 
     let children = vec![

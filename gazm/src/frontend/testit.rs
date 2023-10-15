@@ -4,8 +4,10 @@ use super::*;
 
 pub fn test<P: AsRef<Path>>(file: P) {
     use grl_sources::{TextEditTrait, TextFile};
-    let text = fs::read_to_string(file).unwrap();
-    let tokens = to_tokens_kinds(&text);
+    let text = fs::read_to_string(&file).unwrap();
+    let id = 0;
+    let source_file = grl_sources::SourceFile::new(&file, &text,id);
+    let tokens = to_tokens_kinds(&source_file);
 
     let tf = TextFile::new(&text);
     let mut prev_line = None;

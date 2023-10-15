@@ -6,7 +6,7 @@ use unraveler::{
 
 use super::{
     get_str, get_text, match_span as ms, to_pos, CommandKind, IdentifierKind, MyError, NumberKind,
-    PResult, ParseText, TSpan, Token, TokenKind::{self,*}
+    PResult, TSpan, Token, TokenKind::{self,*}
 };
 
 use crate::item::{Item, LabelDefinition, Node, ParsedFrom};
@@ -24,7 +24,7 @@ pub fn parse_number(input: TSpan) -> PResult<Node> {
 
     match kind {
         Number((n, nk)) | Char((n, nk)) => {
-            let node = Node::new(Item::Number(n, nk.into()), to_pos(sp));
+            let node = Node::new(Item::Num(n, nk.into()), to_pos(sp));
             Ok((rest, node))
         }
         _ => panic!(),
@@ -56,7 +56,7 @@ fn parse_non_scoped_label(input: TSpan) -> PResult<Node> {
 
 pub fn parse_scoped_label(input: TSpan) -> PResult<Node> {
     use {IdentifierKind::*, LabelDefinition::TextScoped};
-    get_label(input, Identifier(Label), TextScoped)
+    get_label(input, FqnIdentifier, TextScoped)
 }
 
 pub fn parse_label(input: TSpan) -> PResult<Node> {
@@ -88,13 +88,6 @@ pub fn parse_big_import(input: TSpan) -> PResult<Node> {
         wrapped_cut(OpenBrace, sep_list(parse_scoped_label, Comma), CloseBrace),
     ))(input)?;
     let node = Node::new_with_children(Item::Import, &matched, to_pos(span));
-    Ok((rest, node))
-}
-
-pub fn parse_import(input: TSpan) -> PResult<Node> {
-    let (rest, scoped) = preceded(CommandKind::Import, parse_scoped_label)(input)?;
-    let matched_pos = to_pos(input);
-    let node = Node::new_with_children(Item::Import, &[scoped], matched_pos);
     Ok((rest, node))
 }
 

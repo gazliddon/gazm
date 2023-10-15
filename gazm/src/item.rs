@@ -29,10 +29,10 @@ impl StructMemberType {
     pub fn to_size_item(&self) -> Item {
         use Item::*;
         match self {
-            Self::Byte => Number(1, ParsedFrom::FromExpr),
-            Self::Word => Number(2, ParsedFrom::FromExpr),
-            Self::DWord => Number(4, ParsedFrom::FromExpr),
-            Self::QWord => Number(8, ParsedFrom::FromExpr),
+            Self::Byte => Num(1, ParsedFrom::FromExpr),
+            Self::Word => Num(2, ParsedFrom::FromExpr),
+            Self::DWord => Num(4, ParsedFrom::FromExpr),
+            Self::QWord => Num(8, ParsedFrom::FromExpr),
             Self::UserType(name) => Label(LabelDefinition::Text(format!("{name}.size"))),
         }
     }
@@ -144,7 +144,6 @@ pub enum Item {
     SetPutOffset(isize),
 
     Scope(String),
-    Scope2,
     ScopeId(u64),
 
     Expr,
@@ -156,7 +155,8 @@ pub enum Item {
     LocalLabel(LabelDefinition),
 
     Comment(String),
-    Number(i64, ParsedFrom),
+
+    Num(i64, ParsedFrom),
 
     Include(PathBuf),
     Require(PathBuf),
@@ -191,22 +191,25 @@ pub enum Item {
     BitAnd,
     BitOr,
     BitXor,
-    ShiftRight,
-    ShiftLeft,
+    ShiftR,
+    ShiftL,
     UnaryGreaterThan,
 }
 
 impl Item {
     pub fn from_number(n: i64, p: ParsedFrom) -> Self {
-        Item::Number(n, p)
+        Item::Num(n, p)
     }
 
     pub fn is_expr(&self) -> bool {
         matches!(self, Self::Expr | Self::BracketedExpr)
     }
+    pub fn is_number(&self) -> bool {
+        matches!(self, Self::Num(..))
+    }
 
     pub fn unrwap_number(&self) -> Option<i64> {
-        if let Item::Number(n, _) = self {
+        if let Item::Num(n, _) = self {
             Some(*n)
         } else {
             None
@@ -257,10 +260,10 @@ impl BaseNode<Item, Position> {
     }
 
     pub fn from_number(n: i64, _p: ParsedFrom, sp: Span) -> Self {
-        Self::from_item_span(Item::Number(n, _p), sp)
+        Self::from_item_span(Item::Num(n, _p), sp)
     }
     pub fn from_number_pos<P:Into<Position>>(n: i64, pos: P) -> Self {
-        Self::new(Item::Number(n, ParsedFrom::FromExpr), pos.into())
+        Self::new(Item::Num(n, ParsedFrom::FromExpr), pos.into())
     }
     pub fn with_pos(self, sp: Position) -> Self {
         let mut ret = self;
@@ -312,7 +315,7 @@ impl Display for BaseNode<Item, Position> {
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
-            Number(n, p) => match &p {
+            Num(n, p) => match &p {
                 ParsedFrom::Hex => format!("${n:x}"),
                 ParsedFrom::FromExpr | ParsedFrom::Dec | ParsedFrom::Char => n.to_string(),
                 ParsedFrom::Bin => format!("%{n:b}"),

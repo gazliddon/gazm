@@ -14,7 +14,7 @@ use crate::{
 
 use thin_vec::{thin_vec, ThinVec};
 
-use super::{TSpan,CommandKind, IdentifierKind, ParseText, TokenKind, PResult};
+use super::{TSpan,CommandKind, IdentifierKind, TokenKind, PResult};
 use IdentifierKind::Command;
 
 fn to_ast(_tokes: &[TokenKind], _txt: &str) {}

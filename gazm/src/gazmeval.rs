@@ -65,8 +65,8 @@ impl GetPriority for Item {
             Mul => Some(12),
             Add => Some(11),
             Sub => Some(11),
-            ShiftLeft => Some(10),
-            ShiftRight => Some(10),
+            ShiftL => Some(10),
+            ShiftR => Some(10),
             BitAnd => Some(9),
             BitXor => Some(8),
             BitOr => Some(7),
@@ -130,14 +130,14 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
             let num = r.unrwap_number().unwrap();
 
             let num = &match ops.value().item {
-                Item::Sub => Item::Number(-num, crate::item::ParsedFrom::FromExpr),
+                Item::Sub => Item::Num(-num, crate::item::ParsedFrom::FromExpr),
                 _ => return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n)),
             };
 
             num.clone()
         }
 
-        Number(_, _) => i.clone(),
+        Num(_, _) => i.clone(),
 
         _ => {
             return Err(EvalError::new(EvalErrorEnum::UnableToEvaluate, n));
@@ -145,7 +145,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
     };
 
     // If this isn't a number return an error
-    if let Item::Number(_, _) = rez {
+    if let Item::Num(_, _) = rez {
         Ok(rez)
     } else {
         Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n))
@@ -190,15 +190,15 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, EvalE
                     BitAnd => lhs & rhs,
                     BitXor => lhs ^ rhs,
                     BitOr => lhs | rhs,
-                    ShiftLeft => lhs << (rhs as u64),
-                    ShiftRight => lhs >> (rhs as u64),
+                    ShiftL => lhs << (rhs as u64),
+                    ShiftR => lhs >> (rhs as u64),
                     _ => return Err(EvalError::new(EvalErrorEnum::UnexpectedOp, *cn)),
                 };
                 Ok(result)
             })
             .map_err(|_| EvalError::new(EvalErrorEnum::UnableToEvaluate, *cn))??;
 
-            s.push(Number(result, crate::item::ParsedFrom::FromExpr))
+            s.push(Num(result, crate::item::ParsedFrom::FromExpr))
         } else {
             s.push(i.clone());
         }

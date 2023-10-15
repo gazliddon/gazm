@@ -1,16 +1,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 use super::TSpan;
 
-use thin_vec::{ ThinVec,thin_vec };
+use thin_vec::{thin_vec, ThinVec};
 
-use unraveler::{ParseError,Parser, Collection, Splitter};
 use grl_sources::Position;
+use unraveler::{Collection, ParseError, Parser, Splitter};
 
 pub fn to_pos(input: TSpan) -> Position {
     assert!(!input.is_empty());
     let p1 = input.first().unwrap().extra.as_range();
     let p2 = input.last().unwrap().extra.as_range();
-    let r = p1.start .. p2.end;
+    let r = p1.start..p2.end;
     let p = Position::new(0, 0, r, grl_sources::AsmSource::FromStr);
     p
 }
@@ -41,5 +41,20 @@ where
         let (matched_pos, _) = i.split_at(rest.length())?;
         Ok((rest, (matched_pos, matched)))
     }
+}
+
+// used by test routines
+use super::{to_tokens, Token};
+use crate::item::{Item, Node};
+use grl_sources::SourceFile;
+
+pub fn get_items(node: &Node) -> (Item,ThinVec<Item>) {
+    let items = node.children.iter().map(|c| c.item.clone()).collect();
+    (node.item.clone(),items)
+}
+
+pub fn create_source_file(text: &str) -> SourceFile {
+    let source_file = grl_sources::SourceFile::new("No file", text, 0);
+    source_file
 }
 
