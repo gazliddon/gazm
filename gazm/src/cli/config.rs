@@ -1,9 +1,8 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
-    cli::{ConfigError, ConfigErrorType},
     lsp::LspConfig,
-    opts::{CheckSum, Opts},
+    cli::opts::{CheckSum, Opts},
 };
 
 use grl_sources::TextPos;
@@ -20,6 +19,27 @@ struct LoadedTomlConfig {
 pub struct TomlConfig {
     pub file: PathBuf,
     pub opts: Opts,
+}
+
+pub type ConfigError<T> = Result<T, ConfigErrorType>;
+
+#[derive(thiserror::Error, Clone)]
+#[allow(clippy::large_enum_variant)]
+pub enum ConfigErrorType {
+    #[error("Missing config file argument")]
+    MissingConfigArg,
+    #[error("Can't change to directory {0}")]
+    InvalidDir(PathBuf),
+    #[error("Can't find file {0}")]
+    MissingConfigFile(PathBuf),
+    #[error("Parse Error in config file: {0}\nline: {2}, col: {3}\n{1}")]
+    ParseError(PathBuf, String, usize, usize),
+}
+
+impl std::fmt::Debug for ConfigErrorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

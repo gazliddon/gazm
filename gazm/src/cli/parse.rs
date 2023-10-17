@@ -1,6 +1,5 @@
-use crate::config;
 use crate::messages::Verbosity;
-use crate::opts::{BuildType, Opts};
+use crate::cli::opts::{BuildType, Opts};
 use lazy_static::lazy_static;
 
 use clap::{builder::PathBufValueParser, value_parser, Arg, ArgAction, ArgMatches, Command};
@@ -8,31 +7,14 @@ use clap::{builder::PathBufValueParser, value_parser, Arg, ArgAction, ArgMatches
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-////////////////////////////////////////////////////////////////////////////////
-pub type ConfigError<T> = Result<T, ConfigErrorType>;
-
-#[derive(thiserror::Error, Clone)]
-#[allow(clippy::large_enum_variant)]
-pub enum ConfigErrorType {
-    #[error("Missing config file argument")]
-    MissingConfigArg,
-    #[error("Can't change to directory {0}")]
-    InvalidDir(PathBuf),
-    #[error("Can't find file {0}")]
-    MissingConfigFile(PathBuf),
-    #[error("Parse Error in config file: {0}\nline: {2}, col: {3}\n{1}")]
-    ParseError(PathBuf, String, usize, usize),
-}
-
-impl std::fmt::Debug for ConfigErrorType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self}")
-    }
-}
+use super::config::{ ConfigError, ConfigErrorType,TomlConfig };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn load_config(m: &ArgMatches) -> ConfigError<config::TomlConfig> {
+////////////////////////////////////////////////////////////////////////////////
+use crate::cli::config;
+
+fn load_config(m: &ArgMatches) -> ConfigError<TomlConfig> {
     // Get the config file or use the default gazm.toml
     let mut path: PathBuf = m
         .get_one::<String>("config-file")
@@ -49,7 +31,7 @@ fn load_config(m: &ArgMatches) -> ConfigError<config::TomlConfig> {
         return Err(ConfigErrorType::MissingConfigFile(path));
     }
 
-    config::TomlConfig::new_from_file(path)
+    super::config::TomlConfig::new_from_file(path)
 }
 
 fn load_opts_with_build_type(

@@ -1,10 +1,26 @@
-use grl_sources::SourceFile; 
+use std::default;
+
+use grl_sources::SourceFile;
+
+use super::CpuKind; 
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ParserState {
+    pub cpu : CpuKind,
+}
+
+impl Default for ParserState {
+    fn default() -> Self {
+        Self { cpu: CpuKind::Cpu6809 }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {
     pub start: usize,
     pub len: usize,
     pub source_file: &'a SourceFile,
+    pub state: ParserState,
 }
 
 impl<'a> AsRef<str> for ParseText<'a> {
@@ -19,11 +35,13 @@ impl<'a> ParseText<'a> {
             start: range.start,
             len: range.len(),
             source_file,
+            state: ParserState::default(),
         }
     }
 }
 
 impl<'a> ParseText<'a> {
+
     pub fn get_text(&self) -> &str {
         self.as_ref()
     }

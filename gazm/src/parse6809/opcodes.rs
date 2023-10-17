@@ -26,7 +26,7 @@ use nom::{
 ////////////////////////////////////////////////////////////////////////////////
 // opcode parsing
 lazy_static::lazy_static! {
-    static ref OPCODES_REC: Dbase = Dbase::new();
+    pub static ref OPCODES_REC: Dbase = Dbase::new();
 }
 
 pub fn get_opcode_info(i: &Instruction) -> Option<&InstructionInfo> {

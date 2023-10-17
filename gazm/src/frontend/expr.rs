@@ -121,8 +121,7 @@ mod test {
             println!("Parsing {text}");
             let source_file = create_source_file(text);
             let tokens = to_tokens(&source_file);
-            let span = tokens.as_slice().into();
-
+            let span = TSpan::from_slice(&tokens, Default::default());
             let (rest, matched) = parse_expr(span).unwrap();
             let (item, items) = get_items(&matched);
             println!("\tItem: {:?} : {:?}", item, items);

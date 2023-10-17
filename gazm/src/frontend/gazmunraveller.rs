@@ -1,6 +1,22 @@
 use super::{ TokenKind,Token };
 
-pub type TSpan<'a> = unraveler::Span<'a, Token<'a>>;
+use std::{sync::Arc, cell::RefCell};
+
+
+#[derive(Clone,Copy,PartialEq,)]
+pub struct ParseState {
+}
+
+impl Default for ParseState {
+    fn default() -> Self {
+        Self {
+        }
+    }
+}
+
+
+
+pub type TSpan<'a> = unraveler::Span<'a, Token<'a>, ()>;
 
 ////////////////////////////////////////////////////////////////////////////////
 impl unraveler::Item for Token<'_> {

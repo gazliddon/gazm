@@ -4,6 +4,7 @@ use crate::{
     item::{Item, LabelDefinition, Node},
     parse::{macros::MacroCall, util::sep_list1},
 };
+
 use grl_sources::Position;
 use thin_vec::thin_vec;
 
@@ -14,7 +15,7 @@ use unraveler::{
     succeeded, tuple, until, wrapped_cut, Collection, ParseError, ParseErrorKind, Parser, Severity,
 };
 
-pub fn parse_macro_def<'a, P: Parser<TSpan<'a>, Node, MyError>>(
+pub fn parse_macro_def<'a, E,P: Parser<TSpan<'a>, Node, FrontEndError>>(
     input: TSpan<'a>,
     p: P,
 ) -> PResult<Node> {

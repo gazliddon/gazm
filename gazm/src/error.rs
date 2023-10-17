@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+#![deny(unused_imports)]
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},

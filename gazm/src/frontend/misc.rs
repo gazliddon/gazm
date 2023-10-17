@@ -5,7 +5,7 @@ use unraveler::{
 };
 
 use super::{
-    get_str, get_text, match_span as ms, to_pos, CommandKind, IdentifierKind, MyError, NumberKind,
+    get_str, get_text, match_span as ms, to_pos, CommandKind, IdentifierKind, FrontEndError, NumberKind,
     PResult, TSpan, Token, TokenKind::{self,*}
 };
 
@@ -67,14 +67,14 @@ pub fn parse_label(input: TSpan) -> PResult<Node> {
     ))(input)
 }
 
-impl<'a> Parser<TSpan<'a>, TSpan<'a>, MyError> for CommandKind {
-    fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), MyError> {
+impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
+    fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), FrontEndError> {
         TokenKind::Identifier(IdentifierKind::Command(*self)).parse(i)
     }
 }
 
-impl<'a> Parser<TSpan<'a>, TSpan<'a>, MyError> for TokenKind {
-    fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), MyError> {
+impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for TokenKind {
+    fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), FrontEndError> {
         use IdentifierKind::*;
         tag(*self)(i)
     }

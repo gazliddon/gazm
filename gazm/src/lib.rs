@@ -10,7 +10,6 @@ pub mod async_tokenize;
 pub mod binary;
 pub mod cli;
 pub mod compile;
-pub mod config;
 pub mod ctx;
 pub mod error;
 pub mod gazmeval;
@@ -32,6 +31,5 @@ pub mod sizer;
 pub mod token_store;
 pub mod tokenize;
 pub mod vars;
-pub mod opts;
 pub mod frontend;
 

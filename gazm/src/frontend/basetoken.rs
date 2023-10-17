@@ -1,3 +1,4 @@
+#![deny(unused_imports)]
 use super::TokenKind;
 
 #[derive(Clone, Debug, Copy, PartialEq, Default)]

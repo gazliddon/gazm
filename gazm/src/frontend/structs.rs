@@ -54,7 +54,7 @@ mod test {
         let ts: Vec<_> = tokes.iter().map(|t| t.kind).collect();
         println!("{:?}", ts);
 
-        let span = TSpan::from_slice(&tokes);
+        let span = TSpan::from_slice(&tokes,Default::default());
 
         let (rest, matched) = parse_struct(span).unwrap();
 

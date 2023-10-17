@@ -1,33 +1,19 @@
+#![deny(unused_imports)]
 /// Parse the assembler commands
-use std::{
-    path::{Path, PathBuf},
-    process::CommandArgs,
-};
+use std::path::PathBuf;
 
-use crate::{
-    async_tokenize::IncludeErrorKind,
-    cli::parse,
-    error::IResult,
-    frontend::parse_scoped_label,
-    item::{Item, LabelDefinition, Node, ParsedFrom},
-    item6809::{IndexParseType, MC6809},
-    parse::locate::span_to_pos,
-};
+use crate::item::{Item, Node};
 
-use thin_vec::{thin_vec, ThinVec};
+use super::parse_scoped_label;
+
+use crate::item6809::MC6809;
 
 use super::{
     get_text, parse_expr, parse_expr_list, to_pos, CommandKind, IdentifierKind, PResult, TSpan,
     TokenKind, TokenKind::Comma,
 };
-use IdentifierKind::Command;
 
-use grl_sources::Position;
-
-use unraveler::{
-    all, alt, cut, is_a, many0, many1, many_until, not, opt, pair, preceded, sep_pair, succeeded,
-    tuple, until, wrapped_cut, Collection, ParseError, ParseErrorKind, Parser, Severity,
-};
+use unraveler::{alt, many0, opt, pair, preceded, sep_pair, tuple, Parser};
 
 use super::match_span as ms;
 
@@ -191,6 +177,7 @@ pub(crate) fn parse_import(input: TSpan) -> PResult<Node> {
 pub(crate) fn parse_org(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Org, Item::Org)(_input)
 }
+
 pub(crate) fn parse_put(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Put, Item::Put)(_input)
 }
@@ -213,9 +200,6 @@ pub(crate) fn parse_exec(_input: TSpan) -> PResult<Node> {
 }
 
 pub fn parse_command(input: TSpan) -> PResult<Node> {
-    use crate::item6809::MC6809;
-    use CommandKind::*;
-
     let (rest, matched) = alt((
         parse_scope,
         parse_put,
@@ -261,12 +245,12 @@ mod test {
 
     fn test_command<P>(mut parser: P, text: &str, x: Item, xs: &[Item])
     where
-        P: for<'a> Parser<TSpan<'a>, Node, MyError>,
+        P: for<'a> Parser<TSpan<'a>, Node, FrontEndError>,
     {
         println!("Parsing command - {text}");
         let source_file = create_source_file(text);
         let tokens = to_tokens(&source_file);
-        let span = tokens.as_slice().into();
+        let span = TSpan::from_slice(&tokens, Default::default());
 
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);

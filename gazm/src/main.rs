@@ -1,9 +1,11 @@
 use gazm::{
-    fmt,
+    cli::{
+        opts::{BuildType, Opts},
+        parse::parse,
+    },
+    fmt, frontend,
     gazm::Assembler,
-    info_mess, lsp, messages,
-    opts::{BuildType, Opts},
-    status_mess, frontend,
+    info_mess, lsp, messages, status_mess,
 };
 
 static BANNER: &str = r"
@@ -14,12 +16,9 @@ static BANNER: &str = r"
  |___/ 6898 Assembler
 ";
 
-
 fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
-
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
-
 
     if let Some(assemble_dir) = &opts.assemble_dir {
         std::env::set_current_dir(assemble_dir)?;
@@ -32,7 +31,7 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
             status_mess!("Testing! {}", opts.project_file.to_string_lossy());
             frontend::test(&opts.project_file);
             status_mess!("Done!");
-        },
+        }
 
         BuildType::Format => {
             status_mess!("Format file");
@@ -72,7 +71,7 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::env::{current_dir, set_current_dir};
 
-    let matches = gazm::cli::parse();
+    let matches = parse();
     let opts = Opts::from_arg_matches(matches)?;
 
     // Todo move directory handling into assemble_from_opts

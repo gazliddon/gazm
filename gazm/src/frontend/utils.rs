@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-use super::TSpan;
+use super::{ TSpan,FrontEndError };
 
 use thin_vec::{thin_vec, ThinVec};
 
@@ -68,19 +68,19 @@ pub fn create_source_file(text: &str) -> SourceFile {
     grl_sources::SourceFile::new("No file", text, 0)
 }
 
-use super::{ MyError, TokenKind, PResult };
+use super::{ TokenKind, PResult };
 use unraveler::wrapped_cut;
 
 pub fn parse_block<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
-    P: Parser<TSpan<'a>, O, MyError>,
+    P: Parser<TSpan<'a>, O, FrontEndError>,
 {
     use TokenKind::{CloseBrace, OpenBrace};
     move |i| wrapped_cut(OpenBrace, p, CloseBrace)(i)
 }
 pub fn parse_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
-    P: Parser<TSpan<'a>, O, MyError>,
+    P: Parser<TSpan<'a>, O, FrontEndError>,
 {
     use TokenKind::{CloseBracket, OpenBracket};
     move |i| wrapped_cut(OpenBracket, p, CloseBracket)(i)

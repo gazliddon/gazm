@@ -15,7 +15,7 @@ use tryvial::try_block;
 use crate::{
     error::{GResult, IResult, ParseError},
     item::{Item, Node},
-    opts::Opts,
+    cli::opts::Opts,
     parse::{
         commands::parse_command,
         comments::{parse_comment, parse_star_comment},
