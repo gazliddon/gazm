@@ -12,7 +12,6 @@ mod misc;
 mod opcodes;
 mod structs;
 mod macros;
-mod cpukind;
 
 pub use tokens::*;
 pub use ast::*;
@@ -25,6 +24,5 @@ pub use testit::*;
 pub use misc::*;
 pub use macros::*;
 pub use structs::*;
-pub use cpukind::*;
 
 

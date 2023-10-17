@@ -49,6 +49,7 @@ pub struct Opts {
     pub max_errors: usize,
     pub no_async: bool,
     pub bin_references: Vec<BinReference>,
+    pub cpu_kind: Option<crate::cli::CpuKind>,
 
     #[serde(skip)]
     pub do_includes: bool,
@@ -69,6 +70,7 @@ pub struct Opts {
 impl Default for Opts {
     fn default() -> Self {
         Self {
+            cpu_kind: None,
             assemble_dir: Default::default(),
             verbose: Verbosity::Silent,
             source_mapping: Default::default(),

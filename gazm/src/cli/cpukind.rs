@@ -1,5 +1,6 @@
-use super::FrontEndError;
-#[derive(Debug, PartialEq, Clone, Copy)]
+use serde::Deserialize;
+
+#[derive(Debug, PartialEq, Clone, Copy, Deserialize)]
 pub enum CpuKind {
     Cpu6809,
     Cpu6800,
@@ -9,11 +10,11 @@ pub enum CpuKind {
 }
 
 impl TryFrom<&str> for CpuKind {
-    type Error = FrontEndError;
+    type Error = ();
     fn try_from(input: &str) -> Result<Self, Self::Error> {
         use CpuKind::*;
-
-        match input {
+        let input = input.to_owned().to_lowercase();
+        match input.as_str() {
             "6800" => Ok(Cpu6800),
             "6502" => Ok(Cpu6809),
             "65c02" => Ok(Cpu6809),

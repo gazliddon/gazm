@@ -2,7 +2,7 @@ use std::default;
 
 use grl_sources::SourceFile;
 
-use super::CpuKind; 
+use crate::cli::CpuKind; 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParserState {
