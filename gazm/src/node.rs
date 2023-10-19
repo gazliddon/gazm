@@ -39,15 +39,18 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
     }
 
     pub fn take_others_children(self, other: Self) -> Self {
-        let mut ret = self;
-        ret.children = other.children;
-        ret
+        self.with_children(&other.children)
+    }
+
+    pub fn with_children(self, children: &[Self]) -> Self {
+        Self { children : children.into() , ..self }
     }
 
     pub fn with_child(self, child: Self) -> Self {
-        let mut ret = self;
-        ret.children = thin_vec![child];
-        ret
+        Self { children : thin_vec![child], ..self }
+    }
+    pub fn with_item(self, item: I) -> Self {
+        Self { item, ..self }
     }
 
     pub fn add_child(&mut self, n: Self) {

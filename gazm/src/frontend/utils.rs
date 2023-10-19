@@ -1,32 +1,36 @@
 #![deny(unused_imports)]
 ////////////////////////////////////////////////////////////////////////////////
-use super::{ TSpan,FrontEndError };
-
 use thin_vec::{thin_vec, ThinVec};
 use unraveler::{Collection, Parser, Splitter};
-use grl_sources::Position;
+use grl_sources::{ Position, SourceFile,AsmSource::FileId };
 
-impl crate::node::BaseNode<Item, Position> { 
+use crate::item::{Item, Node};
+
+use super::{PResult, TokenKind::*,FrontEndError, TSpan};
+
+impl crate::node::BaseNode<Item, Position> {
     pub fn from_item_tspan(item: Item, sp: TSpan) -> Self {
         Self::from_item_pos(item, to_pos(sp))
     }
 
-    pub fn from_item_kids_tspan(item: Item, kids : &[Node],sp: TSpan) -> Self {
-        Self::new_with_children(item, kids,to_pos(sp))
+    pub fn from_item_kids_tspan(item: Item, kids: &[Node], sp: TSpan) -> Self {
+        Self::new_with_children(item, kids, to_pos(sp))
     }
-    pub fn from_item_kid_tspan(item: Item, kid : Node,sp: TSpan) -> Self {
-        Self::new_with_children(item, &[ kid ],to_pos(sp))
+    pub fn from_item_kid_tspan(item: Item, kid: Node, sp: TSpan) -> Self {
+        Self::new_with_children(item, &[kid], to_pos(sp))
     }
 
-    pub fn from_num_span(num: i64,sp: TSpan) -> Self {
-        Node::from_item_tspan(Item::from_number(num, crate::item::ParsedFrom::FromExpr), sp)
+    pub fn from_num_tspan(num: i64, sp: TSpan) -> Self {
+        Node::from_item_tspan(
+            Item::from_number(num, crate::item::ParsedFrom::FromExpr),
+            sp,
+        )
     }
     pub fn with_tspan(self, sp: TSpan) -> Self {
         let mut ret = self;
         ret.ctx = to_pos(sp);
         ret
     }
-
 }
 
 pub fn to_pos(input: TSpan) -> Position {
@@ -43,7 +47,7 @@ pub fn to_pos(input: TSpan) -> Position {
         tp.line(),
         tp.char(),
         r,
-        grl_sources::AsmSource::FileId(file),
+        FileId(file),
     )
 }
 
@@ -65,7 +69,7 @@ where
 
 pub fn match_span<P, I, O, E>(mut p: P) -> impl FnMut(I) -> Result<(I, (I, O)), E> + Copy + Clone
 where
-    I : Clone + Copy,
+    I: Clone + Copy,
     P: Parser<I, O, E>,
     I: Splitter<E> + Collection,
     E: unraveler::ParseError<I>,
@@ -77,41 +81,33 @@ where
     }
 }
 
-// used by test routines
-use crate::item::{Item, Node};
-use grl_sources::SourceFile;
-
 pub fn get_items(node: &Node) -> (Item, ThinVec<Item>) {
     let items = node.children.iter().map(|c| c.item.clone()).collect();
     (node.item.clone(), items)
 }
 
 pub fn create_source_file(text: &str) -> SourceFile {
-    grl_sources::SourceFile::new("No file", text, 0)
+    SourceFile::new("No file", text, 0)
 }
 
-use super::{ TokenKind, PResult };
 use unraveler::wrapped_cut;
 
 pub fn parse_block<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
     P: Parser<TSpan<'a>, O, FrontEndError>,
 {
-    use TokenKind::{CloseBrace, OpenBrace};
     move |i| wrapped_cut(OpenBrace, p, CloseBrace)(i)
 }
 pub fn parse_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
     P: Parser<TSpan<'a>, O, FrontEndError>,
 {
-    use TokenKind::{CloseBracket, OpenBracket};
     move |i| wrapped_cut(OpenBracket, p, CloseBracket)(i)
 }
+
 pub fn parse_sq_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
     P: Parser<TSpan<'a>, O, FrontEndError>,
 {
-    use TokenKind::{OpenSquareBracket, CloseSquareBracket};
     move |i| wrapped_cut(OpenSquareBracket, p, CloseSquareBracket)(i)
 }
-

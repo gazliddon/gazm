@@ -11,7 +11,6 @@ use super::{
     TokenKind::{Comma, Identifier},
 };
 
-
 pub fn parse_macro_def<'a, E, P: Parser<TSpan<'a>, Node, FrontEndError>>(
     input: TSpan<'a>,
     p: P,

@@ -13,9 +13,9 @@ use std::path::{Path, PathBuf};
 use tryvial::try_block;
 
 use crate::{
+    cli::opts::Opts,
     error::{GResult, IResult, ParseError},
     item::{Item, Node},
-    cli::opts::Opts,
     parse::{
         commands::parse_command,
         comments::{parse_comment, parse_star_comment},
@@ -95,17 +95,21 @@ struct DocTracker {
 }
 
 impl DocTracker {
-    // pub fn has_docs(&self) -> bool {
-    //     !self.doc_lines.is_empty()
-    // }
+    pub fn has_docs(&self) -> bool {
+        !self.doc_lines.is_empty()
+    }
 
     pub fn add_doc_line(&mut self, doc: &str) {
         self.doc_lines.push(doc.to_string())
     }
-    pub fn flush_docs(&mut self) -> String {
-        let ret = self.doc_lines.join("\n");
-        *self = Default::default();
-        ret
+    pub fn flush_docs(&mut self) -> Option<String> {
+        if self.has_docs() {
+            let ret = self.doc_lines.join("\n");
+            *self = Default::default();
+            Some(ret)
+        } else {
+            None
+        }
     }
 }
 
@@ -126,25 +130,18 @@ impl Tokens {
 
     // Add a node with no doc
     fn add_node(&mut self, node: Node) {
-        let doc = self.docs.flush_docs();
-
-        if !doc.is_empty() {
-            // TODO - do something about this
-        }
-
         if let Item::Include(name) = &node.item {
             self.add_include_with_pos(node.ctx.clone(), name.clone())
         }
-
         self.tokens.push(node);
     }
 
     fn add_node_with_doc(&mut self, mut node: Node) {
-        let doc = self.docs.flush_docs();
-        if !doc.is_empty() {
+        if let Some(doc) = self.docs.flush_docs() {
             let doc_node = Node::new(Item::Doc(doc), node.ctx.clone());
-            node.add_child(doc_node)
+            node.add_child(doc_node);
         }
+
         self.add_node(node)
     }
 

@@ -91,7 +91,7 @@ pub(crate) fn parse_various_fills(input: TSpan) -> PResult<Node> {
         pair(parse_expr, opt(preceded(Comma, parse_expr))),
     ))(input)?;
 
-    let cv = (a1, a2.unwrap_or(Node::from_num_span(0, sp)));
+    let cv = (a1, a2.unwrap_or(Node::from_num_tspan(0, sp)));
     Ok((rest, mk_fill(sp, cv)))
 }
 

@@ -28,9 +28,9 @@ pub struct FrontEndError {
 }
 
 impl<'a> ParseError<TSpan<'a>> for FrontEndError {
-    fn from_error_kind(_input: TSpan, kind: ParseErrorKind, severity: Severity) -> Self {
+    fn from_error_kind(input: TSpan, kind: ParseErrorKind, severity: Severity) -> Self {
         Self {
-            position: to_pos(_input),
+            position: to_pos(input),
             kind : FrontEndErrorKind::ParseError(kind.into()),
             severity,
         }
