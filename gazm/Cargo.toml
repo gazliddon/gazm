@@ -1,6 +1,6 @@
 [package]
 name = "gazm"
-version = "0.9.12"
+version = "0.9.14"
 edition = "2021"
 authors= ["Gaz Liddon"]
 
@@ -41,17 +41,4 @@ regex = "*"
 
 [dev-dependencies]
 pretty_assertions="1.4.0"
-
-# [profile.release]
-# debug = true
-
-# [profile.final]
-# inherits = "release"
-# lto = "fat"
-# codegen-units = 1
-# panic = "abort"
-# strip = true
-# debug = false
-
-
 

@@ -13,7 +13,7 @@ static BANNER: &str = r"
  / _` |/ _` |_  / '_ ` _ \
 | (_| | (_| |/ /| | | | | |
  \__, |\__,_/___|_| |_| |_|
- |___/ 6898 Assembler
+ |___/ Assembler (currently only 6809)
 ";
 
 fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {

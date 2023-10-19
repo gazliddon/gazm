@@ -1,11 +1,12 @@
-use std::cell::Ref;
+#![deny(unused_imports)]
 use std::collections::HashMap;
 
-use super::basetoken::{TextSpan, Token as BaseToken};
+use super::basetoken::Token as BaseToken;
 use super::parsetext::*;
 use emu6809::cpu::RegEnum;
 
 use emu6809::isa::Dbase;
+
 use logos::{Lexer, Logos};
 use strum::{EnumIter, IntoEnumIterator};
 
@@ -53,6 +54,18 @@ pub enum IdentifierKind {
     Register(RegEnum),
 }
 
+impl From<RegEnum> for TokenKind {
+    fn from(value: RegEnum) -> Self {
+        TokenKind::Identifier(IdentifierKind::Register(value))
+    }
+}
+
+impl Into<TokenKind> for IdentifierKind {
+    fn into(self) -> TokenKind {
+        TokenKind::Identifier(self)
+    }
+}
+
 lazy_static::lazy_static! {
     static ref COMS : HashMap<String, CommandKind> = {
 
@@ -63,8 +76,59 @@ lazy_static::lazy_static! {
     hash
     };
 
-    static ref DBASE : Dbase = Dbase::new();
+    static ref DBASE_6809 : Dbase = Dbase::new();
+}
 
+trait CpuLexer {
+    fn identifier(&self,text: &str) -> Option<IdentifierKind>;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+struct Cpu6809Lexer {}
+
+impl Default for Cpu6809Lexer {
+    fn default() -> Self {
+        Self {  }
+    }
+}
+
+impl Cpu6809Lexer {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn as_register(text: &str) -> Option<IdentifierKind> {
+        use RegEnum::*;
+        match text {
+            "a" => Some(A.into()),
+            "b" => Some(B.into()),
+            "d" => Some(D.into()),
+            "x" => Some(X.into()),
+            "y" => Some(Y.into()),
+            "u" => Some(U.into()),
+            "s" => Some(S.into()),
+            "dp" => Some(DP.into()),
+            "cc" => Some(CC.into()),
+            "pc" => Some(PC.into()),
+            _ => None,
+        }
+    }
+}
+
+impl CpuLexer for Cpu6809Lexer {
+    fn identifier(&self,text: &str) -> Option<IdentifierKind> {
+        use IdentifierKind::*;
+        if DBASE_6809.get_opcode(text).is_some() {
+            Some(Opcode)
+        } else {
+            Self::as_register(text)
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+lazy_static::lazy_static! {
     static ref PRE_HEX : regex::Regex = regex::Regex::new(r"(0[xX]|\$)(.*)").unwrap();
     static ref PRE_BIN : regex::Regex = regex::Regex::new(r"(0[bB]|%)(.*)").unwrap();
 }
@@ -76,29 +140,16 @@ impl From<RegEnum> for IdentifierKind {
 }
 
 fn identifier(lex: &mut Lexer<TokenKind>) -> Option<IdentifierKind> {
-    use RegEnum::*;
     use IdentifierKind::*;
-    let lc_com = lex.slice().to_lowercase();
+    let cpu_lex = Cpu6809Lexer::new();
+    let text = lex.slice().to_lowercase();
 
-    if let Some(c) = COMS.get(&lc_com) {
+    if let Some(c) = COMS.get(&text) {
         Some(Command(*c))
-    } else if DBASE.get_opcode(&lc_com).is_some() {
-        Some(Opcode)
+    } else if let Some(x) = cpu_lex.identifier(&text) {
+        Some(x)
     } else {
-        let id = match lc_com.as_str() {
-            "a" => A.into(),
-            "b" => B.into(),
-            "d" => D.into(),
-            "x" => X.into(),
-            "y" => Y.into(),
-            "u" => U.into(),
-            "s" => S.into(),
-            "dp" => DP.into(),
-            "cc" => CC.into(),
-            "pc" => PC.into(),
-            _ => IdentifierKind::Label,
-        };
-        Some(id)
+        Some(IdentifierKind::Label)
     }
 }
 
@@ -128,8 +179,7 @@ fn from_dec(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
 }
 
 #[derive(Default)]
-pub struct State {
-}
+pub struct State {}
 
 #[derive(Logos, Copy, Clone, Debug, PartialEq, Eq)]
 #[logos(extras = State)]
@@ -239,6 +289,11 @@ impl TokenKind {
 }
 
 pub type Token<'a> = BaseToken<ParseText<'a>>;
+
+pub fn tokenize_6809<'a>(token: &Token<'a>) -> Token<'a> {
+    let ret = token.clone();
+    ret
+}
 
 pub fn to_tokens_kinds(
     source_file: &grl_sources::SourceFile,

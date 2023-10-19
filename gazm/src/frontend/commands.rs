@@ -9,7 +9,7 @@ use super::parse_scoped_label;
 use crate::item6809::MC6809;
 
 use super::{
-    get_text, parse_expr, parse_expr_list, to_pos, CommandKind, IdentifierKind, PResult, TSpan,
+    get_text, parse_expr, parse_expr_list, CommandKind, IdentifierKind, PResult, TSpan,
     TokenKind, TokenKind::Comma,
 };
 
@@ -49,66 +49,62 @@ fn parse_simple_command<I: Into<Item>>(
     command_kind: CommandKind,
     item: I,
 ) -> PResult<Node> {
-    let (rest, matched) = preceded(command_kind, parse_expr)(input)?;
-    let node = Node::new_with_children(item.into(), &[matched], to_pos(input));
+    let (rest, (sp, matched)) = ms(preceded(command_kind, parse_expr))(input)?;
+    let node = Node::from_item_kids_tspan(item.into(), &[matched], sp);
     Ok((rest, node))
 }
 
 pub(crate) fn parse_scope(input: TSpan) -> PResult<Node> {
-    let (rest, name) = preceded(CommandKind::Scope, get_identifier)(input)?;
-    let node = Node::new(Item::Scope(name), to_pos(input));
-    Ok((rest, node))
+    let (rest, (sp, name)) = ms(preceded(CommandKind::Scope, get_identifier))(input)?;
+    Ok((rest, Node::from_item_tspan(Item::Scope(name), sp)))
 }
 
 fn to_ast(_tokes: &[TokenKind], _txt: &str) {}
 
-fn command_with_file(input: TSpan, ck: CommandKind) -> PResult<PathBuf> {
-    preceded(ck, get_file_name)(input)
+fn command_with_file(input: TSpan, ck: CommandKind) -> PResult<(TSpan, PathBuf)> {
+    ms(preceded(ck, get_file_name))(input)
 }
 
 pub(crate) fn parse_require(input: TSpan) -> PResult<Node> {
     command_with_file(input, CommandKind::Require)
-        .map(|(rest, matched)| (rest, Node::new(Item::Require(matched), to_pos(input))))
+        .map(|(rest, (sp, file))| (rest, Node::from_item_tspan(Item::Require(file), sp)))
 }
 
 pub(crate) fn parse_include(input: TSpan) -> PResult<Node> {
-    command_with_file(input, CommandKind::Include)
-        .map(|(rest, matched)| (rest, Node::new(Item::Include(matched), to_pos(input))))
+    command_with_file(input, CommandKind::Require)
+        .map(|(rest, (sp, file))| (rest, Node::from_item_tspan(Item::Include(file), sp)))
 }
 
 /// FILL value,count
 pub(crate) fn parse_fill(input: TSpan) -> PResult<Node> {
     use CommandKind::*;
-    let (rest, (value, count)) =
-        preceded(Fill, pair(parse_expr, preceded(Comma, parse_expr)))(input)?;
-
-    let cv = (count, value);
-    Ok((rest, mk_fill(input, cv)))
+    let (rest, (sp, (value, count))) =
+        ms(preceded(Fill, sep_pair(parse_expr, Comma, parse_expr)))(input)?;
+    Ok((rest, mk_fill(sp, (count, value))))
 }
 
 /// BSZ | ZMB | RZB count <value>
 pub(crate) fn parse_various_fills(input: TSpan) -> PResult<Node> {
     use CommandKind::*;
-    let (rest, (a1, a2)) = preceded(
+    let (rest, (sp, (a1, a2))) = ms(preceded(
         alt((Bsz, Zmb, Rzb)),
         pair(parse_expr, opt(preceded(Comma, parse_expr))),
-    )(input)?;
+    ))(input)?;
 
-    let zero = Node::from_number_pos(0, to_pos(input));
-    let cv = (a1, a2.unwrap_or(zero));
-    Ok((rest, mk_fill(input, cv)))
+    let cv = (a1, a2.unwrap_or(Node::from_num_span(0, sp)));
+    Ok((rest, mk_fill(sp, cv)))
 }
 
 fn mk_fill(input: TSpan, cv: (Node, Node)) -> Node {
-    Node::new_with_children(Item::Fill, &vec![cv.0, cv.1], to_pos(input))
+    Node::from_item_kids_tspan(Item::Fill, &vec![cv.0, cv.1], input)
 }
 
 pub(crate) fn parse_grabmem(input: TSpan) -> PResult<Node> {
-    let (rest, (src, size)) = preceded(
+    let (rest, (sp, (src, size))) = ms(preceded(
         CommandKind::GrabMem,
         sep_pair(parse_expr, Comma, parse_expr),
-    )(input)?;
-    let node = Node::new_with_children(Item::GrabMem, &vec![src, size], to_pos(input));
+    ))(input)?;
+    let node = Node::from_item_kids_tspan(Item::GrabMem, &[src, size], sp);
     Ok((rest, node))
 }
 
@@ -120,10 +116,10 @@ pub(crate) fn parse_writebin(input: TSpan) -> PResult<Node> {
         tuple((get_file_name, Comma, parse_expr, Comma, parse_expr)),
     ))(input)?;
 
-    let node = Node::new_with_children(
+    let node = Node::from_item_kids_tspan(
         Item::WriteBin(file_name),
-        &vec![source_addr, size],
-        to_pos(sp),
+        &[source_addr, size],
+        sp,
     );
 
     Ok((rest, node))
@@ -133,44 +129,42 @@ pub(crate) fn parse_writebin(input: TSpan) -> PResult<Node> {
 fn incbin_args(_input: TSpan) -> PResult<(PathBuf, Vec<Node>)> {
     let (rest, (file, extra_args)) =
         tuple((get_file_name, many0(preceded(Comma, parse_expr))))(_input)?;
-
     Ok((rest, (file, extra_args)))
 }
 
 pub(crate) fn parse_incbin(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (file, extra_args))) = ms(preceded(CommandKind::IncBin, incbin_args))(input)?;
-
-    let node = Node::new_with_children(Item::IncBin(file), &extra_args, to_pos(sp));
+    let node = Node::from_item_kids_tspan(Item::IncBin(file), &extra_args, sp);
     Ok((rest, node))
 }
 pub(crate) fn parse_incbin_ref(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (file, extra_args))) =
         ms(preceded(CommandKind::IncBinRef, incbin_args))(input)?;
-    let node = Node::new_with_children(Item::IncBinRef(file), &extra_args, to_pos(sp));
+    let node = Node::from_item_kids_tspan(Item::IncBinRef(file), &extra_args, sp);
     Ok((rest, node))
 }
 
 pub(crate) fn parse_fcb(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(preceded(CommandKind::Fcb, parse_expr_list))(input)?;
-    let node = Node::new_with_children(Item::Fcb(matched.len()), &matched, to_pos(sp));
+    let node = Node::from_item_kids_tspan(Item::Fcb(matched.len()), &matched, sp);
     Ok((rest, node))
 }
 
 pub(crate) fn parse_fdb(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(preceded(CommandKind::Fdb, parse_expr_list))(input)?;
-    let node = Node::new_with_children(Item::Fdb(matched.len()), &matched, to_pos(sp));
+    let node = Node::from_item_kids_tspan(Item::Fdb(matched.len()), &matched, sp);
     Ok((rest, node))
 }
 
 pub(crate) fn parse_fcc(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(preceded(CommandKind::Fcc, get_quoted_string))(input)?;
-    let node = Node::new(Item::Fcc(matched), to_pos(sp));
+    let node = Node::from_item_tspan(Item::Fcc(matched), sp);
     Ok((rest, node))
 }
 
 pub(crate) fn parse_import(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(preceded(CommandKind::Import, parse_scoped_label))(input)?;
-    let node = Node::new_with_children(Item::Import, &[matched], to_pos(sp));
+    let node = Node::from_item_kids_tspan(Item::Import, &[matched], sp);
     Ok((rest, node))
 }
 

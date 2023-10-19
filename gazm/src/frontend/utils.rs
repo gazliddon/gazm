@@ -1,10 +1,33 @@
+#![deny(unused_imports)]
 ////////////////////////////////////////////////////////////////////////////////
 use super::{ TSpan,FrontEndError };
 
 use thin_vec::{thin_vec, ThinVec};
-
+use unraveler::{Collection, Parser, Splitter};
 use grl_sources::Position;
-use unraveler::{Collection, ParseError, Parser, Splitter};
+
+impl crate::node::BaseNode<Item, Position> { 
+    pub fn from_item_tspan(item: Item, sp: TSpan) -> Self {
+        Self::from_item_pos(item, to_pos(sp))
+    }
+
+    pub fn from_item_kids_tspan(item: Item, kids : &[Node],sp: TSpan) -> Self {
+        Self::new_with_children(item, kids,to_pos(sp))
+    }
+    pub fn from_item_kid_tspan(item: Item, kid : Node,sp: TSpan) -> Self {
+        Self::new_with_children(item, &[ kid ],to_pos(sp))
+    }
+
+    pub fn from_num_span(num: i64,sp: TSpan) -> Self {
+        Node::from_item_tspan(Item::from_number(num, crate::item::ParsedFrom::FromExpr), sp)
+    }
+    pub fn with_tspan(self, sp: TSpan) -> Self {
+        let mut ret = self;
+        ret.ctx = to_pos(sp);
+        ret
+    }
+
+}
 
 pub fn to_pos(input: TSpan) -> Position {
     assert!(!input.is_empty());
@@ -55,7 +78,6 @@ where
 }
 
 // used by test routines
-use super::{to_tokens, Token};
 use crate::item::{Item, Node};
 use grl_sources::SourceFile;
 
@@ -84,5 +106,12 @@ where
 {
     use TokenKind::{CloseBracket, OpenBracket};
     move |i| wrapped_cut(OpenBracket, p, CloseBracket)(i)
+}
+pub fn parse_sq_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
+where
+    P: Parser<TSpan<'a>, O, FrontEndError>,
+{
+    use TokenKind::{OpenSquareBracket, CloseSquareBracket};
+    move |i| wrapped_cut(OpenSquareBracket, p, CloseSquareBracket)(i)
 }
 

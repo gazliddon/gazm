@@ -1,23 +1,21 @@
-use grl_sources::Position;
+#![deny(unused_imports)]
 
-use itertools::Itertools;
 use unraveler::{
-    all, alt, any, cut, is_a, many0, many1, many_until, match_item, not, opt, pair, preceded,
-    sep_list, sep_pair, succeeded, tuple, until, wrapped_cut, Collection, ParseError,
-    ParseErrorKind, Parser, Severity,
+    alt,  many0,  pair, 
+    sep_list,  wrapped_cut, 
 };
 
 use super::{
-    concat, match_span as ms, parse_label, parse_number, to_pos, IdentifierKind, NumberKind,
-    PResult, TSpan, Token,
+    concat, match_span as ms, parse_label, parse_number, 
+    PResult, TSpan, 
     TokenKind::{self, *},
 };
 
-use crate::item::{Item, LabelDefinition, Node, ParsedFrom};
+use crate::item::{Item, Node};
 
 pub fn op_to_node(input: TSpan, toke: TokenKind, item: Item) -> PResult<Node> {
     let (rest, (sp, _)) = ms(toke)(input)?;
-    Ok((rest, Node::from_item_pos(item, to_pos(sp))))
+    Ok((rest, Node::from_item_tspan(item, sp)))
 }
 
 pub fn parse_expr_list(input: TSpan) -> PResult<Vec<Node>> {
@@ -38,7 +36,7 @@ fn parse_unary_op(input: TSpan) -> PResult<Node> {
 fn parse_bracketed_expr(input: TSpan) -> PResult<Node> {
     let (rest, (sp, mut matched)) = ms(wrapped_cut(OpenBracket, parse_expr, CloseBracket))(input)?;
     matched.item = Item::BracketedExpr;
-    Ok((rest, matched.with_pos(to_pos(sp))))
+    Ok((rest, matched.with_tspan(sp)))
 }
 
 pub fn parse_non_unary_term(input: TSpan) -> PResult<Node> {
@@ -47,10 +45,10 @@ pub fn parse_non_unary_term(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_unary_term(input: TSpan) -> PResult<Node> {
-    let (rest, (matched_span, (op, term))) = ms(
+    let (rest, (sp, (op, term))) = ms(
         pair(parse_unary_op, parse_non_unary_term)
     )(input)?;
-    let node = Node::new_with_children(Item::UnaryTerm, &vec![op, term], to_pos(matched_span));
+    let node = Node::from_item_kids_tspan(Item::UnaryTerm, &[op, term], sp);
     Ok((rest, node))
 }
 
@@ -80,19 +78,17 @@ pub fn parse_expr(input: TSpan) -> PResult<Node> {
         Ok((rest, term))
     } else {
         let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
-        let node = Node::new_with_children(Item::Expr, &concat((term, vs)), to_pos(sp));
+        let node = Node::from_item_kids_tspan(Item::Expr, &concat((term, vs)), sp);
         Ok((rest, node))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use thin_vec::ThinVec;
 
     use super::super::*;
     use crate::item::{
         Item::{self, *},
-        Node,
         ParsedFrom::*,
     };
 

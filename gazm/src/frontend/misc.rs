@@ -1,51 +1,46 @@
-use unraveler::{
-    all, alt, any, cut, is_a, many0, many1, many_until, match_item, not, opt, pair, preceded,
-    sep_list, sep_pair, succeeded, tag, tuple, until, wrapped, wrapped_cut, Collection, ParseError,
-    ParseErrorKind, Parser, Severity, Splitter,
-};
+#![deny(unused_imports)]
+use unraveler::{alt, match_item, preceded, sep_list, tag, wrapped_cut, Parser};
 
 use super::{
-    get_str, get_text, match_span as ms, to_pos, CommandKind, IdentifierKind, FrontEndError, NumberKind,
-    PResult, TSpan, Token, TokenKind::{self,*}
+    get_text, match_span as ms, CommandKind, FrontEndError, IdentifierKind,
+    NumberKind, PResult, TSpan, Token,
+    TokenKind::{self, *},
 };
 
 use crate::item::{Item, LabelDefinition, Node, ParsedFrom};
 
 fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
-    let (rest, (sp, matched)) = ms(match_item(|i: &Token| {
-        matches!(i.kind, Number(..))
-    }))(input)?;
+    let (rest, (sp, matched)) = ms(match_item(|i: &Token| matches!(i.kind, Number(..))))(input)?;
     Ok((rest, (sp, matched.kind)))
 }
 
 pub fn parse_number(input: TSpan) -> PResult<Node> {
-
     let (rest, (sp, kind)) = match_number(input)?;
 
     match kind {
         Number((n, nk)) | Char((n, nk)) => {
-            let node = Node::new(Item::Num(n, nk.into()), to_pos(sp));
+            let node = Node::from_item_tspan(Item::Num(n, nk.into()), sp);
             Ok((rest, node))
         }
         _ => panic!(),
     }
 }
 
-pub (crate) fn get_label<F: Fn(String) -> LabelDefinition>(
+pub(crate) fn get_label<F: Fn(String) -> LabelDefinition>(
     input: TSpan,
     mut tag_kind: TokenKind,
     to_label_def: F,
 ) -> PResult<Node> {
     let (rest, sp) = tag_kind.parse(input)?;
-    let node = Node::new(Item::Label(to_label_def(get_text(sp))), to_pos(sp));
+    let node = Node::from_item_tspan(Item::Label(to_label_def(get_text(sp))), sp);
     Ok((rest, node))
 }
 
 fn parse_local_label(input: TSpan) -> PResult<Node> {
-    use {IdentifierKind::*, Item::LocalLabel, LabelDefinition::Text} ;
+    use {IdentifierKind::*, Item::LocalLabel, LabelDefinition::Text};
     let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), Identifier(Label)))(input)?;
     let label_def = Text(get_text(matched));
-    let node = Node::new(LocalLabel(label_def), to_pos(sp));
+    let node = Node::from_item_tspan(LocalLabel(label_def), sp);
     Ok((rest, node))
 }
 
@@ -55,7 +50,7 @@ pub fn parse_non_scoped_label(input: TSpan) -> PResult<Node> {
 }
 
 pub fn parse_scoped_label(input: TSpan) -> PResult<Node> {
-    use {IdentifierKind::*, LabelDefinition::TextScoped};
+    use LabelDefinition::TextScoped;
     get_label(input, FqnIdentifier, TextScoped)
 }
 
@@ -75,7 +70,6 @@ impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
 
 impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for TokenKind {
     fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), FrontEndError> {
-        use IdentifierKind::*;
         tag(*self)(i)
     }
 }
@@ -87,7 +81,7 @@ pub fn parse_big_import(input: TSpan) -> PResult<Node> {
         Import,
         wrapped_cut(OpenBrace, sep_list(parse_scoped_label, Comma), CloseBrace),
     ))(input)?;
-    let node = Node::new_with_children(Item::Import, &matched, to_pos(span));
+    let node = Node::from_item_kids_tspan(Item::Import, &matched,span);
     Ok((rest, node))
 }
 

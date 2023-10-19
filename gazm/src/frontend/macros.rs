@@ -1,29 +1,21 @@
-use super::*;
+#![deny(unused_imports)]
+use crate::item::{Node, Item::MacroCall };
 
-use crate::{
-    item::{Item, LabelDefinition, Node},
-    parse::{macros::MacroCall, util::sep_list1},
+use unraveler::{preceded, sep_list, tuple, Parser};
+
+use super::{
+    concat, get_text, match_span as ms, parse_block, parse_bracketed, parse_non_scoped_label,
+    CommandKind, FrontEndError,
+    IdentifierKind::Label,
+    PResult, TSpan,
+    TokenKind::{Comma, Identifier},
 };
 
-use grl_sources::Position;
-use thin_vec::thin_vec;
 
-use super::match_span as ms;
-
-use unraveler::{
-    all, alt, cut, is_a, many0, many1, many_until, not, opt, pair, preceded, sep_list, sep_pair,
-    succeeded, tuple, until, wrapped_cut, Collection, ParseError, ParseErrorKind, Parser, Severity,
-};
-
-pub fn parse_macro_def<'a, E,P: Parser<TSpan<'a>, Node, FrontEndError>>(
+pub fn parse_macro_def<'a, E, P: Parser<TSpan<'a>, Node, FrontEndError>>(
     input: TSpan<'a>,
     p: P,
 ) -> PResult<Node> {
-    use {
-        IdentifierKind::Label,
-        TokenKind::{Comma, Identifier}
-    };
-
     let (rest, (sp, (label, args, body))) = ms(preceded(
         CommandKind::Macro,
         tuple((
@@ -33,11 +25,7 @@ pub fn parse_macro_def<'a, E,P: Parser<TSpan<'a>, Node, FrontEndError>>(
         )),
     ))(input)?;
 
-    let node = Node::new_with_children(
-        Item::MacroCall(get_text(label)),
-        &concat((body, args)),
-        to_pos(sp),
-    );
+    let node = Node::from_item_kids_tspan(MacroCall(get_text(label)), &concat((body, args)), sp);
     Ok((rest, node))
 }
 

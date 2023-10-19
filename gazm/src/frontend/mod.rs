@@ -12,6 +12,8 @@ mod misc;
 mod opcodes;
 mod structs;
 mod macros;
+mod register;
+mod indexed;
 
 pub use tokens::*;
 pub use ast::*;
@@ -24,5 +26,6 @@ pub use testit::*;
 pub use misc::*;
 pub use macros::*;
 pub use structs::*;
-
+pub use register::*;
+pub use indexed::*;
 

@@ -198,6 +198,11 @@ pub enum Item {
 }
 
 impl Item {
+    pub fn zero() -> Self {
+        Item::Num(0, ParsedFrom::FromExpr)
+    }
+
+    
     pub fn from_number(n: i64, p: ParsedFrom) -> Self {
         Item::Num(n, p)
     }

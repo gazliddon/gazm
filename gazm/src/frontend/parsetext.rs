@@ -1,4 +1,4 @@
-use std::default;
+#![deny(unused_imports)]
 
 use grl_sources::SourceFile;
 

@@ -1,3 +1,4 @@
+#![deny(unused_imports)]
 use super::{ TSpan,to_pos };
 
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
@@ -5,6 +6,13 @@ pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 use unraveler::{ Severity,ParseErrorKind,ParseError };
 use grl_sources::Position;
 use thiserror::Error;
+
+pub fn parse_failure(_txt: &str, _sp: TSpan) -> super::FrontEndError {
+    panic!()
+}
+pub fn parse_error(_txt: &str, _sp: TSpan) -> super::FrontEndError {
+    panic!()
+}
 
 #[derive(Clone,Debug,Error,PartialEq)]
 pub enum FrontEndErrorKind {

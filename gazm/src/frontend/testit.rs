@@ -1,3 +1,4 @@
+#![deny(unused_imports)]
 use std::path::Path;
 use std::fs;
 use super::*;

@@ -1,14 +1,13 @@
+#![deny(unused_imports)]
 use super::*;
 
-use crate::item::{Item, LabelDefinition, Node};
-use grl_sources::Position;
-use thin_vec::thin_vec;
+use crate::item::{Item, Node};
 
 use super::match_span as ms;
 
 use unraveler::{
-    all, alt, cut, is_a, many0, many1, many_until, not, opt, pair, preceded, sep_list, sep_pair,
-    succeeded, tuple, until, wrapped_cut, Collection, ParseError, ParseErrorKind, Parser, Severity,
+    alt,  opt, pair, preceded, sep_list, 
+    succeeded, 
 };
 
 pub fn struct_entry(input: TSpan) -> PResult<(Node, Node)> {
@@ -32,7 +31,7 @@ pub fn parse_struct(input: TSpan) -> PResult<Node> {
 
     let text = get_text(label);
     let list: Vec<_> = list.into_iter().map(|(a, b)| [a, b]).flatten().collect();
-    let node = Node::new_with_children(Item::StructDef(text), &list, to_pos(sp));
+    let node = Node::from_item_kids_tspan(Item::StructDef(text), &list, sp);
     Ok((rest, node))
 }
 
@@ -40,8 +39,9 @@ pub fn parse_struct(input: TSpan) -> PResult<Node> {
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
-    use IdentifierKind::Label;
-    use LabelDefinition::*;
+    use thin_vec::thin_vec;
+    use crate::item::LabelDefinition::Text;
+
 
     #[test]
     fn test_struct() {
