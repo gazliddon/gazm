@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use gazm::{
     cli::{
         opts::{BuildType, Opts},
@@ -69,6 +71,10 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // NOCHECKIN
+    // gazm::docs::gather_docs()?;
+    // exit(0);
+
     use std::env::{current_dir, set_current_dir};
 
     let matches = parse();

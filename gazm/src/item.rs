@@ -8,7 +8,7 @@ use crate::{
     error::ParseError,
     gazmsymbols::SymbolScopeId,
     item6809::MC6809::{self, OpCode, SetDp},
-    node::{BaseNode, CtxTrait},
+    node::{ CtxTrait,BaseNode },
     parse::locate::{span_to_pos, Span},
 };
 

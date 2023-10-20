@@ -1,23 +1,40 @@
 #![deny(unused_imports)]
+use std::collections::HashSet;
 use emu6809::cpu::RegEnum;
-use unraveler::{match_item, sep_pair, tag, };
+use unraveler::{match_item, sep_pair, tag, sep_list };
 
 use super::{
     match_span as ms, IdentifierKind, PResult, TSpan, Token,
-    TokenKind::{self,Identifier, Comma},
+    TokenKind::{*,self},
     IdentifierKind::Register,
     parse_failure,
     parse_error,
-    
 };
 
 use crate::{
-    item::Node,
-    item6809::{AddrModeParseType, MC6809::Operand}, 
+    item::{Node,Item},
+    item6809::{AddrModeParseType, MC6809::RegisterSet,MC6809::Operand}, 
 };
 
-pub fn parse_reg_set(_input: TSpan) -> PResult<Node> {
-    todo!()
+pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
+    let (rest, (sp, matched )) = ms( get_reg_set )(input)?;
+    let item = Item::Cpu(RegisterSet(matched));
+    let node = Node::from_item_tspan(item, sp);
+    Ok((rest,node))
+}
+
+fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
+    let mut hash_ret = HashSet::new();
+    let (rest, (sp,matched)) = ms(sep_list(get_reg,Comma))(input)?;
+
+    for r in matched {
+        if hash_ret.contains(&r) {
+            return Err(parse_error("Duplicate registers in register set", sp) );
+        }
+        hash_ret.insert(r);
+    }
+
+    Ok((rest, hash_ret))
 }
 
 pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {

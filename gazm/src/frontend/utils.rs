@@ -1,14 +1,15 @@
 #![deny(unused_imports)]
-////////////////////////////////////////////////////////////////////////////////
+use crate::{
+    item::{Item, Node,ParsedFrom},
+    node::BaseNode,
+};
+
+use grl_sources::{AsmSource::FileId, Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
-use unraveler::{Collection, Parser, Splitter};
-use grl_sources::{ Position, SourceFile,AsmSource::FileId };
+use unraveler::{wrapped_cut,Collection, Parser, Splitter};
+use super::{FrontEndError, PResult, TSpan, TokenKind::*};
 
-use crate::item::{Item, Node};
-
-use super::{PResult, TokenKind::*,FrontEndError, TSpan};
-
-impl crate::node::BaseNode<Item, Position> {
+impl BaseNode<Item, Position> {
     pub fn from_item_tspan(item: Item, sp: TSpan) -> Self {
         Self::from_item_pos(item, to_pos(sp))
     }
@@ -22,10 +23,11 @@ impl crate::node::BaseNode<Item, Position> {
 
     pub fn from_num_tspan(num: i64, sp: TSpan) -> Self {
         Node::from_item_tspan(
-            Item::from_number(num, crate::item::ParsedFrom::FromExpr),
+            Item::from_number(num, ParsedFrom::FromExpr),
             sp,
         )
     }
+
     pub fn with_tspan(self, sp: TSpan) -> Self {
         let mut ret = self;
         ret.ctx = to_pos(sp);
@@ -43,12 +45,7 @@ pub fn to_pos(input: TSpan) -> Position {
     let tp = extra_start.as_text_pos();
     let file = extra_start.source_file.file_id;
 
-    Position::new(
-        tp.line(),
-        tp.char(),
-        r,
-        FileId(file),
-    )
+    Position::new(tp.line(), tp.char(), r, FileId(file))
 }
 
 pub fn get_text(sp: TSpan) -> String {
@@ -90,7 +87,6 @@ pub fn create_source_file(text: &str) -> SourceFile {
     SourceFile::new("No file", text, 0)
 }
 
-use unraveler::wrapped_cut;
 
 pub fn parse_block<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
