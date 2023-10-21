@@ -40,6 +40,7 @@ strum = { version = "0.25", features = ["derive"] }
 regex = "*"
 termimad = "0.25.5"
 glob = "0.3.1"
+convert_case = "0.6.0"
 
 [dev-dependencies]
 pretty_assertions="1.4.0"

@@ -1,7 +1,12 @@
-# Register Shite
+## Duplicate Registers in Multi Register opcode
 
-Blah Blah 
+```
+    pshs x,x
+```
+Some text here
 
-* aaa
-* 2
-* 3 
+- This
+- Is
+- A
+- List!
+

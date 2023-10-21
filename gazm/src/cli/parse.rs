@@ -166,10 +166,26 @@ fn make_config_file_arg() -> Arg {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static BANNER: &str = r"
+  __ _  __ _ _____ __ ___
+ / _` |/ _` |_  / '_ ` _ \
+| (_| | (_| |/ /| | | | | |
+ \__, |\__,_/___|_| |_| |_|
+ |___/ Assembler (currently only 6809)";
+
 
 pub fn parse() -> ArgMatches {
+    use clap::builder::styling;
+
+let styles = styling::Styles::styled()
+    .header(styling::AnsiColor::Green.on_default() | styling::Effects::BOLD)
+    .usage(styling::AnsiColor::Green.on_default() | styling::Effects::BOLD)
+    .literal(styling::AnsiColor::Blue.on_default() | styling::Effects::BOLD)
+    .placeholder(styling::AnsiColor::Cyan.on_default());
+
     Command::new(clap::crate_name!())
-        .about("6809 assembler")
+        .styles(styles)
+        .about(BANNER)
         .author(clap::crate_authors!("\n"))
         .version(clap::crate_version!())
         .arg(
