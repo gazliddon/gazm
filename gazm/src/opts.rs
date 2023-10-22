@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{lsp::LspConfig, messages::Verbosity, vars::Vars};

@@ -92,6 +92,13 @@ mod test {
         ParsedFrom::*,
     };
 
+    fn make_tspan<'a>(tokens: &'a [Token],sf: &'a grl_sources::SourceFile) -> TSpan<'a> {
+        let span = TSpan::from_slice(&tokens, OriginalSource {
+            source_file: sf
+        });
+        span
+    }
+
     #[test]
     fn test_expr() {
         let test = [
@@ -117,7 +124,7 @@ mod test {
             println!("Parsing {text}");
             let source_file = create_source_file(text);
             let tokens = to_tokens(&source_file);
-            let span = TSpan::from_slice(&tokens, Default::default());
+            let span = make_tspan(&tokens, &source_file);
             let (rest, matched) = parse_expr(span).unwrap();
             let (item, items) = get_items(&matched);
             println!("\tItem: {:?} : {:?}", item, items);

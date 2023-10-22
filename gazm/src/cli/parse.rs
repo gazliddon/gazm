@@ -1,6 +1,5 @@
 use super::*;
-
-use crate::messages::Verbosity;
+use crate::{messages::Verbosity, opts::*};
 use clap::{builder::PathBufValueParser, value_parser, Arg, ArgAction, ArgMatches, Command};
 use std::path::PathBuf;
 
@@ -23,7 +22,7 @@ fn load_config(m: &ArgMatches) -> ConfigError<TomlConfig> {
         return Err(ConfigErrorType::MissingConfigFile(path));
     }
 
-    super::config::TomlConfig::new_from_file(path)
+    TomlConfig::new_from_file(path)
 }
 
 fn load_opts_with_build_type(

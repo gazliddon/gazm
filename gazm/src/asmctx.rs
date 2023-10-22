@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AstNodeId, AstTree, Ast},
+    ast::{Ast, AstNodeId},
     ctx::Context,
     error::GResult,
     gazmsymbols::{SymbolError, SymbolScopeId},
@@ -16,19 +16,17 @@ pub struct AsmCtx<'a> {
 }
 
 struct BinNodeWriter<'a> {
-    id : AstNodeId,
+    id: AstNodeId,
     bin: &'a mut binary::Binary,
 }
 
-impl<'a> BinNodeWriter<'a> {
-}
+impl<'a> BinNodeWriter<'a> {}
 
-impl<'a> AsMut<binary::Binary> for BinNodeWriter<'a>{
+impl<'a> AsMut<binary::Binary> for BinNodeWriter<'a> {
     fn as_mut(&mut self) -> &mut binary::Binary {
         self.bin
     }
 }
-
 
 impl<'a> AsmCtx<'a> {
     pub fn set_exec_addr(&mut self, addr: usize) {

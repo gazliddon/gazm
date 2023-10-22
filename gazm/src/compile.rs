@@ -1,9 +1,10 @@
+#![forbid(unused_imports)]
 /// Take the sized AST and compile it into binary
 use std::path::Path;
 
 use crate::{
     asmctx::AsmCtx,
-    ast::{Ast, AstNodeId, AstNodeRef, AstTree},
+    ast::{Ast, AstNodeId, AstNodeRef},
     binary::BinaryError,
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},

@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use grl_sources::{Position, SourceErrorType, SourceInfo};
 
 use crate::{

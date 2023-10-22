@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use crate::async_tokenize::TokenizeResult;
 
 use std::{

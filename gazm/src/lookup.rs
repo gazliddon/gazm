@@ -1,12 +1,13 @@
+#![forbid(unused_imports)]
 use std::collections::HashMap;
 
 use crate::{
-    ast::{iter_refs_recursive, AstNodeId, AstTree, Ast},
-    gazmsymbols::{ScopeId, SymbolError, SymbolResolutionBarrier, SymbolScopeId, SymbolTree},
+    ast::{iter_refs_recursive, AstNodeId, Ast},
+    gazmsymbols::{SymbolScopeId, SymbolTree},
     item::{Item, LabelDefinition},
 };
 
-use grl_sources::{grl_utils::Stack, Position};
+use grl_sources::Position;
 use itertools::Itertools;
 
 #[derive(Clone, Debug)]
@@ -44,8 +45,6 @@ impl LabelUsageAndDefintions {
                 _ => (),
             }
         }
-
-        use std::cmp::Ord;
 
         // Create a list of position -> node id
         // sorted by length, smallest first

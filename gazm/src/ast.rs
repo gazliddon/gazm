@@ -1,5 +1,4 @@
 #![forbid(unused_imports)]
-
 use std::{collections::HashMap, iter};
 use grl_eval::{to_postfix, GetPriority};
 use grl_sources::{Position, SourceErrorType, SourceInfo};

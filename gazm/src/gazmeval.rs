@@ -1,3 +1,5 @@
+#![forbid(unused_imports)]
+
 use std::fmt::Display;
 use thiserror::Error;
 

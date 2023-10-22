@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use crate::{ast::AstNodeId, item::Item};
 
 use std::collections::HashMap;

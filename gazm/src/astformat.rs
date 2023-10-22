@@ -1,3 +1,5 @@
+#![forbid(unused_imports)]
+
 use crate::ast::*;
 use crate::item::Item;
 use crate::item6809::{self, MC6809::OpCode };

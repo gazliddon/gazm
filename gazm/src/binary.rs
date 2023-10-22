@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -100,7 +101,7 @@ pub enum BinaryError {
     AskedForZeroBytes,
 }
 
-use num_traits::{bounds::UpperBounded, *};
+use num_traits::*;
 
 pub trait BinWriter {
     fn write_byte(&mut self, val: u8) -> GResult<()>;

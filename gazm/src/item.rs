@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use std::{fmt::Display, path::PathBuf};
 use thin_vec::ThinVec;
 

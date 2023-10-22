@@ -1,20 +1,11 @@
 use gazm::{
-    cli::{
-        {BuildType, Opts},
-        parse_command_line,
-    },
+    cli::{parse_command_line, styling::get_banner},
     fmt, frontend,
     gazm::Assembler,
-    info_mess, lsp, messages, status_mess,
+    info_mess, lsp, messages,
+    opts::{BuildType, Opts},
+    status_mess,
 };
-
-static BANNER: &str = r"
-  __ _  __ _ _____ __ ___
- / _` |/ _` |_  / '_ ` _ \
-| (_| | (_| |/ /| | | | | |
- \__, |\__,_/___|_| |_| |_|
- |___/ Assembler (currently only 6809)
-";
 
 fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
     let mess = messages::messages();
@@ -45,7 +36,7 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
 
         // Build of check to see if build is okay
         BuildType::Build | BuildType::Check => {
-            status_mess!("{BANNER}");
+            status_mess!("{}", get_banner());
             mess.indent();
             status_mess!("Verbosity: {:?}", &opts.verbose);
 

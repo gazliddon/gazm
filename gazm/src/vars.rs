@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use std::collections::HashMap;
 use std::path::{ Path,PathBuf };
 

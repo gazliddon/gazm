@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use std::collections::VecDeque;
 
 pub type ScopeId = u64;

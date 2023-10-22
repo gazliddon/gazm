@@ -1,13 +1,13 @@
 #![deny(unused_imports)]
 use crate::{
-    item::{Item, Node,ParsedFrom},
+    item::{Item, Node, ParsedFrom},
     node::BaseNode,
 };
 
+use super::{get_start_end_token, FrontEndError, PResult, TSpan, TokenKind::*};
 use grl_sources::{AsmSource::FileId, Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
-use unraveler::{wrapped_cut,Collection, Parser, Splitter};
-use super::{FrontEndError, PResult, TSpan, TokenKind::*};
+use unraveler::{wrapped_cut, Collection, Parser, Splitter, ParseError};
 
 impl BaseNode<Item, Position> {
     pub fn from_item_tspan(item: Item, sp: TSpan) -> Self {
@@ -22,10 +22,7 @@ impl BaseNode<Item, Position> {
     }
 
     pub fn from_num_tspan(num: i64, sp: TSpan) -> Self {
-        Node::from_item_tspan(
-            Item::from_number(num, ParsedFrom::FromExpr),
-            sp,
-        )
+        Node::from_item_tspan(Item::from_number(num, ParsedFrom::FromExpr), sp)
     }
 
     pub fn with_tspan(self, sp: TSpan) -> Self {
@@ -36,15 +33,12 @@ impl BaseNode<Item, Position> {
 }
 
 pub fn to_pos(input: TSpan) -> Position {
-    assert!(!input.is_empty());
-
-    let extra_start = &input.first().unwrap().extra;
-    let extra_end = &input.last().unwrap().extra;
-
+    let (s, e) = get_start_end_token(input);
+    let extra_start = &e.extra;
+    let extra_end = &s.extra;
     let r = extra_start.as_range().start..extra_end.as_range().end;
     let tp = extra_start.as_text_pos();
     let file = extra_start.source_file.file_id;
-
     Position::new(tp.line(), tp.char(), r, FileId(file))
 }
 
@@ -56,11 +50,11 @@ pub fn get_str<'a>(sp: &'a TSpan<'a>) -> &'a str {
     sp.first().unwrap().extra.get_text()
 }
 
-pub fn concat<I, II>(xxs: (I, II)) -> thin_vec::ThinVec<I>
+pub fn concat<I, II>(xxs: (I, II)) -> ThinVec<I>
 where
     II: IntoIterator<Item = I>,
 {
-    let x = thin_vec::thin_vec![xxs.0];
+    let x = thin_vec![xxs.0];
     x.into_iter().chain(xxs.1).collect()
 }
 
@@ -69,7 +63,7 @@ where
     I: Clone + Copy,
     P: Parser<I, O, E>,
     I: Splitter<E> + Collection,
-    E: unraveler::ParseError<I>,
+    E: ParseError<I>,
 {
     move |i| {
         let (rest, matched) = p.parse(i.clone())?;
@@ -86,7 +80,6 @@ pub fn get_items(node: &Node) -> (Item, ThinVec<Item>) {
 pub fn create_source_file(text: &str) -> SourceFile {
     SourceFile::new("No file", text, 0)
 }
-
 
 pub fn parse_block<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where

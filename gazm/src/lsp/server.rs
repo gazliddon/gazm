@@ -1,12 +1,12 @@
 use super::backend::Backend;
-use crate::cli::Opts;
+use crate::opts::Opts;
 use log::info;
 use log::LevelFilter;
 use serde::Deserialize;
 use std::path::PathBuf;
 use tower_lsp::{LspService, Server};
 
-#[derive(Default,Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(default)]
 #[serde(rename_all = "kebab-case")]

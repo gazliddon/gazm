@@ -49,12 +49,12 @@ mod test {
 
         let text = "struct my_struct { test rmb 10, spanner rmb 20 }";
         let sf = create_source_file(text);
-        let tokes = to_tokens(&sf);
+        let tokens = to_tokens(&sf);
 
-        let ts: Vec<_> = tokes.iter().map(|t| t.kind).collect();
+        let ts: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", ts);
 
-        let span = TSpan::from_slice(&tokes,Default::default());
+        let span = make_tspan(&tokens, &sf);
 
         let (rest, matched) = parse_struct(span).unwrap();
 

@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
     lsp::LspConfig,
-    cli::opts::{CheckSum, Opts},
+    opts::{CheckSum, Opts},
 };
 
 use grl_sources::TextPos;
@@ -16,7 +16,7 @@ struct LoadedTomlConfig {
     lsp: Option<LspConfig>,
 }
 
-pub (super) struct TomlConfig {
+pub struct TomlConfig {
     pub file: PathBuf,
     pub opts: Opts,
 }

@@ -1,9 +1,9 @@
 use crate::{
+    opts::Opts,
     ctx::Context,
     error::{GResult, GazmErrorKind, ParseError},
     info_mess,
     item::{Item, Node},
-    cli::Opts,
     parse::locate::{span_to_pos, Span},
     tokenize::Tokens,
 };
@@ -253,7 +253,7 @@ mod test {
     use std::path;
     use std::{thread::current, time::Instant};
 
-    use crate::config::TomlConfig;
+    use crate::cli::TomlConfig;
     use crate::messages::Verbosity;
 
     use super::*;

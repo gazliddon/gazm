@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use std::collections::HashSet;
 
 use crate::item::Item;

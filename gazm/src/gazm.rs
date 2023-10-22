@@ -1,4 +1,5 @@
-use crate::{ast::AstCtx, async_tokenize, ctx::Context, error::GResult, item::Node, cli::Opts};
+#![forbid(unused_imports)]
+use crate::{ast::AstCtx, async_tokenize, ctx::Context, error::GResult, item::Node, opts::Opts};
 
 use grl_sources::{
     grl_utils::{PathSearcher, Stack},

@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 use crate::binary::*;
 
 use std::{collections::HashMap, ops::Deref, ops::DerefMut};

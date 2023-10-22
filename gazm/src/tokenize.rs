@@ -1,3 +1,4 @@
+#![forbid(unused_imports)]
 /// Parses text into a load of structured tokens
 use nom::{
     branch::alt,
@@ -13,9 +14,9 @@ use std::path::{Path, PathBuf};
 use tryvial::try_block;
 
 use crate::{
-    cli::Opts,
     error::{GResult, IResult, ParseError},
     item::{Item, Node},
+    opts::Opts,
     parse::{
         commands::parse_command,
         comments::{parse_comment, parse_star_comment},

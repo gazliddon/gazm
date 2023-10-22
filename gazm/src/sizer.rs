@@ -1,8 +1,9 @@
+#![forbid(unused_imports)]
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
 use crate::{
     asmctx::AsmCtx,
-    ast::{AstNodeId, AstNodeRef, AstTree, Ast},
+    ast::{AstNodeId, AstNodeRef, Ast},
     error::GResult,
     gazm::ScopeTracker,
     info_mess,

@@ -71,7 +71,7 @@ pub(crate) fn parse_require(input: TSpan) -> PResult<Node> {
 }
 
 pub(crate) fn parse_include(input: TSpan) -> PResult<Node> {
-    command_with_file(input, CommandKind::Require)
+    command_with_file(input, CommandKind::Include)
         .map(|(rest, (sp, file))| (rest, Node::from_item_tspan(Item::Include(file), sp)))
 }
 
@@ -242,9 +242,9 @@ mod test {
         P: for<'a> Parser<TSpan<'a>, Node, FrontEndError>,
     {
         println!("Parsing command - {text}");
-        let source_file = create_source_file(text);
-        let tokens = to_tokens(&source_file);
-        let span = TSpan::from_slice(&tokens, Default::default());
+        let sf = create_source_file(text);
+        let tokens = to_tokens(&sf);
+        let span = make_tspan(&tokens, &sf);
 
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);

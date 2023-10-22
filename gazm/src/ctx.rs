@@ -1,9 +1,9 @@
 use crate::{
+    opts::{ Opts,BinReference },
     ast::{Ast, AstTree},
     astformat,
     async_tokenize::TokenizeResult,
     binary::{self, AccessType, BinRef, Binary},
-    cli::{BinReference, Opts},
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     gazmsymbols::{Serializable, SymbolTree},
     lookup::LabelUsageAndDefintions,
