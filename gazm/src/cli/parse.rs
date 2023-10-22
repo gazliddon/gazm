@@ -1,19 +1,9 @@
-use crate::cli::opts::{BuildType, Opts};
+use super::{config::*, opts::*};
 use crate::messages::Verbosity;
-use lazy_static::lazy_static;
-
 use clap::{builder::PathBufValueParser, value_parser, Arg, ArgAction, ArgMatches, Command};
-use termimad::minimad::Col;
-
-use std::collections::HashMap;
 use std::path::PathBuf;
 
-use super::config::{ConfigError, ConfigErrorType, TomlConfig};
-
 ////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-use crate::cli::config;
 
 fn load_config(m: &ArgMatches) -> ConfigError<TomlConfig> {
     // Get the config file or use the default gazm.toml
@@ -169,7 +159,7 @@ fn make_config_file_arg() -> Arg {
 ////////////////////////////////////////////////////////////////////////////////
 
 pub fn parse() -> ArgMatches {
-    use super::styling::{ get_styles,get_banner };
+    use super::styling::{get_banner, get_styles};
 
     Command::new(clap::crate_name!())
         .styles(get_styles())
