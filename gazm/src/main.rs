@@ -1,7 +1,7 @@
 use gazm::{
     cli::{
-        opts::{BuildType, Opts},
-        parse::parse,
+        {BuildType, Opts},
+        parse_command_line,
     },
     fmt, frontend,
     gazm::Assembler,
@@ -70,7 +70,7 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::env::{current_dir, set_current_dir};
-    let matches = parse();
+    let matches = parse_command_line();
     let opts = Opts::from_arg_matches(matches)?;
 
     // Todo move directory handling into assemble_from_opts

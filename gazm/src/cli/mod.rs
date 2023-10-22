@@ -1,7 +1,10 @@
-pub mod parse;
-pub mod config;
-pub mod opts;
+mod parse;
+mod config;
+mod opts;
 mod cpukind;
 mod styling;
 
+pub use parse::*;
+pub use config::*;
+pub use opts::*;
 pub use cpukind::*;

@@ -10,18 +10,18 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 struct LoadedTomlConfig {
-    pub opts: Option<Opts>,
+    opts: Option<Opts>,
     vars: Option<HashMap<String, String>>,
     checksums: Option<HashMap<String, CheckSum>>,
     lsp: Option<LspConfig>,
 }
 
-pub struct TomlConfig {
+pub (super) struct TomlConfig {
     pub file: PathBuf,
     pub opts: Opts,
 }
 
-pub type ConfigError<T> = Result<T, ConfigErrorType>;
+pub (super)type ConfigError<T> = Result<T, ConfigErrorType>;
 
 #[derive(thiserror::Error, Clone)]
 #[allow(clippy::large_enum_variant)]
@@ -40,11 +40,6 @@ impl std::fmt::Debug for ConfigErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self}")
     }
-}
-
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct Project {
-    pub name: String,
 }
 
 impl TomlConfig {

@@ -2,7 +2,7 @@ use crate::{
     error::GResult,
     item::{Item, LabelDefinition, Node},
     item6809::MC6809::OpCode,
-    cli::opts::Opts,
+    cli::Opts,
 };
 
 use itertools::Itertools;

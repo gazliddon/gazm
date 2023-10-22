@@ -3,7 +3,7 @@ use crate::{
     error::{GResult, GazmErrorKind, ParseError},
     info_mess,
     item::{Item, Node},
-    cli::opts::Opts,
+    cli::Opts,
     parse::locate::{span_to_pos, Span},
     tokenize::Tokens,
 };

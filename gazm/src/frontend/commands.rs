@@ -223,7 +223,7 @@ pub fn parse_command(input: TSpan) -> PResult<Node> {
 #[cfg(test)]
 mod test {
     use crate::{
-        cli::parse,
+        cli::parse_command_line,
         frontend::*,
         item::{
             Item::{self, *},

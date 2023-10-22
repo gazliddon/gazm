@@ -1,7 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{lsp::LspConfig, messages::Verbosity, vars::Vars};
-
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Eq, PartialEq)]

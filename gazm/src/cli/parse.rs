@@ -1,4 +1,5 @@
-use super::{config::*, opts::*};
+use super::*;
+
 use crate::messages::Verbosity;
 use clap::{builder::PathBufValueParser, value_parser, Arg, ArgAction, ArgMatches, Command};
 use std::path::PathBuf;
@@ -158,7 +159,7 @@ fn make_config_file_arg() -> Arg {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub fn parse() -> ArgMatches {
+pub fn parse_command_line() -> ArgMatches {
     use super::styling::{get_banner, get_styles};
 
     Command::new(clap::crate_name!())

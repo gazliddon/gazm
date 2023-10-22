@@ -1,4 +1,4 @@
-use crate::{ast::AstCtx, async_tokenize, ctx::Context, error::GResult, item::Node, cli::opts::Opts};
+use crate::{ast::AstCtx, async_tokenize, ctx::Context, error::GResult, item::Node, cli::Opts};
 
 use grl_sources::{
     grl_utils::{PathSearcher, Stack},

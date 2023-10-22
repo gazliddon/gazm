@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     async_tokenize::IncludeErrorKind,
-    cli::parse,
+    cli::parse_command_line,
     error::IResult,
     item::{Item, LabelDefinition, Node, ParsedFrom},
     item6809::{IndexParseType, MC6809::SetDp},
