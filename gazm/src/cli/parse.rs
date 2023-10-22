@@ -1,13 +1,14 @@
-use crate::messages::Verbosity;
 use crate::cli::opts::{BuildType, Opts};
+use crate::messages::Verbosity;
 use lazy_static::lazy_static;
 
 use clap::{builder::PathBufValueParser, value_parser, Arg, ArgAction, ArgMatches, Command};
+use termimad::minimad::Col;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use super::config::{ ConfigError, ConfigErrorType,TomlConfig };
+use super::config::{ConfigError, ConfigErrorType, TomlConfig};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -166,27 +167,14 @@ fn make_config_file_arg() -> Arg {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static BANNER: &str = r"
-  __ _  __ _ _____ __ ___
- / _` |/ _` |_  / '_ ` _ \
-| (_| | (_| |/ /| | | | | |
- \__, |\__,_/___|_| |_| |_|
- |___/ Assembler (currently only 6809)";
-
 
 pub fn parse() -> ArgMatches {
-    use clap::builder::styling;
-
-let styles = styling::Styles::styled()
-    .header(styling::AnsiColor::Green.on_default() | styling::Effects::BOLD)
-    .usage(styling::AnsiColor::Green.on_default() | styling::Effects::BOLD)
-    .literal(styling::AnsiColor::Blue.on_default() | styling::Effects::BOLD)
-    .placeholder(styling::AnsiColor::Cyan.on_default());
+    use super::styling::{ get_styles,get_banner };
 
     Command::new(clap::crate_name!())
-        .styles(styles)
-        .about(BANNER)
-        .author(clap::crate_authors!("\n"))
+        .styles(get_styles())
+        .about(get_banner())
+        .author(clap::crate_authors!(" : "))
         .version(clap::crate_version!())
         .arg(
             Arg::new("verbose")
