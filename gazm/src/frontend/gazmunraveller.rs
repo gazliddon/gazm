@@ -12,7 +12,7 @@ impl Default for ParseState {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone,Debug)]
 pub struct OriginalSource<'a> {
     pub source_file: &'a SourceFile,
 }

@@ -1,10 +1,10 @@
-#![deny(unused_imports)]
+// #![deny(unused_imports)]
 
-use unraveler::alt;
+use unraveler::{alt, preceded};
 
 use super::{
-    get_text, match_span as ms, parse_opcode_reg_pair, parse_reg_set, IdentifierKind,
-    PResult, TSpan, TokenKind,
+    get_text, match_span as ms, parse_expr, parse_indexed, parse_opcode_reg_pair, parse_reg_set,
+    IdentifierKind, PResult, TSpan, TokenKind,
 };
 
 use crate::{
@@ -21,28 +21,38 @@ use crate::item6809::{
 
 use emu6809::isa::{AddrModeEnum, Instruction, InstructionInfo};
 
-fn parse_indexed(_input: TSpan) -> PResult<Node> {
-    panic!()
-}
-
 fn parse_immediate(_input: TSpan) -> PResult<Node> {
-    panic!()
+    use AddrModeParseType::*;
+    use TokenKind::Hash;
+    let (rest, (sp, matched)) = ms(preceded(Hash, parse_expr))(_input)?;
+    let node = Node::from_item_tspan(Immediate.into(), sp).with_child(matched);
+    Ok((rest, node))
 }
 
 fn parse_force_dp(_input: TSpan) -> PResult<Node> {
-    panic!()
+    use AddrModeParseType::*;
+    use TokenKind::LessThan;
+    let (rest, (sp, matched)) = ms(preceded(LessThan, parse_expr))(_input)?;
+    let node = Node::from_item_tspan(Direct.into(), sp).with_child(matched);
+    Ok((rest, node))
 }
 
 fn parse_force_extended(_input: TSpan) -> PResult<Node> {
-    panic!()
+    use AddrModeParseType::*;
+    use TokenKind::GreaterThan;
+    let (rest, (sp, matched)) = ms(preceded(GreaterThan, parse_expr))(_input)?;
+    let node = Node::from_item_tspan(Extended(true).into(), sp).with_child(matched);
+    Ok((rest, node))
 }
 
 fn parse_extended(_input: TSpan) -> PResult<Node> {
-    panic!()
+    use AddrModeParseType::*;
+    let (rest, (sp, matched)) = ms(parse_expr)(_input)?;
+    let node = Node::from_item_tspan(Extended(false).into(), sp).with_child(matched);
+    Ok((rest, node))
 }
 
 fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
-
     let (rest, matched) = alt((
         parse_indexed,
         parse_immediate,
@@ -53,7 +63,6 @@ fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
 
     Ok((rest, matched))
 }
-
 
 fn get_instruction(
     amode: crate::item6809::AddrModeParseType,
@@ -129,4 +138,67 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
 pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;
     Ok((rest, item))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens};
+    use crate::item::{ParsedFrom, Item };
+        use crate::item6809::IndexParseType;
+        use emu6809::cpu::RegEnum;
+
+    fn check_opcode(
+        text: &str,
+        opcode: &str,
+        expected_amode: AddrModeParseType,
+        expected_kids: &[Item],
+    ) {
+        let sf = create_source_file(text);
+        let tokens = to_tokens(&sf);
+        let span = make_tspan(&tokens, &sf);
+        let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
+        println!("{:?}", tk);
+        let (_, p) = parse_opcode(span).expect("Can't parse opcode");
+        let items = get_items(&p);
+        println!("{:?}", items);
+        let (item, kids) = get_items(&p);
+
+        if let Item::Cpu(OpCode(_, i, addr_mode)) = item {
+            assert_eq!(i.action, opcode);
+            assert_eq!(addr_mode, expected_amode);
+            assert_eq!(kids, expected_kids);
+        } else {
+            panic!("Failed")
+        }
+    }
+
+    #[test]
+    fn test_op() {
+        use ParsedFrom::*;
+        use IndexParseType::*;
+        use RegEnum::*;
+        use AddrModeParseType::*;
+        use Item::*;
+
+        let test_data = vec![
+            ("lda", "lda #10", Immediate, vec![Num(10, Dec)]),
+            ("ldb", "ldb #$10", Immediate, vec![Num(16, Hex)]),
+            (
+                "lda",
+                "lda [10],y",
+                Indexed(ExtendedIndirect, false),
+                vec![Num(10, Dec)],
+            ),
+            ("tfr", "tfr x,y", RegisterPair(X, Y), vec![]),
+            ("nop", "nop", Inherent, vec![]),
+            ("lda", "lda <(10+8/2)", Direct, vec![Expr] ),
+            ("lda", "lda (10+8/2)", Extended(false), vec![Expr] ),
+            ("lda", "lda >(10+8/2)", Extended(true), vec![Expr] ),
+        ];
+
+        for (opcode, text, expected_amode, expected_kids) in test_data {
+            check_opcode(text, opcode, expected_amode, &expected_kids);
+        }
+    }
 }
