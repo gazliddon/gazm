@@ -318,3 +318,18 @@ pub fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
         })
         .collect()
 }
+
+pub fn to_tokens_filter<P>(source_file: &grl_sources::SourceFile, predicate : P) -> Vec<Token> 
+where P : Fn(&TokenKind) -> bool
+{
+    let ret = to_tokens_kinds(source_file);
+
+    ret.into_iter()
+        .filter(|(tk,_)| predicate(tk))
+        .map(|(tk, r)| {
+            let pt = ParseText::new(source_file, r.clone());
+            let t: Token = Token::new(tk, r.into(), pt);
+            t
+        })
+        .collect()
+}

@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
-use grl_sources::{ Position, SourceFile,TextEditTrait};
+use grl_sources::{Position, SourceFile, TextEditTrait};
+use unraveler::Collection;
 
 use super::{Token, TokenKind};
 
@@ -12,17 +13,12 @@ impl Default for ParseState {
     }
 }
 
-#[derive(Copy, Clone,Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct OriginalSource<'a> {
     pub source_file: &'a SourceFile,
 }
 
 pub type TSpan<'a> = unraveler::Span<'a, Token<'a>, OriginalSource<'a>>;
-
-pub fn make_tspan<'a>(tokens: &'a [Token], sf: &'a grl_sources::SourceFile) -> TSpan<'a> {
-    let span = TSpan::from_slice(&tokens, OriginalSource { source_file: sf });
-    span
-}
 
 pub struct Gaz {
     position: Position,
@@ -34,13 +30,13 @@ impl AsRef<Position> for Gaz {
     }
 }
 
-pub fn get_start_end_token<'a>(input: TSpan<'a>) -> ( Token<'a>, Token<'a>) {
+pub fn get_start_end_token<'a>(input: TSpan<'a>) -> (Token<'a>, Token<'a>) {
     if input.is_empty() {
         let doc = input.get_document();
         assert!(!doc.is_empty());
         let start = input.get_range().start;
         let toke = doc.get(start).or_else(|| doc.last()).unwrap();
-        (toke.clone(),toke.clone())
+        (toke.clone(), toke.clone())
     } else {
         let first = input.first().unwrap().clone();
         let last = input.last().unwrap().clone();
@@ -52,11 +48,15 @@ impl<'a> From<TSpan<'a>> for Gaz {
     fn from(_value: TSpan<'a>) -> Self {
         let te = _value.extra().source_file.as_text_edit();
         assert!(!te.is_empty());
-        let (start,end) = get_start_end_token(_value);
+        let (start, end) = get_start_end_token(_value);
         let _end = end.extra.as_range();
         let _start = start.extra.as_range();
         todo!()
     }
+}
+pub fn make_tspan<'a>(tokens: &'a [Token], sf: &'a grl_sources::SourceFile) -> TSpan<'a> {
+    let span = TSpan::from_slice(&tokens, OriginalSource { source_file: sf });
+    span
 }
 
 ////////////////////////////////////////////////////////////////////////////////

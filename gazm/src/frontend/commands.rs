@@ -235,7 +235,7 @@ mod test {
     use grl_sources::SourceFile;
     use pretty_assertions::{assert_eq, assert_ne};
     use thin_vec::ThinVec;
-    use unraveler::Parser;
+    use unraveler::{ Parser, Collection };
 
     fn test_command<P>(mut parser: P, text: &str, x: Item, xs: &[Item])
     where

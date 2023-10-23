@@ -14,6 +14,7 @@ mod structs;
 mod macros;
 mod register;
 mod indexed;
+mod parse;
 
 pub use tokens::*;
 pub use ast::*;
@@ -28,4 +29,5 @@ pub use macros::*;
 pub use structs::*;
 pub use register::*;
 pub use indexed::*;
+pub use parse::*;
 

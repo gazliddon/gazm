@@ -92,12 +92,8 @@ mod test {
         ParsedFrom::*,
     };
 
-    fn make_tspan<'a>(tokens: &'a [Token],sf: &'a grl_sources::SourceFile) -> TSpan<'a> {
-        let span = TSpan::from_slice(&tokens, OriginalSource {
-            source_file: sf
-        });
-        span
-    }
+    use unraveler::Collection;
+
 
     #[test]
     fn test_expr() {

@@ -41,6 +41,7 @@ mod test {
     use pretty_assertions::assert_eq;
     use thin_vec::thin_vec;
     use crate::item::LabelDefinition::Text;
+    use unraveler::Collection;
 
 
     #[test]
