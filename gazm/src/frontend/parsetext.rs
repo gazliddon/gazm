@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 
-use grl_sources::SourceFile;
+use grl_sources::{ SourceFile,Position };
 
 use crate::cli::CpuKind; 
 
@@ -17,23 +17,17 @@ impl Default for ParserState {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {
-    pub start: usize,
-    pub len: usize,
-    pub source_file: &'a SourceFile,
+    pub pos : Position,
+    pub source_file : &'a SourceFile,
     pub state: ParserState,
 }
 
-impl<'a> AsRef<str> for ParseText<'a> {
-    fn as_ref(&self) -> &str {
-        &self.source_file.source.source[self.as_range()]
-    }
-}
 
 impl<'a> ParseText<'a> {
     pub fn new(source_file: &'a SourceFile, range: std::ops::Range<usize>, ) -> Self {
+        let pos = source_file.get_position(range);
         Self {
-            start: range.start,
-            len: range.len(),
+            pos,
             source_file,
             state: ParserState::default(),
         }
@@ -41,16 +35,11 @@ impl<'a> ParseText<'a> {
 }
 
 impl<'a> ParseText<'a> {
-
     pub fn get_text(&self) -> &str {
-        self.as_ref()
+        self.source_file.get_span(&self.pos)
     }
 
     pub fn as_range(&self) -> std::ops::Range<usize> {
-        self.start..self.start + self.len
-    }
-
-    pub fn as_text_pos(&self) -> grl_sources::TextPos {
-        self.source_file.source.offset_to_text_pos(self.start).unwrap()
+        self.pos.range()
     }
 }

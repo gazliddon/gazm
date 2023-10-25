@@ -39,6 +39,9 @@ pub(crate) fn get_label<F: Fn(String) -> LabelDefinition>(
 fn parse_local_label(input: TSpan) -> PResult<Node> {
     use {IdentifierKind::*, Item::LocalLabel, LabelDefinition::Text};
     let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), Identifier(Label)))(input)?;
+
+
+
     let label_def = Text(get_text(matched));
     let node = Node::from_item_tspan(LocalLabel(label_def), sp);
     Ok((rest, node))

@@ -43,6 +43,13 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
         self.with_children(&other.children)
     }
 
+    pub fn with_children_vec<V>(self, children: V) -> Self 
+    where
+        V : Into<ThinVec<Self>>
+    {
+        Self { children : children.into() , ..self }
+    }
+
     pub fn with_children(self, children: &[Self]) -> Self {
         Self { children : children.into() , ..self }
     }

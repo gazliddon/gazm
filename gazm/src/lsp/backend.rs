@@ -146,7 +146,7 @@ impl Context {
                     .map(|start_pos| {
                         let p = GazmPosition::new(
                             pos.line(),
-                            pos.char(),
+                            pos.col(),
                             start_pos..start_pos + 1,
                             AsmSource::FileId(id),
                         );

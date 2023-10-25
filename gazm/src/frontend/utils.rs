@@ -4,12 +4,16 @@ use crate::{
     node::BaseNode,
 };
 
-use super::{get_start_end_token, FrontEndError, PResult, TSpan, TokenKind::*};
-use grl_sources::{AsmSource::FileId, Position, SourceFile};
+use super::{FrontEndError, PResult, TSpan, TokenKind::*};
+use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
 use unraveler::{wrapped_cut, Collection, Parser, Splitter, ParseError};
 
 impl BaseNode<Item, Position> {
+    pub fn block(items: ThinVec<Self>, sp: TSpan) -> Self {
+        Self::from_item_tspan(Item::Block, sp).with_children_vec(items)
+    }
+
     pub fn from_item_tspan(item: Item, sp: TSpan) -> Self {
         Self::from_item_pos(item, to_pos(sp))
     }
@@ -33,13 +37,7 @@ impl BaseNode<Item, Position> {
 }
 
 pub fn to_pos(input: TSpan) -> Position {
-    let (s, e) = get_start_end_token(input);
-    let extra_start = &e.extra;
-    let extra_end = &s.extra;
-    let r = extra_start.as_range().start..extra_end.as_range().end;
-    let tp = extra_start.as_text_pos();
-    let file = extra_start.source_file.file_id;
-    Position::new(tp.line(), tp.char(), r, FileId(file))
+    input.extra().get_pos(input)
 }
 
 pub fn get_text(sp: TSpan) -> String {
@@ -47,7 +45,7 @@ pub fn get_text(sp: TSpan) -> String {
 }
 
 pub fn get_str<'a>(sp: &'a TSpan<'a>) -> &'a str {
-    sp.first().unwrap().extra.get_text()
+    sp.extra().get_str(*sp)
 }
 
 pub fn concat<I, II>(xxs: (I, II)) -> ThinVec<I>

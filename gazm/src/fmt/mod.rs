@@ -26,7 +26,7 @@ fn get_operand(node: &Node, text: &str) -> String {
         "".to_owned()
     } else {
         let c = &node.children[0];
-        text[c.ctx.range.clone()].to_owned()
+        text[c.ctx.range()].to_owned()
     }
 }
 #[allow(dead_code)]
@@ -49,7 +49,7 @@ pub fn render_nodes(nodes: &[Node], text: String) -> String {
             let args: Vec<_> = n
                 .children
                 .iter()
-                .map(|c| &text[c.ctx.range.clone()])
+                .map(|c| &text[c.ctx.range()])
                 .collect();
 
             args.join(",")
@@ -74,7 +74,7 @@ pub fn render_nodes(nodes: &[Node], text: String) -> String {
 
                 Assignment(name) => {
                     columns[0] = name.as_string();
-                    columns[1] = format!("equ {}", &text[n.children[0].ctx.range.clone()]);
+                    columns[1] = format!("equ {}", &text[n.children[0].ctx.range()]);
                 }
 
                 StructDef(_name) => {

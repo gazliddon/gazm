@@ -52,7 +52,7 @@ impl LabelUsageAndDefintions {
         let pos_node_id = iter_refs_recursive(tree.as_ref().root())
             .map(|n| (n.value().pos.clone(), n.id()))
             .sorted_by(|(a,_),(b,_)| {
-                Ord::cmp(&a.range.len(),&b.range.len())
+                Ord::cmp(&a.range().len(),&b.range().len())
             })
             .collect();
 

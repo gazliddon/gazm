@@ -261,6 +261,8 @@ mod test {
         let (rest, matched) = parser.parse(span).unwrap();
         check(rest, matched);
 
+
+
         // test the command parser
         let (rest, matched) = parse_command(span).unwrap();
         check(rest, matched);

@@ -91,7 +91,7 @@ impl TomlConfig {
                     file.to_path_buf(),
                     err.message().to_owned(),
                     tp.line() + 1,
-                    tp.char() + 1,
+                    tp.col() + 1,
                 ))
             }
         }

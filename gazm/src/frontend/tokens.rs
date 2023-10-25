@@ -44,6 +44,13 @@ pub enum CommandKind {
     Import,
     Struct,
     Macro,
+    Equ,
+}
+
+impl Into<TokenKind> for CommandKind {
+    fn into(self) -> TokenKind {
+        TokenKind::Identifier(IdentifierKind::Command(self))
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -80,7 +87,7 @@ lazy_static::lazy_static! {
 }
 
 trait CpuLexer {
-    fn identifier(&self,text: &str) -> Option<IdentifierKind>;
+    fn identifier(&self, text: &str) -> Option<IdentifierKind>;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +95,7 @@ struct Cpu6809Lexer {}
 
 impl Default for Cpu6809Lexer {
     fn default() -> Self {
-        Self {  }
+        Self {}
     }
 }
 
@@ -116,7 +123,7 @@ impl Cpu6809Lexer {
 }
 
 impl CpuLexer for Cpu6809Lexer {
-    fn identifier(&self,text: &str) -> Option<IdentifierKind> {
+    fn identifier(&self, text: &str) -> Option<IdentifierKind> {
         use IdentifierKind::*;
         if DBASE_6809.get_opcode(text).is_some() {
             Some(Opcode)
@@ -254,6 +261,9 @@ pub enum TokenKind {
     #[token(",")]
     Comma,
 
+    #[token(":")]
+    Colon,
+
     #[token(">>")]
     DoubleGreaterThan,
 
@@ -312,23 +322,24 @@ pub fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
 
     ret.into_iter()
         .map(|(tk, r)| {
-            let pt = ParseText::new(source_file, r.clone());
-            let t: Token = Token::new(tk, r.into(), pt);
+            let pt = ParseText::new(source_file, r);
+            let t: Token = Token::new(tk, pt);
             t
         })
         .collect()
 }
 
-pub fn to_tokens_filter<P>(source_file: &grl_sources::SourceFile, predicate : P) -> Vec<Token> 
-where P : Fn(&TokenKind) -> bool
+pub fn to_tokens_filter<P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
+where
+    P: Fn(&TokenKind) -> bool,
 {
     let ret = to_tokens_kinds(source_file);
 
     ret.into_iter()
-        .filter(|(tk,_)| predicate(tk))
+        .filter(|(tk, _)| predicate(tk))
         .map(|(tk, r)| {
-            let pt = ParseText::new(source_file, r.clone());
-            let t: Token = Token::new(tk, r.into(), pt);
+            let pt = ParseText::new(source_file, r);
+            let t: Token = Token::new(tk,  pt);
             t
         })
         .collect()

@@ -2,7 +2,7 @@
 use grl_sources::{Position, SourceFile, TextEditTrait};
 use unraveler::Collection;
 
-use super::{Token, TokenKind};
+use super::{to_pos, Token, TokenKind};
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct ParseState {}
@@ -16,6 +16,27 @@ impl Default for ParseState {
 #[derive(Copy, Clone, Debug)]
 pub struct OriginalSource<'a> {
     pub source_file: &'a SourceFile,
+}
+
+impl<'a> OriginalSource<'a> {
+    pub fn get_pos(&self, input: TSpan) -> Position {
+        use grl_sources::AsmSource::FileId;
+
+        let (s, e) = get_start_end_token(input);
+
+        let extra_start = &e.extra;
+        let extra_end = &s.extra;
+        let r = extra_start.as_range().start..extra_end.as_range().end;
+        let tp = &extra_start.pos;
+        let file = extra_start.source_file.file_id;
+        Position::new(tp.line(), tp.col(), r, FileId(file))
+    }
+
+    pub fn get_str(&self, input: TSpan) -> &str {
+        let x = to_pos(input);
+        let y = self.source_file.get_span(&x);
+        y
+    }
 }
 
 pub type TSpan<'a> = unraveler::Span<'a, Token<'a>, OriginalSource<'a>>;

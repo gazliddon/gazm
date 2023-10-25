@@ -30,4 +30,5 @@ pub use structs::*;
 pub use register::*;
 pub use indexed::*;
 pub use parse::*;
+pub use opcodes::*;
 
