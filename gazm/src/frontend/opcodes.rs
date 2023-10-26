@@ -1,6 +1,6 @@
 // #![deny(unused_imports)]
 
-use unraveler::{alt, preceded};
+use unraveler::{alt, preceded, sep_list};
 
 use super::{
     get_text, match_span as ms, parse_expr, parse_indexed, parse_opcode_reg_pair, parse_reg_set,
@@ -10,7 +10,7 @@ use super::{
 use crate::{
     item::{Item, Node},
     item6809::MC6809,
-    parse6809::opcodes::OPCODES_REC,
+    parse6809::opcodes::OPCODES_REC, frontend::parse_reg_set_operand,
 };
 
 use crate::item6809::{
@@ -95,8 +95,8 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     use Item::*;
     let (rest, (sp, text, info)) = get_opcode(input)?;
 
-    let (_rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
-        parse_reg_set(rest)
+    let (rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
+        parse_reg_set_operand(rest)
     } else if info.supports_addr_mode(AddrModeEnum::RegisterPair) {
         parse_opcode_reg_pair(rest)
     } else {
@@ -106,7 +106,10 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     let amode = match arg.item {
         Cpu(Operand(amode)) => amode,
         Cpu(OperandIndexed(amode, indirect)) => AddrModeParseType::Indexed(amode, indirect),
-        _ => todo!("Need an error here {:?}", arg.item),
+        _ => {
+            println!("{:?}", info);
+            todo!("Need an error here {:?}", arg.item);
+        }
     };
 
     if let Some(instruction) = get_instruction(amode, info) {
@@ -140,13 +143,22 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     Ok((rest, item))
 }
 
+
+pub fn parse_multi_opcode(input: TSpan) -> PResult<Node> {
+    use unraveler::tag;
+    use TokenKind::Colon;
+    let (rest, (sp, matched)) = ms(sep_list(parse_opcode, tag(Colon)))(input)?;
+    Ok((rest, Node::block(matched.into(), sp)))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens};
-    use crate::item::{ParsedFrom, Item };
-        use crate::item6809::IndexParseType;
-        use emu6809::cpu::RegEnum;
+    use crate::item::{Item, ParsedFrom};
+    use crate::item6809::IndexParseType;
+    use emu6809::cpu::RegEnum;
+    use unraveler::Collection;
 
     fn check_opcode(
         text: &str,
@@ -174,12 +186,29 @@ mod test {
     }
 
     #[test]
-    fn test_op() {
-        use ParsedFrom::*;
-        use IndexParseType::*;
-        use RegEnum::*;
-        use AddrModeParseType::*;
+    fn parse_multi() {
+        // TODO: check for success
         use Item::*;
+        let text = "lda #10 : sta $20";
+        let sf = create_source_file(text);
+        let tokens = to_tokens(&sf);
+        let span = make_tspan(&tokens, &sf);
+        let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
+        println!("{:?}", tk);
+        let (rest, p) = parse_multi_opcode(span).expect("Can't parse opcode");
+        println!("Rest len is {}", rest.length());
+        let tk: Vec<_> = rest.kinds_iter().collect();
+        println!("REST: {:?}", tk);
+        let _items = get_items(&p);
+    }
+
+    #[test]
+    fn test_op() {
+        use AddrModeParseType::*;
+        use IndexParseType::*;
+        use Item::*;
+        use ParsedFrom::*;
+        use RegEnum::*;
 
         let test_data = vec![
             ("lda", "lda #10", Immediate, vec![Num(10, Dec)]),
@@ -192,9 +221,9 @@ mod test {
             ),
             ("tfr", "tfr x,y", RegisterPair(X, Y), vec![]),
             ("nop", "nop", Inherent, vec![]),
-            ("lda", "lda <(10+8/2)", Direct, vec![Expr] ),
-            ("lda", "lda (10+8/2)", Extended(false), vec![Expr] ),
-            ("lda", "lda >(10+8/2)", Extended(true), vec![Expr] ),
+            ("lda", "lda <(10+8/2)", Direct, vec![Expr]),
+            ("lda", "lda (10+8/2)", Extended(false), vec![Expr]),
+            ("lda", "lda >(10+8/2)", Extended(true), vec![Expr]),
         ];
 
         for (opcode, text, expected_amode, expected_kids) in test_data {

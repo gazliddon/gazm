@@ -1,18 +1,22 @@
+#![deny(unused_imports)]
 use std::path::PathBuf;
 
 use super::{
-    make_tspan, match_span as ms, parse_command, parse_expr, parse_label, parse_macro_def,
-    parse_opcode, parse_struct, to_pos, FrontEndError, FrontEndErrorKind, PResult, TSpan, Token,
+    make_tspan, match_span as ms, parse_command, parse_expr, parse_label, 
+    parse_line,
+    parse_multi_opcode, parse_struct, FrontEndError, PResult, TSpan, Token,
     TokenKind,
 };
 
 use crate::{
-    frontend::{get_str, get_text, CommandKind, parse_macro_call},
+    frontend::parse_macro_call,
     item::{Item, LabelDefinition, Node},
     opts::Opts,
 };
 
-use grl_sources::{AsmSource, SourceFile};
+use grl_sources::SourceFile;
+
+use unraveler::alt;
 
 #[derive(Debug, Clone)]
 pub struct ParseTask {
@@ -27,10 +31,7 @@ pub struct Parsed {
     pub request: ParseTask,
 }
 
-use strum::EnumCount;
-use termimad::crossterm::style::Stylize;
-use termimad::minimad::Col;
-use unraveler::{cut, sep_list, sep_pair, tag, Collection, Splitter};
+use unraveler::{sep_pair, tag, Collection};
 
 impl ParseTask {
     pub fn from_text(opts: &Opts, text: &str) -> Self {
@@ -66,28 +67,22 @@ impl TryInto<Parsed> for ParseTask {
     }
 }
 
-fn parse_multi_opcode(input: TSpan) -> PResult<Node> {
-    use super::match_span as ms;
-    use crate::item::Item;
-    use TokenKind::Colon;
-    let (rest, (sp, matched)) = ms(sep_list(parse_opcode, Colon))(input)?;
-    Ok((rest, Node::block(matched.into(), sp)))
-}
-
 fn parse_macro_code_def(_input: TSpan) -> PResult<Node> {
     panic!()
 }
 
 use thin_vec::ThinVec;
 
-struct Nodes {
+struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
+    span: TSpan<'a>,
 }
 
-impl Nodes {
-    pub fn new() -> Self {
+impl<'a> NodeCollector<'a> {
+    pub fn new(sp: TSpan<'a>) -> Self {
         Self {
             nodes: thin_vec::ThinVec::with_capacity(4096),
+            span: sp,
         }
     }
 
@@ -97,7 +92,7 @@ impl Nodes {
                 self.add(i)
             }
         } else {
-            println!("Added: {:?}",n.item );
+            println!("Added: {:?} {:?}", n.item, n.ctx);
             self.nodes.push(n)
         }
     }
@@ -106,19 +101,12 @@ impl Nodes {
         self.nodes.reserve(nodes.len());
         self.nodes.extend(nodes.into_iter())
     }
-}
 
-impl Into<ThinVec<Node>> for Nodes {
-    fn into(self) -> ThinVec<Node> {
-        self.nodes
+    pub fn to_block(self) -> Node {
+        Node::block(self.nodes, self.span)
     }
 }
 
-impl Into<Vec<Node>> for Nodes {
-    fn into(self) -> Vec<Node> {
-        self.nodes.to_vec()
-    }
-}
 
 fn get_label_definition(item: &Item) -> Option<LabelDefinition> {
     match item {
@@ -130,66 +118,32 @@ fn get_label_definition(item: &Item) -> Option<LabelDefinition> {
 fn parse_equate(input: TSpan) -> PResult<Node> {
     use super::CommandKind::Equ;
     use Item::Assignment;
-
     let command: TokenKind = Equ.into();
-
     let (rest, (sp, (label, expr))) = ms(sep_pair(parse_label, tag(command), parse_expr))(input)?;
     let lab_def = get_label_definition(&label.item).expect("This should be a label kind!");
     let node = Node::from_item_kid_tspan(Assignment(lab_def), expr, sp);
     Ok((rest, node))
 }
 
-pub fn take_line(full_span: TSpan) -> (TSpan, TSpan) {
-    let f = || {
-        for i in 1..full_span.length() {
-            let (rest, matched) = full_span.split(i).expect("That's bad");
-            let mpos = &matched.first().unwrap().extra.pos;
-            let rpos = &rest.first().unwrap().extra.pos;
-            if mpos.line != rpos.line {
-                return (rest, matched);
-            }
-        }
-
-        full_span.split(full_span.length()).unwrap()
-    };
-
-    let (rest, matched) = match full_span.length() {
-        0 => (full_span,full_span),
-        1 => full_span.split(1).unwrap(),
-        _ => f(),
-    };
-
-    (rest, matched)
-}
-
-pub fn parse_line<P>(input: TSpan, mut p: P) -> PResult<Node>
-where
-    P: FnMut(TSpan) -> PResult<Node> + Copy,
-{
-    let (rest, line) = take_line(input);
-    let (_, matched) = p(line)?;
-    Ok((rest, matched))
+pub fn parse_single_line(input: TSpan) -> PResult<Node> {
+    parse_line(alt((
+        parse_macro_call,
+        parse_equate,
+        parse_command,
+        parse_multi_opcode,
+    )))(input)
 }
 
 pub fn parse_span(full_span: TSpan) -> Result<Node, FrontEndError> {
-    use unraveler::alt;
     let mut input = full_span;
-    let mut nodes = Nodes::new();
+
+    let mut nodes = NodeCollector::new(full_span);
 
     while !input.is_empty() {
-        let (rest, matched) = alt((
-            |i| parse_line(i, parse_macro_call),
-            |i| parse_line(i, parse_equate),
-            |i| parse_line(i, parse_command),
-            |i| parse_line(i, parse_multi_opcode),
-
-            parse_struct,
-            parse_label,
-        ))(input)?;
+        let (rest, matched) = alt((parse_single_line, parse_struct, parse_label))(input)?;
         nodes.add(matched);
         input = rest;
     }
 
-    let node = Node::block(nodes.into(), full_span);
-    Ok(node)
+    Ok(nodes.to_block())
 }

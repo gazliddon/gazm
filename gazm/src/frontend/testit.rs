@@ -11,7 +11,7 @@ pub fn test<P: AsRef<Path>>(file: P) {
     let sf = create_source_file(&text);
     let tokens = to_tokens_filter(&sf, not_comment);
     let span = make_tspan(&tokens, &sf);
-    let r = parse_span(span);
+    let _r = parse_span(span);
 
-    println!("{:#?}", r);
+    println!("Parsed!");
 }

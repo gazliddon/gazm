@@ -64,9 +64,10 @@ where
     E: ParseError<I>,
 {
     move |i| {
-        let (rest, matched) = p.parse(i.clone())?;
-        let (matched_pos, _) = i.split_at(rest.length())?;
-        Ok((rest, (matched_pos, matched)))
+        let (rest, matched) = p.parse(i)?;
+        let matched_len = i.length() - rest.length();
+        let matched_span = i.take(matched_len)?;
+        Ok((rest, (matched_span, matched)))
     }
 }
 
@@ -98,3 +99,44 @@ where
 {
     move |i| wrapped_cut(OpenSquareBracket, p, CloseSquareBracket)(i)
 }
+
+
+pub fn take_line(full_span: TSpan) -> (TSpan, TSpan) {
+    let f = || {
+        for i in 1..full_span.length() {
+            let (rest, matched) = full_span.split(i).expect("That's bad");
+            let mpos = &matched.first().unwrap().extra.pos;
+            let rpos = &rest.first().unwrap().extra.pos;
+            if mpos.line != rpos.line {
+                return (rest, matched);
+            }
+        }
+
+        full_span.split(full_span.length()).unwrap()
+    };
+
+    let (rest, matched) = match full_span.length() {
+        0 => (full_span, full_span),
+        1 => full_span.split(1).unwrap(),
+        _ => f(),
+    };
+
+    (rest, matched)
+}
+
+pub fn parse_line_parser<'a, P>(input: TSpan<'a>, mut p: P) -> PResult<Node>
+where
+    P: FnMut(TSpan<'a>) -> PResult<Node> + Copy,
+{
+    let (rest, line) = take_line(input);
+    let (_, matched) = p(line)?;
+    Ok((rest, matched))
+}
+
+pub fn parse_line<'a, P>(p: P) -> impl FnMut(TSpan<'a>) -> PResult<Node> + Copy
+where
+    P: FnMut(TSpan<'a>) -> PResult<Node> + Copy,
+{
+    move |i| parse_line_parser(i, p)
+}
+

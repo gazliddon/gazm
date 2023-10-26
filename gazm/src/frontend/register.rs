@@ -1,35 +1,41 @@
 #![deny(unused_imports)]
-use std::collections::HashSet;
 use emu6809::cpu::RegEnum;
-use unraveler::{match_item, sep_pair, tag, sep_list };
+use std::collections::HashSet;
+use unraveler::{match_item, sep_list, sep_pair, tag};
 
 use super::{
-    match_span as ms, IdentifierKind, PResult, TSpan, Token,
-    TokenKind::{*,self},
+    match_span as ms, parse_error, parse_failure, IdentifierKind,
     IdentifierKind::Register,
-    parse_failure,
-    parse_error,
+    PResult, TSpan, Token,
+    TokenKind::{self, *},
 };
 
 use crate::{
-    item::{Node,Item},
-    item6809::{AddrModeParseType, MC6809::RegisterSet,MC6809::Operand}, 
+    item::{Item, Node},
+    item6809::{AddrModeParseType, MC6809::Operand, MC6809::RegisterSet},
 };
 
 pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched )) = ms( get_reg_set )(input)?;
+    let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
     let item = Item::Cpu(RegisterSet(matched));
     let node = Node::from_item_tspan(item, sp);
-    Ok((rest,node))
+    Ok((rest, node))
+}
+
+pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
+    let (rest, (sp, matched)) = ms(parse_reg_set)(input)?;
+    let matched = Node::from_item_tspan(Operand(AddrModeParseType::RegisterSet).into(), sp)
+        .with_child(matched);
+    Ok((rest, matched))
 }
 
 fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
     let mut hash_ret = HashSet::new();
-    let (rest, (sp,matched)) = ms(sep_list(get_reg,Comma))(input)?;
+    let (rest, (sp, matched)) = ms(sep_list(get_reg, Comma))(input)?;
 
     for r in matched {
         if hash_ret.contains(&r) {
-            return Err(parse_error("Duplicate registers in register set", sp) );
+            return Err(parse_error("Duplicate registers in register set", sp));
         }
         hash_ret.insert(r);
     }
@@ -38,7 +44,7 @@ fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
 }
 
 pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
-    let (rest, (sp, matched )) = ms( get_reg )(input)?;
+    let (rest, (sp, matched)) = ms(get_reg)(input)?;
 
     if matched.is_valid_for_index() {
         Ok((rest, matched))
@@ -62,7 +68,7 @@ pub fn get_reg(input: TSpan) -> PResult<RegEnum> {
     if let Identifier(IdentifierKind::Register(r)) = matched.kind {
         Ok((rest, r))
     } else {
-        Err(parse_error("Not a reg?",sp))
+        Err(parse_error("Not a reg?", sp))
     }
 }
 
@@ -70,9 +76,6 @@ pub fn parse_opcode_reg_pair(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::RegisterPair;
     let (rest, (sp, (a, b))) = ms(sep_pair(get_reg, Comma, get_reg))(input)?;
 
-    let node = Node::from_item_tspan(
-        Operand(RegisterPair(a, b)).into(),
-        sp
-    );
+    let node = Node::from_item_tspan(Operand(RegisterPair(a, b)).into(), sp);
     Ok((rest, node))
 }

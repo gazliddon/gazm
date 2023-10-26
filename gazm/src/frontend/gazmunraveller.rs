@@ -21,9 +21,7 @@ pub struct OriginalSource<'a> {
 impl<'a> OriginalSource<'a> {
     pub fn get_pos(&self, input: TSpan) -> Position {
         use grl_sources::AsmSource::FileId;
-
         let (s, e) = get_start_end_token(input);
-
         let extra_start = &e.extra;
         let extra_end = &s.extra;
         let r = extra_start.as_range().start..extra_end.as_range().end;
@@ -55,7 +53,7 @@ pub fn get_start_end_token<'a>(input: TSpan<'a>) -> (Token<'a>, Token<'a>) {
     if input.is_empty() {
         let doc = input.get_document();
         assert!(!doc.is_empty());
-        let start = input.get_range().start;
+        let start = input.offset();
         let toke = doc.get(start).or_else(|| doc.last()).unwrap();
         (toke.clone(), toke.clone())
     } else {
