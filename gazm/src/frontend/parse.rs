@@ -92,7 +92,6 @@ impl<'a> NodeCollector<'a> {
                 self.add(i)
             }
         } else {
-            println!("Added: {:?} {:?}", n.item, n.ctx);
             self.nodes.push(n)
         }
     }

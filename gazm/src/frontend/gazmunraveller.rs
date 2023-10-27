@@ -1,5 +1,5 @@
 #![deny(unused_imports)]
-use grl_sources::{Position, SourceFile, TextEditTrait};
+use grl_sources::{Position, SourceFile};
 use unraveler::Collection;
 
 use super::{to_pos, Token, TokenKind};
@@ -20,14 +20,8 @@ pub struct OriginalSource<'a> {
 
 impl<'a> OriginalSource<'a> {
     pub fn get_pos(&self, input: TSpan) -> Position {
-        use grl_sources::AsmSource::FileId;
         let (s, e) = get_start_end_token(input);
-        let extra_start = &e.extra;
-        let extra_end = &s.extra;
-        let r = extra_start.as_range().start..extra_end.as_range().end;
-        let tp = &extra_start.pos;
-        let file = extra_start.source_file.file_id;
-        Position::new(tp.line(), tp.col(), r, FileId(file))
+        get_start_end_position(&s, &e)
     }
 
     pub fn get_str(&self, input: TSpan) -> &str {
@@ -39,14 +33,15 @@ impl<'a> OriginalSource<'a> {
 
 pub type TSpan<'a> = unraveler::Span<'a, Token<'a>, OriginalSource<'a>>;
 
-pub struct Gaz {
-    position: Position,
-}
+pub fn get_start_end_position(s: &Token, e: &Token) -> Position {
+    use grl_sources::AsmSource::FileId;
+    let extra_start = &s.extra;
+    let extra_end = &e.extra;
 
-impl AsRef<Position> for Gaz {
-    fn as_ref(&self) -> &Position {
-        &self.position
-    }
+    let r = extra_start.as_range().start..extra_end.as_range().end;
+    let tp = &extra_start.pos;
+    let file = extra_start.source_file.file_id;
+    Position::new(tp.line(), tp.col(), r, FileId(file))
 }
 
 pub fn get_start_end_token<'a>(input: TSpan<'a>) -> (Token<'a>, Token<'a>) {
@@ -63,16 +58,6 @@ pub fn get_start_end_token<'a>(input: TSpan<'a>) -> (Token<'a>, Token<'a>) {
     }
 }
 
-impl<'a> From<TSpan<'a>> for Gaz {
-    fn from(_value: TSpan<'a>) -> Self {
-        let te = _value.extra().source_file.as_text_edit();
-        assert!(!te.is_empty());
-        let (start, end) = get_start_end_token(_value);
-        let _end = end.extra.as_range();
-        let _start = start.extra.as_range();
-        todo!()
-    }
-}
 pub fn make_tspan<'a>(tokens: &'a [Token], sf: &'a grl_sources::SourceFile) -> TSpan<'a> {
     let span = TSpan::from_slice(&tokens, OriginalSource { source_file: sf });
     span

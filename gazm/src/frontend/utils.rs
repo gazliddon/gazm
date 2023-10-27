@@ -37,7 +37,8 @@ impl BaseNode<Item, Position> {
 }
 
 pub fn to_pos(input: TSpan) -> Position {
-    input.extra().get_pos(input)
+    let r = input.extra().get_pos(input);
+    r
 }
 
 pub fn get_text(sp: TSpan) -> String {

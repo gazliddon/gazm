@@ -43,7 +43,6 @@ mod test {
     use crate::item::LabelDefinition::Text;
     use unraveler::Collection;
 
-
     #[test]
     fn test_struct() {
         use Item::*;
