@@ -190,12 +190,11 @@ pub enum AddrModeParseType {
     RegisterPair(RegEnum, RegEnum),
 }
 
-impl Into<Item> for AddrModeParseType {
-    fn into(self) -> Item {
-        Item::Cpu(MC6809::Operand(self))
+impl From<AddrModeParseType> for Item {
+    fn from(value: AddrModeParseType) -> Self {
+        Item::Cpu(MC6809::Operand(value))
     }
 }
-
 
 impl AddrModeParseType {
     pub fn has_operand(&self) -> bool {

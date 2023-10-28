@@ -1,9 +1,9 @@
 #![deny(unused_imports)]
 
-use unraveler::{alt, many0, pair, sep_list0, wrapped_cut, sep_list};
+use unraveler::{alt, many0, pair, sep_list0, wrapped_cut, sep_list, match_span as ms};
 
 use super::{
-    concat, match_span as ms, parse_label, parse_number, PResult, TSpan,
+    concat, parse_label, parse_number, PResult, TSpan,
     TokenKind::{self, *},
 };
 

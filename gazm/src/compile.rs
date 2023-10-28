@@ -166,7 +166,7 @@ impl<'a> Compiler<'a> {
         id: AstNodeId,
         i: ItemType,
     ) {
-        let pos = self.get_node(id).value().pos.clone();
+        let pos = self.get_node(id).value().pos;
         ctx.ctx
             .asm_out
             .source_map

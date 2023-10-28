@@ -15,7 +15,7 @@ use super::{
 
 use unraveler::{alt, many0, opt, pair, preceded, sep_pair, tuple, Parser};
 
-use super::match_span as ms;
+use unraveler::match_span as ms;
 
 fn get_quoted_string(input: TSpan) -> PResult<String> {
     let (rest, matched) = TokenKind::QuotedString.parse(input)?;

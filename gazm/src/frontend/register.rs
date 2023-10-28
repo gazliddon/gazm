@@ -1,10 +1,10 @@
 #![deny(unused_imports)]
 use emu6809::cpu::RegEnum;
 use std::collections::HashSet;
-use unraveler::{match_item, sep_list, sep_pair, tag};
+use unraveler::{match_item, match_span as ms, sep_list, sep_pair, tag};
 
 use super::{
-    match_span as ms, parse_error, parse_failure, IdentifierKind,
+    parse_error, parse_failure, IdentifierKind,
     IdentifierKind::Register,
     PResult, TSpan, Token,
     TokenKind::{self, *},

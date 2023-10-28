@@ -31,7 +31,7 @@ impl ItemWithPos {
     pub fn new(n: &Node) -> Self {
         Self {
             item: n.item.clone(),
-            pos: n.ctx.clone(),
+            pos: n.ctx,
         }
     }
 }
@@ -430,7 +430,7 @@ impl<'a> AstCtx<'a> {
                             macro_caller_scope_id,
                             params,
                             macro_call_node.id(),
-                            val.pos.clone(),
+                            val.pos,
                         ))
                     }
                     _ => (),

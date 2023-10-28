@@ -1,0 +1,10 @@
+struct my_struct {
+    test rmb 10: spanner rmb 20
+}
+
+    org 0
+
+    lda #10
+    sta 0
+
+

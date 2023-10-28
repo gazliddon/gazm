@@ -1,8 +1,8 @@
 #![deny(unused_imports)]
-use unraveler::{alt, match_item, preceded, sep_list, tag, wrapped_cut, Parser};
+use unraveler::{alt, match_item, preceded, sep_list, tag, wrapped_cut, Parser, match_span as ms};
 
 use super::{
-    get_text, match_span as ms, CommandKind, FrontEndError, IdentifierKind,
+    get_text, CommandKind, FrontEndError, IdentifierKind,
     NumberKind, PResult, TSpan, Token,
     TokenKind::{self, *},
 };

@@ -13,5 +13,7 @@ pub fn test<P: AsRef<Path>>(file: P) {
     let span = make_tspan(&tokens, &sf);
     let _r = parse_span(span);
 
+    println!("{:#?}", _r);
+
     println!("Parsed!");
 }

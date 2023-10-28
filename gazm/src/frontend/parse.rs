@@ -1,8 +1,9 @@
 #![deny(unused_imports)]
 use std::path::PathBuf;
 
+
 use super::{
-    make_tspan, match_span as ms, parse_command, parse_expr, parse_label, 
+    make_tspan, parse_command, parse_expr, parse_label, 
     parse_line,
     parse_multi_opcode, parse_struct, FrontEndError, PResult, TSpan, Token,
     TokenKind,
@@ -16,6 +17,7 @@ use crate::{
 
 use grl_sources::SourceFile;
 
+use unraveler::match_span as ms;
 use unraveler::alt;
 
 #[derive(Debug, Clone)]
@@ -57,7 +59,7 @@ impl TryInto<Parsed> for ParseTask {
     fn try_into(self) -> Result<Parsed, Self::Error> {
         let tokens = self.tokenize();
         let spam = make_tspan(&tokens, &self.source_file);
-        let node = parse_span(spam)?;
+        let (_,node) = parse_span(spam)?;
 
         Ok(Parsed {
             node,
@@ -98,10 +100,10 @@ impl<'a> NodeCollector<'a> {
 
     pub fn add_vec(&mut self, nodes: Vec<Node>) {
         self.nodes.reserve(nodes.len());
-        self.nodes.extend(nodes.into_iter())
+        self.nodes.extend(nodes)
     }
 
-    pub fn to_block(self) -> Node {
+    pub fn into_block(self) -> Node {
         Node::block(self.nodes, self.span)
     }
 }
@@ -133,16 +135,16 @@ pub fn parse_single_line(input: TSpan) -> PResult<Node> {
     )))(input)
 }
 
-pub fn parse_span(full_span: TSpan) -> Result<Node, FrontEndError> {
+pub fn parse_span(full_span: TSpan) -> PResult<Node> {
     let mut input = full_span;
 
     let mut nodes = NodeCollector::new(full_span);
 
     while !input.is_empty() {
-        let (rest, matched) = alt((parse_single_line, parse_struct, parse_label))(input)?;
+        let (rest, matched) = alt((parse_struct,parse_single_line, parse_label))(input)?;
         nodes.add(matched);
         input = rest;
     }
 
-    Ok(nodes.to_block())
+    Ok((input, nodes.into_block() ))
 }

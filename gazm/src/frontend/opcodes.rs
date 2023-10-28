@@ -1,9 +1,9 @@
 // #![deny(unused_imports)]
 
 use unraveler::{alt, preceded, sep_list};
-
+use unraveler::match_span as ms;
 use super::{
-    get_text, match_span as ms, parse_expr, parse_indexed, parse_opcode_reg_pair, parse_reg_set,
+    get_text,  parse_expr, parse_indexed, parse_opcode_reg_pair, parse_reg_set,
     IdentifierKind, PResult, TSpan, TokenKind,
 };
 

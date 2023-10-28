@@ -140,7 +140,7 @@ impl Context {
         let res: GResult<Vec<(Position, PathBuf)>> = paths
             .iter()
             .unique()
-            .map(|(pos, path)| Ok((pos.clone(), self.get_full_path(path)?)))
+            .map(|(pos, path)| Ok((*pos, self.get_full_path(path)?)))
             .collect();
         res
     }

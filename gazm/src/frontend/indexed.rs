@@ -1,8 +1,9 @@
 use grl_sources::Position;
 use unraveler::{alt, preceded, sep_pair, succeeded, tag, tuple, wrapped_cut};
+use unraveler::match_span as ms;
 
 use super::{
-    get_index_reg, get_reg, get_text, match_span as ms, parse_expr, parse_failure,
+    get_index_reg, get_reg, get_text, parse_expr, parse_failure,
     parse_opcode_reg_pair, parse_reg_set, parse_sq_bracketed, IdentifierKind, PResult,
     TSpan, TokenKind,
     TokenKind::{Comma, Identifier, Minus, Plus},

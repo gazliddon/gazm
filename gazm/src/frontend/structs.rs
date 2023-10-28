@@ -3,51 +3,59 @@ use super::*;
 
 use crate::item::{Item, Node};
 
-use super::match_span as ms;
 
-use unraveler::{
-    alt,  opt, pair, preceded, sep_list, 
-    succeeded, 
-};
+use unraveler::match_span as ms;
+use unraveler::{alt,many0,  pair, preceded, sep_list0};
+use TokenKind::{Identifier, Colon };
+use super::parse_line;
 
-pub fn struct_entry(input: TSpan) -> PResult<(Node, Node)> {
-    pair(parse_non_scoped_label, alt((parse_rmb, parse_rmd)))(input)
+pub fn struct_entry(input: TSpan) -> PResult<[Node;2]> { 
+    let (rest,(a,b)) = pair(parse_non_scoped_label, alt((parse_rmb, parse_rmd)))(input)?;
+    Ok((rest,[a,b]))
+}
+
+pub fn struct_entries(input: TSpan) -> PResult<Vec<[Node;2]>> {
+    let (rest,matched) = many0(parse_line(sep_list0(struct_entry, Colon)))(input)?;
+    let matched = matched.into_iter().flatten().collect();
+    Ok((rest,matched))
+
 }
 
 pub fn parse_struct(input: TSpan) -> PResult<Node> {
-    use {
-        IdentifierKind::Label,
-        TokenKind::{Comma, Identifier},
-    };
+    use IdentifierKind::Label;
+    use CommandKind::Struct;
 
-    let body = succeeded(sep_list(struct_entry, Comma), opt(Comma));
-
-    let parsed = ms(pair(
-        preceded(CommandKind::Struct, Identifier(Label)),
-        parse_block(body),
-    ))(input);
-
-    let (rest, (sp, (label, list))) = parsed?;
+    let (rest, (sp, (label, list)))  = ms(pair(
+        preceded(Struct, Identifier(Label)),
+        parse_block(struct_entries),
+    ))(input)?;
 
     let text = get_text(label);
-    let list: Vec<_> = list.into_iter().map(|(a, b)| [a, b]).flatten().collect();
+
+    let list: Vec<_> = list
+        .into_iter()
+        .flatten()
+        .collect();
     let node = Node::from_item_kids_tspan(Item::StructDef(text), &list, sp);
     Ok((rest, node))
 }
 
 #[cfg(test)]
+#[allow(unused_imports)]
 mod test {
     use super::*;
+    use crate::item::LabelDefinition::Text;
     use pretty_assertions::assert_eq;
     use thin_vec::thin_vec;
-    use crate::item::LabelDefinition::Text;
     use unraveler::Collection;
 
     #[test]
     fn test_struct() {
         use Item::*;
 
-        let text = "struct my_struct { test rmb 10, spanner rmb 20 }";
+        let text = r#"
+        struct my_struct { test rmb 10 : spanner rmb 20 }"#;
+
         let sf = create_source_file(text);
         let tokens = to_tokens(&sf);
 
@@ -57,6 +65,9 @@ mod test {
         let span = make_tspan(&tokens, &sf);
 
         let (rest, matched) = parse_struct(span).unwrap();
+
+        let sub_kinds : Vec<_> = matched.children.iter().map(|t| &t.item).collect();
+        println!("Kids: {:?}",sub_kinds);
 
         let items = get_items(&matched);
         let desired = (
@@ -69,8 +80,10 @@ mod test {
             ],
         );
 
+
         assert_eq!(items, desired);
-        assert!(rest.is_empty())
+        assert!(rest.is_empty());
+            panic!()
     }
 }
 

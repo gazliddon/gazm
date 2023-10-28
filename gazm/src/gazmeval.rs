@@ -41,7 +41,7 @@ impl EvalError {
     pub fn new(source: EvalErrorEnum, node: AstNodeRef) -> Self {
         Self {
             node: node.id(),
-            pos: node.value().pos.clone(),
+            pos: node.value().pos,
             source,
         }
     }

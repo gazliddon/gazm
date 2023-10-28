@@ -29,17 +29,16 @@ impl LabelUsageAndDefintions {
 
         for n in iter_refs_recursive(tree.as_ref().root()) {
             let v = n.value();
-            let pos = v.pos.clone();
 
             match &v.item {
                 Label(LabelDefinition::Scoped(id)) | LocalLabel(LabelDefinition::Scoped(id)) => {
-                    reference_pos_and_id.push((pos, *id))
+                    reference_pos_and_id.push((v.pos, *id))
                 }
 
                 LocalAssignment(LabelDefinition::Scoped(id))
                 | Assignment(LabelDefinition::Scoped(id))
                 | AssignmentFromPc(LabelDefinition::Scoped(id)) => {
-                    symbol_id_to_definition.insert(*id, pos);
+                    symbol_id_to_definition.insert(*id, v.pos);
                 }
 
                 _ => (),
@@ -50,7 +49,7 @@ impl LabelUsageAndDefintions {
         // sorted by length, smallest first
         // smallest will be the enclosing span
         let pos_node_id = iter_refs_recursive(tree.as_ref().root())
-            .map(|n| (n.value().pos.clone(), n.id()))
+            .map(|n| (n.value().pos, n.id()))
             .sorted_by(|(a,_),(b,_)| {
                 Ord::cmp(&a.range().len(),&b.range().len())
             })

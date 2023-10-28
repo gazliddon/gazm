@@ -85,7 +85,7 @@ impl ParseError {
     pub fn new_from_pos(message: &str, pos: &Position, failure: bool) -> Self {
         Self {
             message: Some(message.to_owned()),
-            pos: pos.clone(),
+            pos: *pos,
             failure,
         }
     }
@@ -140,7 +140,7 @@ impl AstError {
     where
         S: Into<String>,
     {
-        Self::from_node_id(msg, n.id(), n.value().pos.clone())
+        Self::from_node_id(msg, n.id(), n.value().pos)
     }
 
     pub fn from_node_id<S>(msg: S, id: AstNodeId, pos: Position) -> Self
@@ -209,7 +209,7 @@ impl UserErrorData {
     {
         Self {
             message: msg.into(),
-            pos: info.pos.clone(),
+            pos: info.pos,
             fragment: info.fragment.to_string(),
             line: info.line_str.to_string(),
             file: info.source_file.file.clone(),
@@ -222,7 +222,7 @@ impl UserErrorData {
 
         Self {
             message: err.message(),
-            pos: err.pos.clone(),
+            pos: err.pos,
             fragment: si.fragment.to_string(),
             line: si.line_str.to_string(),
             file: si.file,

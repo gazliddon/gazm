@@ -72,7 +72,7 @@ fn parse_label_not_macro(input: Span) -> IResult<Node> {
 
 fn mk_pc_equate(node: &Node) -> Node {
     use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
-    let pos = node.ctx.clone();
+    let pos = node.ctx;
 
     match &node.item {
         Label(label_def) => Node::new(AssignmentFromPc(label_def.clone()), pos),
@@ -132,14 +132,14 @@ impl Tokens {
     // Add a node with no doc
     fn add_node(&mut self, node: Node) {
         if let Item::Include(name) = &node.item {
-            self.add_include_with_pos(node.ctx.clone(), name.clone())
+            self.add_include_with_pos(node.ctx, name.clone())
         }
         self.tokens.push(node);
     }
 
     fn add_node_with_doc(&mut self, mut node: Node) {
         if let Some(doc) = self.docs.flush_docs() {
-            let doc_node = Node::new(Item::Doc(doc), node.ctx.clone());
+            let doc_node = Node::new(Item::Doc(doc), node.ctx);
             node.add_child(doc_node);
         }
 

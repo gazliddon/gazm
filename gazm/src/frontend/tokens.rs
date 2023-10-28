@@ -47,9 +47,9 @@ pub enum CommandKind {
     Equ,
 }
 
-impl Into<TokenKind> for CommandKind {
-    fn into(self) -> TokenKind {
-        TokenKind::Identifier(IdentifierKind::Command(self))
+impl From<CommandKind> for TokenKind {
+    fn from(value: CommandKind) -> Self {
+        TokenKind::Identifier(IdentifierKind::Command(value))
     }
 }
 
@@ -67,9 +67,9 @@ impl From<RegEnum> for TokenKind {
     }
 }
 
-impl Into<TokenKind> for IdentifierKind {
-    fn into(self) -> TokenKind {
-        TokenKind::Identifier(self)
+impl From<IdentifierKind> for TokenKind {
+    fn from(value: IdentifierKind) -> Self {
+        TokenKind::Identifier(value)
     }
 }
 
@@ -91,13 +91,8 @@ trait CpuLexer {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+#[derive(Default)]
 struct Cpu6809Lexer {}
-
-impl Default for Cpu6809Lexer {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl Cpu6809Lexer {
     pub fn new() -> Self {
@@ -301,8 +296,7 @@ impl TokenKind {
 pub type Token<'a> = BaseToken<ParseText<'a>>;
 
 pub fn tokenize_6809<'a>(token: &Token<'a>) -> Token<'a> {
-    let ret = token.clone();
-    ret
+    *token
 }
 
 pub fn to_tokens_kinds(

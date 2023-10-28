@@ -4,14 +4,8 @@ use unraveler::Collection;
 
 use super::{to_pos, Token, TokenKind};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Default,Clone, Copy, PartialEq)]
 pub struct ParseState {}
-
-impl Default for ParseState {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 #[derive(Copy, Clone, Debug)]
 pub struct OriginalSource<'a> {
@@ -44,22 +38,22 @@ pub fn get_start_end_position(s: &Token, e: &Token) -> Position {
     Position::new(tp.line(), tp.col(), r, FileId(file))
 }
 
-pub fn get_start_end_token<'a>(input: TSpan<'a>) -> (Token<'a>, Token<'a>) {
+pub fn get_start_end_token(input: TSpan) -> (Token, Token) {
     if input.is_empty() {
         let doc = input.get_document();
         assert!(!doc.is_empty());
         let start = input.offset();
         let toke = doc.get(start).or_else(|| doc.last()).unwrap();
-        (toke.clone(), toke.clone())
+        (*toke, *toke)
     } else {
-        let first = input.first().unwrap().clone();
-        let last = input.last().unwrap().clone();
-        (first, last)
+        let first = input.first().unwrap();
+        let last = input.last().unwrap();
+        (*first, *last)
     }
 }
 
 pub fn make_tspan<'a>(tokens: &'a [Token], sf: &'a grl_sources::SourceFile) -> TSpan<'a> {
-    let span = TSpan::from_slice(&tokens, OriginalSource { source_file: sf });
+    let span = TSpan::from_slice(tokens, OriginalSource { source_file: sf });
     span
 }
 

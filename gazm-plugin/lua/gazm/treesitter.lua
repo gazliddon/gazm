@@ -1,4 +1,5 @@
 local M = {}
+
 local paths = require("gazm.paths")
 
 function M.add_treesitter(opts)

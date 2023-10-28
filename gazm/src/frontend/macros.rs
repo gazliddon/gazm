@@ -6,8 +6,9 @@ use crate::item::{
 
 use unraveler::{pair, preceded, sep_list0, tuple, Parser};
 
+use unraveler::match_span as ms;
 use super::{
-    get_text, match_span as ms, parse_block, parse_bracketed, parse_expr_list0, CommandKind,
+    get_text,  parse_block, parse_bracketed, parse_expr_list0, CommandKind,
     FrontEndError,
     IdentifierKind::Label,
     PResult, TSpan,
@@ -38,9 +39,8 @@ pub fn parse_macro_def<'a, E, P: Parser<TSpan<'a>, Node, FrontEndError>>(
     ))(input)?;
 
     let v: thin_vec::ThinVec<_> = args
-        .as_slice()
         .into_iter()
-        .map(|sp| get_text(*sp).to_owned())
+        .map(|sp| get_text(sp).to_owned())
         .collect();
 
     let node = Node::from_item_kid_tspan(MacroDef(get_text(label), v), body, sp);
