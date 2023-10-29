@@ -1,13 +1,13 @@
 #![deny(unused_imports)]
 use crate::{
     item::{Item, Node, ParsedFrom},
-    node::BaseNode,
+    node::BaseNode, 
 };
 
 use super::{FrontEndError, PResult, TSpan, TokenKind::*};
 use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
-use unraveler::{wrapped_cut, Collection, Parser, };
+use unraveler::{wrapped_cut, Collection, Parser, match_span as ms};
 
 impl BaseNode<Item, Position> {
     pub fn block(items: ThinVec<Self>, sp: TSpan) -> Self {
@@ -103,13 +103,17 @@ pub fn take_line(full_span: TSpan) -> TSpan {
     }
 }
 
-pub fn parse_line<'a, P, O>(mut p: P) -> impl FnMut(TSpan<'a>) -> PResult<O> + Copy
+pub fn parse_line<'a, P, O>(p: P) -> impl FnMut(TSpan<'a>) -> PResult<O> + Copy
 where
     P: FnMut(TSpan<'a>) -> PResult<O> + Copy,
 {
     move |i| {
+        // grab 1 lines worth
         let line = take_line(i);
-        let (rest, matched) = p.parse(line)?;
-        Ok((rest, matched))
+        // parse that line and capture what was parsed
+        let (_, (sp, matched)) = ms(p)(line)?;
+        // drop however many we parsed
+        let new_span = i.drop(sp.length()).unwrap();
+        Ok((new_span, matched))
     }
 }

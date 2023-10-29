@@ -5,9 +5,9 @@ use crate::item::{Item, Node};
 
 
 use unraveler::match_span as ms;
-use unraveler::{alt,many0,  pair, preceded, sep_list,};
+use unraveler::{alt,many0,  pair, preceded, sep_list};
 use TokenKind::{Identifier, Colon };
-use super::parse_line;
+// use super::parse_line;
 
 pub fn struct_entry(input: TSpan) -> PResult<[Node;2]> { 
     let (rest,(a,b)) = pair(parse_non_scoped_label, alt((parse_rmb, parse_rmd)))(input)?;
@@ -15,19 +15,17 @@ pub fn struct_entry(input: TSpan) -> PResult<[Node;2]> {
 }
 
 pub fn struct_entries(input: TSpan) -> PResult<Vec<[Node;2]>> {
-    let (rest,matched) = many0(parse_line(sep_list(struct_entry, Colon)))(input)?;
+    let (rest,matched) = many0(sep_list(struct_entry, Colon))(input)?;
     let matched = matched.into_iter().flatten().collect();
     Ok((rest,matched))
-
 }
 
 pub fn parse_struct(input: TSpan) -> PResult<Node> {
     use IdentifierKind::Label;
     use CommandKind::Struct;
 
-    let (rest, (sp, (label, list)))  = ms(pair(
-        preceded(Struct, Identifier(Label)),
-        parse_block(struct_entries),
+    let (rest, (sp, (label, list)))  = ms(
+        pair( preceded(Struct, Identifier(Label)), parse_block(struct_entries),
     ))(input)?;
 
     let text = get_text(label);
@@ -54,7 +52,8 @@ mod test {
         use Item::*;
 
         let text = r#"
-        struct my_struct { test rmb 10 : spanner rmb 20 
+        struct my_struct 
+        { test rmb 10 : spanner rmb 20 
         }"#;
 
         let sf = create_source_file(text);
