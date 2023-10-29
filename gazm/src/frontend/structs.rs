@@ -5,7 +5,7 @@ use crate::item::{Item, Node};
 
 
 use unraveler::match_span as ms;
-use unraveler::{alt,many0,  pair, preceded, sep_list0};
+use unraveler::{alt,many0,  pair, preceded, sep_list,};
 use TokenKind::{Identifier, Colon };
 use super::parse_line;
 
@@ -15,7 +15,7 @@ pub fn struct_entry(input: TSpan) -> PResult<[Node;2]> {
 }
 
 pub fn struct_entries(input: TSpan) -> PResult<Vec<[Node;2]>> {
-    let (rest,matched) = many0(parse_line(sep_list0(struct_entry, Colon)))(input)?;
+    let (rest,matched) = many0(parse_line(sep_list(struct_entry, Colon)))(input)?;
     let matched = matched.into_iter().flatten().collect();
     Ok((rest,matched))
 
@@ -54,7 +54,8 @@ mod test {
         use Item::*;
 
         let text = r#"
-        struct my_struct { test rmb 10 : spanner rmb 20 }"#;
+        struct my_struct { test rmb 10 : spanner rmb 20 
+        }"#;
 
         let sf = create_source_file(text);
         let tokens = to_tokens(&sf);
@@ -83,7 +84,6 @@ mod test {
 
         assert_eq!(items, desired);
         assert!(rest.is_empty());
-            panic!()
     }
 }
 
