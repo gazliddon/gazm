@@ -93,7 +93,6 @@ impl<'a> AsmCtx<'a> {
         let path = self.get_abs_path(path);
         // Save a record of the file Written
         // this goes into the written sym file eventually
-
         let bin_to_write = BinToWrite::new(data, &path, range);
         self.ctx.asm_out.bin_to_write_chunks.push(bin_to_write);
 

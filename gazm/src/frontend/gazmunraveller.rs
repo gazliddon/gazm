@@ -10,6 +10,7 @@ pub struct ParseState {}
 #[derive(Copy, Clone, Debug)]
 pub struct OriginalSource<'a> {
     pub source_file: &'a SourceFile,
+    pub is_parsing_macro_def : bool,
 }
 
 impl<'a> OriginalSource<'a> {
@@ -22,6 +23,10 @@ impl<'a> OriginalSource<'a> {
         let x = to_pos(input);
         let y = self.source_file.get_span(&x);
         y
+    }
+
+    pub fn set_macro(&mut self, v : bool) {
+        self.is_parsing_macro_def = v
     }
 }
 
@@ -53,7 +58,7 @@ pub fn get_start_end_token(input: TSpan) -> (Token, Token) {
 }
 
 pub fn make_tspan<'a>(tokens: &'a [Token], sf: &'a grl_sources::SourceFile) -> TSpan<'a> {
-    let span = TSpan::from_slice(tokens, OriginalSource { source_file: sf });
+    let span = TSpan::from_slice(tokens, OriginalSource { source_file: sf, is_parsing_macro_def : false });
     span
 }
 

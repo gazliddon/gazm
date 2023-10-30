@@ -1,20 +1,23 @@
 #![deny(unused_imports)]
 
-use std::path::PathBuf;
-use unraveler::{alt, match_span as ms, sep_pair, tag, Collection};
 use grl_sources::SourceFile;
+use std::path::PathBuf;
+use unraveler::{alt, Collection};
 
 use super::{
-    make_tspan, parse_command, parse_expr, parse_label, parse_line, parse_macro_call,
-    parse_macro_def, parse_multi_opcode, parse_struct, FrontEndError, PResult, TSpan, Token,
-    TokenKind,
+    make_tspan, parse_command,  parse_label, parse_line, parse_macro_call,
+    parse_struct, FrontEndError, 
+    PResult, TSpan, Token, 
+    parse_macro_def,
+    parse_multi_opcode,
+    parse_equate,
+
 };
 
 use crate::{
-    item::{Item, LabelDefinition, Node},
+    item::{Item,  Node},
     opts::Opts,
 };
-
 
 #[derive(Debug, Clone)]
 pub struct ParseTask {
@@ -102,23 +105,6 @@ impl<'a> NodeCollector<'a> {
     }
 }
 
-fn get_label_definition(item: &Item) -> Option<LabelDefinition> {
-    match item {
-        Item::Label(l) | Item::LocalLabel(l) => Some(l.clone()),
-        _ => None,
-    }
-}
-
-fn parse_equate(input: TSpan) -> PResult<Node> {
-    use super::CommandKind::Equ;
-    use Item::Assignment;
-    let command: TokenKind = Equ.into();
-    let (rest, (sp, (label, expr))) = ms(sep_pair(parse_label, tag(command), parse_expr))(input)?;
-    let lab_def = get_label_definition(&label.item).expect("This should be a label kind!");
-    let node = Node::from_item_kid_tspan(Assignment(lab_def), expr, sp);
-    Ok((rest, node))
-}
-
 pub fn parse_single_line(input: TSpan) -> PResult<Node> {
     parse_line(alt((
         parse_macro_call,
@@ -128,12 +114,9 @@ pub fn parse_single_line(input: TSpan) -> PResult<Node> {
     )))(input)
 }
 
-pub fn parse_span(full_span: TSpan) -> PResult<Node> {
+pub fn parse_span<'a>(full_span: TSpan<'a>) -> PResult<'a, Node> {
     let mut input = full_span;
-
     let mut nodes = NodeCollector::new(full_span);
-
-    let parse_macro_def = |i| parse_macro_def(i, parse_span);
 
     while !input.is_empty() {
         let (rest, matched) = alt((

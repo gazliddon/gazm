@@ -1,9 +1,9 @@
 #![deny(unused_imports)]
-use unraveler::{alt, match_item, preceded, sep_list, tag, wrapped_cut, Parser, match_span as ms};
+use unraveler::{alt, match_item, match_span as ms, preceded, sep_list, tag, wrapped_cut, Parser,sep_pair};
 
 use super::{
-    get_text, CommandKind, FrontEndError, IdentifierKind,
-    NumberKind, PResult, TSpan, Token,
+    get_text, parse_expr, CommandKind, FrontEndError, IdentifierKind, NumberKind, PResult, TSpan,
+    Token,
     TokenKind::{self, *},
 };
 
@@ -39,8 +39,6 @@ pub(crate) fn get_label<F: Fn(String) -> LabelDefinition>(
 fn parse_local_label(input: TSpan) -> PResult<Node> {
     use {IdentifierKind::*, Item::LocalLabel, LabelDefinition::Text};
     let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), Identifier(Label)))(input)?;
-
-
 
     let label_def = Text(get_text(matched));
     let node = Node::from_item_tspan(LocalLabel(label_def), sp);
@@ -84,7 +82,7 @@ pub fn parse_big_import(input: TSpan) -> PResult<Node> {
         Import,
         wrapped_cut(OpenBrace, sep_list(parse_scoped_label, Comma), CloseBrace),
     ))(input)?;
-    let node = Node::from_item_kids_tspan(Item::Import, &matched,span);
+    let node = Node::from_item_kids_tspan(Item::Import, &matched, span);
     Ok((rest, node))
 }
 
@@ -97,4 +95,21 @@ impl From<NumberKind> for ParsedFrom {
             NumberKind::Bin => ParsedFrom::Bin,
         }
     }
+}
+
+fn get_label_definition(item: &Item) -> Option<LabelDefinition> {
+    match item {
+        Item::Label(l) | Item::LocalLabel(l) => Some(l.clone()),
+        _ => None,
+    }
+}
+
+pub fn parse_equate(input: TSpan) -> PResult<Node> {
+    use super::CommandKind::Equ;
+    use Item::Assignment;
+    let command: TokenKind = Equ.into();
+    let (rest, (sp, (label, expr))) = ms(sep_pair(parse_label, tag(command), parse_expr))(input)?;
+    let lab_def = get_label_definition(&label.item).expect("This should be a label kind!");
+    let node = Node::from_item_kid_tspan(Assignment(lab_def), expr, sp);
+    Ok((rest, node))
 }
