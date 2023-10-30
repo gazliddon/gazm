@@ -25,7 +25,7 @@ pub fn parse_macro_call(input: TSpan) -> PResult<Node> {
     Ok((rest, node))
 }
 
-pub fn parse_macro_def<'a, E, P: Parser<TSpan<'a>, Node, FrontEndError>>(
+pub fn parse_macro_def<'a, P: Parser<TSpan<'a>, Node, FrontEndError>>(
     input: TSpan<'a>,
     p: P,
 ) -> PResult<Node> {

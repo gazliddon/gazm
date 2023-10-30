@@ -1,24 +1,20 @@
 #![deny(unused_imports)]
-use std::path::PathBuf;
 
+use std::path::PathBuf;
+use unraveler::{alt, match_span as ms, sep_pair, tag, Collection};
+use grl_sources::SourceFile;
 
 use super::{
-    make_tspan, parse_command, parse_expr, parse_label, 
-    parse_line,
-    parse_multi_opcode, parse_struct, FrontEndError, PResult, TSpan, Token,
+    make_tspan, parse_command, parse_expr, parse_label, parse_line, parse_macro_call,
+    parse_macro_def, parse_multi_opcode, parse_struct, FrontEndError, PResult, TSpan, Token,
     TokenKind,
 };
 
 use crate::{
-    frontend::parse_macro_call,
     item::{Item, LabelDefinition, Node},
     opts::Opts,
 };
 
-use grl_sources::SourceFile;
-
-use unraveler::match_span as ms;
-use unraveler::alt;
 
 #[derive(Debug, Clone)]
 pub struct ParseTask {
@@ -32,8 +28,6 @@ pub struct Parsed {
     pub includes: Vec<PathBuf>,
     pub request: ParseTask,
 }
-
-use unraveler::{sep_pair, tag, Collection};
 
 impl ParseTask {
     pub fn from_text(opts: &Opts, text: &str) -> Self {
@@ -59,7 +53,7 @@ impl TryInto<Parsed> for ParseTask {
     fn try_into(self) -> Result<Parsed, Self::Error> {
         let tokens = self.tokenize();
         let spam = make_tspan(&tokens, &self.source_file);
-        let (_,node) = parse_span(spam)?;
+        let (_, node) = parse_span(spam)?;
 
         Ok(Parsed {
             node,
@@ -108,7 +102,6 @@ impl<'a> NodeCollector<'a> {
     }
 }
 
-
 fn get_label_definition(item: &Item) -> Option<LabelDefinition> {
     match item {
         Item::Label(l) | Item::LocalLabel(l) => Some(l.clone()),
@@ -140,11 +133,18 @@ pub fn parse_span(full_span: TSpan) -> PResult<Node> {
 
     let mut nodes = NodeCollector::new(full_span);
 
+    let parse_macro_def = |i| parse_macro_def(i, parse_span);
+
     while !input.is_empty() {
-        let (rest, matched) = alt((parse_struct,parse_single_line, parse_label))(input)?;
+        let (rest, matched) = alt((
+            parse_macro_def,
+            parse_struct,
+            parse_single_line,
+            parse_label,
+        ))(input)?;
         nodes.add(matched);
         input = rest;
     }
 
-    Ok((input, nodes.into_block() ))
+    Ok((input, nodes.into_block()))
 }
