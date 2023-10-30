@@ -1,13 +1,15 @@
 use crate::{
     ast::{Ast, AstNodeId},
+    binary::{BinWriter, Binary},
     ctx::Context,
     error::GResult,
+    fixerupper::FixerUpper,
     gazmsymbols::{SymbolError, SymbolScopeId},
     item::Item,
-    {binary, fixerupper::FixerUpper},
 };
 
 use grl_sources::{self, fileloader::FileIo, grl_utils::fileutils, BinToWrite, Position};
+
 use std::path::{Path, PathBuf};
 
 pub struct AsmCtx<'a> {
@@ -17,13 +19,13 @@ pub struct AsmCtx<'a> {
 
 struct BinNodeWriter<'a> {
     id: AstNodeId,
-    bin: &'a mut binary::Binary,
+    bin: &'a mut Binary,
 }
 
 impl<'a> BinNodeWriter<'a> {}
 
-impl<'a> AsMut<binary::Binary> for BinNodeWriter<'a> {
-    fn as_mut(&mut self) -> &mut binary::Binary {
+impl<'a> AsMut<Binary> for BinNodeWriter<'a> {
+    fn as_mut(&mut self) -> &mut Binary {
         self.bin
     }
 }
@@ -33,11 +35,11 @@ impl<'a> AsmCtx<'a> {
         self.ctx.asm_out.exec_addr = Some(addr);
     }
 
-    pub fn binary(&self) -> &binary::Binary {
+    pub fn binary(&self) -> &Binary {
         &self.ctx.asm_out.binary
     }
 
-    pub fn binary_mut(&mut self) -> &mut binary::Binary {
+    pub fn binary_mut(&mut self) -> &mut Binary {
         &mut self.ctx.asm_out.binary
     }
 

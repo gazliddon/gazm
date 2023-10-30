@@ -95,7 +95,7 @@ pub fn take_line(full_span: TSpan) -> TSpan {
                 let a = full_span.at(i).unwrap();
                 let b = full_span.at(i + 1).unwrap();
                 if a.extra.pos.line != b.extra.pos.line {
-                    return full_span.take(i).expect("That's bad");
+                    return full_span.take(i+1).expect("That's bad");
                 }
             }
             full_span
@@ -116,4 +116,35 @@ where
         let new_span = i.drop(sp.length()).unwrap();
         Ok((new_span, matched))
     }
+}
+
+#[allow(unused_imports)]
+mod test {
+
+    use super::*;
+    use crate::{frontend::*, regutils::registers_to_flags};
+
+    use unraveler::*;
+
+    #[test]
+    fn test_parse_line() {
+        let text = r#"Line1 Line2
+        Line2"#;
+
+        let sf = create_source_file(text);
+        let tokens = to_tokens(&sf);
+
+        let ts: Vec<_> = tokens.iter().map(|t| t.kind).collect();
+        println!("{:?}", ts);
+
+
+        let span = make_tspan(&tokens, &sf);
+
+        let x = take_line(span);
+        let ts: Vec<_> = x.as_slice().iter().map(|t| t.kind).collect();
+        println!("took line {:?}", ts);
+
+        // assert!(false)
+    }
+
 }
