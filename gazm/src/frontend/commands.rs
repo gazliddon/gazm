@@ -1,4 +1,5 @@
 #![deny(unused_imports)]
+
 /// Parse the assembler commands
 use std::path::PathBuf;
 

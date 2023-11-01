@@ -326,7 +326,7 @@ fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
 pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token> { 
     use TokenKind::*;
     let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment;
-    let tokens = to_tokens_filter(&source_file, not_comment);
+    let tokens = to_tokens_filter(source_file, not_comment);
     tokens
 }
 

@@ -1,29 +1,24 @@
-use grl_sources::Position;
-use unraveler::{alt, preceded, sep_pair, succeeded, tag, tuple, wrapped_cut};
+#![deny(unused_imports)]
 use unraveler::match_span as ms;
+use unraveler::{alt, preceded, sep_pair, succeeded, tag};
 
 use super::{
-    get_index_reg, get_reg, get_text, parse_expr, parse_failure,
-    parse_opcode_reg_pair, parse_reg_set, parse_sq_bracketed, IdentifierKind, PResult,
-    TSpan, TokenKind,
+    get_index_reg, get_reg, parse_expr, parse_failure, parse_sq_bracketed,
+    IdentifierKind, PResult, TSpan,
     TokenKind::{Comma, Identifier, Minus, Plus},
 };
 
 use crate::{
     item::{Item, Node},
     item6809::MC6809,
-    parse6809::opcodes::OPCODES_REC,
 };
 
 use crate::item6809::{
-    AddrModeParseType,
-    AddrModeParseType::Inherent as ParseInherent,
     IndexParseType,
-    MC6809::{OpCode, Operand, OperandIndexed},
+    MC6809::OperandIndexed,
 };
 
 use emu6809::cpu::RegEnum;
-use emu6809::isa::{AddrModeEnum, Instruction, InstructionInfo};
 
 // Addr Modes and Parsing Order
 //  ,--R    SubSub(RegEnum)         parse_pre_dec_dec
@@ -135,7 +130,7 @@ fn parse_pc_offset(input: TSpan) -> PResult<Node> {
 fn parse_extended_indirect(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(parse_sq_bracketed(parse_expr))(input)?;
     let item = MC6809::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
-    let matched = Node::from_item_kid_tspan(item, matched,sp);
+    let matched = Node::from_item_kid_tspan(item, matched, sp);
     Ok((rest, matched))
 }
 

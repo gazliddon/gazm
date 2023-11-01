@@ -1,6 +1,7 @@
+#![forbid(unused_imports)]
 use crate::{
     ast::{Ast, AstNodeId},
-    binary::{BinWriter, Binary},
+    binary::Binary,
     ctx::Context,
     error::GResult,
     fixerupper::FixerUpper,

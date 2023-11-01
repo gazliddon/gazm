@@ -1,4 +1,4 @@
-#![deny(unused_imports)]
+#![forbid(unused_imports)]
 use super::TokenKind;
 
 #[derive(Clone, Debug, PartialEq, Copy)]

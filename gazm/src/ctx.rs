@@ -1,16 +1,20 @@
+#![deny(unused_imports)]
+
 use crate::{
-    opts::{ Opts,BinReference },
-    ast::{Ast, AstTree},
+    ast::Ast,
     astformat,
     async_tokenize::TokenizeResult,
     binary::{self, AccessType, BinRef, Binary},
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     gazmsymbols::{Serializable, SymbolTree},
     lookup::LabelUsageAndDefintions,
+    opts::{BinReference, Opts},
     status_err, status_mess,
     token_store::TokenStore,
     vars::Vars,
 };
+
+use std::{fs::File, io::Read};
 
 use grl_sources::{
     fileloader::{FileIo, SourceFileLoader},
@@ -416,8 +420,6 @@ impl Default for Context {
         }
     }
 }
-use std::fs::File;
-use std::io::Read;
 
 fn get_file_as_byte_vec<P: AsRef<Path>>(filename: P) -> Result<Vec<u8>, std::io::Error> {
     let mut f = File::open(&filename)?;

@@ -1,16 +1,17 @@
-// #![deny(unused_imports)]
+#![deny(unused_imports)]
 
-use unraveler::{alt, preceded, sep_list};
-use unraveler::match_span as ms;
 use super::{
-    get_text,  parse_expr, parse_indexed, parse_opcode_reg_pair, parse_reg_set,
-    IdentifierKind, PResult, TSpan, TokenKind,
+    get_text, parse_expr, parse_indexed, parse_opcode_reg_pair, IdentifierKind,
+    PResult, TSpan, TokenKind,
 };
+use unraveler::match_span as ms;
+use unraveler::{alt, preceded, sep_list};
 
 use crate::{
+    frontend::parse_reg_set_operand,
     item::{Item, Node},
     item6809::MC6809,
-    parse6809::opcodes::OPCODES_REC, frontend::parse_reg_set_operand,
+    parse6809::opcodes::OPCODES_REC,
 };
 
 use crate::item6809::{
@@ -142,7 +143,6 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;
     Ok((rest, item))
 }
-
 
 pub fn parse_multi_opcode(input: TSpan) -> PResult<Node> {
     use unraveler::tag;

@@ -1,4 +1,6 @@
-use crate::{item::{Node,Item}, opts::Opts };
+#![deny(unused_imports)]
+ 
+use crate::{item::Node, opts::Opts };
 
 use grl_sources::SourceFile;
 
@@ -45,6 +47,8 @@ impl TryInto<Parsed> for ParseTask {
         let tokens = self.tokenize();
         let spam = make_tspan(&tokens, &self.source_file);
         let (_, node) = parse_span(spam)?;
+
+
 
         Ok(Parsed {
             node,
