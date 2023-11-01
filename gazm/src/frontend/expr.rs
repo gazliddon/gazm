@@ -113,7 +113,7 @@ mod test {
         for (text, i, wanted) in test.iter() {
             println!("Parsing {text}");
             let source_file = create_source_file(text);
-            let tokens = to_tokens(&source_file);
+            let tokens = to_tokens_no_comment(&source_file);
             let span = make_tspan(&tokens, &source_file);
             let (rest, matched) = parse_expr(span).unwrap();
             let (item, items) = get_items(&matched);

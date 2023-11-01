@@ -1,20 +1,19 @@
 #![deny(unused_imports)]
+
 use crate::item::{
-    Item::{MacroCall, MacroDef},
+    Item::{MacroCall, MacroDef2},
     Node,
 };
 
-use unraveler::{pair, preceded, sep_list0, tuple};
+use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple};
 
 use super::{
-    get_text, parse_block, parse_bracketed, parse_expr_list0, CommandKind,
+    get_text, parse_block, parse_bracketed, parse_expr_list0, parse_non_scoped_label, parse_span,
+    CommandKind,
     IdentifierKind::Label,
-    PResult, TSpan,
-    TokenKind::{self, Comma, Identifier},
-    OriginalSource,
-    parse_span,
+    OriginalSource, PResult, TSpan,
+    TokenKind::{Comma, Identifier},
 };
-use unraveler::match_span as ms;
 
 pub fn parse_macro_call(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (label, args))) =
@@ -28,34 +27,23 @@ pub fn is_parsing_macro_def(i: TSpan) -> bool {
 }
 
 pub fn set_parsing_macro(i: TSpan, v: bool) -> TSpan {
-    i.lift_extra(|e| OriginalSource { is_parsing_macro_def: v, ..e })
+    i.lift_extra(|e| OriginalSource {
+        is_parsing_macro_def: v,
+        ..e
+    })
+}
+
+fn parse_macro_args(input: TSpan) -> PResult<Vec<Node>> {
+    parse_bracketed(sep_list0(parse_non_scoped_label, Comma))(input)
 }
 
 pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
-    if is_parsing_macro_def(input) {
-        panic!("Need an error message for trying to parse a mdef in a mdef")
-    } else {
-    parse_macro_def_with_body(set_parsing_macro(input, true), parse_span)
-        .map(|(r, m)| (set_parsing_macro(r, false), m))
-    }
-}
-
-pub fn parse_macro_def_with_body<P>(input: TSpan, p: P) -> PResult<Node>
-where
-    P: Fn(TSpan) -> PResult<Node> + Copy,
-{
-    let (rest, (sp, (label, args, body))) = ms(preceded(
+    let (rest, (sp, (label, _args, body))) = ms(preceded(
         CommandKind::Macro,
-        tuple((
-            Identifier(Label),
-            parse_bracketed(sep_list0(TokenKind::Identifier(Label), Comma)),
-            parse_block(p),
-        )),
+        tuple((Identifier(Label), parse_macro_args, parse_block(parse_span))),
     ))(input)?;
 
-    let v: thin_vec::ThinVec<_> = args.into_iter().map(|sp| get_text(sp).to_owned()).collect();
-
-    let node = Node::from_item_kid_tspan(MacroDef(get_text(label), v), body, sp);
+    let node = Node::from_item_kid_tspan(MacroDef2(get_text(label)), body, sp);
     Ok((rest, node))
 }
 
@@ -77,10 +65,44 @@ mod test {
     use thin_vec::ThinVec;
     use unraveler::{all, cut, Collection, Parser};
 
+    #[test]
+    fn parse_args() {
+        let text = "(ax,ab,ac)";
+        println!("Testing macro args: {text}");
+        let sf = create_source_file(text);
+        let tokens = to_tokens_no_comment(&sf);
+        let t: Vec<_> = tokens.iter().map(|t| t.kind).collect();
+        println!("Toks : {:?}", t);
+        let input = make_tspan(&tokens, &sf);
+        let (_r, m) = super::parse_macro_args(input).expect("Can't parse args");
+
+        let t: Vec<_> = m.into_iter().map(|n| n.item).collect();
+        println!("parsed : {:?}", t);
+    }
+
+    #[test]
+    fn test_parse_macro_def() {
+        let text = r#"macro label(ax,bx,cx) { }"#;
+
+        println!("Testing macro def: {text}");
+        let sf = create_source_file(text);
+        let tokens = to_tokens_no_comment(&sf);
+
+        let t: Vec<_> = tokens.iter().map(|t| t.kind).collect();
+        println!("Toks : {:?}", t);
+
+        let input = make_tspan(&tokens, &sf);
+        let (_rest, matched) = super::parse_macro_def(input).expect("Can't parse macro def");
+
+        let t: Vec<_> = matched.children.iter().map(|n| &n.item).collect();
+        println!("Node : {:?} {:?}", &matched.item, t);
+        panic!()
+    }
+
     fn text_macro_call(text: &str, _desired: &[Item]) {
         println!("Testing macro call : {text}");
         let sf = create_source_file(text);
-        let tokens = to_tokens(&sf);
+        let tokens = to_tokens_no_comment(&sf);
         let input = make_tspan(&tokens, &sf);
 
         let (_, matched) = all(parse_macro_call)(input).expect("Doesn't parse");
@@ -115,8 +137,3 @@ mod test {
     }
 }
 
-/*
-macro X() {
-
-}
-*/

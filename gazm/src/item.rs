@@ -137,6 +137,7 @@ pub enum Item {
     },
 
     MacroDef(String, ThinVec<String>),
+    MacroDef2(String),
 
     StructDef(String),
     StructEntry(String),

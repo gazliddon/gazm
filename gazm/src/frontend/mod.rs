@@ -15,6 +15,7 @@ mod macros;
 mod register;
 mod indexed;
 mod parse;
+mod parsetask;
 
 pub use tokens::*;
 pub use ast::*;
@@ -31,4 +32,5 @@ pub use register::*;
 pub use indexed::*;
 pub use parse::*;
 pub use opcodes::*;
+pub use parsetask::*;
 

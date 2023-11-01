@@ -17,19 +17,6 @@ pub struct AsmCtx<'a> {
     pub fixer_upper: FixerUpper,
 }
 
-struct BinNodeWriter<'a> {
-    id: AstNodeId,
-    bin: &'a mut Binary,
-}
-
-impl<'a> BinNodeWriter<'a> {}
-
-impl<'a> AsMut<Binary> for BinNodeWriter<'a> {
-    fn as_mut(&mut self) -> &mut Binary {
-        self.bin
-    }
-}
-
 impl<'a> AsmCtx<'a> {
     pub fn set_exec_addr(&mut self, addr: usize) {
         self.ctx.asm_out.exec_addr = Some(addr);

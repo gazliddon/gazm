@@ -311,7 +311,7 @@ pub fn to_tokens_kinds(
         .collect()
 }
 
-pub fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
+fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
     let ret = to_tokens_kinds(source_file);
 
     ret.into_iter()
@@ -321,6 +321,13 @@ pub fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
             t
         })
         .collect()
+}
+
+pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token> { 
+    use TokenKind::*;
+    let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment;
+    let tokens = to_tokens_filter(&source_file, not_comment);
+    tokens
 }
 
 pub fn to_tokens_filter<P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>

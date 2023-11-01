@@ -18,6 +18,8 @@ pub fn parse_error(_txt: &str, _sp: TSpan) -> super::FrontEndError {
 pub enum FrontEndErrorKind {
     #[error("Parse error {0}")]
     ParseError(#[from] Box<ParseErrorKind>),
+    #[error("You cannot define a macro inside a macro definition")]
+    IllegalMacroDefinition,
 }
 
 #[derive(Clone,Debug)]
@@ -25,6 +27,15 @@ pub struct FrontEndError {
     position: Position,
     kind: FrontEndErrorKind,
     severity: Severity,
+}
+
+impl FrontEndError {
+    pub fn new(sp: TSpan, kind: FrontEndErrorKind, severity: Severity) -> Self {
+        let position= to_pos(sp);
+        Self {
+            kind, position, severity
+        }
+    }
 }
 
 impl<'a> ParseError<TSpan<'a>> for FrontEndError {

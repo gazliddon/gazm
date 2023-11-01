@@ -243,7 +243,7 @@ mod test {
     {
         println!("Parsing command - {text}");
         let sf = create_source_file(text);
-        let tokens = to_tokens(&sf);
+        let tokens = to_tokens_no_comment(&sf);
         let span = make_tspan(&tokens, &sf);
 
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();

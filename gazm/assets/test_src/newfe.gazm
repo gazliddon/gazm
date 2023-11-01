@@ -1,10 +1,22 @@
+; struct my_struct {
+;     test rmb 10
+;     spanner rmb 20
+; }
+
+macro xz(ax.bx,yy) {
+!lopp   lda #10 : sta ax
+        dex
+        bne !loop
+}
+
 struct my_struct {
-    test rmb 10: spanner rmb 20
+    test rmb 0
+    test2 rmb 0
 }
 
     org 0
 
-    lda #10
-    sta 0
+    lda #10 : sta 0
+    zx(1,2,3)
 
 

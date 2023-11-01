@@ -132,7 +132,7 @@ mod test {
         Line2"#;
 
         let sf = create_source_file(text);
-        let tokens = to_tokens(&sf);
+        let tokens = to_tokens_no_comment(&sf);
 
         let ts: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", ts);

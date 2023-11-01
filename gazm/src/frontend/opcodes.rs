@@ -154,7 +154,7 @@ pub fn parse_multi_opcode(input: TSpan) -> PResult<Node> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens};
+    use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens_no_comment};
     use crate::item::{Item, ParsedFrom};
     use crate::item6809::IndexParseType;
     use emu6809::cpu::RegEnum;
@@ -167,7 +167,7 @@ mod test {
         expected_kids: &[Item],
     ) {
         let sf = create_source_file(text);
-        let tokens = to_tokens(&sf);
+        let tokens = to_tokens_no_comment(&sf);
         let span = make_tspan(&tokens, &sf);
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);
@@ -191,7 +191,7 @@ mod test {
         use Item::*;
         let text = "lda #10 : sta $20";
         let sf = create_source_file(text);
-        let tokens = to_tokens(&sf);
+        let tokens = to_tokens_no_comment(&sf);
         let span = make_tspan(&tokens, &sf);
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);

@@ -18,20 +18,19 @@ pub fn struct_entry(input: TSpan) -> PResult<[Node; 2]> {
 }
 
 pub fn struct_entries(input: TSpan) -> PResult<Vec<[Node; 2]>> {
-    let (rest, matched) = parse_line(many0(sep_list(struct_entry, Colon)))(input)?;
-    let matched = matched.into_iter().flatten().collect();
+    let (rest, matched) = parse_line(sep_list(struct_entry, Colon))(input)?;
+    let matched = matched.into_iter().collect();
     Ok((rest, matched))
 }
 
 pub fn parse_struct(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (label, list))) = ms(pair(
         preceded(Struct, Identifier(Label)),
-        parse_block(struct_entries),
+        parse_block(many0(struct_entries)),
     ))(input)?;
 
     let text = get_text(label);
-
-    let list: Vec<_> = list.into_iter().flatten().collect();
+    let list: Vec<_> = list.into_iter().flatten().flatten().collect();
     let node = Node::from_item_kids_tspan(Item::StructDef(text), &list, sp);
     Ok((rest, node))
 }
@@ -57,10 +56,14 @@ mod test {
 
         let text = r#"
         struct my_struct 
-        { test rmb 10 : spanner rmb 20 }"#;
+        { test rmb 10 : spanner rmb 20 
+
+        book rmb 20
+
+        }"#;
 
         let sf = create_source_file(text);
-        let tokens = to_tokens(&sf);
+        let tokens = to_tokens_no_comment(&sf);
 
         let ts: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", ts);
@@ -79,7 +82,9 @@ mod test {
                 Label(Text("test".into())),
                 Rmb,
                 Label(Text("spanner".into())),
-                Rmb
+                Rmb,
+                Label(Text("book".into())),
+                Rmb,
             ],
         );
 
