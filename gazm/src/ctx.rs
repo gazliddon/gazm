@@ -69,10 +69,6 @@ impl LstFile {
     }
 }
 
-fn to_gazm(e: anyhow::Error) -> GazmErrorKind {
-    e.into()
-}
-
 impl Assembler {
     pub fn get_untokenized_files(&self, files: &[(Position, PathBuf)]) -> Vec<(Position, PathBuf)> {
         files
@@ -173,7 +169,7 @@ impl Assembler {
 
     pub fn get_size<P: AsRef<Path>>(&self, path: P) -> Result<usize, GazmErrorKind> {
         let path = self.get_vars().expand_vars(path.as_ref().to_string_lossy());
-        let ret = self.source_file_loader.get_size(path).map_err(to_gazm)?;
+        let ret = self.get_source_file_loader().get_size(path)?;
         Ok(ret)
     }
 
@@ -186,8 +182,7 @@ impl Assembler {
         } else {
             let sf = self
                 .source_file_loader
-                .read_source(&path)
-                .map_err(to_gazm)?;
+                .read_source(&path)?;
             sf.file_id
         };
 
