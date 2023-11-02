@@ -89,7 +89,7 @@ impl Assembler {
     }
 
     pub fn reset_output(&mut self) {
-        self.asm_out = AsmOut::try_from(&self.opts).expect("Can't reset ouput")
+        self.asm_out = AsmOut::try_from(self.opts.clone()).expect("Can't reset ouput")
     }
 
     pub fn reset_all(&mut self) {
@@ -103,11 +103,6 @@ impl Assembler {
 
     pub fn get_source_file_loader_mut(&mut self) -> &mut SourceFileLoader {
         &mut self.source_file_loader
-    }
-
-    pub fn with_source_file<P: AsRef<Path>>(&self, file: P, f: impl FnOnce(&SourceFile)) {
-        let (_, source) = self.sources().get_source(&file).unwrap();
-        f(source)
     }
 
     pub fn edit_source_file<P: AsRef<Path>, X>(
@@ -207,21 +202,13 @@ impl Assembler {
 
         Ok(ret)
     }
+
     pub fn add_parse_errors(&mut self, pe: &[ParseError]) -> GResult<()> {
         for e in pe {
             let ue = UserError::from_parse_error(e, self.sources());
             self.asm_out.errors.add_user_error(ue)?
         }
         Ok(())
-    }
-
-    pub fn add_parse_error(&mut self, pe: ParseError) -> GResult<()> {
-        let ue = UserError::from_parse_error(&pe, self.sources());
-        self.asm_out.errors.add_user_error(ue)
-    }
-
-    pub fn add_user_error(&mut self, e: UserError) -> GResult<()> {
-        self.asm_out.errors.add_user_error(e)
     }
 
     pub fn write_bin_chunks(&mut self) -> GResult<()> {
@@ -426,9 +413,9 @@ fn get_file_as_byte_vec<P: AsRef<Path>>(filename: P) -> Result<Vec<u8>, std::io:
 }
 
 /// Create a Context from the command line Opts
-impl TryFrom<&Opts> for AsmOut {
+impl TryFrom<Opts> for AsmOut {
     type Error = String;
-    fn try_from(opts: &Opts) -> Result<AsmOut, String> {
+    fn try_from(opts: Opts) -> Result<AsmOut, String> {
         let mut binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
 
         for BinReference { file, addr } in &opts.bin_references {
@@ -456,7 +443,7 @@ impl TryFrom<&Opts> for AsmOut {
 impl TryFrom<Opts> for Assembler {
     type Error = String;
     fn try_from(opts: Opts) -> Result<Self, String> {
-        let asm_out = AsmOut::try_from(&opts)?;
+        let asm_out = AsmOut::try_from(opts.clone())?;
 
         let ret = Self {
             asm_out,

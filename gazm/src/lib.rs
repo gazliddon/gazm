@@ -35,3 +35,4 @@ pub mod tokenize;
 pub mod vars;
 pub mod opts;
 pub mod scopetracker;
+pub mod assembler;
