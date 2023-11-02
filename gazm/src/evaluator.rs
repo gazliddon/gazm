@@ -3,14 +3,14 @@ use grl_sources::{Position, SourceErrorType, SourceInfo};
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},
-    ctx::Context,
+    ctx::Assembler,
     error::{GResult, UserError},
     gazmeval::eval,
     item::Item::*,
     gazmsymbols::{SymbolInfo, SymbolTree},
 };
 
-impl Context {
+impl Assembler {
     /// Evaluate all macro args
     /// if all arguments were evaluated returns true
 

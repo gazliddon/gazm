@@ -32,11 +32,13 @@ fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String 
     z.join(sep)
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct WriteBin {
-    pub file: PathBuf,
-    pub start: usize,
-    pub size: usize,
+#[derive(Debug, Clone)]
+pub struct Assembler {
+    pub token_store: TokenStore,
+    source_file_loader: SourceFileLoader,
+    pub cwd: PathBuf,
+    pub opts: Opts,
+    pub asm_out: AsmOut,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -51,15 +53,6 @@ pub struct AsmOut {
     pub bin_to_write_chunks: Vec<BinToWrite>,
     pub ast: Option<Ast>,
     pub lookup: Option<LabelUsageAndDefintions>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Context {
-    pub token_store: TokenStore,
-    source_file_loader: SourceFileLoader,
-    pub cwd: PathBuf,
-    pub opts: Opts,
-    pub asm_out: AsmOut,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -77,10 +70,10 @@ impl LstFile {
 }
 
 fn to_gazm(e: anyhow::Error) -> GazmErrorKind {
-    GazmErrorKind::Misc(e.to_string())
+    e.into()
 }
 
-impl Context {
+impl Assembler {
     pub fn get_untokenized_files(&self, files: &[(Position, PathBuf)]) -> Vec<(Position, PathBuf)> {
         files
             .iter()
@@ -104,7 +97,7 @@ impl Context {
     }
 
     pub fn reset_all(&mut self) {
-        let new_ctx = Context::try_from(self.opts.clone()).expect("can't reset all");
+        let new_ctx = Assembler::try_from(self.opts.clone()).expect("can't reset all");
         *self = new_ctx;
     }
 
@@ -143,6 +136,14 @@ impl Context {
                 file.as_ref().to_string_lossy().into(),
             ))
         }
+    }
+
+    pub fn replace_file_contents<P: AsRef<Path>>(
+        &mut self,
+        file: P,
+        new_text: &str,
+    ) -> GResult<()> {
+        Ok(self.edit_source_file(&file, |editable| editable.replace_file(new_text))?)
     }
 
     pub fn get_token_store_mut(&mut self) -> &mut TokenStore {
@@ -390,8 +391,8 @@ impl Context {
     }
 }
 
-impl From<&Context> for SourceDatabase {
-    fn from(c: &Context) -> Self {
+impl From<&Assembler> for SourceDatabase {
+    fn from(c: &Assembler) -> Self {
         let bins: Vec<_> = c
             .asm_out
             .bin_to_write_chunks
@@ -409,7 +410,7 @@ impl From<&Context> for SourceDatabase {
 }
 
 /// Default settings for Context
-impl Default for Context {
+impl Default for Assembler {
     fn default() -> Self {
         Self {
             source_file_loader: Default::default(),
@@ -457,7 +458,7 @@ impl TryFrom<&Opts> for AsmOut {
 }
 
 /// Create a Context from the command line Opts
-impl TryFrom<Opts> for Context {
+impl TryFrom<Opts> for Assembler {
     type Error = String;
     fn try_from(opts: Opts) -> Result<Self, String> {
         let asm_out = AsmOut::try_from(&opts)?;

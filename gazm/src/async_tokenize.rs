@@ -1,6 +1,6 @@
 use crate::{
     opts::Opts,
-    ctx::Context,
+    ctx::Assembler,
     error::{GResult, GazmErrorKind, ParseError},
     info_mess,
     item::{Item, Node},
@@ -121,7 +121,7 @@ pub enum GetTokensResult {
     Request(Box<TokenizeRequest>),
 }
 
-impl Context {
+impl Assembler {
     fn get_full_paths_with_parent(
         &self,
         paths: &[(Position, PathBuf)],
@@ -172,13 +172,13 @@ impl Context {
     }
 }
 
-pub fn tokenize_no_async(ctx: &mut Context) -> GResult<()> {
+pub fn tokenize_no_async(ctx: &mut Assembler) -> GResult<()> {
     tokenize(ctx, |to_tokenize| {
         to_tokenize.into_iter().map(|req| req.try_into()).collect()
     })
 }
 
-pub fn tokenize_async(ctx: &mut Context) -> GResult<()> {
+pub fn tokenize_async(ctx: &mut Assembler) -> GResult<()> {
     tokenize(ctx, |to_tokenize| {
         use rayon::prelude::*;
         to_tokenize
@@ -188,7 +188,7 @@ pub fn tokenize_async(ctx: &mut Context) -> GResult<()> {
     })
 }
 
-pub fn tokenize<F>(ctx: &mut Context, f: F) -> GResult<()>
+pub fn tokenize<F>(ctx: &mut Assembler, f: F) -> GResult<()>
 where
     F: Fn(Vec<TokenizeRequest>) -> Vec<GResult<TokenizeResult>>,
 {
@@ -265,11 +265,11 @@ mod test {
         TomlConfig::new_from_file(&path).unwrap()
     }
 
-    fn mk_ctx(config: &TomlConfig) -> crate::ctx::Context {
+    fn mk_ctx(config: &TomlConfig) -> crate::ctx::Assembler {
         let mut dir = config.file.clone();
         dir.pop();
         let mut ctx =
-            crate::ctx::Context::try_from(config.opts.clone()).expect("Can't make context");
+            crate::ctx::Assembler::try_from(config.opts.clone()).expect("Can't make context");
         ctx.get_source_file_loader_mut().add_search_path(&dir);
         ctx.get_source_file_loader_mut()
             .add_search_path(format!("{}/src", dir.to_string_lossy()));

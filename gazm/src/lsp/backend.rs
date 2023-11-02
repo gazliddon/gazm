@@ -1,8 +1,8 @@
 use crate::{
     ast::{AstNodeId, ItemWithPos},
-    ctx::Context,
+    ctx::Assembler,
     error::{GResult, GazmErrorKind},
-    gazm::{with_state, Assembler},
+    gazm::with_state,
     gazmsymbols::{SymbolInfo, SymbolScopeId},
     lookup::LabelUsageAndDefintions,
     opts::Opts,
@@ -44,7 +44,7 @@ pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
     te
 }
 
-impl Context {
+impl Assembler {
     fn find_symbol_id(&self, position: &Position, uri: &Url) -> Option<SymbolScopeId> {
         self.do_pos_lookup_work(position, uri, |pos, lookup| {
             lookup.find_symbol_id_at_pos(pos)
@@ -161,9 +161,9 @@ impl Context {
 impl Backend {
     pub fn get_ast_node_at_file_pos(&self, position: &Position, uri : &Url) -> Option<(AstNodeId, ItemWithPos )> {
         let value = with_state(&self.asm_ctx, |asm_ctx| -> Option<(AstNodeId, ItemWithPos )> {
-            if let Some(p) = asm_ctx.ctx.find_nodes_at_location(position, uri) {
+            if let Some(p) = asm_ctx.find_nodes_at_location(position, uri) {
                 if !p.is_empty() {
-                    if let Some(ast) = asm_ctx.ctx.asm_out.ast.as_ref() {
+                    if let Some(ast) = asm_ctx.asm_out.ast.as_ref() {
                         let v = ast.as_ref().get(*p.first().unwrap()).unwrap().value();
                         return Some((*p.first().unwrap(),v.clone() ))
                     }
@@ -263,7 +263,7 @@ impl Assembler {
         if let Some(range) = change.range {
             let te = to_text_edit(&range, &change.text);
             info!("About to apply {:#?}", te);
-            self.edit_file(doc, |text_file| text_file.edit(&te))?;
+            self.edit_source_file(doc, |text_file| text_file.edit(&te))?;
         } else {
             info!("About to apply replace file {}", doc.to_string_lossy());
             self.replace_file_contents(doc, &change.text)?;
@@ -330,7 +330,7 @@ impl LanguageServer for Backend {
         let res = with_state(
             &self.asm_ctx,
             |asm| -> jsonrpc::Result<Option<Vec<Location>>> {
-                let pos = asm.ctx.find_references(position, uri);
+                let pos = asm.find_references(position, uri);
                 Ok(pos)
             },
         );
@@ -426,7 +426,7 @@ impl LanguageServer for Backend {
         let position = &params.text_document_position_params.position;
         let uri = &params.text_document_position_params.text_document.uri;
 
-        let position = with_state(&self.asm_ctx, |asm| asm.ctx.find_definition(position, uri));
+        let position = with_state(&self.asm_ctx, |asm| asm.find_definition(position, uri));
 
         Ok(position.map(GotoDefinitionResponse::Scalar))
     }
@@ -503,8 +503,8 @@ impl LanguageServer for Backend {
 
         // @TODO: get some infotmation about the AST node so we can decide what to do
         let ret = with_state(&self.asm_ctx, |asm_ctx| -> Option<SymbolInfo> {
-            let id = asm_ctx.ctx.find_symbol_id(position, uri)?;
-            let reader = asm_ctx.ctx.get_symbols().get_reader(id.scope_id);
+            let id = asm_ctx.find_symbol_id(position, uri)?;
+            let reader = asm_ctx.get_symbols().get_reader(id.scope_id);
             let si = reader.get_symbol_info_from_id(id).unwrap();
             Some(si.clone())
         });
@@ -514,7 +514,7 @@ impl LanguageServer for Backend {
         }
 
         let doc_text = with_state(&self.asm_ctx, |asm_ctx| -> Option<String> {
-            asm_ctx.ctx.find_docs(position, uri)
+            asm_ctx.find_docs(position, uri)
         })
         .unwrap_or("".to_string());
 

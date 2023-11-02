@@ -1,10 +1,10 @@
 use gazm::{
     cli::{parse_command_line, styling::get_banner},
     fmt, frontend,
-    gazm::Assembler,
     info_mess, lsp, messages,
     opts::{BuildType, Opts},
     status_mess,
+    ctx::Assembler,
 };
 
 fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {

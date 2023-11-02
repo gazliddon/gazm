@@ -8,7 +8,7 @@ use crate::{
     binary::BinaryError,
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
-    gazm::ScopeTracker,
+    scopetracker::ScopeTracker,
     gazmsymbols::SymbolScopeId,
     info_mess,
     item::{self, Item},

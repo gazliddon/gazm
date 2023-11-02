@@ -3,9 +3,9 @@
 /// Resolve labels where we can
 use crate::{
     asmctx::AsmCtx,
-    ast::{AstNodeId, AstNodeRef, Ast},
+    ast::{Ast, AstNodeId, AstNodeRef},
     error::GResult,
-    gazm::ScopeTracker,
+    gazmsymbols::SymbolScopeId,
     info_mess,
     item::{self, Item, LabelDefinition},
     item6809::{
@@ -14,11 +14,10 @@ use crate::{
     },
     parse::util::{ByteSize, ByteSizes},
     parse6809::opcodes::get_opcode_info,
-    gazmsymbols::SymbolScopeId,
+    scopetracker::ScopeTracker,
 };
 
 use emu6809::isa::AddrModeEnum;
-
 use std::path::Path;
 
 /// Ast tree sizer
@@ -154,11 +153,8 @@ impl<'a> Sizer<'a> {
                         }
                     };
 
-                    let new_item = OpCode(
-                        text,
-                        ins,
-                        AddrModeParseType::Indexed(new_amode, indirect),
-                    );
+                    let new_item =
+                        OpCode(text, ins, AddrModeParseType::Indexed(new_amode, indirect));
                     ctx_mut.add_fixup(id, new_item, current_scope_id);
                 }
 

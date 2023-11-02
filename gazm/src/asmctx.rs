@@ -2,7 +2,7 @@
 use crate::{
     ast::{Ast, AstNodeId},
     binary::Binary,
-    ctx::Context,
+    ctx::Assembler,
     error::GResult,
     fixerupper::FixerUpper,
     gazmsymbols::{SymbolError, SymbolScopeId},
@@ -14,7 +14,7 @@ use grl_sources::{self, fileloader::FileIo, grl_utils::fileutils, BinToWrite, Po
 use std::path::{Path, PathBuf};
 
 pub struct AsmCtx<'a> {
-    pub ctx: &'a mut Context,
+    pub ctx: &'a mut Assembler,
     pub fixer_upper: FixerUpper,
 }
 

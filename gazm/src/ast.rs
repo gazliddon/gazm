@@ -5,9 +5,9 @@ use grl_sources::{Position, SourceErrorType, SourceInfo};
 use thin_vec::{thin_vec, ThinVec};
 
 use crate::{
-    ctx::Context,
+    ctx::Assembler,
     error::{AstError, UserError},
-    gazm::ScopeTracker,
+    scopetracker::ScopeTracker,
     gazmeval::{EvalError, EvalErrorEnum},
     gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
     info_mess,
@@ -148,7 +148,7 @@ impl AsMut<AstTree> for Ast {
 pub struct AstCtx<'a> {
     pub ast_tree: Ast,
     pub macro_defs: ThinVec<AstNodeId>,
-    pub ctx: &'a mut Context,
+    pub ctx: &'a mut Assembler,
     pub docs: HashMap<AstNodeId, String>,
 }
 
@@ -200,13 +200,13 @@ fn iter_values_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &
 }
 
 impl<'a> AstCtx<'a> {
-    pub fn new(tree: Ast, ctx: &'a mut Context) -> Result<Self, UserError> {
+    pub fn new(tree: Ast, ctx: &'a mut Assembler) -> Result<Self, UserError> {
         let mut ret = Self::base(tree, ctx);
         ret.process()?;
         Ok(ret)
     }
 
-    pub fn from_nodes(ctx: &'a mut Context, node: &Node) -> Result<Self, UserError> {
+    pub fn from_nodes(ctx: &'a mut Assembler, node: &Node) -> Result<Self, UserError> {
         let tree = Ast::from_node(node);
         let r = Self::new(tree, ctx)?;
         Ok(r)
@@ -327,7 +327,7 @@ impl<'a> AstCtx<'a> {
         Ok(())
     }
 
-    fn base(tree: Ast, ctx: &'a mut Context) -> Self {
+    fn base(tree: Ast, ctx: &'a mut Assembler) -> Self {
         Self {
             ast_tree: tree,
             ctx,

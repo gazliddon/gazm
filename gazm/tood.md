@@ -1,5 +1,14 @@
 # Todo
 
+
+
+## Current Assembly
+1. 
+
+Opts -> Context
+
+1st An Assembler is an AsmCtx
+
 ## Assembler
 * gazm with no config arg to look in cur for gazm.toml
 

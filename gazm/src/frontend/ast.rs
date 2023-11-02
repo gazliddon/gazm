@@ -8,6 +8,7 @@ struct AstNew {
     ast : AstTree,
 }
 
+
 impl AstNew {
     pub fn from_node(node: &Node) -> Self {
         let mut ast = AstTree::new(ItemWithPos::new(node));
