@@ -1,21 +1,18 @@
 #![deny(warnings)]
 #![allow(unused_imports)]
 #![allow(dead_code)]
-pub mod asmctx;
 pub mod ast;
 pub mod astformat;
 pub mod async_tokenize;
 pub mod binary;
 pub mod cli;
 pub mod compile;
-pub mod ctx;
 pub mod docs;
 pub mod error;
 pub mod evaluator;
 pub mod fixerupper;
 pub mod fmt;
 pub mod frontend;
-pub mod gazm;
 pub mod gazmeval;
 pub mod gazmsymbols;
 pub mod item;
@@ -36,3 +33,4 @@ pub mod vars;
 pub mod opts;
 pub mod scopetracker;
 pub mod assembler;
+pub mod utils;

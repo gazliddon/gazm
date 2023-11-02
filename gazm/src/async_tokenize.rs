@@ -1,6 +1,6 @@
 use crate::{
     opts::Opts,
-    ctx::Assembler,
+    assembler::Assembler,
     error::{GResult, GazmErrorKind, ParseError},
     info_mess,
     item::{Item, Node},

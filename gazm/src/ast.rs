@@ -5,7 +5,7 @@ use grl_sources::{Position, SourceErrorType, SourceInfo};
 use thin_vec::{thin_vec, ThinVec};
 
 use crate::{
-    ctx::Assembler,
+    assembler::Assembler,
     error::{AstError, UserError},
     scopetracker::ScopeTracker,
     gazmeval::{EvalError, EvalErrorEnum},

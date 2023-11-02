@@ -1,7 +1,7 @@
 
 // #![forbid(unused_imports)]
 use crate::{
-    asmctx::AsmCtx, ast::AstCtx, async_tokenize, compile::compile, ctx::Assembler, error::GResult,
+    ast::AstCtx, async_tokenize, compile::compile, assembler::Assembler, error::GResult,
     fixerupper::FixerUpper, item::Node, lookup::LabelUsageAndDefintions, opts::Opts,
     sizer::size_tree,
 };

@@ -1,8 +1,8 @@
 use crate::{
     ast::{AstNodeId, ItemWithPos},
-    ctx::Assembler,
+    assembler::Assembler,
     error::{GResult, GazmErrorKind},
-    gazm::with_state,
+    utils::with_state,
     gazmsymbols::{SymbolInfo, SymbolScopeId},
     lookup::LabelUsageAndDefintions,
     opts::Opts,

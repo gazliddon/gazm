@@ -4,7 +4,7 @@ use gazm::{
     info_mess, lsp, messages,
     opts::{BuildType, Opts},
     status_mess,
-    ctx::Assembler,
+    assembler::Assembler,
 };
 
 fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {

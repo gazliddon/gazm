@@ -3,7 +3,7 @@ use grl_sources::{Position, SourceErrorType, SourceInfo};
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},
-    ctx::Assembler,
+    assembler::Assembler,
     error::{GResult, UserError},
     gazmeval::eval,
     item::Item::*,
