@@ -33,14 +33,13 @@ impl<'a> OriginalSource<'a> {
 pub type TSpan<'a> = unraveler::Span<'a, Token<'a>, OriginalSource<'a>>;
 
 pub fn get_start_end_position(s: &Token, e: &Token) -> Position {
-    use grl_sources::AsmSource::FileId;
     let extra_start = &s.extra;
     let extra_end = &e.extra;
 
     let r = extra_start.as_range().start..extra_end.as_range().end;
     let tp = &extra_start.pos;
-    let file = extra_start.source_file.file_id;
-    Position::new(tp.line(), tp.col(), r, FileId(file))
+    let file_id = extra_start.source_file.file_id;
+    Position::new(tp.line(), tp.col(), r, file_id)
 }
 
 pub fn get_start_end_token(input: TSpan) -> (Token, Token) {

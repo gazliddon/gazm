@@ -123,19 +123,14 @@ impl Assembler {
         let path = self.get_full_path(&path)?;
         // let path_string = path.to_string_lossy();
         // Is it in the cache?
-        let id = if let Ok((id, _)) = self.source_file_loader.sources.get_source(&path) {
-            id
+        if let Ok((_, _)) = self.source_file_loader.sources.get_source(&path) {
         } else {
-            let sf = self.source_file_loader.read_source(&path)?;
-            sf.file_id
+            self.source_file_loader.read_source(&path)?;
         };
 
-        let ret = self
-            .source_file_loader
-            .sources
-            .get_source_file_from_id(id)?;
+        let sf = self.source_file_loader.sources.get_source(&path).map(|(_,b)| b)?;
 
-        Ok(ret)
+        Ok(sf)
     }
 
     pub fn expand_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
@@ -275,7 +270,8 @@ impl Assembler {
     }
 
     fn assemble_project(&mut self) -> GResult<()> {
-        let file = self.opts.project_file.to_owned();
+        let file = self.get_project_file();
+
         let paths = self
             .get_source_file_loader_mut()
             .get_search_paths()
@@ -303,16 +299,20 @@ impl Assembler {
     }
 
     fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
-        let tree = AstCtx::from_nodes(self, tokens)?;
-        let docs = tree.docs;
-        let tree = tree.ast_tree;
+
+        let asm_ctx = AstCtx::from_nodes(self, tokens)?;
+
+        let docs = asm_ctx.docs;
+        let tree = asm_ctx.ast_tree;
 
         self.size_tree(&tree)?;
         self.compile(&tree)?;
 
         let lookup = LabelUsageAndDefintions::new(&tree, &self.asm_out.symbols, docs);
+
         self.asm_out.ast = Some(tree);
         self.asm_out.lookup = Some(lookup);
+
         Ok(())
     }
 

@@ -24,7 +24,7 @@ pub struct Parsed {
 
 impl ParseTask {
     pub fn from_text(opts: &Opts, text: &str) -> Self {
-        let source_file = SourceFile::new("NO FILE", text, 0);
+        let source_file = SourceFile::new("NO FILE", text, grl_sources::AsmSource::FromStr);
         Self::from_source(opts, &source_file)
     }
 

@@ -29,7 +29,7 @@ impl TokenStore {
 
     /// Add tokens for this file
     pub fn add_tokens(&mut self, tokes: TokenizeResult) {
-        let file = tokes.request.full_file_name.clone();
+        let file = tokes.request.get_file_name().clone();
         self.tokens.insert(file, tokes);
     }
 

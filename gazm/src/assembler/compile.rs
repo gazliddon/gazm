@@ -1,4 +1,5 @@
 #![forbid(unused_imports)]
+///! Compiles the final AST into binary
 use std::path::Path;
 
 use crate::{
@@ -22,7 +23,6 @@ use crate::{
 use emu6809::isa;
 use grl_sources::ItemType;
 
-
 pub struct Compiler<'a> {
     tree: &'a Ast,
     scopes: ScopeTracker,
@@ -30,23 +30,6 @@ pub struct Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    fn get_node_item(&self, asm: &Assembler, id: AstNodeId) -> (AstNodeId, Item) {
-        let (node, i) = self.get_node_item_ref(asm, id);
-        (node.id(), i)
-    }
-
-    fn get_node_item_ref(&self, asm: &Assembler, id: AstNodeId) -> (AstNodeRef, Item) {
-        let node = self.tree.as_ref().get(id).unwrap();
-        let this_i = &node.value().item;
-        let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
-        (node, i)
-    }
-
-    fn get_node(&self, id: AstNodeId) -> AstNodeRef {
-        let node = self.tree.as_ref().get(id).unwrap();
-        node
-    }
-
     pub fn new(tree: &'a Ast, current_scope_id: u64, pc_symbol_id: SymbolScopeId) -> GResult<Self> {
         let ret = Self {
             tree,
@@ -54,6 +37,33 @@ impl<'a> Compiler<'a> {
             pc_symbol_id,
         };
         Ok(ret)
+    }
+
+    pub fn compile_root(&mut self, asm: &mut Assembler) -> GResult<()> {
+        let scope_id = asm.get_symbols().get_root_scope_id();
+        self.scopes.set_scope(scope_id);
+        self.compile_node_error(asm, self.tree.as_ref().root().id())
+    }
+}
+
+impl<'a> Compiler<'a> {
+    fn get_node_id_item(&self, asm: &Assembler, id: AstNodeId) -> (AstNodeId, Item) {
+        let node = self.tree.as_ref().get(id).unwrap();
+        let this_i = &node.value().item;
+        let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
+        (node.id(), i)
+    }
+
+    // fn get_node_item_ref(&self, asm: &Assembler, id: AstNodeId) -> (AstNodeRef, Item) {
+    //     let node = self.tree.as_ref().get(id).unwrap();
+    //     let this_i = &node.value().item;
+    //     let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
+    //     (node, i)
+    // }
+
+    fn get_node(&self, id: AstNodeId) -> AstNodeRef {
+        let node = self.tree.as_ref().get(id).unwrap();
+        node
     }
 
     fn binary_error(
@@ -106,7 +116,6 @@ impl<'a> Compiler<'a> {
         indirect: bool,
     ) -> GResult<()> {
         use item6809::IndexParseType::*;
-
         let idx_byte = imode.get_index_byte(indirect);
 
         self.write_byte(idx_byte, asm, id)?;
@@ -185,7 +194,6 @@ impl<'a> Compiler<'a> {
         path: P,
     ) -> GResult<()> {
         let current_scope_id = self.scopes.scope();
-
         let node = self.get_node(id);
         let (physical_address, count) = asm.eval_two_args(node, current_scope_id)?;
 
@@ -422,16 +430,10 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    pub fn compile_root(&mut self, asm: &mut Assembler) -> GResult<()> {
-        let scope_id = asm.get_symbols().get_root_scope_id();
-        self.scopes.set_scope(scope_id);
-        self.compile_node_error(asm, self.tree.as_ref().root().id())
-    }
-
     fn compile_node_error(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         use item::Item::*;
 
-        let (node_id, i) = self.get_node_item(asm, id);
+        let (node_id, i) = self.get_node_id_item(asm, id);
 
         let mut pc = asm.binary().get_write_address();
         let mut do_source_mapping = asm.opts.lst_file.is_some();

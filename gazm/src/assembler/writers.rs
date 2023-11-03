@@ -6,6 +6,7 @@ use crate::{astformat, error::GResult, gazmsymbols::Serializable, status_err, st
 use grl_sources::{fileloader::FileIo, grl_utils::hash::get_hash, SourceDatabase};
 
 use anyhow::Context as AnyContext;
+use std::fs;
 use std::path::Path;
 
 fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String {
@@ -27,22 +28,16 @@ impl Assembler {
 
     fn write_bin_chunks(&mut self) -> GResult<()> {
         for bin_to_write in &self.asm_out.bin_to_write_chunks {
-            let physical_address = bin_to_write.bin_desc.addr.start;
-            let count = bin_to_write.bin_desc.addr.len();
-            let p = &bin_to_write.bin_desc.file;
-
-            status_mess!(
-                "Writing binary: {} ${physical_address:x} ${count:x}",
-                p.to_string_lossy()
-            );
-            self.source_file_loader.write(p, &bin_to_write.data);
+            let (addr, len, file) = bin_to_write.write_bin(&mut self.source_file_loader);
+            status_mess!("Written binary: {:?} ${addr:x} ${len:x}", file);
         }
+
         Ok(())
     }
 
     fn write_file<P: AsRef<Path>>(&mut self, p: P, txt: &str) -> GResult<String> {
         let full_file_name = self.expand_path(p);
-        std::fs::write(&full_file_name, txt)
+        fs::write(&full_file_name, txt)
             .with_context(|| format!("Unable to write {:?}", full_file_name))?;
         Ok(full_file_name.to_string_lossy().into_owned())
     }
@@ -51,12 +46,11 @@ impl Assembler {
         if let Some(lst_file) = &self.opts.lst_file {
             let lst_file = self.get_vars().expand_vars(lst_file);
 
-            use std::fs;
-
             let text = self.asm_out.lst_file.lines.join("\n");
 
             fs::write(&lst_file, text)
                 .with_context(|| format!("Unable to write list file {lst_file}"))?;
+
             status_mess!("Written lst file {lst_file}");
         }
 
@@ -132,7 +126,8 @@ impl Assembler {
             let mut errors = vec![];
 
             for (name, csum) in &self.opts.checksums {
-                let data = self.binary()
+                let data = self
+                    .binary()
                     .get_bytes(csum.addr, csum.size)
                     .expect("Binary error");
                 let this_hash = get_hash(data);

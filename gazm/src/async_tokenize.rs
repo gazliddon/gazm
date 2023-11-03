@@ -10,7 +10,7 @@ use crate::{
     tokenize::Tokens,
 };
 
-use grl_sources::{grl_utils::Stack, AsmSource, Position};
+use grl_sources::{grl_utils::Stack, Position, SourceFile};
 
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
@@ -19,13 +19,20 @@ use thiserror::Error;
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct TokenizeRequest {
-    pub file_id: u64,
-    pub full_file_name: PathBuf,
+    pub source_file : SourceFile,
     pub requested_file: PathBuf,
     pub parent: Option<PathBuf>,
-    pub source: String,
     pub opts: Opts,
     pub include_stack: IncludeStack,
+}
+
+impl TokenizeRequest {
+    pub fn get_file_name_string(&self) -> String {
+        self.source_file.file.to_string_lossy().to_string()
+    }
+    pub fn get_file_name(&self) -> &PathBuf {
+        &self.source_file.file
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -47,23 +54,36 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
 impl TokenizeRequest {
     pub fn into_result(self, tokens: Tokens) -> TokenizeResult {
         use Item::*;
-        let input = Span::new_extra(&self.source, AsmSource::FileId(self.file_id));
-        let item = TokenizedFile(self.full_file_name.clone(), self.parent.clone());
+        let i = self.source_file.get_entire_source();
+        let id = self.source_file.file_id;
+        let input = Span::new_extra(i, id);
+        let item = TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = Node::new_with_children(item, &tokens.tokens, span_to_pos(input));
 
-        let mut ret = TokenizeResult {
+        let ret = TokenizeResult {
             node,
             errors: tokens.parse_errors,
             includes: tokens.includes,
             request: self,
         };
-        ret.request.source = Default::default();
+        // ret.request.source = Default::default();
         ret
+    }
+    pub fn new_tokenize(self) -> GResult<TokenizeResult> {
+        let opts = &self.opts;
+        let i = self.source_file.get_entire_source();
+        let id = self.source_file.file_id;
+
+        let input = Span::new_extra(i, id);
+        let tokens = Tokens::from_text(opts, input)?;
+        Ok(self.into_result(tokens))
     }
 
     pub fn tokenize(self) -> GResult<TokenizeResult> {
+        let i = self.source_file.get_entire_source();
+        let id = self.source_file.file_id;
         let opts = &self.opts;
-        let input = Span::new_extra(&self.source, AsmSource::FileId(self.file_id));
+        let input = Span::new_extra(i, id);
         let tokens = Tokens::from_text(opts, input)?;
         Ok(self.into_result(tokens))
     }
@@ -160,11 +180,11 @@ impl Assembler {
             let sf = self.read_source(&requested_file)?;
 
             let toke_req = TokenizeRequest {
-                file_id: sf.file_id,
-                full_file_name: sf.file.clone(),
+                source_file: sf.clone(),
+                // full_file_name: sf.file.clone(),
                 requested_file: requested_file.as_ref().to_path_buf(),
                 parent,
-                source: sf.source.source.clone(),
+                // source: sf.source.source.clone(),
                 opts: self.opts.clone(),
                 include_stack: Default::default(),
             };
@@ -190,6 +210,8 @@ pub fn tokenize_async(ctx: &mut Assembler) -> GResult<()> {
     })
 }
 
+
+/// f = handler for tokenize request
 pub fn tokenize<F>(ctx: &mut Assembler, f: F) -> GResult<()>
 where
     F: Fn(Vec<TokenizeRequest>) -> Vec<GResult<TokenizeResult>>,
@@ -211,14 +233,16 @@ where
                 match tokes {
                     Tokens(tokes) => {
                         let req = &tokes.request;
-                        info_mess!("TOKES: Got {}", req.full_file_name.to_string_lossy());
+                        let file_name = req.get_file_name();
+                        info_mess!("TOKES: Got {:?}", file_name);
                         let full_paths = ctx.get_full_paths_with_parent(&tokes.includes, parent)?;
                         incs.reserve(full_paths.len());
                         incs.extend(full_paths)
                     }
                     // If I don't have tokens then add it to a q of requestes
                     Request(req) => {
-                        info_mess!("TOKES:Requesting {}", req.full_file_name.to_string_lossy());
+                        let file_name = req.get_file_name();
+                        info_mess!("TOKES:Requesting {:?}", file_name);
                         to_tok.push(*req)
                     }
                 };
@@ -232,7 +256,7 @@ where
             match tokes {
                 Ok(res) => {
                     let req = &res.request;
-                    info_mess!("Tokenized! {}", req.full_file_name.to_string_lossy());
+                    info_mess!("Tokenized! {}", req.source_file.file.to_string_lossy());
                     ctx.add_parse_errors(&res.errors)?;
                     incs_to_process.push((req.requested_file.clone(), req.parent.clone()));
                     ctx.get_token_store_mut().add_tokens(res);
@@ -257,6 +281,7 @@ mod test {
 
     use crate::cli::TomlConfig;
     use crate::messages::Verbosity;
+    use crate::assembler::Assembler;
 
     use super::*;
     #[allow(unused_imports)]
@@ -267,11 +292,11 @@ mod test {
         TomlConfig::new_from_file(&path).unwrap()
     }
 
-    fn mk_ctx(config: &TomlConfig) -> crate::ctx::Assembler {
+    fn mk_ctx(config: &TomlConfig) -> Assembler {
         let mut dir = config.file.clone();
         dir.pop();
         let mut ctx =
-            crate::ctx::Assembler::try_from(config.opts.clone()).expect("Can't make context");
+            Assembler::try_from(config.opts.clone()).expect("Can't make context");
         ctx.get_source_file_loader_mut().add_search_path(&dir);
         ctx.get_source_file_loader_mut()
             .add_search_path(format!("{}/src", dir.to_string_lossy()));

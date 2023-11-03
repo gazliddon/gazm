@@ -63,7 +63,7 @@ pub fn get_items(node: &Node) -> (Item, ThinVec<Item>) {
 }
 
 pub fn create_source_file(text: &str) -> SourceFile {
-    SourceFile::new("No file", text, 0)
+    SourceFile::new("No file", text, grl_sources::AsmSource::FileId(0))
 }
 
 pub fn parse_block<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
