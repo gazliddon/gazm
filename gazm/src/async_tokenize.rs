@@ -60,14 +60,12 @@ impl TokenizeRequest {
         let item = TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = Node::new_with_children(item, &tokens.tokens, span_to_pos(input));
 
-        let ret = TokenizeResult {
+        TokenizeResult {
             node,
             errors: tokens.parse_errors,
             includes: tokens.includes,
             request: self,
-        };
-        // ret.request.source = Default::default();
-        ret
+        }
     }
     pub fn new_tokenize(self) -> GResult<TokenizeResult> {
         let opts = &self.opts;

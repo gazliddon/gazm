@@ -1,4 +1,3 @@
-///!Assembler front end
 pub (crate) mod basetoken;
 pub (crate) mod parsetext;
 mod tokens;

@@ -128,7 +128,11 @@ impl Assembler {
             self.source_file_loader.read_source(&path)?;
         };
 
-        let sf = self.source_file_loader.sources.get_source(&path).map(|(_,b)| b)?;
+        let sf = self
+            .source_file_loader
+            .sources
+            .get_source(&path)
+            .map(|(_, b)| b)?;
 
         Ok(sf)
     }
@@ -252,8 +256,7 @@ impl TryFrom<Opts> for Assembler {
 impl Assembler {
     /// Create an Assembler
     pub fn new(opts: Opts) -> Self {
-        let ctx = Assembler::try_from(opts).expect("Can't create context");
-        ctx
+        Assembler::try_from(opts).expect("Can't create context")
     }
 
     /// Assemble for the first time
@@ -299,7 +302,6 @@ impl Assembler {
     }
 
     fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
-
         let asm_ctx = AstCtx::from_nodes(self, tokens)?;
 
         let docs = asm_ctx.docs;

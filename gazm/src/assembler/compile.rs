@@ -1,5 +1,4 @@
 #![forbid(unused_imports)]
-///! Compiles the final AST into binary
 use std::path::Path;
 
 use crate::{
