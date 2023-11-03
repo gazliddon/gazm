@@ -3,20 +3,17 @@
 /// Parse the assembler commands
 use std::path::PathBuf;
 
-use crate::item::{Item, Node};
-
-use super::parse_scoped_label;
-
-use crate::item6809::MC6809;
-
-use super::{
-    get_text, parse_expr, parse_expr_list, CommandKind, IdentifierKind, PResult, TSpan,
-    TokenKind, TokenKind::Comma,
+use crate::{
+    item::{Item, Node},
+    item6809::MC6809,
 };
 
-use unraveler::{alt, many0, opt, pair, preceded, sep_pair, tuple, Parser};
+use super::{
+    get_text, parse_expr, parse_expr_list, parse_scoped_label, CommandKind, IdentifierKind,
+    PResult, TSpan, TokenKind, TokenKind::Comma,
+};
 
-use unraveler::match_span as ms;
+use unraveler::{alt, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Parser};
 
 fn get_quoted_string(input: TSpan) -> PResult<String> {
     let (rest, matched) = TokenKind::QuotedString.parse(input)?;
@@ -117,11 +114,7 @@ pub(crate) fn parse_writebin(input: TSpan) -> PResult<Node> {
         tuple((get_file_name, Comma, parse_expr, Comma, parse_expr)),
     ))(input)?;
 
-    let node = Node::from_item_kids_tspan(
-        Item::WriteBin(file_name),
-        &[source_addr, size],
-        sp,
-    );
+    let node = Node::from_item_kids_tspan(Item::WriteBin(file_name), &[source_addr, size], sp);
 
     Ok((rest, node))
 }
@@ -236,7 +229,7 @@ mod test {
     use grl_sources::SourceFile;
     use pretty_assertions::{assert_eq, assert_ne};
     use thin_vec::ThinVec;
-    use unraveler::{ Parser, Collection };
+    use unraveler::{Collection, Parser};
 
     fn test_command<P>(mut parser: P, text: &str, x: Item, xs: &[Item])
     where
@@ -261,8 +254,6 @@ mod test {
         // Test the passed parser
         let (rest, matched) = parser.parse(span).unwrap();
         check(rest, matched);
-
-
 
         // test the command parser
         let (rest, matched) = parse_command(span).unwrap();

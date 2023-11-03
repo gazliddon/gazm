@@ -1,20 +1,9 @@
 #![forbid(unused_imports)]
-
 use crate::assembler::Assembler;
 
-use crate::{
-    astformat,
-    error::GResult ,
-    gazmsymbols::Serializable,
-    status_err, status_mess,
-};
+use crate::{astformat, error::GResult, gazmsymbols::Serializable, status_err, status_mess};
 
-
-use grl_sources::{
-    fileloader::FileIo,
-    grl_utils::hash::get_hash,
-    SourceDatabase, 
-};
+use grl_sources::{fileloader::FileIo, grl_utils::hash::get_hash, SourceDatabase};
 
 use anyhow::Context as AnyContext;
 use std::path::Path;
@@ -52,10 +41,10 @@ impl Assembler {
     }
 
     fn write_file<P: AsRef<Path>>(&mut self, p: P, txt: &str) -> GResult<String> {
-        let full_file_name = self.get_vars().expand_vars(p.as_ref().to_string_lossy());
+        let full_file_name = self.expand_path(p);
         std::fs::write(&full_file_name, txt)
-            .with_context(|| format!("Unable to write {full_file_name}"))?;
-        Ok(full_file_name)
+            .with_context(|| format!("Unable to write {:?}", full_file_name))?;
+        Ok(full_file_name.to_string_lossy().into_owned())
     }
 
     pub fn write_lst_file(&mut self) -> GResult<()> {
@@ -76,8 +65,8 @@ impl Assembler {
 
     pub fn write_ast_file(&mut self) -> GResult<()> {
         if let Some(ast_file) = &self.opts.ast_file {
-            let ast_file = self.get_vars().expand_vars(ast_file.to_string_lossy());
-            status_mess!("Writing ast: {}", ast_file);
+            let ast_file = self.expand_path(ast_file);
+            status_mess!("Writing ast: {:?}", ast_file);
 
             status_err!("Not done!");
 
@@ -94,12 +83,12 @@ impl Assembler {
     pub fn write_deps_file(&mut self) -> GResult<()> {
         if let Some(deps) = &self.opts.deps_file {
             if let Some(sym_file) = &self.opts.source_mapping {
-                let sym_file = self.get_vars().expand_vars(sym_file);
+                let sym_file = self.expand_path(sym_file);
                 let sf = self.get_source_file_loader();
                 let read = join_paths(sf.get_files_read().iter(), " \\\n");
                 let written = join_paths(sf.get_files_written().iter(), " \\\n");
-                let deps_line_2 = format!("{written} : {sym_file}");
-                let deps_line = format!("{deps_line_2}\n{sym_file} : {read}");
+                let deps_line_2 = format!("{written} : {:?}", sym_file);
+                let deps_line = format!("{deps_line_2}\n{:?} : {read}", sym_file);
 
                 status_mess!("Writing deps file: {deps}");
 
@@ -143,9 +132,7 @@ impl Assembler {
             let mut errors = vec![];
 
             for (name, csum) in &self.opts.checksums {
-                let data = self
-                    .asm_out
-                    .binary
+                let data = self.binary()
                     .get_bytes(csum.addr, csum.size)
                     .expect("Binary error");
                 let this_hash = get_hash(data);
@@ -169,5 +156,4 @@ impl Assembler {
             }
         }
     }
-
 }

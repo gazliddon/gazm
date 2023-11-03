@@ -1,5 +1,4 @@
 #![forbid(unused_imports)]
-/// Take the sized AST and compile it into binary
 use std::path::Path;
 
 use crate::{
@@ -23,24 +22,8 @@ use crate::{
 use emu6809::isa;
 use grl_sources::ItemType;
 
-pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()> {
-    let mut writer = asm.get_symbols_mut().get_root_writer();
 
-    let pc_symbol_id = writer
-        .create_and_set_symbol("*", 0)
-        .expect("Can't add symbol for pc");
-
-    let root_id = asm.get_symbols().get_root_scope_id();
-    let mut compiler = Compiler::new(tree, root_id, pc_symbol_id)?;
-    compiler.compile_root(asm)?;
-
-    let mut writer = asm.get_symbols_mut().get_root_writer();
-    writer.remove_symbol("*").expect("Can't remove pc symbol");
-
-    Ok(())
-}
-
-struct Compiler<'a> {
+pub struct Compiler<'a> {
     tree: &'a Ast,
     scopes: ScopeTracker,
     pc_symbol_id: SymbolScopeId,
@@ -52,10 +35,10 @@ impl<'a> Compiler<'a> {
         (node.id(), i)
     }
 
-    fn get_node_item_ref(&self, ctx: &Assembler, id: AstNodeId) -> (AstNodeRef, Item) {
+    fn get_node_item_ref(&self, asm: &Assembler, id: AstNodeId) -> (AstNodeRef, Item) {
         let node = self.tree.as_ref().get(id).unwrap();
         let this_i = &node.value().item;
-        let i = ctx.get_fixup_or_default(id, this_i, self.scopes.scope());
+        let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
         (node, i)
     }
 
@@ -75,28 +58,28 @@ impl<'a> Compiler<'a> {
 
     fn binary_error(
         &self,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
         e: crate::binary::BinaryError,
     ) -> GazmErrorKind {
         let n = self.get_node(id);
-        let info = &ctx.get_source_info(&n.value().pos).unwrap();
+        let info = &asm.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
         UserError::from_text(msg, info, true).into()
     }
 
     fn binary_error_map<T>(
         &self,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
         e: Result<T, BinaryError>,
     ) -> Result<T, GazmErrorKind> {
-        e.map_err(|e| self.binary_error(ctx, id, e))
+        e.map_err(|e| self.binary_error(asm, id, e))
     }
 
     fn relative_error(
         &self,
-        ctx: &Assembler,
+        asm: &Assembler,
         id: AstNodeId,
         val: i64,
         bits: usize,
@@ -110,14 +93,14 @@ impl<'a> Compiler<'a> {
             format!("Branch out of range by {} bytes ({val})", val - (p - 1))
         };
 
-        let info = &ctx.get_source_info(&n.value().pos).unwrap();
+        let info = &asm.get_source_info(&n.value().pos).unwrap();
         let msg = message;
         UserError::from_text(msg, info, true).into()
     }
 
     fn compile_indexed(
         &mut self,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
         imode: IndexParseType,
         indirect: bool,
@@ -126,7 +109,7 @@ impl<'a> Compiler<'a> {
 
         let idx_byte = imode.get_index_byte(indirect);
 
-        self.write_byte(idx_byte, ctx, id)?;
+        self.write_byte(idx_byte, asm, id)?;
 
         let node = self.get_node(id);
 
@@ -136,20 +119,20 @@ impl<'a> Compiler<'a> {
             }
 
             ExtendedIndirect => {
-                let (val, _) = ctx.eval_first_arg(node, self.scopes.scope())?;
+                let (val, _) = asm.eval_first_arg(node, self.scopes.scope())?;
 
-                let res = ctx.binary_mut().write_uword_check_size(val);
-                self.binary_error_map(ctx, id, res)?;
+                let res = asm.binary_mut().write_uword_check_size(val);
+                self.binary_error_map(asm, id, res)?;
             }
 
             ConstantWordOffset(_, val) | PcOffsetWord(val) => {
-                let res = ctx.binary_mut().write_iword_check_size(val as i64);
-                self.binary_error_map(ctx, id, res)?;
+                let res = asm.binary_mut().write_iword_check_size(val as i64);
+                self.binary_error_map(asm, id, res)?;
             }
 
             ConstantByteOffset(_, val) | PcOffsetByte(val) => {
-                let res = ctx.binary_mut().write_ibyte_check_size(val as i64);
-                self.binary_error_map(ctx, id, res)?;
+                let res = asm.binary_mut().write_ibyte_check_size(val as i64);
+                self.binary_error_map(asm, id, res)?;
             }
             _ => (),
         }
@@ -161,35 +144,35 @@ impl<'a> Compiler<'a> {
     /// ( physical range, logical_range )
     fn add_mapping(
         &self,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         phys_range: std::ops::Range<usize>,
         range: std::ops::Range<usize>,
         id: AstNodeId,
         i: ItemType,
     ) {
         let pos = self.get_node(id).value().pos;
-        ctx.asm_out
+        asm.asm_out
             .source_map
             .add_mapping(phys_range, range, &pos, i);
     }
 
     /// Grab memory and copy it the PC
-    fn grab_mem(&self, ctx: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    fn grab_mem(&self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         let node = self.get_node(id);
-        let args = ctx.eval_n_args(node, 2, self.scopes.scope())?;
+        let args = asm.eval_n_args(node, 2, self.scopes.scope())?;
         let source = args[0];
         let size = args[1];
 
-        let bytes_ret = ctx
+        let bytes_ret = asm
             .binary()
             .get_bytes(source as usize, size as usize)
             .map(|n| n.to_vec());
 
-        let bytes = bytes_ret.map_err(|e| self.binary_error(ctx, id, e))?;
+        let bytes = bytes_ret.map_err(|e| self.binary_error(asm, id, e))?;
 
-        ctx.binary_mut()
+        asm.binary_mut()
             .write_bytes(&bytes)
-            .map_err(|e| self.binary_error(ctx, id, e))?;
+            .map_err(|e| self.binary_error(asm, id, e))?;
 
         Ok(())
     }
@@ -197,16 +180,16 @@ impl<'a> Compiler<'a> {
     /// Add a binary to write
     fn add_binary_to_write<P: AsRef<Path>>(
         &self,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
         path: P,
     ) -> GResult<()> {
         let current_scope_id = self.scopes.scope();
 
         let node = self.get_node(id);
-        let (physical_address, count) = ctx.eval_two_args(node, current_scope_id)?;
+        let (physical_address, count) = asm.eval_two_args(node, current_scope_id)?;
 
-        ctx.add_bin_to_write(
+        asm.add_bin_to_write(
             &path,
             physical_address as usize..(physical_address + count) as usize,
         )?;
@@ -214,14 +197,14 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn inc_bin_ref<P: AsRef<Path>>(&self, ctx: &mut Assembler, file_name: P) -> GResult<()> {
+    fn inc_bin_ref<P: AsRef<Path>>(&self, asm: &mut Assembler, file_name: P) -> GResult<()> {
         use crate::binary::BinRef;
 
         let file = file_name.as_ref().to_path_buf();
 
-        let (.., data) = ctx.read_binary(&file_name)?;
+        let (.., data) = asm.read_binary(&file_name)?;
 
-        let dest = ctx.binary().get_write_location().physical;
+        let dest = asm.binary().get_write_location().physical;
 
         let bin_ref = BinRef {
             file: file.clone(),
@@ -230,7 +213,7 @@ impl<'a> Compiler<'a> {
             dest,
         };
 
-        ctx.binary_mut().add_bin_reference(&bin_ref, &data);
+        asm.binary_mut().add_bin_reference(&bin_ref, &data);
 
         info_mess!(
             "Adding binary reference {} for {:05X} - {:05X}",
@@ -242,68 +225,68 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn write_word(&mut self, val: u16, ctx: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        let ret = ctx.binary_mut().write_word(val);
-        self.binary_error_map(ctx, id, ret)?;
+    fn write_word(&mut self, val: u16, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+        let ret = asm.binary_mut().write_word(val);
+        self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
-    fn write_byte(&mut self, val: u8, ctx: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        let ret = ctx.binary_mut().write_byte(val);
-        self.binary_error_map(ctx, id, ret)?;
+    fn write_byte(&mut self, val: u8, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+        let ret = asm.binary_mut().write_byte(val);
+        self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
     fn write_byte_check_size(
         &mut self,
         val: i64,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
     ) -> GResult<()> {
-        let ret = ctx.binary_mut().write_byte_check_size(val);
-        self.binary_error_map(ctx, id, ret)?;
+        let ret = asm.binary_mut().write_byte_check_size(val);
+        self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
     fn write_word_check_size(
         &mut self,
         val: i64,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
     ) -> GResult<()> {
-        let ret = ctx.binary_mut().write_word_check_size(val);
-        self.binary_error_map(ctx, id, ret)?;
+        let ret = asm.binary_mut().write_word_check_size(val);
+        self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
     fn write_byte_word_size(
         &mut self,
         val: i64,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
     ) -> GResult<()> {
-        let ret = ctx.binary_mut().write_word_check_size(val);
-        self.binary_error_map(ctx, id, ret)?;
+        let ret = asm.binary_mut().write_word_check_size(val);
+        self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
     /// Compile an opcode
     fn compile_opcode(
         &mut self,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
         ins: &isa::Instruction,
         amode: AddrModeParseType,
     ) -> GResult<()> {
         use isa::AddrModeEnum::*;
 
-        let pc = ctx.binary().get_write_address();
+        let pc = asm.binary().get_write_address();
         let ins_amode = ins.addr_mode;
         let current_scope_id = self.scopes.scope();
 
         if ins.opcode > 0xff {
-            self.write_word(ins.opcode as u16, ctx, id)
+            self.write_word(ins.opcode as u16, asm, id)
         } else {
-            self.write_byte(ins.opcode as u8, ctx, id)
+            self.write_byte(ins.opcode as u8, asm, id)
         }?;
 
         let node = self.get_node(id);
@@ -311,48 +294,48 @@ impl<'a> Compiler<'a> {
         match ins_amode {
             Indexed => {
                 if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                    self.compile_indexed(ctx, id, imode, indirect)?;
+                    self.compile_indexed(asm, id, imode, indirect)?;
                 }
             }
 
             Immediate8 => {
-                let (arg, _) = ctx.eval_first_arg(node, current_scope_id)?;
-                self.write_byte_check_size(arg, ctx, id)?
+                let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
+                self.write_byte_check_size(arg, asm, id)?
             }
 
             Direct => {
-                let (arg, _) = ctx.eval_first_arg(node, current_scope_id)?;
-                self.write_byte_check_size(arg & 0xff, ctx, id)?
+                let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
+                self.write_byte_check_size(arg & 0xff, asm, id)?
             }
 
             Extended | Immediate16 => {
-                let (arg, _) = ctx.eval_first_arg(node, current_scope_id)?;
-                self.write_word_check_size(arg, ctx, id)?;
+                let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
+                self.write_word_check_size(arg, asm, id)?;
             }
 
             Relative => {
                 use crate::binary::BinaryError::*;
-                let (arg, arg_id) = ctx.eval_first_arg(node, current_scope_id)?;
+                let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
                 let arg_n = self.get_node(arg_id);
                 let val = arg - (pc as i64 + ins.size as i64);
                 // offset is from PC after Instruction and operand has been fetched
-                let res = ctx
+                let res = asm
                     .asm_out
                     .binary
                     .write_ibyte_check_size(val)
                     .map_err(|x| match x {
-                        DoesNotFit { .. } => self.relative_error(ctx, id, val, 8),
-                        DoesNotMatchReference { .. } => self.binary_error(ctx, id, x),
-                        _ => ctx.user_error(format!("{x:?}"), arg_n, false).into(),
+                        DoesNotFit { .. } => self.relative_error(asm, id, val, 8),
+                        DoesNotMatchReference { .. } => self.binary_error(asm, id, x),
+                        _ => asm.user_error(format!("{x:?}"), arg_n, false).into(),
                     });
 
                 match &res {
                     Ok(_) => (),
                     Err(_) => {
-                        if ctx.opts.ignore_relative_offset_errors {
+                        if asm.opts.ignore_relative_offset_errors {
                             // messages::warning("Skipping writing relative offset");
-                            let res = ctx.binary_mut().write_ibyte_check_size(0);
-                            self.binary_error_map(ctx, id, res)?;
+                            let res = asm.binary_mut().write_ibyte_check_size(0);
+                            self.binary_error_map(asm, id, res)?;
                         } else {
                             res?;
                         }
@@ -363,18 +346,18 @@ impl<'a> Compiler<'a> {
             Relative16 => {
                 use crate::binary::BinaryError::*;
 
-                let (arg, arg_id) = ctx.eval_first_arg(node, current_scope_id)?;
+                let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
 
                 let arg_n = self.get_node(arg_id);
 
                 let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
                 // offset is from PC after Instruction and operand has been fetched
-                let res = ctx.binary_mut().write_word_check_size(val);
+                let res = asm.binary_mut().write_word_check_size(val);
 
                 res.map_err(|x| match x {
-                    DoesNotFit { .. } => self.relative_error(ctx, id, val, 16),
-                    DoesNotMatchReference { .. } => self.binary_error(ctx, id, x),
-                    _ => ctx.user_error(format!("{x:?}"), arg_n, true).into(),
+                    DoesNotFit { .. } => self.relative_error(asm, id, val, 16),
+                    DoesNotMatchReference { .. } => self.binary_error(asm, id, x),
+                    _ => asm.user_error(format!("{x:?}"), arg_n, true).into(),
                 })?;
             }
 
@@ -383,7 +366,7 @@ impl<'a> Compiler<'a> {
             RegisterPair => {
                 if let AddrModeParseType::RegisterPair(a, b) = amode {
                     let val = reg_pair_to_flags(a, b);
-                    self.write_byte(val, ctx, id)?;
+                    self.write_byte(val, asm, id)?;
                 } else {
                     panic!("Whut!")
                 }
@@ -393,7 +376,7 @@ impl<'a> Compiler<'a> {
                 let rset = &node.first_child().unwrap().value().item;
                 if let Item::Cpu(MC6809::RegisterSet(regs)) = rset {
                     let flags = registers_to_flags(regs);
-                    self.write_byte(flags, ctx, id)?;
+                    self.write_byte(flags, asm, id)?;
                 } else {
                     panic!("Whut!")
                 }
@@ -401,14 +384,14 @@ impl<'a> Compiler<'a> {
         };
 
         // Add memory to source code mapping for this opcode
-        let (phys_range, range) = ctx.binary().range_to_write_address(pc);
-        self.add_mapping(ctx, phys_range, range, id, ItemType::OpCode);
+        let (phys_range, range) = asm.binary().range_to_write_address(pc);
+        self.add_mapping(asm, phys_range, range, id, ItemType::OpCode);
         Ok(())
     }
 
     fn incbin_resolved<P: AsRef<Path>>(
         &self,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         id: AstNodeId,
         file: P,
         r: &std::ops::Range<usize>,
@@ -420,34 +403,33 @@ impl<'a> Compiler<'a> {
             r.len()
         );
 
-        let (.., bin) = ctx.read_binary_chunk(file, r.clone())?;
+        let (.., bin) = asm.read_binary_chunk(file, r.clone())?;
 
         for val in bin {
-            ctx.binary_mut()
+            asm.binary_mut()
                 .write_byte(val)
-                .map_err(|e| self.binary_error(ctx, id, e))?;
+                .map_err(|e| self.binary_error(asm, id, e))?;
         }
         Ok(())
     }
 
-    fn compile_children(&mut self, ctx: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    fn compile_children(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         let node = self.get_node(id);
         let kids: Vec<_> = node.children().map(|n| n.id()).collect();
         for c in kids {
-            self.compile_node_error(ctx, c)?;
+            self.compile_node_error(asm, c)?;
         }
         Ok(())
     }
 
-    fn compile_root(&mut self, ctx: &mut Assembler) -> GResult<()> {
-        let scope_id = ctx.get_symbols().get_root_scope_id();
+    pub fn compile_root(&mut self, asm: &mut Assembler) -> GResult<()> {
+        let scope_id = asm.get_symbols().get_root_scope_id();
         self.scopes.set_scope(scope_id);
-        self.compile_node_error(ctx, self.tree.as_ref().root().id())
+        self.compile_node_error(asm, self.tree.as_ref().root().id())
     }
 
     fn compile_node_error(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         use item::Item::*;
-        // let ctx = &mut etx.ctx;
 
         let (node_id, i) = self.get_node_item(asm, id);
 

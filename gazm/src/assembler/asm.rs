@@ -1,36 +1,29 @@
+#![forbid(unused_imports)]
 use std::path::{Path, PathBuf};
 
 use crate::{
     ast::AstCtx,
     ast::{Ast, AstNodeId},
-    async_tokenize,
-    async_tokenize::TokenizeResult,
+    async_tokenize::{self, TokenizeResult},
     binary::{self, AccessType, BinRef, Binary},
-    compile::compile,
-    error::GResult,
-    error::{ErrorCollector, GazmErrorKind, ParseError, UserError},
-    fixerupper::FixerUpper,
+    error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     gazmsymbols::SymbolTree,
-    item::Item,
-    item::Node,
+    info_mess,
+    item::{Item, Node},
     lookup::LabelUsageAndDefintions,
-    opts::BinReference,
-    opts::Opts,
-    sizer::size_tree,
+    opts::{BinReference, Opts},
     token_store::TokenStore,
     vars::Vars,
 };
 
-use itertools::Itertools;
+use super::{compile::Compiler, fixerupper::FixerUpper, sizer::Sizer};
 
 use grl_sources::{
     fileloader::{FileIo, SourceFileLoader},
-    grl_utils::fileutils,
-    grl_utils::PathSearcher,
+    grl_utils::{fileutils, PathSearcher},
     AsmSource, BinToWrite, Position, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
 };
 
-use std::sync::{Arc, Mutex};
 #[derive(Debug)]
 pub struct Assembler {
     pub token_store: TokenStore,
@@ -71,6 +64,7 @@ impl LstFile {
 
 impl Assembler {
     pub fn get_untokenized_files(&self, files: &[(Position, PathBuf)]) -> Vec<(Position, PathBuf)> {
+        use itertools::Itertools;
         files
             .iter()
             .cloned()
@@ -144,12 +138,16 @@ impl Assembler {
         Ok(ret)
     }
 
-    pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorKind> {
+    pub fn expand_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
         let path: PathBuf = self
             .get_vars()
             .expand_vars(path.as_ref().to_string_lossy())
             .into();
+        path
+    }
 
+    pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorKind> {
+        let path = self.expand_path(path);
         let ret = self.source_file_loader.get_full_path(&path).map_err(|_| {
             let err = format!("Can't find file {}", path.to_string_lossy());
             GazmErrorKind::Misc(err)
@@ -309,18 +307,45 @@ impl Assembler {
         let docs = tree.docs;
         let tree = tree.ast_tree;
 
-        size_tree(self, &tree)?;
-        compile(self, &tree)?;
+        self.size_tree(&tree)?;
+        self.compile(&tree)?;
 
         let lookup = LabelUsageAndDefintions::new(&tree, &self.asm_out.symbols, docs);
         self.asm_out.ast = Some(tree);
         self.asm_out.lookup = Some(lookup);
         Ok(())
     }
+
+    pub fn compile(&mut self, tree: &Ast) -> GResult<()> {
+        let mut writer = self.get_symbols_mut().get_root_writer();
+
+        let pc_symbol_id = writer
+            .create_and_set_symbol("*", 0)
+            .expect("Can't add symbol for pc");
+
+        let root_id = self.get_symbols().get_root_scope_id();
+        let mut compiler = Compiler::new(tree, root_id, pc_symbol_id)?;
+
+        compiler.compile_root(self)?;
+
+        let mut writer = self.get_symbols_mut().get_root_writer();
+        writer.remove_symbol("*").expect("Can't remove pc symbol");
+
+        Ok(())
+    }
+
+    pub fn size_tree(&mut self, tree: &Ast) -> GResult<()> {
+        crate::messages::info("Sizing tree", |_x| {
+            let _sizer = Sizer::try_new(tree, self)?;
+            info_mess!("done");
+            Ok(())
+        })
+    }
 }
 
 // Symbol
 use crate::gazmsymbols::{SymbolError, SymbolScopeId};
+
 impl Assembler {
     pub fn set_symbol_value(
         &mut self,
@@ -412,6 +437,7 @@ impl Assembler {
     }
 }
 
+// Fixup
 impl Assembler {
     pub fn get_fixup_or_default(&self, id: AstNodeId, i: &Item, scope_id: u64) -> Item {
         self.fixer_upper.get_fixup_or_default(scope_id, id, i)
@@ -451,10 +477,5 @@ impl Assembler {
                 self.asm_out.lst_file.add(&m);
             }
         }
-    }
-
-    pub fn eval_macro_args_node(&mut self,scope_id: u64, caller_id: AstNodeId, tree: &Ast) -> bool {
-        let node = tree.as_ref().get(caller_id).unwrap();
-        self.eval_macro_args(scope_id, node)
     }
 }

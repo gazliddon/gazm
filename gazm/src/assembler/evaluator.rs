@@ -2,17 +2,27 @@
 use grl_sources::{Position, SourceErrorType, SourceInfo};
 
 use crate::{
-    ast::{AstNodeId, AstNodeRef},
+    ast::{AstNodeId, AstNodeRef, Ast},
     assembler::Assembler,
     error::{GResult, UserError},
     gazmeval::eval,
     item::Item::*,
     gazmsymbols::{SymbolInfo, SymbolTree},
+    
 };
 
 impl Assembler {
     /// Evaluate all macro args
     /// if all arguments were evaluated returns true
+    pub fn eval_macro_args_node(
+        &mut self,
+        scope_id: u64,
+        caller_id: AstNodeId,
+        tree: &Ast,
+    ) -> bool {
+        let node = tree.as_ref().get(caller_id).unwrap();
+        self.eval_macro_args(scope_id, node)
+    }
 
     pub fn eval_macro_args(&mut self, eval_scope_id: u64, caller_node: AstNodeRef) -> bool {
         if let MacroCallProcessed {

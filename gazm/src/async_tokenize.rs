@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use crate::{
     opts::Opts,
     assembler::Assembler,

@@ -1,13 +1,15 @@
 // #![forbid(unused_imports)]
 use super::TokenKind;
-use crate::ast::{ AstTree,Ast,ItemWithPos };
-use crate::item::{Node,Item};
-use crate::ast::{ AstNodeId, AstNodeMut };
+
+use crate::{
+    ast::{Ast, AstTree, ItemWithPos},
+    ast::{AstNodeId, AstNodeMut},
+    item::{Item, Node},
+};
 
 struct AstNew {
-    ast : AstTree,
+    ast: AstTree,
 }
-
 
 impl AstNew {
     pub fn from_node(node: &Node) -> Self {
@@ -30,6 +32,3 @@ impl AstNew {
         }
     }
 }
-
-
-

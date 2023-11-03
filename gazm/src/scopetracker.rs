@@ -1,9 +1,8 @@
 
 // #![forbid(unused_imports)]
 use crate::{
-    ast::AstCtx, async_tokenize, compile::compile, assembler::Assembler, error::GResult,
-    fixerupper::FixerUpper, item::Node, lookup::LabelUsageAndDefintions, opts::Opts,
-    sizer::size_tree,
+    ast::AstCtx, async_tokenize,  assembler::Assembler, error::GResult,
+    item::Node, lookup::LabelUsageAndDefintions, opts::Opts,
 };
 
 use grl_sources::{

@@ -5,7 +5,6 @@ use crate::{
     ast::{Ast, AstNodeId, AstNodeRef},
     error::GResult,
     gazmsymbols::SymbolScopeId,
-    info_mess,
     item::{self, Item, LabelDefinition},
     item6809::{
         AddrModeParseType,
@@ -23,19 +22,11 @@ use std::path::Path;
 /// gets the size of everything
 /// assigns values to labels that
 /// are defined by value of PC
-struct Sizer<'a> {
+pub struct Sizer<'a> {
     tree: &'a Ast,
     scopes: ScopeTracker,
     pc: usize,
     pc_symbol_id: SymbolScopeId,
-}
-
-pub fn size_tree(ctx: &mut Assembler, tree: &Ast) -> GResult<()> {
-    crate::messages::info("Sizing tree", |_x| {
-        let _sizer = Sizer::try_new(tree, ctx)?;
-        info_mess!("done");
-        Ok(())
-    })
 }
 
 impl<'a> Sizer<'a> {
@@ -53,15 +44,15 @@ impl<'a> Sizer<'a> {
         assert!(self.pc < 65536);
     }
 
-    pub fn try_new(tree: &'a Ast, ctx: &mut Assembler) -> GResult<Sizer<'a>> {
+    pub fn try_new(tree: &'a Ast, asm: &mut Assembler) -> GResult<Sizer<'a>> {
         let pc = 0;
-        let mut writer = ctx.get_symbols_mut().get_root_writer();
+        let mut writer = asm.get_symbols_mut().get_root_writer();
 
         let pc_symbol_id = writer
             .create_and_set_symbol("*", pc)
             .expect("Can't add symbol for pc");
 
-        let root_id = ctx.get_symbols().get_root_scope_id();
+        let root_id = asm.get_symbols().get_root_scope_id();
 
         let mut ret = Self {
             tree,
@@ -71,15 +62,15 @@ impl<'a> Sizer<'a> {
         };
 
         let id = ret.tree.as_ref().root().id();
-        ret.size_node(ctx, id)?;
+        ret.size_node(asm, id)?;
 
-        let mut writer = ctx.get_symbols_mut().get_root_writer();
+        let mut writer = asm.get_symbols_mut().get_root_writer();
         writer.remove_symbol("*").expect("Can't remove pc symbol");
 
         Ok(ret)
     }
 
-    fn size_indexed(&mut self, ctx: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    fn size_indexed(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         use Item::*;
         // let i = &self.get_node(id).value().item;
 
@@ -107,7 +98,7 @@ impl<'a> Sizer<'a> {
 
                 ConstantOffset(r) => {
                     let node = self.get_node(id);
-                    let (v, _) = ctx.eval_first_arg(node, current_scope_id)?;
+                    let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
 
                     let mut bs = v.byte_size();
 
@@ -135,12 +126,12 @@ impl<'a> Sizer<'a> {
                     let new_item =
                         OpCode(text, ins, AddrModeParseType::Indexed(new_amode, indirect));
 
-                    ctx.add_fixup(id, new_item, current_scope_id);
+                    asm.add_fixup(id, new_item, current_scope_id);
                 }
 
                 PCOffset => {
                     let node = self.get_node(id);
-                    let (v, _) = ctx.eval_first_arg(node, current_scope_id)?;
+                    let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
                     self.advance_pc(1);
 
                     let new_amode = match v.byte_size() {
@@ -154,7 +145,7 @@ impl<'a> Sizer<'a> {
 
                     let new_item =
                         OpCode(text, ins, AddrModeParseType::Indexed(new_amode, indirect));
-                    ctx.add_fixup(id, new_item, current_scope_id);
+                    asm.add_fixup(id, new_item, current_scope_id);
                 }
 
                 ExtendedIndirect => {
@@ -167,28 +158,28 @@ impl<'a> Sizer<'a> {
         }
     }
 
-    fn size_node(&mut self, ctx: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    fn size_node(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         use item::Item::*;
 
         let node = self.get_node(id);
         let i = &node.value().item.clone();
         let current_scope_id = self.scopes.scope();
 
-        ctx.set_symbol_value(self.pc_symbol_id, self.get_pc())
+        asm.set_symbol_value(self.pc_symbol_id, self.get_pc())
             .expect("Can't set PC symbol value");
 
         match &i {
             MacroCallProcessed {
                 scope_id, macro_id, ..
             } => {
-                ctx.eval_macro_args_node(*scope_id, id, self.tree);
+                asm.eval_macro_args_node(*scope_id, id, self.tree);
 
                 self.scopes.push(*scope_id);
 
                 let m_node = self.get_node(*macro_id);
                 let kids: Vec<_> = m_node.children().map(|n| n.id()).collect();
                 for c in kids {
-                    self.size_node(ctx, c)?;
+                    self.size_node(asm, c)?;
                 }
 
                 self.scopes.pop();
@@ -197,14 +188,14 @@ impl<'a> Sizer<'a> {
             ScopeId(scope_id) => self.scopes.set_scope(*scope_id),
 
             GrabMem => {
-                let args = ctx.eval_n_args(node, 2, current_scope_id)?;
+                let args = asm.eval_n_args(node, 2, current_scope_id)?;
                 let size = args[1];
                 self.advance_pc(size as usize);
             }
 
             Org => {
-                let pc = ctx.eval_first_arg(node, current_scope_id)?.0 as usize;
-                ctx.add_fixup(id, Item::SetPc(pc), current_scope_id);
+                let pc = asm.eval_first_arg(node, current_scope_id)?.0 as usize;
+                asm.add_fixup(id, Item::SetPc(pc), current_scope_id);
                 self.set_pc(pc);
             }
 
@@ -213,21 +204,21 @@ impl<'a> Sizer<'a> {
             }
 
             Put => {
-                let (value, _) = ctx.eval_first_arg(node, current_scope_id)?;
+                let (value, _) = asm.eval_first_arg(node, current_scope_id)?;
                 let offset = (value - self.get_pc() as i64) as isize;
-                ctx.add_fixup(id, Item::SetPutOffset(offset), current_scope_id);
+                asm.add_fixup(id, Item::SetPutOffset(offset), current_scope_id);
             }
 
             Rmb => {
-                let (bytes, _) = ctx.eval_first_arg(node, current_scope_id)?;
+                let (bytes, _) = asm.eval_first_arg(node, current_scope_id)?;
 
                 if bytes < 0 {
-                    return Err(ctx
+                    return Err(asm
                         .user_error("Argument for RMB must be positive", node, true)
                         .into());
                 };
 
-                ctx.add_fixup(id, Item::Skip(bytes as usize), current_scope_id);
+                asm.add_fixup(id, Item::Skip(bytes as usize), current_scope_id);
                 self.advance_pc(bytes as usize);
             }
 
@@ -244,10 +235,10 @@ impl<'a> Sizer<'a> {
 
                         let dp_info = get_opcode_info(ins)
                             .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
-                            .and_then(|ins| ctx.asm_out.direct_page.map(|dp| (ins, dp)));
+                            .and_then(|ins| asm.asm_out.direct_page.map(|dp| (ins, dp)));
 
                         if let Some((new_ins, dp)) = dp_info {
-                            if let Ok((value, _)) = ctx.eval_first_arg(node, current_scope_id) {
+                            if let Ok((value, _)) = asm.eval_first_arg(node, current_scope_id) {
                                 let top_byte = ((value >> 8) & 0xff) as u8;
 
                                 if top_byte == dp {
@@ -259,7 +250,7 @@ impl<'a> Sizer<'a> {
                                         Box::new(new_ins),
                                         AddrModeParseType::Direct,
                                     ));
-                                    ctx.add_fixup(id, new_item, current_scope_id);
+                                    asm.add_fixup(id, new_item, current_scope_id);
                                 }
                             }
                         }
@@ -267,7 +258,7 @@ impl<'a> Sizer<'a> {
                     }
 
                     AddrModeParseType::Indexed(..) => {
-                        self.size_indexed(ctx, id)?;
+                        self.size_indexed(asm, id)?;
                     }
 
                     _ => {
@@ -279,18 +270,18 @@ impl<'a> Sizer<'a> {
             AssignmentFromPc(LabelDefinition::Scoped(symbol_id)) => {
                 let pcv = if node.first_child().is_some() {
                     // If we have an arg then evaluate the arg
-                    ctx.eval_first_arg(node, current_scope_id)?.0
+                    asm.eval_first_arg(node, current_scope_id)?.0
                 } else {
                     // Otherwise it's just the current PC
                     self.get_pc() as i64
                 };
 
-                ctx.set_symbol_value(*symbol_id, pcv as usize).unwrap();
+                asm.set_symbol_value(*symbol_id, pcv as usize).unwrap();
             }
 
             TokenizedFile(..) => {
-                for c in ctx.get_children(node) {
-                    self.size_node(ctx, c)?;
+                for c in asm.get_children(node) {
+                    self.size_node(asm, c)?;
                 }
             }
 
@@ -305,36 +296,36 @@ impl<'a> Sizer<'a> {
             }
 
             Zmb => {
-                let (v, _) = ctx.eval_first_arg(node, current_scope_id)?;
+                let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
                 assert!(v >= 0);
                 self.advance_pc(v as usize)
             }
 
             Zmd => {
-                let (v, _) = ctx.eval_first_arg(node, current_scope_id)?;
+                let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
                 assert!(v >= 0);
                 self.advance_pc((v * 2) as usize)
             }
 
             Fill => {
-                let (size, _val) = ctx.eval_two_args(node, current_scope_id)?;
+                let (size, _val) = asm.eval_two_args(node, current_scope_id)?;
                 assert!(size >= 0);
                 self.advance_pc(size as usize);
             }
 
             Cpu(SetDp) => {
-                let (dp, _) = ctx.eval_first_arg(node, current_scope_id)?;
-                ctx.set_dp(dp);
+                let (dp, _) = asm.eval_first_arg(node, current_scope_id)?;
+                asm.set_dp(dp);
             }
 
             IncBin(file_name) => {
-                let r = self.get_binary_extents(ctx, file_name, node)?;
+                let r = self.get_binary_extents(asm, file_name, node)?;
                 let new_item = IncBinResolved {
                     file: file_name.clone(),
                     r: r.clone(),
                 };
 
-                ctx.add_fixup(id, new_item, current_scope_id);
+                asm.add_fixup(id, new_item, current_scope_id);
                 self.advance_pc(r.len())
             }
 
@@ -343,7 +334,7 @@ impl<'a> Sizer<'a> {
 
             _ => {
                 let msg = format!("Unable to size {i:?}");
-                return Err(ctx.user_error(msg, node, true).into());
+                return Err(asm.user_error(msg, node, true).into());
             }
         };
 
@@ -352,21 +343,21 @@ impl<'a> Sizer<'a> {
 
     fn get_binary_extents<P: AsRef<Path>>(
         &self,
-        ctx: &mut Assembler,
+        asm: &mut Assembler,
         file_name: P,
         node: AstNodeRef,
     ) -> GResult<std::ops::Range<usize>> {
         use itertools::Itertools;
 
-        let data_len = ctx.get_file_size(file_name.as_ref())?;
+        let data_len = asm.get_file_size(file_name.as_ref())?;
 
         let mut r = 0..data_len;
 
         let current_scope_id = self.scopes.scope();
 
         if let Some((offset, size)) = node.children().collect_tuple() {
-            let offset = ctx.eval_node(offset, current_scope_id)?;
-            let size = ctx.eval_node(size, current_scope_id)?;
+            let offset = asm.eval_node(offset, current_scope_id)?;
+            let size = asm.eval_node(size, current_scope_id)?;
             let offset_usize = offset as usize;
             let size_usize = size as usize;
             let last = (offset_usize + size_usize) - 1;
@@ -374,7 +365,7 @@ impl<'a> Sizer<'a> {
             if !(r.contains(&offset_usize) && r.contains(&last)) {
                 let msg =
                     format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
-                return Err(ctx.user_error(msg, node, true).into());
+                return Err(asm.user_error(msg, node, true).into());
             };
 
             r.start = offset_usize;

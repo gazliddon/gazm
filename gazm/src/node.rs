@@ -1,5 +1,6 @@
 #![forbid(unused_imports)]
 use thin_vec::{thin_vec, ThinVec};
+use std::fmt::Debug;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Node
@@ -66,7 +67,7 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
     }
 }
 
-impl<I: std::fmt::Debug + Clone, C: CtxTrait> std::fmt::Debug for BaseNode<I, C> {
+impl<I: Debug + Clone, C: CtxTrait> Debug for BaseNode<I, C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut db = f.debug_struct("Node");
         db.field("item", &self.item);
