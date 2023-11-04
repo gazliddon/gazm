@@ -1,5 +1,7 @@
 #![deny(unused_imports)]
-use unraveler::{alt, match_item, match_span as ms, preceded, sep_list, tag, wrapped_cut, Parser,sep_pair};
+use unraveler::{
+    alt, match_item, match_span as ms, preceded, sep_list, sep_pair, tag, wrapped_cut, Parser,
+};
 
 use super::{
     get_text, parse_expr, CommandKind, FrontEndError, IdentifierKind, NumberKind, PResult, TSpan,
@@ -34,6 +36,14 @@ pub(crate) fn get_label<F: Fn(String) -> LabelDefinition>(
     let (rest, sp) = tag_kind.parse(input)?;
     let node = Node::from_item_tspan(Item::Label(to_label_def(get_text(sp))), sp);
     Ok((rest, node))
+}
+
+pub(crate) fn get_label_text(input: TSpan) -> PResult<String> {
+    use IdentifierKind::Label;
+    use TokenKind::*;
+    let (rest, sp) = match_item(|i: &Token| matches!(i.kind, Identifier(Label)))(input)?;
+    let text = sp.extra.get_text().to_string();
+    Ok((rest, text))
 }
 
 fn parse_local_label(input: TSpan) -> PResult<Node> {

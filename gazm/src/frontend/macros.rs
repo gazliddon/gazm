@@ -1,18 +1,18 @@
 #![deny(unused_imports)]
 
 use crate::item::{
-    Item::{MacroCall, MacroDef2},
+    Item::{MacroCall, MacroDef},
     Node,
 };
 
 use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple};
 
 use super::{
-    get_text, parse_block, parse_bracketed, parse_expr_list0, parse_non_scoped_label, parse_span,
+    get_text, parse_block, parse_bracketed, parse_expr_list0, parse_span,
     CommandKind,
     IdentifierKind::Label,
     OriginalSource, PResult, TSpan,
-    TokenKind::{Comma, Identifier},
+    TokenKind::{Comma, Identifier}, get_label_text,
 };
 
 pub fn parse_macro_call(input: TSpan) -> PResult<Node> {
@@ -33,17 +33,17 @@ pub fn set_parsing_macro(i: TSpan, v: bool) -> TSpan {
     })
 }
 
-fn parse_macro_args(input: TSpan) -> PResult<Vec<Node>> {
-    parse_bracketed(sep_list0(parse_non_scoped_label, Comma))(input)
+fn parse_macrodef_args(input: TSpan) -> PResult<Vec<String>> {
+    parse_bracketed(sep_list0(get_label_text, Comma))(input)
 }
 
 pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (label, _args, body))) = ms(preceded(
         CommandKind::Macro,
-        tuple((Identifier(Label), parse_macro_args, parse_block(parse_span))),
+        tuple((Identifier(Label), parse_macrodef_args, parse_block(parse_span))),
     ))(input)?;
 
-    let node = Node::from_item_kid_tspan(MacroDef2(get_text(label)), body, sp);
+    let node = Node::from_item_kid_tspan(MacroDef(get_text(label),_args.into()), body, sp);
     Ok((rest, node))
 }
 
@@ -74,10 +74,8 @@ mod test {
         let t: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("Toks : {:?}", t);
         let input = make_tspan(&tokens, &sf);
-        let (_r, m) = super::parse_macro_args(input).expect("Can't parse args");
-
-        let t: Vec<_> = m.into_iter().map(|n| n.item).collect();
-        println!("parsed : {:?}", t);
+        let (_r, m) = super::parse_macrodef_args(input).expect("Can't parse args");
+        println!("parsed : {:?}", m);
     }
 
     #[test]
