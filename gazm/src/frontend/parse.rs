@@ -1,12 +1,12 @@
 #![deny(unused_imports)]
 use super::{
     parse_command, parse_equate, parse_label, parse_line, parse_macro_call, parse_macro_def,
-    parse_multi_opcode, parse_struct, PResult, TSpan,
+    parse_multi_opcode_vec, parse_struct, PResult, TSpan,
 };
 
-use crate::{item::{Item, Node}, frontend::get_text};
+use crate::item::{ Item, Node };
 use thin_vec::ThinVec;
-use unraveler::{alt, many0};
+use unraveler::{alt, many0, map};
 
 struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
@@ -41,26 +41,31 @@ impl<'a> NodeCollector<'a> {
     }
 }
 
-pub fn parse_single_line(input: TSpan) -> PResult<Node> {
+pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node>> {
     parse_line(alt((
-        parse_macro_call,
-        parse_equate,
-        parse_command,
-        parse_multi_opcode,
+        map(parse_macro_call, |n| vec![n]),
+        map( parse_equate , |n| vec![n]),
+        map( parse_command , |n| vec![n]),
+        parse_multi_opcode_vec ,
     )))(input)
+}
+
+pub fn parse_span_vec(input: TSpan) -> PResult<Vec<Node>> { 
+    let (rest,matched) = parse_span(input)?;
+    Ok((rest,matched.children.to_vec()))
 }
 
 pub fn parse_span(input: TSpan) -> PResult<Node> {
     let mut nodes = NodeCollector::new(input);
 
-    println!("to test {}", get_text(input));
-
     let (rest, matched) = many0(alt((
-        parse_macro_def,
-        parse_struct,
+        map( parse_macro_def, |n| vec![n] ),
+        map(parse_struct,|n| vec![n]),
         parse_single_line,
-        parse_label,
+        map( parse_label, |n| vec![n]),
     )))(input)?;
+
+    let matched = matched.into_iter().flatten().collect();
 
     nodes.add_vec(matched);
 

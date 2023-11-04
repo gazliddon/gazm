@@ -8,7 +8,7 @@ use crate::item::{
 use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple};
 
 use super::{
-    get_label_text, get_text, parse_block, parse_bracketed, parse_expr_list0, parse_span,
+    get_label_text, get_text, parse_block, parse_bracketed, parse_expr_list0, parse_span_vec,
     CommandKind,
     IdentifierKind::Label,
     OriginalSource, PResult, TSpan,
@@ -38,23 +38,23 @@ fn parse_macrodef_args(input: TSpan) -> PResult<Vec<String>> {
 }
 
 pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, (label, _args, body))) = ms(preceded(
+    let (rest, (sp, (label, args, body))) = ms(preceded(
         CommandKind::Macro,
         tuple((
             Identifier(Label),
             parse_macrodef_args,
-            parse_block(parse_span),
+            parse_block(parse_span_vec),
         )),
     ))(input)?;
 
-    let node = Node::from_item_kid_tspan(MacroDef(get_text(label), _args.into()), body, sp);
+    let node = Node::from_item_kids_tspan(MacroDef(get_text(label), args.into()), &body, sp);
     Ok((rest, node))
 }
 
 #[allow(unused_imports)]
-#[cfg(test)]
 mod test {
     use crate::{
+        item::NodeIter,
         cli::parse_command_line,
         frontend::*,
         item::{
@@ -65,10 +65,15 @@ mod test {
         item6809::MC6809,
     };
 
-    use grl_sources::SourceFile;
-    use pretty_assertions::{assert_eq, assert_ne};
+    use grl_sources::{grl_utils::Stack, SourceFile};
+    // use pretty_assertions::{assert_eq, assert_ne};
+    use termimad::crossterm::style::Stylize;
     use thin_vec::ThinVec;
+    use tower_lsp::lsp_types::{ClientInfo, CompletionItemCapability, DeleteFilesParams};
     use unraveler::{all, cut, Collection, Parser};
+
+    ////////////////////////////////////////////////////////////////////////////////
+
 
     #[test]
     fn parse_args() {
@@ -85,21 +90,24 @@ mod test {
 
     #[test]
     fn test_parse_macro_def() {
-        let text = r#"macro label(ax,bx,cx) { }"#;
+        let text = r#"macro label(ax,bx,cx) {
+            !hello  lda #10 : sta 10
+                    orcc #10 : nop
+        }"#;
 
-        println!("Testing macro def: {text}");
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
-
-        let t: Vec<_> = tokens.iter().map(|t| t.kind).collect();
-        println!("Toks : {:?}", t);
-
         let input = make_tspan(&tokens, &sf);
         let (_rest, matched) = super::parse_macro_def(input).expect("Can't parse macro def");
 
-        let t: Vec<_> = matched.children.iter().map(|n| &n.item).collect();
-        println!("Node : {:?} {:?}", &matched.item, t);
-        panic!()
+        let it = NodeIter::new(&matched);
+
+        for _n in it {
+            let spaces = " ".repeat(_n.depth);
+            println!("{spaces} {:?}",_n.node.item);
+        }
+
+        todo!("Complete these tests")
     }
 
     fn text_macro_call(text: &str, _desired: &[Item]) {

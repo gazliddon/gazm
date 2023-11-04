@@ -11,9 +11,10 @@ pub fn test<P: AsRef<Path>>(file: P) {
     let sf = create_source_file(&text);
     let tokens = to_tokens_filter(&sf, not_comment);
     let span = make_tspan(&tokens, &sf);
-    let _r = parse_span(span);
+    let res = parse_span_vec(span);
 
-    println!("{:#?}", _r);
-
-    println!("Parsed!");
+    match res {
+        Ok(_) => println!("Parsed fine!"),
+        Err(e) => println!("Failed : line: {} col: {}", e.position.line() + 1, e.position.col()+1),
+    }
 }

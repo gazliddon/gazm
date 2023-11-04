@@ -24,9 +24,9 @@ pub enum FrontEndErrorKind {
 
 #[derive(Clone,Debug)]
 pub struct FrontEndError {
-    position: Position,
-    kind: FrontEndErrorKind,
-    severity: Severity,
+    pub position: Position,
+    pub kind: FrontEndErrorKind,
+    pub severity: Severity,
 }
 
 impl FrontEndError {

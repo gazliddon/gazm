@@ -144,6 +144,13 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     Ok((rest, item))
 }
 
+pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {
+    use unraveler::tag;
+    use TokenKind::Colon;
+    let (rest, matched) = sep_list(parse_opcode, tag(Colon))(input)?;
+    Ok((rest, matched))
+}
+
 pub fn parse_multi_opcode(input: TSpan) -> PResult<Node> {
     use unraveler::tag;
     use TokenKind::Colon;
