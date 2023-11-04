@@ -260,7 +260,7 @@ impl Tokens {
 
                 let pos = span_to_pos(body);
                 let name = name.to_string();
-                let params = params.iter().map(ToString::to_string).collect();
+                let params : thin_vec::ThinVec<_> = params.iter().map(ToString::to_string).collect();
 
                 let macro_def =
                     Node::new_with_children(Item::MacroDef(name, params), &macro_tokes, pos);

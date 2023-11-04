@@ -188,7 +188,6 @@ mod test {
     #[test]
     fn parse_multi() {
         // TODO: check for success
-        use Item::*;
         let text = "lda #10 : sta $20";
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);

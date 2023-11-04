@@ -13,10 +13,8 @@ use super::{
 use grl_sources::Position;
 
 use nom::{
-    bytes::complete::{is_not, tag},
+    bytes::complete::tag,
     character::complete::multispace1,
-    combinator::recognize,
-    multi::many1,
     multi::separated_list0,
     sequence::separated_pair,
 };
@@ -38,15 +36,6 @@ pub fn get_scope_block(input: Span<'_>) -> IResult<(Span, Span)> {
     let (rest, (_, name)) = ws(separated_pair(tag("scope2"), multispace1, get_just_label))(rest)?;
     let (rest, body) = get_block(rest)?;
     Ok((rest, (name, body)))
-}
-
-#[allow(dead_code)]
-fn parse_raw_args(input: Span<'_>) -> IResult<Vec<Span<'_>>> {
-    let sep = ws(tag(","));
-    let arg = ws(recognize(many1(is_not(",)"))));
-    let (rest, matched) = ws(wrapped_chars('(', separated_list0(sep, arg), ')'))(input)?;
-
-    Ok((rest, matched))
 }
 
 #[derive(Debug, Clone, PartialEq)]

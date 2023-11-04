@@ -35,7 +35,7 @@ pub fn render_nodes(nodes: &[Node], text: String) -> String {
 
     let mut last_key = 0;
 
-    for (key, group) in &nodes.iter().group_by(|e| e.ctx.line) {
+    for (key, group) in &nodes.iter().group_by(|e| e.ctx.line()) {
         use Item::*;
         if key != last_key + 1 {
             writeln!(&mut ret).expect("can't write")

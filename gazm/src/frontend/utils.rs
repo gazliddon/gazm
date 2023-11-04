@@ -94,7 +94,7 @@ pub fn take_line(full_span: TSpan) -> TSpan {
             for i in 0..full_span.length() - 1 {
                 let a = full_span.at(i).unwrap();
                 let b = full_span.at(i + 1).unwrap();
-                if a.extra.pos.line != b.extra.pos.line {
+                if a.extra.pos.line() != b.extra.pos.line() {
                     return full_span.take(i+1).expect("That's bad");
                 }
             }

@@ -50,6 +50,7 @@ pub struct Opts {
     pub no_async: bool,
     pub bin_references: Vec<BinReference>,
     pub cpu: Option<crate::cli::CpuKind>,
+    pub new_frontend: bool,
 
     #[serde(skip)]
     pub do_includes: bool,
@@ -94,6 +95,7 @@ impl Default for Opts {
             do_includes: true,
             no_async: false,
             syms_file: None,
+            new_frontend: false,
         }
     }
 }

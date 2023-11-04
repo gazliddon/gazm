@@ -8,11 +8,11 @@ use crate::item::{
 use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple};
 
 use super::{
-    get_text, parse_block, parse_bracketed, parse_expr_list0, parse_span,
+    get_label_text, get_text, parse_block, parse_bracketed, parse_expr_list0, parse_span,
     CommandKind,
     IdentifierKind::Label,
     OriginalSource, PResult, TSpan,
-    TokenKind::{Comma, Identifier}, get_label_text,
+    TokenKind::{Comma, Identifier},
 };
 
 pub fn parse_macro_call(input: TSpan) -> PResult<Node> {
@@ -40,10 +40,14 @@ fn parse_macrodef_args(input: TSpan) -> PResult<Vec<String>> {
 pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (label, _args, body))) = ms(preceded(
         CommandKind::Macro,
-        tuple((Identifier(Label), parse_macrodef_args, parse_block(parse_span))),
+        tuple((
+            Identifier(Label),
+            parse_macrodef_args,
+            parse_block(parse_span),
+        )),
     ))(input)?;
 
-    let node = Node::from_item_kid_tspan(MacroDef(get_text(label),_args.into()), body, sp);
+    let node = Node::from_item_kid_tspan(MacroDef(get_text(label), _args.into()), body, sp);
     Ok((rest, node))
 }
 
@@ -60,6 +64,7 @@ mod test {
         },
         item6809::MC6809,
     };
+
     use grl_sources::SourceFile;
     use pretty_assertions::{assert_eq, assert_ne};
     use thin_vec::ThinVec;
@@ -134,4 +139,3 @@ mod test {
         }
     }
 }
-

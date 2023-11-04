@@ -78,8 +78,8 @@ impl Assembler {
     }
 
     fn make_loc(&self, pos: &GazmPosition) -> Location {
-        let path = self.asm_source_to_path(&pos.src).expect("Whoops");
-        make_location(pos.line, pos.col, path)
+        let path = self.asm_source_to_path(&pos.src()).expect("Whoops");
+        make_location(pos.line(), pos.col(), path)
     }
 
     fn find_references(&self, position: &Position, uri: &Url) -> Option<Vec<Location>> {
@@ -127,8 +127,8 @@ impl Assembler {
                 .find_symbol_id_at_pos(pos)
                 .and_then(|id| lookup.find_definition(id))
                 .and_then(|def_pos| {
-                    self.asm_source_to_path(&def_pos.src)
-                        .map(|file_name| make_location(def_pos.line, def_pos.col, file_name))
+                    self.asm_source_to_path(&def_pos.src())
+                        .map(|file_name| make_location(def_pos.line(), def_pos.col(), file_name))
                 })
         })
     }
