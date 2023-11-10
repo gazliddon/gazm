@@ -7,7 +7,7 @@ use crate::{
     info_mess,
     item::{Item, Node},
     parse::locate::{span_to_pos, Span},
-    tokenize::Tokens,
+    tokenize::Tokens, frontend::parse_span,
 };
 
 use grl_sources::{grl_utils::Stack, Position, SourceFile};
@@ -47,43 +47,54 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
     type Error = GazmErrorKind;
 
     fn try_into(self) -> Result<TokenizeResult, Self::Error> {
-        self.tokenize()
+        if self.opts.new_frontend {
+            println!("New front end!");
+            self.new_tokenize()
+        } else {
+            self.tokenize()
+        }
     }
 }
 
 impl TokenizeRequest {
-    pub fn into_result(self, tokens: Tokens) -> TokenizeResult {
+    pub fn new_tokenize(self) -> GResult<TokenizeResult> {
+        use  crate::frontend::{ make_tspan, to_tokens_no_comment };
+        let tokens = to_tokens_no_comment(&self.source_file);
+        let span = make_tspan(&tokens, &self.source_file);
+        let (_rest, node ) = parse_span(span).map_err(|_| GazmErrorKind::Misc("whoops".to_string()))?;
+        let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
+        let node = Node::from_item_kids_tspan(item, &node.children, span);
+
+        let ret = TokenizeResult {
+            node,
+            errors: vec![],
+            includes: vec!{},
+            request: self,
+        };
+
+        Ok(ret)
+    }
+
+    pub fn tokenize(self) -> GResult<TokenizeResult> {
         use Item::*;
+
         let i = self.source_file.get_entire_source();
         let id = self.source_file.file_id;
+
         let input = Span::new_extra(i, id);
+
+        let tokens = Tokens::from_text(&self.opts, input)?;
+
         let item = TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = Node::new_with_children(item, &tokens.tokens, span_to_pos(input));
 
-        TokenizeResult {
+        let ret = TokenizeResult {
             node,
             errors: tokens.parse_errors,
             includes: tokens.includes,
             request: self,
-        }
-    }
-    pub fn new_tokenize(self) -> GResult<TokenizeResult> {
-        let opts = &self.opts;
-        let i = self.source_file.get_entire_source();
-        let id = self.source_file.file_id;
-
-        let input = Span::new_extra(i, id);
-        let tokens = Tokens::from_text(opts, input)?;
-        Ok(self.into_result(tokens))
-    }
-
-    pub fn tokenize(self) -> GResult<TokenizeResult> {
-        let i = self.source_file.get_entire_source();
-        let id = self.source_file.file_id;
-        let opts = &self.opts;
-        let input = Span::new_extra(i, id);
-        let tokens = Tokens::from_text(opts, input)?;
-        Ok(self.into_result(tokens))
+        };
+        Ok(ret)
     }
 }
 
@@ -179,10 +190,8 @@ impl Assembler {
 
             let toke_req = TokenizeRequest {
                 source_file: sf.clone(),
-                // full_file_name: sf.file.clone(),
                 requested_file: requested_file.as_ref().to_path_buf(),
                 parent,
-                // source: sf.source.source.clone(),
                 opts: self.opts.clone(),
                 include_stack: Default::default(),
             };
@@ -225,7 +234,6 @@ where
                 use GetTokensResult::*;
 
                 // TODO: Replace parent with incstack
-
                 let tokes = ctx.get_tokens(req_file, parent.clone())?;
 
                 match tokes {

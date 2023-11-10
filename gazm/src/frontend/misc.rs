@@ -72,6 +72,13 @@ pub fn parse_label(input: TSpan) -> PResult<Node> {
         parse_non_scoped_label,
     ))(input)
 }
+pub fn parse_label_assignment_pc(input: TSpan) -> PResult<Node> {
+    alt((
+        parse_local_label,
+        parse_scoped_label,
+        parse_non_scoped_label,
+    ))(input)
+}
 
 impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
     fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), FrontEndError> {

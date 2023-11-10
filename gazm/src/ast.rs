@@ -10,7 +10,7 @@ use crate::{
     scopetracker::ScopeTracker,
     gazmeval::{EvalError, EvalErrorEnum},
     gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
-    info_mess,
+    info_mess, debug_mess,
     item::{Item, LabelDefinition, Node},
     messages::*,
     scopes::ScopeBuilder,
@@ -342,6 +342,7 @@ impl<'a> AstCtx<'a> {
         info("Inlining include files", |_| {
             // Loop over the ast until we have replaced all of the includes
             // each include can have includes in it as well
+            let mut num_of_included_files = 0;
             loop {
                 let tree = self.get_tree();
                 // Get all of the include ids
@@ -352,8 +353,14 @@ impl<'a> AstCtx<'a> {
                     })
                     .collect();
 
+                num_of_included_files += include_ids.len();
+
                 if include_ids.is_empty() {
-                    info_mess!("Finished inlining includes");
+                    if num_of_included_files == 0 {
+                        info_mess!("No includes files to inline");
+                    } else {
+                        info_mess!("Finished inlining {num_of_included_files} include(s)");
+                    }
                     break;
                 }
 
@@ -493,7 +500,9 @@ impl<'a> AstCtx<'a> {
                     LocalAssignmentFromPc(label) => {
                         v.item = AssignmentFromPc(map_name(&fqn, label))
                     }
+
                     LocalAssignment(label) => v.item = Assignment(map_name(&fqn, label)),
+
                     LocalLabel(label) => v.item = Label(map_name(&fqn, label)),
 
                     TokenizedFile(_, _) => {
@@ -778,6 +787,7 @@ impl<'a> AstCtx<'a> {
                     ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
                     AssignmentFromPc(LabelDefinition::Text(name)) => {
+                        debug_mess!("Assignment from PC: {name}");
                         let sym_id = self.create_symbol(name, node_id, &scopes)?;
                         self.ast_tree.alter_node(node_id, |ipos| {
                             ipos.item = AssignmentFromPc(sym_id.into());
@@ -785,6 +795,7 @@ impl<'a> AstCtx<'a> {
                     }
 
                     Assignment(LabelDefinition::Text(name)) => {
+                        debug_mess!("Assignment: {name}");
                         let sym_id = self.create_symbol(name, node_id, &scopes)?;
                         self.ast_tree.alter_node(node_id, |ipos| {
                             ipos.item = Assignment(sym_id.into());

@@ -70,7 +70,7 @@ fn parse_label_not_macro(input: Span) -> IResult<Node> {
     ws(parse_label)(input)
 }
 
-fn mk_pc_equate(node: &Node) -> Node {
+pub fn mk_pc_equate(node: &Node) -> Node {
     use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
     let pos = node.ctx;
 
