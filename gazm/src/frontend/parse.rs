@@ -41,6 +41,7 @@ impl<'a> NodeCollector<'a> {
     }
 }
 
+
 pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node>> {
     parse_line(alt((
         map( parse_macro_call, |n| vec![n]),
@@ -65,7 +66,7 @@ pub fn parse_span(input: TSpan) -> PResult<Node> {
     let (rest, matched) = many0(alt((
         parse_single_line,
         map( parse_macro_def, |n| vec![n] ),
-        map(parse_struct,|n| vec![n]),
+        map( parse_struct,|n| vec![n]),
         map( parse_pc_equate, |n| vec![n]),
     )))(input)?;
 

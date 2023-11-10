@@ -52,7 +52,7 @@ fn parse_unary_term(input: TSpan) -> PResult<Node> {
 fn parse_binary_op(input: TSpan) -> PResult<Node> {
     alt((
         |i| op_to_node(i, Plus, Item::Add),
-        |i| op_to_node(i, LessThan, Item::Sub),
+        |i| op_to_node(i, Minus, Item::Sub),
         |i| op_to_node(i, Star, Item::Mul),
         |i| op_to_node(i, Slash, Item::Div),
         |i| op_to_node(i, Bar, Item::BitOr),

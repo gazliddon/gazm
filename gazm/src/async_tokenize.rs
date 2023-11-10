@@ -61,7 +61,12 @@ impl TokenizeRequest {
         use  crate::frontend::{ make_tspan, to_tokens_no_comment };
         let tokens = to_tokens_no_comment(&self.source_file);
         let span = make_tspan(&tokens, &self.source_file);
-        let (_rest, node ) = parse_span(span).map_err(|_| GazmErrorKind::Misc("whoops".to_string()))?;
+
+        let (rest, node ) = parse_span(span).map_err(|_| GazmErrorKind::Misc("whoops".to_string()))?;
+
+        let sl = rest.as_slice().iter().map(|t| t.kind).collect_vec();
+        println!("{:#?}", sl);
+
         let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = Node::from_item_kids_tspan(item, &node.children, span);
 

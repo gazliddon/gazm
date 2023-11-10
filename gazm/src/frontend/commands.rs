@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::{
     item::{Item, Node},
-    item6809::MC6809,
+    item6809::MC6809, debug_mess,
 };
 
 use super::{
@@ -115,7 +115,6 @@ pub(crate) fn parse_writebin(input: TSpan) -> PResult<Node> {
     ))(input)?;
 
     let node = Node::from_item_kids_tspan(Item::WriteBin(file_name), &[source_addr, size], sp);
-
     Ok((rest, node))
 }
 
@@ -209,6 +208,8 @@ pub fn parse_command(input: TSpan) -> PResult<Node> {
         parse_require,
         parse_import,
     ))(input)?;
+
+    debug_mess!("Parse command: {:?}", matched.item);
 
     Ok((rest, matched))
 }

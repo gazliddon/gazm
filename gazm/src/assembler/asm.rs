@@ -292,6 +292,7 @@ impl Assembler {
             }
 
             let file = self.get_project_file();
+
             self.get_tokens_from_full_path(&file).unwrap().clone()
         };
 
