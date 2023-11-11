@@ -21,7 +21,7 @@ pub struct TomlConfig {
     pub opts: Opts,
 }
 
-pub (super)type ConfigError<T> = Result<T, ConfigErrorType>;
+pub(super) type ConfigError<T> = Result<T, ConfigErrorType>;
 
 #[derive(thiserror::Error, Clone)]
 #[allow(clippy::large_enum_variant)]
@@ -53,7 +53,6 @@ impl TomlConfig {
         });
 
         let f = std::fs::read_to_string(file).expect("can't read");
-
         let toml = toml::from_str::<LoadedTomlConfig>(&f);
 
         match toml {
@@ -70,6 +69,7 @@ impl TomlConfig {
                 opts.assemble_dir = run_dir;
                 opts.lsp_config = toml.lsp.unwrap_or_default();
 
+
                 let config = TomlConfig {
                     file: file.to_path_buf(),
                     opts,
@@ -85,7 +85,9 @@ impl TomlConfig {
 
                 let td = TextFile::new(&f);
                 let sp = err.span().expect("Trying to retrieve span");
-                let tp = td.offset_to_text_pos(sp.start).expect("trying to get line / col");
+                let tp = td
+                    .offset_to_text_pos(sp.start)
+                    .expect("trying to get line / col");
 
                 Err(ConfigErrorType::ParseError(
                     file.to_path_buf(),

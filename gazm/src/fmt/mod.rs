@@ -8,15 +8,7 @@ use crate::{
 use itertools::Itertools;
 
 pub fn fmt(_opts: &Opts) -> GResult<String> {
-    // let asm = Assembler::new(opts.clone());
-    // let tokenized = asm.tokenize_file(&opts.project_file)?;
-
-    //     self.ctx.get_source_file_loader_mut()
-    //         .read_source(&opts.project_file)?;
-
-    // println!("{}", render_nodes(&tokenized.node.children, text));
-
-    Ok("hello".to_string())
+    unimplemented!()
 }
 
 use std::fmt::Write;

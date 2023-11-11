@@ -225,14 +225,5 @@ mod test {
             ("lda %1111,pc", "lda 15,PC"),
         ];
 
-        // for (code, desired) in test {
-        //     println!("{:?} -> {:?}", code, desired);
-
-        //     let ast_text = tokenize_text(code);
-        //     println!("{:?}", ast_text);
-
-        //     let ast_text = ast_text.unwrap().to_string();
-        //     assert_eq!(desired, &ast_text);
-        // }
     }
 }

@@ -134,6 +134,11 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("fcb {}", join_kids(","))
             }
 
+            Fill => {
+                let body = join_kids(",");
+                format!("fill {body}")
+            },
+
             Cpu( OpCode(_,instruction, amode) ) => {
                 use crate::item6809::AddrModeParseType::*;
 
@@ -157,7 +162,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                             }
 
                             ConstantWordOffset(r, v) => ind(format!("{v},{r}"), indirect),
-
                             PcOffsetWord(v) => ind(format!("{v},PC"), indirect),
                             PcOffsetByte(v) => ind(format!("{v},PC"), indirect),
                             ConstantOffset(r) => {
@@ -180,6 +184,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
                 format!("{} {operand}", instruction.action)
             }
+
             _ => format!("{item:?} not implemented"),
         };
 

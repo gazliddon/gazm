@@ -25,65 +25,23 @@ fn load_config(m: &ArgMatches) -> ConfigError<TomlConfig> {
     TomlConfig::new_from_file(path)
 }
 
-fn load_opts_with_build_type(
-    m: &ArgMatches,
-    build_type: BuildType,
-    overides: &Overides,
-) -> ConfigError<Opts> {
+fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigError<Opts> {
     let mut conf = load_config(m)?;
     conf.opts.build_type = build_type;
-    let opts = overides.apply_overides(&conf.opts);
-    Ok(opts)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-#[derive(Default)]
-struct Overides {
-    pub no_async: Option<bool>,
-    pub verbosity: Option<Verbosity>,
-}
-impl Overides {
-    pub fn new(matches: &ArgMatches) -> Self {
-        Overides {
-            no_async: matches.index_of("no-async").map(|_| true),
-            verbosity: Some(match matches.get_count("verbose") {
-                0 => Verbosity::Silent,
-                1 => Verbosity::Normal,
-                2 => Verbosity::Info,
-                3 => Verbosity::Interesting,
-                _ => Verbosity::Debug,
-            }),
-        }
-    }
-
-    pub fn apply_overides(&self, opts: &Opts) -> Opts {
-        let mut ret = opts.clone();
-
-        if let Some(v) = self.verbosity {
-            ret.verbose = v
-        }
-
-        if let Some(v) = self.no_async {
-            ret.no_async = v
-        }
-
-        ret
-    }
+    Ok(conf.opts.clone())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Opts {
     pub fn from_arg_matches(orig_matches: ArgMatches) -> ConfigError<Opts> {
-        let overides = Overides::new(&orig_matches);
-
-        let ret = match orig_matches.subcommand() {
-            Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build, &overides)?,
-            Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check, &overides)?,
-            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::Lsp, &overides)?,
+        let mut opts = match orig_matches.subcommand() {
+            Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build)?,
+            Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check)?,
+            Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::Lsp)?,
 
             Some(("fmt", m)) => {
-                let mut o = load_opts_with_build_type(m, BuildType::Format, &overides)?;
+                let mut o = load_opts_with_build_type(m, BuildType::Format)?;
                 o.project_file = m.get_one::<String>("fmt-file").map(PathBuf::from).unwrap();
                 o
             }
@@ -136,14 +94,26 @@ impl Opts {
                             .set_var(x.get(0).unwrap().as_str(), x.get(1).unwrap().as_str())
                     }
                 }
-
-                overides.apply_overides(&opts)
+                opts
             }
             _ => {
                 panic!()
             }
         };
-        Ok(ret)
+
+        // Global opts
+        opts.verbose = match orig_matches.get_count("verbose") {
+            0 => Verbosity::Silent,
+            1 => Verbosity::Normal,
+            2 => Verbosity::Info,
+            3 => Verbosity::Interesting,
+            _ => Verbosity::Debug,
+        };
+        opts.no_async = *orig_matches.get_one("no-async").unwrap();
+        opts.new_frontend = *orig_matches.get_one("new-frontend").unwrap();
+
+        opts.update_vars();
+        Ok(opts)
     }
 }
 
@@ -170,13 +140,23 @@ pub fn parse_command_line() -> ArgMatches {
             Arg::new("verbose")
                 .long("verbose")
                 .help("Verbose mode")
+                .global(true)
                 .action(ArgAction::Count)
                 .short('v'),
         )
         .arg(
             Arg::new("no-async")
+                .action(ArgAction::SetTrue)
+                .global(true)
                 .long("no-async")
                 .help("Disable async build"),
+        )
+        .arg(
+            Arg::new("new-frontend")
+                .action(ArgAction::SetTrue)
+                .global(true)
+                .long("new-frontend")
+                .help("Use the new front end"),
         )
         .subcommand_required(true)
         .subcommand(
@@ -206,17 +186,16 @@ pub fn parse_command_line() -> ArgMatches {
                 .about("Assemble using command line switches")
                 .arg(
                     Arg::new("project-file")
-                        // .multiple_values(false)
                         .value_parser(PathBufValueParser::new())
                         .required(true),
                 )
                 .arg(
                     Arg::new("symbol-file")
+                        .value_parser(PathBufValueParser::new())
                         .help("File symbols are written to")
                         .long("symbol-file")
                         .help("symbol file")
                         .num_args(1)
-                        .value_parser(PathBufValueParser::new())
                         .short('s'),
                 )
                 .arg(
@@ -238,18 +217,21 @@ pub fn parse_command_line() -> ArgMatches {
                 )
                 .arg(
                     Arg::new("as6809-lst")
+                        .value_parser(PathBufValueParser::new())
                         .long("as6809-lst")
                         .help("Load in AS609 lst file to compare against")
                         .num_args(1),
                 )
                 .arg(
                     Arg::new("as6809-sym")
+                        .value_parser(PathBufValueParser::new())
                         .long("as6809-sym")
                         .help("Load in AS609 sym file to compare against")
                         .num_args(1),
                 )
                 .arg(
                     Arg::new("deps")
+                        .value_parser(PathBufValueParser::new())
                         .long("deps")
                         .help("Write a Makefile compatible deps file")
                         .num_args(1),
@@ -258,8 +240,6 @@ pub fn parse_command_line() -> ArgMatches {
                     Arg::new("set")
                         .long("set")
                         .value_names(["var", "value"])
-                        // .takes_value(true)
-                        // .multiple_occurrences(true)
                         .help("Set a value"),
                 )
                 .arg(
@@ -273,26 +253,26 @@ pub fn parse_command_line() -> ArgMatches {
                 )
                 .arg(
                     Arg::new("ast-file")
+                        .value_parser(PathBufValueParser::new())
                         .help("Output AST")
                         .long("ast-file")
-                        .num_args(1)
-                        .value_parser(PathBufValueParser::new()),
+                        .num_args(1),
                 )
                 .arg(
                     Arg::new("lst-file")
+                        .value_parser(PathBufValueParser::new())
                         .help("Output list file")
                         .long("lst-file")
                         .short('l')
-                        .num_args(1)
-                        .value_parser(PathBufValueParser::new()),
+                        .num_args(1),
                 )
                 .arg(
                     Arg::new("mem-size")
+                        .value_parser(value_parser!(usize))
                         .default_value("65536")
                         .help("Size of output binary")
                         .long("mem-size")
-                        .num_args(1)
-                        .value_parser(value_parser!(usize)),
+                        .num_args(1),
                 ),
         )
         .get_matches()

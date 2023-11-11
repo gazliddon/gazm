@@ -214,25 +214,7 @@ mod test {
     use nom::multi::many0_count;
     use pretty_assertions::{assert_eq, assert_ne};
 
-    #[test]
     fn test_get_no_arg_indexed() {
-        // let to_try = vec![
-        //     (",--Y", IndexParseType::SubSub),
-        //     (",-U", IndexParseType::Sub(U)),
-        //     (",Y", IndexParseType::Zero(Y)),
-        //     ("A,X", IndexParseType::AddA(X)),
-        //     ("B,U", IndexParseType::AddB(U)),
-        //     ("D,U", IndexParseType::AddD(U)),
-        //     (",--X", IndexParseType::SubSub(X)),
-        //     (",S++", IndexParseType::PlusPlus(S)),
-        //     (",S+", IndexParseType::Plus(S)),
-        // ];
-
-        // for (input, desired) in to_try {
-        //     println!("Testing {} -> {:?}", input, desired);
-        //     let (_, matched) = get_no_arg_indexed(input.into()).unwrap();
-        //     assert_eq!(matched, AddrModeParseType::Indexed(desired));
-        // }
     }
 
     #[test]

@@ -62,6 +62,7 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::env::{current_dir, set_current_dir};
     let matches = parse_command_line();
+
     let opts = Opts::from_arg_matches(matches)?;
 
     // Todo move directory handling into assemble_from_opts
@@ -101,7 +102,6 @@ mod test {
         let opts = make_opts("assets/test_src/circular_inc.gazm");
         let mut asm = Assembler::new(opts.clone());
         let res = asm.assemble();
-        println!("{res:#?}");
-        // assert!(res.is_ok());
+        assert!(res.is_ok());
     }
 }

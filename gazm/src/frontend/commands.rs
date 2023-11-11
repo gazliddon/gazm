@@ -78,7 +78,7 @@ pub(crate) fn parse_fill(input: TSpan) -> PResult<Node> {
     use CommandKind::*;
     let (rest, (sp, (value, count))) =
         ms(preceded(Fill, sep_pair(parse_expr, Comma, parse_expr)))(input)?;
-    Ok((rest, mk_fill(sp, (count, value))))
+    Ok((rest, mk_fill(sp, (value, count))))
 }
 
 /// BSZ | ZMB | RZB count <value>

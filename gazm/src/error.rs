@@ -6,6 +6,8 @@ use crate::{
     parse::locate::{span_to_pos, Span},
 };
 
+use thin_vec::ThinVec;
+
 use grl_sources::{
     grl_utils::SearchError, EditErrorKind, Position, SourceErrorType, SourceFiles, SourceInfo,
 };
@@ -16,6 +18,8 @@ pub type GResult<T> = Result<T, GazmErrorKind>;
 
 #[derive(Error, Debug, Clone)]
 pub enum GazmErrorKind {
+    #[error(transparent)]
+    UserWarning(#[from] UserWarning),
     #[error(transparent)]
     UserError(#[from] UserError),
     #[error("Misc: {0}")]
@@ -178,6 +182,24 @@ pub struct UserError {
     pub data: Box<UserErrorData>,
 }
 
+#[derive(PartialEq, Clone,Error)]
+pub struct UserWarning {
+    pub data: Box<UserErrorData>,
+}
+
+impl std::fmt::Display for UserWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self.data.pretty().unwrap();
+        write!(f, "{s}")
+    }
+}
+impl std::fmt::Debug for UserWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+
+
 #[derive(PartialEq, Clone)]
 pub struct UserErrorData {
     pub message: String,
@@ -302,11 +324,13 @@ impl UserError {
 
 ////////////////////////////////////////////////////////////////////////////////
 // UserErrors Collection
+//
 
 #[derive(Clone)]
 pub struct ErrorCollector {
     _max_errors: usize,
-    pub errors: thin_vec::ThinVec<GazmErrorKind>,
+    pub errors: ThinVec<GazmErrorKind>,
+    warnings: ThinVec<UserWarning>,
     errors_remaining: usize,
 }
 
@@ -315,6 +339,7 @@ impl Default for ErrorCollector {
         Self {
             _max_errors: 10,
             errors: Default::default(),
+            warnings: Default::default(),
             errors_remaining: Default::default(),
         }
     }
@@ -341,7 +366,7 @@ impl ErrorCollector {
         Self {
             _max_errors,
             errors_remaining: _max_errors,
-            errors: Default::default(),
+            ..Default::default()
         }
     }
 
@@ -388,6 +413,10 @@ impl ErrorCollector {
         let failure = err.as_ref().failure;
         let err = GazmErrorKind::UserError(err);
         self.add_error(err, failure)
+    }
+
+    pub fn add_waring(&mut self, _warning: UserWarning) -> GResult<()> { 
+        unimplemented!()
     }
 
     pub fn add_error(&mut self, err: GazmErrorKind, failure: bool) -> GResult<()> {

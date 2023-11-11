@@ -23,6 +23,7 @@ impl Assembler {
         self.write_source_mapping()?;
         self.write_sym_file()?;
         self.write_deps_file()?;
+        self.write_ast_file()?;
         Ok(())
     }
 
@@ -62,11 +63,10 @@ impl Assembler {
             let ast_file = self.expand_path(ast_file);
             status_mess!("Writing ast: {:?}", ast_file);
 
-            status_err!("Not done!");
-
             if let Some(ast) = &self.asm_out.ast {
                 let x = astformat::as_string(ast.as_ref().root());
-                println!("{x}");
+            fs::write(&ast_file, x)
+                .with_context(|| format!("Unable to write list file {}",ast_file.to_string_lossy() ))?;
             } else {
                 status_err!("No AST file to write");
             }
@@ -96,9 +96,11 @@ impl Assembler {
 
     pub fn write_sym_file(&mut self) -> GResult<()> {
         if let Some(syms_file) = &self.opts.syms_file {
+            let syms_file = self.opts.vars.expand_vars(syms_file);
+            println!("{:?}", self.opts.vars);
             let serialized: Serializable = self.get_symbols().into();
             let json_text = serde_json::to_string_pretty(&serialized).unwrap();
-            let file_name = self.write_file(syms_file.clone(), &json_text)?;
+            let file_name = self.write_file(syms_file, &json_text)?;
             status_mess!("Writen symbols file: {}", file_name);
         }
 

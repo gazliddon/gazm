@@ -44,7 +44,6 @@ pub struct Opts {
     pub mem_size: usize,
     pub project_file: PathBuf,
     pub lst_file: Option<String>,
-    pub encode_blank_lines: bool,
     pub ast_file: Option<PathBuf>,
     pub max_errors: usize,
     pub no_async: bool,
@@ -68,6 +67,20 @@ pub struct Opts {
     pub lsp_config: LspConfig,
 }
 
+impl Opts {
+    pub fn update_vars(&mut self) {
+        self.vars.set_var("PROJECT_FILE", &self.project_file.to_string_lossy());
+
+        if self.new_frontend == true {
+            self.vars.set_var("FRONTEND", "NEW_FE");
+        } else {
+            self.vars.set_var("FRONTEND", "OLD_FE");
+        }
+
+        self.vars.set_var("MEM_SIZE", &format!("{}", self.mem_size));
+    }
+}
+
 impl Default for Opts {
     fn default() -> Self {
         Self {
@@ -84,7 +97,6 @@ impl Default for Opts {
             mem_size: 64 * 1024,
             project_file: Default::default(),
             lst_file: Default::default(),
-            encode_blank_lines: false,
             ast_file: Default::default(),
             max_errors: 10,
             vars: Default::default(),
@@ -94,7 +106,7 @@ impl Default for Opts {
             lsp_config: Default::default(),
             do_includes: true,
             no_async: false,
-            syms_file: None,
+            syms_file: Default::default(),
             new_frontend: false,
         }
     }

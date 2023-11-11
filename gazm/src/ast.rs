@@ -280,7 +280,8 @@ impl<'a> AstCtx<'a> {
                                     .add_reference_symbol(&name, scopes.scope(), symbol_id)
                                     .unwrap();
                             } else {
-                                println!("{:?}", item);
+                                // TODO this is an error!
+                                eprintln!("{:?}", item);
                                 panic!()
                             }
                         }

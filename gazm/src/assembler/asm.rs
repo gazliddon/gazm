@@ -12,6 +12,7 @@ use crate::{
     item::{Item, Node},
     lookup::LabelUsageAndDefintions,
     opts::{BinReference, Opts},
+    status_err,
     token_store::TokenStore,
     vars::Vars,
 };
@@ -215,27 +216,53 @@ impl Default for Assembler {
 /// Create a Context from the command line Opts
 impl TryFrom<Opts> for AsmOut {
     type Error = String;
+
     fn try_from(opts: Opts) -> Result<AsmOut, String> {
         let mut binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
 
         for BinReference { file, addr } in &opts.bin_references {
-            let x = crate::utils::get_file_as_byte_vec(file).map_err(|e| e.to_string())?;
-            let bin_ref = BinRef {
-                file: file.clone(),
-                dest: *addr,
-                start: 0,
-                size: x.len(),
-            };
-            binary.add_bin_reference(&bin_ref, &x)
+            let x = crate::utils::get_file_as_byte_vec(file);
+
+            match x {
+                Ok(x) => {
+                    let bin_ref = BinRef {
+                        file: file.clone(),
+                        dest: *addr,
+                        start: 0,
+                        size: x.len(),
+                    };
+                    binary.add_bin_reference(&bin_ref, &x)
+                }
+
+                Err(_) => {
+                    status_err!("Cannot load binary ref file {}", file.to_string_lossy())
+                }
+            }
         }
 
-        let ret = Self {
+        let mut ret = Self {
             errors: ErrorCollector::new(opts.max_errors),
             binary,
             ..Default::default()
         };
 
+        ret.add_default_symbols(&opts);
+
         Ok(ret)
+    }
+}
+
+impl AsmOut {
+    /// Add in default symbols from build
+    pub fn add_default_symbols(&mut self, opts: &Opts) {
+        let mut write = self.symbols.get_root_writer();
+        write.create_or_set_scope("gazm");
+        write
+            .create_and_set_symbol("mem_size", opts.mem_size as i64)
+            .expect("Create a symbole for memory size");
+        write
+            .create_and_set_symbol("new_front_end", opts.new_frontend as i64)
+            .expect("Create a symbol for new front end");
     }
 }
 

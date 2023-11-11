@@ -48,7 +48,6 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
 
     fn try_into(self) -> Result<TokenizeResult, Self::Error> {
         if self.opts.new_frontend {
-            println!("New front end!");
             self.new_tokenize()
         } else {
             self.tokenize()
@@ -62,10 +61,8 @@ impl TokenizeRequest {
         let tokens = to_tokens_no_comment(&self.source_file);
         let span = make_tspan(&tokens, &self.source_file);
 
-        let (rest, node ) = parse_span(span).map_err(|_| GazmErrorKind::Misc("whoops".to_string()))?;
-
-        let sl = rest.as_slice().iter().map(|t| t.kind).collect_vec();
-        println!("{:#?}", sl);
+        // TODO need to collect errors properly - this parser should be an ALL parser
+        let (_rest, node ) = parse_span(span).map_err(|_| GazmErrorKind::Misc("whoops".to_string()))?;
 
         let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = Node::from_item_kids_tspan(item, &node.children, span);
@@ -298,10 +295,6 @@ mod test {
     #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
 
-    fn get_config<P: AsRef<Path>>(path: P) -> TomlConfig {
-        println!("Trying to read {}", path.as_ref().to_string_lossy());
-        TomlConfig::new_from_file(&path).unwrap()
-    }
 
     fn mk_ctx(config: &TomlConfig) -> Assembler {
         let mut dir = config.file.clone();

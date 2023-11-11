@@ -157,9 +157,7 @@ impl Tokens {
     }
 
     fn tokenize_line<'a>(&'a mut self, input: Span<'a>) -> IResult<()> {
-        let rest = if input.is_empty() && self.opts.encode_blank_lines {
-            let node = Node::from_item_span(Item::BlankLine, input);
-            self.add_node(node);
+        let rest = if input.is_empty() {
             return Ok((input, ()));
         } else if let Ok((rest, doc)) = get_doc_line(input) {
             self.docs.add_doc_line(&doc);
