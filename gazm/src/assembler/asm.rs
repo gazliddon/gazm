@@ -302,11 +302,12 @@ impl Assembler {
     fn assemble_project(&mut self) -> GResult<()> {
         let file = self.get_project_file();
 
-        let paths = self
+        let original_paths = self
             .get_source_file_loader_mut()
             .get_search_paths()
             .to_vec();
 
+        // TODO Do we need to add the parent dir of the projectfile to the search paths?
         if let Some(dir) = file.parent() {
             self.get_source_file_loader_mut().add_search_path(dir);
         }
@@ -325,7 +326,7 @@ impl Assembler {
 
         self.assemble_tokens(&tokes.node)?;
 
-        self.get_source_file_loader_mut().set_search_paths(&paths);
+        self.get_source_file_loader_mut().set_search_paths(&original_paths);
         self.asm_out.errors.raise_errors()
     }
 

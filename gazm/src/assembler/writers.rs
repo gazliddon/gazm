@@ -97,7 +97,6 @@ impl Assembler {
     pub fn write_sym_file(&mut self) -> GResult<()> {
         if let Some(syms_file) = &self.opts.syms_file {
             let syms_file = self.opts.vars.expand_vars(syms_file);
-            println!("{:?}", self.opts.vars);
             let serialized: Serializable = self.get_symbols().into();
             let json_text = serde_json::to_string_pretty(&serialized).unwrap();
             let file_name = self.write_file(syms_file, &json_text)?;
