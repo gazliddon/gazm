@@ -16,10 +16,11 @@ use crate::{
     vars::Vars,
 };
 
-use super::{fixerupper::FixerUpper};
+use super::fixerupper::FixerUpper;
 
 use grl_sources::{
-    fileloader::{FileIo, SourceFileLoader},
+    FileIo,
+    fileloader::SourceFileLoader,
     grl_utils::{fileutils, PathSearcher},
     AsmSource, BinToWrite, Position, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
 };
@@ -356,11 +357,10 @@ impl Assembler {
     }
 
     fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
-
         let AstCtx { docs, ast_tree, .. } = AstCtx::from_nodes(self, tokens)?;
 
         super::sizer::size(self, &ast_tree)?;
-        super::compile::compile(self,&ast_tree)?;
+        super::compile::compile(self, &ast_tree)?;
 
         let lookup = LabelUsageAndDefintions::new(&ast_tree, &self.asm_out.symbols, docs);
         self.asm_out.ast = Some(ast_tree);

@@ -949,16 +949,6 @@ pub fn to_priority(i: &Item) -> Option<usize> {
     }
 }
 
-impl Term {
-    #[allow(dead_code)]
-    pub fn new(node: &AstNodeRef) -> Self {
-        Self {
-            node: node.id(),
-            priority: to_priority(&node.value().item),
-        }
-    }
-}
-
 impl From<AstNodeRef<'_>> for Term {
     fn from(node: AstNodeRef) -> Self {
         Self {

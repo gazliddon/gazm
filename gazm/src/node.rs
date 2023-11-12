@@ -71,6 +71,7 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
     pub fn iter(&self) -> NodeIter<I,C> {
         NodeIter::new(self)
     }
+
 }
 
 impl<I: Debug + Clone, C: CtxTrait> Debug for BaseNode<I, C> {

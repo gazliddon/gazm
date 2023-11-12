@@ -94,7 +94,7 @@ impl TokenizeRequest {
 
         // TODO need to collect errors properly - this parser should be an ALL parser
         let (_rest, node) =
-            parse_span(span).map_err(|_| GazmErrorKind::Misc("whoops".to_string()))?;
+            parse_span(span).map_err(|e| GazmErrorKind::Misc(format!("{e:?}")))?;
         let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone(), true);
         let node = Node::from_item_kids_tspan(item, &node.children, span);
         let errors = vec![];

@@ -1,5 +1,5 @@
 #![forbid(unused_imports)]
-use std::{fmt::Display, path::PathBuf};
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thin_vec::ThinVec;
 
 use grl_sources::Position;
@@ -25,6 +25,23 @@ pub enum StructMemberType {
     QWord,
     UserType(String),
 }
+
+impl FromStr for StructMemberType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let ret = match s {
+            "byte" => StructMemberType::Byte,
+            "word" => StructMemberType::Word,
+            "dword" => StructMemberType::DWord,
+            "qword" => StructMemberType::QWord,
+            _ => StructMemberType::UserType(s.to_string()),
+        };
+
+        Ok(ret)
+    }
+}
+
 
 impl StructMemberType {
     pub fn to_size_item(&self) -> Item {
@@ -270,6 +287,7 @@ impl BaseNode<Item, Position> {
     pub fn from_number(n: i64, _p: ParsedFrom, sp: Span) -> Self {
         Self::from_item_span(Item::Num(n, _p), sp)
     }
+
     pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Self {
         Self::new(Item::Num(n, ParsedFrom::FromExpr), pos.into())
     }

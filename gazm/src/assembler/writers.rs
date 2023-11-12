@@ -3,7 +3,7 @@ use crate::assembler::Assembler;
 
 use crate::{astformat, error::GResult, gazmsymbols::Serializable, status_err, status_mess};
 
-use grl_sources::{fileloader::FileIo, grl_utils::hash::get_hash, SourceDatabase};
+use grl_sources::{FileIo, grl_utils::hash::get_hash, SourceDatabase};
 
 use anyhow::Context as AnyContext;
 use std::fs;

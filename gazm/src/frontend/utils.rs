@@ -10,6 +10,7 @@ use thin_vec::{thin_vec, ThinVec};
 use unraveler::{wrapped_cut, Collection, Parser, match_span as ms};
 
 impl BaseNode<Item, Position> {
+
     pub fn block(items: ThinVec<Self>, sp: TSpan) -> Self {
         Self::from_item_tspan(Item::Block, sp).with_children_vec(items)
     }

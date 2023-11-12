@@ -1,37 +1,66 @@
 #![deny(unused_imports)]
+
 // use super::*;
 use super::{
-    get_text, parse_block, parse_line, parse_non_scoped_label, parse_rmb, parse_rmd, CommandKind,
-    IdentifierKind, PResult, TSpan,
-    TokenKind::{Colon, Identifier},
+    get_text, parse_block, parse_expr, CommandKind, IdentifierKind, PResult, TSpan,
+    TokenKind::{Colon, Comma, Identifier},
 };
 
-use crate::item::{Item, Node};
-use unraveler::match_span as ms;
-use unraveler::{alt, many0, pair, preceded, sep_list};
+use crate::{
+    frontend::parse_label,
+    item::{Item, Node, StructMemberType},
+};
+
+use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded, tag, tuple};
+
 use CommandKind::Struct;
 use IdentifierKind::Label;
 
-pub fn struct_entry(input: TSpan) -> PResult<[Node; 2]> {
-    let (rest, (a, b)) = pair(parse_non_scoped_label, alt((parse_rmb, parse_rmd)))(input)?;
-    Ok((rest, [a, b]))
+pub fn parse_struct_arg_type(input: TSpan) -> PResult<(TSpan, StructMemberType)> {
+    let as_arg_type =
+        |i| -> StructMemberType { get_text(i).to_string().parse::<StructMemberType>().unwrap() };
+    ms(map(tag(Identifier(Label)), as_arg_type))(input)
 }
+pub fn parse_array_def(input: TSpan) -> PResult<Node> {
+    use super::TokenKind::*;
+    let (rest, (_, matched, _)) =
+        tuple((OpenSquareBracket, parse_expr, CloseSquareBracket))(input)?;
 
-pub fn struct_entries(input: TSpan) -> PResult<Vec<[Node; 2]>> {
-    let (rest, matched) = parse_line(sep_list(struct_entry, Colon))(input)?;
-    let matched = matched.into_iter().collect();
     Ok((rest, matched))
 }
 
+pub fn parse_struct_entry(input: TSpan) -> PResult<Node> {
+    let (rest, (name, _, (entry_span, entry_type), (array_def_sp, array))) = tuple((
+        parse_label,
+        Colon,
+        parse_struct_arg_type,
+        ms(opt(parse_array_def)),
+    ))(input)?;
+
+    let size = entry_type.to_size_item();
+
+    let kids = [
+        array.unwrap_or(Node::from_num_tspan(1, array_def_sp)),
+        Node::from_item_tspan(Item::Mul, array_def_sp),
+        Node::from_item_tspan(size, entry_span),
+    ];
+
+    let expr = Node::from_item_kids_tspan(Item::Expr, &kids, entry_span);
+    let node = Node::from_item_kid_tspan(Item::StructEntry(name.to_string()), expr, input);
+
+    Ok((rest, node))
+}
+
 pub fn parse_struct(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, (label, list))) = ms(pair(
+    let (rest, (sp, (label, entries))) = ms(pair(
         preceded(Struct, Identifier(Label)),
-        parse_block(many0(struct_entries)),
+        parse_block(succeeded(sep_list0(parse_struct_entry, Comma), opt(Comma))),
     ))(input)?;
 
     let text = get_text(label);
-    let list: Vec<_> = list.into_iter().flatten().flatten().collect();
-    let node = Node::from_item_kids_tspan(Item::StructDef(text), &list, sp);
+
+    let node = Node::from_item_kids_tspan(Item::StructDef(text), &entries, sp);
+
     Ok((rest, node))
 }
 
