@@ -1,13 +1,15 @@
 #![deny(unused_imports)]
 
 use crate::{
-    opts::Opts,
     assembler::Assembler,
     error::{GResult, GazmErrorKind, ParseError},
+    frontend::parse_span,
     info_mess,
     item::{Item, Node},
+    // nodeiter::NodeInfo,
+    opts::Opts,
     parse::locate::{span_to_pos, Span},
-    tokenize::Tokens, frontend::parse_span,
+    tokenize::Tokens,
 };
 
 use grl_sources::{grl_utils::Stack, Position, SourceFile};
@@ -19,11 +21,23 @@ use thiserror::Error;
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct TokenizeRequest {
-    pub source_file : SourceFile,
+    pub source_file: SourceFile,
     pub requested_file: PathBuf,
     pub parent: Option<PathBuf>,
     pub opts: Opts,
     pub include_stack: IncludeStack,
+}
+
+impl TokenizeRequest {
+    pub fn for_single_source_file(source_file: SourceFile, opts: &Opts) -> Self {
+        Self {
+            requested_file: source_file.file.clone(),
+            source_file,
+            parent: None,
+            opts: opts.clone(),
+            include_stack: Default::default(),
+        }
+    }
 }
 
 impl TokenizeRequest {
@@ -39,64 +53,63 @@ impl TokenizeRequest {
 pub struct TokenizeResult {
     pub node: Node,
     pub errors: Vec<ParseError>,
-    pub includes: Vec<(Position, PathBuf)>,
+    // pub includes: Vec<(Position, PathBuf)>,
     pub request: TokenizeRequest,
+}
+
+impl TokenizeResult {
+    pub fn get_includes(&self) -> Vec<(Position,PathBuf)> {
+        // iter through this node to find includes and put them on the includes stack
+        self.node.iter().filter_map(|n| {
+            n.node
+                .item
+                .unwrap_include()
+                .map(|path| (n.node.ctx, path.clone()))
+        }).collect()
+    }
 }
 
 impl TryInto<TokenizeResult> for TokenizeRequest {
     type Error = GazmErrorKind;
 
     fn try_into(self) -> Result<TokenizeResult, Self::Error> {
-        if self.opts.new_frontend {
+
+        let (node,errors) = if self.opts.new_frontend {
             self.new_tokenize()
         } else {
-            self.tokenize()
-        }
+            self.old_tokenize()
+        }?;
+
+        Ok( TokenizeResult { node, errors, request: self } )
     }
 }
 
 impl TokenizeRequest {
-    pub fn new_tokenize(self) -> GResult<TokenizeResult> {
-        use  crate::frontend::{ make_tspan, to_tokens_no_comment };
+
+    pub fn new_tokenize(&self) -> GResult<(Node,Vec<ParseError>)> {
+        info_mess!("Tokenizing with new front end");
+        use crate::frontend::{make_tspan, to_tokens_no_comment};
         let tokens = to_tokens_no_comment(&self.source_file);
         let span = make_tspan(&tokens, &self.source_file);
 
         // TODO need to collect errors properly - this parser should be an ALL parser
-        let (_rest, node ) = parse_span(span).map_err(|_| GazmErrorKind::Misc("whoops".to_string()))?;
-
-        let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
+        let (_rest, node) =
+            parse_span(span).map_err(|_| GazmErrorKind::Misc("whoops".to_string()))?;
+        let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone(), true);
         let node = Node::from_item_kids_tspan(item, &node.children, span);
-
-        let ret = TokenizeResult {
-            node,
-            errors: vec![],
-            includes: vec!{},
-            request: self,
-        };
-
-        Ok(ret)
+        let errors = vec![];
+        Ok((node,errors))
     }
 
-    pub fn tokenize(self) -> GResult<TokenizeResult> {
-        use Item::*;
-
+    pub fn old_tokenize(&self) -> GResult<(Node,Vec<ParseError>)> {
+        info_mess!("Tokenizing with old front end");
         let i = self.source_file.get_entire_source();
         let id = self.source_file.file_id;
-
         let input = Span::new_extra(i, id);
-
         let tokens = Tokens::from_text(&self.opts, input)?;
-
-        let item = TokenizedFile(self.source_file.file.clone(), self.parent.clone());
+        let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone(), false);
         let node = Node::new_with_children(item, &tokens.tokens, span_to_pos(input));
-
-        let ret = TokenizeResult {
-            node,
-            errors: tokens.parse_errors,
-            includes: tokens.includes,
-            request: self,
-        };
-        Ok(ret)
+        Ok((node,tokens.parse_errors))
     }
 }
 
@@ -219,7 +232,6 @@ pub fn tokenize_async(ctx: &mut Assembler) -> GResult<()> {
     })
 }
 
-
 /// f = handler for tokenize request
 pub fn tokenize<F>(ctx: &mut Assembler, f: F) -> GResult<()>
 where
@@ -243,7 +255,8 @@ where
                         let req = &tokes.request;
                         let file_name = req.get_file_name();
                         info_mess!("TOKES: Got {:?}", file_name);
-                        let full_paths = ctx.get_full_paths_with_parent(&tokes.includes, parent)?;
+                        let includes = tokes.get_includes();
+                        let full_paths = ctx.get_full_paths_with_parent(&includes, parent)?;
                         incs.reserve(full_paths.len());
                         incs.extend(full_paths)
                     }
@@ -287,20 +300,18 @@ mod test {
     use std::path;
     use std::{thread::current, time::Instant};
 
+    use crate::assembler::Assembler;
     use crate::cli::TomlConfig;
     use crate::messages::Verbosity;
-    use crate::assembler::Assembler;
 
     use super::*;
     #[allow(unused_imports)]
     use pretty_assertions::{assert_eq, assert_ne};
 
-
     fn mk_ctx(config: &TomlConfig) -> Assembler {
         let mut dir = config.file.clone();
         dir.pop();
-        let mut ctx =
-            Assembler::try_from(config.opts.clone()).expect("Can't make context");
+        let mut ctx = Assembler::try_from(config.opts.clone()).expect("Can't make context");
         ctx.get_source_file_loader_mut().add_search_path(&dir);
         ctx.get_source_file_loader_mut()
             .add_search_path(format!("{}/src", dir.to_string_lossy()));

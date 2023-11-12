@@ -19,6 +19,19 @@ pub struct BinRef {
     pub dest: usize,
 }
 
+use std::path::Path;
+
+impl BinRef {
+    pub fn new<F: AsRef<Path>>(file: F, range: std::ops::Range<usize>, dest: usize) -> Self {
+        Self {
+            file: file.as_ref().into(),
+            dest,
+            start: range.start,
+            size: range.len(),
+        }
+    }
+}
+
 /// Structure that holds what should be in this memory physical range
 #[derive(Debug, Clone)]
 struct BinRefChunk {
@@ -176,6 +189,12 @@ impl Binary {
         };
 
         self.bin_refs.push(chunk);
+    }
+
+    pub fn add_bin_references(&mut self, refs: &[(&BinRef, &[u8])]) {
+        for (bin_ref, data) in refs {
+            self.add_bin_reference(bin_ref, data)
+        }
     }
 
     /// Get the byte we expect to be at this address

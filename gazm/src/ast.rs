@@ -13,7 +13,7 @@ use crate::{
     info_mess, debug_mess,
     item::{Item, LabelDefinition, Node},
     messages::*,
-    scopes::ScopeBuilder,
+    scopes::ScopeBuilder, astformat::as_string,
 }; 
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;
@@ -40,6 +40,13 @@ impl ItemWithPos {
 #[derive(Debug, Clone)]
 pub struct Ast {
     pub tree: AstTree,
+}
+
+impl std::fmt::Display for Ast {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let txt = as_string(self.tree.root());
+        write!(f,"{txt}")
+    }
 }
 
 impl Ast {
@@ -118,6 +125,7 @@ impl Ast {
         })
         .collect()
     }
+
     pub fn create_orphan(&mut self, item: Item, pos: Position) -> AstNodeId {
         self.as_mut().orphan(ItemWithPos { item, pos }).id()
     }
@@ -143,7 +151,7 @@ impl AsMut<AstTree> for Ast {
 }
 
 /// AstCtx
-/// Used while checking ast semantics
+/// Does semantic analysis and ast lowering
 #[derive(Debug)]
 pub struct AstCtx<'a> {
     pub ast_tree: Ast,
@@ -506,7 +514,7 @@ impl<'a> AstCtx<'a> {
 
                     LocalLabel(label) => v.item = Label(map_name(&fqn, label)),
 
-                    TokenizedFile(_, _) => {
+                    TokenizedFile(..) => {
                         label_scopes.pop();
                     }
 

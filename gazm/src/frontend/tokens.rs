@@ -155,24 +155,23 @@ fn identifier(lex: &mut Lexer<TokenKind>) -> Option<IdentifierKind> {
     }
 }
 
-fn get_num(txt: &str, re: &regex::Regex, radix: usize) -> i64 {
-    let caps = re.captures(txt).unwrap();
-    let num_str = caps.get(2).unwrap().as_str().replace('_', "");
-    i64::from_str_radix(&num_str, radix as u32).unwrap()
+fn get_num(txt: &str, re: &regex::Regex, radix: usize) -> Option<i64> {
+    re.captures(txt).map(|caps| {
+        let num_str = caps.get(2).unwrap().as_str().replace('_', "");
+        i64::from_str_radix(&num_str, radix as u32).unwrap()
+    })
 }
 
 fn from_bin(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
-    let num = get_num(lex.slice(), &PRE_BIN, 2);
-    Some((num, NumberKind::Bin))
+    get_num(lex.slice(), &PRE_BIN, 2).map(|num| (num, NumberKind::Bin))
 }
 
 fn from_hex(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
-    let num = get_num(lex.slice(), &PRE_HEX, 16);
-    Some((num, NumberKind::Hex))
+    get_num(lex.slice(), &PRE_HEX, 16).map(|num| (num, NumberKind::Hex))
 }
+
 fn from_char(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
-    let num = get_num(lex.slice(), &PRE_HEX, 16);
-    Some((num, NumberKind::Hex))
+    lex.slice().as_bytes().get(1).map(|c| (*c as i64, NumberKind::Char))
 }
 
 fn from_dec(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
@@ -323,7 +322,7 @@ fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
         .collect()
 }
 
-pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token> { 
+pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token> {
     use TokenKind::*;
     let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment;
     let tokens = to_tokens_filter(source_file, not_comment);
@@ -340,7 +339,7 @@ where
         .filter(|(tk, _)| predicate(tk))
         .map(|(tk, r)| {
             let pt = ParseText::new(source_file, r);
-            let t: Token = Token::new(tk,  pt);
+            let t: Token = Token::new(tk, pt);
             t
         })
         .collect()

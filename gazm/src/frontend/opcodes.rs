@@ -4,8 +4,9 @@ use super::{
     get_text, parse_expr, parse_indexed, parse_opcode_reg_pair, IdentifierKind,
     PResult, TSpan, TokenKind,
 };
-use unraveler::match_span as ms;
+
 use unraveler::{alt, preceded, sep_list};
+use unraveler::match_span as ms;
 
 use crate::{
     frontend::parse_reg_set_operand,
@@ -118,9 +119,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(item.into(), sp).take_others_children(arg);
         Ok((rest, node))
     } else {
-        let _msg = format!("{text} does not support {amode:?} addresing mode");
-        panic!()
-        // Err(crate::error::parse_error(&msg, input))
+        Err(super::FrontEndError::unsupported_addr_mode(sp))
     }
 }
 
@@ -134,10 +133,14 @@ fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &InstructionInfo)> {
 
 fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
     let (rest, (sp, text, ins)) = get_opcode(input)?;
-    let ins = ins.get_boxed_instruction(&AddrModeEnum::Inherent).unwrap();
-    let oc = MC6809::OpCode(text, ins, ParseInherent);
-    let node = Node::from_item_tspan(oc.into(), sp);
-    Ok((rest, node))
+
+    if let Some(ins) = ins.get_boxed_instruction(&AddrModeEnum::Inherent) {
+        let oc = MC6809::OpCode(text, ins, ParseInherent);
+        let node = Node::from_item_tspan(oc.into(), sp);
+        Ok((rest, node))
+    } else {
+        Err(super::FrontEndError::no_match_error(sp))
+    }
 }
 pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;

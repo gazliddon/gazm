@@ -30,3 +30,4 @@ pub mod opts;
 pub mod scopetracker;
 pub mod assembler;
 pub mod utils;
+pub mod nodeiter;

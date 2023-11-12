@@ -9,7 +9,7 @@ use crate::{
     error::ParseError,
     gazmsymbols::SymbolScopeId,
     item6809::MC6809::{self, OpCode, SetDp},
-    node::{ CtxTrait,BaseNode },
+    node::{BaseNode, CtxTrait},
     parse::locate::{span_to_pos, Span},
 };
 
@@ -170,7 +170,7 @@ pub enum Item {
     },
 
     WriteBin(PathBuf),
-    TokenizedFile(PathBuf, Option<PathBuf>),
+    TokenizedFile(PathBuf, Option<PathBuf>, bool),
     Errors(ThinVec<ParseError>),
     Exec,
     Org,
@@ -204,7 +204,6 @@ impl Item {
         Item::Num(0, ParsedFrom::FromExpr)
     }
 
-    
     pub fn from_number(n: i64, p: ParsedFrom) -> Self {
         Item::Num(n, p)
     }
@@ -259,6 +258,7 @@ impl Item {
 }
 
 impl BaseNode<Item, Position> {
+    
     pub fn from_item_pos<P: Into<Position>>(item: Item, p: P) -> Self {
         Self::new(item, p.into())
     }
@@ -270,7 +270,7 @@ impl BaseNode<Item, Position> {
     pub fn from_number(n: i64, _p: ParsedFrom, sp: Span) -> Self {
         Self::from_item_span(Item::Num(n, _p), sp)
     }
-    pub fn from_number_pos<P:Into<Position>>(n: i64, pos: P) -> Self {
+    pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Self {
         Self::new(Item::Num(n, ParsedFrom::FromExpr), pos.into())
     }
     pub fn with_pos(self, sp: Position) -> Self {
@@ -345,7 +345,7 @@ impl Display for BaseNode<Item, Position> {
                 format!("({})", join_children(""))
             }
 
-            TokenizedFile(file, _) => {
+            TokenizedFile(file, ..) => {
                 let header = format!("; included file {}", file.to_string_lossy());
                 let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 format!("{}\n{}", header, children.join("\n"))
@@ -367,125 +367,4 @@ impl Display for BaseNode<Item, Position> {
     }
 }
 
-    #[derive(Clone, Debug)]
-    pub enum IterState<'a> {
-        IterateKids {
-            node: &'a Node,
-            kid_num: usize,
-            depth: usize,
-        },
-        Root(&'a Node),
-    }
-
-    impl<'a> IterState<'a> {
-        pub fn root(node: &'a Node) -> Self {
-            IterState::Root(node)
-        }
-        pub fn iter_kids(node: &'a Node, depth: usize, kid_num: usize) -> Self {
-            IterState::IterateKids {
-                node,
-                kid_num,
-                depth,
-            }
-        }
-    }
-use grl_sources::grl_utils::Stack;
-
-    pub struct NodeIter<'a> {
-        node_stack: Stack<IterState<'a>>,
-    }
-
-    impl<'a> NodeIter<'a> {
-        pub fn pop_state(&mut self) {
-             self.node_stack.pop();
-        }
-
-        pub fn push_state(&mut self, st: IterState<'a>) {
-            self.node_stack.push(st)
-        }
-
-        pub fn set_state(&mut self, st: IterState<'a>) {
-            self.node_stack.front_mut().map(|x| *x = st);
-        }
-
-        pub fn get_state(&self) -> Option<IterState<'a>> {
-            self.node_stack.front().cloned()
-        }
-
-        pub fn new(n: &'a Node) -> Self {
-            let mut node_stack = Stack::new();
-            let state = IterState::Root(n);
-            node_stack.push(state);
-            Self { node_stack }
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct NodeInfo<'a> {
-        pub node: &'a Node,
-        pub depth: usize,
-        pub kid_num: usize,
-    }
-
-    impl<'a> NodeInfo<'a> {
-        pub fn new(node: &'a Node, depth: usize, kid_num: usize) -> Self {
-            Self {
-                node,
-                depth,
-                kid_num,
-            }
-        }
-
-        pub fn has_kids(&self) -> bool {
-            self.node.children.len() != 0
-        }
-    }
-
-    impl<'a> Iterator for NodeIter<'a> {
-        type Item = NodeInfo<'a>;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            use IterState::*;
-
-            let state = self.get_state();
-
-            match state {
-                None => None,
-
-                Some(Root(n)) => {
-                    let ret = NodeInfo::new(n, 0, 0);
-
-                    if ret.has_kids() {
-                        self.set_state(IterState::iter_kids(n, 1, 0));
-                    } else {
-                        self.pop_state();
-                    };
-                    Some(ret)
-                }
-
-                Some(IterateKids {
-                    node,
-                    depth,
-                    kid_num,
-                }) => {
-                    let is_last = kid_num == node.children.len() - 1;
-                    let kid_node = &node.children[kid_num];
-                    let ret = NodeInfo::new(kid_node, depth, kid_num);
-
-                    if is_last {
-                        self.pop_state()
-                    } else {
-                        self.set_state(IterState::iter_kids(node, depth, kid_num + 1))
-                    }
-
-                    if ret.has_kids() {
-                        self.push_state(IterState::iter_kids(kid_node, depth + 1, 0));
-                    } 
-
-
-                    Some(ret)
-                }
-            }
-        }
-    }
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////

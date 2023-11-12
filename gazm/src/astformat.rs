@@ -112,7 +112,16 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("({})", join_kids(""))
             }
 
-            TokenizedFile(_, _) => join_kids("\n"),
+            TokenizedFile(_, _,new_front_end) => {
+                let fe = if *new_front_end {
+                    "new frontend"
+
+                } else {
+                    "old frontend"
+                };
+
+                format!("TokFile:{fe}\n{}", join_kids("\n"))
+            }
 
             Cpu(OpCode(_,ins, item6809::AddrModeParseType::Inherent)) => ins.action.clone(),
 

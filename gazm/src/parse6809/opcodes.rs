@@ -146,7 +146,6 @@ fn parse_opcode_with_arg(input: Span) -> IResult<Node> {
         preceded(multispace1, parse_opcode_reg_pair)(rest)
     } else {
         let (rest, matched) = preceded(multispace1, parse_opcode_arg)(rest)?;
-
         Ok((rest, matched))
     }?;
 

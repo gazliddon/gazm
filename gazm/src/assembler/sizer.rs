@@ -2,9 +2,9 @@
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
 use crate::{
+    assembler::Assembler,
     ast::{Ast, AstNodeId, AstNodeRef},
     error::GResult,
-    gazmsymbols::SymbolScopeId,
     item::{self, Item, LabelDefinition},
     item6809::{
         AddrModeParseType,
@@ -12,7 +12,7 @@ use crate::{
     },
     parse::util::{ByteSize, ByteSizes},
     parse6809::opcodes::get_opcode_info,
-    scopetracker::ScopeTracker, assembler::Assembler,
+    scopetracker::ScopeTracker,
 };
 
 use emu6809::isa::AddrModeEnum;
@@ -22,11 +22,16 @@ use std::path::Path;
 /// gets the size of everything
 /// assigns values to labels that
 /// are defined by value of PC
-pub struct Sizer<'a> {
+struct Sizer<'a> {
     tree: &'a Ast,
     scopes: ScopeTracker,
     pc: usize,
-    pc_symbol_id: SymbolScopeId,
+    // pc_symbol_id: SymbolScopeId,
+}
+
+pub fn size(asm: &mut Assembler, ast_tree: &Ast) -> GResult<()> {
+    let _ = Sizer::try_new(&ast_tree, asm)?;
+    Ok(())
 }
 
 impl<'a> Sizer<'a> {
@@ -46,26 +51,19 @@ impl<'a> Sizer<'a> {
 
     pub fn try_new(tree: &'a Ast, asm: &mut Assembler) -> GResult<Sizer<'a>> {
         let pc = 0;
-        let mut writer = asm.get_symbols_mut().get_root_writer();
 
-        let pc_symbol_id = writer
-            .create_and_set_symbol("*", pc)
-            .expect("Can't add symbol for pc");
+        asm.set_pc_symbol(pc).expect("Can't set PC symbol");
 
         let root_id = asm.get_symbols().get_root_scope_id();
 
         let mut ret = Self {
             tree,
             scopes: ScopeTracker::new(root_id),
-            pc: 0,
-            pc_symbol_id,
+            pc,
         };
 
         let id = ret.tree.as_ref().root().id();
         ret.size_node(asm, id)?;
-
-        let mut writer = asm.get_symbols_mut().get_root_writer();
-        writer.remove_symbol("*").expect("Can't remove pc symbol");
 
         Ok(ret)
     }
@@ -165,7 +163,7 @@ impl<'a> Sizer<'a> {
         let i = &node.value().item.clone();
         let current_scope_id = self.scopes.scope();
 
-        asm.set_symbol_value(self.pc_symbol_id, self.get_pc())
+        asm.set_pc_symbol(self.get_pc())
             .expect("Can't set PC symbol value");
 
         match &i {
@@ -343,13 +341,13 @@ impl<'a> Sizer<'a> {
 
     fn get_binary_extents<P: AsRef<Path>>(
         &self,
-        asm: &mut Assembler,
+        asm: &Assembler,
         file_name: P,
         node: AstNodeRef,
     ) -> GResult<std::ops::Range<usize>> {
         use itertools::Itertools;
 
-        let data_len = asm.get_file_size(file_name.as_ref())?;
+        let data_len = asm.get_file_size(&file_name)?;
 
         let mut r = 0..data_len;
 

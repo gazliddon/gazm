@@ -2,6 +2,8 @@
 use thin_vec::{thin_vec, ThinVec};
 use std::fmt::Debug;
 
+use crate::nodeiter::NodeIter;
+
 ////////////////////////////////////////////////////////////////////////////////
 // Node
 pub trait CtxTrait: Clone + std::fmt::Debug {}
@@ -64,6 +66,10 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
 
     pub fn add_child(&mut self, n: Self) {
         self.children.push(n)
+    }
+
+    pub fn iter(&self) -> NodeIter<I,C> {
+        NodeIter::new(self)
     }
 }
 

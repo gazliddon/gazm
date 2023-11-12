@@ -7,7 +7,6 @@ use crate::{
     binary::BinaryError,
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
-    gazmsymbols::SymbolScopeId,
     info_mess,
     item::{self, Item},
     item6809::{
@@ -22,18 +21,23 @@ use crate::{
 use emu6809::isa;
 use grl_sources::ItemType;
 
-pub struct Compiler<'a> {
+struct Compiler<'a> {
     tree: &'a Ast,
     scopes: ScopeTracker,
-    pc_symbol_id: SymbolScopeId,
+}
+
+pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()> {
+    let root_id = asm.get_symbols().get_root_scope_id();
+    let mut compiler = Compiler::new(tree, root_id)?;
+    compiler.compile_root(asm)?;
+    Ok(())
 }
 
 impl<'a> Compiler<'a> {
-    pub fn new(tree: &'a Ast, current_scope_id: u64, pc_symbol_id: SymbolScopeId) -> GResult<Self> {
+    pub fn new(tree: &'a Ast, current_scope_id: u64) -> GResult<Self> {
         let ret = Self {
             tree,
             scopes: ScopeTracker::new(current_scope_id),
-            pc_symbol_id,
         };
         Ok(ret)
     }
@@ -41,6 +45,7 @@ impl<'a> Compiler<'a> {
     pub fn compile_root(&mut self, asm: &mut Assembler) -> GResult<()> {
         let scope_id = asm.get_symbols().get_root_scope_id();
         self.scopes.set_scope(scope_id);
+        asm.set_pc_symbol(0).expect("Can't set pc symbol");
         self.compile_node_error(asm, self.tree.as_ref().root().id())
     }
 }
@@ -438,8 +443,7 @@ impl<'a> Compiler<'a> {
         let mut do_source_mapping = asm.opts.lst_file.is_some();
         let current_scope_id = self.scopes.scope();
 
-        asm.set_symbol_value(self.pc_symbol_id, pc)
-            .expect("Can't set PC symbol value");
+        asm.set_pc_symbol(pc).expect("Can't set PC symbol value");
 
         match i {
             ScopeId(scope_id) => self.scopes.set_scope(scope_id),

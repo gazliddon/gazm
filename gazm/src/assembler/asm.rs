@@ -8,7 +8,6 @@ use crate::{
     binary::{self, AccessType, BinRef, Binary},
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     gazmsymbols::SymbolTree,
-    info_mess,
     item::{Item, Node},
     lookup::LabelUsageAndDefintions,
     opts::{BinReference, Opts},
@@ -17,7 +16,7 @@ use crate::{
     vars::Vars,
 };
 
-use super::{compile::Compiler, fixerupper::FixerUpper, sizer::Sizer};
+use super::{fixerupper::FixerUpper};
 
 use grl_sources::{
     fileloader::{FileIo, SourceFileLoader},
@@ -37,6 +36,7 @@ pub struct Assembler {
 
 #[derive(Debug, Clone, Default)]
 pub struct AsmOut {
+    pub pc_symbol_id: Option<SymbolScopeId>,
     pub direct_page: Option<u8>,
     pub symbols: SymbolTree,
     pub errors: ErrorCollector,
@@ -213,6 +213,15 @@ impl Default for Assembler {
     }
 }
 
+impl BinRef {
+    pub fn from_bin_reference(
+        BinReference { file, addr }: BinReference,
+        r: std::ops::Range<usize>,
+    ) -> Self {
+        BinRef::new(&file, r, addr)
+    }
+}
+
 /// Create a Context from the command line Opts
 impl TryFrom<Opts> for AsmOut {
     type Error = String;
@@ -220,22 +229,17 @@ impl TryFrom<Opts> for AsmOut {
     fn try_from(opts: Opts) -> Result<AsmOut, String> {
         let mut binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
 
-        for BinReference { file, addr } in &opts.bin_references {
-            let x = crate::utils::get_file_as_byte_vec(file);
+        for br in &opts.bin_references {
+            let x = crate::utils::get_file_as_byte_vec(&br.file);
 
             match x {
                 Ok(x) => {
-                    let bin_ref = BinRef {
-                        file: file.clone(),
-                        dest: *addr,
-                        start: 0,
-                        size: x.len(),
-                    };
+                    let bin_ref = BinRef::from_bin_reference(br.clone(), 0..x.len());
                     binary.add_bin_reference(&bin_ref, &x)
                 }
 
                 Err(_) => {
-                    status_err!("Cannot load binary ref file {}", file.to_string_lossy())
+                    status_err!("Cannot load binary ref file {}", br.file.to_string_lossy())
                 }
             }
         }
@@ -247,7 +251,6 @@ impl TryFrom<Opts> for AsmOut {
         };
 
         ret.add_default_symbols(&opts);
-
         Ok(ret)
     }
 }
@@ -326,51 +329,44 @@ impl Assembler {
 
         self.assemble_tokens(&tokes.node)?;
 
-        self.get_source_file_loader_mut().set_search_paths(&original_paths);
+        self.get_source_file_loader_mut()
+            .set_search_paths(&original_paths);
+
         self.asm_out.errors.raise_errors()
     }
 
+    pub fn set_pc_symbol(&mut self, val: usize) -> Result<(), SymbolError> {
+        let id = self.get_pc_symbol_id();
+        self.get_symbols_mut().set_value_for_id(id, val as i64)
+    }
+
+    pub fn get_pc_symbol_id(&mut self) -> SymbolScopeId {
+        if let Some(id) = self.asm_out.pc_symbol_id {
+            id
+        } else {
+            let mut writer = self.get_symbols_mut().get_root_writer();
+
+            let pc_symbol_id = writer
+                .set_or_create_and_set_symbol("*", 0)
+                .expect("Can't make PC symbol");
+
+            self.asm_out.pc_symbol_id = Some(pc_symbol_id);
+            pc_symbol_id
+        }
+    }
+
     fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
-        let asm_ctx = AstCtx::from_nodes(self, tokens)?;
 
-        let docs = asm_ctx.docs;
-        let tree = asm_ctx.ast_tree;
+        let AstCtx { docs, ast_tree, .. } = AstCtx::from_nodes(self, tokens)?;
 
-        self.size_tree(&tree)?;
-        self.compile(&tree)?;
+        super::sizer::size(self, &ast_tree)?;
+        super::compile::compile(self,&ast_tree)?;
 
-        let lookup = LabelUsageAndDefintions::new(&tree, &self.asm_out.symbols, docs);
-
-        self.asm_out.ast = Some(tree);
+        let lookup = LabelUsageAndDefintions::new(&ast_tree, &self.asm_out.symbols, docs);
+        self.asm_out.ast = Some(ast_tree);
         self.asm_out.lookup = Some(lookup);
 
         Ok(())
-    }
-
-    pub fn compile(&mut self, tree: &Ast) -> GResult<()> {
-        let mut writer = self.get_symbols_mut().get_root_writer();
-
-        let pc_symbol_id = writer
-            .create_and_set_symbol("*", 0)
-            .expect("Can't add symbol for pc");
-
-        let root_id = self.get_symbols().get_root_scope_id();
-        let mut compiler = Compiler::new(tree, root_id, pc_symbol_id)?;
-
-        compiler.compile_root(self)?;
-
-        let mut writer = self.get_symbols_mut().get_root_writer();
-        writer.remove_symbol("*").expect("Can't remove pc symbol");
-
-        Ok(())
-    }
-
-    pub fn size_tree(&mut self, tree: &Ast) -> GResult<()> {
-        crate::messages::info("Sizing tree", |_x| {
-            let _sizer = Sizer::try_new(tree, self)?;
-            info_mess!("done");
-            Ok(())
-        })
     }
 }
 

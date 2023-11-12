@@ -54,7 +54,7 @@ pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
 #[allow(unused_imports)]
 mod test {
     use crate::{
-        item::NodeIter,
+        nodeiter::NodeIter,
         cli::parse_command_line,
         frontend::*,
         item::{
