@@ -1,6 +1,8 @@
 #![deny(unused_imports)]
 use super::{to_pos, TSpan};
 
+use emu6809::cpu::RegEnum;
+
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
 use grl_sources::Position;
@@ -22,6 +24,14 @@ pub enum FrontEndErrorKind {
     IllegalMacroDefinition,
     #[error("This opcode does not support this addressing mode")]
     OpcodeDoesNotSupportThisAddressingMode,
+    #[error("Expected a register")]
+    ExpectedARegister,
+    #[error("Expected an index register")]
+    ExpectedAnIndexRegister,
+    #[error("Expected register {1} - got regsiter {0}")]
+    ExpectedDifferentRegister(RegEnum,RegEnum),
+    #[error("Unexpected duplicate register")]
+    DuplicateRegisterInRegisterSet,
 }
 
 #[derive(Clone, Debug)]

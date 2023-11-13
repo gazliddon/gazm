@@ -1,8 +1,13 @@
 #![forbid(unused_imports)]
 
+use itertools::Itertools;
+
 use crate::ast::*;
 use crate::item::Item;
-use crate::item6809::{self, MC6809::OpCode };
+use crate::item6809::{
+    self,
+    MC6809::{self, OpCode},
+};
 
 impl<'a> std::fmt::Display for AstCtx<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -43,7 +48,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
         let child_item = |n: usize| node.children().nth(n).map(|x| &x.value().item);
 
         let child_string = |n: usize| {
-            
             if let Some(v) = node.children().nth(n) {
                 to_string(v)
             } else {
@@ -57,16 +61,14 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
         };
 
         let ret: String = match item {
-            LocalAssignmentFromPc(name) | AssignmentFromPc(name) => {
-                format!("{name} equ *")
-            }
+            LocalAssignmentFromPc(name) => format!("!{name} equ *"),
+            AssignmentFromPc(name) => format!("{name} equ *"),
 
             Pc => "*".to_string(),
 
             Label(name) => format!("{name}"),
             LocalLabel(name) => format!("!{name}"),
             Comment(comment) => format!("; {comment}"),
-
 
             // QuotedString(test) => format!("\"{}\"", test),
             // Register(r) => r.to_string(),
@@ -78,9 +80,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("{} equ {}", name, child_string(0))
             }
 
-            Expr => {
-                join_kids("")
-            }
+            Expr => join_kids(""),
 
             PostFixExpr => join_kids(" "),
 
@@ -112,10 +112,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("({})", join_kids(""))
             }
 
-            TokenizedFile(_, _,new_front_end) => {
+            TokenizedFile(_, _, new_front_end) => {
                 let fe = if *new_front_end {
                     "new frontend"
-
                 } else {
                     "old frontend"
                 };
@@ -123,7 +122,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("TokFile:{fe}\n{}", join_kids("\n"))
             }
 
-            Cpu(OpCode(_,ins, item6809::AddrModeParseType::Inherent)) => ins.action.clone(),
+            Cpu(OpCode(_, ins, item6809::AddrModeParseType::Inherent)) => ins.action.clone(),
 
             StructDef(name) => {
                 let body = join_kids(",\n");
@@ -138,17 +137,16 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             ShiftL => "<<".into(),
             Fcc(text) => format!("{text:?}"),
-            Fdb(_) | 
-            Fcb(_) => {
+            Fdb(_) | Fcb(_) => {
                 format!("fcb {}", join_kids(","))
             }
 
             Fill => {
                 let body = join_kids(",");
                 format!("fill {body}")
-            },
+            }
 
-            Cpu( OpCode(_,instruction, amode) ) => {
+            Cpu(OpCode(_, instruction, amode)) => {
                 use crate::item6809::AddrModeParseType::*;
 
                 let ind = |s: String, indirect: &bool| -> String {
@@ -160,6 +158,20 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 };
 
                 let operand = match amode {
+                    RegisterSet => {
+                        let rset = &node.first_child().unwrap().value().item;
+                        if let Cpu(MC6809::RegisterSet(regs)) = rset {
+                            let r = regs
+                                .iter()
+                                .sorted()
+                                .map(|r| r.to_string())
+                                .collect_vec()
+                                .join(",");
+                            format!("{r}")
+                        } else {
+                            panic!("Whut!")
+                        }
+                    }
                     Immediate => format!("#{}", child_string(0)),
                     Direct => format!("<{}", child_string(0)),
                     Extended(..) => child_string(0),
@@ -173,9 +185,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                             ConstantWordOffset(r, v) => ind(format!("{v},{r}"), indirect),
                             PcOffsetWord(v) => ind(format!("{v},PC"), indirect),
                             PcOffsetByte(v) => ind(format!("{v},PC"), indirect),
-                            ConstantOffset(r) => {
-                                ind(format!("{},{r}", child_string(0)), indirect)
-                            }
+                            ConstantOffset(r) => ind(format!("{},{r}", child_string(0)), indirect),
                             Zero(r) => ind(format!(",{r}"), indirect),
                             SubSub(r) => ind(format!(",--{r}"), indirect),
                             Sub(r) => format!(",-{r}"),

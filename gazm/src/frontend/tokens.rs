@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use super::basetoken::Token as BaseToken;
 use super::parsetext::*;
-use emu6809::cpu::RegEnum;
 
 use emu6809::isa::Dbase;
 
@@ -58,13 +57,6 @@ pub enum IdentifierKind {
     Command(CommandKind),
     Opcode,
     Label,
-    Register(RegEnum),
-}
-
-impl From<RegEnum> for TokenKind {
-    fn from(value: RegEnum) -> Self {
-        TokenKind::Identifier(IdentifierKind::Register(value))
-    }
 }
 
 impl From<IdentifierKind> for TokenKind {
@@ -98,23 +90,6 @@ impl Cpu6809Lexer {
     pub fn new() -> Self {
         Default::default()
     }
-
-    pub fn as_register(text: &str) -> Option<IdentifierKind> {
-        use RegEnum::*;
-        match text {
-            "a" => Some(A.into()),
-            "b" => Some(B.into()),
-            "d" => Some(D.into()),
-            "x" => Some(X.into()),
-            "y" => Some(Y.into()),
-            "u" => Some(U.into()),
-            "s" => Some(S.into()),
-            "dp" => Some(DP.into()),
-            "cc" => Some(CC.into()),
-            "pc" => Some(PC.into()),
-            _ => None,
-        }
-    }
 }
 
 impl CpuLexer for Cpu6809Lexer {
@@ -123,7 +98,7 @@ impl CpuLexer for Cpu6809Lexer {
         if DBASE_6809.get_opcode(text).is_some() {
             Some(Opcode)
         } else {
-            Self::as_register(text)
+            None
         }
     }
 }
@@ -133,12 +108,6 @@ impl CpuLexer for Cpu6809Lexer {
 lazy_static::lazy_static! {
     static ref PRE_HEX : regex::Regex = regex::Regex::new(r"(0[xX]|\$)(.*)").unwrap();
     static ref PRE_BIN : regex::Regex = regex::Regex::new(r"(0[bB]|%)(.*)").unwrap();
-}
-
-impl From<RegEnum> for IdentifierKind {
-    fn from(value: RegEnum) -> Self {
-        IdentifierKind::Register(value)
-    }
 }
 
 fn identifier(lex: &mut Lexer<TokenKind>) -> Option<IdentifierKind> {
@@ -203,6 +172,7 @@ pub enum TokenKind {
     #[regex(r"[0-9][0-9_]*", from_dec)]
     #[regex(r"(?&pre_hex)[0-9a-fA-F][0-9a-fA-F_]*", from_hex)]
     #[regex(r"(?&pre_bin)[0-1][0-1_]*", from_bin)]
+    #[regex(r"'.'", from_char)]
     Number((i64, NumberKind)),
 
     #[token("[")]
@@ -243,11 +213,8 @@ pub enum TokenKind {
     #[token("&")]
     Ampersand,
 
-    #[regex(r"(?&id)(::(?&id))+")]
+    #[regex(r"::(?&id)(::(?&id))+")]
     FqnIdentifier,
-
-    #[regex(r"'.'", from_char)]
-    Char((i64, NumberKind)),
 
     #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]
     QuotedString,

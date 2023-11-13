@@ -27,6 +27,8 @@ pub enum EvalErrorEnum {
     UnhandledUnaryTerm,
     #[error("Can't evaluate node")]
     UnableToEvaluate,
+    #[error("Can't pop top!")]
+    CantPopTop,
 }
 
 #[derive(Error, Debug, Clone)]
@@ -206,8 +208,9 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, EvalE
         }
     }
 
-    Ok(s.pop().expect("Can't pop top!"))
+    s.pop().ok_or( EvalError::new(EvalErrorEnum::CantPopTop,n))
 }
+
 pub fn eval_symboltree(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError> {
     let ret = eval_internal(symbols, n)?;
     Ok(ret.unrwap_number().unwrap())

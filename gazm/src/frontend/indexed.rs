@@ -1,11 +1,12 @@
 #![deny(unused_imports)]
 use unraveler::match_span as ms;
-use unraveler::{alt, preceded, sep_pair, succeeded, tag};
+use unraveler::{alt, pair, preceded, sep_pair, succeeded, tag};
 
+use super::parse_register;
 use super::{
-    get_index_reg, get_reg, parse_expr, parse_failure, parse_sq_bracketed,
-    IdentifierKind, PResult, TSpan,
-    TokenKind::{Comma, Identifier, Minus, Plus},
+    get_index_reg, parse_expr, parse_failure, parse_sq_bracketed, parse_this_reg,
+    PResult, TSpan,
+    TokenKind::{Comma, Minus, Plus},
 };
 
 use crate::{
@@ -13,10 +14,7 @@ use crate::{
     item6809::MC6809,
 };
 
-use crate::item6809::{
-    IndexParseType,
-    MC6809::OperandIndexed,
-};
+use crate::item6809::{IndexParseType, MC6809::OperandIndexed};
 
 use emu6809::cpu::RegEnum;
 
@@ -58,28 +56,26 @@ fn get_pre_dec(input: TSpan) -> PResult<IndexParseType> {
 }
 
 fn get_zero(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(Comma, get_reg)(input)?;
+    let (rest, matched) = preceded(Comma, parse_register)(input)?;
     let index_type = IndexParseType::Zero(matched);
     Ok((rest, index_type))
 }
 
 fn get_add_a(input: TSpan) -> PResult<IndexParseType> {
-    let reg = Identifier(IdentifierKind::Register(RegEnum::A));
-    let (rest, matched) = preceded(tag([reg, Comma]), get_index_reg)(input)?;
+    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::A), Comma), get_index_reg)(input)?;
     let index_type = IndexParseType::AddA(matched);
     Ok((rest, index_type))
 }
 
 fn get_add_b(input: TSpan) -> PResult<IndexParseType> {
-    let reg = Identifier(IdentifierKind::Register(RegEnum::B));
-    let (rest, matched) = preceded(tag([reg, Comma]), get_index_reg)(input)?;
+    // let reg = |i| parse_this_reg(i, RegEnum::B);
+    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::B), Comma), get_index_reg)(input)?;
     let index_type = IndexParseType::AddB(matched);
     Ok((rest, index_type))
 }
 
 fn get_add_d(input: TSpan) -> PResult<IndexParseType> {
-    let reg = Identifier(IdentifierKind::Register(RegEnum::D));
-    let (rest, matched) = preceded(tag([reg, Comma]), get_index_reg)(input)?;
+    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::D), Comma), get_index_reg)(input)?;
     let index_type = IndexParseType::AddD(matched);
     Ok((rest, index_type))
 }
@@ -120,8 +116,7 @@ fn parse_offset(input: TSpan) -> PResult<Node> {
 
 fn parse_pc_offset(input: TSpan) -> PResult<Node> {
     use emu6809::cpu::RegEnum::*;
-    let r_kind = PC.into();
-    let (rest, (sp, expr)) = ms(succeeded(parse_expr, tag([Comma, r_kind])))(input)?;
+    let (rest, (sp, expr)) = ms(succeeded(parse_expr, pair(Comma, parse_this_reg(PC))))(input)?;
     let item = MC6809::operand_from_index_mode(IndexParseType::PCOffset, false);
     let matched = Node::from_item_kid_tspan(item, expr, sp);
     Ok((rest, matched))

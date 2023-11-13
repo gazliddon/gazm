@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 use unraveler::{
-    alt, match_item, match_span as ms, preceded, sep_list, sep_pair, tag, wrapped_cut, Parser,
+    alt, map, match_item, match_span as ms, preceded, sep_list, sep_pair, tag, wrapped_cut, Parser,
 };
 
 use super::{
@@ -20,7 +20,7 @@ pub fn parse_number(input: TSpan) -> PResult<Node> {
     let (rest, (sp, kind)) = match_number(input)?;
 
     match kind {
-        Number((n, nk)) | Char((n, nk)) => {
+        Number((n, nk)) => {
             let node = Node::from_item_tspan(Item::Num(n, nk.into()), sp);
             Ok((rest, node))
         }
@@ -121,12 +121,29 @@ fn get_label_definition(item: &Item) -> Option<LabelDefinition> {
     }
 }
 
+fn parse_local_assignment(input: TSpan) -> PResult<Item> {
+    use Item::LocalAssignment;
+    map(parse_local_label, |e| {
+        LocalAssignment(get_label_definition(&e.item).unwrap())
+    })(input)
+}
+
+fn parse_assignment(input: TSpan) -> PResult<Item> {
+    use Item::Assignment;
+    map(parse_label, |e| {
+        Assignment(get_label_definition(&e.item).unwrap())
+    })(input)
+}
+
 pub fn parse_equate(input: TSpan) -> PResult<Node> {
     use super::CommandKind::Equ;
-    use Item::Assignment;
     let command: TokenKind = Equ.into();
-    let (rest, (sp, (label, expr))) = ms(sep_pair(parse_label, tag(command), parse_expr))(input)?;
-    let lab_def = get_label_definition(&label.item).expect("This should be a label kind!");
-    let node = Node::from_item_kid_tspan(Assignment(lab_def), expr, sp);
+    let (rest, (sp, (assignment, expr))) = ms(sep_pair(
+        alt((parse_local_assignment, parse_assignment)),
+        tag(command),
+        parse_expr,
+    ))(input)?;
+
+    let node = Node::from_item_kid_tspan(assignment, expr, sp);
     Ok((rest, node))
 }
