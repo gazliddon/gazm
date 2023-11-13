@@ -41,7 +41,9 @@ impl<'a,I: Clone, C: CtxTrait> NodeIter<'a, I,C> {
     }
 
     pub fn set_state(&mut self, st: IterState<'a,I,C>) {
-        self.node_stack.front_mut().map(|x| *x = st);
+        if let Some(x) = self.node_stack.front_mut() {
+            *x = st
+        }
     }
 
     pub fn get_state(&self) -> Option<IterState<'a,I,C>> {
@@ -73,7 +75,7 @@ impl<'a, I: Clone, C: CtxTrait> NodeInfo<'a, I,C> {
     }
 
     pub fn has_kids(&self) -> bool {
-        self.node.children.len() != 0
+        !self.node.children.is_empty()
     }
 }
 

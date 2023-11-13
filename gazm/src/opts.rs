@@ -71,7 +71,7 @@ impl Opts {
     pub fn update_vars(&mut self) {
         self.vars.set_var("PROJECT_FILE", &self.project_file.to_string_lossy());
 
-        if self.new_frontend == true {
+        if self.new_frontend {
             self.vars.set_var("FRONTEND", "NEW_FE");
         } else {
             self.vars.set_var("FRONTEND", "OLD_FE");

@@ -30,7 +30,7 @@ struct Sizer<'a> {
 }
 
 pub fn size(asm: &mut Assembler, ast_tree: &Ast) -> GResult<()> {
-    let _ = Sizer::try_new(&ast_tree, asm)?;
+    let _ = Sizer::try_new(ast_tree, asm)?;
     Ok(())
 }
 

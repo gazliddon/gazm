@@ -219,7 +219,7 @@ impl BinRef {
         BinReference { file, addr }: BinReference,
         r: std::ops::Range<usize>,
     ) -> Self {
-        BinRef::new(&file, r, addr)
+        BinRef::new(file, r, addr)
     }
 }
 

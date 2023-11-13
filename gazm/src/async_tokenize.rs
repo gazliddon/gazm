@@ -96,13 +96,13 @@ impl TokenizeRequest {
         let span = make_tspan(&tokens, &self.source_file);
 
         // TODO need to collect errors properly - this parser should be an ALL parser
-        let (_rest, nodes) =
+        let (rest, nodes) =
             parse_span_vec(span).map_err(|e| GazmErrorKind::Misc(format!("{e:?}")))?;
 
-        if _rest.length() != 0 {
-            let pos = _rest.at(0).unwrap().extra.pos.clone();
+        if rest.length() != 0 {
+            let pos = rest.at(0).unwrap().extra.pos;
             println!("Error in {} at {}", self.requested_file.to_string_lossy(), pos);
-            let t = _rest.iter().map(|t|t.kind).collect_vec();
+            let t = rest.iter().map(|t|t.kind).collect_vec();
             println!("{t:#?}");
             panic!()
         }

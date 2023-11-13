@@ -167,7 +167,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                                 .map(|r| r.to_string())
                                 .collect_vec()
                                 .join(",");
-                            format!("{r}")
+                            r.to_string()
                         } else {
                             panic!("Whut!")
                         }
