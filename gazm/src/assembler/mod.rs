@@ -6,6 +6,7 @@ pub mod sizer;
 pub mod compile;
 pub mod fixerupper;
 pub mod bytesizes;
+pub mod binary;
 
 mod asm;
 pub use asm::*;

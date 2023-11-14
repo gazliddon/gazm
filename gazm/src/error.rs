@@ -2,7 +2,7 @@
 
 use crate::{
     ast::{AstNodeId, AstNodeRef},
-    binary,
+    assembler::binary,
 };
 
 use thin_vec::ThinVec;

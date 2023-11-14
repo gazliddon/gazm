@@ -2,9 +2,8 @@
 use std::path::Path;
 
 use crate::{
-    assembler::Assembler,
+    assembler::{ Assembler, binary::BinaryError },
     ast::{Ast, AstNodeId, AstNodeRef},
-    binary::BinaryError,
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
     info_mess,
@@ -74,7 +73,7 @@ impl<'a> Compiler<'a> {
         &self,
         asm: &mut Assembler,
         id: AstNodeId,
-        e: crate::binary::BinaryError,
+        e: BinaryError,
     ) -> GazmErrorKind {
         let n = self.get_node(id);
         let info = &asm.get_source_info(&n.value().pos).unwrap();
@@ -210,7 +209,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn inc_bin_ref<P: AsRef<Path>>(&self, asm: &mut Assembler, file_name: P) -> GResult<()> {
-        use crate::binary::BinRef;
+        use crate::assembler::binary::BinRef;
 
         let file = file_name.as_ref().to_path_buf();
 
@@ -326,7 +325,7 @@ impl<'a> Compiler<'a> {
             }
 
             Relative => {
-                use crate::binary::BinaryError::*;
+                use crate::assembler::binary::BinaryError::*;
                 let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
                 let arg_n = self.get_node(arg_id);
                 let val = arg - (pc as i64 + ins.size as i64);
@@ -356,7 +355,7 @@ impl<'a> Compiler<'a> {
             }
 
             Relative16 => {
-                use crate::binary::BinaryError::*;
+                use crate::assembler::binary::BinaryError::*;
 
                 let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
 

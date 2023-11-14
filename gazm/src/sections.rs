@@ -1,5 +1,5 @@
 #![forbid(unused_imports)]
-use crate::binary::*;
+use crate::assembler::binary::*;
 
 use std::{collections::HashMap, ops::Deref, ops::DerefMut};
 

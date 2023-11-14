@@ -2,27 +2,25 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    ast::AstCtx,
-    ast::{Ast, AstNodeId},
-    frontend::{ TokenizeResult,tokenize_async, tokenize_no_async },
-    binary::{self, AccessType, BinRef, Binary},
+    assembler::binary::{AccessType, BinRef, Binary},
+    ast::{Ast, AstCtx, AstNodeId},
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
+    frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
     gazmsymbols::SymbolTree,
     item::{Item, Node},
     lookup::LabelUsageAndDefintions,
     opts::{BinReference, Opts},
     status_err,
-    token_store::TokenStore,
     vars::Vars,
 };
 
 use super::fixerupper::FixerUpper;
 
 use grl_sources::{
-    FileIo,
     fileloader::SourceFileLoader,
     grl_utils::{fileutils, PathSearcher},
-    AsmSource, BinToWrite, Position, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
+    AsmSource, BinToWrite, FileIo, Position, SourceDatabase, SourceFile, SourceFiles,
+    SourceMapping,
 };
 
 #[derive(Debug)]
@@ -41,7 +39,7 @@ pub struct AsmOut {
     pub direct_page: Option<u8>,
     pub symbols: SymbolTree,
     pub errors: ErrorCollector,
-    pub binary: binary::Binary,
+    pub binary: Binary,
     pub source_map: SourceMapping,
     pub lst_file: LstFile,
     pub exec_addr: Option<usize>,
