@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     ast::AstCtx,
     ast::{Ast, AstNodeId},
-    async_tokenize::{self, TokenizeResult},
+    frontend::{ TokenizeResult,tokenize_async, tokenize_no_async },
     binary::{self, AccessType, BinRef, Binary},
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     gazmsymbols::SymbolTree,
@@ -315,9 +315,9 @@ impl Assembler {
 
         let tokes = {
             if self.opts.no_async {
-                async_tokenize::tokenize_no_async(self)?;
+                tokenize_no_async(self)?;
             } else {
-                async_tokenize::tokenize_async(self)?;
+                tokenize_async(self)?;
             }
 
             let file = self.get_project_file();

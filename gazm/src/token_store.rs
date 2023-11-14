@@ -1,5 +1,5 @@
 #![forbid(unused_imports)]
-use crate::async_tokenize::TokenizeResult;
+use crate::frontend::TokenizeResult;
 
 use std::{
     borrow::Cow,

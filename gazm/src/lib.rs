@@ -3,7 +3,6 @@
 #![allow(dead_code)]
 pub mod ast;
 pub mod astformat;
-pub mod async_tokenize;
 pub mod binary;
 pub mod cli;
 pub mod docs;

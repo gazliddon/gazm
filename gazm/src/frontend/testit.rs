@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 use super::*;
 use crate::ast::{iter_ids_recursive, Ast};
-use crate::async_tokenize::{TokenizeRequest, TokenizeResult};
+use crate::frontend::{TokenizeRequest, TokenizeResult};
 use crate::error::{GResult, GazmErrorKind};
 use crate::item::Item;
 use crate::opts::Opts;

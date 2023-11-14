@@ -16,6 +16,7 @@ mod register;
 mod indexed;
 mod parse;
 mod parsetask;
+mod tokenize;
 
 pub use tokens::*;
 pub use ast::*;
@@ -33,4 +34,5 @@ pub use indexed::*;
 pub use parse::*;
 pub use opcodes::*;
 pub use parsetask::*;
+pub use tokenize::*;
 
