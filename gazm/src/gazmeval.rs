@@ -7,7 +7,7 @@ use crate::{
     ast::{AstNodeId, AstNodeRef},
     error::AstError,
     gazmsymbols::{SymbolError, SymbolTreeReader},
-    item::{Item, LabelDefinition, ParsedFrom},
+    frontend::{Item, LabelDefinition, ParsedFrom},
 };
 
 use grl_eval::GetPriority;
@@ -134,7 +134,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
             let num = r.unrwap_number().unwrap();
 
             let num = &match ops.value().item {
-                Item::Sub => Item::Num(-num, crate::item::ParsedFrom::FromExpr),
+                Item::Sub => Item::Num(-num, ParsedFrom::FromExpr),
                 _ => return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n)),
             };
 
@@ -202,7 +202,7 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, EvalE
             })
             .map_err(|_| EvalError::new(EvalErrorEnum::UnableToEvaluate, *cn))??;
 
-            s.push(Num(result, crate::item::ParsedFrom::FromExpr))
+            s.push(Num(result, ParsedFrom::FromExpr))
         } else {
             s.push(i.clone());
         }

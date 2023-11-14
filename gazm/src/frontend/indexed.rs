@@ -1,20 +1,12 @@
 #![deny(unused_imports)]
-use unraveler::match_span as ms;
-use unraveler::{alt, pair, preceded, sep_pair, succeeded, tag};
+use unraveler::{alt, match_span as ms, pair, preceded, sep_pair, succeeded, tag};
 
-use super::parse_register;
 use super::{
-    get_index_reg, parse_expr, parse_failure, parse_sq_bracketed, parse_this_reg,
-    PResult, TSpan,
-    TokenKind::{Comma, Minus, Plus},
-};
-
-use crate::{
-    item::{Item, Node},
     item6809::MC6809,
+    item6809::{IndexParseType, MC6809::OperandIndexed},
+    TokenKind::{Comma, Minus, Plus},
+    *,
 };
-
-use crate::item6809::{IndexParseType, MC6809::OperandIndexed};
 
 use emu6809::cpu::RegEnum;
 

@@ -1,19 +1,20 @@
 #![forbid(unused_imports)]
-use std::{collections::HashMap, iter};
 use grl_eval::{to_postfix, GetPriority};
 use grl_sources::{Position, SourceErrorType, SourceInfo};
+use std::{collections::HashMap, iter};
 use thin_vec::{thin_vec, ThinVec};
 
 use crate::{
-    assembler::{ Assembler,scopetracker::ScopeTracker, scopes::ScopeBuilder,},
+    assembler::{scopes::ScopeBuilder, scopetracker::ScopeTracker, Assembler},
+    astformat::as_string,
+    debug_mess,
     error::{AstError, UserError},
+    frontend::{Item, LabelDefinition, Node},
     gazmeval::{EvalError, EvalErrorEnum},
     gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
-    info_mess, debug_mess,
-    item::{Item, LabelDefinition, Node},
+    info_mess,
     messages::*,
-     astformat::as_string,
-}; 
+};
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;
 pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
@@ -44,7 +45,7 @@ pub struct Ast {
 impl std::fmt::Display for Ast {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let txt = as_string(self.tree.root());
-        write!(f,"{txt}")
+        write!(f, "{txt}")
     }
 }
 

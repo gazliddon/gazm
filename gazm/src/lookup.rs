@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::{
     ast::{iter_refs_recursive, AstNodeId, Ast},
     gazmsymbols::{SymbolScopeId, SymbolTree},
-    item::{Item, LabelDefinition},
+    frontend::{Item, LabelDefinition},
 };
 
 use grl_sources::Position;

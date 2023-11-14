@@ -1,8 +1,7 @@
 #![forbid(unused_imports)]
 use thin_vec::{thin_vec, ThinVec};
 use std::fmt::Debug;
-
-use crate::nodeiter::NodeIter;
+use super::NodeIter;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Node

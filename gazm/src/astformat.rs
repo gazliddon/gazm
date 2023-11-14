@@ -3,10 +3,10 @@
 use itertools::Itertools;
 
 use crate::ast::*;
-use crate::item::Item;
-use crate::item6809::{
-    self,
-    MC6809::{self, OpCode},
+use crate::frontend::{
+    Item,
+    item6809,
+    item6809::MC6809::{self, OpCode},
 };
 
 impl<'a> std::fmt::Display for AstCtx<'a> {
@@ -147,7 +147,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             }
 
             Cpu(OpCode(_, instruction, amode)) => {
-                use crate::item6809::AddrModeParseType::*;
+                use item6809::AddrModeParseType::*;
 
                 let ind = |s: String, indirect: &bool| -> String {
                     if *indirect {
@@ -176,7 +176,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                     Direct => format!("<{}", child_string(0)),
                     Extended(..) => child_string(0),
                     Indexed(index_mode, indirect) => {
-                        use crate::item6809::IndexParseType::*;
+                        use item6809::IndexParseType::*;
                         match index_mode {
                             ConstantByteOffset(r, v) | Constant5BitOffset(r, v) => {
                                 ind(format!("{v},{r}"), indirect)

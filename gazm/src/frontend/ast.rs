@@ -2,7 +2,7 @@
 
 use crate::{
     ast::{AstNodeMut, AstTree, ItemWithPos},
-    item::Node,
+    frontend::Node,
 };
 
 struct AstNew {

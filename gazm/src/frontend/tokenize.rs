@@ -1,21 +1,19 @@
 // #![deny(unused_imports)]
 
+use super::{parse_span_vec, Item, Node};
+
 use crate::{
     assembler::Assembler,
     error::{GResult, GazmErrorKind, ParseError},
-    frontend::parse_span_vec,
     info_mess,
-    item::{Item, Node},
     opts::Opts,
 };
 
-use unraveler::all;
-
 use grl_sources::{grl_utils::Stack, Position, SourceFile};
-
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+use unraveler::all;
 
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
@@ -57,14 +55,17 @@ pub struct TokenizeResult {
 }
 
 impl TokenizeResult {
-    pub fn get_includes(&self) -> Vec<(Position,PathBuf)> {
+    pub fn get_includes(&self) -> Vec<(Position, PathBuf)> {
         // iter through this node to find includes and put them on the includes stack
-        self.node.iter().filter_map(|n| {
-            n.node
-                .item
-                .unwrap_include()
-                .map(|path| (n.node.ctx, path.clone()))
-        }).collect()
+        self.node
+            .iter()
+            .filter_map(|n| {
+                n.node
+                    .item
+                    .unwrap_include()
+                    .map(|path| (n.node.ctx, path.clone()))
+            })
+            .collect()
     }
 }
 
@@ -72,15 +73,18 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
     type Error = GazmErrorKind;
 
     fn try_into(self) -> Result<TokenizeResult, Self::Error> {
-        let (node,errors) = self.new_tokenize()?;
-        Ok( TokenizeResult { node, errors, request: self } )
+        let (node, errors) = self.new_tokenize()?;
+        Ok(TokenizeResult {
+            node,
+            errors,
+            request: self,
+        })
     }
 }
 
 impl TokenizeRequest {
-
-    pub fn new_tokenize(&self) -> GResult<(Node,Vec<ParseError>)> {
-        use unraveler::{ Collection,all };
+    pub fn new_tokenize(&self) -> GResult<(Node, Vec<ParseError>)> {
+        use unraveler::{all, Collection};
         info_mess!("Tokenizing with new front end");
         use crate::frontend::{make_tspan, to_tokens_no_comment};
         let tokens = to_tokens_no_comment(&self.source_file);
@@ -92,8 +96,12 @@ impl TokenizeRequest {
 
         if rest.length() != 0 {
             let pos = rest.at(0).unwrap().extra.pos;
-            println!("Error in {} at {}", self.requested_file.to_string_lossy(), pos);
-            let t = rest.iter().map(|t|t.kind).collect_vec();
+            println!(
+                "Error in {} at {}",
+                self.requested_file.to_string_lossy(),
+                pos
+            );
+            let t = rest.iter().map(|t| t.kind).collect_vec();
             println!("{t:#?}");
             panic!()
         }
@@ -101,7 +109,7 @@ impl TokenizeRequest {
         let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone(), true);
         let node = Node::from_item_kids_tspan(item, &nodes, span);
         let errors = vec![];
-        Ok((node,errors))
+        Ok((node, errors))
     }
 }
 

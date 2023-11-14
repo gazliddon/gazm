@@ -1,19 +1,16 @@
 #![deny(unused_imports)]
 
 use super::{
-    get_text, parse_expr, parse_indexed, parse_opcode_reg_pair, IdentifierKind,
-    PResult, TSpan, TokenKind,
+    item6809::{
+        AddrModeParseType,
+        AddrModeParseType::Inherent as ParseInherent,
+        MC6809,
+        MC6809::{OpCode, Operand, OperandIndexed},
+    },
+    *,
 };
-
-use unraveler::{alt, preceded, sep_list};
-use unraveler::match_span as ms;
-
-use crate::{
-    frontend::parse_reg_set_operand,
-    item::{Item, Node},
-    item6809::MC6809,
-};
-use emu6809::isa::{AddrModeEnum, Dbase, Instruction, };
+use emu6809::isa::{InstructionInfo,AddrModeEnum, Dbase, Instruction};
+use unraveler::{alt, match_span as ms, preceded, sep_list};
 
 lazy_static::lazy_static! {
     pub static ref OPCODES_REC: Dbase = Dbase::new();
@@ -22,14 +19,6 @@ lazy_static::lazy_static! {
 pub fn get_opcode_info(i: &Instruction) -> Option<&InstructionInfo> {
     OPCODES_REC.get_opcode_info_from_opcode(i.opcode)
 }
-
-use crate::item6809::{
-    AddrModeParseType,
-    AddrModeParseType::Inherent as ParseInherent,
-    MC6809::{OpCode, Operand, OperandIndexed},
-};
-
-use emu6809::isa::InstructionInfo;
 
 fn parse_immediate(_input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
@@ -74,10 +63,7 @@ fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
     Ok((rest, matched))
 }
 
-fn get_instruction(
-    amode: crate::item6809::AddrModeParseType,
-    info: &InstructionInfo,
-) -> Option<&Instruction> {
+fn get_instruction(amode: AddrModeParseType, info: &InstructionInfo) -> Option<&Instruction> {
     use AddrModeEnum::*;
     let get = |amode| info.get_instruction(&amode);
 
@@ -172,9 +158,9 @@ pub fn parse_multi_opcode(input: TSpan) -> PResult<Node> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::frontend::item6809::IndexParseType;
     use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens_no_comment};
-    use crate::item::{Item, ParsedFrom};
-    use crate::item6809::IndexParseType;
+    use crate::frontend::{Item, ParsedFrom};
     use emu6809::cpu::RegEnum;
     use unraveler::Collection;
 

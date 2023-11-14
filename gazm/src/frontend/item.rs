@@ -1,21 +1,16 @@
 #![forbid(unused_imports)]
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thin_vec::ThinVec;
-
 use grl_sources::Position;
 
-use crate::{
-    ast::AstNodeId,
-    error::ParseError,
-    gazmsymbols::SymbolScopeId,
+use crate::{ast::AstNodeId, error::ParseError, gazmsymbols::SymbolScopeId};
+
+use super::{
     item6809::MC6809::{self, OpCode, SetDp},
-    node::{BaseNode, CtxTrait},
+    BaseNode, CtxTrait,
 };
 
-impl CtxTrait for Position {
-
-}
-
+impl CtxTrait for Position {}
 
 pub type Node = BaseNode<Item, Position>;
 
@@ -43,7 +38,6 @@ impl FromStr for StructMemberType {
         Ok(ret)
     }
 }
-
 
 impl StructMemberType {
     pub fn to_size_item(&self) -> Item {
@@ -276,9 +270,7 @@ impl Item {
     }
 }
 
-
 impl BaseNode<Item, Position> {
-    
     pub fn from_item_pos<P: Into<Position>>(item: Item, p: P) -> Self {
         Self::new(item, p.into())
     }

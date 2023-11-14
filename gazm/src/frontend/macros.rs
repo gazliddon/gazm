@@ -1,18 +1,12 @@
 #![deny(unused_imports)]
 
-use crate::item::{
-    Item::{MacroCall, MacroDef},
-    Node,
-};
-
 use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple};
 
 use super::{
-    get_label_text, get_text, parse_block, parse_bracketed, parse_expr_list0, parse_span_vec,
-    CommandKind,
     IdentifierKind::Label,
-    OriginalSource, PResult, TSpan,
+    Item::{MacroCall, MacroDef},
     TokenKind::{Comma, Identifier},
+    *,
 };
 
 pub fn parse_macro_call(input: TSpan) -> PResult<Node> {
@@ -53,27 +47,20 @@ pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
 
 #[allow(unused_imports)]
 mod test {
-    use crate::{
-        nodeiter::NodeIter,
-        cli::parse_command_line,
-        frontend::*,
-        item::{
-            Item::{self, *},
-            LabelDefinition, Node,
-            ParsedFrom::*,
-        },
-        item6809::MC6809,
-    };
+    use super::*;
+    use crate::{cli::parse_command_line, frontend::*};
 
+    use Item::Num;
+    use ParsedFrom::Hex;
+
+    use grl_eval::ExprItem::Expr;
     use grl_sources::{grl_utils::Stack, SourceFile};
-    // use pretty_assertions::{assert_eq, assert_ne};
     use termimad::crossterm::style::Stylize;
     use thin_vec::ThinVec;
     use tower_lsp::lsp_types::{ClientInfo, CompletionItemCapability, DeleteFilesParams};
     use unraveler::{all, cut, Collection, Parser};
 
     ////////////////////////////////////////////////////////////////////////////////
-
 
     #[test]
     fn parse_args() {
@@ -104,7 +91,7 @@ mod test {
 
         for _n in it {
             let spaces = " ".repeat(_n.depth);
-            println!("{spaces} {:?}",_n.node.item);
+            println!("{spaces} {:?}", _n.node.item);
         }
 
         todo!("Complete these tests")

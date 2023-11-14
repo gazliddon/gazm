@@ -1,5 +1,5 @@
 #![forbid(unused_imports)]
-use crate::{ast::AstNodeId, item::Item};
+use crate::{ast::AstNodeId, frontend::Item};
 
 use std::collections::HashMap;
 

@@ -18,6 +18,10 @@ mod parse;
 mod parsetask;
 mod tokenize;
 mod token_store;
+mod node;
+mod nodeiter;
+mod item;
+pub mod item6809;
 
 pub use tokens::*;
 pub use ast::*;
@@ -37,4 +41,7 @@ pub use opcodes::*;
 pub use parsetask::*;
 pub use tokenize::*;
 pub use token_store::*;
+pub use node::*;
+pub use nodeiter::*;
+pub use item::*;
 

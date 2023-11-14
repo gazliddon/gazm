@@ -1,18 +1,11 @@
 #![deny(unused_imports)]
 
-/// Parse the assembler commands
-use std::path::PathBuf;
-
-use crate::{
-    item::{Item, Node},
-    item6809::MC6809, debug_mess,
-};
-
 use super::{
-    get_text, parse_expr, parse_expr_list, parse_scoped_label, CommandKind, IdentifierKind,
-    PResult, TSpan, TokenKind, TokenKind::Comma,
+    get_text, item6809::MC6809, parse_expr, parse_expr_list, parse_scoped_label, CommandKind,
+    IdentifierKind, Item, Node, PResult, TSpan, TokenKind, TokenKind::Comma,
 };
-
+use crate::debug_mess;
+use std::path::PathBuf;
 use unraveler::{alt, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Parser};
 
 fn get_quoted_string(input: TSpan) -> PResult<String> {
@@ -219,13 +212,11 @@ pub fn parse_command(input: TSpan) -> PResult<Node> {
 mod test {
     use crate::{
         cli::parse_command_line,
-        frontend::*,
-        item::{
+        frontend::{*,
+            item6809::MC6809,
             Item::{self, *},
-            LabelDefinition, Node,
             ParsedFrom::*,
         },
-        item6809::MC6809,
     };
     use grl_sources::SourceFile;
     use pretty_assertions::{assert_eq, assert_ne};

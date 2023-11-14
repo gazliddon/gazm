@@ -1,9 +1,8 @@
 #![deny(unused_imports)]
+
 use super::{to_pos, TSpan};
 
 use emu6809::cpu::RegEnum;
-
-
 use grl_sources::Position;
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};

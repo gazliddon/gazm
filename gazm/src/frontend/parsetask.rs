@@ -1,13 +1,10 @@
 #![deny(unused_imports)]
- 
-use crate::{item::Node, opts::Opts };
 
+use crate::opts::Opts;
 use grl_sources::SourceFile;
 
+use super::{make_tspan, parse_span, FrontEndError, Node, Token};
 use std::path::PathBuf;
-use super::{
-    Token,FrontEndError,make_tspan,parse_span
-};
 
 #[derive(Debug, Clone)]
 pub struct ParseTask {
@@ -48,8 +45,6 @@ impl TryInto<Parsed> for ParseTask {
         let spam = make_tspan(&tokens, &self.source_file);
         let (_, node) = parse_span(spam)?;
 
-
-
         Ok(Parsed {
             node,
             includes: Default::default(),
@@ -57,4 +52,3 @@ impl TryInto<Parsed> for ParseTask {
         })
     }
 }
-

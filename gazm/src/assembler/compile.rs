@@ -7,13 +7,14 @@ use crate::{
     ast::{Ast, AstNodeId, AstNodeRef},
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
-    info_mess,
-    item::{self, Item},
-    item6809::{
-        self, AddrModeParseType, IndexParseType,
-        MC6809::{self, OpCode, SetDp},
+    frontend::{
+        item6809::{
+            self, AddrModeParseType, IndexParseType,
+            MC6809::{self, OpCode, SetDp},
+        },
+        Item,
     },
-    status_mess,
+    info_mess, status_mess,
 };
 
 use emu6809::isa;
@@ -428,7 +429,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn compile_node_error(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        use item::Item::*;
+        use Item::*;
 
         let (node_id, i) = self.get_node_id_item(asm, id);
 

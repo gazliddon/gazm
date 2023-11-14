@@ -1,7 +1,7 @@
 #![forbid(unused_imports)]
 use std::collections::HashSet;
 
-use crate::item::Item;
+use super::Item;
 
 use emu6809::{
     cpu::{IndexedFlags, RegEnum},

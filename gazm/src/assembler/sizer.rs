@@ -12,8 +12,8 @@ use crate::{
     // parse::util::{ByteSize, ByteSizes},
     // parse6809::opcodes::get_opcode_info,
     frontend::get_opcode_info,
-    item::{self, Item, LabelDefinition},
-    item6809::{
+    frontend::{Item, LabelDefinition},
+    frontend::item6809::{self,
         AddrModeParseType,
         MC6809::{OpCode, SetDp},
     },
@@ -86,7 +86,7 @@ impl<'a> Sizer<'a> {
             let ins = ins.clone();
 
             self.advance_pc(ins.size);
-            use crate::item6809::IndexParseType::*;
+            use item6809::IndexParseType::*;
 
             match pmode {
                 Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..) | Sub(..)
@@ -161,7 +161,7 @@ impl<'a> Sizer<'a> {
     }
 
     fn size_node(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        use item::Item::*;
+        use Item::*;
 
         let node = self.get_node(id);
         let i = &node.value().item.clone();

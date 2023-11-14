@@ -6,7 +6,7 @@ use crate::{
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
     gazmsymbols::SymbolTree,
-    item::{Item, Node},
+    frontend::{Item, Node},
     lookup::LabelUsageAndDefintions,
     opts::{BinReference, Opts},
     status_err,

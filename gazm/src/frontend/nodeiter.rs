@@ -1,6 +1,4 @@
-use crate::node::{CtxTrait, BaseNode};
-
-use super::item::Node;
+use super::{ Node,CtxTrait, BaseNode };
 
 #[derive(Clone, Debug)]
 pub enum IterState<'a, I : Clone, C : CtxTrait> {

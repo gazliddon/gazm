@@ -1,10 +1,12 @@
 #![deny(unused_imports)]
 use super::*;
-use crate::ast::{iter_ids_recursive, Ast};
-use crate::frontend::{TokenizeRequest, TokenizeResult};
-use crate::error::{GResult, GazmErrorKind};
-use crate::item::Item;
-use crate::opts::Opts;
+
+use crate::{
+    ast::{iter_ids_recursive, Ast},
+    error::{GResult, GazmErrorKind},
+    opts::Opts,
+};
+
 use std::fs;
 
 pub fn test(opts: &Opts) {

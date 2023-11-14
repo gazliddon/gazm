@@ -4,11 +4,8 @@
 use super::{
     get_text, parse_block, parse_expr, CommandKind, IdentifierKind, PResult, TSpan,
     TokenKind::{Colon, Comma, Identifier},
-};
-
-use crate::{
-    frontend::parse_label,
     item::{Item, Node, StructMemberType},
+    parse_label,
 };
 
 use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded, tag, tuple};
@@ -74,7 +71,7 @@ mod test {
     #[cfg(test)]
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
-    use crate::item::LabelDefinition::Text;
+    use LabelDefinition::Text;
     use grl_sources::SourceFile;
     use thin_vec::thin_vec;
     use unraveler::Collection;

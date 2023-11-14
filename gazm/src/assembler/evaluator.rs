@@ -6,7 +6,7 @@ use crate::{
     error::{GResult, UserError},
     gazmeval::eval,
     gazmsymbols::{SymbolInfo, SymbolTree},
-    item::Item::*,
+    frontend::Item::*,
 };
 
 use super::Assembler;

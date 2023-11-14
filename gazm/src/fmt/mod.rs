@@ -1,7 +1,7 @@
 use crate::{
     error::GResult,
-    item::{Item, LabelDefinition, Node},
-    item6809::MC6809::OpCode,
+    frontend::{Item, LabelDefinition, Node},
+    frontend::item6809::MC6809::OpCode,
     opts::Opts,
 };
 

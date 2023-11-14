@@ -1,10 +1,6 @@
 #![deny(unused_imports)]
-use crate::{
-    item::{Item, Node, ParsedFrom},
-    node::BaseNode, 
-};
+use super::{FrontEndError, PResult, TSpan, TokenKind::*, Item,Node,ParsedFrom,BaseNode};
 
-use super::{FrontEndError, PResult, TSpan, TokenKind::*};
 use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
 use unraveler::{wrapped_cut, Collection, Parser, match_span as ms};

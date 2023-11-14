@@ -1,19 +1,16 @@
 #![deny(unused_imports)]
 use emu6809::cpu::RegEnum;
 use std::collections::HashSet;
-use unraveler::{match_span as ms, sep_list, sep_pair, Severity, };
+use unraveler::{match_span as ms, sep_list, sep_pair, Severity};
 
 use super::{
-    FrontEndError,
-    FrontEndErrorKind,
-    IdentifierKind,
-    PResult, TSpan, 
+    get_text,
+    item6809::{
+        AddrModeParseType,
+        MC6809::{Operand, RegisterSet},
+    },
+    FrontEndError, FrontEndErrorKind, IdentifierKind, Item, Node, PResult, TSpan,
     TokenKind::{self, *},
-};
-
-use crate::{
-    item::{Item, Node},
-    item6809::{AddrModeParseType, MC6809::Operand, MC6809::RegisterSet}, frontend::get_text,
 };
 
 pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
@@ -33,17 +30,21 @@ pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
 fn parse_this_reg_local(input: TSpan, r: RegEnum) -> PResult<RegEnum> {
     use FrontEndErrorKind::*;
 
-    let (rest,(sp, matched )) = ms(parse_register)(input)?;
+    let (rest, (sp, matched)) = ms(parse_register)(input)?;
 
     if matched != r {
-        Err(FrontEndError::new(sp,ExpectedDifferentRegister(matched, r), Severity::Error))
+        Err(FrontEndError::new(
+            sp,
+            ExpectedDifferentRegister(matched, r),
+            Severity::Error,
+        ))
     } else {
-        Ok((rest,matched))
+        Ok((rest, matched))
     }
 }
 
-pub fn parse_this_reg(r: RegEnum) -> impl FnMut(TSpan) -> PResult<RegEnum>  + Copy{ 
-    move |i| parse_this_reg_local(i,r)
+pub fn parse_this_reg(r: RegEnum) -> impl FnMut(TSpan) -> PResult<RegEnum> + Copy {
+    move |i| parse_this_reg_local(i, r)
 }
 
 fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
@@ -52,7 +53,11 @@ fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
 
     for r in matched {
         if hash_ret.contains(&r) {
-            return Err(FrontEndError::new(sp,FrontEndErrorKind::DuplicateRegisterInRegisterSet,Severity::Fatal))
+            return Err(FrontEndError::new(
+                sp,
+                FrontEndErrorKind::DuplicateRegisterInRegisterSet,
+                Severity::Fatal,
+            ));
         }
         hash_ret.insert(r);
     }
@@ -65,24 +70,30 @@ pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
     if matched.is_valid_for_index() {
         Ok((rest, matched))
     } else {
-        Err(FrontEndError::new(sp,FrontEndErrorKind::ExpectedAnIndexRegister, Severity::Error))
+        Err(FrontEndError::new(
+            sp,
+            FrontEndErrorKind::ExpectedAnIndexRegister,
+            Severity::Error,
+        ))
     }
 }
 
-
-
 pub fn parse_register(input: TSpan) -> PResult<RegEnum> {
-    use TokenKind::*;
     use IdentifierKind::*;
+    use TokenKind::*;
 
-    let (rest,(sp,_matched)) = ms(Identifier(Label))(input)?;
+    let (rest, (sp, _matched)) = ms(Identifier(Label))(input)?;
 
     let txt = get_text(sp);
 
     if let Ok(reg) = txt.as_str().parse::<RegEnum>() {
-        Ok((rest, reg ))
+        Ok((rest, reg))
     } else {
-        Err(super::FrontEndError::new(sp,super::FrontEndErrorKind::ExpectedARegister, unraveler::Severity::Error))
+        Err(super::FrontEndError::new(
+            sp,
+            super::FrontEndErrorKind::ExpectedARegister,
+            unraveler::Severity::Error,
+        ))
     }
 }
 

@@ -1,7 +1,6 @@
 #![deny(unused_imports)]
 use grl_sources::{Position, SourceFile};
 use unraveler::Collection;
-
 use super::{to_pos, Token, TokenKind};
 
 #[derive(Default,Clone, Copy, PartialEq)]
