@@ -109,10 +109,11 @@ impl Opts {
             3 => Verbosity::Interesting,
             _ => Verbosity::Debug,
         };
+
         opts.no_async = *orig_matches.get_one("no-async").unwrap();
-        opts.new_frontend = *orig_matches.get_one("new-frontend").unwrap();
 
         opts.update_vars();
+
         Ok(opts)
     }
 }

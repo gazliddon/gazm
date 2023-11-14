@@ -1,6 +1,11 @@
 # Gazm - 6809 Assembler Release Notes
 
-## 0.9.14
+## 0.9.16
+
+
+## 0.9.15
+* Replacement front end
+* Takes a step back in handling errors
 
 ## 0.9.13
 * Work started updating LSP server

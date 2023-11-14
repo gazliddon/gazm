@@ -264,9 +264,6 @@ impl AsmOut {
         write
             .create_and_set_symbol("mem_size", opts.mem_size as i64)
             .expect("Create a symbole for memory size");
-        write
-            .create_and_set_symbol("new_front_end", opts.new_frontend as i64)
-            .expect("Create a symbol for new front end");
     }
 }
 

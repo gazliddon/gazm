@@ -5,6 +5,7 @@ pub mod evaluator;
 pub mod sizer;
 pub mod compile;
 pub mod fixerupper;
+pub mod bytesizes;
 
 mod asm;
 pub use asm::*;

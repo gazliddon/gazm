@@ -12,8 +12,16 @@ use crate::{
     frontend::parse_reg_set_operand,
     item::{Item, Node},
     item6809::MC6809,
-    parse6809::opcodes::OPCODES_REC,
 };
+use emu6809::isa::{AddrModeEnum, Dbase, Instruction, };
+
+lazy_static::lazy_static! {
+    pub static ref OPCODES_REC: Dbase = Dbase::new();
+}
+
+pub fn get_opcode_info(i: &Instruction) -> Option<&InstructionInfo> {
+    OPCODES_REC.get_opcode_info_from_opcode(i.opcode)
+}
 
 use crate::item6809::{
     AddrModeParseType,
@@ -21,7 +29,7 @@ use crate::item6809::{
     MC6809::{OpCode, Operand, OperandIndexed},
 };
 
-use emu6809::isa::{AddrModeEnum, Instruction, InstructionInfo};
+use emu6809::isa::InstructionInfo;
 
 fn parse_immediate(_input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;

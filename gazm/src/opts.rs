@@ -49,7 +49,6 @@ pub struct Opts {
     pub no_async: bool,
     pub bin_references: Vec<BinReference>,
     pub cpu: Option<crate::cli::CpuKind>,
-    pub new_frontend: bool,
 
     #[serde(skip)]
     pub do_includes: bool,
@@ -70,13 +69,6 @@ pub struct Opts {
 impl Opts {
     pub fn update_vars(&mut self) {
         self.vars.set_var("PROJECT_FILE", &self.project_file.to_string_lossy());
-
-        if self.new_frontend {
-            self.vars.set_var("FRONTEND", "NEW_FE");
-        } else {
-            self.vars.set_var("FRONTEND", "OLD_FE");
-        }
-
         self.vars.set_var("MEM_SIZE", &format!("{}", self.mem_size));
     }
 }
@@ -107,7 +99,6 @@ impl Default for Opts {
             do_includes: true,
             no_async: false,
             syms_file: Default::default(),
-            new_frontend: false,
         }
     }
 }

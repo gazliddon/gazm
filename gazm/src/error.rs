@@ -3,7 +3,6 @@
 use crate::{
     ast::{AstNodeId, AstNodeRef},
     binary,
-    parse::locate::{span_to_pos, Span},
 };
 
 use thin_vec::ThinVec;
@@ -71,63 +70,63 @@ impl ParseError {
     }
 }
 
-pub fn parse_error(err: &str, ctx: Span) -> nom::Err<ParseError> {
-    nom::Err::Error(ParseError::new(err.to_string(), &ctx, false))
-}
+// pub fn parse_error(err: &str, ctx: Span) -> nom::Err<ParseError> {
+//     nom::Err::Error(ParseError::new(err.to_string(), &ctx, false))
+// }
 
-pub fn parse_failure(err: &str, ctx: Span) -> nom::Err<ParseError> {
-    nom::Err::Failure(ParseError::new(err.to_string(), &ctx, true))
-}
+// pub fn parse_failure(err: &str, ctx: Span) -> nom::Err<ParseError> {
+//     nom::Err::Failure(ParseError::new(err.to_string(), &ctx, true))
+// }
 
-pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
+// pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
 
-impl ParseError {
-    pub fn new(message: String, span: &Span, failure: bool) -> ParseError {
-        Self::new_from_pos(message.as_str(), &span_to_pos(*span), failure)
-    }
+// impl ParseError {
+//     pub fn new(message: String, span: &Span, failure: bool) -> ParseError {
+//         Self::new_from_pos(message.as_str(), &span_to_pos(*span), failure)
+//     }
 
-    pub fn new_from_pos(message: &str, pos: &Position, failure: bool) -> Self {
-        Self {
-            message: Some(message.to_owned()),
-            pos: *pos,
-            failure,
-        }
-    }
+//     pub fn new_from_pos(message: &str, pos: &Position, failure: bool) -> Self {
+//         Self {
+//             message: Some(message.to_owned()),
+//             pos: *pos,
+//             failure,
+//         }
+//     }
 
-    pub fn set_failure(self, failure: bool) -> Self {
-        let mut ret = self;
-        ret.failure = failure;
-        ret
-    }
+//     pub fn set_failure(self, failure: bool) -> Self {
+//         let mut ret = self;
+//         ret.failure = failure;
+//         ret
+//     }
 
-    pub fn is_failure(&self) -> bool {
-        self.failure
-    }
-}
+//     pub fn is_failure(&self) -> bool {
+//         self.failure
+//     }
+// }
 
-impl From<nom::Err<ParseError>> for ParseError {
-    fn from(i: nom::Err<ParseError>) -> Self {
-        match i {
-            nom::Err::Incomplete(_) => panic!(),
-            nom::Err::Error(e) => e.set_failure(false),
-            nom::Err::Failure(e) => e.set_failure(true),
-        }
-    }
-}
+// impl From<nom::Err<ParseError>> for ParseError {
+//     fn from(i: nom::Err<ParseError>) -> Self {
+//         match i {
+//             nom::Err::Incomplete(_) => panic!(),
+//             nom::Err::Error(e) => e.set_failure(false),
+//             nom::Err::Failure(e) => e.set_failure(true),
+//         }
+//     }
+// }
 
-impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
-    fn from_error_kind(input: Span<'a>, kind: nom::error::ErrorKind) -> Self {
-        Self::new(format!("parse error {kind:?}"), &input, false)
-    }
+// impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
+//     fn from_error_kind(input: Span<'a>, kind: nom::error::ErrorKind) -> Self {
+//         Self::new(format!("parse error {kind:?}"), &input, false)
+//     }
 
-    fn append(_input: Span, _kind: nom::error::ErrorKind, other: Self) -> Self {
-        other
-    }
+//     fn append(_input: Span, _kind: nom::error::ErrorKind, other: Self) -> Self {
+//         other
+//     }
 
-    fn from_char(input: Span<'a>, c: char) -> Self {
-        Self::new(format!("unexpected character '{c}'"), &input, false)
-    }
-}
+//     fn from_char(input: Span<'a>, c: char) -> Self {
+//         Self::new(format!("unexpected character '{c}'"), &input, false)
+//     }
+// }
 
 // That's what makes it nom-compatible.
 ////////////////////////////////////////////////////////////////////////////////

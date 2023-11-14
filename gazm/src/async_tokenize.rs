@@ -6,9 +6,7 @@ use crate::{
     frontend::parse_span_vec,
     info_mess,
     item::{Item, Node},
-    // nodeiter::NodeInfo,
     opts::Opts,
-    parse::locate::{span_to_pos, Span},
     tokenize::Tokens,
 };
 
@@ -75,13 +73,7 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
     type Error = GazmErrorKind;
 
     fn try_into(self) -> Result<TokenizeResult, Self::Error> {
-
-        let (node,errors) = if self.opts.new_frontend {
-            self.new_tokenize()
-        } else {
-            self.old_tokenize()
-        }?;
-
+        let (node,errors) = self.new_tokenize()?;
         Ok( TokenizeResult { node, errors, request: self } )
     }
 }
@@ -113,16 +105,16 @@ impl TokenizeRequest {
         Ok((node,errors))
     }
 
-    pub fn old_tokenize(&self) -> GResult<(Node,Vec<ParseError>)> {
-        info_mess!("Tokenizing with old front end");
-        let i = self.source_file.get_entire_source();
-        let id = self.source_file.file_id;
-        let input = Span::new_extra(i, id);
-        let tokens = Tokens::from_text(&self.opts, input)?;
-        let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone(), false);
-        let node = Node::new_with_children(item, &tokens.tokens, span_to_pos(input));
-        Ok((node,tokens.parse_errors))
-    }
+    // pub fn old_tokenize(&self) -> GResult<(Node,Vec<ParseError>)> {
+    //     info_mess!("Tokenizing with old front end");
+    //     let i = self.source_file.get_entire_source();
+    //     let id = self.source_file.file_id;
+    //     let input = Span::new_extra(i, id);
+    //     let tokens = Tokens::from_text(&self.opts, input)?;
+    //     let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone(), false);
+    //     let node = Node::new_with_children(item, &tokens.tokens, span_to_pos(input));
+    //     Ok((node,tokens.parse_errors))
+    // }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
