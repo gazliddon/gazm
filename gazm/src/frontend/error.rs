@@ -3,11 +3,12 @@ use super::{to_pos, TSpan};
 
 use emu6809::cpu::RegEnum;
 
-pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
 use grl_sources::Position;
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
+
+pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
 pub fn parse_failure(_txt: &str, _sp: TSpan) -> super::FrontEndError {
     panic!()

@@ -5,15 +5,14 @@ use grl_sources::{Position, SourceErrorType, SourceInfo};
 use thin_vec::{thin_vec, ThinVec};
 
 use crate::{
-    assembler::Assembler,
+    assembler::{ Assembler,scopetracker::ScopeTracker, scopes::ScopeBuilder,},
     error::{AstError, UserError},
-    scopetracker::ScopeTracker,
     gazmeval::{EvalError, EvalErrorEnum},
     gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
     info_mess, debug_mess,
     item::{Item, LabelDefinition, Node},
     messages::*,
-    scopes::ScopeBuilder, astformat::as_string,
+     astformat::as_string,
 }; 
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;

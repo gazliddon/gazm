@@ -1,7 +1,7 @@
 #![forbid(unused_imports)]
 use std::path::Path;
 
-use super::{binary::BinaryError, Assembler};
+use super::{binary::BinaryError, regutils::*, scopetracker::ScopeTracker, Assembler};
 
 use crate::{
     ast::{Ast, AstNodeId, AstNodeRef},
@@ -13,8 +13,6 @@ use crate::{
         self, AddrModeParseType, IndexParseType,
         MC6809::{self, OpCode, SetDp},
     },
-    regutils::*,
-    scopetracker::ScopeTracker,
     status_mess,
 };
 

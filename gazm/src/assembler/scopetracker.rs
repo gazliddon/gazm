@@ -1,20 +1,6 @@
+#![forbid(unused_imports)]
 
-// #![forbid(unused_imports)]
-use crate::{
-    ast::AstCtx, frontend,  assembler::Assembler, error::GResult,
-    item::Node, lookup::LabelUsageAndDefintions, opts::Opts,
-};
-
-use grl_sources::{
-    grl_utils::{PathSearcher, Stack},
-    EditResult, TextEditTrait,
-};
-
-use std::{
-    path::Path,
-    sync::{Arc, Mutex},
-};
-
+use grl_sources::grl_utils::Stack;
 
 #[derive(Default, Debug, Clone)]
 pub struct ScopeTracker {

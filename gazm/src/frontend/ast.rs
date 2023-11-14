@@ -1,10 +1,8 @@
-// #![forbid(unused_imports)]
-use super::TokenKind;
+#![forbid(unused_imports)]
 
 use crate::{
-    ast::{Ast, AstTree, ItemWithPos},
-    ast::{AstNodeId, AstNodeMut},
-    item::{Item, Node},
+    ast::{AstNodeMut, AstTree, ItemWithPos},
+    item::Node,
 };
 
 struct AstNew {
@@ -32,4 +30,3 @@ impl AstNew {
         }
     }
 }
-

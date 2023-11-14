@@ -2,6 +2,7 @@
 use super::{
     bytesizes::{ByteSize, ByteSizes},
     Assembler,
+    scopetracker::ScopeTracker,
 };
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
@@ -16,7 +17,6 @@ use crate::{
         AddrModeParseType,
         MC6809::{OpCode, SetDp},
     },
-    scopetracker::ScopeTracker,
 };
 
 use emu6809::isa::AddrModeEnum;

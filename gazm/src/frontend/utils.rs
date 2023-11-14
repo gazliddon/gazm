@@ -134,7 +134,8 @@ where
 mod test {
 
     use super::*;
-    use crate::{frontend::*, regutils::registers_to_flags};
+    use crate::{frontend::* };
+    use crate::assembler::regutils::registers_to_flags;
 
     use unraveler::*;
 
