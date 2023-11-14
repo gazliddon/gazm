@@ -5,7 +5,8 @@ use grl_sources::{
     TextEditTrait,
 };
 
-use crate::{ assembler::Assembler, error::GResult };
+use crate::error::GResult;
+use super::Assembler;
 
 use std::path::Path;
 

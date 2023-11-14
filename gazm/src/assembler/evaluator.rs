@@ -2,14 +2,14 @@
 use grl_sources::{Position, SourceErrorType, SourceInfo};
 
 use crate::{
-    ast::{AstNodeId, AstNodeRef, Ast},
-    assembler::Assembler,
+    ast::{Ast, AstNodeId, AstNodeRef},
     error::{GResult, UserError},
     gazmeval::eval,
-    item::Item::*,
     gazmsymbols::{SymbolInfo, SymbolTree},
-    
+    item::Item::*,
 };
+
+use super::Assembler;
 
 impl Assembler {
     /// Evaluate all macro args

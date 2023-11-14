@@ -2,7 +2,6 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    assembler::binary::{AccessType, BinRef, Binary},
     ast::{Ast, AstCtx, AstNodeId},
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
@@ -14,14 +13,18 @@ use crate::{
     vars::Vars,
 };
 
-use super::fixerupper::FixerUpper;
-
 use grl_sources::{
     fileloader::SourceFileLoader,
     grl_utils::{fileutils, PathSearcher},
     AsmSource, BinToWrite, FileIo, Position, SourceDatabase, SourceFile, SourceFiles,
     SourceMapping,
 };
+
+use super::{
+    binary::{AccessType, BinRef, Binary},
+    fixerupper::FixerUpper,
+};
+
 
 #[derive(Debug)]
 pub struct Assembler {

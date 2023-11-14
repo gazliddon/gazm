@@ -1,8 +1,9 @@
 #![forbid(unused_imports)]
 use std::path::Path;
 
+use super::{binary::BinaryError, Assembler};
+
 use crate::{
-    assembler::{ Assembler, binary::BinaryError },
     ast::{Ast, AstNodeId, AstNodeRef},
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
@@ -69,12 +70,7 @@ impl<'a> Compiler<'a> {
         node
     }
 
-    fn binary_error(
-        &self,
-        asm: &mut Assembler,
-        id: AstNodeId,
-        e: BinaryError,
-    ) -> GazmErrorKind {
+    fn binary_error(&self, asm: &mut Assembler, id: AstNodeId, e: BinaryError) -> GazmErrorKind {
         let n = self.get_node(id);
         let info = &asm.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();

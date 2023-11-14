@@ -1,13 +1,12 @@
 #![forbid(unused_imports)]
-use crate::assembler::Assembler;
+use super::Assembler;
 
 use crate::{astformat, error::GResult, gazmsymbols::Serializable, status_err, status_mess};
 
-use grl_sources::{FileIo, grl_utils::hash::get_hash, SourceDatabase};
+use grl_sources::{grl_utils::hash::get_hash, FileIo, SourceDatabase};
 
 use anyhow::Context as AnyContext;
-use std::fs;
-use std::path::Path;
+use std::{ fs,path::Path };
 
 fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String {
     let z: Vec<String> = i.map(|s| s.as_ref().to_string_lossy().into()).collect();
@@ -65,8 +64,9 @@ impl Assembler {
 
             if let Some(ast) = &self.asm_out.ast {
                 let x = astformat::as_string(ast.as_ref().root());
-            fs::write(&ast_file, x)
-                .with_context(|| format!("Unable to write list file {}",ast_file.to_string_lossy() ))?;
+                fs::write(&ast_file, x).with_context(|| {
+                    format!("Unable to write list file {}", ast_file.to_string_lossy())
+                })?;
             } else {
                 status_err!("No AST file to write");
             }

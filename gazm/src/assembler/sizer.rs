@@ -1,11 +1,11 @@
 #![forbid(unused_imports)]
+use super::{
+    bytesizes::{ByteSize, ByteSizes},
+    Assembler,
+};
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
 use crate::{
-    assembler::{
-        bytesizes::{ByteSize, ByteSizes},
-        Assembler,
-    },
     ast::{Ast, AstNodeId, AstNodeRef},
     error::GResult,
     // parse::util::{ByteSize, ByteSizes},
