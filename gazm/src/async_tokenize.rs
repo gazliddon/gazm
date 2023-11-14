@@ -7,7 +7,6 @@ use crate::{
     info_mess,
     item::{Item, Node},
     opts::Opts,
-    tokenize::Tokens,
 };
 
 use unraveler::all;
@@ -104,17 +103,6 @@ impl TokenizeRequest {
         let errors = vec![];
         Ok((node,errors))
     }
-
-    // pub fn old_tokenize(&self) -> GResult<(Node,Vec<ParseError>)> {
-    //     info_mess!("Tokenizing with old front end");
-    //     let i = self.source_file.get_entire_source();
-    //     let id = self.source_file.file_id;
-    //     let input = Span::new_extra(i, id);
-    //     let tokens = Tokens::from_text(&self.opts, input)?;
-    //     let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone(), false);
-    //     let node = Node::new_with_children(item, &tokens.tokens, span_to_pos(input));
-    //     Ok((node,tokens.parse_errors))
-    // }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -237,7 +225,7 @@ pub fn tokenize_async(ctx: &mut Assembler) -> GResult<()> {
 }
 
 /// f = handler for tokenize request
-pub fn tokenize<F>(ctx: &mut Assembler, f: F) -> GResult<()>
+fn tokenize<F>(ctx: &mut Assembler, f: F) -> GResult<()>
 where
     F: Fn(Vec<TokenizeRequest>) -> Vec<GResult<TokenizeResult>>,
 {

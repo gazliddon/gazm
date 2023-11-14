@@ -9,6 +9,17 @@ use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
 use unraveler::{wrapped_cut, Collection, Parser, match_span as ms};
 
+pub fn mk_pc_equate(node: &Node) -> Node {
+    use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
+    let pos = node.ctx;
+
+    match &node.item {
+        Label(label_def) => Node::new(AssignmentFromPc(label_def.clone()), pos),
+        LocalLabel(label_def) => Node::new(LocalAssignmentFromPc(label_def.clone()), pos),
+        _ => panic!("shouldn't happen"),
+    }
+}
+
 impl BaseNode<Item, Position> {
 
     pub fn block(items: ThinVec<Self>, sp: TSpan) -> Self {

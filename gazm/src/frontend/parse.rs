@@ -4,9 +4,10 @@ use super::{
     parse_multi_opcode_vec, parse_struct, PResult, TSpan,
 };
 
-use crate::{item::{ Item, Node }, tokenize::mk_pc_equate};
+use crate::item::{ Item, Node };
 use thin_vec::ThinVec;
 use unraveler::{alt, many0, map};
+use super::utils::mk_pc_equate;
 
 struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
