@@ -21,7 +21,6 @@ pub struct ParseText<'a> {
     pub state: ParserState,
 }
 
-
 impl<'a> ParseText<'a> {
     pub fn new(source_file: &'a SourceFile, range: std::ops::Range<usize>) -> Self {
         let pos = source_file.get_position(range);

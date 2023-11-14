@@ -1,46 +1,33 @@
-pub (crate) mod basetoken;
-pub (crate) mod parsetext;
-mod tokens;
 mod ast;
-mod expr;
-mod error;
 mod commands;
+mod error;
+mod expr;
 mod gazmunraveller;
-mod utils;
-mod testit;
-mod misc;
-mod opcodes;
-mod structs;
-mod macros;
-mod register;
 mod indexed;
-mod parse;
-mod tokenize;
-mod token_store;
+mod item;
+mod macros;
+mod misc;
 mod node;
 mod nodeiter;
-mod item;
-
+mod opcodes;
+mod parse;
+mod parsetext;
+mod register;
+mod structs;
+mod testit;
+mod token_store;
+mod tokenize;
+mod tokens;
+mod utils;
 pub mod item6809;
 
-pub use tokens::*;
-pub use ast::*;
-pub use expr::*;
-pub use error::*;
-pub use commands::*;
-pub use gazmunraveller::*;
-pub use utils::*;
-pub use testit::*;
-pub use misc::*;
-pub use macros::*;
-pub use structs::*;
-pub use register::*;
-pub use indexed::*;
-pub use parse::*;
-pub use opcodes::*;
-pub use tokenize::*;
-pub use token_store::*;
-pub use node::*;
-pub use nodeiter::*;
-pub use item::*;
 
+pub use {item::*, opcodes::*, testit::*, token_store::*, tokenize::*};
+
+// Public inside module
+pub(self) mod basetoken;
+
+pub(self) use {
+    ast::*, commands::*, error::*, expr::*, gazmunraveller::*, indexed::*, macros::*, misc::*,
+    node::*, nodeiter::*, parse::*, parsetext::*, register::*, structs::*, tokens::*, utils::*,
+};

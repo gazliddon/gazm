@@ -1,11 +1,9 @@
 #![deny(unused_imports)]
 use std::collections::HashMap;
 
-use super::basetoken::Token as BaseToken;
-use super::parsetext::*;
+use super::{ basetoken::Token as BaseToken, ParseText };
 
 use emu6809::isa::Dbase;
-
 use logos::{Lexer, Logos};
 use strum::{EnumIter, IntoEnumIterator};
 
