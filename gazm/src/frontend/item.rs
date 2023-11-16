@@ -183,7 +183,7 @@ pub enum Item {
     },
 
     WriteBin(PathBuf),
-    TokenizedFile(PathBuf, Option<PathBuf>, bool),
+    TokenizedFile(PathBuf, Option<PathBuf>),
     Errors(ThinVec<ParseError>),
     Exec,
     Org,

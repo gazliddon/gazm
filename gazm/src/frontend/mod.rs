@@ -19,8 +19,9 @@ mod token_store;
 mod tokenize;
 mod tokens;
 mod utils;
-pub mod item6809;
 
+// Public
+pub mod item6809;
 
 pub use {item::*, opcodes::*, testit::*, token_store::*, tokenize::*};
 

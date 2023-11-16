@@ -12,8 +12,7 @@ use crate::{
     frontend::{Item, LabelDefinition, Node},
     gazmeval::{EvalError, EvalErrorEnum},
     gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
-    info_mess,
-    messages::*,
+    messages::*, interesting_mess,
 };
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;
@@ -221,7 +220,7 @@ impl<'a> AstCtx<'a> {
     }
 
     fn process(&mut self) -> Result<(), UserError> {
-        info("Parsing to AST", |_| {
+        status("Semantic analysis", |_| {
             self.inline_includes()?;
             self.gather_docs()?;
             self.create_scopes()?;
@@ -233,7 +232,6 @@ impl<'a> AstCtx<'a> {
             self.process_imports()?;
             self.scope_labels()?;
             self.evaluate_assignments()?;
-            info_mess!("Done");
             Ok(())
         })
     }
@@ -251,7 +249,7 @@ impl<'a> AstCtx<'a> {
         use Item::*;
 
         info("Processing imports", |_| {
-            info_mess!("Import labels");
+            interesting_mess!("Import labels");
 
             let mut scopes = self.get_root_scope_tracker();
 
@@ -299,7 +297,7 @@ impl<'a> AstCtx<'a> {
                 }
             }
 
-            info_mess!("Importing symbols");
+            interesting_mess!("Importing symbols");
 
             let mut scopes = self.get_root_scope_tracker();
 
@@ -311,7 +309,6 @@ impl<'a> AstCtx<'a> {
                 }
             }
 
-            info_mess!("Done");
             Ok(())
         })
     }
@@ -366,9 +363,9 @@ impl<'a> AstCtx<'a> {
 
                 if include_ids.is_empty() {
                     if num_of_included_files == 0 {
-                        info_mess!("No includes files to inline");
+                        debug_mess!("No includes files to inline");
                     } else {
-                        info_mess!("Finished inlining {num_of_included_files} include(s)");
+                        debug_mess!("Finished inlining {num_of_included_files} include(s)");
                     }
                     break;
                 }
@@ -376,7 +373,7 @@ impl<'a> AstCtx<'a> {
                 // Go through the ids and get the tokens to insert into this AST
                 for (id, actual_file) in include_ids {
                     if let Some(tokens) = self.ctx.get_tokens_from_full_path(&actual_file) {
-                        info_mess!("Inlining {} - HAD TOKENS", actual_file.to_string_lossy());
+                        debug_mess!("Inlining {} - HAD TOKENS", actual_file.to_string_lossy());
                         let new_node_id = self.ast_tree.create_ast_node(&tokens.node);
                         self.ast_tree.replace_node(id, new_node_id);
                     } else {
@@ -616,7 +613,7 @@ impl<'a> AstCtx<'a> {
     fn generate_struct_symbols(&mut self) -> Result<(), UserError> {
         let scopes = self.get_root_scope_tracker();
 
-        info("Generating symbols for struct definitions", |x| {
+        info("Generating symbols for struct definitions", |_| {
             use Item::*;
 
             // self.ctx.asm_out.symbols.set_root();
@@ -629,7 +626,7 @@ impl<'a> AstCtx<'a> {
 
                 if let StructDef(name) = item {
                     let mut current = 0;
-                    x.debug(format!("Generating symbols for {name}"));
+                    interesting_mess!("Generating symbols for {name}");
 
                     let kids_ids = self.ast_tree.get_kids_ids(id);
 
@@ -637,13 +634,12 @@ impl<'a> AstCtx<'a> {
                         let i = &self.get_tree().get(c_id).unwrap().value().item;
 
                         if let StructEntry(entry_name) = i {
-                            info_mess!("Generating struct entry: {name} {entry_name}");
+                            debug_mess!("Generating struct entry: {name} {entry_name}");
                             let value = self.eval_node_child(c_id, scopes.scope())?;
                             let scoped_name = format!("{name}.{entry_name}");
-                            info_mess!("About to create sym: {name} {entry_name}");
+                            debug_mess!("About to create sym: {name} {entry_name}");
                             self.create_and_set_symbol(current, &scoped_name, c_id, &scopes)?;
-                            x.debug(format!("Struct: Set {scoped_name} to {current}"));
-                            info_mess!("Done");
+                            debug_mess!("Struct: Set {scoped_name} to {current}");
                             current += value;
                         }
                     }
@@ -756,12 +752,12 @@ impl<'a> AstCtx<'a> {
 
             let scopes = self.get_root_scope_tracker();
 
-            info_mess!("Scoping AST labels");
+            interesting_mess!("Scoping AST labels");
             self.scope_labels_node(root_node_id, scopes)?;
 
             use Item::*;
 
-            info_mess!("Scoping macro labels");
+            interesting_mess!("Scoping macro labels");
 
             for mac_nodes in self.macro_defs.clone().into_iter() {
                 let node = self.get_tree().get(mac_nodes).unwrap();
@@ -777,7 +773,6 @@ impl<'a> AstCtx<'a> {
                     }
                 }
             }
-            info_mess!("Done");
             Ok(())
         })
     }
@@ -858,7 +853,6 @@ impl<'a> AstCtx<'a> {
                     _ => (),
                 }
             }
-            info_mess!("Done");
 
             Ok(())
         })

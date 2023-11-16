@@ -243,6 +243,19 @@ macro_rules! info_mess {
 }
 
 #[macro_export]
+macro_rules! interesting_mess {
+    ($($arg:tt)*) => {{
+        use $crate::messages;
+        let m = messages::messages();
+        if m.get_verbosity() >= messages::Verbosity::Interesting {
+            let res = std::fmt::format(std::format_args!($($arg)*));
+            m.status(res)
+        }
+    }}
+}
+
+
+#[macro_export]
 macro_rules! status_err {
     ($($arg:tt)*) => {{
         use $crate::messages;

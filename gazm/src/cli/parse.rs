@@ -152,13 +152,6 @@ pub fn parse_command_line() -> ArgMatches {
                 .long("no-async")
                 .help("Disable async build"),
         )
-        .arg(
-            Arg::new("new-frontend")
-                .action(ArgAction::SetTrue)
-                .global(true)
-                .long("new-frontend")
-                .help("Use the new front end"),
-        )
         .subcommand_required(true)
         .subcommand(
             Command::new("build")

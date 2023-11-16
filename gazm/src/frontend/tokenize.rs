@@ -1,11 +1,11 @@
-// #![deny(unused_imports)]
+#![deny(unused_imports)]
 
 use super::{parse_span_vec, Item, Node};
 
 use crate::{
     assembler::Assembler,
+    debug_mess,
     error::{GResult, GazmErrorKind, ParseError},
-    info_mess,
     opts::Opts,
 };
 
@@ -13,7 +13,6 @@ use grl_sources::{grl_utils::Stack, Position, SourceFile};
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
-use unraveler::all;
 
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
@@ -73,7 +72,7 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
     type Error = GazmErrorKind;
 
     fn try_into(self) -> Result<TokenizeResult, Self::Error> {
-        let (node, errors) = self.new_tokenize()?;
+        let (node, errors) = self.tokenize()?;
         Ok(TokenizeResult {
             node,
             errors,
@@ -83,10 +82,9 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
 }
 
 impl TokenizeRequest {
-    pub fn new_tokenize(&self) -> GResult<(Node, Vec<ParseError>)> {
-        use unraveler::{all, Collection};
-        info_mess!("Tokenizing with new front end");
+    pub fn tokenize(&self) -> GResult<(Node, Vec<ParseError>)> {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
+        use unraveler::Collection;
         let tokens = to_tokens_no_comment(&self.source_file);
         let span = make_tspan(&tokens, &self.source_file);
 
@@ -106,9 +104,11 @@ impl TokenizeRequest {
             panic!()
         }
 
-        let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone(), true);
+        let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = Node::from_item_kids_tspan(item, &nodes, span);
+
         let errors = vec![];
+
         Ok((node, errors))
     }
 }
@@ -254,7 +254,7 @@ where
                     Tokens(tokes) => {
                         let req = &tokes.request;
                         let file_name = req.get_file_name();
-                        info_mess!("TOKES: Got {:?}", file_name);
+                        debug_mess!("TOKES: Got {:?}", file_name);
                         let includes = tokes.get_includes();
                         let full_paths = ctx.get_full_paths_with_parent(&includes, parent)?;
                         incs.reserve(full_paths.len());
@@ -263,10 +263,11 @@ where
                     // If I don't have tokens then add it to a q of requestes
                     Request(req) => {
                         let file_name = req.get_file_name();
-                        info_mess!("TOKES:Requesting {:?}", file_name);
+                        debug_mess!("TOKES:Requesting {:?}", file_name);
                         to_tok.push(*req)
                     }
                 };
+
                 Ok::<_, GazmErrorKind>((to_tok, incs))
             },
         )?;
@@ -277,7 +278,7 @@ where
             match tokes {
                 Ok(res) => {
                     let req = &res.request;
-                    info_mess!("Tokenized! {}", req.source_file.file.to_string_lossy());
+                    debug_mess!("Tokenized! {}", req.source_file.file.to_string_lossy());
                     ctx.add_parse_errors(&res.errors)?;
                     incs_to_process.push((req.requested_file.clone(), req.parent.clone()));
                     ctx.get_token_store_mut().add_tokens(res);

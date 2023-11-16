@@ -5,9 +5,10 @@ use crate::{
     ast::{Ast, AstCtx, AstNodeId},
     error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
     frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
-    gazmsymbols::SymbolTree,
     frontend::{Item, Node},
+    gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
+    messages::status,
     opts::{BinReference, Opts},
     status_err,
     vars::Vars,
@@ -24,7 +25,6 @@ use super::{
     binary::{AccessType, BinRef, Binary},
     fixerupper::FixerUpper,
 };
-
 
 #[derive(Debug)]
 pub struct Assembler {
@@ -316,13 +316,12 @@ impl Assembler {
 
         let tokes = {
             if self.opts.no_async {
-                tokenize_no_async(self)?;
+                status("Lexing no async", |_| tokenize_no_async(self))?
             } else {
-                tokenize_async(self)?;
+                status("Lexing async", |_| tokenize_async(self))?
             }
 
             let file = self.get_project_file();
-
             self.get_tokens_from_full_path(&file).unwrap().clone()
         };
 
@@ -357,13 +356,15 @@ impl Assembler {
     fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
         let AstCtx { docs, ast_tree, .. } = AstCtx::from_nodes(self, tokens)?;
 
-        super::sizer::size(self, &ast_tree)?;
-        super::compile::compile(self, &ast_tree)?;
+        status("Compiling", |_| {
+            super::sizer::size(self, &ast_tree)?;
+            super::compile::compile(self, &ast_tree)?;
+            Ok::<(),GazmErrorKind>(())
+        })?;
 
         let lookup = LabelUsageAndDefintions::new(&ast_tree, &self.asm_out.symbols, docs);
         self.asm_out.ast = Some(ast_tree);
         self.asm_out.lookup = Some(lookup);
-
         Ok(())
     }
 }

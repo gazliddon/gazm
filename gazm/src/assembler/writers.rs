@@ -1,12 +1,18 @@
 #![forbid(unused_imports)]
 use super::Assembler;
 
-use crate::{astformat, error::GResult, gazmsymbols::Serializable, status_err, status_mess};
+use crate::{
+    astformat, 
+    error::GResult,
+    gazmsymbols::Serializable,
+    messages::{info, status},
+    status_err, debug_mess,interesting_mess,info_mess,
+};
 
 use grl_sources::{grl_utils::hash::get_hash, FileIo, SourceDatabase};
 
 use anyhow::Context as AnyContext;
-use std::{ fs,path::Path };
+use std::{fs, path::Path};
 
 fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String {
     let z: Vec<String> = i.map(|s| s.as_ref().to_string_lossy().into()).collect();
@@ -16,21 +22,25 @@ fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String 
 impl Assembler {
     /// Write any outputs that need writing
     pub fn write_outputs(&mut self) -> GResult<()> {
-        self.write_bin_chunks()?;
-        self.checksum_report();
-        self.write_lst_file()?;
-        self.write_source_mapping()?;
-        self.write_sym_file()?;
-        self.write_deps_file()?;
-        self.write_ast_file()?;
-        Ok(())
+        status("Writing files", |_| {
+            self.write_bin_chunks()?;
+            self.checksum_report();
+            self.write_lst_file()?;
+            self.write_source_mapping()?;
+            self.write_sym_file()?;
+            self.write_deps_file()?;
+            self.write_ast_file()?;
+            Ok(())
+        })
     }
 
     fn write_bin_chunks(&mut self) -> GResult<()> {
-        for bin_to_write in &self.asm_out.bin_to_write_chunks {
-            let (addr, len, file) = bin_to_write.write_bin(&mut self.source_file_loader);
-            status_mess!("Written binary: {:?} ${addr:x} ${len:x}", file);
-        }
+        info("Writing binary chunks", |_| {
+            for bin_to_write in &self.asm_out.bin_to_write_chunks {
+                let (addr, len, file) = bin_to_write.write_bin(&mut self.source_file_loader);
+                debug_mess!("Written binary: {:?} ${addr:x} ${len:x}", file);
+            }
+        });
 
         Ok(())
     }
@@ -51,7 +61,7 @@ impl Assembler {
             fs::write(&lst_file, text)
                 .with_context(|| format!("Unable to write list file {lst_file}"))?;
 
-            status_mess!("Written lst file {lst_file}");
+            interesting_mess!("Written lst file {lst_file}");
         }
 
         Ok(())
@@ -60,7 +70,7 @@ impl Assembler {
     pub fn write_ast_file(&mut self) -> GResult<()> {
         if let Some(ast_file) = &self.opts.ast_file {
             let ast_file = self.expand_path(ast_file);
-            status_mess!("Writing ast: {:?}", ast_file);
+            interesting_mess!("Writing ast: {:?}", ast_file);
 
             if let Some(ast) = &self.asm_out.ast {
                 let x = astformat::as_string(ast.as_ref().root());
@@ -84,7 +94,7 @@ impl Assembler {
                 let deps_line_2 = format!("{written} : {:?}", sym_file);
                 let deps_line = format!("{deps_line_2}\n{:?} : {read}", sym_file);
 
-                status_mess!("Writing deps file: {deps}");
+                interesting_mess!("Writing deps file: {deps}");
 
                 std::fs::write(deps, deps_line)
                     .with_context(|| format!("Unable to write {deps}"))?;
@@ -100,7 +110,7 @@ impl Assembler {
             let serialized: Serializable = self.get_symbols().into();
             let json_text = serde_json::to_string_pretty(&serialized).unwrap();
             let file_name = self.write_file(syms_file, &json_text)?;
-            status_mess!("Writen symbols file: {}", file_name);
+            interesting_mess!("Writen symbols file: {}", file_name);
         }
 
         Ok(())
@@ -108,13 +118,13 @@ impl Assembler {
 
     fn write_source_mapping(&mut self) -> GResult<()> {
         if let Some(sym_file) = &self.opts.source_mapping {
+            info_mess!("Writing source mappings {sym_file}");
             let sym_file = self.get_vars().expand_vars(sym_file);
             let sd: SourceDatabase = (&*self).into();
-            let file_name = sd
+            sd
                 .write_json(&sym_file)
                 .with_context(|| format!("Unable to write {sym_file}"))?;
 
-            status_mess!("Written source mappings {file_name}");
         }
 
         Ok(())
@@ -122,6 +132,7 @@ impl Assembler {
 
     fn checksum_report(&self) {
         if !self.opts.checksums.is_empty() {
+
             let mess = crate::messages::messages();
 
             let mut errors = vec![];
@@ -141,7 +152,7 @@ impl Assembler {
             }
 
             if errors.is_empty() {
-                status_mess!("✅: {} Checksums correct", self.opts.checksums.len())
+                info_mess!("✅: {} Checksums correct", self.opts.checksums.len())
             } else {
                 mess.error("❌ : Mismatched Checksums");
                 mess.indent();

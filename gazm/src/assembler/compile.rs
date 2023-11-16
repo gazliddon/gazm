@@ -14,7 +14,6 @@ use crate::{
         },
         Item,
     },
-    info_mess, status_mess,
 };
 
 use emu6809::isa;
@@ -221,7 +220,7 @@ impl<'a> Compiler<'a> {
 
         asm.binary_mut().add_bin_reference(&bin_ref, &data);
 
-        info_mess!(
+        debug_mess!(
             "Adding binary reference {} for {:05X} - {:05X}",
             file.to_string_lossy(),
             dest,
@@ -402,7 +401,7 @@ impl<'a> Compiler<'a> {
         file: P,
         r: &std::ops::Range<usize>,
     ) -> GResult<()> {
-        status_mess!(
+        debug_mess!(
             "Including Binary {} :  offset: {:04X} len: {:04X}",
             file.as_ref().to_string_lossy(),
             r.start,
