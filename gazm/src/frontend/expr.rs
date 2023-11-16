@@ -79,10 +79,11 @@ pub fn parse_expr(input: TSpan) -> PResult<Node> {
     }
 }
 
+#[allow(unused_imports)]
 #[cfg(test)]
 mod test {
     use crate::frontend::*;
-    use crate::item::{
+    use item::{
         Item::{self, *},
         ParsedFrom::*,
     };
@@ -90,6 +91,7 @@ mod test {
 
     #[test]
     fn test_expr() {
+        use Item::*;
         let test = [
             ("3", Num(3, Dec), vec![]),
             (

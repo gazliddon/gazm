@@ -59,15 +59,15 @@ impl Opts {
 
             Some(("asm", m)) => {
                 let mut opts = Opts {
-                    deps_file: m.get_one::<String>("deps").map(String::from),
-                    source_mapping: m.get_one::<String>("source-mapping").map(String::from),
-                    as6809_lst: m.get_one::<String>("as6809-lst").map(String::from),
-                    as6809_sym: m.get_one::<String>("as6809-sym").map(String::from),
+                    deps_file: m.get_one::<String>("deps").map(PathBuf::from),
+                    source_mapping: m.get_one::<String>("source-mapping").map(PathBuf::from),
+                    as6809_lst: m.get_one::<String>("as6809-lst").map(PathBuf::from),
+                    as6809_sym: m.get_one::<String>("as6809-sym").map(PathBuf::from),
                     trailing_comments: m.contains_id("trailing-comments"),
                     star_comments: m.contains_id("star-comments"),
                     ignore_relative_offset_errors: m.contains_id("ignore-relative-offset-errors"),
                     project_file: m.get_one::<String>("project-file").unwrap().into(),
-                    lst_file: m.get_one::<String>("lst-file").map(String::from),
+                    lst_file: m.get_one::<String>("lst-file").map(PathBuf::from),
                     ast_file: m.get_one::<String>("ast-file").map(PathBuf::from),
                     assemble_dir: Some(std::env::current_dir().unwrap()),
                     ..Default::default()

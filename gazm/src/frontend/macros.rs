@@ -126,7 +126,7 @@ mod test {
         let data = [
             ("SLEEP($60, $70)", vec![Num(0x60, Hex), Num(0x70, Hex)]),
             ("SLEEP()", vec![]),
-            ("SLEEP((20))", vec![Expr]),
+            ("SLEEP((20))", vec![Item::Expr]),
         ];
 
         for (text, desired) in data {

@@ -140,16 +140,14 @@ impl Assembler {
         Ok(sf)
     }
 
-    pub fn expand_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
-        let path: PathBuf = self
+    pub fn expand_path<P: AsRef<Path>>(&self, path: P) -> GResult<PathBuf> {
+        self
             .get_vars()
-            .expand_vars(path.as_ref().to_string_lossy())
-            .into();
-        path
+            .expand_vars_in_path(path).map_err(|e| GazmErrorKind::Misc(e.to_owned()))
     }
 
     pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorKind> {
-        let path = self.expand_path(path);
+        let path = self.expand_path(path)?;
         let ret = self.source_file_loader.get_full_path(&path).map_err(|_| {
             let err = format!("Can't find file {}", path.to_string_lossy());
             GazmErrorKind::Misc(err)
@@ -385,23 +383,23 @@ impl Assembler {
 
 // File fuunction
 impl Assembler {
-    pub fn get_expanded_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
-        self.get_vars().expand_vars_in_path(&path)
+    pub fn get_expanded_path<P: AsRef<Path>>(&self, path: P) -> GResult<PathBuf> {
+        self.get_vars().expand_vars_in_path(&path).map_err(|e| GazmErrorKind::Misc(e.to_string()))
     }
 
-    pub fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> PathBuf {
-        let path = self.get_expanded_path(path);
-        fileutils::abs_path_from_cwd(path)
+    pub fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> GResult<PathBuf> {
+        let path = self.get_expanded_path(path)?;
+        Ok(fileutils::abs_path_from_cwd(path))
     }
 
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
-        let path = self.get_expanded_path(&path);
+        let path = self.get_expanded_path(&path)?;
         let ret = self.get_source_file_loader().get_size(path)?;
         Ok(ret)
     }
 
     pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.get_expanded_path(path);
+        let path = self.get_expanded_path(path)?;
         let ret = self.get_source_file_loader_mut().read_binary(path)?;
         Ok(ret)
     }
@@ -411,7 +409,7 @@ impl Assembler {
         path: P,
         r: std::ops::Range<usize>,
     ) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.get_expanded_path(&path);
+        let path = self.get_expanded_path(&path)?;
         let ret = self
             .get_source_file_loader_mut()
             .read_binary_chunk(path, r)?;
@@ -452,7 +450,7 @@ impl Assembler {
             .get_bytes(physical_address, count)?
             .to_vec();
 
-        let path = self.get_abs_path(path);
+        let path = self.get_abs_path(path)?;
         // Save a record of the file Written
         // this goes into the written sym file eventually
         let bin_to_write = BinToWrite::new(data, &path, range);

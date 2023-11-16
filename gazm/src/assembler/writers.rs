@@ -46,7 +46,7 @@ impl Assembler {
     }
 
     fn write_file<P: AsRef<Path>>(&mut self, p: P, txt: &str) -> GResult<String> {
-        let full_file_name = self.expand_path(p);
+        let full_file_name = self.expand_path(p)?;
         fs::write(&full_file_name, txt)
             .with_context(|| format!("Unable to write {:?}", full_file_name))?;
         Ok(full_file_name.to_string_lossy().into_owned())
@@ -54,14 +54,14 @@ impl Assembler {
 
     pub fn write_lst_file(&mut self) -> GResult<()> {
         if let Some(lst_file) = &self.opts.lst_file {
-            let lst_file = self.get_vars().expand_vars(lst_file);
+            let lst_file = self.expand_path(lst_file)?;
 
             let text = self.asm_out.lst_file.lines.join("\n");
 
             fs::write(&lst_file, text)
-                .with_context(|| format!("Unable to write list file {lst_file}"))?;
+                .with_context(|| format!("Unable to write list file {lst_file:?}"))?;
 
-            interesting_mess!("Written lst file {lst_file}");
+            interesting_mess!("Written lst file {lst_file:?}");
         }
 
         Ok(())
@@ -69,7 +69,7 @@ impl Assembler {
 
     pub fn write_ast_file(&mut self) -> GResult<()> {
         if let Some(ast_file) = &self.opts.ast_file {
-            let ast_file = self.expand_path(ast_file);
+            let ast_file = self.expand_path(ast_file)?;
             interesting_mess!("Writing ast: {:?}", ast_file);
 
             if let Some(ast) = &self.asm_out.ast {
@@ -94,10 +94,10 @@ impl Assembler {
                 let deps_line_2 = format!("{written} : {:?}", sym_file);
                 let deps_line = format!("{deps_line_2}\n{:?} : {read}", sym_file);
 
-                interesting_mess!("Writing deps file: {deps}");
+                interesting_mess!("Writing deps file: {deps:?}");
 
                 std::fs::write(deps, deps_line)
-                    .with_context(|| format!("Unable to write {deps}"))?;
+                    .with_context(|| format!("Unable to write {deps:?}"))?;
             }
         }
 
@@ -106,7 +106,7 @@ impl Assembler {
 
     pub fn write_sym_file(&mut self) -> GResult<()> {
         if let Some(syms_file) = &self.opts.syms_file {
-            let syms_file = self.opts.vars.expand_vars(syms_file);
+            let syms_file = self.expand_path(syms_file)?;
             let serialized: Serializable = self.get_symbols().into();
             let json_text = serde_json::to_string_pretty(&serialized).unwrap();
             let file_name = self.write_file(syms_file, &json_text)?;
@@ -118,12 +118,12 @@ impl Assembler {
 
     fn write_source_mapping(&mut self) -> GResult<()> {
         if let Some(sym_file) = &self.opts.source_mapping {
-            info_mess!("Writing source mappings {sym_file}");
-            let sym_file = self.get_vars().expand_vars(sym_file);
+            info_mess!("Writing source mappings {sym_file:?}");
+            let sym_file = self.expand_path(sym_file)?;
             let sd: SourceDatabase = (&*self).into();
             sd
                 .write_json(&sym_file)
-                .with_context(|| format!("Unable to write {sym_file}"))?;
+                .with_context(|| format!("Unable to write {sym_file:?}"))?;
 
         }
 
