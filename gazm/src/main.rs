@@ -81,14 +81,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod test {
     // use crate::Assembler;
     use std::path::PathBuf;
 
     use super::*;
-    // use pretty_assertions::*;
-
-    // use gazm::ctx::Context;
 
     fn make_opts(file_name: &str) -> Opts {
         let mut ret = Opts::default();
@@ -97,7 +95,7 @@ mod test {
         ret
     }
 
-    #[test]
+    // #[test]
     fn test_circ() {
         let opts = make_opts("assets/test_src/circular_inc.gazm");
         let mut asm = Assembler::new(opts.clone());

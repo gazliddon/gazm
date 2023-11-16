@@ -327,7 +327,7 @@ mod test {
     fn test_parse_fill() {
         let text = "fill 10,$ff00";
         let desired = Item::Fill;
-        let desired_args = [Num(0xff00, Hex), Num(10, Dec)];
+        let desired_args = [Num(10, Dec),Num(0xff00, Hex), ];
         test_command(super::parse_fill, text, desired, &desired_args);
     }
 
@@ -404,9 +404,9 @@ mod test {
 
     #[test]
     fn test_parse_import() {
-        let text = "import xx::y";
+        let text = "import ::xx::y";
         let desired = Item::Import;
-        let desired_args = [Item::Label(LabelDefinition::TextScoped("xx::y".into()))];
+        let desired_args = [Item::Label(LabelDefinition::TextScoped("::xx::y".into()))];
         test_command(parse_import, text, desired, &desired_args);
     }
 }

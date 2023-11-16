@@ -1,12 +1,22 @@
 #![deny(unused_imports)]
-use std::collections::HashMap;
-use std::path::{ Path,PathBuf };
-
 use itertools::Itertools;
+use regex::Regex;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Vars {
     vars: HashMap<String, String>,
+}
+
+impl From<Vec<(&str, &str)>> for Vars {
+    fn from(input: Vec<(&str, &str)>) -> Self {
+        let mut ret: Self = Vars::default();
+        for (k, v) in input {
+            ret.set_var(k.to_string(), v.to_string());
+        }
+        ret
+    }
 }
 
 impl From<Vec<(String, String)>> for Vars {
@@ -19,20 +29,10 @@ impl From<Vec<(String, String)>> for Vars {
     }
 }
 
-use regex::Regex;
-
-    fn count_expansions(txt: &str) -> usize {
-        let regex = Regex::new(r#"\$\(()[^\)]*\)"#).unwrap();
-        let x : Vec<_>  = regex.find_iter(txt).collect();
-        println!("{x:?}");
-        panic!()
-    }
-
 impl Vars {
     pub fn new() -> Self {
         Self::default()
     }
-
 
     pub fn set_var<V: Into<String>>(&mut self, var: V, value: V) {
         self.vars.insert(var.into(), value.into());
@@ -42,53 +42,54 @@ impl Vars {
         self.vars.get(v)
     }
 
-    pub fn expand_vars<P: Into<String>>(&self, val: P) -> Result<String,String> {
+    pub fn expand_vars<P: Into<String>>(&self, val: P) -> Result<String, String> {
         let mut ret = val.into();
         let original = ret.clone();
 
         let strip_it = |x: regex::Match| {
             let x = &x.as_str()[2..];
-            (&x[0..x.len()-1]).to_string()
+            (&x[0..x.len() - 1]).to_string()
         };
 
         let regex = Regex::new(r#"\$\(()[^\)]*\)"#).unwrap();
 
         for to_expand in regex.find_iter(&ret.clone()).map(strip_it).unique() {
-            if let Some(to)  = self.vars.get(&to_expand) {
-            let from = format!("$({to_expand})");
-            ret = ret.replace(&from, to);
-
+            if let Some(to) = self.vars.get(&to_expand) {
+                let from = format!("$({to_expand})");
+                ret = ret.replace(&from, to);
             } else {
-                return Err(format!("Unable to expand var {to_expand} in {original}"))
-
+                return Err(format!("Unable to expand var {to_expand} in {original}"));
             }
         }
         Ok(ret)
-
     }
-    pub fn expand_vars_in_path<P: AsRef<Path>>(&self, p: P) -> Result<PathBuf,String> {
+    pub fn expand_vars_in_path<P: AsRef<Path>>(&self, p: P) -> Result<PathBuf, String> {
         let r = self.expand_vars(p.as_ref().to_string_lossy())?;
-        Ok( PathBuf::from(r) )
+        Ok(PathBuf::from(r))
     }
 }
 
 #[allow(unused_imports)]
-mod test{
+mod test {
     use super::*;
 
     #[test]
-    fn test_count_caps() {
-        let mut vars = Vars::new();
-
-        vars.set_var("OUTDIR", "var 1");
-        vars.set_var("BINGBONG", "var 2");
-
-        let a = "$(OUTDIR)/hello/$(BINGBONG)/hello/$(OUTDIR)/$(ERR)";
-
-        let _y = vars.expand_vars(a);
-        println!("{_y:?}");
-
-        panic!()
+    fn test_expand_success() {
+        let vars = vec![("OUTDIR", "outdir"), ("BINGBONG", "bingbong")];
+        let vars = Vars::from(vars);
+        let a = "$(OUTDIR)/hello/$(BINGBONG)/hello/$(OUTDIR)";
+        let y = vars.expand_vars(a).expect("Expaning vars");
+        assert_eq!(y, "outdir/hello/bingbong/hello/outdir");
     }
 
+    #[test]
+    fn text_expand_failure() {
+        let vars = vec![("OUTDIR", "outdir"), ("BINGBONG", "bingbong")];
+
+        let vars = Vars::from(vars);
+        let to_expand = "$(OUTDIR)/hello/$(BINGBONG)/hello/$(ERR)";
+        let res = vars.expand_vars(to_expand);
+        let expected = format!("Unable to expand var ERR in {to_expand}");
+        assert_eq!(res, Err(expected));
+    }
 }

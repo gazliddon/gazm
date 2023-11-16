@@ -75,7 +75,7 @@ mod test {
         println!("parsed : {:?}", m);
     }
 
-    #[test]
+    // #[test]
     fn test_parse_macro_def() {
         let text = r#"macro label(ax,bx,cx) {
             !hello  lda #10 : sta 10

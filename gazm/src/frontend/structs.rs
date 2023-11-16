@@ -82,10 +82,8 @@ mod test {
 
         let text = r#"
         struct my_struct 
-        { test rmb 10 : spanner rmb 20 
-
-        book rmb 20
-
+        { test : byte, spanner : byte,
+        book  : word
         }"#;
 
         let sf = create_source_file(text);
@@ -105,16 +103,14 @@ mod test {
         let desired = (
             StructDef("my_struct".to_owned()),
             thin_vec![
-                Label(Text("test".into())),
-                Rmb,
-                Label(Text("spanner".into())),
-                Rmb,
-                Label(Text("book".into())),
-                Rmb,
+                StructEntry("test".into()),
+                StructEntry("spanner".into()),
+                StructEntry("book".into()),
             ],
         );
 
         assert_eq!(items, desired);
+
         assert!(rest.is_empty());
     }
 }
