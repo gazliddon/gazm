@@ -59,18 +59,20 @@ mod test {
     use thin_vec::ThinVec;
     use tower_lsp::lsp_types::{ClientInfo, CompletionItemCapability, DeleteFilesParams};
     use unraveler::{all, cut, Collection, Parser};
+    use crate::opts::Opts;
 
     ////////////////////////////////////////////////////////////////////////////////
 
     #[test]
     fn parse_args() {
+        let opts = Opts::default();
         let text = "(ax,ab,ac)";
         println!("Testing macro args: {text}");
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
         let t: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("Toks : {:?}", t);
-        let input = make_tspan(&tokens, &sf);
+        let input = make_tspan(&tokens, &sf,&opts);
         let (_r, m) = super::parse_macrodef_args(input).expect("Can't parse args");
         println!("parsed : {:?}", m);
     }
@@ -82,9 +84,11 @@ mod test {
                     orcc #10 : nop
         }"#;
 
+        let opts = Opts::default();
+
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
-        let input = make_tspan(&tokens, &sf);
+        let input = make_tspan(&tokens, &sf,&opts);
         let (_rest, matched) = super::parse_macro_def(input).expect("Can't parse macro def");
 
         let it = NodeIter::new(&matched);
@@ -99,9 +103,10 @@ mod test {
 
     fn text_macro_call(text: &str, _desired: &[Item]) {
         println!("Testing macro call : {text}");
+        let opts = Opts::default();
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
-        let input = make_tspan(&tokens, &sf);
+        let input = make_tspan(&tokens, &sf, &opts);
 
         let (_, matched) = all(parse_macro_call)(input).expect("Doesn't parse");
         println!(

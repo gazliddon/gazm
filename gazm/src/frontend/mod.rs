@@ -26,9 +26,9 @@ pub mod item6809;
 pub use {item::*, opcodes::*, testit::*, token_store::*, tokenize::*};
 
 // Public inside module
-pub(self) mod basetoken;
+pub mod basetoken;
 
-pub(self) use {
+pub use {
     ast::*, commands::*, error::*, expr::*, gazmunraveller::*, indexed::*, macros::*, misc::*,
     node::*, nodeiter::*, parse::*, parsetext::*, register::*, structs::*, tokens::*, utils::*,
 };

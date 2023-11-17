@@ -1,11 +1,14 @@
 #![deny(unused_imports)]
 
+use crate::vars::VarsErrorKind;
+
 use super::{to_pos, TSpan};
 
 use emu6809::cpu::RegEnum;
 use grl_sources::Position;
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
+
 
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
@@ -18,6 +21,8 @@ pub fn parse_error(_txt: &str, _sp: TSpan) -> super::FrontEndError {
 
 #[derive(Clone, Debug, Error, PartialEq)]
 pub enum FrontEndErrorKind {
+    #[error(transparent)]
+    VarsError(#[from] VarsErrorKind),
     #[error("Parse error {0}")]
     ParseError(#[from] Box<ParseErrorKind>),
     #[error("You cannot define a macro inside a macro definition")]

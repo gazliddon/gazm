@@ -2,11 +2,13 @@
 
 use super::{
     get_text, item6809::MC6809, parse_expr, parse_expr_list, parse_scoped_label, CommandKind,
-    IdentifierKind, Item, Node, PResult, TSpan, TokenKind, TokenKind::Comma,
+    FrontEndError, IdentifierKind, Item, Node, PResult, TSpan, TokenKind, TokenKind::Comma,
 };
 use crate::debug_mess;
 use std::path::PathBuf;
-use unraveler::{alt, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Parser};
+use unraveler::{
+    alt, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Parser,
+};
 
 fn get_quoted_string(input: TSpan) -> PResult<String> {
     let (rest, matched) = TokenKind::QuotedString.parse(input)?;
@@ -16,8 +18,11 @@ fn get_quoted_string(input: TSpan) -> PResult<String> {
 }
 
 fn get_file_name(input: TSpan) -> PResult<PathBuf> {
-    let (rest, text) = get_quoted_string(input)?;
-    Ok((rest, PathBuf::from(text)))
+    let (rest, matched) = TokenKind::QuotedString.parse(input)?;
+    let txt = get_text(matched);
+    let text = &txt[1..txt.len() - 1];
+    let p = expand_path(matched, text.into())?;
+    Ok((rest, p))
 }
 
 fn get_identifier(input: TSpan) -> PResult<String> {
@@ -61,9 +66,20 @@ pub(crate) fn parse_require(input: TSpan) -> PResult<Node> {
         .map(|(rest, (sp, file))| (rest, Node::from_item_tspan(Item::Require(file), sp)))
 }
 
+pub (crate) fn expand_path(sp: TSpan, file: PathBuf) -> Result<PathBuf, FrontEndError> {
+    let path = sp
+        .extra()
+        .opts
+        .expand_path(file)
+        .map_err(|e| FrontEndError::new(sp, e.into(), unraveler::Severity::Error))?;
+    Ok(path)
+}
+
 pub(crate) fn parse_include(input: TSpan) -> PResult<Node> {
-    command_with_file(input, CommandKind::Include)
-        .map(|(rest, (sp, file))| (rest, Node::from_item_tspan(Item::Include(file), sp)))
+    command_with_file(input, CommandKind::Include).and_then(|(rest, (sp, file))| {
+        let path = expand_path(sp, file)?;
+        Ok((rest, Node::from_item_tspan(Item::Include(path), sp)))
+    })
 }
 
 /// FILL value,count
@@ -212,11 +228,12 @@ pub fn parse_command(input: TSpan) -> PResult<Node> {
 mod test {
     use crate::{
         cli::parse_command_line,
-        frontend::{*,
+        frontend::{
             item6809::MC6809,
             Item::{self, *},
             ParsedFrom::*,
-        },
+            *,
+        }, opts::Opts,
     };
     use grl_sources::SourceFile;
     use pretty_assertions::{assert_eq, assert_ne};
@@ -228,9 +245,10 @@ mod test {
         P: for<'a> Parser<TSpan<'a>, Node, FrontEndError>,
     {
         println!("Parsing command - {text}");
+        let opts = Opts::default();
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
-        let span = make_tspan(&tokens, &sf);
+        let span = make_tspan(&tokens, &sf,&opts);
 
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);
@@ -327,7 +345,7 @@ mod test {
     fn test_parse_fill() {
         let text = "fill 10,$ff00";
         let desired = Item::Fill;
-        let desired_args = [Num(10, Dec),Num(0xff00, Hex), ];
+        let desired_args = [Num(10, Dec), Num(0xff00, Hex)];
         test_command(super::parse_fill, text, desired, &desired_args);
     }
 

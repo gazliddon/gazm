@@ -11,7 +11,7 @@ use crate::{
     messages::status,
     opts::{BinReference, Opts},
     status_err,
-    vars::Vars,
+    vars::{Vars, VarsErrorKind},
 };
 
 use grl_sources::{
@@ -140,14 +140,15 @@ impl Assembler {
         Ok(sf)
     }
 
-    pub fn expand_path<P: AsRef<Path>>(&self, path: P) -> GResult<PathBuf> {
+    // TODO Remove this and do all path expansion in the opts reading
+    pub fn expand_path_to_deprecate<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, VarsErrorKind> {
         self
             .get_vars()
-            .expand_vars_in_path(path).map_err(|e| GazmErrorKind::Misc(e.to_owned()))
+            .expand_vars_in_path(path)
     }
 
     pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorKind> {
-        let path = self.expand_path(path)?;
+        let path = path.as_ref();
         let ret = self.source_file_loader.get_full_path(&path).map_err(|_| {
             let err = format!("Can't find file {}", path.to_string_lossy());
             GazmErrorKind::Misc(err)
@@ -269,7 +270,9 @@ impl AsmOut {
 /// Create a Context from the command line Opts
 impl TryFrom<Opts> for Assembler {
     type Error = String;
+
     fn try_from(opts: Opts) -> Result<Self, String> {
+
         let asm_out = AsmOut::try_from(opts.clone())?;
 
         let ret = Self {
@@ -277,6 +280,7 @@ impl TryFrom<Opts> for Assembler {
             opts,
             ..Default::default()
         };
+
         Ok(ret)
     }
 }
@@ -383,23 +387,17 @@ impl Assembler {
 
 // File fuunction
 impl Assembler {
-    pub fn get_expanded_path<P: AsRef<Path>>(&self, path: P) -> GResult<PathBuf> {
-        self.get_vars().expand_vars_in_path(&path).map_err(|e| GazmErrorKind::Misc(e.to_string()))
-    }
 
     pub fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> GResult<PathBuf> {
-        let path = self.get_expanded_path(path)?;
         Ok(fileutils::abs_path_from_cwd(path))
     }
 
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
-        let path = self.get_expanded_path(&path)?;
         let ret = self.get_source_file_loader().get_size(path)?;
         Ok(ret)
     }
 
     pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.get_expanded_path(path)?;
         let ret = self.get_source_file_loader_mut().read_binary(path)?;
         Ok(ret)
     }
@@ -409,7 +407,6 @@ impl Assembler {
         path: P,
         r: std::ops::Range<usize>,
     ) -> GResult<(PathBuf, Vec<u8>)> {
-        let path = self.get_expanded_path(&path)?;
         let ret = self
             .get_source_file_loader_mut()
             .read_binary_chunk(path, r)?;

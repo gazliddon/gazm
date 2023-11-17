@@ -95,6 +95,7 @@ mod test {
         ret
     }
 
+    // TODO Reinstate this test and make circular includes error
     // #[test]
     fn test_circ() {
         let opts = make_opts("assets/test_src/circular_inc.gazm");

@@ -1,8 +1,9 @@
 #![deny(unused_imports)]
 
+
 use crate::{
     ast::{AstNodeId, AstNodeRef},
-    assembler::binary,
+    assembler::binary, vars::VarsErrorKind,
 };
 
 use thin_vec::ThinVec;
@@ -17,6 +18,8 @@ pub type GResult<T> = Result<T, GazmErrorKind>;
 
 #[derive(Error, Debug, Clone)]
 pub enum GazmErrorKind {
+    #[error(transparent)]
+    VarError(#[from] VarsErrorKind),
     #[error(transparent)]
     UserWarning(#[from] UserWarning),
     #[error(transparent)]

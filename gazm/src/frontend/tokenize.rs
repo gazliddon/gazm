@@ -86,7 +86,7 @@ impl TokenizeRequest {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
         use unraveler::Collection;
         let tokens = to_tokens_no_comment(&self.source_file);
-        let span = make_tspan(&tokens, &self.source_file);
+        let span = make_tspan(&tokens, &self.source_file, &self.opts);
 
         // TODO need to collect errors properly - this parser should be an ALL parser
         let (rest, nodes) =

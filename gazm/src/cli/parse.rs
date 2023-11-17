@@ -63,8 +63,6 @@ impl Opts {
                     source_mapping: m.get_one::<String>("source-mapping").map(PathBuf::from),
                     as6809_lst: m.get_one::<String>("as6809-lst").map(PathBuf::from),
                     as6809_sym: m.get_one::<String>("as6809-sym").map(PathBuf::from),
-                    trailing_comments: m.contains_id("trailing-comments"),
-                    star_comments: m.contains_id("star-comments"),
                     ignore_relative_offset_errors: m.contains_id("ignore-relative-offset-errors"),
                     project_file: m.get_one::<String>("project-file").unwrap().into(),
                     lst_file: m.get_one::<String>("lst-file").map(PathBuf::from),
@@ -73,17 +71,16 @@ impl Opts {
                     ..Default::default()
                 };
 
+                let to_usize = |s: &String| s.parse::<usize>().ok();
+
                 if m.contains_id("mem-size") {
-                    opts.mem_size = m
-                        .get_one::<String>("mem-size")
-                        .map(|s| s.parse::<usize>().unwrap())
-                        .unwrap();
+                    opts.mem_size = m.get_one::<String>("mem-size").and_then(to_usize).unwrap();
                 }
 
                 if m.contains_id("max-errors") {
                     opts.max_errors = m
                         .get_one::<String>("max-errors")
-                        .map(|s| s.parse::<usize>().unwrap())
+                        .and_then(to_usize)
                         .unwrap();
                 }
 
@@ -113,6 +110,7 @@ impl Opts {
         opts.no_async = *orig_matches.get_one("no-async").unwrap();
 
         opts.update_vars();
+        let _ = opts.update_paths();
 
         Ok(opts)
     }

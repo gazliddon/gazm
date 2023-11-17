@@ -4,6 +4,14 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use thiserror::Error;
+
+#[derive(Error, Debug, Clone, PartialEq)]
+pub enum VarsErrorKind {
+    #[error("Unknown var {0}")]
+    UnableToExpand(String)
+}
+
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Vars {
     vars: HashMap<String, String>,
@@ -42,7 +50,7 @@ impl Vars {
         self.vars.get(v)
     }
 
-    pub fn expand_vars<P: Into<String>>(&self, val: P) -> Result<String, String> {
+    pub fn expand_vars<P: Into<String>>(&self, val: P) -> Result<String, VarsErrorKind> {
         let mut ret = val.into();
         let original = ret.clone();
 
@@ -58,12 +66,13 @@ impl Vars {
                 let from = format!("$({to_expand})");
                 ret = ret.replace(&from, to);
             } else {
-                return Err(format!("Unable to expand var {to_expand} in {original}"));
+                return Err(VarsErrorKind::UnableToExpand(original));
             }
         }
         Ok(ret)
     }
-    pub fn expand_vars_in_path<P: AsRef<Path>>(&self, p: P) -> Result<PathBuf, String> {
+
+    pub fn expand_vars_in_path<P: AsRef<Path>>(&self, p: P) -> Result<PathBuf, VarsErrorKind> {
         let r = self.expand_vars(p.as_ref().to_string_lossy())?;
         Ok(PathBuf::from(r))
     }
