@@ -1,6 +1,7 @@
 #![deny(unused_imports)]
 
-use super::{parse_span_vec, Item, Node};
+use super::{parse_source_chunks, Item, Node};
+use unraveler::all;
 
 use crate::{
     assembler::Assembler,
@@ -84,25 +85,12 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
 impl TokenizeRequest {
     pub fn tokenize(&self) -> GResult<(Node, Vec<ParseError>)> {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
-        use unraveler::Collection;
         let tokens = to_tokens_no_comment(&self.source_file);
         let span = make_tspan(&tokens, &self.source_file, &self.opts);
 
         // TODO need to collect errors properly - this parser should be an ALL parser
-        let (rest, nodes) =
-            parse_span_vec(span).map_err(|e| GazmErrorKind::Misc(format!("{e:?}")))?;
-
-        if rest.length() != 0 {
-            let pos = rest.at(0).unwrap().extra.pos;
-            println!(
-                "Error in {} at {}",
-                self.requested_file.to_string_lossy(),
-                pos
-            );
-            let t = rest.iter().map(|t| t.kind).collect_vec();
-            println!("{t:#?}");
-            panic!()
-        }
+        let (_rest, nodes) =
+            all(parse_source_chunks)(span).map_err(|e| GazmErrorKind::Misc(format!("{e:?}")))?;
 
         let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = Node::from_item_kids_tspan(item, &nodes, span);

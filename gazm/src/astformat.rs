@@ -141,6 +141,10 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("fill {body}")
             }
 
+            MacroDef(name,vars) => {
+                format!("macro {name} ({vars:?}) [{}]", join_kids(" : "))
+            }
+
             Cpu(OpCode(_, instruction, amode)) => {
                 use item6809::AddrModeParseType::*;
 

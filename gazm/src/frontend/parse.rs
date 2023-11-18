@@ -50,35 +50,28 @@ pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node>> {
     )))(input)
 }
 
-pub fn parse_span_vec(input: TSpan) -> PResult<Vec<Node>> {
-    let (rest, matched) = parse_span(input)?;
-    Ok((rest, matched.children.to_vec()))
-}
 
 pub fn parse_pc_equate(input: TSpan) -> PResult<Node> {
     map(parse_label, |n| mk_pc_equate(&n))(input)
 }
 
-pub fn parse_span(input: TSpan) -> PResult<Node> {
-    let mut nodes = NodeCollector::new(input);
 
-    // Many 0 will never fail :(
-
-    let (rest, matched) = many0(alt((
+/// Parse the next chunk of valid source
+pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node>> {
+    let (rest, matched) = alt((
         parse_single_line,
         map(parse_macro_def, |n| vec![n]),
         map(parse_struct, |n| vec![n]),
         map(parse_pc_equate, |n| vec![n]),
-    )))(input)?;
-
-    if !rest.is_empty() {
-        println!("Unconsumed!");
-        let v = rest.iter().map(|t| (t.kind, t.extra)).collect_vec();
-        println!("{:#?}", v);
-    }
-
-    let matched = matched.into_iter().flatten().collect();
-    nodes.add_vec(matched);
-
-    Ok((rest, nodes.into_block()))
+    ))(input)?;
+    Ok((rest, matched))
 }
+
+/// Parse as many chunks of source that I can
+pub fn parse_source_chunks(input: TSpan) -> PResult<Vec<Node>> {
+    let mut nodes = NodeCollector::new(input);
+    let (rest, matched) = many0(parse_next_source_chunk)(input)?;
+    nodes.add_vec(matched.into_iter().flatten().collect_vec());
+    Ok((rest, nodes.nodes.into()))
+}
+
