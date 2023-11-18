@@ -1,6 +1,7 @@
 #![deny(unused_imports)]
 use unraveler::{
-    alt, map, match_item, match_span as ms, preceded, sep_list, sep_pair, tag, wrapped_cut, Parser,
+    alt, cut, map, match_item, match_span as ms, preceded, sep_list, sep_pair, tag, wrapped_cut,
+    Parser,
 };
 
 use super::{
@@ -138,7 +139,7 @@ pub fn parse_equate(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (assignment, expr))) = ms(sep_pair(
         alt((parse_local_assignment, parse_assignment)),
         tag(command),
-        parse_expr,
+        cut(parse_expr),
     ))(input)?;
 
     let node = Node::from_item_kid_tspan(assignment, expr, sp);

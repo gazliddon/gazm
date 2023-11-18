@@ -8,8 +8,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum VarsErrorKind {
-    #[error("Unknown var {0}")]
-    UnableToExpand(String)
+    #[error("Unknown var {0} in {1}")]
+    UnableToExpand(String, String)
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -66,7 +66,7 @@ impl Vars {
                 let from = format!("$({to_expand})");
                 ret = ret.replace(&from, to);
             } else {
-                return Err(VarsErrorKind::UnableToExpand(original));
+                return Err(VarsErrorKind::UnableToExpand(to_expand.to_string(), original));
             }
         }
         Ok(ret)
@@ -94,11 +94,10 @@ mod test {
     #[test]
     fn text_expand_failure() {
         let vars = vec![("OUTDIR", "outdir"), ("BINGBONG", "bingbong")];
-
         let vars = Vars::from(vars);
         let to_expand = "$(OUTDIR)/hello/$(BINGBONG)/hello/$(ERR)";
         let res = vars.expand_vars(to_expand);
-        let expected = format!("Unable to expand var ERR in {to_expand}");
+        let expected = VarsErrorKind::UnableToExpand("ERR".to_string(),to_expand.to_string());
         assert_eq!(res, Err(expected));
     }
 }

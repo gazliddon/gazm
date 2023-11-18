@@ -130,13 +130,15 @@ where
 mod test {
 
     use super::*;
-    use crate::{frontend::* };
+    use crate::opts::Opts;
+    use crate::frontend::*;
     use crate::assembler::regutils::registers_to_flags;
 
     use unraveler::*;
 
     #[test]
     fn test_parse_line() {
+        let opts = Opts::default();
         let text = r#"Line1 Line2
         Line2"#;
 
@@ -147,7 +149,7 @@ mod test {
         println!("{:?}", ts);
 
 
-        let span = make_tspan(&tokens, &sf);
+        let span = make_tspan(&tokens, &sf, &opts);
 
         let x = take_line(span);
         let ts: Vec<_> = x.as_slice().iter().map(|t| t.kind).collect();

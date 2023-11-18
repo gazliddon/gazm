@@ -1,11 +1,10 @@
 #![deny(unused_imports)]
 
-use unraveler::{alt, many0, pair, sep_list0, wrapped_cut, sep_list, match_span as ms};
+use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0, wrapped_cut};
 
 use super::{
-    concat, parse_label, parse_number, PResult, TSpan,
+    concat, parse_label, parse_number, Item, Node, PResult, TSpan,
     TokenKind::{self, *},
-    Item,Node
 };
 
 pub fn op_to_node(input: TSpan, toke: TokenKind, item: Item) -> PResult<Node> {
@@ -83,6 +82,7 @@ pub fn parse_expr(input: TSpan) -> PResult<Node> {
 #[cfg(test)]
 mod test {
     use crate::frontend::*;
+    use crate::opts::Opts;
     use item::{
         Item::{self, *},
         ParsedFrom::*,
@@ -110,12 +110,13 @@ mod test {
             ("-1 + -3", Expr, vec![UnaryTerm, Add, UnaryTerm]),
             ("1>>3", Expr, vec![Num(1, Dec), ShiftR, Num(3, Dec)]),
         ];
+        let opts = Opts::default();
 
         for (text, i, wanted) in test.iter() {
             println!("Parsing {text}");
             let source_file = create_source_file(text);
             let tokens = to_tokens_no_comment(&source_file);
-            let span = make_tspan(&tokens, &source_file);
+            let span = make_tspan(&tokens, &source_file, &opts);
             let (rest, matched) = parse_expr(span).unwrap();
             let (item, items) = get_items(&matched);
             println!("\tItem: {:?} : {:?}", item, items);

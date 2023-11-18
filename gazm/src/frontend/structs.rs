@@ -65,8 +65,9 @@ pub fn parse_struct(input: TSpan) -> PResult<Node> {
 #[allow(unused_imports)]
 mod test {
     use super::*;
-    use crate::frontend::*;
+    use crate::{frontend::*, opts::Opts};
 
+    use grl_eval::OperatorTraits;
     // Only include dev deps if test cfg
     #[cfg(test)]
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
@@ -86,13 +87,15 @@ mod test {
         book  : word
         }"#;
 
+        let opts = Opts::default();
+
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
 
         let ts: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", ts);
 
-        let span = make_tspan(&tokens, &sf);
+        let span = make_tspan(&tokens, &sf, &opts);
 
         let (rest, matched) = parse_struct(span).unwrap();
 

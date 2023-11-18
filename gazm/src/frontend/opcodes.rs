@@ -161,6 +161,7 @@ mod test {
     use crate::frontend::item6809::IndexParseType;
     use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens_no_comment};
     use crate::frontend::{Item, ParsedFrom};
+    use crate::opts::Opts;
     use emu6809::cpu::RegEnum;
     use unraveler::Collection;
 
@@ -170,9 +171,12 @@ mod test {
         expected_amode: AddrModeParseType,
         expected_kids: &[Item],
     ) {
+
+        let opts = Opts::default();
+
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
-        let span = make_tspan(&tokens, &sf);
+        let span = make_tspan(&tokens, &sf,&opts);
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);
         let (_, p) = parse_opcode(span).expect("Can't parse opcode");
@@ -191,11 +195,12 @@ mod test {
 
     #[test]
     fn parse_multi() {
+        let opts = Opts::default();
         // TODO: check for success
         let text = "lda #10 : sta $20";
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
-        let span = make_tspan(&tokens, &sf);
+        let span = make_tspan(&tokens, &sf, &opts);
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);
         let (rest, p) = parse_multi_opcode(span).expect("Can't parse opcode");

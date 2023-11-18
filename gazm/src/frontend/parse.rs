@@ -4,8 +4,9 @@ use super::{
     parse_multi_opcode_vec, parse_struct, utils::mk_pc_equate, Item, Node, PResult, TSpan,
 };
 
+use itertools::Itertools;
 use thin_vec::ThinVec;
-use unraveler::{alt, many0, map};
+use unraveler::{all, alt, many0, map, Collection};
 
 struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
@@ -61,6 +62,8 @@ pub fn parse_pc_equate(input: TSpan) -> PResult<Node> {
 pub fn parse_span(input: TSpan) -> PResult<Node> {
     let mut nodes = NodeCollector::new(input);
 
+    // Many 0 will never fail :(
+
     let (rest, matched) = many0(alt((
         parse_single_line,
         map(parse_macro_def, |n| vec![n]),
@@ -68,8 +71,13 @@ pub fn parse_span(input: TSpan) -> PResult<Node> {
         map(parse_pc_equate, |n| vec![n]),
     )))(input)?;
 
-    let matched = matched.into_iter().flatten().collect();
+    if !rest.is_empty() {
+        println!("Unconsumed!");
+        let v = rest.iter().map(|t| (t.kind, t.extra)).collect_vec();
+        println!("{:#?}", v);
+    }
 
+    let matched = matched.into_iter().flatten().collect();
     nodes.add_vec(matched);
 
     Ok((rest, nodes.into_block()))
