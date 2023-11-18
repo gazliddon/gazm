@@ -56,10 +56,10 @@ impl Vars {
 
         let strip_it = |x: regex::Match| {
             let x = &x.as_str()[2..];
-            (&x[0..x.len() - 1]).to_string()
+            (x[0..x.len() - 1]).to_string()
         };
 
-        let regex = Regex::new(r#"\$\(()[^\)]*\)"#).unwrap();
+        let regex = Regex::new(r"\$\(()[^\)]*\)").unwrap();
 
         for to_expand in regex.find_iter(&ret.clone()).map(strip_it).unique() {
             if let Some(to) = self.vars.get(&to_expand) {

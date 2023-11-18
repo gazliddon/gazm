@@ -149,7 +149,7 @@ impl Assembler {
 
     pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorKind> {
         let path = path.as_ref();
-        let ret = self.source_file_loader.get_full_path(&path).map_err(|_| {
+        let ret = self.source_file_loader.get_full_path(path).map_err(|_| {
             let err = format!("Can't find file {}", path.to_string_lossy());
             GazmErrorKind::Misc(err)
         })?;

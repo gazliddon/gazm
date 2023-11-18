@@ -12,6 +12,19 @@ use unraveler::{ParseError, ParseErrorKind, Severity};
 
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
+pub trait ErrorContext {
+    fn context<T: Into<FrontEndErrorKind>>(self, e: T) -> Self;
+}
+
+impl<T> ErrorContext for PResult<'_, T> {
+    fn context<K: Into<FrontEndErrorKind>>(self, kind: K) -> Self {
+        self.map_err(|e| FrontEndError {
+            kind: kind.into(),
+            ..e
+        })
+    }
+}
+
 pub fn parse_failure(_txt: &str, _sp: TSpan) -> super::FrontEndError {
     panic!()
 }
@@ -21,8 +34,8 @@ pub fn parse_error(_txt: &str, _sp: TSpan) -> super::FrontEndError {
 
 #[derive(Clone, Debug, Error, PartialEq)]
 pub enum FrontEndErrorKind {
-    #[error(transparent)]
-    VarsError(#[from] VarsErrorKind),
+    #[error("vars error {0}")]
+    VarsError(#[from] Box<VarsErrorKind>),
     #[error("Parse error {0}")]
     ParseError(#[from] Box<ParseErrorKind>),
     #[error("You cannot define a macro inside a macro definition")]
@@ -60,7 +73,7 @@ impl FrontEndError {
         Self::new(
             sp,
             FrontEndErrorKind::OpcodeDoesNotSupportThisAddressingMode,
-            Severity::Error,
+            Severity::Fatal,
         )
     }
 
@@ -68,7 +81,7 @@ impl FrontEndError {
         Self::new(
             sp,
             FrontEndErrorKind::ParseError(ParseErrorKind::NoMatch.into()),
-            Severity::Error,
+            Severity::Fatal,
         )
     }
 }

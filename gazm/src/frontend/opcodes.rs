@@ -113,7 +113,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(item.into(), sp).take_others_children(arg);
         Ok((rest, node))
     } else {
-        Err(super::FrontEndError::unsupported_addr_mode(sp))
+        Err(FrontEndError::unsupported_addr_mode(sp))
     }
 }
 
@@ -128,12 +128,12 @@ fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &InstructionInfo)> {
 fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
     let (rest, (sp, text, ins)) = get_opcode(input)?;
 
-    if let Some(ins) = ins.get_boxed_instruction(&AddrModeEnum::Inherent) {
+    if let Some(ins) = ins.get_boxed_instruction(AddrModeEnum::Inherent) {
         let oc = MC6809::OpCode(text, ins, ParseInherent);
         let node = Node::from_item_tspan(oc.into(), sp);
         Ok((rest, node))
     } else {
-        Err(super::FrontEndError::no_match_error(sp))
+        Err(FrontEndError::unsupported_addr_mode(sp))
     }
 }
 pub fn parse_opcode(input: TSpan) -> PResult<Node> {
@@ -146,13 +146,6 @@ pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {
     use TokenKind::Colon;
     let (rest, matched) = sep_list(parse_opcode, tag(Colon))(input)?;
     Ok((rest, matched))
-}
-
-pub fn parse_multi_opcode(input: TSpan) -> PResult<Node> {
-    use unraveler::tag;
-    use TokenKind::Colon;
-    let (rest, (sp, matched)) = ms(sep_list(parse_opcode, tag(Colon)))(input)?;
-    Ok((rest, Node::block(matched.into(), sp)))
 }
 
 #[cfg(test)]
@@ -203,11 +196,10 @@ mod test {
         let span = make_tspan(&tokens, &sf, &opts);
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);
-        let (rest, p) = parse_multi_opcode(span).expect("Can't parse opcode");
+        let (rest, p) = parse_multi_opcode_vec(span).expect("Can't parse opcode");
         println!("Rest len is {}", rest.length());
         let tk: Vec<_> = rest.kinds_iter().collect();
         println!("REST: {:?}", tk);
-        let _items = get_items(&p);
     }
 
     #[test]

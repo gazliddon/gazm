@@ -71,7 +71,7 @@ pub (crate) fn expand_path(sp: TSpan, file: PathBuf) -> Result<PathBuf, FrontEnd
         .extra()
         .opts
         .expand_path(file)
-        .map_err(|e| FrontEndError::new(sp, e.into(), unraveler::Severity::Error))?;
+        .map_err(|e| FrontEndError::new(sp, Box::new(e).into(), unraveler::Severity::Error))?;
     Ok(path)
 }
 
@@ -103,7 +103,7 @@ pub(crate) fn parse_various_fills(input: TSpan) -> PResult<Node> {
 }
 
 fn mk_fill(input: TSpan, cv: (Node, Node)) -> Node {
-    Node::from_item_kids_tspan(Item::Fill, &vec![cv.0, cv.1], input)
+    Node::from_item_kids_tspan(Item::Fill, &[cv.0, cv.1], input)
 }
 
 pub(crate) fn parse_grabmem(input: TSpan) -> PResult<Node> {
