@@ -1,9 +1,12 @@
 #![deny(unused_imports)]
-use super::{FrontEndError, PResult, TSpan, TokenKind::*, Item,Node,ParsedFrom,BaseNode};
+use super::{
+    BaseNode, FrontEndError, FrontEndErrorKind, Item, Node, PResult, ParsedFrom, TSpan,
+    TokenKind::*,
+};
 
 use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
-use unraveler::{wrapped_cut, Collection, Parser, match_span as ms};
+use unraveler::{match_span as ms, wrapped_cut, Collection, Parser, Severity};
 
 pub fn mk_pc_equate(node: &Node) -> Node {
     use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
@@ -17,7 +20,6 @@ pub fn mk_pc_equate(node: &Node) -> Node {
 }
 
 impl BaseNode<Item, Position> {
-
     pub fn block(items: ThinVec<Self>, sp: TSpan) -> Self {
         Self::from_item_tspan(Item::Block, sp).with_children_vec(items)
     }
@@ -95,6 +97,17 @@ where
     move |i| wrapped_cut(OpenSquareBracket, p, CloseSquareBracket)(i)
 }
 
+/// Split this span at the next line
+/// used for error recovery
+pub fn split_at_next_line(full_span: TSpan) -> PResult<TSpan> {
+    use FrontEndErrorKind::*;
+    let this_line = take_line(full_span);
+    let (rest, matched) = full_span
+        .split(this_line.length())
+        .map_err(|_| FrontEndError::new(this_line, UnableToFindNextLine, Severity::Error))?;
+    Ok((rest, matched))
+}
+
 pub fn take_line(full_span: TSpan) -> TSpan {
     match full_span.length() {
         0 | 1 => full_span,
@@ -103,7 +116,7 @@ pub fn take_line(full_span: TSpan) -> TSpan {
                 let a = full_span.at(i).unwrap();
                 let b = full_span.at(i + 1).unwrap();
                 if a.extra.pos.line() != b.extra.pos.line() {
-                    return full_span.take(i+1).expect("That's bad");
+                    return full_span.take(i + 1).expect("That's bad");
                 }
             }
             full_span
@@ -130,9 +143,9 @@ where
 mod test {
 
     use super::*;
-    use crate::opts::Opts;
-    use crate::frontend::*;
     use crate::assembler::regutils::registers_to_flags;
+    use crate::frontend::*;
+    use crate::opts::Opts;
 
     use unraveler::*;
 
@@ -148,7 +161,6 @@ mod test {
         let ts: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", ts);
 
-
         let span = make_tspan(&tokens, &sf, &opts);
 
         let x = take_line(span);
@@ -157,5 +169,4 @@ mod test {
 
         // assert!(false)
     }
-
 }

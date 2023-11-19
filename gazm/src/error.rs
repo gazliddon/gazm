@@ -4,20 +4,23 @@
 use crate::{
     ast::{AstNodeId, AstNodeRef},
     assembler::binary, vars::VarsErrorKind,
+    frontend::FrontEndError, 
 };
 
 use thin_vec::ThinVec;
 
 use grl_sources::{
-    grl_utils::SearchError, EditErrorKind, Position, SourceErrorType, SourceFiles, SourceInfo,
+    grl_utils::FileError, EditErrorKind, Position, SourceErrorType, SourceFiles, SourceInfo,
 };
 
 use thiserror::Error;
 
 pub type GResult<T> = Result<T, GazmErrorKind>;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone )]
 pub enum GazmErrorKind {
+    #[error(transparent)]
+    FrontEndError(#[from] FrontEndError),
     #[error(transparent)]
     VarError(#[from] VarsErrorKind),
     #[error(transparent)]
@@ -35,7 +38,7 @@ pub enum GazmErrorKind {
     #[error(transparent)]
     EditError(#[from] EditErrorKind),
     #[error(transparent)]
-    FileError(#[from] SearchError),
+    FileError(#[from] FileError),
     #[error(transparent)]
     SourceError(#[from] SourceErrorType),
 }
@@ -227,31 +230,38 @@ use crate::messages::Messageize;
 use colored::*;
 
 impl UserErrorData {
-    pub fn from_text<S>(msg: S, info: &SourceInfo, is_failure: bool) -> Self
-    where
-        S: Into<String>,
-    {
+    pub fn new(message: &str, failure: bool, si: &SourceInfo) -> Self {
         Self {
-            message: msg.into(),
-            pos: info.pos,
-            fragment: info.fragment.to_string(),
-            line: info.line_str.to_string(),
-            file: info.source_file.file.clone(),
-            failure: is_failure,
+            message : message.to_string(),
+            pos: si.pos.clone(),
+            fragment: si.fragment.to_string(),
+            line: si.line_str.to_string(),
+            file: si.file.clone(),
+            failure,
         }
     }
 
-    pub fn from_parse_error(err: &ParseError, sources: &SourceFiles) -> Self {
-        let si = sources.get_source_info(&err.pos).unwrap();
+    pub fn from_text<S>(msg: S, info: &SourceInfo, failure: bool) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::new(&msg.into(),failure,info)
+    }
 
-        Self {
-            message: err.message(),
-            pos: err.pos,
-            fragment: si.fragment.to_string(),
-            line: si.line_str.to_string(),
-            file: si.file,
-            failure: err.failure,
-        }
+    pub fn from_front_end_error(err: &FrontEndError, sources: &SourceFiles) -> Self {
+        let pos = &err.position;
+        let si = sources.get_source_info(pos).unwrap();
+        let failure = false;
+        let message = err.to_string();
+        Self::new(&message,failure,&si)
+    }
+
+    pub fn from_parse_error(err: &ParseError, sources: &SourceFiles) -> Self {
+        let pos = &err.pos;
+        let si = sources.get_source_info(pos).unwrap();
+        let failure = err.failure;
+        let message = &err.message();
+        Self::new(&message,failure,&si)
     }
 
     pub fn pretty(&self) -> GResult<String> {
@@ -318,6 +328,11 @@ impl UserError {
         self.data.pretty()
     }
 
+    pub fn from_front_end_error(err: &FrontEndError, sources: &SourceFiles) -> Self {
+        let data = UserErrorData::from_front_end_error(err, sources);
+        data.into()
+    }
+
     pub fn from_parse_error(err: &ParseError, sources: &SourceFiles) -> Self {
         let data = UserErrorData::from_parse_error(err, sources);
         data.into()
@@ -326,7 +341,6 @@ impl UserError {
 
 ////////////////////////////////////////////////////////////////////////////////
 // UserErrors Collection
-//
 
 #[derive(Clone)]
 pub struct ErrorCollector {
@@ -398,7 +412,8 @@ impl ErrorCollector {
 
     pub fn raise_errors(&self) -> GResult<()> {
         if self.has_errors() {
-            Err(GazmErrorKind::TooManyErrors(self.clone()))
+            panic!()
+            // Err(GazmErrorKind::TooManyErrors(self.clone()))
         } else {
             Ok(())
         }

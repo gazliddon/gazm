@@ -5,7 +5,7 @@ use crate::vars::VarsErrorKind;
 use super::{to_pos, TSpan};
 
 use emu6809::cpu::RegEnum;
-use grl_sources::Position;
+use grl_sources::{Position, grl_utils::FileError, SourceErrorType};
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
 
@@ -32,8 +32,12 @@ pub fn parse_error(_txt: &str, _sp: TSpan) -> super::FrontEndError {
     panic!()
 }
 
-#[derive(Clone, Debug, Error, PartialEq)]
+#[derive(Debug, Error, Clone)]
 pub enum FrontEndErrorKind {
+    #[error(transparent)]
+    SourceError(#[from] SourceErrorType),
+    #[error(transparent)]
+    FileError(#[from] FileError),
     #[error("vars error {0}")]
     VarsError(#[from] Box<VarsErrorKind>),
     #[error("Parse error {0}")]
@@ -50,13 +54,21 @@ pub enum FrontEndErrorKind {
     ExpectedDifferentRegister(RegEnum,RegEnum),
     #[error("Unexpected duplicate register")]
     DuplicateRegisterInRegisterSet,
+    #[error("Unable to find next line")]
+    UnableToFindNextLine,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Error)]
 pub struct FrontEndError {
     pub position: Position,
     pub kind: FrontEndErrorKind,
     pub severity: Severity,
+}
+
+impl std::fmt::Display for FrontEndError {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 impl FrontEndError {

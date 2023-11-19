@@ -275,14 +275,6 @@ impl BaseNode<Item, Position> {
         Self::new(item, p.into())
     }
 
-    // pub fn from_item_span<I: Into<Item>>(item: I, sp: Span) -> Self {
-    //     Self::new(item.into(), span_to_pos(sp))
-    // }
-
-    // pub fn from_number(n: i64, _p: ParsedFrom, sp: Span) -> Self {
-    //     Self::from_item_span(Item::Num(n, _p), sp)
-    // }
-
     pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Self {
         Self::new(Item::Num(n, ParsedFrom::FromExpr), pos.into())
     }
@@ -292,11 +284,6 @@ impl BaseNode<Item, Position> {
         ret
     }
 
-    // pub fn with_span(self, sp: Span) -> Self {
-    //     let mut ret = self;
-    //     ret.ctx = span_to_pos(sp);
-    //     ret
-    // }
 }
 
 pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {

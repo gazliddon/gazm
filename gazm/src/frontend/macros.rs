@@ -120,9 +120,9 @@ macro MKPROB(process,object_pic,collion_vec,blip) {
 
         let (_rest, matched) = res.expect("Can't parse macro def!");
 
-        let it = NodeIter::new(&matched);
+        let it = NodeIter::new(&matched).map(|n| &n.node.item);
 
-        let x = it.map(|n| &n.node.item).collect_vec();
+        let x = it.collect_vec();
         println!("{:?}", x);
 
         use Item::*;
@@ -169,6 +169,7 @@ macro MKPROB(process,object_pic,collion_vec,blip) {
                 .map(|n| n.item.clone())
                 .collect::<Vec<_>>()
         );
+
         let items = matched
             .children
             .iter()

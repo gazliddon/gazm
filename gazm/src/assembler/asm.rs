@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     ast::{Ast, AstCtx, AstNodeId},
-    error::{ErrorCollector, GResult, GazmErrorKind, ParseError, UserError},
+    error::{ErrorCollector, GResult, GazmErrorKind},
     frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
-    frontend::{Item, Node},
+    frontend::{FrontEndError, FrontEndErrorKind, Item, Node},
     gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
     messages::status,
@@ -16,9 +16,8 @@ use crate::{
 
 use grl_sources::{
     fileloader::SourceFileLoader,
-    grl_utils::{fileutils, PathSearcher},
-    AsmSource, BinToWrite, FileIo, Position, SourceDatabase, SourceFile, SourceFiles,
-    SourceMapping,
+    grl_utils::{fileutils, FResult, FileIo, PathSearcher},
+    AsmSource, BinToWrite, Position, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
 };
 
 use super::{
@@ -122,7 +121,10 @@ impl Assembler {
         &self.opts.vars
     }
 
-    pub fn read_source<P: AsRef<Path>>(&mut self, path: P) -> Result<&SourceFile, GazmErrorKind> {
+    pub fn read_source<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<&SourceFile, FrontEndErrorKind> {
         let path = self.get_full_path(&path)?;
         // let path_string = path.to_string_lossy();
         // Is it in the cache?
@@ -141,28 +143,28 @@ impl Assembler {
     }
 
     // TODO Remove this and do all path expansion in the opts reading
-    pub fn expand_path_to_deprecate<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, VarsErrorKind> {
-        self
-            .get_vars()
-            .expand_vars_in_path(path)
+    pub fn expand_path_to_deprecate<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<PathBuf, VarsErrorKind> {
+        self.get_vars().expand_vars_in_path(path)
     }
 
-    pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> Result<PathBuf, GazmErrorKind> {
+    pub fn get_full_path<P: AsRef<Path>>(&self, path: P) -> FResult<PathBuf> {
         let path = path.as_ref();
-        let ret = self.source_file_loader.get_full_path(path).map_err(|_| {
-            let err = format!("Can't find file {}", path.to_string_lossy());
-            GazmErrorKind::Misc(err)
-        })?;
-
+        let ret = self.source_file_loader.get_full_path(path)?;
         Ok(ret)
     }
 
-    pub fn add_parse_errors(&mut self, pe: &[ParseError]) -> GResult<()> {
-        for e in pe {
-            let ue = UserError::from_parse_error(e, self.sources());
-            self.asm_out.errors.add_user_error(ue)?
+    pub fn add_front_end_error(&mut self, pe: &[FrontEndError]) -> Result<(), FrontEndError> {
+        if pe.is_empty() {
+            Ok(())
+        } else {
+            for e in pe {
+                println!("{e}");
+            }
+            panic!()
         }
-        Ok(())
     }
 
     pub fn asm_source_to_path(&self, a: &AsmSource) -> Option<PathBuf> {
@@ -272,7 +274,6 @@ impl TryFrom<Opts> for Assembler {
     type Error = String;
 
     fn try_from(opts: Opts) -> Result<Self, String> {
-
         let asm_out = AsmOut::try_from(opts.clone())?;
 
         let ret = Self {
@@ -361,7 +362,7 @@ impl Assembler {
         status("Compiling", |_| {
             super::sizer::size(self, &ast_tree)?;
             super::compile::compile(self, &ast_tree)?;
-            Ok::<(),GazmErrorKind>(())
+            Ok::<(), GazmErrorKind>(())
         })?;
 
         let lookup = LabelUsageAndDefintions::new(&ast_tree, &self.asm_out.symbols, docs);
@@ -387,7 +388,6 @@ impl Assembler {
 
 // File fuunction
 impl Assembler {
-
     pub fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> GResult<PathBuf> {
         Ok(fileutils::abs_path_from_cwd(path))
     }

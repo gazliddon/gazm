@@ -1,16 +1,13 @@
 #![deny(unused_imports)]
 
-use super::{parse_source_chunks, Item, Node};
-use unraveler::all;
+use super::{parse_source_chunks, FrontEndError, FrontEndErrorKind, Item, Node};
 
-use crate::{
-    assembler::Assembler,
-    debug_mess,
-    error::{GResult, GazmErrorKind, ParseError},
-    opts::Opts,
+use crate::{assembler::Assembler, debug_mess, opts::Opts};
+
+use grl_sources::{
+    grl_utils::{Stack, FileError, FResult},
+    Position, SourceFile,
 };
-
-use grl_sources::{grl_utils::Stack, Position, SourceFile};
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -23,6 +20,7 @@ pub struct TokenizeRequest {
     pub parent: Option<PathBuf>,
     pub opts: Opts,
     pub include_stack: IncludeStack,
+    pub opt_pos: Option<Position>
 }
 
 impl TokenizeRequest {
@@ -33,6 +31,7 @@ impl TokenizeRequest {
             parent: None,
             opts: opts.clone(),
             include_stack: Default::default(),
+            opt_pos: None,
         }
     }
 }
@@ -49,8 +48,7 @@ impl TokenizeRequest {
 #[derive(Debug, Clone)]
 pub struct TokenizeResult {
     pub node: Node,
-    pub errors: Vec<ParseError>,
-    // pub includes: Vec<(Position, PathBuf)>,
+    pub errors: Vec<FrontEndError>,
     pub request: TokenizeRequest,
 }
 
@@ -70,7 +68,7 @@ impl TokenizeResult {
 }
 
 impl TryInto<TokenizeResult> for TokenizeRequest {
-    type Error = GazmErrorKind;
+    type Error = FrontEndError;
 
     fn try_into(self) -> Result<TokenizeResult, Self::Error> {
         let (node, errors) = self.tokenize()?;
@@ -83,20 +81,34 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
 }
 
 impl TokenizeRequest {
-    pub fn tokenize(&self) -> GResult<(Node, Vec<ParseError>)> {
+    pub fn tokenize(&self) -> Result<(Node, Vec<FrontEndError>), FrontEndError> {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
+        use unraveler::Collection;
         let tokens = to_tokens_no_comment(&self.source_file);
-        let span = make_tspan(&tokens, &self.source_file, &self.opts);
+        let mut span = make_tspan(&tokens, &self.source_file, &self.opts);
 
-        // TODO need to collect errors properly - this parser should be an ALL parser
-        let (_rest, nodes) =
-            all(parse_source_chunks)(span).map_err(|e| GazmErrorKind::Misc(format!("{e:?}")))?;
+        let mut final_nodes = vec![];
+        let mut errors = vec![];
+
+        while !span.is_empty() {
+            // TODO need to collect errors properly - this parser should be an ALL parser
+            let result = parse_source_chunks(span);
+
+            match result {
+                Err(e) => {
+                    errors.push(e);
+                    panic!()
+                }
+
+                Ok((rest, nodes)) => {
+                    final_nodes.extend_from_slice(&nodes);
+                    span = rest;
+                }
+            }
+        }
 
         let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
-        let node = Node::from_item_kids_tspan(item, &nodes, span);
-
-        let errors = vec![];
-
+        let node = Node::from_item_kids_tspan(item, &final_nodes, span);
         Ok((node, errors))
     }
 }
@@ -160,18 +172,21 @@ impl Assembler {
         &self,
         paths: &[(Position, PathBuf)],
         parent: &Option<PathBuf>,
-    ) -> GResult<Vec<(PathBuf, Option<PathBuf>)>> {
+    ) -> FResult<Vec<(Position, PathBuf, Option<PathBuf>)>> {
         let full_paths = self
             .get_full_paths(paths)?
             .into_iter()
-            .map(|(_, path)| (path, parent.clone()))
+            .map(|(pos, path)| (pos, path, parent.clone()))
             .collect();
 
         Ok(full_paths)
     }
 
-    fn get_full_paths(&self, paths: &[(Position, PathBuf)]) -> GResult<Vec<(Position, PathBuf)>> {
-        let res: GResult<Vec<(Position, PathBuf)>> = paths
+    fn get_full_paths(
+        &self,
+        paths: &[(Position, PathBuf)],
+    ) -> FResult<Vec<(Position, PathBuf)>> {
+        let res: Result<Vec<(Position, PathBuf)>, FileError> = paths
             .iter()
             .unique()
             .map(|(pos, path)| Ok((*pos, self.get_full_path(path)?)))
@@ -183,7 +198,8 @@ impl Assembler {
         &mut self,
         requested_file: P,
         parent: Option<PathBuf>,
-    ) -> GResult<GetTokensResult> {
+        opt_pos: Option<Position>,
+    ) -> Result<GetTokensResult, FrontEndErrorKind> {
         let expanded_file = self.get_full_path(&requested_file)?;
 
         if let Some(tokes) = self.get_tokens_from_full_path(&expanded_file) {
@@ -197,6 +213,7 @@ impl Assembler {
                 parent,
                 opts: self.opts.clone(),
                 include_stack: Default::default(),
+                opt_pos,
             };
 
             Ok(GetTokensResult::Request(toke_req.into()))
@@ -204,13 +221,13 @@ impl Assembler {
     }
 }
 
-pub fn tokenize_no_async(ctx: &mut Assembler) -> GResult<()> {
+pub fn tokenize_no_async(ctx: &mut Assembler) -> Result<(), FrontEndError> {
     tokenize(ctx, |to_tokenize| {
         to_tokenize.into_iter().map(|req| req.try_into()).collect()
     })
 }
 
-pub fn tokenize_async(ctx: &mut Assembler) -> GResult<()> {
+pub fn tokenize_async(ctx: &mut Assembler) -> Result<(), FrontEndError> {
     tokenize(ctx, |to_tokenize| {
         use rayon::prelude::*;
         to_tokenize
@@ -221,22 +238,29 @@ pub fn tokenize_async(ctx: &mut Assembler) -> GResult<()> {
 }
 
 /// f = handler for tokenize request
-fn tokenize<F>(ctx: &mut Assembler, f: F) -> GResult<()>
+fn tokenize<F>(ctx: &mut Assembler, f: F) -> Result<(), FrontEndError>
 where
-    F: Fn(Vec<TokenizeRequest>) -> Vec<GResult<TokenizeResult>>,
+    F: Fn(Vec<TokenizeRequest>) -> Vec<Result<TokenizeResult, FrontEndError>>,
 {
-    let mut files_to_process = vec![(ctx.get_project_file(), None)];
+    let mut files_to_process = vec![(Position::default(), ctx.get_project_file(), None)];
 
     while !files_to_process.is_empty() {
         let size = files_to_process.len();
 
         let (to_tokenize, mut incs_to_process) = files_to_process.iter().try_fold(
             (Vec::with_capacity(size), Vec::with_capacity(size)),
-            |(mut to_tok, mut incs), (req_file, parent)| {
+            |(mut to_tok, mut incs), (position, req_file, parent)| {
                 use GetTokensResult::*;
+                let position = position.clone();
 
                 // TODO: Replace parent with incstack
-                let tokes = ctx.get_tokens(req_file, parent.clone())?;
+                let tokes =
+                    ctx.get_tokens(req_file, parent.clone(), Some(position))
+                        .map_err(|kind| FrontEndError {
+                            position,
+                            kind,
+                            severity: unraveler::Severity::Error,
+                        })?;
 
                 match tokes {
                     Tokens(tokes) => {
@@ -244,7 +268,13 @@ where
                         let file_name = req.get_file_name();
                         debug_mess!("TOKES: Got {:?}", file_name);
                         let includes = tokes.get_includes();
-                        let full_paths = ctx.get_full_paths_with_parent(&includes, parent)?;
+                        let full_paths = ctx
+                            .get_full_paths_with_parent(&includes, parent)
+                            .map_err(|se| FrontEndError {
+                                position,
+                                kind: se.into(),
+                                severity: unraveler::Severity::Error,
+                            })?;
                         incs.reserve(full_paths.len());
                         incs.extend(full_paths)
                     }
@@ -256,7 +286,7 @@ where
                     }
                 };
 
-                Ok::<_, GazmErrorKind>((to_tok, incs))
+                Ok::<_, FrontEndError>((to_tok, incs))
             },
         )?;
 
@@ -267,11 +297,11 @@ where
                 Ok(res) => {
                     let req = &res.request;
                     debug_mess!("Tokenized! {}", req.source_file.file.to_string_lossy());
-                    ctx.add_parse_errors(&res.errors)?;
-                    incs_to_process.push((req.requested_file.clone(), req.parent.clone()));
+                    ctx.add_front_end_error(&res.errors)?;
+                    incs_to_process.push((req.opt_pos.unwrap_or(Position::default()), req.requested_file.clone(), req.parent.clone()));
                     ctx.get_token_store_mut().add_tokens(res);
                 }
-                Err(_) => ctx.asm_out.errors.add_result(tokes)?,
+                Err(e) => ctx.add_front_end_error(&[e])?,
             }
         }
 

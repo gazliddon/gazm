@@ -9,7 +9,7 @@ use super::{
     },
     *,
 };
-use emu6809::isa::{InstructionInfo,AddrModeEnum, Dbase, Instruction};
+use emu6809::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo};
 use unraveler::{alt, match_span as ms, preceded, sep_list};
 
 lazy_static::lazy_static! {
@@ -164,12 +164,11 @@ mod test {
         expected_amode: AddrModeParseType,
         expected_kids: &[Item],
     ) {
-
         let opts = Opts::default();
 
         let sf = create_source_file(text);
         let tokens = to_tokens_no_comment(&sf);
-        let span = make_tspan(&tokens, &sf,&opts);
+        let span = make_tspan(&tokens, &sf, &opts);
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);
         let (_, p) = parse_opcode(span).expect("Can't parse opcode");
@@ -196,7 +195,7 @@ mod test {
         let span = make_tspan(&tokens, &sf, &opts);
         let tk: Vec<_> = tokens.iter().map(|t| t.kind).collect();
         println!("{:?}", tk);
-        let (rest, p) = parse_multi_opcode_vec(span).expect("Can't parse opcode");
+        let (rest, _p) = parse_multi_opcode_vec(span).expect("Can't parse opcode");
         println!("Rest len is {}", rest.length());
         let tk: Vec<_> = rest.kinds_iter().collect();
         println!("REST: {:?}", tk);

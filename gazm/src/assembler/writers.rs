@@ -2,14 +2,18 @@
 use super::Assembler;
 
 use crate::{
-    astformat, 
+    astformat, debug_mess,
     error::GResult,
     gazmsymbols::Serializable,
+    info_mess, interesting_mess,
     messages::{info, status},
-    status_err, debug_mess,interesting_mess,info_mess,
+    status_err,
 };
 
-use grl_sources::{grl_utils::hash::get_hash, FileIo, SourceDatabase};
+use grl_sources::{
+    grl_utils::{hash::get_hash, FileIo},
+    SourceDatabase,
+};
 
 use anyhow::Context as AnyContext;
 use std::{fs, path::Path};
@@ -122,8 +126,7 @@ impl Assembler {
             let sym_file = self.expand_path_to_deprecate(sym_file)?;
             info_mess!("Writing source mappings {}", sym_file.to_string_lossy());
             let sd: SourceDatabase = (&*self).into();
-            sd
-                .write_json(&sym_file)
+            sd.write_json(&sym_file)
                 .with_context(|| format!("Unable to write {sym_file:?}"))?;
         }
 
@@ -132,7 +135,6 @@ impl Assembler {
 
     fn checksum_report(&self) {
         if !self.opts.checksums.is_empty() {
-
             let mess = crate::messages::messages();
 
             let mut errors = vec![];

@@ -67,7 +67,7 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
         self.children.push(n)
     }
 
-    pub fn iter(&self) -> NodeIter<I,C> {
+    pub fn iter(&self) -> NodeIter<Self> {
         NodeIter::new(self)
     }
 

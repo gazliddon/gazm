@@ -55,7 +55,6 @@ pub fn parse_pc_equate(input: TSpan) -> PResult<Node> {
     map(parse_label, |n| mk_pc_equate(&n))(input)
 }
 
-
 /// Parse the next chunk of valid source
 pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node>> {
     let (rest, matched) = alt((
