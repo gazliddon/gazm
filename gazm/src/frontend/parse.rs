@@ -1,12 +1,13 @@
 // #![deny(unused_imports)]
 use super::{
     parse_command, parse_equate, parse_label, parse_line, parse_macro_call, parse_macro_def,
-    parse_multi_opcode_vec, parse_struct, utils::mk_pc_equate, Item, Node, PResult, TSpan,
+    parse_multi_opcode_vec, parse_struct, split_at_next_line, to_pos, utils::mk_pc_equate,
+    FrontEndError, FrontEndErrorKind, Item, Node, PResult, TSpan,
 };
 
-use itertools::Itertools;
+use itertools::{Itertools, Position};
 use thin_vec::ThinVec;
-use unraveler::{all, alt, many0, map, Collection};
+use unraveler::{all, alt, many0, map, Collection, Severity};
 
 struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
@@ -50,11 +51,9 @@ pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node>> {
     )))(input)
 }
 
-
 pub fn parse_pc_equate(input: TSpan) -> PResult<Node> {
     map(parse_label, |n| mk_pc_equate(&n))(input)
 }
-
 /// Parse the next chunk of valid source
 pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node>> {
     let (rest, matched) = alt((
@@ -74,3 +73,36 @@ pub fn parse_source_chunks(input: TSpan) -> PResult<Vec<Node>> {
     Ok((rest, nodes.nodes.into()))
 }
 
+/// Parse all of this span
+/// until we have too many errors or have parsed everything
+pub fn parse_all_with_resume(mut input: TSpan) -> PResult<Vec<Node>> {
+    let mut ret = vec![];
+    let mut errors = vec![];
+    let max_errors = input.extra().opts.max_errors;
+
+    while input.length() == 0 || errors.len() > max_errors {
+        let parse_result = parse_next_source_chunk(input);
+
+        match parse_result {
+            Err(e) => {
+                errors.push(e);
+                let (_, next_line) = split_at_next_line(input)?;
+                input = next_line;
+            }
+            Ok((rest, matched)) => {
+                input = rest;
+                ret.extend(matched);
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok((input, ret))
+    } else {
+        Err(FrontEndError::new(
+            input,
+            FrontEndErrorKind::TooManyErrors(errors),
+            Severity::Fatal,
+        ))
+    }
+}

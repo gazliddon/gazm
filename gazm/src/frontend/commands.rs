@@ -3,6 +3,7 @@
 use super::{
     get_text, item6809::MC6809, parse_expr, parse_expr_list, parse_scoped_label, CommandKind,
     FrontEndError, IdentifierKind, Item, Node, PResult, TSpan, TokenKind, TokenKind::Comma,
+    FeResult,
 };
 use crate::debug_mess;
 use std::path::PathBuf;
@@ -66,12 +67,12 @@ pub(crate) fn parse_require(input: TSpan) -> PResult<Node> {
         .map(|(rest, (sp, file))| (rest, Node::from_item_tspan(Item::Require(file), sp)))
 }
 
-pub (crate) fn expand_path(sp: TSpan, file: PathBuf) -> Result<PathBuf, FrontEndError> {
+pub (crate) fn expand_path(sp: TSpan, file: PathBuf) -> FeResult<PathBuf> {
     let path = sp
         .extra()
         .opts
         .expand_path(file)
-        .map_err(|e| FrontEndError::new(sp, Box::new(e).into(), unraveler::Severity::Error))?;
+        .map_err(|e| FrontEndError::new(sp, e.into(), unraveler::Severity::Error))?;
     Ok(path)
 }
 

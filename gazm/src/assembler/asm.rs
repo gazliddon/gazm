@@ -304,6 +304,19 @@ impl Assembler {
         self.assemble_project()
     }
 
+    /// Tokenize the project file and all of its includes
+    /// return a vector of nodes
+    fn do_tokenize(&mut self) -> Result<TokenizeResult, FrontEndError> {
+        if self.opts.no_async {
+            status("Lexing no async", |_| tokenize_no_async(self))?
+        } else {
+            status("Lexing async", |_| tokenize_async(self))?
+        }
+        let file = self.get_project_file();
+        let tokes = self.get_tokens_from_full_path(&file).unwrap().clone();
+        Ok(tokes)
+    }
+
     fn assemble_project(&mut self) -> GResult<()> {
         let file = self.get_project_file();
 
@@ -312,23 +325,18 @@ impl Assembler {
             .get_search_paths()
             .to_vec();
 
-        // TODO Do we need to add the parent dir of the projectfile to the search paths?
         if let Some(dir) = file.parent() {
             self.get_source_file_loader_mut().add_search_path(dir);
         }
 
-        let tokes = {
-            if self.opts.no_async {
-                status("Lexing no async", |_| tokenize_no_async(self))?
-            } else {
-                status("Lexing async", |_| tokenize_async(self))?
+        let tokes_res = self.do_tokenize();
+
+        match tokes_res {
+            Err(_) => panic!(),
+            Ok(tokes) => {
+                self.assemble_tokens(&tokes.node)?;
             }
-
-            let file = self.get_project_file();
-            self.get_tokens_from_full_path(&file).unwrap().clone()
-        };
-
-        self.assemble_tokens(&tokes.node)?;
+        }
 
         self.get_source_file_loader_mut()
             .set_search_paths(&original_paths);

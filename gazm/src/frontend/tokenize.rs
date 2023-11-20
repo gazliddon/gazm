@@ -238,7 +238,7 @@ pub fn tokenize_async(ctx: &mut Assembler) -> Result<(), FrontEndError> {
 }
 
 /// f = handler for tokenize request
-fn tokenize<F>(ctx: &mut Assembler, f: F) -> Result<(), FrontEndError>
+fn tokenize<F>(ctx: &mut Assembler, tokenize_fn: F) -> Result<(), FrontEndError>
 where
     F: Fn(Vec<TokenizeRequest>) -> Vec<Result<TokenizeResult, FrontEndError>>,
 {
@@ -290,7 +290,7 @@ where
             },
         )?;
 
-        let tokenized = f(to_tokenize);
+        let tokenized = tokenize_fn(to_tokenize);
 
         for tokes in tokenized.into_iter() {
             match tokes {

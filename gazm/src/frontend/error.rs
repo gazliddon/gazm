@@ -39,9 +39,9 @@ pub enum FrontEndErrorKind {
     #[error(transparent)]
     FileError(#[from] FileError),
     #[error("vars error {0}")]
-    VarsError(#[from] Box<VarsErrorKind>),
+    VarsError(#[from] VarsErrorKind),
     #[error("Parse error {0}")]
-    ParseError(#[from] Box<ParseErrorKind>),
+    ParseError(#[from] ParseErrorKind),
     #[error("You cannot define a macro inside a macro definition")]
     IllegalMacroDefinition,
     #[error("This opcode does not support this addressing mode")]
@@ -56,7 +56,12 @@ pub enum FrontEndErrorKind {
     DuplicateRegisterInRegisterSet,
     #[error("Unable to find next line")]
     UnableToFindNextLine,
+
+    #[error("Too many errors")]
+    TooManyErrors(Vec<FrontEndError>)
 }
+
+pub type FeResult<T> = Result<T,FrontEndError>;
 
 #[derive(Clone, Debug, Error)]
 pub struct FrontEndError {
