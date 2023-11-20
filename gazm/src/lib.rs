@@ -1,21 +1,22 @@
 #![deny(warnings)]
 #![allow(unused_imports)]
 #![allow(dead_code)]
-pub mod semantic;
-pub mod ast;
-pub mod astformat;
+pub mod assembler;
 pub mod cli;
-pub mod docs;
-pub mod error;
 pub mod fmt;
 pub mod frontend;
-pub mod gazmeval;
-pub mod gazmsymbols;
-pub mod lookup;
 pub mod lsp;
 pub mod messages;
-pub mod sections;
-pub mod vars;
 pub mod opts;
-pub mod assembler;
-pub mod utils;
+
+mod ast;
+mod astformat;
+mod docs;
+mod error;
+mod gazmeval;
+mod gazmsymbols;
+mod lookup;
+mod sections;
+mod semantic;
+mod utils;
+mod vars;

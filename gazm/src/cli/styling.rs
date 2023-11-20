@@ -1,4 +1,4 @@
-use colored::{Color, ColoredString, Colorize};
+use colored::{Color, Colorize};
 
 fn colour_lines(txt: &str, colours: &[Color]) -> String {
     let lines = txt.split('\n');

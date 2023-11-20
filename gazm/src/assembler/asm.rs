@@ -35,18 +35,30 @@ pub struct Assembler {
     pub fixer_upper: FixerUpper,
 }
 
+/// Collects the output of a project being assembled
+// TODO Need to split out Ast and Lookup to a separate struct
+//      that handles mapping source code -> binary lookups
 #[derive(Debug, Clone, Default)]
 pub struct AsmOut {
+    /// Holds the symbol ID of the current PC value
     pub pc_symbol_id: Option<SymbolScopeId>,
+    /// Direct page value
     pub direct_page: Option<u8>,
+    /// Symbol table
     pub symbols: SymbolTree,
+    /// Errors collected so far
     pub errors: ErrorCollector,
+    /// The output binary
     pub binary: Binary,
+    /// Maps memory addressses to source code
     pub source_map: SourceMapping,
     pub lst_file: LstFile,
+    /// The Execution address
     pub exec_addr: Option<usize>,
+    /// Binary chunks to write out
     pub bin_to_write_chunks: Vec<BinToWrite>,
     pub ast: Option<Ast>,
+    /// Used for mapping labesl to source position
     pub lookup: Option<LabelUsageAndDefintions>,
 }
 

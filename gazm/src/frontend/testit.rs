@@ -1,13 +1,7 @@
 // #![deny(unused_imports)]
-use super::*;
 
-use crate::{
-    ast::{iter_ids_recursive, Ast},
-    error::{GResult, GazmErrorKind},
-    opts::Opts,
-};
+use crate::opts::Opts;
 
-use std::fs;
 
 pub fn test(_opts: &Opts) {
     // let text = fs::read_to_string(&opts.project_file).unwrap();

@@ -5,7 +5,6 @@ use crate::{
     opts::{CheckSum, Opts},
 };
 
-use grl_sources::TextPos;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, Default)]

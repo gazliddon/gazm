@@ -1,13 +1,13 @@
 // #![deny(unused_imports)]
 use super::{
     parse_command, parse_equate, parse_label, parse_line, parse_macro_call, parse_macro_def,
-    parse_multi_opcode_vec, parse_struct, split_at_next_line, to_pos, utils::mk_pc_equate,
+    parse_multi_opcode_vec, parse_struct, split_at_next_line, utils::mk_pc_equate,
     FrontEndError, FrontEndErrorKind, Item, Node, PResult, TSpan,
 };
 
-use itertools::{Itertools, Position};
+use itertools::Itertools;
 use thin_vec::ThinVec;
-use unraveler::{all, alt, many0, map, Collection, Severity};
+use unraveler::{ alt, many0, map, Collection, Severity};
 
 struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
