@@ -141,7 +141,7 @@ impl Assembler {
 
             for (name, csum) in &self.opts.checksums {
                 let data = self
-                    .binary()
+                    .get_binary()
                     .get_bytes(csum.addr, csum.size)
                     .expect("Binary error");
                 let this_hash = get_hash(data);

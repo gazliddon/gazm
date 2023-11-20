@@ -48,6 +48,7 @@ pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
 }
 
 #[allow(unused_imports)]
+#[allow(dead_code)]
 mod test {
     use super::*;
     use crate::{cli::parse_command_line, frontend::*};

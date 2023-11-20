@@ -143,7 +143,7 @@ where
 mod test {
 
     use super::*;
-    use crate::assembler::regutils::registers_to_flags;
+    use crate::assembler::registers_to_flags;
     use crate::frontend::*;
     use crate::opts::Opts;
 

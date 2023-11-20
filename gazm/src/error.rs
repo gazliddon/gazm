@@ -1,9 +1,8 @@
 #![deny(unused_imports)]
 
-
 use crate::{
     ast::{AstNodeId, AstNodeRef},
-    assembler::binary, vars::VarsErrorKind,
+    assembler, vars::VarsErrorKind,
     frontend::FrontEndError, 
 };
 
@@ -32,7 +31,7 @@ pub enum GazmErrorKind {
     #[error("Too Many Errors")]
     TooManyErrors(ErrorCollector),
     #[error(transparent)]
-    BinaryError(#[from] binary::BinaryError),
+    BinaryError(#[from] assembler::BinaryError),
     #[error("Parse error {0}")]
     ParseError(#[from] Box<ParseError>),
     #[error(transparent)]
@@ -346,7 +345,7 @@ impl UserError {
 pub struct ErrorCollector {
     _max_errors: usize,
     pub errors: ThinVec<GazmErrorKind>,
-    warnings: ThinVec<UserWarning>,
+    _warnings: ThinVec<UserWarning>,
     errors_remaining: usize,
 }
 
@@ -355,7 +354,7 @@ impl Default for ErrorCollector {
         Self {
             _max_errors: 10,
             errors: Default::default(),
-            warnings: Default::default(),
+            _warnings: Default::default(),
             errors_remaining: Default::default(),
         }
     }

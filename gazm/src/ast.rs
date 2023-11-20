@@ -5,7 +5,7 @@ use std::{collections::HashMap, iter};
 use thin_vec::{thin_vec, ThinVec};
 
 use crate::{
-    assembler::{scopes::ScopeBuilder, scopetracker::ScopeTracker, Assembler},
+    assembler::{ScopeBuilder, ScopeTracker, Assembler},
     astformat::as_string,
     debug_mess,
     error::{AstError, UserError},

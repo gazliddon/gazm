@@ -56,13 +56,6 @@ impl<'a> Compiler<'a> {
         (node.id(), i)
     }
 
-    // fn get_node_item_ref(&self, asm: &Assembler, id: AstNodeId) -> (AstNodeRef, Item) {
-    //     let node = self.tree.as_ref().get(id).unwrap();
-    //     let this_i = &node.value().item;
-    //     let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
-    //     (node, i)
-    // }
-
     fn get_node(&self, id: AstNodeId) -> AstNodeRef {
         let node = self.tree.as_ref().get(id).unwrap();
         node
@@ -127,17 +120,17 @@ impl<'a> Compiler<'a> {
             ExtendedIndirect => {
                 let (val, _) = asm.eval_first_arg(node, self.scopes.scope())?;
 
-                let res = asm.binary_mut().write_uword_check_size(val);
+                let res = asm.get_binary_mut().write_uword_check_size(val);
                 self.binary_error_map(asm, id, res)?;
             }
 
             ConstantWordOffset(_, val) | PcOffsetWord(val) => {
-                let res = asm.binary_mut().write_iword_check_size(val as i64);
+                let res = asm.get_binary_mut().write_iword_check_size(val as i64);
                 self.binary_error_map(asm, id, res)?;
             }
 
             ConstantByteOffset(_, val) | PcOffsetByte(val) => {
-                let res = asm.binary_mut().write_ibyte_check_size(val as i64);
+                let res = asm.get_binary_mut().write_ibyte_check_size(val as i64);
                 self.binary_error_map(asm, id, res)?;
             }
             _ => (),
@@ -170,13 +163,13 @@ impl<'a> Compiler<'a> {
         let size = args[1];
 
         let bytes_ret = asm
-            .binary()
+            .get_binary()
             .get_bytes(source as usize, size as usize)
             .map(|n| n.to_vec());
 
         let bytes = bytes_ret.map_err(|e| self.binary_error(asm, id, e))?;
 
-        asm.binary_mut()
+        asm.get_binary_mut()
             .write_bytes(&bytes)
             .map_err(|e| self.binary_error(asm, id, e))?;
 
@@ -207,9 +200,9 @@ impl<'a> Compiler<'a> {
 
         let file = file_name.as_ref().to_path_buf();
 
-        let (.., data) = asm.read_binary(&file_name)?;
+        let (.., data) = asm.read_binary_file(&file_name)?;
 
-        let dest = asm.binary().get_write_location().physical;
+        let dest = asm.get_binary().get_write_location().physical;
 
         let bin_ref = BinRef {
             file: file.clone(),
@@ -218,7 +211,7 @@ impl<'a> Compiler<'a> {
             dest,
         };
 
-        asm.binary_mut().add_bin_reference(&bin_ref, &data);
+        asm.get_binary_mut().add_bin_reference(&bin_ref, &data);
 
         debug_mess!(
             "Adding binary reference {} for {:05X} - {:05X}",
@@ -231,13 +224,13 @@ impl<'a> Compiler<'a> {
     }
 
     fn write_word(&mut self, val: u16, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        let ret = asm.binary_mut().write_word(val);
+        let ret = asm.get_binary_mut().write_word(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
     fn write_byte(&mut self, val: u8, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        let ret = asm.binary_mut().write_byte(val);
+        let ret = asm.get_binary_mut().write_byte(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
@@ -248,7 +241,7 @@ impl<'a> Compiler<'a> {
         asm: &mut Assembler,
         id: AstNodeId,
     ) -> GResult<()> {
-        let ret = asm.binary_mut().write_byte_check_size(val);
+        let ret = asm.get_binary_mut().write_byte_check_size(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
@@ -258,18 +251,18 @@ impl<'a> Compiler<'a> {
         asm: &mut Assembler,
         id: AstNodeId,
     ) -> GResult<()> {
-        let ret = asm.binary_mut().write_word_check_size(val);
+        let ret = asm.get_binary_mut().write_word_check_size(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
-    fn write_byte_word_size(
+    fn _write_byte_word_size(
         &mut self,
         val: i64,
         asm: &mut Assembler,
         id: AstNodeId,
     ) -> GResult<()> {
-        let ret = asm.binary_mut().write_word_check_size(val);
+        let ret = asm.get_binary_mut().write_word_check_size(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
@@ -284,7 +277,7 @@ impl<'a> Compiler<'a> {
     ) -> GResult<()> {
         use isa::AddrModeEnum::*;
 
-        let pc = asm.binary().get_write_address();
+        let pc = asm.get_binary().get_write_address();
         let ins_amode = ins.addr_mode;
         let current_scope_id = self.scopes.scope();
 
@@ -331,7 +324,7 @@ impl<'a> Compiler<'a> {
                     .map_err(|x| match x {
                         DoesNotFit { .. } => self.relative_error(asm, id, val, 8),
                         DoesNotMatchReference { .. } => self.binary_error(asm, id, x),
-                        _ => asm.user_error(format!("{x:?}"), arg_n, false).into(),
+                        _ => asm.make_user_error(format!("{x:?}"), arg_n, false).into(),
                     });
 
                 match &res {
@@ -339,7 +332,7 @@ impl<'a> Compiler<'a> {
                     Err(_) => {
                         if asm.opts.ignore_relative_offset_errors {
                             // messages::warning("Skipping writing relative offset");
-                            let res = asm.binary_mut().write_ibyte_check_size(0);
+                            let res = asm.get_binary_mut().write_ibyte_check_size(0);
                             self.binary_error_map(asm, id, res)?;
                         } else {
                             res?;
@@ -357,12 +350,12 @@ impl<'a> Compiler<'a> {
 
                 let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
                 // offset is from PC after Instruction and operand has been fetched
-                let res = asm.binary_mut().write_word_check_size(val);
+                let res = asm.get_binary_mut().write_word_check_size(val);
 
                 res.map_err(|x| match x {
                     DoesNotFit { .. } => self.relative_error(asm, id, val, 16),
                     DoesNotMatchReference { .. } => self.binary_error(asm, id, x),
-                    _ => asm.user_error(format!("{x:?}"), arg_n, true).into(),
+                    _ => asm.make_user_error(format!("{x:?}"), arg_n, true).into(),
                 })?;
             }
 
@@ -389,7 +382,7 @@ impl<'a> Compiler<'a> {
         };
 
         // Add memory to source code mapping for this opcode
-        let (phys_range, range) = asm.binary().range_to_write_address(pc);
+        let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
         self.add_mapping(asm, phys_range, range, id, ItemType::OpCode);
         Ok(())
     }
@@ -408,10 +401,10 @@ impl<'a> Compiler<'a> {
             r.len()
         );
 
-        let (.., bin) = asm.read_binary_chunk(file, r.clone())?;
+        let (.., bin) = asm.read_binary_file_chunk(file, r.clone())?;
 
         for val in bin {
-            asm.binary_mut()
+            asm.get_binary_mut()
                 .write_byte(val)
                 .map_err(|e| self.binary_error(asm, id, e))?;
         }
@@ -432,7 +425,7 @@ impl<'a> Compiler<'a> {
 
         let (node_id, i) = self.get_node_id_item(asm, id);
 
-        let mut pc = asm.binary().get_write_address();
+        let mut pc = asm.get_binary().get_write_address();
         let mut do_source_mapping = asm.opts.lst_file.is_some();
         let current_scope_id = self.scopes.scope();
 
@@ -454,11 +447,11 @@ impl<'a> Compiler<'a> {
             }
 
             Skip(skip) => {
-                asm.binary_mut().skip(skip);
+                asm.get_binary_mut().skip(skip);
             }
 
             SetPc(new_pc) => {
-                asm.binary_mut().set_write_address(new_pc, 0);
+                asm.get_binary_mut().set_write_address(new_pc, 0);
 
                 pc = new_pc;
                 debug_mess!("Set PC to {:02X}", pc);
@@ -466,7 +459,7 @@ impl<'a> Compiler<'a> {
 
             SetPutOffset(offset) => {
                 debug_mess!("Set put offset to {}", offset);
-                asm.binary_mut().set_write_offset(offset);
+                asm.get_binary_mut().set_write_offset(offset);
             }
 
             Cpu(OpCode(_, ins, amode)) => {
@@ -514,11 +507,11 @@ impl<'a> Compiler<'a> {
 
                 for n in node.children() {
                     let x = asm.eval_node(n, current_scope_id)?;
-                    let e = asm.binary_mut().write_word_check_size(x);
+                    let e = asm.get_binary_mut().write_word_check_size(x);
                     self.binary_error_map(asm, id, e)?;
                 }
 
-                let (phys_range, range) = asm.binary().range_to_write_address(pc);
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
                 self.add_mapping(asm, phys_range, range, id, ItemType::Command);
             }
 
@@ -526,19 +519,19 @@ impl<'a> Compiler<'a> {
                 let node = self.get_node(node_id);
                 for n in node.children() {
                     let x = asm.eval_node(n, current_scope_id)?;
-                    let e = asm.binary_mut().write_byte_check_size(x);
+                    let e = asm.get_binary_mut().write_byte_check_size(x);
                     self.binary_error_map(asm, id, e)?;
                 }
-                let (phys_range, range) = asm.binary().range_to_write_address(pc);
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
                 self.add_mapping(asm, phys_range, range, id, ItemType::Command);
             }
 
             Fcc(text) => {
                 for c in text.as_bytes() {
-                    let e = asm.binary_mut().write_byte(*c);
+                    let e = asm.get_binary_mut().write_byte(*c);
                     self.binary_error_map(asm, id, e)?;
                 }
-                let (phys_range, range) = asm.binary().range_to_write_address(pc);
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
                 self.add_mapping(asm, phys_range, range, id, ItemType::Command);
             }
 
@@ -546,10 +539,10 @@ impl<'a> Compiler<'a> {
                 let node = self.get_node(node_id);
                 let (bytes, _) = asm.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..bytes {
-                    let e = asm.binary_mut().write_byte(0);
+                    let e = asm.get_binary_mut().write_byte(0);
                     self.binary_error_map(asm, id, e)?;
                 }
-                let (phys_range, range) = asm.binary().range_to_write_address(pc);
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
                 self.add_mapping(asm, phys_range, range, id, ItemType::Command);
             }
 
@@ -557,11 +550,11 @@ impl<'a> Compiler<'a> {
                 let node = self.get_node(node_id);
                 let (words, _) = asm.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..words {
-                    let e = asm.binary_mut().write_word(0);
+                    let e = asm.get_binary_mut().write_word(0);
                     self.binary_error_map(asm, id, e)?;
                 }
 
-                let (phys_range, range) = asm.binary().range_to_write_address(pc);
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
                 self.add_mapping(asm, phys_range, range, id, ItemType::Command);
             }
 
@@ -570,11 +563,11 @@ impl<'a> Compiler<'a> {
                 let (size, byte) = asm.eval_two_args(node, current_scope_id)?;
 
                 for _ in 0..size {
-                    let e = asm.binary_mut().write_ubyte_check_size(byte);
+                    let e = asm.get_binary_mut().write_ubyte_check_size(byte);
                     self.binary_error_map(asm, id, e)?;
                 }
 
-                let (phys_range, range) = asm.binary().range_to_write_address(pc);
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
                 self.add_mapping(asm, phys_range, range, id, ItemType::Command);
             }
 

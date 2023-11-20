@@ -216,7 +216,7 @@ impl<'a> Sizer<'a> {
 
                 if bytes < 0 {
                     return Err(asm
-                        .user_error("Argument for RMB must be positive", node, true)
+                        .make_user_error("Argument for RMB must be positive", node, true)
                         .into());
                 };
 
@@ -282,7 +282,7 @@ impl<'a> Sizer<'a> {
             }
 
             TokenizedFile(..) => {
-                for c in asm.get_children(node) {
+                for c in asm.get_node_children(node) {
                     self.size_node(asm, c)?;
                 }
             }
@@ -317,7 +317,15 @@ impl<'a> Sizer<'a> {
 
             Cpu(SetDp) => {
                 let (dp, _) = asm.eval_first_arg(node, current_scope_id)?;
-                asm.set_dp(dp);
+                if dp < 0 {
+                    panic!("Less than zerp?!?!?");
+                }
+
+                if dp >= 256 {
+                    panic!("Too big!")
+                }
+
+                asm.asm_out.set_dp(( ( dp as u64 )&0xff ) as u8);
             }
 
             IncBin(file_name) => {
@@ -336,7 +344,7 @@ impl<'a> Sizer<'a> {
 
             _ => {
                 let msg = format!("Unable to size {i:?}");
-                return Err(asm.user_error(msg, node, true).into());
+                return Err(asm.make_user_error(msg, node, true).into());
             }
         };
 
@@ -367,7 +375,7 @@ impl<'a> Sizer<'a> {
             if !(r.contains(&offset_usize) && r.contains(&last)) {
                 let msg =
                     format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
-                return Err(asm.user_error(msg, node, true).into());
+                return Err(asm.make_user_error(msg, node, true).into());
             };
 
             r.start = offset_usize;

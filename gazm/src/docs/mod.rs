@@ -1,3 +1,4 @@
+
 use convert_case::{Case, Casing};
 use core::hash::Hash;
 use std::{collections::HashMap, fs, io::Result, path::PathBuf};
@@ -13,6 +14,7 @@ lazy_static::lazy_static! {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HelpText<K>
 where
     K: Hash + PartialEq + Eq,
@@ -20,6 +22,7 @@ where
     all_help: HashMap<K, String>,
 }
 
+#[allow(dead_code)]
 impl<K: Hash + PartialEq + Eq> HelpText<K> {
     pub fn new(all_help: HashMap<K, String>) -> Self {
         Self { all_help }
@@ -30,6 +33,7 @@ impl<K: Hash + PartialEq + Eq> HelpText<K> {
     }
 }
 
+#[allow(dead_code)]
 impl HelpText<String> {
     pub fn get_str(&self, name: &str) -> Option<&str> {
         self.all_help.get(name).map(|x| x.as_str())

@@ -1,11 +1,10 @@
 #![forbid(unused_imports)]
-use grl_sources::{Position, SourceErrorType, SourceInfo};
 
 use crate::{
     ast::{Ast, AstNodeId, AstNodeRef},
     error::{GResult, UserError},
     gazmeval::eval,
-    gazmsymbols::{SymbolInfo, SymbolTree},
+    gazmsymbols::SymbolInfo,
     frontend::Item::*,
 };
 
@@ -71,15 +70,7 @@ impl Assembler {
         }
     }
 
-    pub fn get_symbols_mut(&mut self) -> &mut SymbolTree {
-        &mut self.asm_out.symbols
-    }
-
-    pub fn get_symbols(&self) -> &SymbolTree {
-        &self.asm_out.symbols
-    }
-
-    pub fn get_children(&self, node: AstNodeRef) -> Vec<AstNodeId> {
+    pub fn get_node_children(&self, node: AstNodeRef) -> Vec<AstNodeId> {
         node.children().map(|n| n.id()).collect()
     }
 
@@ -102,19 +93,6 @@ impl Assembler {
         })
     }
 
-    pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, SourceErrorType> {
-        self.get_source_file_loader().sources.get_source_info(pos)
-    }
-
-    pub fn user_error<S: Into<String>>(
-        &self,
-        err: S,
-        node: AstNodeRef,
-        is_failure: bool,
-    ) -> UserError {
-        let info = self.get_source_info(&node.value().pos).unwrap();
-        UserError::from_text(err, &info, is_failure)
-    }
 
     pub fn eval_first_arg(
         &self,
@@ -123,7 +101,7 @@ impl Assembler {
     ) -> GResult<(i64, AstNodeId)> {
         let c = node
             .first_child()
-            .ok_or_else(|| self.user_error("Missing argument", node, true))?;
+            .ok_or_else(|| self.make_user_error("Missing argument", node, true))?;
         let v = self.eval_node(c, current_scope_id)?;
         Ok((v, c.id()))
     }
@@ -145,4 +123,5 @@ impl Assembler {
             .map(|node| self.eval_node(node, current_scope_id))
             .collect()
     }
+
 }

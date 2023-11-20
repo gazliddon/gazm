@@ -1,17 +1,28 @@
 #![forbid(unused_imports)]
-pub mod edit;
-pub mod writers;
-pub mod evaluator;
-pub mod sizer;
-pub mod compile;
-pub mod fixerupper;
-pub mod bytesizes;
-pub mod binary;
-pub mod regutils;
-pub mod scopes;
-pub mod scopetracker;
-
+mod edit;
+mod writers;
+mod evaluator;
+mod sizer;
+mod compile;
+mod bytesizes;
+mod binary;
+mod scopes;
+mod scopetracker;
 mod asm;
+
+pub (self) mod fixerupper;
+pub (self) mod regutils;
+
 pub use asm::*;
+pub use edit::*;
+pub use writers::*;
+pub use evaluator::*;
+pub use sizer::*;
+pub use compile::*;
+pub use bytesizes::*;
+pub use binary::*;
+pub use regutils::*;
+pub use scopes::*;
+pub use scopetracker::*;
 
 

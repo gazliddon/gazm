@@ -211,11 +211,6 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, EvalE
     s.pop().ok_or( EvalError::new(EvalErrorEnum::CantPopTop,n))
 }
 
-pub fn eval_symboltree(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError> {
-    let ret = eval_internal(symbols, n)?;
-    Ok(ret.unrwap_number().unwrap())
-}
-
 pub fn eval(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError> {
     let ret = eval_internal(symbols, n)?;
     Ok(ret.unrwap_number().unwrap())

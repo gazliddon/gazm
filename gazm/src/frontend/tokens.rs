@@ -275,17 +275,17 @@ pub fn to_tokens_kinds(
         .collect()
 }
 
-fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
-    let ret = to_tokens_kinds(source_file);
+// fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
+//     let ret = to_tokens_kinds(source_file);
 
-    ret.into_iter()
-        .map(|(tk, r)| {
-            let pt = ParseText::new(source_file, r);
-            let t: Token = Token::new(tk, pt);
-            t
-        })
-        .collect()
-}
+//     ret.into_iter()
+//         .map(|(tk, r)| {
+//             let pt = ParseText::new(source_file, r);
+//             let t: Token = Token::new(tk, pt);
+//             t
+//         })
+//         .collect()
+// }
 
 pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token> {
     use TokenKind::*;

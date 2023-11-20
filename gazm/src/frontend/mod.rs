@@ -1,4 +1,3 @@
-mod ast;
 mod commands;
 mod error;
 mod expr;
@@ -29,6 +28,6 @@ pub use {item::*, opcodes::*, testit::*, token_store::*, tokenize::*};
 pub mod basetoken;
 
 pub use {
-    ast::*, commands::*, error::*, expr::*, gazmunraveller::*, indexed::*, macros::*, misc::*,
+    commands::*, error::*, expr::*, gazmunraveller::*, indexed::*, macros::*, misc::*,
     node::*, nodeiter::*, parse::*, parsetext::*, register::*, structs::*, tokens::*, utils::*,
 };

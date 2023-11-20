@@ -56,8 +56,6 @@ pub(crate) fn parse_scope(input: TSpan) -> PResult<Node> {
     Ok((rest, Node::from_item_tspan(Item::Scope(name), sp)))
 }
 
-fn to_ast(_tokes: &[TokenKind], _txt: &str) {}
-
 fn command_with_file(input: TSpan, ck: CommandKind) -> PResult<(TSpan, PathBuf)> {
     ms(preceded(ck, get_file_name))(input)
 }
@@ -217,6 +215,7 @@ pub fn parse_command(input: TSpan) -> PResult<Node> {
         parse_exec,
         parse_require,
         parse_import,
+        parse_grabmem,
     ))(input)?;
 
     debug_mess!("Parse command: {:?}", matched.item);

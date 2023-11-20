@@ -2,9 +2,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    ast::{Ast, AstCtx, AstNodeId},
-    error::{ErrorCollector, GResult, GazmErrorKind},
-    frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
+    ast::{Ast, AstCtx, AstNodeId, AstNodeRef},
+    error::{ErrorCollector, GResult, GazmErrorKind, UserError},
+    frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult, },
     frontend::{FrontEndError, FrontEndErrorKind, Item, Node},
     gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
@@ -15,6 +15,7 @@ use crate::{
 };
 
 use grl_sources::{
+    SourceErrorType,SourceInfo,
     fileloader::SourceFileLoader,
     grl_utils::{fileutils, FResult, FileIo, PathSearcher},
     AsmSource, BinToWrite, Position, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
@@ -60,6 +61,15 @@ pub struct AsmOut {
     pub ast: Option<Ast>,
     /// Used for mapping labesl to source position
     pub lookup: Option<LabelUsageAndDefintions>,
+}
+
+impl AsmOut {
+    pub fn set_dp(&mut self,val: u8) {
+        self.direct_page = Some(val)
+    }
+    pub fn reset_dp(&mut self) {
+        self.direct_page = None;
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -191,8 +201,16 @@ impl Assembler {
         }
     }
 
-    pub fn path_to_id<P: AsRef<Path>>(&self, p: P) -> Option<u64> {
-        self.sources().get_source(p).ok().map(|r| r.0)
+    pub fn get_symbols_mut(&mut self) -> &mut SymbolTree {
+        &mut self.asm_out.symbols
+    }
+
+    pub fn get_symbols(&self) -> &SymbolTree {
+        &self.asm_out.symbols
+    }
+
+    pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, SourceErrorType> {
+        self.get_source_file_loader().sources.get_source_info(pos)
     }
 }
 
@@ -408,21 +426,17 @@ impl Assembler {
 
 // File fuunction
 impl Assembler {
-    pub fn get_abs_path<P: AsRef<Path>>(&mut self, path: P) -> GResult<PathBuf> {
-        Ok(fileutils::abs_path_from_cwd(path))
-    }
-
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
         let ret = self.get_source_file_loader().get_size(path)?;
         Ok(ret)
     }
 
-    pub fn read_binary<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
+    pub fn read_binary_file<P: AsRef<Path>>(&mut self, path: P) -> GResult<(PathBuf, Vec<u8>)> {
         let ret = self.get_source_file_loader_mut().read_binary(path)?;
         Ok(ret)
     }
 
-    pub fn read_binary_chunk<P: AsRef<Path>>(
+    pub fn read_binary_file_chunk<P: AsRef<Path>>(
         &mut self,
         path: P,
         r: std::ops::Range<usize>,
@@ -435,21 +449,11 @@ impl Assembler {
 }
 
 impl Assembler {
-    pub fn set_dp(&mut self, dp: i64) {
-        if dp < 0 {
-            self.asm_out.direct_page = None;
-        } else {
-            self.asm_out.direct_page = Some(dp as u64 as u8);
-        }
-    }
-}
-
-impl Assembler {
-    pub fn binary(&self) -> &Binary {
+    pub fn get_binary(&self) -> &Binary {
         &self.asm_out.binary
     }
 
-    pub fn binary_mut(&mut self) -> &mut Binary {
+    pub fn get_binary_mut(&mut self) -> &mut Binary {
         &mut self.asm_out.binary
     }
 
@@ -467,7 +471,7 @@ impl Assembler {
             .get_bytes(physical_address, count)?
             .to_vec();
 
-        let path = self.get_abs_path(path)?;
+        let path = fileutils::abs_path_from_cwd(path);
         // Save a record of the file Written
         // this goes into the written sym file eventually
         let bin_to_write = BinToWrite::new(data, &path, range);
@@ -497,7 +501,7 @@ impl Assembler {
 
 impl Assembler {
     pub fn add_source_mapping(&mut self, pos: &Position, pc: usize) {
-        let (_, phys_range) = self.binary().range_to_write_address(pc);
+        let (_, phys_range) = self.get_binary().range_to_write_address(pc);
 
         let si = self.get_source_info(pos);
 
@@ -518,5 +522,15 @@ impl Assembler {
                 self.asm_out.lst_file.add(&m);
             }
         }
+    }
+
+    pub fn make_user_error<S: Into<String>>(
+        &self,
+        err: S,
+        node: AstNodeRef,
+        is_failure: bool,
+    ) -> UserError {
+        let info = self.get_source_info(&node.value().pos).unwrap();
+        UserError::from_text(err, &info, is_failure)
     }
 }

@@ -11,14 +11,14 @@ use unraveler::{ alt, many0, map, Collection, Severity};
 
 struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
-    span: TSpan<'a>,
+    _span: TSpan<'a>,
 }
 
 impl<'a> NodeCollector<'a> {
     pub fn new(sp: TSpan<'a>) -> Self {
         Self {
             nodes: thin_vec::ThinVec::with_capacity(4096),
-            span: sp,
+            _span: sp,
         }
     }
 
@@ -34,11 +34,9 @@ impl<'a> NodeCollector<'a> {
 
     pub fn add_vec(&mut self, nodes: Vec<Node>) {
         self.nodes.reserve(nodes.len());
-        self.nodes.extend(nodes)
-    }
-
-    pub fn into_block(self) -> Node {
-        Node::block(self.nodes, self.span)
+        for n in nodes {
+            self.add(n)
+        }
     }
 }
 
