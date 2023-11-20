@@ -97,7 +97,7 @@ impl FrontEndError {
     pub fn no_match_error(sp: TSpan) -> Self {
         Self::new(
             sp,
-            FrontEndErrorKind::ParseError(ParseErrorKind::NoMatch.into()),
+            FrontEndErrorKind::ParseError(ParseErrorKind::NoMatch),
             Severity::Fatal,
         )
     }
@@ -107,14 +107,14 @@ impl<'a> ParseError<TSpan<'a>> for FrontEndError {
     fn from_error_kind(input: TSpan, kind: ParseErrorKind, severity: Severity) -> Self {
         Self {
             position: to_pos(input),
-            kind: FrontEndErrorKind::ParseError(kind.into()),
+            kind: FrontEndErrorKind::ParseError(kind),
             severity,
         }
     }
 
     fn change_kind(self, kind: ParseErrorKind) -> Self {
         Self {
-            kind: FrontEndErrorKind::ParseError(kind.into()),
+            kind: FrontEndErrorKind::ParseError(kind),
             ..self
         }
     }

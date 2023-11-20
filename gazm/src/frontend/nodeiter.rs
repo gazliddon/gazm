@@ -162,7 +162,7 @@ impl<'a, I: Clone, C: CtxTrait> Iterator for NodeIter<'a, BaseNode<I, C>> {
     }
 }
 
-impl<'a, I: Clone, C: CtxTrait> HasKids for BaseNode<I, C> {
+impl< I: Clone, C: CtxTrait> HasKids for BaseNode<I, C> {
     fn num_of_kids(&self) -> usize {
         self.children.len()
     }

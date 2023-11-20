@@ -233,7 +233,7 @@ impl UserErrorData {
     pub fn new(message: &str, failure: bool, si: &SourceInfo) -> Self {
         Self {
             message : message.to_string(),
-            pos: si.pos.clone(),
+            pos: si.pos,
             fragment: si.fragment.to_string(),
             line: si.line_str.to_string(),
             file: si.file.clone(),
@@ -261,7 +261,7 @@ impl UserErrorData {
         let si = sources.get_source_info(pos).unwrap();
         let failure = err.failure;
         let message = &err.message();
-        Self::new(&message,failure,&si)
+        Self::new(message,failure,&si)
     }
 
     pub fn pretty(&self) -> GResult<String> {

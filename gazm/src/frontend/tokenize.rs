@@ -251,7 +251,7 @@ where
             (Vec::with_capacity(size), Vec::with_capacity(size)),
             |(mut to_tok, mut incs), (position, req_file, parent)| {
                 use GetTokensResult::*;
-                let position = position.clone();
+                let position = *position;
 
                 // TODO: Replace parent with incstack
                 let tokes =
