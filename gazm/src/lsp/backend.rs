@@ -141,7 +141,7 @@ impl Assembler {
         let pos = position_to_text_pos(lsp_pos);
         uri.to_file_path().ok().and_then(|p| {
             self.sources().get_source(p).ok().and_then(|(id, sf)| {
-                sf.source
+                sf.get_text()
                     .start_pos_to_index(&pos)
                     .map(|start_pos| {
                         let p = GazmPosition::new(

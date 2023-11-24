@@ -19,7 +19,7 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
     match opts.build_type {
         BuildType::Test => {
             status_mess!("Testing! {}", opts.project_file.to_string_lossy());
-            frontend::test(opts);
+            frontend::test_it(opts);
             status_mess!("Done!");
         }
 

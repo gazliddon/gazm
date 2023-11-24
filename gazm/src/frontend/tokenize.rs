@@ -1,11 +1,14 @@
-#![deny(unused_imports)]
+// #![deny(unused_imports)]
 
-use super::{parse_source_chunks, FrontEndError, FrontEndErrorKind, Item, Node};
+use super::{FrontEndError, FrontEndErrorKind, Item, Node, OriginalSource};
 
-use crate::{assembler::Assembler, debug_mess, opts::Opts};
+use crate::{
+    assembler::Assembler, debug_mess, error::UserErrorData, frontend::parse_all_with_resume,
+    opts::Opts,
+};
 
 use grl_sources::{
-    grl_utils::{Stack, FileError, FResult},
+    grl_utils::{FResult, FileError, Stack},
     Position, SourceFile,
 };
 use itertools::Itertools;
@@ -20,7 +23,7 @@ pub struct TokenizeRequest {
     pub parent: Option<PathBuf>,
     pub opts: Opts,
     pub include_stack: IncludeStack,
-    pub opt_pos: Option<Position>
+    pub opt_pos: Option<Position>,
 }
 
 impl TokenizeRequest {
@@ -28,8 +31,8 @@ impl TokenizeRequest {
         Self {
             requested_file: source_file.file.clone(),
             source_file,
-            parent: None,
             opts: opts.clone(),
+            parent: None,
             include_stack: Default::default(),
             opt_pos: None,
         }
@@ -81,29 +84,43 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
 }
 
 impl TokenizeRequest {
+    pub fn to_result(self)  -> TokenizeResult{
+        let (node, errors) = self.tokenize().unwrap();
+        TokenizeResult {
+            node,
+            errors,
+            request: self,
+        }
+
+    }
+}
+
+
+impl TokenizeRequest {
+
     pub fn tokenize(&self) -> Result<(Node, Vec<FrontEndError>), FrontEndError> {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
-        use unraveler::Collection;
         let tokens = to_tokens_no_comment(&self.source_file);
         let mut span = make_tspan(&tokens, &self.source_file, &self.opts);
 
         let mut final_nodes = vec![];
         let mut errors = vec![];
 
-        while !span.is_empty() {
-            // TODO need to collect errors properly - this parser should be an ALL parser
-            let result = parse_source_chunks(span);
+        let result = parse_all_with_resume(span);
 
-            match result {
-                Err(e) => {
-                    errors.push(e);
-                    panic!()
-                }
+        match result {
+            Err(e) => {
+                match e.kind {
+                    FrontEndErrorKind::TooManyErrors(some_errors) => {
+                        errors.extend(some_errors.to_vec());
+                    }
+                    _ => errors.push(e),
+                };
+            }
 
-                Ok((rest, nodes)) => {
-                    final_nodes.extend_from_slice(&nodes);
-                    span = rest;
-                }
+            Ok((rest, nodes)) => {
+                final_nodes.extend_from_slice(&nodes);
+                span = rest;
             }
         }
 
@@ -182,10 +199,7 @@ impl Assembler {
         Ok(full_paths)
     }
 
-    fn get_full_paths(
-        &self,
-        paths: &[(Position, PathBuf)],
-    ) -> FResult<Vec<(Position, PathBuf)>> {
+    fn get_full_paths(&self, paths: &[(Position, PathBuf)]) -> FResult<Vec<(Position, PathBuf)>> {
         let res: Result<Vec<(Position, PathBuf)>, FileError> = paths
             .iter()
             .unique()
@@ -254,13 +268,13 @@ where
                 let position = *position;
 
                 // TODO: Replace parent with incstack
-                let tokes =
-                    ctx.get_tokens(req_file, parent.clone(), Some(position))
-                        .map_err(|kind| FrontEndError {
-                            position,
-                            kind,
-                            severity: unraveler::Severity::Error,
-                        })?;
+                let tokes = ctx
+                    .get_tokens(req_file, parent.clone(), Some(position))
+                    .map_err(|kind| FrontEndError {
+                        position,
+                        kind,
+                        severity: unraveler::Severity::Error,
+                    })?;
 
                 match tokes {
                     Tokens(tokes) => {
@@ -298,7 +312,11 @@ where
                     let req = &res.request;
                     debug_mess!("Tokenized! {}", req.source_file.file.to_string_lossy());
                     ctx.add_front_end_error(&res.errors)?;
-                    incs_to_process.push((req.opt_pos.unwrap_or(Position::default()), req.requested_file.clone(), req.parent.clone()));
+                    incs_to_process.push((
+                        req.opt_pos.unwrap_or(Position::default()),
+                        req.requested_file.clone(),
+                        req.parent.clone(),
+                    ));
                     ctx.get_token_store_mut().add_tokens(res);
                 }
                 Err(e) => ctx.add_front_end_error(&[e])?,

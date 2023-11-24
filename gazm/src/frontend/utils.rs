@@ -6,7 +6,7 @@ use super::{
 
 use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
-use unraveler::{match_span as ms, wrapped_cut, Collection, Parser, Severity};
+use unraveler::{match_span as ms, wrapped_cut, Collection, ParseErrorKind, Parser, Severity};
 
 pub fn mk_pc_equate(node: &Node) -> Node {
     use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
@@ -76,25 +76,44 @@ pub fn create_source_file(text: &str) -> SourceFile {
     SourceFile::new("No file", text, grl_sources::AsmSource::FileId(0))
 }
 
+fn wrong_termination(e: FrontEndError, kind: FrontEndErrorKind) -> FrontEndError {
+    use FrontEndErrorKind::*;
+    match e.kind {
+        ParseError(ParseErrorKind::MissingWrapTerminator) => FrontEndError { kind, ..e },
+        _ => e,
+    }
+}
+
 pub fn parse_block<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
     P: Parser<TSpan<'a>, O, FrontEndError> + Copy,
 {
-    move |i| wrapped_cut(OpenBrace, p, CloseBrace)(i)
+    use FrontEndErrorKind::*;
+    move |i| {
+        wrapped_cut(OpenBrace, p, CloseBrace)(i).map_err(|e| wrong_termination(e, NoCloseBrace))
+    }
 }
 
 pub fn parse_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
     P: Parser<TSpan<'a>, O, FrontEndError>,
 {
-    move |i| wrapped_cut(OpenBracket, p, CloseBracket)(i)
+    use FrontEndErrorKind::*;
+    move |i| {
+        wrapped_cut(OpenBracket, p, CloseBracket)(i)
+            .map_err(|e| wrong_termination(e, NoCloseBracket))
+    }
 }
 
 pub fn parse_sq_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
 where
     P: Parser<TSpan<'a>, O, FrontEndError>,
 {
-    move |i| wrapped_cut(OpenSquareBracket, p, CloseSquareBracket)(i)
+    use FrontEndErrorKind::*;
+    move |i| {
+        wrapped_cut(OpenSquareBracket, p, CloseSquareBracket)(i)
+            .map_err(|e| wrong_termination(e, NoCloseSqBracket))
+    }
 }
 
 /// Split this span at the next line

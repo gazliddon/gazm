@@ -89,6 +89,7 @@ fn get_instruction(amode: AddrModeParseType, info: &InstructionInfo) -> Option<&
 
 fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     use Item::*;
+    use AssemblyErrorKind::*;
     let (rest, (sp, text, info)) = get_opcode(input)?;
 
     let (rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
@@ -113,7 +114,9 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(item.into(), sp).take_others_children(arg);
         Ok((rest, node))
     } else {
-        Err(FrontEndError::unsupported_addr_mode(sp))
+        Err(
+            parse_fail(AddrModeUnsupported, sp))
+
     }
 }
 
@@ -133,7 +136,7 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(oc.into(), sp);
         Ok((rest, node))
     } else {
-        Err(FrontEndError::unsupported_addr_mode(sp))
+        Err(parse_fail(AssemblyErrorKind::AddrModeUnsupported, sp))
     }
 }
 pub fn parse_opcode(input: TSpan) -> PResult<Node> {

@@ -8,7 +8,7 @@ use super::{
 use crate::debug_mess;
 use std::path::PathBuf;
 use unraveler::{
-    alt, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Parser,
+    alt, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Parser,cut,
 };
 
 fn get_quoted_string(input: TSpan) -> PResult<String> {
@@ -146,7 +146,7 @@ pub(crate) fn parse_incbin_ref(input: TSpan) -> PResult<Node> {
 }
 
 pub(crate) fn parse_fcb(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched)) = ms(preceded(CommandKind::Fcb, parse_expr_list))(input)?;
+    let (rest, (sp, matched)) = ms(preceded(CommandKind::Fcb, cut(parse_expr_list)))(input)?;
     let node = Node::from_item_kids_tspan(Item::Fcb(matched.len()), &matched, sp);
     Ok((rest, node))
 }

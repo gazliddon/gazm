@@ -208,7 +208,6 @@ impl std::fmt::Debug for UserWarning {
 pub struct UserErrorData {
     pub message: String,
     pub pos: Position,
-    pub fragment: String,
     pub line: String,
     pub file: std::path::PathBuf,
     pub failure: bool,
@@ -233,7 +232,6 @@ impl UserErrorData {
         Self {
             message : message.to_string(),
             pos: si.pos,
-            fragment: si.fragment.to_string(),
             line: si.line_str.to_string(),
             file: si.file.clone(),
             failure,

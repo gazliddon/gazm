@@ -1,10 +1,13 @@
 #![deny(unused_imports)]
 
-use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0, wrapped_cut};
+use unraveler::{
+    alt, many0, match_span as ms, pair, sep_list, sep_list0, 
+};
 
 use super::{
-    concat, parse_label, parse_number, Item, Node, PResult, TSpan,
-    TokenKind::{self, *},
+    concat, parse_label, parse_number, Item, Node, PResult,
+    TSpan,
+    TokenKind::{self, *}, parse_bracketed,
 };
 
 pub fn op_to_node(input: TSpan, toke: TokenKind, item: Item) -> PResult<Node> {
@@ -31,7 +34,7 @@ fn parse_unary_op(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_bracketed_expr(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, mut matched)) = ms(wrapped_cut(OpenBracket, parse_expr, CloseBracket))(input)?;
+    let (rest, (sp, mut matched)) = ms(parse_bracketed(parse_expr))(input)?;
     matched.item = Item::BracketedExpr;
     Ok((rest, matched.with_tspan(sp)))
 }

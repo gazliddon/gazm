@@ -1,5 +1,5 @@
 #![deny(unused_imports)]
-use unraveler::{alt, match_span as ms, pair, preceded, sep_pair, succeeded, tag};
+use unraveler::{alt, match_span as ms, pair, preceded, sep_pair, succeeded, tag,cut};
 
 use super::{
     item6809::MC6809,
@@ -85,7 +85,7 @@ fn get_no_arg_indexed(input: TSpan) -> PResult<IndexParseType> {
     ))(input)?;
     Ok((rest, matched))
 }
-#[allow(dead_code)]
+
 fn get_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<IndexParseType> {
     let (rest, matched) = alt((
         get_pre_dec_dec,
@@ -99,7 +99,7 @@ fn get_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<IndexParseType> 
 }
 
 fn parse_offset(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, (expr, reg))) = ms(sep_pair(parse_expr, Comma, get_index_reg))(input)?;
+    let (rest, (sp, (expr, reg))) = ms(sep_pair(parse_expr, Comma, cut(get_index_reg)))(input)?;
 
     let offset = IndexParseType::ConstantOffset(reg);
     let item = MC6809::operand_from_index_mode(offset, false);
@@ -128,16 +128,15 @@ fn parse_no_arg_indexed(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
+    use AssemblyErrorKind::*;
     let (rest, (sp, matched)) = ms(get_no_arg_indexed)(input)?;
 
     match matched {
         IndexParseType::Plus(_) => {
-            let err = "Post-increment indexing not valid indirectly";
-            Err(parse_failure(err, sp))
+            Err(parse_fail(PostIncNotValidIndirect, sp))
         }
         IndexParseType::Sub(_) => {
-            let err = "Pre-decrement indexing not valid indirectly";
-            Err(parse_failure(err, sp))
+            Err(parse_fail(PreDecNotValidIndirect, sp))
         }
         _ => {
             let matched = Node::from_item_tspan(OperandIndexed(matched, false).into(), sp);

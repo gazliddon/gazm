@@ -1,13 +1,14 @@
 // #![deny(unused_imports)]
 use super::{
-    parse_command, parse_equate, parse_label, parse_line, parse_macro_call, parse_macro_def,
-    parse_multi_opcode_vec, parse_struct, split_at_next_line, utils::mk_pc_equate,
+    get_text, parse_command, parse_equate, parse_label, parse_line, parse_macro_call,
+    parse_macro_def, parse_multi_opcode_vec, parse_struct, split_at_next_line, utils::mk_pc_equate,
     FrontEndError, FrontEndErrorKind, Item, Node, PResult, TSpan,
 };
 
 use itertools::Itertools;
+use num_traits::Float;
 use thin_vec::ThinVec;
-use unraveler::{ alt, many0, map, Collection, Severity};
+use unraveler::{alt, many0, map, Collection, ParseError, ParseErrorKind, Severity};
 
 struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
@@ -52,23 +53,34 @@ pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node>> {
 pub fn parse_pc_equate(input: TSpan) -> PResult<Node> {
     map(parse_label, |n| mk_pc_equate(&n))(input)
 }
-/// Parse the next chunk of valid source
-pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node>> {
-    let (rest, matched) = alt((
-        parse_single_line,
-        map(parse_macro_def, |n| vec![n]),
-        map(parse_struct, |n| vec![n]),
-        map(parse_pc_equate, |n| vec![n]),
-    ))(input)?;
-    Ok((rest, matched))
+
+fn as_vec(n: Node) -> Vec<Node> {
+    vec![n]
 }
 
-/// Parse as many chunks of source that I can
-pub fn parse_source_chunks(input: TSpan) -> PResult<Vec<Node>> {
-    let mut nodes = NodeCollector::new(input);
-    let (rest, matched) = many0(parse_next_source_chunk)(input)?;
-    nodes.add_vec(matched.into_iter().flatten().collect_vec());
-    Ok((rest, nodes.nodes.into()))
+/// Parse the next chunk of valid source
+pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node>> {
+    use FrontEndErrorKind::*;
+
+    // If we can't parse this chunk we need to xform the ParseError into
+    // something relevant upstream
+    let err_map = |e: FrontEndError| match &e.kind {
+        ParseError(ParseErrorKind::NoMatch) => FrontEndError {
+            kind: FrontEndErrorKind::Unexpected,
+            ..e
+        },
+        _ => e,
+    };
+
+    let (rest, matched) = alt((
+        parse_single_line,
+        map(parse_macro_def, as_vec),
+        map(parse_struct, as_vec),
+        map(parse_pc_equate, as_vec),
+    ))(input)
+    .map_err(err_map)?;
+
+    Ok((rest, matched))
 }
 
 /// Parse all of this span
@@ -78,20 +90,21 @@ pub fn parse_all_with_resume(mut input: TSpan) -> PResult<Vec<Node>> {
     let mut errors = vec![];
     let max_errors = input.extra().opts.max_errors;
 
-    while input.length() == 0 || errors.len() > max_errors {
+    while errors.len() <= max_errors && input.length() > 0 {
         let parse_result = parse_next_source_chunk(input);
 
         match parse_result {
             Err(e) => {
                 errors.push(e);
-                let (_, next_line) = split_at_next_line(input)?;
+                let (next_line, _this_line) = split_at_next_line(input).expect("Can't split!");
                 input = next_line;
             }
+
             Ok((rest, matched)) => {
-                input = rest;
                 ret.extend(matched);
+                input = rest;
             }
-        }
+        };
     }
 
     if errors.is_empty() {

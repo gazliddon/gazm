@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 use emu6809::cpu::RegEnum;
 use std::collections::HashSet;
-use unraveler::{match_span as ms, sep_list, sep_pair, Severity};
+use unraveler::{match_span as ms, sep_list, sep_pair};
 
 use super::{
     get_text,
@@ -9,7 +9,7 @@ use super::{
         AddrModeParseType,
         MC6809::{Operand, RegisterSet},
     },
-    FrontEndError, FrontEndErrorKind, IdentifierKind, Item, Node, PResult, TSpan,
+    parse_err, parse_fail, AssemblyErrorKind, IdentifierKind, Item, Node, PResult, TSpan,
     TokenKind::{self, *},
 };
 
@@ -28,16 +28,12 @@ pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_this_reg_local(input: TSpan, r: RegEnum) -> PResult<RegEnum> {
-    use FrontEndErrorKind::*;
+    use AssemblyErrorKind::*;
 
     let (rest, (sp, matched)) = ms(parse_register)(input)?;
 
     if matched != r {
-        Err(FrontEndError::new(
-            sp,
-            ExpectedDifferentRegister(matched, r),
-            Severity::Error,
-        ))
+        Err(parse_fail(ExpectedValidRegister, sp))
     } else {
         Ok((rest, matched))
     }
@@ -48,16 +44,13 @@ pub fn parse_this_reg(r: RegEnum) -> impl FnMut(TSpan) -> PResult<RegEnum> + Cop
 }
 
 fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
+    use AssemblyErrorKind::*;
     let mut hash_ret = HashSet::new();
     let (rest, (sp, matched)) = ms(sep_list(parse_register, Comma))(input)?;
 
     for r in matched {
         if hash_ret.contains(&r) {
-            return Err(FrontEndError::new(
-                sp,
-                FrontEndErrorKind::DuplicateRegisterInRegisterSet,
-                Severity::Fatal,
-            ));
+            return Err(parse_fail(InvalidRegisterSet, sp));
         }
         hash_ret.insert(r);
     }
@@ -67,14 +60,11 @@ fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
 
 pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
     let (rest, (sp, matched)) = ms(parse_register)(input)?;
+
     if matched.is_valid_for_index() {
         Ok((rest, matched))
     } else {
-        Err(FrontEndError::new(
-            sp,
-            FrontEndErrorKind::ExpectedAnIndexRegister,
-            Severity::Error,
-        ))
+        Err(parse_err(AssemblyErrorKind::ExpectedValidIndexRegister, sp))
     }
 }
 
@@ -89,11 +79,7 @@ pub fn parse_register(input: TSpan) -> PResult<RegEnum> {
     if let Ok(reg) = txt.as_str().parse::<RegEnum>() {
         Ok((rest, reg))
     } else {
-        Err(super::FrontEndError::new(
-            sp,
-            super::FrontEndErrorKind::ExpectedARegister,
-            unraveler::Severity::Error,
-        ))
+        Err(parse_err(AssemblyErrorKind::ExpectedValidRegister, sp))
     }
 }
 

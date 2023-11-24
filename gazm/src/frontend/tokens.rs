@@ -266,7 +266,7 @@ pub fn tokenize_6809<'a>(token: &Token<'a>) -> Token<'a> {
 pub fn to_tokens_kinds(
     source_file: &grl_sources::SourceFile,
 ) -> Vec<(TokenKind, std::ops::Range<usize>)> {
-    TokenKind::lexer(&source_file.source.source)
+    TokenKind::lexer(&source_file.get_text().source)
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
             Ok(kind) => (kind, pos),

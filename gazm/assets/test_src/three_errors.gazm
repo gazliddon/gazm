@@ -1,0 +1,14 @@
+
+    org 0
+
+    lda #1
+    sta 20
+    lda file,z
+
+    lda [,y+]
+    lda [,y+]
+    lda [,y+]
+
+    nop
+
+

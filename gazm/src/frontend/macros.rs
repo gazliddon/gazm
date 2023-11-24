@@ -2,7 +2,6 @@
 
 use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple};
 
-
 use super::{
     IdentifierKind::Label,
     Item::{MacroCall, MacroDef},
@@ -39,7 +38,7 @@ pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
         tuple((
             Identifier(Label),
             parse_macrodef_args,
-            parse_block(parse_source_chunks),
+            parse_block(parse_all_with_resume),
         )),
     ))(input)?;
 
@@ -47,25 +46,11 @@ pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
     Ok((rest, node))
 }
 
-#[allow(unused_imports)]
-#[allow(dead_code)]
+// #[allow(dead_code)]
 mod test {
-    use super::*;
-    use crate::{cli::parse_command_line, frontend::*};
-
-    use Item::Num;
-    use ParsedFrom::Hex;
-
-    use crate::opts::Opts;
-    use grl_eval::ExprItem::Expr;
-    use grl_sources::{grl_utils::Stack, SourceFile};
-    use itertools::Itertools;
-    use termimad::crossterm::style::Stylize;
+    use crate::{opts::Opts, frontend::*};
     use thin_vec::ThinVec;
-    use tower_lsp::lsp_types::{ClientInfo, CompletionItemCapability, DeleteFilesParams};
-    use unraveler::{all, cut, Collection, Parser};
-
-    ////////////////////////////////////////////////////////////////////////////////
+    use unraveler::all;
 
     #[test]
     fn parse_args() {
@@ -93,7 +78,7 @@ mod test {
 
     #[test]
     fn test_parse_macro_def() {
-        use thin_vec::thin_vec;
+        use itertools::Itertools;
         let text = r#"
 macro MKPROB(process,object_pic,collion_vec,blip) {
     fdb    MPROB
@@ -181,6 +166,8 @@ macro MKPROB(process,object_pic,collion_vec,blip) {
 
     #[test]
     fn test_macro_call() {
+    use Item::Num;
+    use ParsedFrom::Hex;
         let data = [
             ("SLEEP($60, $70)", vec![Num(0x60, Hex), Num(0x70, Hex)]),
             ("SLEEP()", vec![]),
