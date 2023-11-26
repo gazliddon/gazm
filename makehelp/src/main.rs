@@ -12,6 +12,8 @@ use structopt::StructOpt;
 #[structopt(author = "gazaxian")]
 #[structopt(rename_all = "kebab-case")]
 pub struct Opts {
+    #[structopt(short, long,)]
+    verbose: bool,
     #[structopt(short, long, parse(from_os_str))]
     out_file: Option<PathBuf>,
     #[structopt(name = "FILE", parse(from_os_str))]
@@ -25,9 +27,13 @@ fn main() -> Result<()> {
 
     let all = all.context("Loading help files")?;
 
-    if let Some(out_file) = opts.out_file {
-        let text = gencode::generate_rust_code(&all);
+    let text = gencode::generate_rust_code(&all);
+
+    if opts.verbose {
         println!("{text}");
+    }
+
+    if let Some(out_file) = opts.out_file {
         println!("Now write {out_file:?}");
     }
 

@@ -32,15 +32,6 @@ pub enum AssemblyErrorKind {
     #[error("Pre-decrement indexing not valid indirectly")]
     PreDecNotValidIndirect,
 
-    #[error("Expected an index register (X,Y,U,S)")]
-    ExpectedIndexRegister,
-
-    #[error("Expected a register")]
-    ExpectedRegister,
-
-    #[error("Unexpected duplicate register. This opcode expects a list of unique registers wihout any duplicates")]
-    InvalidRegisterSet,
-
     #[error("This {0:?} is not supported for this opcode")]
     ThisAddrModeUnsupported(AddrModeParseType),
 
@@ -49,6 +40,12 @@ pub enum AssemblyErrorKind {
 
     #[error("This instruction only supports inherent mode addressing")]
     OnlySupports(AddrModeParseType)
+}
+
+impl Into<FrontEndErrorKind> for ErrCode {
+    fn into(self) -> FrontEndErrorKind {
+        FrontEndErrorKind::HelpText(self)
+    }
 }
 
 #[derive(Debug, Error, Clone)]

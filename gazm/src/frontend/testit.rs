@@ -4,7 +4,7 @@ use grl_sources::{SourceFile, TextEditTrait};
 use std::fs;
 
 use crate::ast::{iter_ids_recursive, Ast};
-use crate::error::{UserError, UserErrorData};
+use crate::error::{UserError, UserErrorData,ErrorMessage};
 use crate::opts::Opts;
 
 use super::{
@@ -33,18 +33,26 @@ fn get_lines(sf: &SourceFile, line: isize) -> String {
 }
 
 fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
+    let message = if let FrontEndErrorKind::HelpText(ht) = e.kind {
+        let short = crate::help::HELP.get_short(ht);
+        let full_text = crate::help::HELP.get(ht);
+        ErrorMessage::Markdown(format!("{short}"),format!("{full_text}"))
+    } else {
+        ErrorMessage::Plain(format!("{e}"))
+    };
+
     let line = e.position.line();
     let line = get_line(sf, line as isize);
 
     let ued = UserErrorData {
-        message: format!("{e}"),
+        message,
         pos: e.position.clone(),
         line,
         file: sf.file.clone(),
         failure: true,
     };
 
-    UserError { data: ued.into() }
+    UserError{data: ued.into()}
 }
 
 pub fn test_it(opts: &Opts) {
@@ -57,11 +65,9 @@ pub fn test_it(opts: &Opts) {
     if tokes.errors.is_empty() {
         println!("Tokenized fine!")
     } else {
-        println!("Falied!");
-
         for e in tokes.errors {
             let err = to_user_error(e, &sf);
-            println!("{err}");
+            err.as_ref().print_pretty()
         }
     }
 }

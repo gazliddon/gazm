@@ -1,3 +1,7 @@
+---
+short: Whoops!
+---
+
 ## TFR
 
 Transfer register to register
@@ -30,4 +34,3 @@ destination sizes are different. This behavior differs from the 6309 implementat
 | TSTE            | INHERENT            | 114D       | 3 / 2      | 2              |
 | TSTF            | INHERENT            | 115D       | 3 / 2      | 2              |
 | TSTW            | INHERENT            | 105D       | 3 / 2      | 2              |
-

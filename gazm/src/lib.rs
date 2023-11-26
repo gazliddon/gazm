@@ -8,11 +8,11 @@ pub mod frontend;
 pub mod lsp;
 pub mod messages;
 pub mod opts;
+pub mod error;
 
 mod ast;
 mod astformat;
 mod docs;
-mod error;
 mod gazmeval;
 mod gazmsymbols;
 mod lookup;

@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 use emu6809::cpu::RegEnum;
+use error::FrontEndError;
 use std::collections::HashSet;
 use unraveler::{match_span as ms, sep_list, sep_pair, cut};
 
@@ -9,7 +10,7 @@ use super::{
         AddrModeParseType,
         MC6809::{Operand, RegisterSet},
     },
-    AssemblyErrorKind, IdentifierKind, Item, Node, PResult, TSpan,
+    IdentifierKind, Item, Node, PResult, TSpan,
     TokenKind::{self, *},
     fatal,error,
 };
@@ -29,12 +30,12 @@ pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_this_reg_local(input: TSpan, r: RegEnum) -> PResult<RegEnum> {
-    use AssemblyErrorKind::*;
+    use crate::help::ErrCode;
 
     let (rest, (sp, matched)) = ms(parse_register)(input)?;
 
     if matched != r {
-        fatal(sp, ExpectedRegister)
+        fatal(sp, ErrCode::ErrExpectedRegister)
     } else {
         Ok((rest, matched))
     }
@@ -45,13 +46,13 @@ pub fn parse_this_reg(r: RegEnum) -> impl FnMut(TSpan) -> PResult<RegEnum> + Cop
 }
 
 fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
-    use AssemblyErrorKind::*;
+    use crate::help::ErrCode::*;
     let mut hash_ret = HashSet::new();
     let (rest, (sp, matched)) = ms(sep_list(parse_register, Comma))(input)?;
 
     for r in matched {
         if hash_ret.contains(&r) {
-            return fatal(sp, InvalidRegisterSet);
+            return fatal(sp, ErrDuplicateRegisters);
         }
         hash_ret.insert(r);
     }
@@ -59,19 +60,24 @@ fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
     Ok((rest, hash_ret))
 }
 
-pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
-    use AssemblyErrorKind::ExpectedIndexRegister;
-    let (rest, (sp, matched)) = ms(parse_register)(input)?;
+pub fn fatal_get_index_reg(input: TSpan) -> PResult<RegEnum> {
+    use crate::help::ErrCode::ErrExpectedIndexRegister;
+
+    let (rest, (sp, matched)) = ms(cut( parse_register ))(input).map_err(|e| FrontEndError {
+        kind: ErrExpectedIndexRegister.into(),
+        ..e
+    })?;
 
     if matched.is_valid_for_index() {
         Ok((rest, matched))
     } else {
-        fatal(sp,ExpectedIndexRegister)
+        fatal(sp,ErrExpectedIndexRegister)
     }
 }
 
 pub fn parse_register(input: TSpan) -> PResult<RegEnum> {
-    use {AssemblyErrorKind::ExpectedRegister, IdentifierKind::*, TokenKind::*};
+    use {IdentifierKind::*, TokenKind::*};
+    use crate::help::ErrCode;
 
     let (rest, (sp, _matched)) = ms(Identifier(Label))(input)?;
 
@@ -80,7 +86,7 @@ pub fn parse_register(input: TSpan) -> PResult<RegEnum> {
     if let Ok(reg) = txt.as_str().parse::<RegEnum>() {
         Ok((rest, reg))
     } else {
-        error(sp, ExpectedRegister).into()
+        error(sp, ErrCode::ErrExpectedRegister).into()
     }
 }
 

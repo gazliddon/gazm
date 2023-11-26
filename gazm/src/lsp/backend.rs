@@ -206,7 +206,8 @@ impl Backend {
                 character: character as u32,
             };
             let range = Range::new(position, position);
-            let diag = Diagnostic::new_simple(range, e.message.clone());
+            // let diag = Diagnostic::new_simple(range, e.message.clone());
+            let diag = Diagnostic::new_simple(range, "FIX THIS GAZ".to_owned());
 
             diags.push((e.file.clone(), diag))
         }

@@ -1,17 +1,18 @@
 use gazm::{ 
     assembler::Assembler,
     cli::{parse_command_line, styling::get_banner},
-    fmt, frontend, info_mess, lsp, messages,
+    fmt, frontend, info_mess, messages,
     opts::{BuildType, Opts},
     status_mess,
+    error::GazmErrorKind,
 };
 
-fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
+fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
 
     if let Some(assemble_dir) = &opts.assemble_dir {
-        std::env::set_current_dir(assemble_dir)?;
+        std::env::set_current_dir(assemble_dir).expect("Can't change dir")
     }
 
     let mut asm = Assembler::new(opts.clone());
@@ -30,7 +31,7 @@ fn do_build(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
 
         BuildType::Lsp => {
             status_mess!("LSP");
-            lsp::do_lsp(opts)?;
+            // lsp::do_lsp(opts)?;
         }
 
         // Build of check to see if build is okay
@@ -70,9 +71,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ret = do_build(&opts);
 
-    if let Err(ref e) = ret {
-        println!("{e}")
-    }
+    match &ret {
+        Err(GazmErrorKind::UserError(ue)) => {
+            ue.as_ref().print_pretty()
+        },
+
+        Err(e) => {
+            println!("{e}");
+        }
+
+        Ok(..) => {
+
+        }
+    };
 
     set_current_dir(cur_dir)?;
 

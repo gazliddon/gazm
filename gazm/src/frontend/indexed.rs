@@ -24,54 +24,60 @@ use emu6809::cpu::RegEnum;
 
 // Post inc / dec
 fn get_post_inc(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(tag(Comma), succeeded(get_index_reg, Plus))(input)?;
+    let (rest, matched) = preceded(tag(Comma), succeeded(fatal_get_index_reg, Plus))(input)?;
     let index_type = IndexParseType::Plus(matched);
     Ok((rest, index_type))
 }
 
 fn get_post_inc_inc(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(tag(Comma), succeeded(get_index_reg, tag([Plus, Plus])))(input)?;
+    let (rest, matched) = preceded(tag(Comma), succeeded(fatal_get_index_reg, tag([Plus, Plus])))(input)?;
     let index_type = IndexParseType::PlusPlus(matched);
     Ok((rest, index_type))
 }
 
 fn get_pre_dec_dec(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(tag([Comma, Minus, Minus]), get_index_reg)(input)?;
+    let (rest, matched) = preceded(tag([Comma, Minus, Minus]), fatal_get_index_reg)(input)?;
     let index_type = IndexParseType::SubSub(matched);
     Ok((rest, index_type))
 }
 
 fn get_pre_dec(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(tag([Comma, Minus]), get_index_reg)(input)?;
+    let (rest, matched) = preceded(tag([Comma, Minus]), fatal_get_index_reg)(input)?;
     let index_type = IndexParseType::Sub(matched);
     Ok((rest, index_type))
 }
 
+/// Parses for ```lda ,y```
 fn get_zero(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(Comma, parse_register)(input)?;
+    let (rest, matched) = preceded(Comma, fatal_get_index_reg)(input)?;
     let index_type = IndexParseType::Zero(matched);
     Ok((rest, index_type))
 }
 
+/// Parses for ```lda a,y```
 fn get_add_a(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::A), Comma), get_index_reg)(input)?;
+    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::A), Comma), fatal_get_index_reg)(input)?;
     let index_type = IndexParseType::AddA(matched);
     Ok((rest, index_type))
 }
 
+/// Parses for ```lda b,y```
 fn get_add_b(input: TSpan) -> PResult<IndexParseType> {
     // let reg = |i| parse_this_reg(i, RegEnum::B);
-    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::B), Comma), get_index_reg)(input)?;
+    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::B), Comma), fatal_get_index_reg )(input)?;
     let index_type = IndexParseType::AddB(matched);
     Ok((rest, index_type))
 }
 
+/// Parses for ```lda d,y```
 fn get_add_d(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::D), Comma), get_index_reg)(input)?;
+    let (rest, matched) = preceded(pair(parse_this_reg(RegEnum::D), Comma), cut( fatal_get_index_reg ))(input)?;
     let index_type = IndexParseType::AddD(matched);
     Ok((rest, index_type))
 }
 
+/// Parses for indexed modes that do not need an offset for example
+/// ```    lda ,y+```
 fn get_no_arg_indexed(input: TSpan) -> PResult<IndexParseType> {
     let (rest, matched) = alt((
         get_pre_dec_dec,
@@ -86,6 +92,8 @@ fn get_no_arg_indexed(input: TSpan) -> PResult<IndexParseType> {
     Ok((rest, matched))
 }
 
+/// Parses for indexed modes that do not need an offset and can be be indirect
+/// ```    lda [,y++]```
 fn get_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<IndexParseType> {
     let (rest, matched) = alt((
         get_pre_dec_dec,
@@ -98,9 +106,10 @@ fn get_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<IndexParseType> 
     Ok((rest, matched))
 }
 
+/// Parses for simple offset indexed addressing
+/// ```    lda addr,x```
 fn parse_offset(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, (expr, reg))) = ms(sep_pair(parse_expr, Comma, cut(get_index_reg)))(input)?;
-
+    let (rest, (sp, (expr, reg))) = ms(sep_pair(parse_expr, Comma, fatal_get_index_reg))(input)?;
     let offset = IndexParseType::ConstantOffset(reg);
     let item = MC6809::operand_from_index_mode(offset, false);
     Ok((rest, Node::from_item_kid_tspan(item, expr, sp)))
@@ -159,8 +168,7 @@ fn parse_indexed_indirect(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_indexed_direct(input: TSpan) -> PResult<Node> {
-    let mut indexed = alt((parse_no_arg_indexed, parse_pc_offset, parse_offset));
-    indexed(input)
+    alt((parse_no_arg_indexed, parse_pc_offset, parse_offset))(input)
 }
 
 pub fn parse_indexed(input: TSpan) -> PResult<Node> {

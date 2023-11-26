@@ -8,14 +8,14 @@ pub fn generate_rust_code(_help: &[HelpEntry]) -> String {
 
     let enums: Vec<_> = _help.iter().map(|h| h.id.clone()).collect();
 
-    let data: Vec<(String, String)> = _help
+    let data: Vec<(String, String, String)> = _help
         .iter()
-        .map(|h| (h.id.to_string(), h.text.to_string()))
+        .map(|h| (h.id.to_string(), h.short.clone(), h.text.to_string()))
         .collect();
 
     let data_str: Vec<_> = data
         .into_iter()
-        .map(|(id, text)| format!("({id}, String::from(r#\"{text}\"#))"))
+        .map(|(id, short, text)| format!("({id}, HelpItem::new(r#\"{short}\"#,r#\"{text}\"#))"))
         .collect();
 
     reg.render_template(

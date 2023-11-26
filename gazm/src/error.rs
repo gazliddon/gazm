@@ -1,29 +1,26 @@
 #![deny(unused_imports)]
 
 use crate::{
+    assembler,
     ast::{AstNodeId, AstNodeRef},
-    assembler, vars::VarsErrorKind,
-    frontend::FrontEndError, 
+    frontend::FrontEndError,
+    vars::VarsErrorKind,
 };
 
 use thin_vec::ThinVec;
 
-use grl_sources::{
-    grl_utils::FileError, EditErrorKind, Position, SourceErrorType, SourceFiles, SourceInfo,
-};
+use grl_sources::{grl_utils::FileError, EditErrorKind, Position, SourceFiles, SourceInfo};
 
 use thiserror::Error;
 
 pub type GResult<T> = Result<T, GazmErrorKind>;
 
-#[derive(Error, Debug, Clone )]
+#[derive(Error, Debug, Clone)]
 pub enum GazmErrorKind {
     #[error(transparent)]
     FrontEndError(#[from] FrontEndError),
     #[error(transparent)]
     VarError(#[from] VarsErrorKind),
-    #[error(transparent)]
-    UserWarning(#[from] UserWarning),
     #[error(transparent)]
     UserError(#[from] UserError),
     #[error("Misc: {0}")]
@@ -32,14 +29,10 @@ pub enum GazmErrorKind {
     TooManyErrors(ErrorCollector),
     #[error(transparent)]
     BinaryError(#[from] assembler::BinaryError),
-    #[error("Parse error {0}")]
-    ParseError(#[from] Box<ParseError>),
     #[error(transparent)]
     EditError(#[from] EditErrorKind),
     #[error(transparent)]
     FileError(#[from] FileError),
-    #[error(transparent)]
-    SourceError(#[from] SourceErrorType),
 }
 
 impl From<String> for GazmErrorKind {
@@ -75,65 +68,6 @@ impl ParseError {
     }
 }
 
-// pub fn parse_error(err: &str, ctx: Span) -> nom::Err<ParseError> {
-//     nom::Err::Error(ParseError::new(err.to_string(), &ctx, false))
-// }
-
-// pub fn parse_failure(err: &str, ctx: Span) -> nom::Err<ParseError> {
-//     nom::Err::Failure(ParseError::new(err.to_string(), &ctx, true))
-// }
-
-// pub type IResult<'a, O> = nom::IResult<Span<'a>, O, ParseError>;
-
-// impl ParseError {
-//     pub fn new(message: String, span: &Span, failure: bool) -> ParseError {
-//         Self::new_from_pos(message.as_str(), &span_to_pos(*span), failure)
-//     }
-
-//     pub fn new_from_pos(message: &str, pos: &Position, failure: bool) -> Self {
-//         Self {
-//             message: Some(message.to_owned()),
-//             pos: *pos,
-//             failure,
-//         }
-//     }
-
-//     pub fn set_failure(self, failure: bool) -> Self {
-//         let mut ret = self;
-//         ret.failure = failure;
-//         ret
-//     }
-
-//     pub fn is_failure(&self) -> bool {
-//         self.failure
-//     }
-// }
-
-// impl From<nom::Err<ParseError>> for ParseError {
-//     fn from(i: nom::Err<ParseError>) -> Self {
-//         match i {
-//             nom::Err::Incomplete(_) => panic!(),
-//             nom::Err::Error(e) => e.set_failure(false),
-//             nom::Err::Failure(e) => e.set_failure(true),
-//         }
-//     }
-// }
-
-// impl<'a> nom::error::ParseError<Span<'a>> for ParseError {
-//     fn from_error_kind(input: Span<'a>, kind: nom::error::ErrorKind) -> Self {
-//         Self::new(format!("parse error {kind:?}"), &input, false)
-//     }
-
-//     fn append(_input: Span, _kind: nom::error::ErrorKind, other: Self) -> Self {
-//         other
-//     }
-
-//     fn from_char(input: Span<'a>, c: char) -> Self {
-//         Self::new(format!("unexpected character '{c}'"), &input, false)
-//     }
-// }
-
-// That's what makes it nom-compatible.
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstError {
@@ -186,15 +120,14 @@ pub struct UserError {
     pub data: Box<UserErrorData>,
 }
 
-#[derive(PartialEq, Clone,Error)]
+#[derive(PartialEq, Clone, Error)]
 pub struct UserWarning {
     pub data: Box<UserErrorData>,
 }
 
 impl std::fmt::Display for UserWarning {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = self.data.pretty().unwrap();
-        write!(f, "{s}")
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        panic!()
     }
 }
 impl std::fmt::Debug for UserWarning {
@@ -203,10 +136,15 @@ impl std::fmt::Debug for UserWarning {
     }
 }
 
+#[derive(PartialEq, Clone)]
+pub enum ErrorMessage {
+    Plain(String),
+    Markdown(String, String),
+}
 
 #[derive(PartialEq, Clone)]
 pub struct UserErrorData {
-    pub message: String,
+    pub message: ErrorMessage,
     pub pos: Position,
     pub line: String,
     pub file: std::path::PathBuf,
@@ -215,7 +153,7 @@ pub struct UserErrorData {
 
 impl std::fmt::Display for UserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = self.pretty().unwrap();
+        let s = self.data.pretty().unwrap();
         write!(f, "{s}")
     }
 }
@@ -230,7 +168,17 @@ use colored::*;
 impl UserErrorData {
     pub fn new(message: &str, failure: bool, si: &SourceInfo) -> Self {
         Self {
-            message : message.to_string(),
+            message: ErrorMessage::Plain(message.to_owned()),
+            pos: si.pos,
+            line: si.line_str.to_string(),
+            file: si.file.clone(),
+            failure,
+        }
+    }
+
+    pub fn new_markdown(short: &str, full_text: &str, failure: bool, si: &SourceInfo) -> Self {
+        Self {
+            message: ErrorMessage::Markdown(short.to_owned(), full_text.to_owned()),
             pos: si.pos,
             line: si.line_str.to_string(),
             file: si.file.clone(),
@@ -242,7 +190,7 @@ impl UserErrorData {
     where
         S: Into<String>,
     {
-        Self::new(&msg.into(),failure,info)
+        Self::new(&msg.into(), failure, info)
     }
 
     pub fn from_front_end_error(err: &FrontEndError, sources: &SourceFiles) -> Self {
@@ -250,7 +198,7 @@ impl UserErrorData {
         let si = sources.get_source_info(pos).unwrap();
         let failure = false;
         let message = err.to_string();
-        Self::new(&message,failure,&si)
+        Self::new(&message, failure, &si)
     }
 
     pub fn from_parse_error(err: &ParseError, sources: &SourceFiles) -> Self {
@@ -258,7 +206,47 @@ impl UserErrorData {
         let si = sources.get_source_info(pos).unwrap();
         let failure = err.failure;
         let message = &err.message();
-        Self::new(message,failure,&si)
+        Self::new(message, failure, &si)
+    }
+
+    pub fn print_pretty(&self) {
+        use termimad::*;
+        let skin = MadSkin::default();
+
+        let pos = &self.pos;
+        let (line, col) = pos.line_col_from_one();
+
+        let line_num = format!("{line}");
+        let spaces = " ".repeat(1 + line_num.len());
+        let bar = format!("{spaces}|").info();
+        let bar_line = format!("{line_num} |").info();
+
+        let error = "\nError".bold().red();
+
+        match &self.message {
+            ErrorMessage::Plain(txt) => {
+                println!("{error}: {}", txt.bold());
+            }
+            ErrorMessage::Markdown(short, _) => {
+                println!("{error}: {}", short.bold())
+            }
+        }
+
+        println!(
+            "   {} {}:{}:{}",
+            "-->".info(),
+            self.file.to_string_lossy(),
+            line,
+            col
+        );
+
+        println!("{bar}");
+        println!("{bar_line} {}", self.line);
+        println!("{bar}{}^", " ".repeat(col));
+
+        if let ErrorMessage::Markdown(_, full_text) = &self.message {
+            skin.print_text(&full_text);
+        }
     }
 
     pub fn pretty(&self) -> GResult<String> {
@@ -276,7 +264,14 @@ impl UserErrorData {
 
         let error = "error".bold().red();
 
-        writeln!(&mut s, "{error}: {}", self.message.bold()).expect("kj");
+        match &self.message {
+            ErrorMessage::Plain(txt) => {
+                writeln!(&mut s,"{error}: {}", txt.bold()).expect("lklkl");
+            }
+            ErrorMessage::Markdown(short, _) => {
+                writeln!(&mut s,"{short}").expect("kjkjk")
+            }
+        }
 
         writeln!(
             &mut s,
@@ -307,6 +302,12 @@ impl From<UserErrorData> for UserError {
     }
 }
 
+// impl AsRef<UserErrorData> for UserError {
+//     fn as_ref(&self) -> &UserErrorData {
+//         self.data.as_ref()
+//     }
+// }
+
 impl UserError {
     pub fn from_ast_error(error: AstError, info: &SourceInfo) -> Self {
         let message = error.message.unwrap_or_else(|| "Error".to_string());
@@ -319,10 +320,6 @@ impl UserError {
     {
         let data = UserErrorData::from_text(msg, info, is_failure);
         data.into()
-    }
-
-    pub fn pretty(&self) -> GResult<String> {
-        self.data.pretty()
     }
 
     pub fn from_front_end_error(err: &FrontEndError, sources: &SourceFiles) -> Self {
@@ -429,7 +426,7 @@ impl ErrorCollector {
         self.add_error(err, failure)
     }
 
-    pub fn add_waring(&mut self, _warning: UserWarning) -> GResult<()> { 
+    pub fn add_waring(&mut self, _warning: UserWarning) -> GResult<()> {
         unimplemented!()
     }
 
