@@ -1,13 +1,14 @@
 #![deny(unused_imports)]
-
 use super::{
+    fatal, get_text,
     item6809::{
         AddrModeParseType,
         AddrModeParseType::Inherent as ParseInherent,
         MC6809,
         MC6809::{OpCode, Operand, OperandIndexed},
     },
-    *,
+    parse_expr, parse_indexed, parse_opcode_reg_pair, parse_reg_set_operand, AssemblyErrorKind,
+    IdentifierKind, Item, Node, PResult, TSpan, TokenKind,
 };
 use emu6809::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo};
 use unraveler::{alt, match_span as ms, preceded, sep_list};
@@ -88,8 +89,8 @@ fn get_instruction(amode: AddrModeParseType, info: &InstructionInfo) -> Option<&
 }
 
 fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
-    use Item::*;
     use AssemblyErrorKind::*;
+    use Item::*;
     let (rest, (sp, text, info)) = get_opcode(input)?;
 
     let (rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
@@ -103,10 +104,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     let amode = match arg.item {
         Cpu(Operand(amode)) => amode,
         Cpu(OperandIndexed(amode, indirect)) => AddrModeParseType::Indexed(amode, indirect),
-        _ => {
-            println!("{:?}", info);
-            todo!("Need an error here {:?}", arg.item);
-        }
+        _ => return fatal(sp, AddrModeUnsupported),
     };
 
     if let Some(instruction) = get_instruction(amode, info) {
@@ -114,9 +112,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(item.into(), sp).take_others_children(arg);
         Ok((rest, node))
     } else {
-        Err(
-            parse_fail(AddrModeUnsupported, sp))
-
+        fatal(sp, ThisAddrModeUnsupported(amode))
     }
 }
 
@@ -129,6 +125,7 @@ fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &InstructionInfo)> {
 }
 
 fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
+    use AssemblyErrorKind::OnlySupports;
     let (rest, (sp, text, ins)) = get_opcode(input)?;
 
     if let Some(ins) = ins.get_boxed_instruction(AddrModeEnum::Inherent) {
@@ -136,7 +133,7 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(oc.into(), sp);
         Ok((rest, node))
     } else {
-        Err(parse_fail(AssemblyErrorKind::AddrModeUnsupported, sp))
+        fatal(sp, OnlySupports(AddrModeParseType::Inherent))
     }
 }
 pub fn parse_opcode(input: TSpan) -> PResult<Node> {

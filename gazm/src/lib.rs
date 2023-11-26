@@ -20,3 +20,4 @@ mod sections;
 mod semantic;
 mod utils;
 mod vars;
+mod help;

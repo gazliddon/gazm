@@ -70,7 +70,7 @@ pub (crate) fn expand_path(sp: TSpan, file: PathBuf) -> FeResult<PathBuf> {
         .extra()
         .opts
         .expand_path(file)
-        .map_err(|e| FrontEndError::new(sp, e.into(), unraveler::Severity::Error))?;
+        .map_err(|e| FrontEndError::error(sp, e))?;
     Ok(path)
 }
 

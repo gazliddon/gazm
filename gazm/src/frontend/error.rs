@@ -1,5 +1,5 @@
 #![deny(unused_imports)]
-
+use super::item6809::AddrModeParseType;
 use crate::vars::VarsErrorKind;
 
 use super::{to_pos, TSpan};
@@ -7,6 +7,7 @@ use super::{to_pos, TSpan};
 use grl_sources::{grl_utils::FileError, Position, SourceErrorType};
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
+use crate::help::ErrCode;
 
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
@@ -23,22 +24,6 @@ impl<T> ErrorContext for PResult<'_, T> {
     }
 }
 
-pub fn parse_fail<K: Into<FrontEndErrorKind>>(err: K, _sp: TSpan) -> super::FrontEndError {
-    let pos = to_pos(_sp);
-    FrontEndError {
-        position: pos,
-        kind: err.into(),
-        severity: Severity::Fatal,
-    }
-}
-
-pub fn parse_err<K: Into<FrontEndErrorKind>>(err: K, sp: TSpan) -> super::FrontEndError {
-    FrontEndError {
-        severity: Severity::Error,
-        ..parse_fail(err, sp)
-    }
-}
-
 #[derive(Debug, Error, Clone)]
 pub enum AssemblyErrorKind {
     #[error("Post-increment indexing not valid indirectly")]
@@ -47,29 +32,31 @@ pub enum AssemblyErrorKind {
     #[error("Pre-decrement indexing not valid indirectly")]
     PreDecNotValidIndirect,
 
-    #[error("Expected a valid index register")]
-    ExpectedValidIndexRegister,
+    #[error("Expected an index register (X,Y,U,S)")]
+    ExpectedIndexRegister,
 
-    #[error("Expected a valid register")]
-    ExpectedValidRegister,
+    #[error("Expected a register")]
+    ExpectedRegister,
 
-    #[error("Duplicate registers in register set are not allowed")]
+    #[error("Unexpected duplicate register. This opcode expects a list of unique registers wihout any duplicates")]
     InvalidRegisterSet,
 
-    #[error("This addressing mode is not supported for this opcode")]
-    AddrModeUnsupported,
-}
+    #[error("This {0:?} is not supported for this opcode")]
+    ThisAddrModeUnsupported(AddrModeParseType),
 
-impl Into<FrontEndErrorKind> for AssemblyErrorKind {
-    fn into(self) -> FrontEndErrorKind {
-        FrontEndErrorKind::AsmErrorKind(self)
-    }
+    #[error("Addressing mode is not supported for this opcode")]
+    AddrModeUnsupported,
+
+    #[error("This instruction only supports inherent mode addressing")]
+    OnlySupports(AddrModeParseType)
 }
 
 #[derive(Debug, Error, Clone)]
 pub enum FrontEndErrorKind {
+    #[error("{0}")]
+    HelpText(ErrCode),
     #[error(transparent)]
-    AsmErrorKind(AssemblyErrorKind),
+    AsmErrorKind(#[from] AssemblyErrorKind),
     #[error(transparent)]
     SourceError(#[from] SourceErrorType),
     #[error(transparent)]
@@ -113,16 +100,47 @@ impl std::fmt::Display for FrontEndError {
     }
 }
 
+impl<T> Into<Result<T, FrontEndError>> for FrontEndError {
+    fn into(self) -> Result<T,Self> {
+        Err(self)
+    }
+}
+
+pub fn error<T, E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> PResult<T> {
+    FrontEndError::error(sp,kind).into()
+}
+
+pub fn fatal<T, E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> PResult<T> {
+    FrontEndError::failure(sp,kind).into()
+}
+
 impl FrontEndError {
-    pub fn new(sp: TSpan, kind: FrontEndErrorKind, severity: Severity) -> Self {
+    pub fn new<E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, severity: Severity) -> Self {
         let position = to_pos(sp);
         Self {
-            kind,
+            kind:kind.into(),
             position,
             severity,
         }
     }
 
+    pub fn failure<E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> Self {
+        let position = to_pos(sp);
+        Self {
+            kind:kind.into(),
+            position,
+            severity: Severity::Fatal,
+        }
+    }
+
+    pub fn error<E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> Self {
+        let position = to_pos(sp);
+        Self {
+            kind:kind.into(),
+            position,
+            severity: Severity::Error,
+        }
+    }
 
     pub fn no_match_error(sp: TSpan) -> Self {
         Self::new(

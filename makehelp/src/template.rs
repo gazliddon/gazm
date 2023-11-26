@@ -1,6 +1,7 @@
 pub const TEMPLATE : &'static str = r#"
     use std::collections::HashMap;
 
+    #[derive(Eq,Hash,PartialEq,Clone,Debug)]
     pub enum ErrCode {
         {{enums}}
     }
@@ -11,6 +12,7 @@ pub const TEMPLATE : &'static str = r#"
 
     impl Err {
         pub fn new() -> Self {
+            use ErrCode::*;
             let xx = [
                 {{{data}}}
             ];
@@ -20,8 +22,8 @@ pub const TEMPLATE : &'static str = r#"
             }
         }
 
-        pub fn get(&self, e : Err) -> String {
-            self.code_to_data.get(&e).unwrap()
+        pub fn get(&self, e : ErrCode) -> String {
+            self.code_to_data.get(&e).unwrap().to_string()
         }
     }
 "#;

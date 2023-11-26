@@ -1,14 +1,40 @@
-use std::io::Result;
+#![allow(unused_macros)]
+
+use std::{env, path::PathBuf};
+use std::path::Path;
+use anyhow::{Result, Context};
+use glob::glob;
+use makehelp::*;
+use std::fs::File;
+use std::io::Write;
+
+macro_rules! p {
+    ($($tokens: tt)*) => {
+        println!("cargo:warning={}", format!($($tokens)*))
+    }
+}
 
 pub fn main() -> Result<()> {
-    use glob::glob;
+    use helpentry::*;
+    let out_dir = env::var("OUT_DIR").context("Trying to get OUTDIR var")?;
+    let dest_path = Path::new(&out_dir).join("helptext.rs");
 
-    for entry in glob( "assets/help/*.md").expect("Failed to read glob pattern") {
-        match entry {
-            Ok(path) => println!("{:?}", path.display()),
-            Err(e) => println!("{:?}", e),
+    let path = PathBuf::from("assets/help/*.md");
+
+    let mut paths = vec![];
+
+    for p in glob(&path.to_string_lossy()).expect("trying to glob") {
+        if let Ok(p) = p {
+            paths.push(p)
         }
     }
+
+    let all: Result<Vec<HelpEntry>> = paths.iter().map(HelpEntry::new).collect();
+    let text = gencode::generate_rust_code(&all?);
+
+    let mut f = File::create(&dest_path)?;
+    f.write_all(text.as_bytes())?;
+
 
     Ok(())
 }

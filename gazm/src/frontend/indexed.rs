@@ -1,5 +1,5 @@
 #![deny(unused_imports)]
-use unraveler::{alt, match_span as ms, pair, preceded, sep_pair, succeeded, tag,cut};
+use unraveler::{alt, cut, match_span as ms, pair, preceded, sep_pair, succeeded, tag};
 
 use super::{
     item6809::MC6809,
@@ -132,12 +132,8 @@ fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(get_no_arg_indexed)(input)?;
 
     match matched {
-        IndexParseType::Plus(_) => {
-            Err(parse_fail(PostIncNotValidIndirect, sp))
-        }
-        IndexParseType::Sub(_) => {
-            Err(parse_fail(PreDecNotValidIndirect, sp))
-        }
+        IndexParseType::Plus(_) => fatal(sp, PostIncNotValidIndirect),
+        IndexParseType::Sub(_) => fatal(sp, PreDecNotValidIndirect),
         _ => {
             let matched = Node::from_item_tspan(OperandIndexed(matched, false).into(), sp);
             Ok((rest, matched))

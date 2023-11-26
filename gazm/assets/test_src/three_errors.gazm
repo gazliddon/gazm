@@ -3,11 +3,18 @@
 
     lda #1
     sta 20
+
+    lda file,a
     lda file,z
 
     lda [,y+]
     lda [,y+]
-    lda [,y+]
+    lda [,y++]
+
+    pshs a,x,a
+    puls
+
+    pshs a,u,pc
 
     nop
 

@@ -3,13 +3,10 @@ name = "makehelp"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 structopt = "0.3"
 regex=  "1.10.2"
-shellexpand = "3.0"
-anyhow="*"
+anyhow="1.0.75"
 convert_case = "0.6.0"
 handlebars = "4.5"
-serde_json = "*"
+serde_json = "1.0.108"
