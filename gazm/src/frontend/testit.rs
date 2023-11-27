@@ -33,12 +33,13 @@ fn get_lines(sf: &SourceFile, line: isize) -> String {
 }
 
 fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
+    use ErrorMessage::*;
     let message = if let FrontEndErrorKind::HelpText(ht) = e.kind {
         let short = crate::help::HELP.get_short(ht);
         let full_text = crate::help::HELP.get(ht);
-        ErrorMessage::Markdown(format!("{short}"),format!("{full_text}"))
+        Markdown(format!("{short}"),format!("{full_text}"))
     } else {
-        ErrorMessage::Plain(format!("{e}"))
+        Plain(format!("{e}"))
     };
 
     let line = e.position.line();

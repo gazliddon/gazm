@@ -4,9 +4,7 @@ short: Expected to see a register
 
 ## Expected a Register
 
-A valid register was expected. These are the valid registers for the 6809.
-
-Gazm allows registers to be either lower or upper case 
+A valid register was expected. These are the valid registers for the 6809:
 
 | Register | Bits | Notes                    | Index? |
 |:--------:|:----:|:-------------------------|:------:|
@@ -19,3 +17,5 @@ Gazm allows registers to be either lower or upper case
 | Y        | 16   | Y index register         | ✅     |
 | CC       | 8    | Flags                    |        |
 | PC       | 16   | Program counter          | ✅     |
+
+Gazm allows registers to be either lower or upper case 

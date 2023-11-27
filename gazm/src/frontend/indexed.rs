@@ -137,12 +137,12 @@ fn parse_no_arg_indexed(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
-    use AssemblyErrorKind::*;
+    use crate::help::ErrCode;
     let (rest, (sp, matched)) = ms(get_no_arg_indexed)(input)?;
 
     match matched {
-        IndexParseType::Plus(_) => fatal(sp, PostIncNotValidIndirect),
-        IndexParseType::Sub(_) => fatal(sp, PreDecNotValidIndirect),
+        IndexParseType::Plus(_) => fatal(sp, ErrCode::ErrIndexModeNotValidIndirect),
+        IndexParseType::Sub(_) => fatal(sp, ErrCode::ErrIndexModeNotValidIndirect),
         _ => {
             let matched = Node::from_item_tspan(OperandIndexed(matched, false).into(), sp);
             Ok((rest, matched))

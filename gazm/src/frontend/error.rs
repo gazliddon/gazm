@@ -26,12 +26,6 @@ impl<T> ErrorContext for PResult<'_, T> {
 
 #[derive(Debug, Error, Clone)]
 pub enum AssemblyErrorKind {
-    #[error("Post-increment indexing not valid indirectly")]
-    PostIncNotValidIndirect,
-
-    #[error("Pre-decrement indexing not valid indirectly")]
-    PreDecNotValidIndirect,
-
     #[error("This {0:?} is not supported for this opcode")]
     ThisAddrModeUnsupported(AddrModeParseType),
 
