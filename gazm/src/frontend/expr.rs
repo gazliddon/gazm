@@ -96,14 +96,14 @@ mod test {
     fn test_expr() {
         use Item::*;
         let test = [
-            ("3", Num(3, Dec), vec![]),
+            ("3", Num(3, Decimal), vec![]),
             (
                 "3 * 4 + 0x1 + (10  + 4)",
                 Item::Expr,
                 vec![
-                    Num(3, Dec),
+                    Num(3, Decimal),
                     Mul,
-                    Num(4, Dec),
+                    Num(4, Decimal),
                     Add,
                     Num(1, Hex),
                     Add,
@@ -111,7 +111,7 @@ mod test {
                 ],
             ),
             ("-1 + -3", Expr, vec![UnaryTerm, Add, UnaryTerm]),
-            ("1>>3", Expr, vec![Num(1, Dec), ShiftR, Num(3, Dec)]),
+            ("1>>3", Expr, vec![Num(1, Decimal), ShiftR, Num(3, Decimal)]),
         ];
         let opts = Opts::default();
 

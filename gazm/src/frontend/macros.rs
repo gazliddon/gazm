@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 
-use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple};
+use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple, many0};
 
 use super::{
     IdentifierKind::Label,
@@ -38,9 +38,11 @@ pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
         tuple((
             Identifier(Label),
             parse_macrodef_args,
-            parse_block(parse_all_with_resume),
+            parse_block(many0(parse_next_source_chunk)),
         )),
     ))(input)?;
+
+    let body :Vec<_> = body.into_iter().flatten().collect();
 
     let node = Node::from_item_kids_tspan(MacroDef(get_text(label), args.into()), &body, sp);
     Ok((rest, node))

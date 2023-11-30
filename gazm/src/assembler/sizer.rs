@@ -89,8 +89,8 @@ impl<'a> Sizer<'a> {
             use item6809::IndexParseType::*;
 
             match pmode {
-                Zero(..) | AddA(..) | AddB(..) | AddD(..) | Plus(..) | PlusPlus(..) | Sub(..)
-                | SubSub(..) => (),
+                Zero(..) | AddA(..) | AddB(..) | AddD(..) | PostInc(..) | PostIncInc(..) | PreDec(..)
+                | PreDecDec(..) => (),
 
                 ConstantByteOffset(..)
                 | PcOffsetByte(..)

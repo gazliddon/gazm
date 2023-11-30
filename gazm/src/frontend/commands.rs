@@ -290,7 +290,7 @@ mod test {
     fn test_parse_writebin() {
         let text = "writebin \"out.bin\",0,10";
         let desired = Item::WriteBin("out.bin".into());
-        let desired_args = [Num(0, Dec), Num(10, Dec)];
+        let desired_args = [Num(0, Decimal), Num(10, Decimal)];
         test_command(parse_writebin, text, desired, &desired_args);
     }
 
@@ -298,7 +298,7 @@ mod test {
     fn test_parse_incbin() {
         let text = "incbin \"a\", 10,10";
         let desired = Item::IncBin("a".into());
-        let desired_args = [Num(10, Dec), Num(10, Dec)];
+        let desired_args = [Num(10, Decimal), Num(10, Decimal)];
         test_command(parse_incbin, text, desired, &desired_args);
 
         let text = "incbin \"a\"";
@@ -311,7 +311,7 @@ mod test {
     fn test_parse_incbin_ref() {
         let text = "incbinref \"a\", 10,20";
         let desired = Item::IncBinRef("a".into());
-        let desired_args = [Num(10, Dec), Num(20, Dec)];
+        let desired_args = [Num(10, Decimal), Num(20, Decimal)];
         test_command(super::parse_incbin_ref, text, desired, &desired_args);
     }
 
@@ -337,7 +337,7 @@ mod test {
 
         let text = "bsz $ff00,0";
         let desired = Item::Fill;
-        let desired_args = [Num(0xff00, Hex), Num(0, Dec)];
+        let desired_args = [Num(0xff00, Hex), Num(0, Decimal)];
         test_command(super::parse_various_fills, text, desired, &desired_args);
     }
 
@@ -345,7 +345,7 @@ mod test {
     fn test_parse_fill() {
         let text = "fill 10,$ff00";
         let desired = Item::Fill;
-        let desired_args = [Num(10, Dec), Num(0xff00, Hex)];
+        let desired_args = [Num(10, Decimal), Num(0xff00, Hex)];
         test_command(super::parse_fill, text, desired, &desired_args);
     }
 
@@ -353,7 +353,7 @@ mod test {
     fn test_parse_fcb() {
         let text = "fcb $ff00,10";
         let desired = Item::Fcb(2);
-        let desired_args = [Num(0xff00, Hex), Num(10, Dec)];
+        let desired_args = [Num(0xff00, Hex), Num(10, Decimal)];
         test_command(super::parse_fcb, text, desired, &desired_args);
     }
 
@@ -361,7 +361,7 @@ mod test {
     fn test_parse_fdb() {
         let text = "fdb $ff00,10";
         let desired = Item::Fdb(2);
-        let desired_args = [Num(0xff00, Hex), Num(10, Dec)];
+        let desired_args = [Num(0xff00, Hex), Num(10, Decimal)];
         test_command(super::parse_fdb, text, desired, &desired_args);
     }
 

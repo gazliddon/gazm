@@ -85,7 +85,7 @@ pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node>> {
 
 /// Parse all of this span
 /// until we have too many errors or have parsed everything
-pub fn parse_all_with_resume(mut input: TSpan) -> PResult<Vec<Node>> {
+pub fn parse_all_with_resume(mut input: TSpan) -> Result<(TSpan,Vec<Node>), Vec<FrontEndError>> {
     let mut ret = vec![];
     let mut errors = vec![];
     let max_errors = input.extra().opts.max_errors;
@@ -110,10 +110,7 @@ pub fn parse_all_with_resume(mut input: TSpan) -> PResult<Vec<Node>> {
     if errors.is_empty() {
         Ok((input, ret))
     } else {
-        Err(FrontEndError::new(
-            input,
-            FrontEndErrorKind::TooManyErrors(errors),
-            Severity::Fatal,
-        ))
+        Err( errors)
+        
     }
 }

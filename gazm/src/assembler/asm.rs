@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     ast::{Ast, AstCtx, AstNodeId, AstNodeRef},
     error::{ErrorCollector, GResult, GazmErrorKind, UserError},
-    frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult, },
+    frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult, to_user_error, },
     frontend::{FrontEndError, FrontEndErrorKind, Item, Node},
     gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
@@ -178,11 +178,12 @@ impl Assembler {
         Ok(ret)
     }
 
-    pub fn add_front_end_error(&mut self, pe: &[FrontEndError]) -> Result<(), FrontEndError> {
+    pub fn add_front_end_error(&mut self, pe: &[FrontEndError], sf: &SourceFile) -> Result<(), FrontEndError> {
         if pe.is_empty() {
             Ok(())
         } else {
             for e in pe {
+                let e = to_user_error(e.clone(), sf);
                 println!("{e}");
             }
             panic!()

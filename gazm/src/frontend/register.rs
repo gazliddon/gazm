@@ -1,19 +1,24 @@
 #![deny(unused_imports)]
+use crate::help::ErrCode::*;
 use emu6809::cpu::RegEnum;
-use error::FrontEndError;
 use std::collections::HashSet;
-use unraveler::{match_span as ms, sep_list, sep_pair, cut};
+use unraveler::{cut, map, match_span as ms, sep_list, sep_pair};
 
 use super::{
-    get_text,
+    err_error, err_fatal, error, get_text,
     item6809::{
         AddrModeParseType,
         MC6809::{Operand, RegisterSet},
     },
     IdentifierKind, Item, Node, PResult, TSpan,
     TokenKind::{self, *},
-    fatal,error,
 };
+
+pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, RegEnum)> {
+    let (rest, ((sp_r1, r1), (sp_r2, r2))) =
+        sep_pair(ms(get_register), Comma, ms(get_register))(input)?;
+    Ok((rest, (sp_r1, r1, sp_r2, r2)))
+}
 
 pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
@@ -32,27 +37,27 @@ pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
 fn parse_this_reg_local(input: TSpan, r: RegEnum) -> PResult<RegEnum> {
     use crate::help::ErrCode;
 
-    let (rest, (sp, matched)) = ms(parse_register)(input)?;
+    let (rest, (sp, matched)) = ms(get_register)(input)?;
 
     if matched != r {
-        fatal(sp, ErrCode::ErrExpectedRegister)
+        err_error(sp, ErrCode::ErrExpectedRegister)
     } else {
         Ok((rest, matched))
     }
 }
 
-pub fn parse_this_reg(r: RegEnum) -> impl FnMut(TSpan) -> PResult<RegEnum> + Copy {
+pub fn get_this_reg(r: RegEnum) -> impl FnMut(TSpan) -> PResult<RegEnum> + Copy {
     move |i| parse_this_reg_local(i, r)
 }
 
 fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
     use crate::help::ErrCode::*;
     let mut hash_ret = HashSet::new();
-    let (rest, (sp, matched)) = ms(sep_list(parse_register, Comma))(input)?;
+    let (rest, (sp, matched)) = ms(sep_list(get_register, Comma))(input)?;
 
     for r in matched {
         if hash_ret.contains(&r) {
-            return fatal(sp, ErrDuplicateRegisters);
+            return err_fatal(sp, ErrDuplicateRegisters);
         }
         hash_ret.insert(r);
     }
@@ -60,39 +65,33 @@ fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
     Ok((rest, hash_ret))
 }
 
-pub fn fatal_get_index_reg(input: TSpan) -> PResult<RegEnum> {
-    use crate::help::ErrCode::ErrExpectedIndexRegister;
+pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
+    let (rest, (sp, matched)) =
+        ms(get_register)(input).map_err(|e| e.change_kind(ErrExpectedIndexRegister))?;
 
-    let (rest, (sp, matched)) = ms(cut( parse_register ))(input).map_err(|e| FrontEndError {
-        kind: ErrExpectedIndexRegister.into(),
-        ..e
-    })?;
-
-    if matched.is_valid_for_index() {
-        Ok((rest, matched))
-    } else {
-        fatal(sp,ErrExpectedIndexRegister)
-    }
+    matched
+        .valid_for_index()
+        .then(|| (rest, matched))
+        .ok_or(error(sp, ErrExpectedIndexRegister))
 }
 
-pub fn parse_register(input: TSpan) -> PResult<RegEnum> {
+/// Parse a single register
+pub fn get_register(input: TSpan) -> PResult<RegEnum> {
     use {IdentifierKind::*, TokenKind::*};
-    use crate::help::ErrCode;
 
-    let (rest, (sp, _matched)) = ms(Identifier(Label))(input)?;
+    let (rest, (sp, text)) = map(ms(Identifier(Label)), |(sp, _)| (sp, get_text(sp)))(input)?;
 
-    let txt = get_text(sp);
-
-    if let Ok(reg) = txt.as_str().parse::<RegEnum>() {
-        Ok((rest, reg))
-    } else {
-        error(sp, ErrCode::ErrExpectedRegister).into()
-    }
+    text.as_str()
+        .parse::<RegEnum>()
+        .map(|reg| (rest, reg))
+        .map_err(|_| error(sp, ErrExpectedRegister))
 }
 
+/// Parse opcodes with 2 reg list
+/// eg tfr a,b
 pub fn parse_opcode_reg_pair(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::RegisterPair;
-    let (rest, (sp, (a, b))) = ms(sep_pair(parse_register, Comma, cut( parse_register )))(input)?;
+    let (rest, (sp, (a, b))) = ms(sep_pair(get_register, Comma, cut(get_register)))(input)?;
     let node = Node::from_item_tspan(Operand(RegisterPair(a, b)).into(), sp);
     Ok((rest, node))
 }

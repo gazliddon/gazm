@@ -18,6 +18,7 @@ mod token_store;
 mod tokenize;
 mod tokens;
 mod utils;
+pub mod new_indexed;
 
 // Public
 pub mod item6809;

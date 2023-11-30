@@ -95,9 +95,7 @@ impl TokenizeRequest {
     }
 }
 
-
 impl TokenizeRequest {
-
     pub fn tokenize(&self) -> Result<(Node, Vec<FrontEndError>), FrontEndError> {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
         let tokens = to_tokens_no_comment(&self.source_file);
@@ -109,14 +107,7 @@ impl TokenizeRequest {
         let result = parse_all_with_resume(span);
 
         match result {
-            Err(e) => {
-                match e.kind {
-                    FrontEndErrorKind::TooManyErrors(some_errors) => {
-                        errors.extend(some_errors.to_vec());
-                    }
-                    _ => errors.push(e),
-                };
-            }
+            Err(e) => errors.extend(e) ,
 
             Ok((rest, nodes)) => {
                 final_nodes.extend_from_slice(&nodes);
@@ -311,7 +302,7 @@ where
                 Ok(res) => {
                     let req = &res.request;
                     debug_mess!("Tokenized! {}", req.source_file.file.to_string_lossy());
-                    ctx.add_front_end_error(&res.errors)?;
+                    ctx.add_front_end_error(&res.errors, &req.source_file)?;
                     incs_to_process.push((
                         req.opt_pos.unwrap_or(Position::default()),
                         req.requested_file.clone(),
@@ -319,7 +310,8 @@ where
                     ));
                     ctx.get_token_store_mut().add_tokens(res);
                 }
-                Err(e) => ctx.add_front_end_error(&[e])?,
+
+                Err(_e) => panic!("Nope!"),
             }
         }
 

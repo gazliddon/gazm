@@ -11,10 +11,10 @@ use emu6809::{
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {
     ConstantOffset(RegEnum), //             arg,R
-    Plus(RegEnum),           //             ,R+                    2 0 |
-    PlusPlus(RegEnum),       //             ,R++                   3 0 |
-    Sub(RegEnum),            //             ,-R                    2 0 |
-    SubSub(RegEnum),         //             ,--R                   3 0 |
+    PostInc(RegEnum),           //             ,R+                    2 0 |
+    PostIncInc(RegEnum),       //             ,R++                   3 0 |
+    PreDec(RegEnum),            //             ,-R                    2 0 |
+    PreDecDec(RegEnum),         //             ,--R                   3 0 |
     Zero(RegEnum),           //             ,R                     0 0 |
     AddB(RegEnum),           //             (+/- B),R              1 0 |
     AddA(RegEnum),           //             (+/- A),R              1 0 |
@@ -29,15 +29,24 @@ pub enum IndexParseType {
 }
 
 impl IndexParseType {
+    pub fn allowed_indirect(&self) -> bool { 
+        use IndexParseType::*;
+        match self {
+            PostInc(..) => false,          //             ,R+                    2 0 |
+            PreDec(..) => false,           //             ,-R                    2 0 |
+            _ => true,
+        }
+    }
+
     pub fn has_operand(&self) -> bool {
         use IndexParseType::*;
 
         match self {
             ConstantOffset(..) => true, //             arg,R
-            Plus(..) => false,          //             ,R+                    2 0 |
-            PlusPlus(..) => false,      //             ,R++                   3 0 |
-            Sub(..) => false,           //             ,-R                    2 0 |
-            SubSub(..) => false,        //             ,--R                   3 0 |
+            PostInc(..) => false,          //             ,R+                    2 0 |
+            PostIncInc(..) => false,      //             ,R++                   3 0 |
+            PreDec(..) => false,           //             ,-R                    2 0 |
+            PreDecDec(..) => false,        //             ,--R                   3 0 |
             Zero(..) => false,          //             ,R                     0 0 |
             AddB(..) => false,          //             (+/- B),R              1 0 |
             AddA(..) => false,          //             (+/- A),R              1 0 |
@@ -83,26 +92,26 @@ impl IndexParseType {
         use IndexParseType::*;
 
         match *self {
-            Plus(r) => {
+            PostInc(r) => {
                 let mut bits = 0b1000_0000;
                 bits = add_reg(bits, r);
                 bits
             }
 
-            PlusPlus(r) => {
+            PostIncInc(r) => {
                 let mut bits = 0b1000_0001;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);
                 bits
             }
 
-            Sub(r) => {
+            PreDec(r) => {
                 let mut bits = 0b1000_0010;
                 bits = add_reg(bits, r);
                 bits
             }
 
-            SubSub(r) => {
+            PreDecDec(r) => {
                 let mut bits = 0b1000_0011;
                 bits = add_reg(bits, r);
                 bits = add_ind(bits, indirect);

@@ -106,7 +106,7 @@ impl From<NumberKind> for ParsedFrom {
         match nk {
             NumberKind::Char => ParsedFrom::Char,
             NumberKind::Hex => ParsedFrom::Hex,
-            NumberKind::Dec => ParsedFrom::Dec,
+            NumberKind::Dec => ParsedFrom::Decimal,
             NumberKind::Bin => ParsedFrom::Bin,
         }
     }

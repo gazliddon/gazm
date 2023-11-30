@@ -24,7 +24,7 @@ impl<T> ErrorContext for PResult<'_, T> {
     }
 }
 
-#[derive(Debug, Error, Clone)]
+#[derive(Debug, Error, Clone, PartialEq, Copy)]
 pub enum AssemblyErrorKind {
     #[error("This {0:?} is not supported for this opcode")]
     ThisAddrModeUnsupported(AddrModeParseType),
@@ -42,7 +42,7 @@ impl Into<FrontEndErrorKind> for ErrCode {
     }
 }
 
-#[derive(Debug, Error, Clone)]
+#[derive(Debug, Error, Clone, PartialEq)]
 pub enum FrontEndErrorKind {
     #[error("{0}")]
     HelpText(ErrCode),
@@ -60,9 +60,6 @@ pub enum FrontEndErrorKind {
     IllegalMacroDefinition,
     #[error("Unable to find next line")]
     UnableToFindNextLine,
-
-    #[error("Too many errors")]
-    TooManyErrors(Vec<FrontEndError>),
 
     #[error("Unexpected character")]
     Unexpected,
@@ -97,12 +94,19 @@ impl<T> Into<Result<T, FrontEndError>> for FrontEndError {
     }
 }
 
-pub fn error<T, E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> PResult<T> {
+pub fn err_error<T, E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> PResult<T> {
     FrontEndError::error(sp,kind).into()
 }
 
-pub fn fatal<T, E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> PResult<T> {
-    FrontEndError::failure(sp,kind).into()
+pub fn err_fatal<T, E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> PResult<T> {
+    FrontEndError::fatal(sp,kind).into()
+}
+pub fn error<E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> FrontEndError {
+    FrontEndError::error(sp,kind)
+}
+
+pub fn fatal<E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> FrontEndError {
+    FrontEndError::fatal(sp,kind)
 }
 
 impl FrontEndError {
@@ -115,7 +119,14 @@ impl FrontEndError {
         }
     }
 
-    pub fn failure<E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> Self {
+    pub fn change_kind<E:Into<FrontEndErrorKind>>(self,k : E) -> Self {
+        Self {
+            kind: k.into(),
+            ..self
+        }
+    }
+
+    pub fn fatal<E:Into<FrontEndErrorKind>>(sp: TSpan, kind: E, ) -> Self {
         let position = to_pos(sp);
         Self {
             kind:kind.into(),

@@ -61,7 +61,7 @@ pub struct StructEntry {
 #[derive(Debug, PartialEq, Clone)]
 pub enum ParsedFrom {
     Hex,
-    Dec,
+    Decimal,
     Bin,
     Char,
     FromExpr,
@@ -325,7 +325,7 @@ impl Display for BaseNode<Item, Position> {
 
             Num(n, p) => match &p {
                 ParsedFrom::Hex => format!("${n:x}"),
-                ParsedFrom::FromExpr | ParsedFrom::Dec | ParsedFrom::Char => n.to_string(),
+                ParsedFrom::FromExpr | ParsedFrom::Decimal | ParsedFrom::Char => n.to_string(),
                 ParsedFrom::Bin => format!("%{n:b}"),
             },
             UnaryTerm => join_children(""),

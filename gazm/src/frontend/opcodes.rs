@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 use super::{
-    fatal, get_text,
+    err_fatal, get_text,
     item6809::{
         AddrModeParseType,
         AddrModeParseType::Inherent as ParseInherent,
@@ -10,6 +10,7 @@ use super::{
     parse_expr, parse_indexed, parse_opcode_reg_pair, parse_reg_set_operand, AssemblyErrorKind,
     IdentifierKind, Item, Node, PResult, TSpan, TokenKind,
 };
+
 use emu6809::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo};
 use unraveler::{alt, match_span as ms, preceded, sep_list};
 
@@ -103,7 +104,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     let amode = match arg.item {
         Cpu(Operand(amode)) => amode,
         Cpu(OperandIndexed(amode, indirect)) => AddrModeParseType::Indexed(amode, indirect),
-        _ => return fatal(sp, AssemblyErrorKind::AddrModeUnsupported),
+        _ => return err_fatal(sp, AssemblyErrorKind::AddrModeUnsupported),
     };
 
     if let Some(instruction) = get_instruction(amode, info) {
@@ -111,7 +112,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(item.into(), sp).take_others_children(arg);
         Ok((rest, node))
     } else {
-        fatal(sp, AssemblyErrorKind::ThisAddrModeUnsupported(amode))
+        err_fatal(sp, AssemblyErrorKind::ThisAddrModeUnsupported(amode))
     }
 }
 
@@ -132,7 +133,7 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(oc.into(), sp);
         Ok((rest, node))
     } else {
-        fatal(sp, OnlySupports(AddrModeParseType::Inherent))
+        err_fatal(sp, OnlySupports(AddrModeParseType::Inherent))
     }
 }
 pub fn parse_opcode(input: TSpan) -> PResult<Node> {
@@ -147,7 +148,7 @@ pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {
     Ok((rest, matched))
 }
 
-#[cfg(test)]
+#[allow(unused_imports)]
 mod test {
     use super::*;
     use crate::frontend::item6809::IndexParseType;
@@ -209,13 +210,13 @@ mod test {
         use RegEnum::*;
 
         let test_data = vec![
-            ("lda", "lda #10", Immediate, vec![Num(10, Dec)]),
+            ("lda", "lda #10", Immediate, vec![Num(10, Decimal)]),
             ("ldb", "ldb #$10", Immediate, vec![Num(16, Hex)]),
             (
                 "lda",
                 "lda [10],y",
                 Indexed(ExtendedIndirect, false),
-                vec![Num(10, Dec)],
+                vec![Num(10, Decimal)],
             ),
             ("tfr", "tfr x,y", RegisterPair(X, Y), vec![]),
             ("nop", "nop", Inherent, vec![]),
