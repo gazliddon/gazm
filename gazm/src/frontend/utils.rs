@@ -2,11 +2,13 @@
 use super::{
     BaseNode, FrontEndError, FrontEndErrorKind, Item, Node, PResult, ParsedFrom, TSpan,
     TokenKind::*,
+
+    IdentifierKind, 
 };
 
 use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
-use unraveler::{match_span as ms, wrapped_cut, Collection, ParseErrorKind, Parser, Severity};
+use unraveler::{match_span as ms, wrapped_cut, Collection, ParseErrorKind, Parser, Severity, tag,map};
 
 pub fn mk_pc_equate(node: &Node) -> Node {
     use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
@@ -156,6 +158,12 @@ where
         let new_span = i.drop(sp.length()).unwrap();
         Ok((new_span, matched))
     }
+}
+
+/// Get's a string if this is label
+pub fn get_label_string(input: TSpan) -> PResult<String> {
+    use IdentifierKind::*;
+    map(tag(Identifier(Label)), |sp| get_text(sp))(input)
 }
 
 #[allow(unused_imports)]

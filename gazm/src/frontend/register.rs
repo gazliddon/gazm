@@ -2,16 +2,17 @@
 use crate::help::ErrCode::*;
 use emu6809::cpu::RegEnum;
 use std::collections::HashSet;
-use unraveler::{cut, map, match_span as ms, sep_list, sep_pair};
+use unraveler::{cut, match_span as ms, sep_list, sep_pair, };
 
 use super::{
-    err_error, err_fatal, error, get_text,
+    get_label_string,
+    err_error, err_fatal, error, 
     item6809::{
         AddrModeParseType,
         MC6809::{Operand, RegisterSet},
     },
-    IdentifierKind, Item, Node, PResult, TSpan,
-    TokenKind::{self, *},
+    Item, Node, PResult, TSpan,
+    TokenKind::{ *},
 };
 
 pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, RegEnum)> {
@@ -52,6 +53,13 @@ pub fn get_this_reg(r: RegEnum) -> impl FnMut(TSpan) -> PResult<RegEnum> + Copy 
 
 fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
     use crate::help::ErrCode::*;
+
+    // TODO
+    // rewrite so
+    // - parse for an initial register, error if not
+    // - parse for a comma then a comma sep list
+    // - fatal error if we can't parse a register
+
     let mut hash_ret = HashSet::new();
     let (rest, (sp, matched)) = ms(sep_list(get_register, Comma))(input)?;
 
@@ -75,11 +83,11 @@ pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
         .ok_or(error(sp, ErrExpectedIndexRegister))
 }
 
+
+
 /// Parse a single register
 pub fn get_register(input: TSpan) -> PResult<RegEnum> {
-    use {IdentifierKind::*, TokenKind::*};
-
-    let (rest, (sp, text)) = map(ms(Identifier(Label)), |(sp, _)| (sp, get_text(sp)))(input)?;
+    let (rest, (sp, text)) = ms(get_label_string)(input)?;
 
     text.as_str()
         .parse::<RegEnum>()

@@ -36,14 +36,6 @@ pub(crate) fn get_label<F: Fn(String) -> LabelDefinition>(
     Ok((rest, node))
 }
 
-pub(crate) fn get_label_text(input: TSpan) -> PResult<String> {
-    use IdentifierKind::Label;
-    use TokenKind::*;
-    let (rest, sp) = match_item(|i: &Token| matches!(i.kind, Identifier(Label)))(input)?;
-    let text = sp.extra.get_text().to_string();
-    Ok((rest, text))
-}
-
 fn parse_local_label(input: TSpan) -> PResult<Node> {
     use {IdentifierKind::*, Item::LocalLabel, LabelDefinition::Text};
     let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), Identifier(Label)))(input)?;
@@ -70,6 +62,7 @@ pub fn parse_label(input: TSpan) -> PResult<Node> {
         parse_non_scoped_label,
     ))(input)
 }
+
 pub fn parse_label_assignment_pc(input: TSpan) -> PResult<Node> {
     alt((
         parse_local_label,
@@ -92,7 +85,6 @@ impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for TokenKind {
 
 pub fn parse_big_import(input: TSpan) -> PResult<Node> {
     use CommandKind::Import;
-
     let (rest, (span, matched)) = ms(preceded(
         Import,
         wrapped_cut(OpenBrace, sep_list(parse_scoped_label, Comma), CloseBrace),

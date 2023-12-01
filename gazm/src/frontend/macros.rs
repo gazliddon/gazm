@@ -3,17 +3,16 @@
 use unraveler::{match_span as ms, pair, preceded, sep_list0, tuple, many0};
 
 use super::{
-    IdentifierKind::Label,
     Item::{MacroCall, MacroDef},
-    TokenKind::{Comma, Identifier},
+    TokenKind::Comma,
     *,
 };
 
 pub fn parse_macro_call(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (label, args))) =
-        ms(pair(Identifier(Label), parse_bracketed(parse_expr_list0)))(input)?;
+        ms(pair(get_label_string, parse_bracketed(parse_expr_list0)))(input)?;
 
-    let node = Node::from_item_kids_tspan(MacroCall(get_text(label)), &args, sp);
+    let node = Node::from_item_kids_tspan(MacroCall(label), &args, sp);
     Ok((rest, node))
 }
 
@@ -29,14 +28,14 @@ pub fn set_parsing_macro(i: TSpan, v: bool) -> TSpan {
 }
 
 fn parse_macrodef_args(input: TSpan) -> PResult<Vec<String>> {
-    parse_bracketed(sep_list0(get_label_text, Comma))(input)
+    parse_bracketed(sep_list0(get_label_string, Comma))(input)
 }
 
 pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (label, args, body))) = ms(preceded(
         CommandKind::Macro,
         tuple((
-            Identifier(Label),
+            get_label_string,
             parse_macrodef_args,
             parse_block(many0(parse_next_source_chunk)),
         )),
@@ -44,7 +43,7 @@ pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
 
     let body :Vec<_> = body.into_iter().flatten().collect();
 
-    let node = Node::from_item_kids_tspan(MacroDef(get_text(label), args.into()), &body, sp);
+    let node = Node::from_item_kids_tspan(MacroDef(label, args.into()), &body, sp);
     Ok((rest, node))
 }
 

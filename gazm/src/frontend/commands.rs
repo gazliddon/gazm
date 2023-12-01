@@ -2,8 +2,9 @@
 
 use super::{
     get_text, item6809::MC6809, parse_expr, parse_expr_list, parse_scoped_label, CommandKind,
-    FrontEndError, IdentifierKind, Item, Node, PResult, TSpan, TokenKind, TokenKind::Comma,
+    FrontEndError, Item, Node, PResult, TSpan, TokenKind, TokenKind::Comma,
     FeResult,
+    get_label_string,
 };
 use crate::debug_mess;
 use std::path::PathBuf;
@@ -26,10 +27,6 @@ fn get_file_name(input: TSpan) -> PResult<PathBuf> {
     Ok((rest, p))
 }
 
-fn get_identifier(input: TSpan) -> PResult<String> {
-    let (rest, matched) = TokenKind::Identifier(IdentifierKind::Label).parse(input)?;
-    Ok((rest, get_text(matched)))
-}
 
 fn simple_command<I>(
     command_kind: CommandKind,
@@ -52,7 +49,7 @@ fn parse_simple_command<I: Into<Item>>(
 }
 
 pub(crate) fn parse_scope(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, name)) = ms(preceded(CommandKind::Scope, get_identifier))(input)?;
+    let (rest, (sp, name)) = ms(preceded(CommandKind::Scope, get_label_string))(input)?;
     Ok((rest, Node::from_item_tspan(Item::Scope(name), sp)))
 }
 
