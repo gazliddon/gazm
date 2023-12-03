@@ -105,7 +105,7 @@ mod test {
                     Mul,
                     Num(4, Decimal),
                     Add,
-                    Num(1, Hex),
+                    Num(1, Hexadecimal),
                     Add,
                     BracketedExpr,
                 ],

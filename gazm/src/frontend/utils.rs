@@ -38,7 +38,7 @@ impl BaseNode<Item, Position> {
     }
 
     pub fn from_num_tspan(num: i64, sp: TSpan) -> Self {
-        Node::from_item_tspan(Item::from_number(num, ParsedFrom::FromExpr), sp)
+        Node::from_item_tspan(Item::from_number(num, ParsedFrom::Expression), sp)
     }
 
     pub fn with_tspan(self, sp: TSpan) -> Self {

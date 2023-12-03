@@ -42,11 +42,12 @@ impl FromStr for StructMemberType {
 impl StructMemberType {
     pub fn to_size_item(&self) -> Item {
         use Item::*;
+        use ParsedFrom::Expression;
         match self {
-            Self::Byte => Num(1, ParsedFrom::FromExpr),
-            Self::Word => Num(2, ParsedFrom::FromExpr),
-            Self::DWord => Num(4, ParsedFrom::FromExpr),
-            Self::QWord => Num(8, ParsedFrom::FromExpr),
+            Self::Byte => Num(1, Expression),
+            Self::Word => Num(2, Expression),
+            Self::DWord => Num(4, Expression),
+            Self::QWord => Num(8, Expression),
             Self::UserType(name) => Label(LabelDefinition::Text(format!("{name}.size"))),
         }
     }
@@ -60,11 +61,11 @@ pub struct StructEntry {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ParsedFrom {
-    Hex,
+    Hexadecimal,
     Decimal,
-    Bin,
-    Char,
-    FromExpr,
+    Binary,
+    Character,
+    Expression,
 }
 
 #[derive(Debug, PartialEq, Hash, Clone)]
@@ -118,10 +119,11 @@ impl From<SymbolScopeId> for LabelDefinition {
 
 impl std::fmt::Display for LabelDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use LabelDefinition::*;
         match self {
-            LabelDefinition::Scoped(x) => write!(f, "Scoped({},{})", x.scope_id, x.symbol_id),
-            LabelDefinition::TextScoped(x) => write!(f, "{x}"),
-            LabelDefinition::Text(x) => write!(f, "{x}"),
+            Scoped(x) => write!(f, "Scoped({},{})", x.scope_id, x.symbol_id),
+            TextScoped(x) => write!(f, "{x}"),
+            Text(x) => write!(f, "{x}"),
         }
     }
 }
@@ -214,7 +216,7 @@ pub enum Item {
 
 impl Item {
     pub fn zero() -> Self {
-        Item::Num(0, ParsedFrom::FromExpr)
+        Item::Num(0, ParsedFrom::Expression)
     }
 
     pub fn from_number(n: i64, p: ParsedFrom) -> Self {
@@ -276,7 +278,7 @@ impl BaseNode<Item, Position> {
     }
 
     pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Self {
-        Self::new(Item::Num(n, ParsedFrom::FromExpr), pos.into())
+        Self::new(Item::Num(n, ParsedFrom::Expression), pos.into())
     }
     pub fn with_pos(self, sp: Position) -> Self {
         let mut ret = self;
@@ -324,9 +326,9 @@ impl Display for BaseNode<Item, Position> {
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
             Num(n, p) => match &p {
-                ParsedFrom::Hex => format!("${n:x}"),
-                ParsedFrom::FromExpr | ParsedFrom::Decimal | ParsedFrom::Char => n.to_string(),
-                ParsedFrom::Bin => format!("%{n:b}"),
+                ParsedFrom::Hexadecimal => format!("${n:x}"),
+                ParsedFrom::Expression | ParsedFrom::Decimal | ParsedFrom::Character => n.to_string(),
+                ParsedFrom::Binary => format!("%{n:b}"),
             },
             UnaryTerm => join_children(""),
 

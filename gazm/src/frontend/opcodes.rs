@@ -211,7 +211,7 @@ mod test {
 
         let test_data = vec![
             ("lda", "lda #10", Immediate, vec![Num(10, Decimal)]),
-            ("ldb", "ldb #$10", Immediate, vec![Num(16, Hex)]),
+            ("ldb", "ldb #$10", Immediate, vec![Num(16, Hexadecimal)]),
             (
                 "lda",
                 "lda [10],y",

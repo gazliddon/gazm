@@ -96,10 +96,10 @@ pub fn parse_big_import(input: TSpan) -> PResult<Node> {
 impl From<NumberKind> for ParsedFrom {
     fn from(nk: NumberKind) -> Self {
         match nk {
-            NumberKind::Char => ParsedFrom::Char,
-            NumberKind::Hex => ParsedFrom::Hex,
+            NumberKind::Char => ParsedFrom::Character,
+            NumberKind::Hex => ParsedFrom::Hexadecimal,
             NumberKind::Dec => ParsedFrom::Decimal,
-            NumberKind::Bin => ParsedFrom::Bin,
+            NumberKind::Bin => ParsedFrom::Binary,
         }
     }
 }

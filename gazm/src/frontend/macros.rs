@@ -168,9 +168,9 @@ macro MKPROB(process,object_pic,collion_vec,blip) {
     #[test]
     fn test_macro_call() {
     use Item::Num;
-    use ParsedFrom::Hex;
+    use ParsedFrom::Hexadecimal;
         let data = [
-            ("SLEEP($60, $70)", vec![Num(0x60, Hex), Num(0x70, Hex)]),
+            ("SLEEP($60, $70)", vec![Num(0x60, Hexadecimal), Num(0x70, Hexadecimal)]),
             ("SLEEP()", vec![]),
             ("SLEEP((20))", vec![Item::Expr]),
         ];

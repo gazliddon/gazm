@@ -316,7 +316,7 @@ mod test {
     fn test_parse_setdp() {
         let text = "setdp $ff00";
         let desired = Item::Cpu(MC6809::SetDp);
-        let desired_args = [Num(0xff00, Hex)];
+        let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(super::parse_setdp, text, desired, &desired_args);
     }
 
@@ -324,17 +324,17 @@ mod test {
     fn test_parse_various_fills() {
         let text = "rzb $ff00";
         let desired = Item::Fill;
-        let desired_args = [Num(0xff00, Hex), Num(0, FromExpr)];
+        let desired_args = [Num(0xff00, Hexadecimal), Num(0, Expression)];
         test_command(super::parse_various_fills, text, desired, &desired_args);
 
         let text = "rzb $ff00";
         let desired = Item::Fill;
-        let desired_args = [Num(0xff00, Hex), Num(0, FromExpr)];
+        let desired_args = [Num(0xff00, Hexadecimal), Num(0, Expression)];
         test_command(super::parse_various_fills, text, desired, &desired_args);
 
         let text = "bsz $ff00,0";
         let desired = Item::Fill;
-        let desired_args = [Num(0xff00, Hex), Num(0, Decimal)];
+        let desired_args = [Num(0xff00, Hexadecimal), Num(0, Decimal)];
         test_command(super::parse_various_fills, text, desired, &desired_args);
     }
 
@@ -342,7 +342,7 @@ mod test {
     fn test_parse_fill() {
         let text = "fill 10,$ff00";
         let desired = Item::Fill;
-        let desired_args = [Num(10, Decimal), Num(0xff00, Hex)];
+        let desired_args = [Num(10, Decimal), Num(0xff00, Hexadecimal)];
         test_command(super::parse_fill, text, desired, &desired_args);
     }
 
@@ -350,7 +350,7 @@ mod test {
     fn test_parse_fcb() {
         let text = "fcb $ff00,10";
         let desired = Item::Fcb(2);
-        let desired_args = [Num(0xff00, Hex), Num(10, Decimal)];
+        let desired_args = [Num(0xff00, Hexadecimal), Num(10, Decimal)];
         test_command(super::parse_fcb, text, desired, &desired_args);
     }
 
@@ -358,7 +358,7 @@ mod test {
     fn test_parse_fdb() {
         let text = "fdb $ff00,10";
         let desired = Item::Fdb(2);
-        let desired_args = [Num(0xff00, Hex), Num(10, Decimal)];
+        let desired_args = [Num(0xff00, Hexadecimal), Num(10, Decimal)];
         test_command(super::parse_fdb, text, desired, &desired_args);
     }
 
@@ -373,7 +373,7 @@ mod test {
     fn test_parse_zmd() {
         let text = "zmd $ff00";
         let desired = Item::Zmd;
-        let desired_args = [Num(0xff00, Hex)];
+        let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(super::parse_zmd, text, desired, &desired_args);
     }
 
@@ -381,7 +381,7 @@ mod test {
     fn test_parse_rmb() {
         let text = "rmb $ff00";
         let desired = Item::Rmb;
-        let desired_args = [Num(0xff00, Hex)];
+        let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(super::parse_rmb, text, desired, &desired_args);
     }
 
@@ -389,7 +389,7 @@ mod test {
     fn test_parse_org() {
         let text = "org $ff00";
         let desired = Item::Org;
-        let desired_args = [Num(0xff00, Hex)];
+        let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(super::parse_org, text, desired, &desired_args);
     }
 
@@ -405,7 +405,7 @@ mod test {
     fn test_parse_exec() {
         let text = "exec $ff00";
         let desired = Item::Exec;
-        let desired_args = [Num(0xff00, Hex)];
+        let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(super::parse_exec, text, desired, &desired_args);
     }
 

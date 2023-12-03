@@ -96,7 +96,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
         symbols
             .get_symbol_info(name)
             .and_then(|si| si.value.ok_or(SymbolError::NoValue))
-            .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
+            .map(|n| Item::from_number(n, ParsedFrom::Expression))
             .map_err(|_| EvalError::new(e, n))
     };
 
@@ -107,7 +107,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
             symbols
                 .get_symbol_info_from_id(*id)
                 .and_then(|si| si.value.ok_or(SymbolError::NoValue))
-                .map(|n| Item::from_number(n, ParsedFrom::FromExpr))
+                .map(|n| Item::from_number(n, ParsedFrom::Expression))
                 .map_err(|_| {
                     // let name = symbols
                     //     .get_symbol_info_from_id(*id)
@@ -134,7 +134,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, Eval
             let num = r.unrwap_number().unwrap();
 
             let num = &match ops.value().item {
-                Item::Sub => Item::Num(-num, ParsedFrom::FromExpr),
+                Item::Sub => Item::Num(-num, ParsedFrom::Expression),
                 _ => return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n)),
             };
 
@@ -202,7 +202,7 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<Item, EvalE
             })
             .map_err(|_| EvalError::new(EvalErrorEnum::UnableToEvaluate, *cn))??;
 
-            s.push(Num(result, ParsedFrom::FromExpr))
+            s.push(Num(result, ParsedFrom::Expression))
         } else {
             s.push(i.clone());
         }

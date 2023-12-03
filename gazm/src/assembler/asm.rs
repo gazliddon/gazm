@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     ast::{Ast, AstCtx, AstNodeId, AstNodeRef},
     error::{ErrorCollector, GResult, GazmErrorKind, UserError},
-    frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult, to_user_error, },
+    frontend::{to_user_error, tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
     frontend::{FrontEndError, FrontEndErrorKind, Item, Node},
     gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
@@ -15,10 +15,10 @@ use crate::{
 };
 
 use grl_sources::{
-    SourceErrorType,SourceInfo,
     fileloader::SourceFileLoader,
     grl_utils::{fileutils, FResult, FileIo, PathSearcher},
-    AsmSource, BinToWrite, Position, SourceDatabase, SourceFile, SourceFiles, SourceMapping,
+    AsmSource, BinToWrite, Position, SourceDatabase, SourceErrorType, SourceFile, SourceFiles,
+    SourceInfo, SourceMapping,
 };
 
 use super::{
@@ -64,7 +64,7 @@ pub struct AsmOut {
 }
 
 impl AsmOut {
-    pub fn set_dp(&mut self,val: u8) {
+    pub fn set_dp(&mut self, val: u8) {
         self.direct_page = Some(val)
     }
     pub fn reset_dp(&mut self) {
@@ -178,7 +178,11 @@ impl Assembler {
         Ok(ret)
     }
 
-    pub fn add_front_end_error(&mut self, pe: &[FrontEndError], sf: &SourceFile) -> Result<(), FrontEndError> {
+    pub fn add_front_end_error(
+        &mut self,
+        pe: &[FrontEndError],
+        sf: &SourceFile,
+    ) -> Result<(), FrontEndError> {
         if pe.is_empty() {
             Ok(())
         } else {
@@ -307,11 +311,18 @@ impl TryFrom<Opts> for Assembler {
     fn try_from(opts: Opts) -> Result<Self, String> {
         let asm_out = AsmOut::try_from(opts.clone())?;
 
-        let ret = Self {
+        let mut ret = Self {
             asm_out,
             opts,
             ..Default::default()
         };
+
+
+        let file = ret.get_project_file();
+
+        if let Some(dir) = file.parent() {
+            ret.get_source_file_loader_mut().add_search_path(dir);
+        }
 
         Ok(ret)
     }
@@ -339,7 +350,7 @@ impl Assembler {
     /// return a vector of nodes
     fn do_tokenize(&mut self) -> Result<TokenizeResult, FrontEndError> {
         if self.opts.no_async {
-            status("Lexing no async", |_| tokenize_no_async(self))?
+            status("Lexing synchronously", |_| tokenize_no_async(self))?
         } else {
             status("Lexing async", |_| tokenize_async(self))?
         }
@@ -349,28 +360,14 @@ impl Assembler {
     }
 
     fn assemble_project(&mut self) -> GResult<()> {
-        let file = self.get_project_file();
 
-        let original_paths = self
-            .get_source_file_loader_mut()
-            .get_search_paths()
-            .to_vec();
+        let tokes = self.do_tokenize()?;
 
-        if let Some(dir) = file.parent() {
-            self.get_source_file_loader_mut().add_search_path(dir);
+        if tokes.errors.is_empty() {
+            self.assemble_tokens(&tokes.node)?;
+        } else {
+            todo!("tokenizer errors")
         }
-
-        let tokes_res = self.do_tokenize();
-
-        match tokes_res {
-            Err(_) => panic!(),
-            Ok(tokes) => {
-                self.assemble_tokens(&tokes.node)?;
-            }
-        }
-
-        self.get_source_file_loader_mut()
-            .set_search_paths(&original_paths);
 
         self.asm_out.errors.raise_errors()
     }
