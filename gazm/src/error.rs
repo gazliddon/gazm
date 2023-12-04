@@ -17,6 +17,8 @@ pub type GResult<T> = Result<T, GazmErrorKind>;
 
 #[derive(Error, Debug, Clone)]
 pub enum GazmErrorKind {
+    #[error("{0}")]
+    FrontEndErrors(NewErrorCollector<FrontEndError>),
     #[error(transparent)]
     FrontEndError(#[from] FrontEndError),
     #[error(transparent)]
@@ -266,11 +268,9 @@ impl UserErrorData {
 
         match &self.message {
             ErrorMessage::Plain(txt) => {
-                writeln!(&mut s,"{error}: {}", txt.bold()).expect("lklkl");
+                writeln!(&mut s, "{error}: {}", txt.bold()).expect("lklkl");
             }
-            ErrorMessage::Markdown(short, _) => {
-                writeln!(&mut s,"{short}").expect("kjkjk")
-            }
+            ErrorMessage::Markdown(short, _) => writeln!(&mut s, "{short}").expect("kjkjk"),
         }
 
         writeln!(
@@ -453,56 +453,91 @@ impl ErrorCollector {
     }
 }
 
-#[allow(unused_imports)]
-mod new {
-    use super::*;
-    use std::fmt::Display;
+use std::fmt::Display;
+pub trait ErrorTrait: Display {}
 
-    pub trait ErrorTrait : Display {
+impl ErrorTrait for FrontEndError {}
+
+#[derive(Clone, Debug)]
+pub struct NewErrorCollector<E>
+where
+    E: ErrorTrait,
+{
+    errors: Vec<E>,
+    max_errors: usize,
+}
+
+impl<E> Display for NewErrorCollector<E>
+where
+    E: ErrorTrait,
+{
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for e in &self.errors {
+            write!(_f, "{e}")?;
+        }
+        Ok(())
+    }
+}
+
+pub trait ErrorCollectorTrait : Sized
+{
+    type Error;
+    fn has_errors(&self) -> bool {
+        self.num_of_errors() != 0
     }
 
-    pub struct ErrorCollector<E> 
-        where E: ErrorTrait
-    {
-        errors : Vec<E>,
-        max_errors: usize,
+    fn is_over_max_errors(&self) -> bool {
+        self.num_of_errors() >= self.max_errors()
     }
 
-    impl<E> Display for ErrorCollector<E> 
-        where E: ErrorTrait
-    {
-        fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            for e in &self.errors {
-                writeln!(_f,"{e}")?;
-            }
+    fn add<X: Into<Self::Error>>(&mut self, e: X) -> bool;
+    fn num_of_errors(&self) -> usize;
+    fn max_errors(&self) -> usize;
+    fn to_vec(self) -> Vec<Self::Error>;
+
+    fn to_error(self) -> Result<(),Vec<Self::Error>> {
+        if self.has_errors() {
+            Err(self.to_vec())
+        } else {
             Ok(())
         }
+
+    }
+}
+
+impl<E> ErrorCollectorTrait for NewErrorCollector<E>
+where
+    E: ErrorTrait,
+{
+    type Error = E;
+    fn num_of_errors(&self) -> usize {
+        self.errors.len()
     }
 
-    impl<E> ErrorCollector<E> 
-        where E: ErrorTrait
-    {
-        pub fn new(max_errors: usize) -> Self {
-            Self {
-                max_errors,
-                errors: Default::default()
-            }
-        }
-
-        pub fn add<X : Into<E>>(&mut self, _err : X) -> bool {
-            self.errors.push(_err.into());
-            self.is_over_max_errors()
-        }
-
-        pub fn num_of_errors(&self) -> usize {
-            self.errors.len()
-        }
-
-        pub fn is_over_max_errors(&self) -> bool {
-            self.errors.len() >= self.max_errors
-        }
+    fn max_errors(&self) -> usize {
+        self.max_errors
     }
 
+    fn to_vec(self) -> Vec<Self::Error> {
+        self.errors
+    }
+
+    fn add<X: Into<Self::Error>>(&mut self, _err: X) -> bool {
+        self.errors.push(_err.into());
+        self.is_over_max_errors()
+    }
+}
+
+impl<E> NewErrorCollector<E>
+where
+    E: ErrorTrait,
+{
+    pub fn new(max_errors: usize) -> Self {
+        Self {
+            max_errors,
+            errors: Default::default(),
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
