@@ -20,6 +20,7 @@ use grl_sources::{
     AsmSource, BinToWrite, Position, SourceDatabase, SourceErrorType, SourceFile, SourceFiles,
     SourceInfo, SourceMapping,
 };
+use itertools::Itertools;
 
 use super::{
     binary::{AccessType, BinRef, Binary},
@@ -88,7 +89,6 @@ impl LstFile {
 
 impl Assembler {
     pub fn get_untokenized_files(&self, files: &[(Position, PathBuf)]) -> Vec<(Position, PathBuf)> {
-        use itertools::Itertools;
         files
             .iter()
             .cloned()
@@ -178,20 +178,22 @@ impl Assembler {
         Ok(ret)
     }
 
-    pub fn add_front_end_error(
-        &mut self,
-        pe: &[FrontEndError],
-        sf: &SourceFile,
-    ) -> Result<(), FrontEndError> {
-        if pe.is_empty() {
-            Ok(())
-        } else {
-            for e in pe {
-                let e = to_user_error(e.clone(), sf);
-                println!("{e}");
-            }
-            panic!()
+    pub fn add_any_tokenize_errors(&mut self, r: &TokenizeResult) -> Result<(), FrontEndError> {
+        let sf = &r.request.source_file;
+
+        for original_error in r.errors.iter() {
+            let user_error = to_user_error(original_error.clone(), sf);
+            self.asm_out
+                .errors
+                .add_user_error(user_error)
+                .map_err(|_| {
+                    original_error
+                        .clone()
+                        .change_kind(FrontEndErrorKind::TooManyErrors)
+                })?
         }
+
+        Ok(())
     }
 
     pub fn asm_source_to_path(&self, a: &AsmSource) -> Option<PathBuf> {
@@ -317,7 +319,6 @@ impl TryFrom<Opts> for Assembler {
             ..Default::default()
         };
 
-
         let file = ret.get_project_file();
 
         if let Some(dir) = file.parent() {
@@ -347,29 +348,36 @@ impl Assembler {
     }
 
     /// Tokenize the project file and all of its includes
-    /// return a vector of nodes
-    fn do_tokenize(&mut self) -> Result<TokenizeResult, FrontEndError> {
+    /// Converts errors into a GResult
+    fn tokenize_project(&mut self) -> GResult<()> {
         if self.opts.no_async {
-            status("Lexing synchronously", |_| tokenize_no_async(self))?
+            status("Lexing synchronously", |_| tokenize_no_async(self))
         } else {
-            status("Lexing async", |_| tokenize_async(self))?
+            status("Lexing async", |_| tokenize_async(self))
         }
-        let file = self.get_project_file();
-        let tokes = self.get_tokens_from_full_path(&file).unwrap().clone();
-        Ok(tokes)
+        .map_err(|errors| {
+            let mut err_col = ErrorCollector::new(self.opts.max_errors);
+            for fe_err in errors.into_iter() {
+                let ue = self.to_user_error(fe_err);
+                let _ = err_col.add_user_error(ue);
+            }
+            GazmErrorKind::TooManyErrors(err_col)
+        })
     }
 
     fn assemble_project(&mut self) -> GResult<()> {
+        self.tokenize_project()?;
 
-        let tokes = self.do_tokenize()?;
+        let file = self.get_project_file();
+        let tokes = self.get_tokens_from_full_path(&file).unwrap().clone();
+        self.assemble_tokens(&tokes.node)?;
+        return Ok(());
+    }
 
-        if tokes.errors.is_empty() {
-            self.assemble_tokens(&tokes.node)?;
-        } else {
-            todo!("tokenizer errors")
-        }
-
-        self.asm_out.errors.raise_errors()
+    fn to_user_error(&self, err: FrontEndError) -> UserError {
+        let source_info = self.get_source_info(&err.position).expect("Source info!");
+        let user_error = to_user_error(err, source_info.source_file);
+        user_error
     }
 
     pub fn set_pc_symbol(&mut self, val: usize) -> Result<(), SymbolError> {

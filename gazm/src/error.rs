@@ -453,4 +453,56 @@ impl ErrorCollector {
     }
 }
 
+#[allow(unused_imports)]
+mod new {
+    use super::*;
+    use std::fmt::Display;
+
+    pub trait ErrorTrait : Display {
+    }
+
+    pub struct ErrorCollector<E> 
+        where E: ErrorTrait
+    {
+        errors : Vec<E>,
+        max_errors: usize,
+    }
+
+    impl<E> Display for ErrorCollector<E> 
+        where E: ErrorTrait
+    {
+        fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            for e in &self.errors {
+                writeln!(_f,"{e}")?;
+            }
+            Ok(())
+        }
+    }
+
+    impl<E> ErrorCollector<E> 
+        where E: ErrorTrait
+    {
+        pub fn new(max_errors: usize) -> Self {
+            Self {
+                max_errors,
+                errors: Default::default()
+            }
+        }
+
+        pub fn add<X : Into<E>>(&mut self, _err : X) -> bool {
+            self.errors.push(_err.into());
+            self.is_over_max_errors()
+        }
+
+        pub fn num_of_errors(&self) -> usize {
+            self.errors.len()
+        }
+
+        pub fn is_over_max_errors(&self) -> bool {
+            self.errors.len() >= self.max_errors
+        }
+    }
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
