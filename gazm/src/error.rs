@@ -3,13 +3,16 @@
 use crate::{
     assembler,
     ast::{AstNodeId, AstNodeRef},
-    frontend::FrontEndError,
+    frontend::{FrontEndError, FrontEndErrorKind},
     vars::VarsErrorKind,
 };
 
 use thin_vec::ThinVec;
 
-use grl_sources::{grl_utils::FileError, EditErrorKind, Position, SourceFiles, SourceInfo};
+use grl_sources::{
+    grl_utils::FileError, EditErrorKind, Position, SourceFile, SourceFiles, SourceInfo,
+    TextEditTrait,
+};
 
 use thiserror::Error;
 
@@ -479,8 +482,7 @@ where
     }
 }
 
-pub trait ErrorCollectorTrait : Sized
-{
+pub trait ErrorCollectorTrait: Sized {
     type Error;
     fn has_errors(&self) -> bool {
         self.num_of_errors() != 0
@@ -495,13 +497,12 @@ pub trait ErrorCollectorTrait : Sized
     fn max_errors(&self) -> usize;
     fn to_vec(self) -> Vec<Self::Error>;
 
-    fn to_error(self) -> Result<(),Vec<Self::Error>> {
+    fn to_error(self) -> Result<(), Vec<Self::Error>> {
         if self.has_errors() {
             Err(self.to_vec())
         } else {
             Ok(())
         }
-
     }
 }
 
@@ -538,6 +539,52 @@ where
             errors: Default::default(),
         }
     }
+}
+
+fn get_line(sf: &SourceFile, line: isize) -> String {
+    if line < 0 {
+        String::new()
+    } else {
+        let txt = sf.get_text().get_line(line as usize).unwrap_or("");
+        format!("{txt}")
+    }
+}
+
+fn get_lines(sf: &SourceFile, line: isize) -> String {
+    [
+        get_line(sf, line - 2),
+        get_line(sf, line - 1),
+        get_line(sf, line),
+        get_line(sf, line + 1),
+        get_line(sf, line + 2),
+    ]
+    .join("\n")
+}
+
+pub fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
+    use ErrorMessage::*;
+
+    let message = match e.kind {
+        FrontEndErrorKind::HelpText(ht) => {
+            let short = crate::help::HELP.get_short(ht);
+            let full_text = crate::help::HELP.get(ht);
+            Markdown(format!("{short}"), format!("{full_text}"))
+        }
+        _ => Plain(format!("{e}")),
+    };
+
+    let line = e.position.line();
+    let line = get_line(sf, line as isize);
+
+    let ued = UserErrorData {
+        message,
+        pos: e.position.clone(),
+        line,
+        file: sf.file.clone(),
+        failure: true,
+    };
+
+    UserError { data: ued.into() }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

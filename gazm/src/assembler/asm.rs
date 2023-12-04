@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     ast::{Ast, AstCtx, AstNodeId, AstNodeRef},
-    error::{ErrorCollector, GResult, GazmErrorKind, UserError},
-    frontend::{to_user_error, tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
+    error::{ErrorCollector, GResult, GazmErrorKind, UserError, to_user_error},
+    frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
     frontend::{FrontEndError, FrontEndErrorKind, Item, Node},
     gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
