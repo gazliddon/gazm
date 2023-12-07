@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     ast::{Ast, AstCtx, AstNodeId, AstNodeRef},
-    error::{ErrorCollector, GResult, GazmErrorKind, UserError},
+    error::{ErrorCollector, ErrorCollectorTrait, GResult, GazmErrorKind, UserError},
     frontend::{to_user_error, tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
     frontend::{FrontEndError, FrontEndErrorKind, Item, Node},
     gazmsymbols::SymbolTree,
@@ -17,8 +17,8 @@ use crate::{
 use grl_sources::{
     fileloader::SourceFileLoader,
     grl_utils::{fileutils, FResult, FileIo, PathSearcher},
-    AsmSource, BinToWrite, Position, SourceDatabase, SourceErrorType, SourceFile, SourceFiles,
-    SourceInfo, SourceMapping,
+    AsmSource, BinToWrite, ItemType, Position, SourceDatabase, SourceErrorType, SourceFile,
+    SourceFiles, SourceInfo, SourceMapping,
 };
 use itertools::Itertools;
 
@@ -70,6 +70,32 @@ impl AsmOut {
     }
     pub fn reset_dp(&mut self) {
         self.direct_page = None;
+    }
+}
+
+impl AsmOut {
+    pub fn add_source_mapping(
+        &mut self,
+        line_str: &str,
+        pos: Position,
+        addr: usize,
+        item_type: ItemType,
+    ) {
+        let (logical_range, phys_range) = self.binary.range_to_write_address(addr);
+        self.source_map
+            .add_mapping(phys_range.clone(), logical_range, &pos, item_type);
+        let mem_text = if phys_range.is_empty() {
+            String::new()
+        } else {
+            format!("{:02X?}", self.binary.get_bytes_range(phys_range.clone()))
+        };
+
+        let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, addr, mem_text);
+        let m = format!("{:50}{}", m_pc, line_str);
+
+        if !mem_text.is_empty() {
+            self.lst_file.add(&m);
+        }
     }
 }
 
@@ -216,6 +242,10 @@ impl Assembler {
         &self.asm_out.symbols
     }
 
+    pub fn has_source_info(&self, pos: &Position) -> bool {
+        self.get_source_info(pos).is_ok()
+    }
+
     pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, SourceErrorType> {
         self.get_source_file_loader().sources.get_source_info(pos)
     }
@@ -357,7 +387,7 @@ impl Assembler {
         }
         .map_err(|errors| {
             let mut err_col = ErrorCollector::new(self.opts.max_errors);
-            for fe_err in errors.into_iter() {
+            for fe_err in errors.to_vec() {
                 let ue = self.to_user_error(fe_err);
                 let _ = err_col.add_user_error(ue);
             }
@@ -506,27 +536,11 @@ impl Assembler {
 }
 
 impl Assembler {
-    pub fn add_source_mapping(&mut self, pos: &Position, pc: usize) {
-        let (_, phys_range) = self.get_binary().range_to_write_address(pc);
-
-        let si = self.get_source_info(pos);
-
-        if let Ok(si) = si {
-            let mem_text = if phys_range.is_empty() {
-                String::new()
-            } else {
-                format!(
-                    "{:02X?}",
-                    self.asm_out.binary.get_bytes_range(phys_range.clone())
-                )
-            };
-
-            let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, pc, mem_text);
-            let m = format!("{:50}{}", m_pc, si.line_str);
-
-            if !mem_text.is_empty() {
-                self.asm_out.lst_file.add(&m);
-            }
+    pub fn add_source_mapping(&mut self, pos: &Position, pc: usize, kind: ItemType) {
+        if let Ok(si) = self.get_source_info(pos) {
+            let line_str = si.line_str.to_owned();
+            self.asm_out
+                .add_source_mapping(&line_str, pos.clone(), pc, kind)
         }
     }
 

@@ -467,6 +467,14 @@ where
     max_errors: usize,
 }
 
+impl<E> Default for NewErrorCollector<E> 
+where E : ErrorTrait
+{
+    fn default() -> Self {
+        Self { errors: Default::default(), max_errors: 20 }
+    }
+}
+
 impl<E> Display for NewErrorCollector<E>
 where
     E: ErrorTrait,
@@ -479,8 +487,7 @@ where
     }
 }
 
-pub trait ErrorCollectorTrait : Sized
-{
+pub trait ErrorCollectorTrait: Sized {
     type Error;
     fn has_errors(&self) -> bool {
         self.num_of_errors() != 0
@@ -490,18 +497,30 @@ pub trait ErrorCollectorTrait : Sized
         self.num_of_errors() >= self.max_errors()
     }
 
-    fn add<X: Into<Self::Error>>(&mut self, e: X) -> bool;
+    fn add<X: Into<Self::Error>>(&mut self, e: X) ;
     fn num_of_errors(&self) -> usize;
     fn max_errors(&self) -> usize;
     fn to_vec(self) -> Vec<Self::Error>;
 
-    fn to_error(self) -> Result<(),Vec<Self::Error>> {
+    fn add_vec(&mut self, errors: Vec<Self::Error>) {
+        for e in errors {
+            self.add(e);
+        }
+    }
+    fn to_result(self) -> Result<(), Self> {
+        if self.has_errors() {
+            Err(self)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn to_error(self) -> Result<(), Vec<Self::Error>> {
         if self.has_errors() {
             Err(self.to_vec())
         } else {
             Ok(())
         }
-
     }
 }
 
@@ -522,9 +541,8 @@ where
         self.errors
     }
 
-    fn add<X: Into<Self::Error>>(&mut self, _err: X) -> bool {
+    fn add<X: Into<Self::Error>>(&mut self, _err: X) {
         self.errors.push(_err.into());
-        self.is_over_max_errors()
     }
 }
 

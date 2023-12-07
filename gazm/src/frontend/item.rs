@@ -1,7 +1,7 @@
 #![forbid(unused_imports)]
+use grl_sources::Position;
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thin_vec::ThinVec;
-use grl_sources::Position;
 
 use crate::{ast::AstNodeId, error::ParseError, gazmsymbols::SymbolScopeId};
 
@@ -132,7 +132,6 @@ impl std::fmt::Display for LabelDefinition {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
     Import,
-
     Cpu(MC6809),
     Doc(String),
     Pc,
@@ -185,16 +184,17 @@ pub enum Item {
     },
 
     WriteBin(PathBuf),
+
     TokenizedFile(PathBuf, Option<PathBuf>),
+
     Errors(ThinVec<ParseError>),
+
     Exec,
     Org,
     Put,
-
     Fdb(usize),
     Fcb(usize),
     Fcc(String),
-
     Rmb,
     Rmd,
     Fill,
@@ -212,6 +212,21 @@ pub enum Item {
     ShiftL,
     UnaryGreaterThan,
     Block,
+}
+
+impl Into<grl_sources::ItemType> for Item {
+    fn into(self) -> grl_sources::ItemType {
+        use grl_sources::ItemType::*;
+        match self {
+            Item::Cpu(m) => match m {
+                MC6809::Operand(..) => Other,
+                MC6809::RegisterSet(..) => Other,
+                MC6809::OperandIndexed(..) | MC6809::OpCode(..) => OpCode,
+                MC6809::SetDp => Command,
+            },
+            _ => Other,
+        }
+    }
 }
 
 impl Item {
@@ -285,7 +300,6 @@ impl BaseNode<Item, Position> {
         ret.ctx = sp;
         ret
     }
-
 }
 
 pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {
@@ -327,7 +341,9 @@ impl Display for BaseNode<Item, Position> {
 
             Num(n, p) => match &p {
                 ParsedFrom::Hexadecimal => format!("${n:x}"),
-                ParsedFrom::Expression | ParsedFrom::Decimal | ParsedFrom::Character => n.to_string(),
+                ParsedFrom::Expression | ParsedFrom::Decimal | ParsedFrom::Character => {
+                    n.to_string()
+                }
                 ParsedFrom::Binary => format!("%{n:b}"),
             },
             UnaryTerm => join_children(""),

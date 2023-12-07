@@ -141,6 +141,13 @@ impl FrontEndError {
         }
     }
 
+    pub fn error_pos<E: Into<FrontEndErrorKind>>(position: Position, kind: E) -> Self {
+        Self {
+            kind: kind.into(),
+            position,
+            severity: Severity::Error,
+        }
+    }
     pub fn error<E: Into<FrontEndErrorKind>>(sp: TSpan, kind: E) -> Self {
         let position = to_pos(sp);
         Self {

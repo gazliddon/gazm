@@ -3,7 +3,10 @@
 use super::{FrontEndError, FrontEndErrorKind, Item, Node, OriginalSource};
 
 use crate::{
-    assembler::Assembler, debug_mess, error::{UserErrorData, ErrorCollector}, frontend::parse_all_with_resume,
+    assembler::Assembler,
+    debug_mess,
+    error::{ErrorCollector, ErrorCollectorTrait, NewErrorCollector, UserErrorData},
+    frontend::parse_all_with_resume,
     opts::Opts,
 };
 
@@ -12,6 +15,7 @@ use grl_sources::{
     Position, SourceFile,
 };
 use itertools::Itertools;
+use rayon::iter::ParallelDrainFull;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -53,6 +57,7 @@ pub struct TokenizeResult {
     pub node: Node,
     pub errors: Vec<FrontEndError>,
     pub request: TokenizeRequest,
+    pub error2: NewErrorCollector<FrontEndError>,
 }
 
 impl TokenizeResult {
@@ -77,29 +82,31 @@ impl TokenizeResult {
 impl TryInto<TokenizeResult> for TokenizeRequest {
     type Error = FrontEndError;
 
-    fn try_into(self) -> Result<TokenizeResult, Self::Error> {
+    fn try_into(mut self) -> Result<TokenizeResult, Self::Error> {
         let (node, errors) = self.tokenize()?;
         Ok(TokenizeResult {
             node,
             errors,
             request: self,
+            error2: Default::default(),
         })
     }
 }
 
 impl TokenizeRequest {
-    pub fn to_result(self) -> TokenizeResult {
+    pub fn to_result(mut self) -> TokenizeResult {
         let (node, errors) = self.tokenize().unwrap();
         TokenizeResult {
             node,
             errors,
             request: self,
+            error2: Default::default(),
         }
     }
 }
 
 impl TokenizeRequest {
-    pub fn tokenize(&self) -> Result<(Node, Vec<FrontEndError>), FrontEndError> {
+    pub fn tokenize(&mut self) -> Result<(Node, Vec<FrontEndError>), FrontEndError> {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
         let tokens = to_tokens_no_comment(&self.source_file);
         let mut span = make_tspan(&tokens, &self.source_file, &self.opts);
@@ -229,13 +236,13 @@ impl Assembler {
     }
 }
 
-pub fn tokenize_no_async(ctx: &mut Assembler) -> Result<(), Vec<FrontEndError>> {
+pub fn tokenize_no_async(ctx: &mut Assembler) -> Result<(), NewErrorCollector<FrontEndError>> {
     tokenize_project(ctx, |to_tokenize| {
         to_tokenize.into_iter().map(|req| req.try_into()).collect()
     })
 }
 
-pub fn tokenize_async(ctx: &mut Assembler) -> Result<(), Vec<FrontEndError>> {
+pub fn tokenize_async(ctx: &mut Assembler) -> Result<(), NewErrorCollector<FrontEndError>> {
     tokenize_project(ctx, |to_tokenize| {
         use rayon::prelude::*;
         to_tokenize
@@ -248,11 +255,12 @@ pub fn tokenize_async(ctx: &mut Assembler) -> Result<(), Vec<FrontEndError>> {
 /// Tokenize the entire project
 /// f = handler for tokenize request
 ///     allows me to pass async or synchronous versions of this routine
-fn tokenize_project<F>(ctx: &mut Assembler, tokenize_fn: F) -> Result<(), Vec<FrontEndError>>
+fn tokenize_project<F>(ctx: &mut Assembler, tokenize_fn: F) -> Result<(), NewErrorCollector<FrontEndError>>
 where
     F: Fn(Vec<TokenizeRequest>) -> Vec<Result<TokenizeResult, FrontEndError>>,
 {
-    let mut errors = vec![];
+    let mut errors: NewErrorCollector<FrontEndError> = NewErrorCollector::new(ctx.opts.max_errors);
+
     // seed the files to process vec with the project file
     let mut files_to_tokenize = vec![(Position::default(), ctx.get_project_file(), None)];
 
@@ -260,50 +268,50 @@ where
     // and add any includes found in a source file to the list of
     // files to tokenize (if we haven't tokenized them before)
     while !files_to_tokenize.is_empty() {
-        let size = files_to_tokenize.len();
-
-        let (to_tokenize, mut incs_to_process) = files_to_tokenize.iter().try_fold(
-            (Vec::with_capacity(size), Vec::with_capacity(size)),
-            |(mut to_tok, mut incs), (position, req_file, parent)| {
+        let (to_tokenize, mut incs_to_process) = files_to_tokenize.into_iter().fold(
+            (vec![], vec![]),
+            |(mut to_tok, mut incs), (pos, req_file, parent)| {
                 use GetTokensResult::*;
-                let position = *position;
 
                 // TODO: Replace parent with incstack
-                let tokes = ctx
-                    .get_tokens(req_file, parent.clone(), Some(position))
-                    .map_err(|kind| FrontEndError {
-                        position,
-                        kind,
-                        severity: unraveler::Severity::Error,
-                    })?;
+                let tokes_res = ctx.get_tokens(req_file, parent.clone(), Some(pos));
 
-                match tokes {
-                    Tokens(tokes) => {
-                        let req = &tokes.request;
-                        let file_name = req.get_file_name();
-                        debug_mess!("TOKES: Got {:?}", file_name);
-                        let includes = tokes.get_includes();
-                        let full_paths = ctx
-                            .get_full_paths_with_parent(&includes, parent)
-                            .map_err(|se| FrontEndError {
-                                position,
-                                kind: se.into(),
-                                severity: unraveler::Severity::Error,
-                            })?;
-                        incs.reserve(full_paths.len());
-                        incs.extend(full_paths)
+                match tokes_res {
+                    Err(e) => {
+                        errors.add(FrontEndError::error_pos(pos, e));
                     }
-                    // If I don't have tokens then add it to a q of requestes
-                    Request(req) => {
-                        let file_name = req.get_file_name();
-                        debug_mess!("TOKES:Requesting {:?}", file_name);
-                        to_tok.push(*req)
-                    }
-                };
 
-                Ok::<_, FrontEndError>((to_tok, incs))
+                    Ok(tokes) => {
+                        match tokes {
+                            Tokens(tokes) => {
+                                debug_mess!("TOKES: Got {:?}", tokes.request.get_file_name());
+
+                                let includes = tokes.get_includes();
+                                let paths_res = ctx.get_full_paths_with_parent(&includes, &parent);
+
+                                match paths_res {
+                                    Ok(full_paths) => incs.extend(full_paths),
+                                    Err(k) => errors.add(FrontEndError::error_pos(pos, k)),
+                                }
+                            }
+
+                            // If I don't have tokens then add it to a q of requestes
+                            Request(req) => {
+                                debug_mess!("TOKES:Requesting {:?}", req.get_file_name());
+                                to_tok.push(*req)
+                            }
+                        };
+                    }
+                }
+
+                (to_tok, incs)
             },
-        ).map_err(|e| vec![e])?;
+        );
+
+
+        if errors.is_over_max_errors() {
+            return errors.to_result()
+        }
 
         // Let's tokenize!
         let tokenized = tokenize_fn(to_tokenize);
@@ -316,11 +324,12 @@ where
 
                     if tokenize_result.has_errors() {
                         // if we have errors copy them
-                        errors.extend_from_slice(&tokenize_result.errors);
+                        errors.add_vec(tokenize_result.errors.clone());
                     } else {
                         // Otherwise scan for includes to process and add them to the q
                         debug_mess!("Tokenized! {}", file);
                         let request = &tokenize_result.request;
+
                         incs_to_process.push((
                             request.opt_pos.unwrap_or(Position::default()),
                             request.requested_file.clone(),
@@ -332,20 +341,14 @@ where
                 }
 
                 Err(_e) => {
-                    errors.push(_e);
+                    errors.add(_e);
                 }
             }
         }
 
         files_to_tokenize = incs_to_process;
     }
-
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors)
-    }
-
+    errors.to_result()
 }
 
 #[allow(unused_imports)]
