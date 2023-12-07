@@ -54,7 +54,6 @@ pub struct AsmOut {
     pub binary: Binary,
     /// Maps memory addressses to source code
     pub source_map: SourceMapping,
-    pub lst_file: LstFile,
     /// The Execution address
     pub exec_addr: Option<usize>,
     /// Binary chunks to write out
@@ -76,7 +75,6 @@ impl AsmOut {
 impl AsmOut {
     pub fn add_source_mapping(
         &mut self,
-        line_str: &str,
         pos: Position,
         addr: usize,
         item_type: ItemType,
@@ -84,18 +82,6 @@ impl AsmOut {
         let (logical_range, phys_range) = self.binary.range_to_write_address(addr);
         self.source_map
             .add_mapping(phys_range.clone(), logical_range, &pos, item_type);
-        let mem_text = if phys_range.is_empty() {
-            String::new()
-        } else {
-            format!("{:02X?}", self.binary.get_bytes_range(phys_range.clone()))
-        };
-
-        let m_pc = format!("{:05X} {:04X} {} ", phys_range.start, addr, mem_text);
-        let m = format!("{:50}{}", m_pc, line_str);
-
-        if !mem_text.is_empty() {
-            self.lst_file.add(&m);
-        }
     }
 }
 
@@ -537,11 +523,8 @@ impl Assembler {
 
 impl Assembler {
     pub fn add_source_mapping(&mut self, pos: &Position, pc: usize, kind: ItemType) {
-        if let Ok(si) = self.get_source_info(pos) {
-            let line_str = si.line_str.to_owned();
             self.asm_out
-                .add_source_mapping(&line_str, pos.clone(), pc, kind)
-        }
+                .add_source_mapping(pos.clone(), pc, kind)
     }
 
     pub fn make_user_error<S: Into<String>>(

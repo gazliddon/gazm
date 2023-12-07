@@ -432,7 +432,7 @@ impl<'a> Compiler<'a> {
         let (node_id, i) = self.get_node_id_item(asm, id);
 
         let mut pc = asm.get_binary().get_write_address();
-        let mut do_source_mapping = asm.opts.lst_file.is_some();
+        let mut do_source_mapping = true;
         let current_scope_id = self.scopes.scope();
 
         asm.set_pc_symbol(pc).expect("Can't set PC symbol value");
