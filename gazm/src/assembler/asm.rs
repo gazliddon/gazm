@@ -190,24 +190,6 @@ impl Assembler {
         Ok(ret)
     }
 
-    pub fn add_any_tokenize_errors(&mut self, r: &TokenizeResult) -> Result<(), FrontEndError> {
-        let sf = &r.request.source_file;
-
-        for original_error in r.errors.iter() {
-            let user_error = to_user_error(original_error.clone(), sf);
-            self.asm_out
-                .errors
-                .add_user_error(user_error)
-                .map_err(|_| {
-                    original_error
-                        .clone()
-                        .change_kind(FrontEndErrorKind::TooManyErrors)
-                })?
-        }
-
-        Ok(())
-    }
-
     pub fn asm_source_to_path(&self, a: &AsmSource) -> Option<PathBuf> {
         match a {
             AsmSource::FromStr => None,

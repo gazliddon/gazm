@@ -5,14 +5,15 @@ use std::{collections::HashMap, iter};
 use thin_vec::{thin_vec, ThinVec};
 
 use crate::{
-    assembler::{ScopeBuilder, ScopeTracker, Assembler},
+    assembler::{Assembler, ScopeBuilder, ScopeTracker},
     astformat::as_string,
     debug_mess,
     error::{AstError, UserError},
     frontend::{Item, LabelDefinition, Node},
     gazmeval::{EvalError, EvalErrorEnum},
     gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
-    messages::*, interesting_mess,
+    interesting_mess,
+    messages::*,
 };
 
 pub type AstTree = ego_tree::Tree<ItemWithPos>;

@@ -1,3 +1,5 @@
+use crate::error::{ NewErrorCollector, ErrorCollectorTrait };
+
 // #![deny(unused_imports)]
 use super::{
     get_text, parse_command, parse_equate, parse_label, parse_line, parse_macro_call,
@@ -85,17 +87,17 @@ pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node>> {
 
 /// Parse all of this span
 /// until we have too many errors or have parsed everything
-pub fn parse_all_with_resume(mut input: TSpan) -> Result<(TSpan,Vec<Node>), Vec<FrontEndError>> {
+pub fn parse_all_with_resume(mut input: TSpan) -> Result<(TSpan,Vec<Node>), NewErrorCollector<FrontEndError>> {
     let mut ret = vec![];
-    let mut errors = vec![];
     let max_errors = input.extra().opts.max_errors;
+    let mut errors :NewErrorCollector<FrontEndError> = NewErrorCollector::new(max_errors);
 
-    while errors.len() <= max_errors && input.length() > 0 {
+    while !errors.is_over_max_errors() && input.length() > 0 {
         let parse_result = parse_next_source_chunk(input);
 
         match parse_result {
             Err(e) => {
-                errors.push(e);
+                errors.add(e);
                 let (next_line, _this_line) = split_at_next_line(input).expect("Can't split!");
                 input = next_line;
             }
@@ -107,10 +109,9 @@ pub fn parse_all_with_resume(mut input: TSpan) -> Result<(TSpan,Vec<Node>), Vec<
         };
     }
 
-    if errors.is_empty() {
+    if !errors.has_errors() {
         Ok((input, ret))
     } else {
-        Err( errors)
-        
+        Err(errors)
     }
 }

@@ -7,14 +7,13 @@ use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
+// TODO Remove all of this, replace with help text
 #[derive(Debug, Error, Clone, PartialEq, Copy)]
 pub enum AssemblyErrorKind {
     #[error("This {0:?} is not supported for this opcode")]
     ThisAddrModeUnsupported(AddrModeParseType),
-
     #[error("Addressing mode is not supported for this opcode")]
     AddrModeUnsupported,
-
     #[error("This instruction only supports inherent mode addressing")]
     OnlySupports(AddrModeParseType),
 }
@@ -41,11 +40,9 @@ pub enum FrontEndErrorKind {
     #[error(transparent)]
     ParseError(#[from] ParseErrorKind),
 
-    #[error("Too many errors")]
-    TooManyErrors,
-
     #[error("You cannot define a macro inside a macro definition")]
     IllegalMacroDefinition,
+
     #[error("Unable to find next line")]
     UnableToFindNextLine,
 
@@ -76,7 +73,7 @@ impl std::fmt::Display for FrontEndError {
     }
 }
 
-impl <T> From<FrontEndError> for Result<T,FrontEndError> {
+impl<T> From<FrontEndError> for Result<T, FrontEndError> {
     fn from(value: FrontEndError) -> Self {
         Err(value)
     }
@@ -222,4 +219,3 @@ impl<'a> ParseError<TSpan<'a>> for FrontEndError {
 
 //     UserError { data: ued.into() }
 // }
-

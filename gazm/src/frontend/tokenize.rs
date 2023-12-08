@@ -16,7 +16,7 @@ use grl_sources::{
 };
 use itertools::Itertools;
 use rayon::iter::ParallelDrainFull;
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}, f32::NEG_INFINITY};
 use thiserror::Error;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,14 +55,13 @@ impl TokenizeRequest {
 #[derive(Debug, Clone)]
 pub struct TokenizeResult {
     pub node: Node,
-    pub errors: Vec<FrontEndError>,
     pub request: TokenizeRequest,
-    pub error2: NewErrorCollector<FrontEndError>,
+    pub errors: NewErrorCollector<FrontEndError>,
 }
 
 impl TokenizeResult {
     pub fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
+        self.errors.has_errors()
     }
 
     pub fn get_includes(&self) -> Vec<(Position, PathBuf)> {
@@ -83,41 +82,39 @@ impl TryInto<TokenizeResult> for TokenizeRequest {
     type Error = FrontEndError;
 
     fn try_into(mut self) -> Result<TokenizeResult, Self::Error> {
-        let (node, errors) = self.tokenize()?;
+        let (node, errors) = self.tokenize();
         Ok(TokenizeResult {
             node,
             errors,
             request: self,
-            error2: Default::default(),
         })
     }
 }
 
 impl TokenizeRequest {
     pub fn to_result(mut self) -> TokenizeResult {
-        let (node, errors) = self.tokenize().unwrap();
+        let (node, errors) = self.tokenize();
         TokenizeResult {
             node,
             errors,
             request: self,
-            error2: Default::default(),
         }
     }
 }
 
 impl TokenizeRequest {
-    pub fn tokenize(&mut self) -> Result<(Node, Vec<FrontEndError>), FrontEndError> {
+    pub fn tokenize(&mut self) -> (Node, NewErrorCollector<FrontEndError>) {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
         let tokens = to_tokens_no_comment(&self.source_file);
         let mut span = make_tspan(&tokens, &self.source_file, &self.opts);
 
         let mut final_nodes = vec![];
-        let mut errors = vec![];
+        let mut errors : NewErrorCollector<FrontEndError> = NewErrorCollector::new(self.opts.max_errors);
 
         let result = parse_all_with_resume(span);
 
         match result {
-            Err(e) => errors.extend(e),
+            Err(e) => errors.add_errors(e),
 
             Ok((rest, nodes)) => {
                 final_nodes.extend_from_slice(&nodes);
@@ -127,7 +124,7 @@ impl TokenizeRequest {
 
         let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = Node::from_item_kids_tspan(item, &final_nodes, span);
-        Ok((node, errors))
+        (node, errors)
     }
 }
 
@@ -324,7 +321,7 @@ where
 
                     if tokenize_result.has_errors() {
                         // if we have errors copy them
-                        errors.add_vec(tokenize_result.errors.clone());
+                        errors.add_errors(tokenize_result.errors.clone());
                     } else {
                         // Otherwise scan for includes to process and add them to the q
                         debug_mess!("Tokenized! {}", file);

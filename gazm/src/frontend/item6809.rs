@@ -227,7 +227,6 @@ impl From<MC6809> for Item {
         Item::Cpu(value)
     }
 }
-
 // TODO: Ultimately this contains all of the CPU dependent AST node items
 #[derive(Debug, PartialEq, Clone)]
 pub enum MC6809 {

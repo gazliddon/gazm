@@ -491,8 +491,9 @@ where
 
 pub trait ErrorCollectorTrait: Sized {
     type Error;
+
     fn has_errors(&self) -> bool {
-        self.num_of_errors() != 0
+        self.num_of_errors() > 0
     }
 
     fn is_over_max_errors(&self) -> bool {
@@ -504,11 +505,13 @@ pub trait ErrorCollectorTrait: Sized {
     fn max_errors(&self) -> usize;
     fn to_vec(self) -> Vec<Self::Error>;
 
-    fn add_vec(&mut self, errors: Vec<Self::Error>) {
+    fn add_errors(&mut self, other: Self) {
+        let errors = other.to_vec();
         for e in errors {
-            self.add(e);
+            self.add(e)
         }
     }
+
     fn to_result(self) -> Result<(), Self> {
         if self.has_errors() {
             Err(self)
@@ -517,9 +520,9 @@ pub trait ErrorCollectorTrait: Sized {
         }
     }
 
-    fn to_error(self) -> Result<(), Vec<Self::Error>> {
+    fn to_error(self) -> Result<(), Self> {
         if self.has_errors() {
-            Err(self.to_vec())
+            Err(self)
         } else {
             Ok(())
         }
@@ -565,7 +568,7 @@ fn get_line(sf: &SourceFile, line: isize) -> String {
         String::new()
     } else {
         let txt = sf.get_text().get_line(line as usize).unwrap_or("");
-        format!("{txt}")
+        txt.to_owned()
     }
 }
 
@@ -587,7 +590,7 @@ pub fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
         FrontEndErrorKind::HelpText(ht) => {
             let short = crate::help::HELP.get_short(ht);
             let full_text = crate::help::HELP.get(ht);
-            Markdown(format!("{short}"), format!("{full_text}"))
+            Markdown(short, full_text)
         }
         _ => Plain(format!("{e}")),
     };
@@ -597,7 +600,7 @@ pub fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
 
     let ued = UserErrorData {
         message,
-        pos: e.position.clone(),
+        pos: e.position,
         line,
         file: sf.file.clone(),
         failure: true,
