@@ -79,7 +79,7 @@ pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
 
     matched
         .valid_for_index()
-        .then(|| (rest, matched))
+        .then_some((rest, matched))
         .ok_or(error(sp, ErrExpectedIndexRegister))
 }
 

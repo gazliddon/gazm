@@ -165,7 +165,7 @@ impl Binary {
     }
 
     /// Returns ranges from from -> current write
-    /// ( physical range, logical_range )
+    /// ( logical_range, physical range )
     pub fn range_to_write_address(
         &self,
         pc: usize,

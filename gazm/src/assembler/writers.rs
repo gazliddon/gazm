@@ -29,7 +29,6 @@ impl Assembler {
         status("Writing files", |_| {
             self.write_bin_chunks()?;
             self.checksum_report();
-            self.write_lst_file()?;
             self.write_source_mapping()?;
             self.write_sym_file()?;
             self.write_deps_file()?;
@@ -54,21 +53,6 @@ impl Assembler {
         fs::write(&full_file_name, txt)
             .with_context(|| format!("Unable to write {:?}", full_file_name))?;
         Ok(full_file_name.to_string_lossy().into_owned())
-    }
-
-    pub fn write_lst_file(&mut self) -> GResult<()> {
-        if let Some(lst_file) = &self.opts.lst_file {
-            let lst_file = self.expand_path_to_deprecate(lst_file)?;
-
-            let text = self.asm_out.lst_file.lines.join("\n");
-
-            fs::write(&lst_file, text)
-                .with_context(|| format!("Unable to write list file {lst_file:?}"))?;
-
-            interesting_mess!("Written lst file {lst_file:?}");
-        }
-
-        Ok(())
     }
 
     pub fn write_ast_file(&mut self) -> GResult<()> {

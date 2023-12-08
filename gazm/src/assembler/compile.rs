@@ -420,13 +420,19 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
+    fn add_source_mapping(&self, asm: &mut Assembler, id: AstNodeId, addr: usize) {
+        let node = self.get_node(id);
+        let kind: grl_sources::ItemType  = node.value().item.clone().into();
+        asm.add_source_mapping(&node.value().pos, addr, kind);
+    }
+
     fn compile_node_error(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         use Item::*;
 
         let (node_id, i) = self.get_node_id_item(asm, id);
 
         let mut pc = asm.get_binary().get_write_address();
-        let mut do_source_mapping = asm.opts.lst_file.is_some();
+        let mut do_source_mapping = true;
         let current_scope_id = self.scopes.scope();
 
         asm.set_pc_symbol(pc).expect("Can't set PC symbol value");
@@ -585,8 +591,7 @@ impl<'a> Compiler<'a> {
         }
 
         if do_source_mapping {
-            let node = self.get_node(node_id);
-            asm.add_source_mapping(&node.value().pos, pc);
+            self.add_source_mapping(asm, node_id, pc);
         }
 
         Ok(())

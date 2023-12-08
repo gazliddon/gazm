@@ -1,4 +1,4 @@
-pub const TEMPLATE : &'static str = r#"
+pub const TEMPLATE : & str = r#"
 
     #[derive(Clone,Debug)]
     pub struct HelpItem {

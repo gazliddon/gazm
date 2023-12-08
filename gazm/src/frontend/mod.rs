@@ -2,7 +2,7 @@ mod commands;
 mod error;
 mod expr;
 mod gazmunraveller;
-mod indexed;
+// mod indexed;
 mod item;
 mod macros;
 mod misc;
@@ -18,7 +18,8 @@ mod token_store;
 mod tokenize;
 mod tokens;
 mod utils;
-pub mod new_indexed;
+mod parseindexed;
+pub mod indexed;
 
 // Public
 pub mod item6809;
@@ -29,6 +30,7 @@ pub use {item::*, opcodes::*, testit::*, token_store::*, tokenize::*};
 pub mod basetoken;
 
 pub use {
-    commands::*, error::*, expr::*, gazmunraveller::*, indexed::*, macros::*, misc::*,
+    commands::*, error::*, expr::*, gazmunraveller::*, macros::*, misc::*,
     node::*, nodeiter::*, parse::*, parsetext::*, register::*, structs::*, tokens::*, utils::*,
+    parseindexed::*,
 };

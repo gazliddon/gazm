@@ -61,11 +61,9 @@ impl Opts {
                 let mut opts = Opts {
                     deps_file: m.get_one::<String>("deps").map(PathBuf::from),
                     source_mapping: m.get_one::<String>("source-mapping").map(PathBuf::from),
-                    as6809_lst: m.get_one::<String>("as6809-lst").map(PathBuf::from),
                     as6809_sym: m.get_one::<String>("as6809-sym").map(PathBuf::from),
                     ignore_relative_offset_errors: m.contains_id("ignore-relative-offset-errors"),
                     project_file: m.get_one::<String>("project-file").unwrap().into(),
-                    lst_file: m.get_one::<String>("lst-file").map(PathBuf::from),
                     ast_file: m.get_one::<String>("ast-file").map(PathBuf::from),
                     assemble_dir: Some(std::env::current_dir().unwrap()),
                     ..Default::default()
@@ -110,6 +108,7 @@ impl Opts {
         opts.no_async = *orig_matches.get_one("no-async").unwrap();
 
         opts.update_vars();
+
         let _ = opts.update_paths();
 
         Ok(opts)
@@ -149,6 +148,14 @@ pub fn parse_command_line() -> ArgMatches {
                 .global(true)
                 .long("no-async")
                 .help("Disable async build"),
+        )
+        .arg(
+            Arg::new("new-index")
+                .action(ArgAction::SetTrue)
+                .global(true)
+                .long("new-index")
+                .short('n')
+                .help("Use new index parser"),
         )
         .subcommand_required(true)
         .subcommand(
@@ -206,13 +213,6 @@ pub fn parse_command_line() -> ArgMatches {
                         .long("star-comments")
                         .help("Lines that start with '*' parsed as comments")
                         .short('q'),
-                )
-                .arg(
-                    Arg::new("as6809-lst")
-                        .value_parser(PathBufValueParser::new())
-                        .long("as6809-lst")
-                        .help("Load in AS609 lst file to compare against")
-                        .num_args(1),
                 )
                 .arg(
                     Arg::new("as6809-sym")

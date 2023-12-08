@@ -1,197 +1,258 @@
-#![deny(unused_imports)]
-use unraveler::{alt, cut, match_span as ms, pair, preceded, sep_pair, succeeded, tag};
+#![allow(unused_imports)]
+use std::sync::PoisonError;
+
+use serde::de::Expected;
+use serde_yaml::Index;
+use tower_lsp::lsp_types::RegularExpressionsClientCapabilities;
+use unraveler::{
+    alt, and_then, cut, map, match_span as ms, pair, preceded, sep_pair, succeeded, tag,
+    ParseError, Severity,
+};
+
+use crate::help::ErrCode;
+use crate::help::ErrCode::*;
+use emu6809::cpu::RegEnum;
 
 use super::{
-    item6809::MC6809,
     item6809::{IndexParseType, MC6809::OperandIndexed},
     TokenKind::{Comma, Minus, Plus},
     *,
 };
 
-use crate::help::ErrCode;
-use emu6809::cpu::RegEnum;
-
-// Addr Modes and Parsing Order
-//  ,--R    SubSub(RegEnum)         parse_pre_dec_dec
-//  ,-R     Sub(RegEnum)            parse_pre_dec       *NOT ALLOWED INDIRECT*
-//  ,R++    PlusPlus(RegEnum)       parse_post_inc
-//  ,R+     Plus(RegEnum)           parse_post_inc
-//  ,R      Zero(RegEnum)           parse_zero          *NOT ALLOWED INDIRECT*
-// A,R      AddA(RegEnum)           parse_add_a
-// B,R      AddB(RegEnum)           parse_add_b
-// D,R      AddD(RegEnum)           parse_add_d
-// n,PC     PCOffset                parse_pc_offset
-// n,R      ConstantOffset(RegEnum) parse_offset
-
-
-/// parse for ,<index reg>+
-fn get_post_inc(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(tag(Comma), succeeded(get_index_reg, Plus))(input)?;
-    let index_type = IndexParseType::PostInc(matched);
-    Ok((rest, index_type))
-}
-
-/// parse for ,<index reg>++
-fn get_post_inc_inc(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(tag(Comma), succeeded(get_index_reg, tag([Plus, Plus])))(input)?;
-    let index_type = IndexParseType::PostIncInc(matched);
-    Ok((rest, index_type))
-}
-
-/// parse for ,--<index reg>
-fn get_pre_dec_dec(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(tag([Comma, Minus, Minus]), get_index_reg)(input)?;
-    let index_type = IndexParseType::PreDecDec(matched);
-    Ok((rest, index_type))
-}
-
-/// parse for ,-<index reg>
 fn get_pre_dec(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(tag([Comma, Minus]), get_index_reg)(input)?;
-    let index_type = IndexParseType::PreDec(matched);
-    Ok((rest, index_type))
+    map(preceded(Minus, cut(get_index_reg)), |r| {
+        IndexParseType::PreDec(r)
+    })(input)
+}
+
+fn get_pre_dec_dec(input: TSpan) -> PResult<IndexParseType> {
+    map(preceded(tag([Minus, Minus]), get_index_reg), |r| {
+        IndexParseType::PreDecDec(r)
+    })(input)
+}
+
+fn check_index_reg<'a>(m: (TSpan<'a>, (TSpan<'a>, RegEnum))) -> PResult<'a, RegEnum> {
+    let (rest, (sp, reg)) = m;
+    if reg.valid_for_index() {
+        Ok((rest, reg))
+    } else {
+        err_fatal(sp, ErrExpectedIndexRegister)
+    }
+}
+
+fn get_post_inc(input: TSpan) -> PResult<IndexParseType> {
+    use IndexParseType::PostInc;
+    map(
+        and_then(succeeded(ms(get_register), Plus), check_index_reg),
+        PostInc,
+    )(input)
+}
+
+fn get_post_inc_inc(input: TSpan) -> PResult<IndexParseType> {
+    let postfix = tag([Plus, Plus]);
+
+    map(
+        and_then(succeeded(ms(get_register), postfix), check_index_reg),
+        IndexParseType::PostIncInc,
+    )(input)
 }
 
 /// Parses for ,<index reg>
 fn get_zero(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = preceded(Comma, get_index_reg)(input)?;
-    let index_type = IndexParseType::Zero(matched);
-    Ok((rest, index_type))
+    map(cut(get_index_reg), IndexParseType::Zero)(input)
 }
 
-/// Parses for a,<index reg>
-fn get_add_a(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) =
-        preceded(pair(get_this_reg(RegEnum::A), Comma), cut(get_index_reg))(input)?;
-    let index_type = IndexParseType::AddA(matched);
-    Ok((rest, index_type))
+fn get_pc_offset(input: TSpan) -> PResult<IndexParseType> {
+    map(get_this_reg(RegEnum::PC), |_| IndexParseType::PCOffset)(input)
 }
 
-/// Parses for b,<index reg>
-fn get_add_b(input: TSpan) -> PResult<IndexParseType> {
-    // let reg = |i| parse_this_reg(i, RegEnum::B);
-    let (rest, matched) =
-        preceded(pair(get_this_reg(RegEnum::B), Comma), cut(get_index_reg))(input)?;
-    let index_type = IndexParseType::AddB(matched);
-    Ok((rest, index_type))
-}
+fn check_for_illegal_indirect<'a>(
+    res: (TSpan<'a>, (TSpan<'a>, IndexParseType)),
+) -> PResult<IndexParseType> {
+    let (rest, (sp, matched)) = res;
 
-/// Parses for d,<index reg>
-fn get_add_d(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) =
-        preceded(pair(get_this_reg(RegEnum::D), Comma), cut(get_index_reg))(input)?;
-    let index_type = IndexParseType::AddD(matched);
-    Ok((rest, index_type))
-}
-
-/// Parses for indexed modes that do not need an offset for example
-/// ```    lda ,y+```
-fn get_no_arg_indexed(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = alt((
-        get_pre_dec_dec,
-        get_post_inc_inc,
-        get_pre_dec,
-        get_post_inc,
-        get_zero,
-        get_add_a,
-        get_add_b,
-        get_add_d,
-    ))(input)?;
-    Ok((rest, matched))
-}
-
-/// Parses for indexed modes that do not need an offset and can be be indirect
-/// ```    lda [,y++]```
-fn get_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = alt((
-        get_pre_dec_dec,
-        get_post_inc_inc,
-        get_zero,
-        get_add_a,
-        get_add_b,
-        get_add_d,
-    ))(input)?;
-    Ok((rest, matched))
-}
-
-/// Parses for simple offset indexed addressing
-/// ```    addr,<index reg>```
-fn parse_offset(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, (expr, reg))) = ms(sep_pair(parse_expr, Comma, get_index_reg))(input)?;
-    let offset = IndexParseType::ConstantOffset(reg);
-    let item = MC6809::operand_from_index_mode(offset, false);
-    Ok((rest, Node::from_item_kid_tspan(item, expr, sp)))
-}
-
-/// Parses for simple pc offset addressing
-/// ```    offset,pc```
-fn parse_pc_offset(input: TSpan) -> PResult<Node> {
-    use emu6809::cpu::RegEnum::*;
-    let (rest, (sp, expr)) = ms(succeeded(parse_expr, pair(Comma, get_this_reg(PC))))(input)?;
-    let item = MC6809::operand_from_index_mode(IndexParseType::PCOffset, false);
-    let matched = Node::from_item_kid_tspan(item, expr, sp);
-    Ok((rest, matched))
-}
-
-/// Parses for extended indirect
-/// ```    \[addr\]```
-fn parse_extended_indirect(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched)) = ms(parse_sq_bracketed(parse_expr))(input)?;
-    let item = MC6809::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
-    let matched = Node::from_item_kid_tspan(item, matched, sp);
-    Ok((rest, matched))
-}
-
-/// Pares for addr mode without an offset
-///     ,y
-///     ,-u
-fn parse_index_only(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched)) = ms(get_no_arg_indexed)(input)?;
-    let matched = Node::from_item_tspan(OperandIndexed(matched, false).into(), sp);
-    Ok((rest, matched))
-}
-
-fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
-    use ErrCode::*;
-
-    let (rest, (sp, matched)) = ms(get_no_arg_indexed)(input)?;
-
-    match matched {
-        IndexParseType::PostInc(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
-        IndexParseType::PreDec(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
-        _ => {
-            let matched = Node::from_item_tspan(OperandIndexed(matched, false).into(), sp);
-            Ok((rest, matched))
-        }
+    if matched.allowed_indirect() {
+        Ok((rest, matched))
+    } else {
+        err_fatal(sp, ErrIndexModeNotValidIndirect)
     }
 }
 
-fn parse_indexed_indirect(input: TSpan) -> PResult<Node> {
-    let indexed_indirect = alt((
-        parse_no_arg_indexed_allowed_indirect,
-        parse_pc_offset,
-        parse_offset,
-    ));
-    let (rest, mut matched) = parse_sq_bracketed(indexed_indirect)(input)?;
+/// Get indexed arg direct (not wrapped in square brackets)
+fn get_indexed_direct(input: TSpan) -> PResult<IndexParseType> {
+    preceded(
+        Comma,
+        cut(alt((
+            get_pre_dec_dec,
+            get_pre_dec,
+            get_post_inc_inc,
+            get_post_inc,
+            get_pc_offset,
+            get_zero,
+        ))),
+    )(input)
+}
 
-    if let Item::Cpu(OperandIndexed(amode, _)) = matched.item {
-        matched.item = OperandIndexed(amode, true).into();
-    } else {
-        panic!("Should not happen")
+/// Parse for a,<ireg>, b,<ireg> or d,<ireg>
+/// fatal error if wget a reg pair but not a valud abd indexed pair
+fn get_abd_indexed(input: TSpan) -> PResult<IndexParseType> {
+    use {IndexParseType::*, RegEnum::*};
+
+    let (rest, (sp, abd_reg)) = succeeded(ms(get_register), Comma)(input)?;
+
+    let abd_reg = abd_reg
+        .valid_abd()
+        .then_some(abd_reg)
+        .ok_or(fatal(sp, ErrExpectedAbd))?;
+
+    let (rest, idx_reg) = cut(get_index_reg)(rest)?;
+
+    let matched = match abd_reg {
+        A => AddA(idx_reg),
+        B => AddB(idx_reg),
+        D => AddD(idx_reg),
+        _ => panic!("Internal error"),
     };
 
     Ok((rest, matched))
 }
 
-fn parse_indexed_direct(input: TSpan) -> PResult<Node> {
-    alt((parse_index_only, parse_pc_offset, parse_offset))(input)
+pub fn get_indexed(input: TSpan) -> PResult<IndexParseType> {
+    alt((get_abd_indexed, get_indexed_direct))(input)
 }
 
-pub fn parse_indexed(input: TSpan) -> PResult<Node> {
-    alt((
-        parse_indexed_indirect,
-        parse_extended_indirect,
-        parse_indexed_direct,
-    ))(input)
-}
+#[allow(unused_imports)]
+#[allow(unused_variables)]
+mod test {
+    use grl_sources::grl_symbols::deserialize;
+    use itertools::Itertools;
+    use unraveler::{all, Collection, ParseError, ParseErrorKind, Parser};
 
+    use super::*;
+    use crate::frontend::*;
+    use crate::opts::Opts;
+    use IndexParseType::*;
+    use RegEnum::*;
+
+    fn test_parse_err<P, O, E>(
+        text: &str,
+        desired: E,
+        mut p: P,
+        fatal: bool,
+    ) -> Result<(), FrontEndError>
+    where
+        P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
+        O: PartialEq + std::fmt::Debug,
+        E: Into<FrontEndErrorKind>,
+    {
+        let desired: FrontEndErrorKind = desired.into();
+
+        println!("\nAbout to parse for an error {text}");
+
+        let opts = Opts::default();
+        let source_file = create_source_file(text);
+        let tokens = to_tokens_no_comment(&source_file);
+        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
+        println!("TOKES: {:?}", toke_kinds);
+
+        let span = make_tspan(&tokens, &source_file, &opts);
+
+        let res = p.parse(span);
+
+        match res {
+            Ok(_) => panic!("Parser did not fail!"),
+            Err(e) => {
+                assert_eq!(e.kind, desired);
+                assert_eq!(e.is_fatal(), fatal);
+                Ok(())
+            }
+        }
+    }
+
+    fn test_parse_all<P, O>(text: &str, desired: O, p: P) -> Result<(), FrontEndError>
+    where
+        P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
+        O: std::fmt::Debug,
+        O: PartialEq,
+    {
+        println!("\nAbout to parse {text}");
+
+        let opts = Opts::default();
+        let source_file = create_source_file(text);
+        let tokens = to_tokens_no_comment(&source_file);
+        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
+        println!("TOKES: {:?}", toke_kinds);
+
+        let span = make_tspan(&tokens, &source_file, &opts);
+
+        let (rest, matched) = all(p)(span)?;
+        assert_eq!(matched, desired);
+        Ok(())
+    }
+
+    fn test_parse<P, O>(text: &str, desired: O, mut p: P) -> Result<(), FrontEndError>
+    where
+        P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
+        O: std::fmt::Debug,
+        O: PartialEq,
+    {
+        println!("\nAbout to parse {text}");
+
+        let opts = Opts::default();
+        let source_file = create_source_file(text);
+        let tokens = to_tokens_no_comment(&source_file);
+        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
+        println!("TOKES: {:?}", toke_kinds);
+
+        let span = make_tspan(&tokens, &source_file, &opts);
+
+        let (rest, matched) = p.parse(span)?;
+        assert_eq!(matched, desired);
+        Ok(())
+    }
+
+    #[test]
+    fn test_abd() {
+        test_parse("a,u", AddA(U), get_abd_indexed).expect("add a");
+        test_parse("b,u", AddB(U), get_abd_indexed).expect("add b");
+        test_parse("d,u", AddD(U), get_abd_indexed).expect("add d");
+
+        test_parse_err("x,u", ErrExpectedAbd, get_abd_indexed, true).unwrap();
+        test_parse_err("a,a", ErrExpectedIndexRegister, get_abd_indexed, true).unwrap();
+    }
+
+    #[test]
+    fn test_individual() {
+        test_parse_all("y", Y, get_index_reg).expect("Index register");
+        test_parse_all("-y", PreDec(Y), get_pre_dec).expect("Pre dec");
+        test_parse("--y", PreDecDec(Y), get_pre_dec_dec).expect("Pre dec dec");
+        test_parse("x", X, get_index_reg).expect("Index register");
+        test_parse("x+", PostInc(X), get_post_inc).expect("Post inc ");
+        test_parse("x++", PostIncInc(X), get_post_inc_inc).expect("Post inc");
+        test_parse("pc", PCOffset, get_pc_offset).expect("Pc offset");
+    }
+
+    #[test]
+    fn test_indexed_direct() {
+        let opts = Opts::default();
+
+        let to_text = vec![
+            (",--y", PreDecDec(Y)),
+            (",-y", PreDec(Y)),
+            (",y+", PostInc(Y)),
+            (",y++", PostIncInc(Y)),
+            (",x", Zero(X)),
+            (",pc", PCOffset),
+        ];
+
+        for (text, desired) in to_text.into_iter() {
+            test_parse_all(text, desired, get_indexed_direct).expect("Parsing")
+        }
+    }
+    #[test]
+    fn test_errors() {
+        test_parse_err(",-a", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
+        test_parse_err(",,,", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
+        test_parse_err("q", ErrExpectedRegister, get_register, false).unwrap();
+    }
+}

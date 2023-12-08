@@ -10,8 +10,8 @@ mod scopes;
 mod scopetracker;
 mod asm;
 
-pub (self) mod fixerupper;
-pub (self) mod regutils;
+pub  mod fixerupper;
+pub  mod regutils;
 
 pub use asm::*;
 pub use edit::*;

@@ -5,7 +5,6 @@ use crate::{help::ErrCode, vars::VarsErrorKind};
 use grl_sources::{grl_utils::FileError, Position, SourceErrorType};
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
-
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
 #[derive(Debug, Error, Clone, PartialEq, Copy)]
@@ -20,9 +19,9 @@ pub enum AssemblyErrorKind {
     OnlySupports(AddrModeParseType),
 }
 
-impl Into<FrontEndErrorKind> for ErrCode {
-    fn into(self) -> FrontEndErrorKind {
-        FrontEndErrorKind::HelpText(self)
+impl From<ErrCode> for FrontEndErrorKind {
+    fn from(value: ErrCode) -> Self {
+        FrontEndErrorKind::HelpText(value)
     }
 }
 
@@ -77,9 +76,9 @@ impl std::fmt::Display for FrontEndError {
     }
 }
 
-impl<T> Into<Result<T, FrontEndError>> for FrontEndError {
-    fn into(self) -> Result<T, Self> {
-        Err(self)
+impl <T> From<FrontEndError> for Result<T,FrontEndError> {
+    fn from(value: FrontEndError) -> Self {
+        Err(value)
     }
 }
 
@@ -124,6 +123,13 @@ impl FrontEndError {
         }
     }
 
+    pub fn error_pos<E: Into<FrontEndErrorKind>>(position: Position, kind: E) -> Self {
+        Self {
+            kind: kind.into(),
+            position,
+            severity: Severity::Error,
+        }
+    }
     pub fn error<E: Into<FrontEndErrorKind>>(sp: TSpan, kind: E) -> Self {
         let position = to_pos(sp);
         Self {
@@ -170,3 +176,50 @@ impl<'a> ParseError<TSpan<'a>> for FrontEndError {
         todo!()
     }
 }
+
+// fn get_line(sf: &SourceFile, line: isize) -> String {
+//     if line < 0 {
+//         String::new()
+//     } else {
+//         let txt = sf.get_text().get_line(line as usize).unwrap_or("");
+//         txt.to_owned()
+//     }
+// }
+
+// fn get_lines(sf: &SourceFile, line: isize) -> String {
+//     [
+//         get_line(sf, line - 2),
+//         get_line(sf, line - 1),
+//         get_line(sf, line),
+//         get_line(sf, line + 1),
+//         get_line(sf, line + 2),
+//     ]
+//     .join("\n")
+// }
+
+// pub fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
+//     use ErrorMessage::*;
+
+//     let message = match e.kind {
+//         FrontEndErrorKind::HelpText(ht) => {
+//             let short = crate::help::HELP.get_short(ht);
+//             let full_text = crate::help::HELP.get(ht);
+//             Markdown(short, full_text)
+//         }
+//         _ => Plain(format!("{e}")),
+//     };
+
+//     let line = e.position.line();
+//     let line = get_line(sf, line as isize);
+
+//     let ued = UserErrorData {
+//         message,
+//         pos: e.position,
+//         line,
+//         file: sf.file.clone(),
+//         failure: true,
+//     };
+
+//     UserError { data: ued.into() }
+// }
+

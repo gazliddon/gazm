@@ -34,7 +34,7 @@ impl HelpEntry {
         let text = fs::read_to_string(&file).context("Reading help file")?;
 
         if let Some((yaml, markdown)) = split_out_yaml(&text) {
-            if let Ok(yaml_header) = serde_yaml::from_str::<YamlHeader>(&yaml) {
+            if let Ok(yaml_header) = serde_yaml::from_str::<YamlHeader>(yaml) {
                 return Ok(HelpEntry {
                     id,
                     file,
