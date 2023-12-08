@@ -214,10 +214,10 @@ pub enum Item {
     Block,
 }
 
-impl Into<grl_sources::ItemType> for Item {
-    fn into(self) -> grl_sources::ItemType {
+impl From<Item> for grl_sources::ItemType {
+    fn from(value: Item) -> Self {
         use grl_sources::ItemType::*;
-        match self {
+        match value {
             Item::Cpu(m) => match m {
                 MC6809::Operand(..) => Other,
                 MC6809::RegisterSet(..) => Other,

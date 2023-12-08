@@ -8,9 +8,7 @@ use crate::{
 };
 
 use thin_vec::ThinVec;
-
 use grl_sources::{grl_utils::FileError, EditErrorKind, Position, SourceFiles, SourceInfo};
-
 use thiserror::Error;
 
 pub type GResult<T> = Result<T, GazmErrorKind>;
@@ -20,7 +18,7 @@ pub enum GazmErrorKind {
     #[error("{0}")]
     FrontEndErrors(NewErrorCollector<FrontEndError>),
     #[error(transparent)]
-    FrontEndError(#[from] FrontEndError),
+    FrontEndError(#[from] Box<FrontEndError>),
     #[error(transparent)]
     VarError(#[from] VarsErrorKind),
     #[error(transparent)]
@@ -47,7 +45,6 @@ impl From<anyhow::Error> for GazmErrorKind {
         GazmErrorKind::Misc(x.to_string())
     }
 }
-
 // Anyhow, don't care what the error type is.
 // application should use this
 // thiserror = typed errors, gasmlib
@@ -247,7 +244,7 @@ impl UserErrorData {
         println!("{bar}{}^", " ".repeat(col));
 
         if let ErrorMessage::Markdown(_, full_text) = &self.message {
-            skin.print_text(&full_text);
+            skin.print_text(full_text);
         }
     }
 

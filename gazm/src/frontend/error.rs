@@ -37,9 +37,9 @@ pub enum AssemblyErrorKind {
     OnlySupports(AddrModeParseType),
 }
 
-impl Into<FrontEndErrorKind> for ErrCode {
-    fn into(self) -> FrontEndErrorKind {
-        FrontEndErrorKind::HelpText(self)
+impl From<ErrCode> for FrontEndErrorKind {
+    fn from(value: ErrCode) -> Self {
+        FrontEndErrorKind::HelpText(value)
     }
 }
 
@@ -94,9 +94,9 @@ impl std::fmt::Display for FrontEndError {
     }
 }
 
-impl<T> Into<Result<T, FrontEndError>> for FrontEndError {
-    fn into(self) -> Result<T, Self> {
-        Err(self)
+impl <T> From<FrontEndError> for Result<T,FrontEndError> {
+    fn from(value: FrontEndError) -> Self {
+        Err(value)
     }
 }
 
@@ -200,7 +200,7 @@ fn get_line(sf: &SourceFile, line: isize) -> String {
         String::new()
     } else {
         let txt = sf.get_text().get_line(line as usize).unwrap_or("");
-        format!("{txt}")
+        txt.to_owned()
     }
 }
 
@@ -222,7 +222,7 @@ pub fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
         FrontEndErrorKind::HelpText(ht) => {
             let short = crate::help::HELP.get_short(ht);
             let full_text = crate::help::HELP.get(ht);
-            Markdown(format!("{short}"), format!("{full_text}"))
+            Markdown(short, full_text)
         }
         _ => Plain(format!("{e}")),
     };
@@ -232,7 +232,7 @@ pub fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
 
     let ued = UserErrorData {
         message,
-        pos: e.position.clone(),
+        pos: e.position,
         line,
         file: sf.file.clone(),
         failure: true,

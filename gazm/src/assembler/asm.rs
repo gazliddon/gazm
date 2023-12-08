@@ -383,17 +383,14 @@ impl Assembler {
 
     fn assemble_project(&mut self) -> GResult<()> {
         self.tokenize_project()?;
-
         let file = self.get_project_file();
         let tokes = self.get_tokens_from_full_path(&file).unwrap().clone();
-        self.assemble_tokens(&tokes.node)?;
-        return Ok(());
+        self.assemble_tokens(&tokes.node)
     }
 
     fn to_user_error(&self, err: FrontEndError) -> UserError {
         let source_info = self.get_source_info(&err.position).expect("Source info!");
-        let user_error = to_user_error(err, source_info.source_file);
-        user_error
+        to_user_error(err, source_info.source_file)
     }
 
     pub fn set_pc_symbol(&mut self, val: usize) -> Result<(), SymbolError> {
@@ -524,7 +521,7 @@ impl Assembler {
 impl Assembler {
     pub fn add_source_mapping(&mut self, pos: &Position, pc: usize, kind: ItemType) {
             self.asm_out
-                .add_source_mapping(pos.clone(), pc, kind)
+                .add_source_mapping(*pos, pc, kind)
     }
 
     pub fn make_user_error<S: Into<String>>(

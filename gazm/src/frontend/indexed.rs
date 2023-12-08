@@ -50,17 +50,16 @@ fn get_post_inc(input: TSpan) -> PResult<IndexParseType> {
 
 fn get_post_inc_inc(input: TSpan) -> PResult<IndexParseType> {
     let postfix = tag([Plus, Plus]);
-    let index = |r| IndexParseType::PostIncInc(r);
 
     map(
         and_then(succeeded(ms(get_register), postfix), check_index_reg),
-        index,
+        IndexParseType::PostIncInc,
     )(input)
 }
 
 /// Parses for ,<index reg>
 fn get_zero(input: TSpan) -> PResult<IndexParseType> {
-    map(cut(get_index_reg), |r| IndexParseType::Zero(r))(input)
+    map(cut(get_index_reg), IndexParseType::Zero)(input)
 }
 
 fn get_pc_offset(input: TSpan) -> PResult<IndexParseType> {
@@ -103,7 +102,7 @@ fn get_abd_indexed(input: TSpan) -> PResult<IndexParseType> {
 
     let abd_reg = abd_reg
         .valid_abd()
-        .then(|| abd_reg)
+        .then_some(abd_reg)
         .ok_or(fatal(sp, ErrExpectedAbd))?;
 
     let (rest, idx_reg) = cut(get_index_reg)(rest)?;
@@ -153,7 +152,7 @@ mod test {
         let opts = Opts::default();
         let source_file = create_source_file(text);
         let tokens = to_tokens_no_comment(&source_file);
-        let toke_kinds = tokens.iter().map(|t| t.kind.clone()).collect_vec();
+        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
         println!("TOKES: {:?}", toke_kinds);
 
         let span = make_tspan(&tokens, &source_file, &opts);
@@ -181,7 +180,7 @@ mod test {
         let opts = Opts::default();
         let source_file = create_source_file(text);
         let tokens = to_tokens_no_comment(&source_file);
-        let toke_kinds = tokens.iter().map(|t| t.kind.clone()).collect_vec();
+        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
         println!("TOKES: {:?}", toke_kinds);
 
         let span = make_tspan(&tokens, &source_file, &opts);
@@ -202,7 +201,7 @@ mod test {
         let opts = Opts::default();
         let source_file = create_source_file(text);
         let tokens = to_tokens_no_comment(&source_file);
-        let toke_kinds = tokens.iter().map(|t| t.kind.clone()).collect_vec();
+        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
         println!("TOKES: {:?}", toke_kinds);
 
         let span = make_tspan(&tokens, &source_file, &opts);
