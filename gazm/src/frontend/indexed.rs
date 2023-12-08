@@ -79,7 +79,6 @@ fn check_for_illegal_indirect<'a>(
     }
 }
 
-
 /// Get indexed arg direct (not wrapped in square brackets)
 fn get_indexed_direct(input: TSpan) -> PResult<IndexParseType> {
     preceded(
@@ -113,19 +112,14 @@ fn get_abd_indexed(input: TSpan) -> PResult<IndexParseType> {
         A => AddA(idx_reg),
         B => AddB(idx_reg),
         D => AddD(idx_reg),
-        _ => panic!("Shouldn't happen"),
+        _ => panic!("Internal error"),
     };
 
     Ok((rest, matched))
 }
 
-
-pub fn get_no_arg_indexed(input: TSpan) -> PResult<IndexParseType> { 
-    let (rest,matched) = alt((
-            get_abd_indexed,
-            get_indexed_direct))(input)?;
-
-    Ok((rest,matched))
+pub fn get_indexed(input: TSpan) -> PResult<IndexParseType> {
+    alt((get_abd_indexed, get_indexed_direct))(input)
 }
 
 #[allow(unused_imports)]
@@ -262,5 +256,4 @@ mod test {
         test_parse_err(",,,", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
         test_parse_err("q", ErrExpectedRegister, get_register, false).unwrap();
     }
-
 }

@@ -19,7 +19,7 @@ mod tokenize;
 mod tokens;
 mod utils;
 mod parseindexed;
-pub mod new_indexed;
+pub mod indexed;
 
 // Public
 pub mod item6809;

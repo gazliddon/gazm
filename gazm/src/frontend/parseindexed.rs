@@ -4,7 +4,7 @@ use unraveler::{alt, match_span as ms, pair, sep_pair, succeeded};
 use super::{
     item6809::MC6809,
     item6809::{IndexParseType, MC6809::OperandIndexed},
-    new_indexed::get_no_arg_indexed,
+    indexed::get_indexed,
     TokenKind::Comma,
     *,
 };
@@ -43,7 +43,7 @@ fn parse_extended_indirect(input: TSpan) -> PResult<Node> {
 ///     ,y
 ///     ,-u
 fn parse_index_only(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched)) = ms(get_no_arg_indexed)(input)?;
+    let (rest, (sp, matched)) = ms(get_indexed)(input)?;
     let matched = Node::from_item_tspan(OperandIndexed(matched, false).into(), sp);
     Ok((rest, matched))
 }
@@ -51,7 +51,7 @@ fn parse_index_only(input: TSpan) -> PResult<Node> {
 fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
     use ErrCode::*;
 
-    let (rest, (sp, matched)) =  ms(get_no_arg_indexed)(input)?;
+    let (rest, (sp, matched)) =  ms(get_indexed)(input)?;
 
     match matched {
         IndexParseType::PostInc(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
