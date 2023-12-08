@@ -106,9 +106,9 @@ impl Opts {
         };
 
         opts.no_async = *orig_matches.get_one("no-async").unwrap();
-        opts.use_new_indexed = *orig_matches.get_one("new-index").unwrap();
 
         opts.update_vars();
+
         let _ = opts.update_paths();
 
         Ok(opts)

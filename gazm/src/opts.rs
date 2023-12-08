@@ -49,8 +49,6 @@ pub struct Opts {
     pub bin_references: Vec<BinReference>,
     pub cpu: Option<crate::cli::CpuKind>,
 
-    pub use_new_indexed: bool,
-
     #[serde(skip)]
     pub do_includes: bool,
 
@@ -108,7 +106,6 @@ impl Default for Opts {
             do_includes: true,
             no_async: false,
             syms_file: Default::default(),
-            use_new_indexed: false,
         }
     }
 }

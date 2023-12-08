@@ -79,28 +79,25 @@ fn check_for_illegal_indirect<'a>(
     }
 }
 
-pub fn get_indexed_indirect(input: TSpan) -> PResult<IndexParseType> {
-    ms(get_indexed_direct)(input).and_then(check_for_illegal_indirect)
-}
 
 /// Get indexed arg direct (not wrapped in square brackets)
-pub fn get_indexed_direct(input: TSpan) -> PResult<IndexParseType> {
+fn get_indexed_direct(input: TSpan) -> PResult<IndexParseType> {
     preceded(
         Comma,
-        alt((
+        cut(alt((
             get_pre_dec_dec,
             get_pre_dec,
             get_post_inc_inc,
             get_post_inc,
             get_pc_offset,
             get_zero,
-        )),
+        ))),
     )(input)
 }
 
 /// Parse for a,<ireg>, b,<ireg> or d,<ireg>
 /// fatal error if wget a reg pair but not a valud abd indexed pair
-pub fn get_abd_indexed(input: TSpan) -> PResult<IndexParseType> {
+fn get_abd_indexed(input: TSpan) -> PResult<IndexParseType> {
     use {IndexParseType::*, RegEnum::*};
 
     let (rest, (sp, abd_reg)) = succeeded(ms(get_register), Comma)(input)?;
@@ -120,6 +117,15 @@ pub fn get_abd_indexed(input: TSpan) -> PResult<IndexParseType> {
     };
 
     Ok((rest, matched))
+}
+
+
+pub fn get_no_arg_indexed(input: TSpan) -> PResult<IndexParseType> { 
+    let (rest,matched) = alt((
+            get_abd_indexed,
+            get_indexed_direct))(input)?;
+
+    Ok((rest,matched))
 }
 
 #[allow(unused_imports)]
@@ -252,33 +258,9 @@ mod test {
     }
     #[test]
     fn test_errors() {
-        test_parse_err(
-            ",-y",
-            ErrIndexModeNotValidIndirect,
-            get_indexed_indirect,
-            true,
-        )
-        .unwrap();
         test_parse_err(",-a", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
-        test_parse_err(",-a", ErrExpectedIndexRegister, get_indexed_indirect, true).unwrap();
         test_parse_err(",,,", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
         test_parse_err("q", ErrExpectedRegister, get_register, false).unwrap();
     }
 
-    #[test]
-    fn test_indexed_indirect() {
-        let opts = Opts::default();
-        use IndexParseType::*;
-        use RegEnum::*;
-
-        let to_text = vec![
-            (",--y", PreDecDec(Y)),
-            (",y++", PostIncInc(Y)),
-            (",x", Zero(X)),
-        ];
-
-        for (text, desired) in to_text.into_iter() {
-            test_parse_all(text, desired, get_indexed_indirect).expect("Parsing")
-        }
-    }
 }
