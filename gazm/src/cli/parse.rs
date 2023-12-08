@@ -106,6 +106,7 @@ impl Opts {
         };
 
         opts.no_async = *orig_matches.get_one("no-async").unwrap();
+        opts.use_new_indexed = *orig_matches.get_one("new-index").unwrap();
 
         opts.update_vars();
         let _ = opts.update_paths();
@@ -147,6 +148,14 @@ pub fn parse_command_line() -> ArgMatches {
                 .global(true)
                 .long("no-async")
                 .help("Disable async build"),
+        )
+        .arg(
+            Arg::new("new-index")
+                .action(ArgAction::SetTrue)
+                .global(true)
+                .long("new-index")
+                .short('n')
+                .help("Use new index parser"),
         )
         .subcommand_required(true)
         .subcommand(
@@ -239,6 +248,14 @@ pub fn parse_command_line() -> ArgMatches {
                         .value_parser(PathBufValueParser::new())
                         .help("Output AST")
                         .long("ast-file")
+                        .num_args(1),
+                )
+                .arg(
+                    Arg::new("lst-file")
+                        .value_parser(PathBufValueParser::new())
+                        .help("Output list file")
+                        .long("lst-file")
+                        .short('l')
                         .num_args(1),
                 )
                 .arg(

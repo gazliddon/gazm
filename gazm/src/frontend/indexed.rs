@@ -100,24 +100,13 @@ fn get_no_arg_indexed(input: TSpan) -> PResult<IndexParseType> {
     Ok((rest, matched))
 }
 
-/// Parses for indexed modes that do not need an offset and can be be indirect
-/// ```    lda [,y++]```
-fn get_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<IndexParseType> {
-    let (rest, matched) = alt((
-        get_pre_dec_dec,
-        get_post_inc_inc,
-        get_zero,
-        get_add_a,
-        get_add_b,
-        get_add_d,
-    ))(input)?;
-    Ok((rest, matched))
-}
+////////////////////////////////////////////////////////////////////////////////
+// Parsers
 
 /// Parses for simple offset indexed addressing
 /// ```    addr,<index reg>```
 fn parse_offset(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, (expr, reg))) = ms(sep_pair(parse_expr, Comma, get_index_reg))(input)?;
+    let (rest, (sp, (expr, reg))) = ms(sep_pair(parse_expr, Comma,  get_index_reg ))(input)?;
     let offset = IndexParseType::ConstantOffset(reg);
     let item = MC6809::operand_from_index_mode(offset, false);
     Ok((rest, Node::from_item_kid_tspan(item, expr, sp)))
@@ -146,7 +135,14 @@ fn parse_extended_indirect(input: TSpan) -> PResult<Node> {
 ///     ,y
 ///     ,-u
 fn parse_index_only(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched)) = ms(get_no_arg_indexed)(input)?;
+    let _use_new_indexed = input.extra().opts.use_new_indexed;
+
+    let (rest, (sp, matched)) = if _use_new_indexed {
+        panic!()
+    } else {
+        ms(get_no_arg_indexed)(input)
+    } ?;
+
     let matched = Node::from_item_tspan(OperandIndexed(matched, false).into(), sp);
     Ok((rest, matched))
 }
@@ -154,7 +150,14 @@ fn parse_index_only(input: TSpan) -> PResult<Node> {
 fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
     use ErrCode::*;
 
-    let (rest, (sp, matched)) = ms(get_no_arg_indexed)(input)?;
+    let _use_new_indexed = input.extra().opts.use_new_indexed;
+
+    let (rest, (sp, matched)) =  if _use_new_indexed {
+        panic!()
+    } else {
+        ms(get_no_arg_indexed)(input)
+
+    }?;
 
     match matched {
         IndexParseType::PostInc(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
