@@ -23,7 +23,7 @@ fn parse_offset(input: TSpan) -> PResult<Node> {
 /// Parses for simple pc offset addressing
 /// ```    offset,pc```
 fn parse_pc_offset(input: TSpan) -> PResult<Node> {
-    use emu6809::cpu::RegEnum::*;
+    use emu6809::cpu6809::RegEnum::*;
     let (rest, (sp, expr)) = ms(succeeded(parse_expr, pair(Comma, get_this_reg(PC))))(input)?;
     let item = MC6809::operand_from_index_mode(IndexParseType::PCOffset, false);
     let matched = Node::from_item_kid_tspan(item, expr, sp);

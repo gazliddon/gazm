@@ -155,7 +155,7 @@ mod test {
     use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens_no_comment};
     use crate::frontend::{Item, ParsedFrom};
     use crate::opts::Opts;
-    use emu6809::cpu::RegEnum;
+    use emu6809::cpu6809::RegEnum;
     use unraveler::Collection;
 
     fn check_opcode(

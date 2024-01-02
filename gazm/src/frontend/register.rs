@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 use crate::help::ErrCode::*;
-use emu6809::cpu::RegEnum;
+use emu6809::cpu6809::RegEnum;
 use std::collections::HashSet;
 use unraveler::{cut, match_span as ms, sep_list, sep_pair, };
 

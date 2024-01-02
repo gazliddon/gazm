@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use super::Item;
 
 use emu6809::{
-    cpu::{IndexedFlags, RegEnum},
+    cpu6809::{IndexedFlags, RegEnum},
     isa::Instruction,
 };
 
