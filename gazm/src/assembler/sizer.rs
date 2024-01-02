@@ -7,7 +7,7 @@ use super::{
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
 use crate::{
-    ast::{Ast, AstNodeId, AstNodeRef},
+    semantic::{Ast, AstNodeId, AstNodeRef},
     error::GResult,
     // parse::util::{ByteSize, ByteSizes},
     // parse6809::opcodes::get_opcode_info,

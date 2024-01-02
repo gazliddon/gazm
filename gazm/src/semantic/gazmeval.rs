@@ -4,7 +4,7 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::{
-    ast::{AstNodeId, AstNodeRef},
+    semantic::{AstNodeId, AstNodeRef},
     error::AstError,
     gazmsymbols::{SymbolError, SymbolTreeReader},
     frontend::{Item, LabelDefinition, ParsedFrom},

@@ -3,7 +3,7 @@ use grl_sources::Position;
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thin_vec::ThinVec;
 
-use crate::{ast::AstNodeId, error::ParseError, gazmsymbols::SymbolScopeId};
+use crate::{semantic::AstNodeId, error::ParseError, gazmsymbols::SymbolScopeId};
 
 use super::{
     item6809::MC6809::{self, OpCode, SetDp},

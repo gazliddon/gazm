@@ -2,7 +2,7 @@
 
 use crate::{
     assembler,
-    ast::{AstNodeId, AstNodeRef},
+    semantic::{AstNodeId, AstNodeRef},
     frontend::{FrontEndError, FrontEndErrorKind},
     vars::VarsErrorKind,
 };

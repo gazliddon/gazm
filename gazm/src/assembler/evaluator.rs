@@ -1,9 +1,8 @@
 #![forbid(unused_imports)]
 
 use crate::{
-    ast::{Ast, AstNodeId, AstNodeRef},
+    semantic::{Ast, AstNodeId, AstNodeRef, eval,EvalErrorEnum},
     error::{GResult, UserError},
-    gazmeval::eval,
     gazmsymbols::SymbolInfo,
     frontend::Item::*,
 };
@@ -80,11 +79,11 @@ impl Assembler {
 
         eval(&reader, node).map_err(|err| {
             let e = match &err.source {
-                crate::gazmeval::EvalErrorEnum::SymbolNotFoud(name) => {
+                EvalErrorEnum::SymbolNotFoud(name) => {
                     let scope = self.get_symbols().get_fqn_from_id(current_scope_id);
                     let mut err = err.clone();
                     err.source =
-                        crate::gazmeval::EvalErrorEnum::SymbolNotFoud(format!("{scope}::{name}"));
+                        EvalErrorEnum::SymbolNotFoud(format!("{scope}::{name}"));
                     UserError::from_ast_error(err.into(), &info)
                 }
                 _ => UserError::from_ast_error(err.into(), &info),

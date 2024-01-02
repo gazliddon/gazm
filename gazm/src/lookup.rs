@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{iter_refs_recursive, AstNodeId, Ast},
+    semantic::{iter_refs_recursive, AstNodeId, Ast},
     gazmsymbols::{SymbolScopeId, SymbolTree},
     frontend::{Item, LabelDefinition},
 };

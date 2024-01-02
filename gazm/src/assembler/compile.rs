@@ -4,7 +4,6 @@ use std::path::Path;
 use super::{binary::BinaryError, regutils::*, scopetracker::ScopeTracker, Assembler};
 
 use crate::{
-    ast::{Ast, AstNodeId, AstNodeRef},
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
     frontend::{
@@ -14,6 +13,7 @@ use crate::{
         },
         Item,
     },
+    semantic::{Ast, AstNodeId, AstNodeRef},
 };
 
 use emu6809::isa;
@@ -422,7 +422,7 @@ impl<'a> Compiler<'a> {
 
     fn add_source_mapping(&self, asm: &mut Assembler, id: AstNodeId, addr: usize) {
         let node = self.get_node(id);
-        let kind: grl_sources::ItemType  = node.value().item.clone().into();
+        let kind: grl_sources::ItemType = node.value().item.clone().into();
         asm.add_source_mapping(&node.value().pos, addr, kind);
     }
 

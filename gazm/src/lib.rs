@@ -10,10 +10,8 @@ pub mod messages;
 pub mod opts;
 pub mod error;
 
-mod ast;
 mod astformat;
 mod docs;
-mod gazmeval;
 mod gazmsymbols;
 mod lookup;
 mod sections;

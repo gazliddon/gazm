@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AstNodeId, ItemWithPos},
+    semantic::{AstNodeId, ItemWithPos},
     assembler::Assembler,
     error::{GResult, GazmErrorKind},
     utils::with_state,

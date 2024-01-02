@@ -2,7 +2,7 @@
 
 use itertools::Itertools;
 
-use crate::ast::*;
+use crate::semantic::*;
 use crate::frontend::{
     Item,
     item6809,

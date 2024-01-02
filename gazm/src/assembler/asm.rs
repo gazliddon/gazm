@@ -2,7 +2,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    ast::{Ast, AstCtx, AstNodeId, AstNodeRef},
+    semantic::{Ast, AstCtx, AstNodeId, AstNodeRef},
     error::{ErrorCollector, GResult, GazmErrorKind, UserError, to_user_error, ErrorCollectorTrait},
     frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
     frontend::{FrontEndError, FrontEndErrorKind, Item, Node},

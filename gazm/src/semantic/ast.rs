@@ -4,13 +4,14 @@ use grl_sources::{Position, SourceErrorType, SourceInfo};
 use std::{collections::HashMap, iter};
 use thin_vec::{thin_vec, ThinVec};
 
+use super::{EvalError, EvalErrorEnum};
+
 use crate::{
     assembler::{Assembler, ScopeBuilder, ScopeTracker},
     astformat::as_string,
     debug_mess,
     error::{AstError, UserError},
     frontend::{Item, LabelDefinition, Node},
-    gazmeval::{EvalError, EvalErrorEnum},
     gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
     interesting_mess,
     messages::*,
@@ -931,12 +932,9 @@ impl GetPriority for Term {
 pub fn to_priority(i: &Item) -> Option<usize> {
     use Item::*;
     match i {
-        Div => Some(12),
-        Mul => Some(12),
-        Add => Some(11),
-        Sub => Some(11),
-        ShiftL => Some(10),
-        ShiftR => Some(10),
+        Mul | Div => Some(12),
+        Add | Sub => Some(11),
+        ShiftL | ShiftR => Some(10),
         BitAnd => Some(9),
         BitXor => Some(8),
         BitOr => Some(7),
