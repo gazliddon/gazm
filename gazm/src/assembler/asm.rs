@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     semantic::{Ast, AstCtx, AstNodeId, AstNodeRef},
-    error::{ErrorCollector, GResult, GazmErrorKind, UserError, to_user_error, ErrorCollectorTrait},
+    error::{ErrorCollector, GResult, GazmErrorKind, UserError, to_user_error, ErrorCollectorTrait, NewErrorCollector},
     frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult},
     frontend::{FrontEndError, FrontEndErrorKind, Item, Node},
     gazmsymbols::SymbolTree,
@@ -354,12 +354,14 @@ impl Assembler {
             status("Lexing async", |_| tokenize_async(self))
         }
         .map_err(|errors| {
-            let mut err_col = ErrorCollector::new(self.opts.max_errors);
+            let mut err_col  = NewErrorCollector::new(1000);
+
             for fe_err in errors.to_vec() {
                 let ue = self.to_user_error(fe_err);
-                let _ = err_col.add_user_error(ue);
+                let _ = err_col.add(ue);
             }
-            GazmErrorKind::TooManyErrors(err_col)
+
+            GazmErrorKind::UserErrors(err_col)
         })
     }
 

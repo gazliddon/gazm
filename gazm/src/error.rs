@@ -21,6 +21,8 @@ pub type GResult<T> = Result<T, GazmErrorKind>;
 #[derive(Error, Debug, Clone)]
 pub enum GazmErrorKind {
     #[error("{0}")]
+    UserErrors(NewErrorCollector<UserError>),
+    #[error("{0}")]
     FrontEndErrors(NewErrorCollector<FrontEndError>),
     #[error(transparent)]
     FrontEndError(#[from] Box<FrontEndError>),
@@ -118,6 +120,7 @@ impl std::fmt::Display for AstError {
 // User Error
 
 impl std::error::Error for UserError {}
+impl crate::error::ErrorTrait for UserError {}
 
 #[derive(PartialEq, Clone)]
 pub struct UserError {

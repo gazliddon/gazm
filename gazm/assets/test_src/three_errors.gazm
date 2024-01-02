@@ -1,4 +1,3 @@
-
     org 0
 
     lda #1
@@ -17,5 +16,4 @@
     pshs a,u,pc
 
     nop
-
 
