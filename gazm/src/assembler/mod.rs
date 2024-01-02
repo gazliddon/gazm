@@ -1,4 +1,4 @@
-#![forbid(unused_imports)]
+#![allow(unused_imports)]
 mod edit;
 mod writers;
 mod evaluator;
