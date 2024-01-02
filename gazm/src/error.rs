@@ -2,8 +2,8 @@
 
 use crate::{
     assembler,
-    semantic::{AstNodeId, AstNodeRef},
     frontend::{FrontEndError, FrontEndErrorKind},
+    semantic::{AstNodeId, AstNodeRef},
     vars::VarsErrorKind,
 };
 
@@ -216,7 +216,7 @@ impl UserErrorData {
         Self::new(message, failure, &si)
     }
 
-    pub fn print_pretty(&self) {
+    pub fn print_pretty(&self, _verbose_errors: bool) {
         use termimad::*;
         let skin = MadSkin::default();
 
@@ -251,8 +251,10 @@ impl UserErrorData {
         println!("{bar_line} {}", self.line);
         println!("{bar}{}^", " ".repeat(col));
 
-        if let ErrorMessage::Markdown(_, full_text) = &self.message {
-            skin.print_text(full_text);
+        if _verbose_errors {
+            if let ErrorMessage::Markdown(_, full_text) = &self.message {
+                skin.print_text(full_text);
+            }
         }
     }
 
@@ -472,11 +474,15 @@ where
     max_errors: usize,
 }
 
-impl<E> Default for NewErrorCollector<E> 
-where E : ErrorTrait
+impl<E> Default for NewErrorCollector<E>
+where
+    E: ErrorTrait,
 {
     fn default() -> Self {
-        Self { errors: Default::default(), max_errors: 20 }
+        Self {
+            errors: Default::default(),
+            max_errors: 20,
+        }
     }
 }
 
@@ -503,7 +509,7 @@ pub trait ErrorCollectorTrait: Sized {
         self.num_of_errors() >= self.max_errors()
     }
 
-    fn add<X: Into<Self::Error>>(&mut self, e: X) ;
+    fn add<X: Into<Self::Error>>(&mut self, e: X);
     fn num_of_errors(&self) -> usize;
     fn max_errors(&self) -> usize;
     fn to_vec(self) -> Vec<Self::Error>;

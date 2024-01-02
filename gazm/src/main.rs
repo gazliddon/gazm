@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match ret {
         Err(GazmErrorKind::UserErrors(user_errors)) => {
             for e in user_errors.to_vec() {
-                e.as_ref().print_pretty()
+                e.as_ref().print_pretty(opts.verbose_errors)
             }
         }
 

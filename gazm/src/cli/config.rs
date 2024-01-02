@@ -68,7 +68,6 @@ impl TomlConfig {
                 opts.assemble_dir = run_dir;
                 opts.lsp_config = toml.lsp.unwrap_or_default();
 
-
                 let config = TomlConfig {
                     file: file.to_path_buf(),
                     opts,
