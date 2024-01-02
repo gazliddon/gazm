@@ -1,11 +1,11 @@
 #![forbid(unused_imports)]
 /// Utilities for handling registers
 
-use emu6809::cpu6809::{self,RegEnum};
+use emu6809::cpu::RegEnum;
 use std::collections::HashSet;
 
 pub fn reg_to_reg_num(a: RegEnum) -> u8 {
-    use cpu6809::RegEnum::*;
+    use RegEnum::*;
 
     match a {
         D => 0b0000,
@@ -28,7 +28,7 @@ pub fn reg_pair_to_flags(source: RegEnum, dest: RegEnum) -> u8 {
 }
 
 pub fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
-    use cpu6809::RegEnum::*;
+    use RegEnum::*;
     let mut registers = 0;
 
     if regs.contains(&CC) {

@@ -11,7 +11,7 @@ use unraveler::{
 
 use crate::help::ErrCode;
 use crate::help::ErrCode::*;
-use emu6809::cpu6809::RegEnum;
+use emu6809::cpu::RegEnum;
 
 use super::{
     item6809::{IndexParseType, MC6809::OperandIndexed},
