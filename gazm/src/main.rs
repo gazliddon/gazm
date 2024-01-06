@@ -1,10 +1,10 @@
-use gazm::{ 
+use gazm::{
     assembler::Assembler,
     cli::{parse_command_line, styling::get_banner},
+    error::{ErrorCollectorTrait, GazmErrorKind},
     fmt, frontend, info_mess, messages,
     opts::{BuildType, Opts},
     status_mess,
-    error::GazmErrorKind,
 };
 
 fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
@@ -68,21 +68,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Todo move directory handling into assemble_from_opts
     // probably as a function of Opts
     let cur_dir = current_dir().unwrap();
-
     let ret = do_build(&opts);
 
-    match &ret {
-        Err(GazmErrorKind::UserError(ue)) => {
-            ue.as_ref().print_pretty()
-        },
+    match ret {
+        Err(GazmErrorKind::UserErrors(user_errors)) => {
+            for e in user_errors.to_vec() {
+                e.as_ref().print_pretty(opts.verbose_errors)
+            }
+        }
 
         Err(e) => {
             println!("{e}");
         }
 
-        Ok(..) => {
-
-        }
+        Ok(..) => {}
     };
 
     set_current_dir(cur_dir)?;

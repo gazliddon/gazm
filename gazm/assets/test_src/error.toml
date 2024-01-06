@@ -1,0 +1,19 @@
+[project]
+name = "errors"
+
+[opts]
+verbose="Silent"
+mem-size = 94208
+project-file = "three_errors.gazm"
+source-mapping = "$(OUT_DIR)/errors.map"
+syms-file = "$(OUT_DIR)/errors.sym"
+cpu="Cpu6809"
+
+[vars]
+OUT_DIR = "roms"
+TMP_DIR = "tmp"
+REF_ROMS_DIR = "stargate"
+
+[lsp]
+log-file="lsp.log"
+

@@ -105,6 +105,8 @@ impl Opts {
             _ => Verbosity::Debug,
         };
 
+        opts.verbose_errors = orig_matches.get_flag("verbose-errors");
+
         opts.no_async = *orig_matches.get_one("no-async").unwrap();
 
         opts.update_vars();
@@ -134,6 +136,14 @@ pub fn parse_command_line() -> ArgMatches {
         .about(get_banner())
         .author(clap::crate_authors!(" : "))
         .version(clap::crate_version!())
+        .arg(
+            Arg::new("verbose-errors")
+                .long("verbose_errors")
+                .help("Verbose errors")
+                .short('e')
+                .global(true)
+                .action(ArgAction::SetTrue)
+        )
         .arg(
             Arg::new("verbose")
                 .long("verbose")

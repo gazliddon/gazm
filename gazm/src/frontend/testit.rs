@@ -17,7 +17,7 @@ pub fn test_it(opts: &Opts) {
     if tokes.errors.has_errors() {
         for e in tokes.errors.to_vec() {
             let err = to_user_error(e, &sf);
-            err.as_ref().print_pretty()
+            err.as_ref().print_pretty(true)
         }
     } else {
         println!("Tokenized fine!")
