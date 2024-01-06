@@ -18,6 +18,7 @@ use thiserror::Error;
 
 pub type GResult<T> = Result<T, GazmErrorKind>;
 
+
 #[derive(Error, Debug, Clone)]
 pub enum GazmErrorKind {
     #[error("{0}")]
