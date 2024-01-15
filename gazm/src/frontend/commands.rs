@@ -173,9 +173,11 @@ pub(crate) fn parse_org(_input: TSpan) -> PResult<Node> {
 pub(crate) fn parse_put(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Put, Item::Put)(_input)
 }
+
 pub(crate) fn parse_setdp(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::SetDp, MC6809::SetDp)(_input)
 }
+
 pub(crate) fn parse_rmb(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Rmb, Item::Rmb)(_input)
 }
@@ -189,6 +191,10 @@ pub(crate) fn parse_zmd(_input: TSpan) -> PResult<Node> {
 
 pub(crate) fn parse_exec(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Exec, Item::Exec)(_input)
+}
+
+pub fn parse_6809_only_command(input: TSpan) -> PResult<Node> { 
+    parse_setdp(input)
 }
 
 pub fn parse_command(input: TSpan) -> PResult<Node> {

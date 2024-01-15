@@ -20,6 +20,7 @@ mod tokens;
 mod utils;
 mod basetoken;
 mod indexed;
+mod cpuparser;
 
 // Public
 pub mod item6809;
@@ -29,4 +30,5 @@ pub use {
     commands::*, error::*, expr::*, gazmunraveller::*, item::*, macros::*, misc::*, node::*,
     nodeiter::*, opcodes::*, parse::*, parseindexed::*, parsetext::*, register::*, structs::*,
     testit::*, token_store::*, tokenize::*, tokens::*, utils::*,
+    cpuparser::*,
 };

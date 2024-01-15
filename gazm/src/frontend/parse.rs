@@ -12,6 +12,7 @@ use num_traits::Float;
 use thin_vec::ThinVec;
 use unraveler::{alt, many0, map, Collection, ParseError, ParseErrorKind, Severity};
 
+
 struct NodeCollector<'a> {
     nodes: ThinVec<Node>,
     _span: TSpan<'a>,
@@ -42,6 +43,9 @@ impl<'a> NodeCollector<'a> {
         }
     }
 }
+
+// I need isolate parse_command
+// and parse opcode
 
 pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node>> {
     parse_line(alt((
