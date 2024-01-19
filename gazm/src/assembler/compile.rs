@@ -1,27 +1,30 @@
 #![forbid(unused_imports)]
 use std::path::Path;
 
-use super::{binary::BinaryError, regutils::*, scopetracker::ScopeTracker, Assembler};
+use super::{binary::BinaryError,  scopetracker::ScopeTracker, Assembler};
 
 use crate::{
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
-    frontend::{
-        item6809::{
-            self, AddrModeParseType, IndexParseType,
-            MC6809::{self, OpCode, SetDp},
-        },
-        Item,
-    },
     semantic::{Ast, AstNodeId, AstNodeRef},
 };
+use crate::frontend::Item;
 
-use emu6809::isa;
+pub trait CompilerCpu<K> {
+    fn compile_node(
+        &mut self,
+        compiler: &mut Compiler,
+        asm: &mut Assembler,
+        id: AstNodeId,
+        node_kind: K,
+    ) -> GResult<()>;
+}
+
 use grl_sources::ItemType;
 
-struct Compiler<'a> {
+pub struct Compiler<'a> {
     tree: &'a Ast,
-    scopes: ScopeTracker,
+    pub scopes: ScopeTracker,
 }
 
 pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()> {
@@ -30,6 +33,7 @@ pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()> {
     compiler.compile_root(asm)?;
     Ok(())
 }
+
 
 impl<'a> Compiler<'a> {
     pub fn new(tree: &'a Ast, current_scope_id: u64) -> GResult<Self> {
@@ -46,9 +50,7 @@ impl<'a> Compiler<'a> {
         asm.set_pc_symbol(0).expect("Can't set pc symbol");
         self.compile_node_error(asm, self.tree.as_ref().root().id())
     }
-}
 
-impl<'a> Compiler<'a> {
     fn get_node_id_item(&self, asm: &Assembler, id: AstNodeId) -> (AstNodeId, Item) {
         let node = self.tree.as_ref().get(id).unwrap();
         let this_i = &node.value().item;
@@ -56,19 +58,24 @@ impl<'a> Compiler<'a> {
         (node.id(), i)
     }
 
-    fn get_node(&self, id: AstNodeId) -> AstNodeRef {
+    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef {
         let node = self.tree.as_ref().get(id).unwrap();
         node
     }
 
-    fn binary_error(&self, asm: &mut Assembler, id: AstNodeId, e: BinaryError) -> GazmErrorKind {
+    pub fn binary_error(
+        &self,
+        asm: &mut Assembler,
+        id: AstNodeId,
+        e: BinaryError,
+    ) -> GazmErrorKind {
         let n = self.get_node(id);
         let info = &asm.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
         UserError::from_text(msg, info, true).into()
     }
 
-    fn binary_error_map<T>(
+    pub fn binary_error_map<T>(
         &self,
         asm: &mut Assembler,
         id: AstNodeId,
@@ -77,7 +84,7 @@ impl<'a> Compiler<'a> {
         e.map_err(|e| self.binary_error(asm, id, e))
     }
 
-    fn relative_error(
+    pub fn relative_error(
         &self,
         asm: &Assembler,
         id: AstNodeId,
@@ -98,50 +105,9 @@ impl<'a> Compiler<'a> {
         UserError::from_text(msg, info, true).into()
     }
 
-    fn compile_indexed(
-        &mut self,
-        asm: &mut Assembler,
-        id: AstNodeId,
-        imode: IndexParseType,
-        indirect: bool,
-    ) -> GResult<()> {
-        use item6809::IndexParseType::*;
-        let idx_byte = imode.get_index_byte(indirect);
-
-        self.write_byte(idx_byte, asm, id)?;
-
-        let node = self.get_node(id);
-
-        match imode {
-            PCOffset | ConstantOffset(..) => {
-                panic!("Should not happen")
-            }
-
-            ExtendedIndirect => {
-                let (val, _) = asm.eval_first_arg(node, self.scopes.scope())?;
-
-                let res = asm.get_binary_mut().write_uword_check_size(val);
-                self.binary_error_map(asm, id, res)?;
-            }
-
-            ConstantWordOffset(_, val) | PcOffsetWord(val) => {
-                let res = asm.get_binary_mut().write_iword_check_size(val as i64);
-                self.binary_error_map(asm, id, res)?;
-            }
-
-            ConstantByteOffset(_, val) | PcOffsetByte(val) => {
-                let res = asm.get_binary_mut().write_ibyte_check_size(val as i64);
-                self.binary_error_map(asm, id, res)?;
-            }
-            _ => (),
-        }
-
-        Ok(())
-    }
-
     /// Adds a mapping of this source file fragment to a physicl and logical range of memory
     /// ( physical range, logical_range )
-    fn add_mapping(
+    pub fn add_mapping(
         &self,
         asm: &mut Assembler,
         phys_range: std::ops::Range<usize>,
@@ -223,19 +189,19 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn write_word(&mut self, val: u16, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    pub fn write_word(&mut self, val: u16, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         let ret = asm.get_binary_mut().write_word(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
-    fn write_byte(&mut self, val: u8, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    pub fn write_byte(&mut self, val: u8, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         let ret = asm.get_binary_mut().write_byte(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
-    fn write_byte_check_size(
+    pub fn write_byte_check_size(
         &mut self,
         val: i64,
         asm: &mut Assembler,
@@ -245,7 +211,8 @@ impl<'a> Compiler<'a> {
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
-    fn write_word_check_size(
+
+    pub fn write_word_check_size(
         &mut self,
         val: i64,
         asm: &mut Assembler,
@@ -264,126 +231,6 @@ impl<'a> Compiler<'a> {
     ) -> GResult<()> {
         let ret = asm.get_binary_mut().write_word_check_size(val);
         self.binary_error_map(asm, id, ret)?;
-        Ok(())
-    }
-
-    /// Compile an opcode
-    fn compile_opcode(
-        &mut self,
-        asm: &mut Assembler,
-        id: AstNodeId,
-        ins: &isa::Instruction,
-        amode: AddrModeParseType,
-    ) -> GResult<()> {
-        use isa::AddrModeEnum::*;
-
-        let pc = asm.get_binary().get_write_address();
-        let ins_amode = ins.addr_mode;
-        let current_scope_id = self.scopes.scope();
-
-        if ins.opcode > 0xff {
-            self.write_word(ins.opcode as u16, asm, id)
-        } else {
-            self.write_byte(ins.opcode as u8, asm, id)
-        }?;
-
-        let node = self.get_node(id);
-
-        match ins_amode {
-            Indexed => {
-                if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                    self.compile_indexed(asm, id, imode, indirect)?;
-                }
-            }
-
-            Immediate8 => {
-                let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
-                self.write_byte_check_size(arg, asm, id)?
-            }
-
-            Direct => {
-                let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
-                self.write_byte_check_size(arg & 0xff, asm, id)?
-            }
-
-            Extended | Immediate16 => {
-                let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
-                self.write_word_check_size(arg, asm, id)?;
-            }
-
-            Relative => {
-                use crate::assembler::binary::BinaryError::*;
-                let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
-                let arg_n = self.get_node(arg_id);
-                let val = arg - (pc as i64 + ins.size as i64);
-                // offset is from PC after Instruction and operand has been fetched
-                let res = asm
-                    .asm_out
-                    .binary
-                    .write_ibyte_check_size(val)
-                    .map_err(|x| match x {
-                        DoesNotFit { .. } => self.relative_error(asm, id, val, 8),
-                        DoesNotMatchReference { .. } => self.binary_error(asm, id, x),
-                        _ => asm.make_user_error(format!("{x:?}"), arg_n, false).into(),
-                    });
-
-                match &res {
-                    Ok(_) => (),
-                    Err(_) => {
-                        if asm.opts.ignore_relative_offset_errors {
-                            // messages::warning("Skipping writing relative offset");
-                            let res = asm.get_binary_mut().write_ibyte_check_size(0);
-                            self.binary_error_map(asm, id, res)?;
-                        } else {
-                            res?;
-                        }
-                    }
-                }
-            }
-
-            Relative16 => {
-                use crate::assembler::binary::BinaryError::*;
-
-                let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
-
-                let arg_n = self.get_node(arg_id);
-
-                let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
-                // offset is from PC after Instruction and operand has been fetched
-                let res = asm.get_binary_mut().write_word_check_size(val);
-
-                res.map_err(|x| match x {
-                    DoesNotFit { .. } => self.relative_error(asm, id, val, 16),
-                    DoesNotMatchReference { .. } => self.binary_error(asm, id, x),
-                    _ => asm.make_user_error(format!("{x:?}"), arg_n, true).into(),
-                })?;
-            }
-
-            Inherent => {}
-
-            RegisterPair => {
-                if let AddrModeParseType::RegisterPair(a, b) = amode {
-                    let val = reg_pair_to_flags(a, b);
-                    self.write_byte(val, asm, id)?;
-                } else {
-                    panic!("Whut!")
-                }
-            }
-
-            RegisterSet => {
-                let rset = &node.first_child().unwrap().value().item;
-                if let Item::Cpu(MC6809::RegisterSet(regs)) = rset {
-                    let flags = registers_to_flags(regs);
-                    self.write_byte(flags, asm, id)?;
-                } else {
-                    panic!("Whut!")
-                }
-            }
-        };
-
-        // Add memory to source code mapping for this opcode
-        let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-        self.add_mapping(asm, phys_range, range, id, ItemType::OpCode);
         Ok(())
     }
 
@@ -437,6 +284,8 @@ impl<'a> Compiler<'a> {
 
         asm.set_pc_symbol(pc).expect("Can't set PC symbol value");
 
+
+
         match i {
             ScopeId(scope_id) => self.scopes.set_scope(scope_id),
 
@@ -466,10 +315,6 @@ impl<'a> Compiler<'a> {
             SetPutOffset(offset) => {
                 debug_mess!("Set put offset to {}", offset);
                 asm.get_binary_mut().set_write_offset(offset);
-            }
-
-            Cpu(OpCode(_, ins, amode)) => {
-                self.compile_opcode(asm, id, &ins, amode)?;
             }
 
             MacroCallProcessed {
@@ -584,7 +429,18 @@ impl<'a> Compiler<'a> {
             }
 
             IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
-            | StructDef(..) | MacroDef(..) | MacroCall(..) | Cpu(SetDp) | Import => (),
+            | StructDef(..) | MacroDef(..) | MacroCall(..) | Import => (),
+
+            Cpu6809(node_kind) => {
+                let mut cpu6809 = crate::cpu6809::Compiler6809::new();
+                cpu6809.compile_node(self, asm, id, node_kind)?;
+            }
+
+            // Cpu6809(MC6809::SetDp) => (),
+            // Cpu6809(MC6809::OpCode(_, ins, amode)) => {
+            //     self.compile_opcode(asm, id, &ins, amode)?;
+            // }
+
             _ => {
                 panic!("Can't compile {i:?}");
             }
@@ -597,3 +453,166 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 }
+
+// impl<'a> Compiler<'a> {
+//     fn compile_indexed(
+//         &mut self,
+//         asm: &mut Assembler,
+//         id: AstNodeId,
+//         imode: IndexParseType,
+//         indirect: bool,
+//     ) -> GResult<()> {
+//         use item6809::IndexParseType::*;
+//         let idx_byte = imode.get_index_byte(indirect);
+
+//         self.write_byte(idx_byte, asm, id)?;
+
+//         let node = self.get_node(id);
+
+//         match imode {
+//             PCOffset | ConstantOffset(..) => {
+//                 panic!("Should not happen")
+//             }
+
+//             ExtendedIndirect => {
+//                 let (val, _) = asm.eval_first_arg(node, self.scopes.scope())?;
+
+//                 let res = asm.get_binary_mut().write_uword_check_size(val);
+//                 self.binary_error_map(asm, id, res)?;
+//             }
+
+//             ConstantWordOffset(_, val) | PcOffsetWord(val) => {
+//                 let res = asm.get_binary_mut().write_iword_check_size(val as i64);
+//                 self.binary_error_map(asm, id, res)?;
+//             }
+
+//             ConstantByteOffset(_, val) | PcOffsetByte(val) => {
+//                 let res = asm.get_binary_mut().write_ibyte_check_size(val as i64);
+//                 self.binary_error_map(asm, id, res)?;
+//             }
+//             _ => (),
+//         }
+
+//         Ok(())
+//     }
+
+//     /// Compile an opcode
+//     fn compile_opcode(
+//         &mut self,
+//         asm: &mut Assembler,
+//         id: AstNodeId,
+//         ins: &isa::Instruction,
+//         amode: AddrModeParseType,
+//     ) -> GResult<()> {
+//         use isa::AddrModeEnum::*;
+
+//         let pc = asm.get_binary().get_write_address();
+//         let ins_amode = ins.addr_mode;
+//         let current_scope_id = self.scopes.scope();
+
+//         if ins.opcode > 0xff {
+//             self.write_word(ins.opcode as u16, asm, id)
+//         } else {
+//             self.write_byte(ins.opcode as u8, asm, id)
+//         }?;
+
+//         let node = self.get_node(id);
+
+//         match ins_amode {
+//             Indexed => {
+//                 if let AddrModeParseType::Indexed(imode, indirect) = amode {
+//                     self.compile_indexed(asm, id, imode, indirect)?;
+//                 }
+//             }
+
+//             Immediate8 => {
+//                 let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
+//                 self.write_byte_check_size(arg, asm, id)?
+//             }
+
+//             Direct => {
+//                 let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
+//                 self.write_byte_check_size(arg & 0xff, asm, id)?
+//             }
+
+//             Extended | Immediate16 => {
+//                 let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
+//                 self.write_word_check_size(arg, asm, id)?;
+//             }
+
+//             Relative => {
+//                 use crate::assembler::binary::BinaryError::*;
+//                 let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
+//                 let arg_n = self.get_node(arg_id);
+//                 let val = arg - (pc as i64 + ins.size as i64);
+//                 // offset is from PC after Instruction and operand has been fetched
+//                 let res = asm
+//                     .asm_out
+//                     .binary
+//                     .write_ibyte_check_size(val)
+//                     .map_err(|x| match x {
+//                         DoesNotFit { .. } => self.relative_error(asm, id, val, 8),
+//                         DoesNotMatchReference { .. } => self.binary_error(asm, id, x),
+//                         _ => asm.make_user_error(format!("{x:?}"), arg_n, false).into(),
+//                     });
+
+//                 match &res {
+//                     Ok(_) => (),
+//                     Err(_) => {
+//                         if asm.opts.ignore_relative_offset_errors {
+//                             // messages::warning("Skipping writing relative offset");
+//                             let res = asm.get_binary_mut().write_ibyte_check_size(0);
+//                             self.binary_error_map(asm, id, res)?;
+//                         } else {
+//                             res?;
+//                         }
+//                     }
+//                 }
+//             }
+
+//             Relative16 => {
+//                 use crate::assembler::binary::BinaryError::*;
+
+//                 let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
+
+//                 let arg_n = self.get_node(arg_id);
+
+//                 let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
+//                 // offset is from PC after Instruction and operand has been fetched
+//                 let res = asm.get_binary_mut().write_word_check_size(val);
+
+//                 res.map_err(|x| match x {
+//                     DoesNotFit { .. } => self.relative_error(asm, id, val, 16),
+//                     DoesNotMatchReference { .. } => self.binary_error(asm, id, x),
+//                     _ => asm.make_user_error(format!("{x:?}"), arg_n, true).into(),
+//                 })?;
+//             }
+
+//             Inherent => {}
+
+//             RegisterPair => {
+//                 if let AddrModeParseType::RegisterPair(a, b) = amode {
+//                     let val = reg_pair_to_flags(a, b);
+//                     self.write_byte(val, asm, id)?;
+//                 } else {
+//                     panic!("Whut!")
+//                 }
+//             }
+
+//             RegisterSet => {
+//                 let rset = &node.first_child().unwrap().value().item;
+//                 if let Item::Cpu6809(MC6809::RegisterSet(regs)) = rset {
+//                     let flags = registers_to_flags(regs);
+//                     self.write_byte(flags, asm, id)?;
+//                 } else {
+//                     panic!("Whut!")
+//                 }
+//             }
+//         };
+
+//         // Add memory to source code mapping for this opcode
+//         let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+//         self.add_mapping(asm, phys_range, range, id, ItemType::OpCode);
+//         Ok(())
+//     }
+// }

@@ -321,7 +321,7 @@ mod test {
     #[test]
     fn test_parse_setdp() {
         let text = "setdp $ff00";
-        let desired = Item::Cpu(MC6809::SetDp);
+        let desired = Item::Cpu6809(MC6809::SetDp);
         let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(super::parse_setdp, text, desired, &desired_args);
     }

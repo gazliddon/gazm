@@ -201,7 +201,7 @@ pub enum AddrModeParseType {
 
 impl From<AddrModeParseType> for Item {
     fn from(value: AddrModeParseType) -> Self {
-        Item::Cpu(MC6809::Operand(value))
+        Item::Cpu6809(MC6809::Operand(value))
     }
 }
 
@@ -224,7 +224,7 @@ impl AddrModeParseType {
 
 impl From<MC6809> for Item {
     fn from(value: MC6809) -> Self {
-        Item::Cpu(value)
+        Item::Cpu6809(value)
     }
 }
 // TODO: Ultimately this contains all of the CPU dependent AST node items

@@ -117,7 +117,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("TokFile:\n{}", join_kids("\n"))
             }
 
-            Cpu(OpCode(_, ins, item6809::AddrModeParseType::Inherent)) => ins.action.clone(),
+            Cpu6809(OpCode(_, ins, item6809::AddrModeParseType::Inherent)) => ins.action.clone(),
 
             StructDef(name) => {
                 let body = join_kids(",\n");
@@ -145,7 +145,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("macro {name} ({vars:?}) [{}]", join_kids(" : "))
             }
 
-            Cpu(OpCode(_, instruction, amode)) => {
+            Cpu6809(OpCode(_, instruction, amode)) => {
                 use item6809::AddrModeParseType::*;
 
                 let ind = |s: String, indirect: &bool| -> String {
@@ -159,7 +159,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 let operand = match amode {
                     RegisterSet => {
                         let rset = &node.first_child().unwrap().value().item;
-                        if let Cpu(MC6809::RegisterSet(regs)) = rset {
+                        if let Cpu6809(MC6809::RegisterSet(regs)) = rset {
                             let r = regs
                                 .iter()
                                 .sorted()

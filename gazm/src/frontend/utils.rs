@@ -170,7 +170,6 @@ pub fn get_label_string(input: TSpan) -> PResult<String> {
 mod test {
 
     use super::*;
-    use crate::assembler::registers_to_flags;
     use crate::frontend::*;
     use crate::opts::Opts;
 

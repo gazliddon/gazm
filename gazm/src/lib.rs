@@ -9,6 +9,7 @@ pub mod lsp;
 pub mod messages;
 pub mod opts;
 pub mod error;
+pub mod cpu6809;
 
 mod astformat;
 mod docs;

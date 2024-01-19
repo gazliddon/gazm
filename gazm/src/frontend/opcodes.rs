@@ -102,8 +102,8 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     }?;
 
     let amode = match arg.item {
-        Cpu(Operand(amode)) => amode,
-        Cpu(OperandIndexed(amode, indirect)) => AddrModeParseType::Indexed(amode, indirect),
+        Cpu6809(Operand(amode)) => amode,
+        Cpu6809(OperandIndexed(amode, indirect)) => AddrModeParseType::Indexed(amode, indirect),
         _ => return err_fatal(sp, AssemblyErrorKind::AddrModeUnsupported),
     };
 
@@ -176,7 +176,7 @@ mod test {
         println!("{:?}", items);
         let (item, kids) = get_items(&p);
 
-        if let Item::Cpu(OpCode(_, i, addr_mode)) = item {
+        if let Item::Cpu6809(OpCode(_, i, addr_mode)) = item {
             assert_eq!(i.action, opcode);
             assert_eq!(addr_mode, expected_amode);
             assert_eq!(kids, expected_kids);

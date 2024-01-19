@@ -76,7 +76,7 @@ impl<'a> Sizer<'a> {
         use Item::*;
         // let i = &self.get_node(id).value().item;
 
-        if let Cpu(OpCode(text, ins, AddrModeParseType::Indexed(pmode, indirect))) =
+        if let Cpu6809(OpCode(text, ins, AddrModeParseType::Indexed(pmode, indirect))) =
             &self.get_node(id).value().item
         {
             let current_scope_id = self.scopes.scope();
@@ -224,7 +224,7 @@ impl<'a> Sizer<'a> {
                 self.advance_pc(bytes as usize);
             }
 
-            Cpu(OpCode(text, ins, amode)) => {
+            Cpu6809(OpCode(text, ins, amode)) => {
                 match amode {
                     AddrModeParseType::Extended(false) => {
                         // If there is a direct page set AND
@@ -247,7 +247,7 @@ impl<'a> Sizer<'a> {
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
-                                    let new_item = Cpu(OpCode(
+                                    let new_item = Cpu6809(OpCode(
                                         text.clone(),
                                         Box::new(new_ins),
                                         AddrModeParseType::Direct,
@@ -315,7 +315,7 @@ impl<'a> Sizer<'a> {
                 self.advance_pc(size as usize);
             }
 
-            Cpu(SetDp) => {
+            Cpu6809(SetDp) => {
                 let (dp, _) = asm.eval_first_arg(node, current_scope_id)?;
                 if dp < 0 {
                     panic!("Less than zerp?!?!?");

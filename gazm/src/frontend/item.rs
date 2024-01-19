@@ -132,7 +132,7 @@ impl std::fmt::Display for LabelDefinition {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item {
     Import,
-    Cpu(MC6809),
+    Cpu6809(MC6809),
     Doc(String),
     Pc,
     BlankLine,
@@ -218,7 +218,7 @@ impl From<Item> for grl_sources::ItemType {
     fn from(value: Item) -> Self {
         use grl_sources::ItemType::*;
         match value {
-            Item::Cpu(m) => match m {
+            Item::Cpu6809(m) => match m {
                 MC6809::Operand(..) => Other,
                 MC6809::RegisterSet(..) => Other,
                 MC6809::OperandIndexed(..) | MC6809::OpCode(..) => OpCode,
@@ -369,11 +369,11 @@ impl Display for BaseNode<Item, Position> {
                 format!("{}\n{}", header, children.join("\n"))
             }
 
-            Cpu(OpCode(txt, _ins, addr_type)) => {
+            Cpu6809(OpCode(txt, _ins, addr_type)) => {
                 format!("{txt} {addr_type:?}")
             }
 
-            Cpu(SetDp) => {
+            Cpu6809(SetDp) => {
                 let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
                 children.join("\n")
             }

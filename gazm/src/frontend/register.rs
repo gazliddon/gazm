@@ -23,7 +23,7 @@ pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, R
 
 pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
-    let item = Item::Cpu(RegisterSet(matched));
+    let item = Item::Cpu6809(RegisterSet(matched));
     let node = Node::from_item_tspan(item, sp);
     Ok((rest, node))
 }

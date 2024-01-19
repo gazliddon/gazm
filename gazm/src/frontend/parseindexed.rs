@@ -71,7 +71,7 @@ fn parse_indexed_indirect(input: TSpan) -> PResult<Node> {
     ));
     let (rest, mut matched) = parse_sq_bracketed(indexed_indirect)(input)?;
 
-    if let Item::Cpu(OperandIndexed(amode, _)) = matched.item {
+    if let Item::Cpu6809(OperandIndexed(amode, _)) = matched.item {
         matched.item = OperandIndexed(amode, true).into();
     } else {
         panic!("Should not happen")
