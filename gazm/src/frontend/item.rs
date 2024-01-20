@@ -3,12 +3,10 @@ use grl_sources::Position;
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thin_vec::ThinVec;
 
-use crate::{semantic::AstNodeId, error::ParseError, gazmsymbols::SymbolScopeId};
+use crate::{error::ParseError, gazmsymbols::SymbolScopeId, semantic::AstNodeId};
 
-use super::{
-    item6809::MC6809::{self, OpCode, SetDp},
-    BaseNode, CtxTrait,
-};
+use super::{BaseNode, CtxTrait};
+
 
 impl CtxTrait for Position {}
 
@@ -130,9 +128,9 @@ impl std::fmt::Display for LabelDefinition {
 
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
-pub enum Item {
+pub enum Item<C = MC6809> {
+    CpuSpecific(C),
     Import,
-    Cpu6809(MC6809),
     Doc(String),
     Pc,
     BlankLine,
@@ -214,20 +212,6 @@ pub enum Item {
     Block,
 }
 
-impl From<Item> for grl_sources::ItemType {
-    fn from(value: Item) -> Self {
-        use grl_sources::ItemType::*;
-        match value {
-            Item::Cpu6809(m) => match m {
-                MC6809::Operand(..) => Other,
-                MC6809::RegisterSet(..) => Other,
-                MC6809::OperandIndexed(..) | MC6809::OpCode(..) => OpCode,
-                MC6809::SetDp => Command,
-            },
-            _ => Other,
-        }
-    }
-}
 
 impl Item {
     pub fn zero() -> Self {
@@ -369,19 +353,46 @@ impl Display for BaseNode<Item, Position> {
                 format!("{}\n{}", header, children.join("\n"))
             }
 
-            Cpu6809(OpCode(txt, _ins, addr_type)) => {
-                format!("{txt} {addr_type:?}")
-            }
-
-            Cpu6809(SetDp) => {
-                let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
-                children.join("\n")
+            CpuSpecific(cpu_kind) => {
+                handle_6809_fmt(self, cpu_kind.clone())
             }
 
             _ => format!("{item:?} not implemented"),
         };
 
         write!(f, "{ret}")
+    }
+}
+
+// TODO: Remove6809
+use crate::cpu6809::frontend::MC6809;
+
+pub fn handle_6809_fmt(node: &BaseNode<Item, Position>, k: MC6809) -> String {
+    use crate::cpu6809::frontend::MC6809::*;
+    match k {
+        SetDp => {
+            let children: Vec<String> = node.children.iter().map(|n| format!("{n}")).collect();
+            children.join("\n")
+        }
+        OpCode(txt, _ins, addr_type) => {
+            format!("{txt} {addr_type:?}")
+        }
+        _ => format!("{k:?} not implemented"),
+    }
+}
+
+impl From<Item> for grl_sources::ItemType {
+    fn from(value: Item) -> Self {
+        use grl_sources::ItemType::*;
+        match value {
+            Item::CpuSpecific(m) => match m {
+                MC6809::Operand(..) => Other,
+                MC6809::RegisterSet(..) => Other,
+                MC6809::OperandIndexed(..) | MC6809::OpCode(..) => OpCode,
+                MC6809::SetDp => Command,
+            },
+            _ => Other,
+        }
     }
 }
 

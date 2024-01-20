@@ -1,14 +1,14 @@
 #![deny(unused_imports)]
 use super::{
-    BaseNode, FrontEndError, FrontEndErrorKind, Item, Node, PResult, ParsedFrom, TSpan,
-    TokenKind::*,
-
-    IdentifierKind, 
+    BaseNode, FrontEndError, FrontEndErrorKind, IdentifierKind, Item, Node, PResult, ParsedFrom,
+    TSpan, TokenKind::*,
 };
 
 use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
-use unraveler::{match_span as ms, wrapped_cut, Collection, ParseErrorKind, Parser, Severity, tag,map};
+use unraveler::{
+    map, match_span as ms, tag, wrapped_cut, Collection, ParseErrorKind, Parser, Severity,
+};
 
 pub fn mk_pc_equate(node: &Node) -> Node {
     use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};

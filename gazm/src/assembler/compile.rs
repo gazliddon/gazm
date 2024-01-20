@@ -1,24 +1,17 @@
 #![forbid(unused_imports)]
 use std::path::Path;
 
-use super::{binary::BinaryError,  scopetracker::ScopeTracker, Assembler};
+use super::{binary::BinaryError, scopetracker::ScopeTracker, Assembler, AssemblerCpuTrait};
 
+use crate::frontend::Item;
 use crate::{
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
     semantic::{Ast, AstNodeId, AstNodeRef},
 };
-use crate::frontend::Item;
 
-pub trait CompilerCpu<K> {
-    fn compile_node(
-        &mut self,
-        compiler: &mut Compiler,
-        asm: &mut Assembler,
-        id: AstNodeId,
-        node_kind: K,
-    ) -> GResult<()>;
-}
+use crate::cpu6809::assembler::Compiler6809;
+
 
 use grl_sources::ItemType;
 
@@ -33,7 +26,6 @@ pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()> {
     compiler.compile_root(asm)?;
     Ok(())
 }
-
 
 impl<'a> Compiler<'a> {
     pub fn new(tree: &'a Ast, current_scope_id: u64) -> GResult<Self> {
@@ -284,8 +276,6 @@ impl<'a> Compiler<'a> {
 
         asm.set_pc_symbol(pc).expect("Can't set PC symbol value");
 
-
-
         match i {
             ScopeId(scope_id) => self.scopes.set_scope(scope_id),
 
@@ -431,15 +421,10 @@ impl<'a> Compiler<'a> {
             IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
             | StructDef(..) | MacroDef(..) | MacroCall(..) | Import => (),
 
-            Cpu6809(node_kind) => {
-                let mut cpu6809 = crate::cpu6809::Compiler6809::new();
+            CpuSpecific(node_kind) => {
+                let mut cpu6809 = Compiler6809::new();
                 cpu6809.compile_node(self, asm, id, node_kind)?;
             }
-
-            // Cpu6809(MC6809::SetDp) => (),
-            // Cpu6809(MC6809::OpCode(_, ins, amode)) => {
-            //     self.compile_opcode(asm, id, &ins, amode)?;
-            // }
 
             _ => {
                 panic!("Can't compile {i:?}");

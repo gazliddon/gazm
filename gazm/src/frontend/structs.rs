@@ -1,11 +1,10 @@
 #![deny(unused_imports)]
 
-// use super::*;
 use super::{
-    get_text, parse_block, parse_expr, CommandKind, IdentifierKind, PResult, TSpan,
-    TokenKind::{Colon, Comma, Identifier},
+    get_text,
     item::{Item, Node, StructMemberType},
-    parse_label,
+    parse_block, parse_expr, parse_label, CommandKind, IdentifierKind, PResult, TSpan,
+    TokenKind::{Colon, Comma, Identifier,OpenSquareBracket, CloseSquareBracket},
 };
 
 use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded, tag, tuple};
@@ -19,7 +18,6 @@ pub fn parse_struct_arg_type(input: TSpan) -> PResult<(TSpan, StructMemberType)>
     ms(map(tag(Identifier(Label)), as_arg_type))(input)
 }
 pub fn parse_array_def(input: TSpan) -> PResult<Node> {
-    use super::TokenKind::*;
     let (rest, (_, matched, _)) =
         tuple((OpenSquareBracket, parse_expr, CloseSquareBracket))(input)?;
 
@@ -72,10 +70,10 @@ mod test {
     #[cfg(test)]
     use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
-    use LabelDefinition::Text;
     use grl_sources::SourceFile;
     use thin_vec::thin_vec;
     use unraveler::Collection;
+    use LabelDefinition::Text;
 
     #[test]
     fn test_struct() {

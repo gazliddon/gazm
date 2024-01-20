@@ -4,20 +4,19 @@ use super::{
     Assembler,
     scopetracker::ScopeTracker,
 };
+
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
 use crate::{
     semantic::{Ast, AstNodeId, AstNodeRef},
     error::GResult,
-    // parse::util::{ByteSize, ByteSizes},
-    // parse6809::opcodes::get_opcode_info,
-    frontend::get_opcode_info,
-    frontend::{Item, LabelDefinition},
-    frontend::item6809::{self,
-        AddrModeParseType,
-        MC6809::{OpCode, SetDp},
-    },
+    frontend::{Item, LabelDefinition, },
 };
+
+use crate::cpu6809::{
+    frontend::{get_opcode_info,AddrModeParseType, MC6809::{OpCode,SetDp}, IndexParseType},
+};
+
 
 use emu6809::isa::AddrModeEnum;
 use std::path::Path;
@@ -26,11 +25,10 @@ use std::path::Path;
 /// gets the size of everything
 /// assigns values to labels that
 /// are defined by value of PC
-struct Sizer<'a> {
+pub struct Sizer<'a> {
     tree: &'a Ast,
     scopes: ScopeTracker,
     pc: usize,
-    // pc_symbol_id: SymbolScopeId,
 }
 
 pub fn size(asm: &mut Assembler, ast_tree: &Ast) -> GResult<()> {
@@ -76,7 +74,7 @@ impl<'a> Sizer<'a> {
         use Item::*;
         // let i = &self.get_node(id).value().item;
 
-        if let Cpu6809(OpCode(text, ins, AddrModeParseType::Indexed(pmode, indirect))) =
+        if let CpuSpecific(OpCode(text, ins, AddrModeParseType::Indexed(pmode, indirect))) =
             &self.get_node(id).value().item
         {
             let current_scope_id = self.scopes.scope();
@@ -86,7 +84,7 @@ impl<'a> Sizer<'a> {
             let ins = ins.clone();
 
             self.advance_pc(ins.size);
-            use item6809::IndexParseType::*;
+            use IndexParseType::*;
 
             match pmode {
                 Zero(..) | AddA(..) | AddB(..) | AddD(..) | PostInc(..) | PostIncInc(..) | PreDec(..)
@@ -224,7 +222,7 @@ impl<'a> Sizer<'a> {
                 self.advance_pc(bytes as usize);
             }
 
-            Cpu6809(OpCode(text, ins, amode)) => {
+            CpuSpecific(OpCode(text, ins, amode)) => {
                 match amode {
                     AddrModeParseType::Extended(false) => {
                         // If there is a direct page set AND
@@ -247,7 +245,7 @@ impl<'a> Sizer<'a> {
                                     // Here we go!
                                     let new_ins = new_ins.clone();
                                     size = new_ins.size;
-                                    let new_item = Cpu6809(OpCode(
+                                    let new_item = CpuSpecific(OpCode(
                                         text.clone(),
                                         Box::new(new_ins),
                                         AddrModeParseType::Direct,
@@ -315,7 +313,7 @@ impl<'a> Sizer<'a> {
                 self.advance_pc(size as usize);
             }
 
-            Cpu6809(SetDp) => {
+            CpuSpecific(SetDp) => {
                 let (dp, _) = asm.eval_first_arg(node, current_scope_id)?;
                 if dp < 0 {
                     panic!("Less than zerp?!?!?");

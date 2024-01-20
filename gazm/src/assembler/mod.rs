@@ -9,6 +9,7 @@ mod binary;
 mod scopes;
 mod scopetracker;
 mod asm;
+mod traits;
 
 pub  mod fixerupper;
 
@@ -22,5 +23,6 @@ pub use bytesizes::*;
 pub use binary::*;
 pub use scopes::*;
 pub use scopetracker::*;
+pub use traits::*;
 
 

@@ -1,21 +1,14 @@
 #![deny(unused_imports)]
-use super::{item6809::AddrModeParseType, to_pos, TSpan};
+use super::{to_pos, TSpan};
 use crate::{help::ErrCode, vars::VarsErrorKind};
 use grl_sources::{grl_utils::FileError, Position, SourceErrorType};
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
+
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
-// TODO Remove all of this, replace with help text
-#[derive(Debug, Error, Clone, PartialEq, Copy)]
-pub enum AssemblyErrorKind {
-    #[error("This {0:?} is not supported for this opcode")]
-    ThisAddrModeUnsupported(AddrModeParseType),
-    #[error("Addressing mode is not supported for this opcode")]
-    AddrModeUnsupported,
-    #[error("This instruction only supports inherent mode addressing")]
-    OnlySupports(AddrModeParseType),
-}
+use crate::cpu6809::frontend::AddrModeParseType;
+
 
 impl From<ErrCode> for FrontEndErrorKind {
     fn from(value: ErrCode) -> Self {
@@ -28,7 +21,7 @@ pub enum FrontEndErrorKind {
     #[error("{0}")]
     HelpText(ErrCode),
     #[error(transparent)]
-    AsmErrorKind(#[from] AssemblyErrorKind),
+    AsmErrorKind(#[from] Cpu6809AssemblyErrorKind),
     #[error(transparent)]
     SourceError(#[from] SourceErrorType),
     #[error(transparent)]
@@ -173,48 +166,16 @@ impl<'a> ParseError<TSpan<'a>> for FrontEndError {
     }
 }
 
-// fn get_line(sf: &SourceFile, line: isize) -> String {
-//     if line < 0 {
-//         String::new()
-//     } else {
-//         let txt = sf.get_text().get_line(line as usize).unwrap_or("");
-//         txt.to_owned()
-//     }
-// }
 
-// fn get_lines(sf: &SourceFile, line: isize) -> String {
-//     [
-//         get_line(sf, line - 2),
-//         get_line(sf, line - 1),
-//         get_line(sf, line),
-//         get_line(sf, line + 1),
-//         get_line(sf, line + 2),
-//     ]
-//     .join("\n")
-// }
+// TODO: Remove6809
+// TODO Remove all of this, replace with help text
+#[derive(Debug, Error, Clone, PartialEq, Copy)]
+pub enum Cpu6809AssemblyErrorKind {
+    #[error("This {0:?} is not supported for this opcode")]
+    ThisAddrModeUnsupported(AddrModeParseType),
+    #[error("Addressing mode is not supported for this opcode")]
+    AddrModeUnsupported,
+    #[error("This instruction only supports inherent mode addressing")]
+    OnlySupports(AddrModeParseType),
+}
 
-// pub fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
-//     use ErrorMessage::*;
-
-//     let message = match e.kind {
-//         FrontEndErrorKind::HelpText(ht) => {
-//             let short = crate::help::HELP.get_short(ht);
-//             let full_text = crate::help::HELP.get(ht);
-//             Markdown(short, full_text)
-//         }
-//         _ => Plain(format!("{e}")),
-//     };
-
-//     let line = e.position.line();
-//     let line = get_line(sf, line as isize);
-
-//     let ued = UserErrorData {
-//         message,
-//         pos: e.position,
-//         line,
-//         file: sf.file.clone(),
-//         failure: true,
-//     };
-
-//     UserError { data: ued.into() }
-// }

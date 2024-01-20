@@ -1,12 +1,11 @@
 #![deny(unused_imports)]
 use unraveler::{alt, match_span as ms, pair, sep_pair, succeeded};
 
+use crate::frontend::{TokenKind::Comma, Node, TSpan, PResult, parse_expr, parse_sq_bracketed, err_fatal, Item};
+
 use super::{
-    item6809::MC6809,
-    item6809::{IndexParseType, MC6809::OperandIndexed},
-    indexed::get_indexed,
-    TokenKind::Comma,
-    *,
+    get_index_reg, get_this_reg, indexed::get_indexed, IndexParseType, MC6809,
+    MC6809::OperandIndexed,
 };
 
 use crate::help::ErrCode;
@@ -51,7 +50,7 @@ fn parse_index_only(input: TSpan) -> PResult<Node> {
 fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
     use ErrCode::*;
 
-    let (rest, (sp, matched)) =  ms(get_indexed)(input)?;
+    let (rest, (sp, matched)) = ms(get_indexed)(input)?;
 
     match matched {
         IndexParseType::PostInc(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
@@ -71,7 +70,7 @@ fn parse_indexed_indirect(input: TSpan) -> PResult<Node> {
     ));
     let (rest, mut matched) = parse_sq_bracketed(indexed_indirect)(input)?;
 
-    if let Item::Cpu6809(OperandIndexed(amode, _)) = matched.item {
+    if let Item::CpuSpecific(OperandIndexed(amode, _)) = matched.item {
         matched.item = OperandIndexed(amode, true).into();
     } else {
         panic!("Should not happen")

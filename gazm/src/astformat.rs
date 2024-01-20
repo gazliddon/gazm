@@ -3,11 +3,9 @@
 use itertools::Itertools;
 
 use crate::semantic::*;
-use crate::frontend::{
-    Item,
-    item6809,
-    item6809::MC6809::{self, OpCode},
-};
+use crate::frontend::Item;
+
+use crate::cpu6809::frontend::{AddrModeParseType,IndexParseType, MC6809::{self, OpCode} };
 
 impl<'a> std::fmt::Display for AstCtx<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -117,7 +115,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("TokFile:\n{}", join_kids("\n"))
             }
 
-            Cpu6809(OpCode(_, ins, item6809::AddrModeParseType::Inherent)) => ins.action.clone(),
+            CpuSpecific(OpCode(_, ins, AddrModeParseType::Inherent)) => ins.action.clone(),
 
             StructDef(name) => {
                 let body = join_kids(",\n");
@@ -145,8 +143,8 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("macro {name} ({vars:?}) [{}]", join_kids(" : "))
             }
 
-            Cpu6809(OpCode(_, instruction, amode)) => {
-                use item6809::AddrModeParseType::*;
+            CpuSpecific(OpCode(_, instruction, amode)) => {
+                use AddrModeParseType::*;
 
                 let ind = |s: String, indirect: &bool| -> String {
                     if *indirect {
@@ -159,7 +157,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 let operand = match amode {
                     RegisterSet => {
                         let rset = &node.first_child().unwrap().value().item;
-                        if let Cpu6809(MC6809::RegisterSet(regs)) = rset {
+                        if let CpuSpecific(MC6809::RegisterSet(regs)) = rset {
                             let r = regs
                                 .iter()
                                 .sorted()
@@ -175,7 +173,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                     Direct => format!("<{}", child_string(0)),
                     Extended(..) => child_string(0),
                     Indexed(index_mode, indirect) => {
-                        use item6809::IndexParseType::*;
+                        use IndexParseType::*;
                         match index_mode {
                             ConstantByteOffset(r, v) | Constant5BitOffset(r, v) => {
                                 ind(format!("{v},{r}"), indirect)

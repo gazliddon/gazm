@@ -1,15 +1,17 @@
 #![deny(unused_imports)]
-use super::{
-    err_fatal, get_text,
-    item6809::{
-        AddrModeParseType,
-        AddrModeParseType::Inherent as ParseInherent,
-        MC6809,
-        MC6809::{OpCode, Operand, OperandIndexed},
-    },
-    parse_expr, parse_indexed, parse_opcode_reg_pair, parse_reg_set_operand, AssemblyErrorKind,
-    IdentifierKind, Item, Node, PResult, TSpan, TokenKind,
+use crate::frontend::{
+    err_fatal, get_text, parse_expr, Cpu6809AssemblyErrorKind, IdentifierKind, Item, Node, PResult, TSpan,
+    TokenKind,
 };
+
+use super::{
+    parse_opcode_reg_pair, parse_reg_set_operand, AddrModeParseType,
+    AddrModeParseType::Inherent as ParseInherent,
+    MC6809,
+    MC6809::{OpCode, Operand, OperandIndexed},
+};
+
+use super::parseindexed::parse_indexed;
 
 use emu6809::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo};
 use unraveler::{alt, match_span as ms, preceded, sep_list};
@@ -102,9 +104,9 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     }?;
 
     let amode = match arg.item {
-        Cpu6809(Operand(amode)) => amode,
-        Cpu6809(OperandIndexed(amode, indirect)) => AddrModeParseType::Indexed(amode, indirect),
-        _ => return err_fatal(sp, AssemblyErrorKind::AddrModeUnsupported),
+        CpuSpecific(Operand(amode)) => amode,
+        CpuSpecific(OperandIndexed(amode, indirect)) => AddrModeParseType::Indexed(amode, indirect),
+        _ => return err_fatal(sp, Cpu6809AssemblyErrorKind::AddrModeUnsupported),
     };
 
     if let Some(instruction) = get_instruction(amode, info) {
@@ -112,7 +114,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
         let node = Node::from_item_tspan(item.into(), sp).take_others_children(arg);
         Ok((rest, node))
     } else {
-        err_fatal(sp, AssemblyErrorKind::ThisAddrModeUnsupported(amode))
+        err_fatal(sp, Cpu6809AssemblyErrorKind::ThisAddrModeUnsupported(amode))
     }
 }
 
@@ -125,7 +127,7 @@ fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &InstructionInfo)> {
 }
 
 fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
-    use AssemblyErrorKind::OnlySupports;
+    use Cpu6809AssemblyErrorKind::OnlySupports;
     let (rest, (sp, text, ins)) = get_opcode(input)?;
 
     if let Some(ins) = ins.get_boxed_instruction(AddrModeEnum::Inherent) {
@@ -151,7 +153,7 @@ pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {
 #[allow(unused_imports)]
 mod test {
     use super::*;
-    use crate::frontend::item6809::IndexParseType;
+    use crate::cpu6809::frontend::IndexParseType;
     use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens_no_comment};
     use crate::frontend::{Item, ParsedFrom};
     use crate::opts::Opts;
@@ -176,7 +178,7 @@ mod test {
         println!("{:?}", items);
         let (item, kids) = get_items(&p);
 
-        if let Item::Cpu6809(OpCode(_, i, addr_mode)) = item {
+        if let Item::CpuSpecific(OpCode(_, i, addr_mode)) = item {
             assert_eq!(i.action, opcode);
             assert_eq!(addr_mode, expected_amode);
             assert_eq!(kids, expected_kids);

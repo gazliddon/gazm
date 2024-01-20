@@ -1,8 +1,6 @@
-use crate::assembler::{Assembler, BinaryError, Compiler, CompilerCpu, ScopeTracker};
-
 use crate::{
+    assembler::{Assembler, AssemblerCpuTrait, BinaryError, Compiler, ScopeTracker, Sizer},
     error::GResult,
-    frontend::item6809::{AddrModeParseType, IndexParseType, MC6809},
     frontend::Item,
     semantic::AstNodeId,
 };
@@ -11,7 +9,10 @@ use grl_sources::ItemType;
 
 use emu6809::isa;
 
-use super::*;
+use super::super::{
+    frontend::{AddrModeParseType, IndexParseType, MC6809},
+    reg_pair_to_flags, registers_to_flags,
+};
 
 pub struct Compiler6809 {}
 
@@ -168,7 +169,7 @@ impl Compiler6809 {
 
             RegisterSet => {
                 let rset = &node.first_child().unwrap().value().item;
-                if let Item::Cpu6809(MC6809::RegisterSet(regs)) = rset {
+                if let Item::CpuSpecific(MC6809::RegisterSet(regs)) = rset {
                     let flags = registers_to_flags(regs);
                     compiler.write_byte(flags, asm, id)?;
                 } else {
@@ -184,7 +185,7 @@ impl Compiler6809 {
     }
 }
 
-impl<'a> CompilerCpu<MC6809> for Compiler6809 {
+impl<'a> AssemblerCpuTrait<MC6809> for Compiler6809 {
     fn compile_node(
         &mut self,
         compiler: &mut Compiler,
@@ -199,5 +200,15 @@ impl<'a> CompilerCpu<MC6809> for Compiler6809 {
             _ => (),
         }
         Ok(())
+    }
+
+    fn size_node(
+        &mut self,
+        _sizer: &mut Sizer,
+        _asm: &mut Assembler,
+        _id: AstNodeId,
+        _node_kind: MC6809,
+    ) -> GResult<()> {
+        panic!()
     }
 }

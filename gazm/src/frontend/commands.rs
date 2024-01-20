@@ -1,11 +1,17 @@
 #![deny(unused_imports)]
 
+
+
 use super::{
-    get_text, item6809::MC6809, parse_expr, parse_expr_list, parse_scoped_label, CommandKind,
+    get_text,  parse_expr, parse_expr_list, parse_scoped_label, CommandKind,
     FrontEndError, Item, Node, PResult, TSpan, TokenKind, TokenKind::Comma,
     FeResult,
     get_label_string,
 };
+
+// TODO: Remove6809
+use crate::cpu6809::frontend::MC6809;
+
 use crate::debug_mess;
 use std::path::PathBuf;
 use unraveler::{
@@ -174,9 +180,6 @@ pub(crate) fn parse_put(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Put, Item::Put)(_input)
 }
 
-pub(crate) fn parse_setdp(_input: TSpan) -> PResult<Node> {
-    simple_command(CommandKind::SetDp, MC6809::SetDp)(_input)
-}
 
 pub(crate) fn parse_rmb(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Rmb, Item::Rmb)(_input)
@@ -193,10 +196,6 @@ pub(crate) fn parse_exec(_input: TSpan) -> PResult<Node> {
     simple_command(CommandKind::Exec, Item::Exec)(_input)
 }
 
-pub fn parse_6809_only_command(input: TSpan) -> PResult<Node> { 
-    parse_setdp(input)
-}
-
 pub fn parse_command(input: TSpan) -> PResult<Node> {
     let (rest, matched) = alt((
         parse_scope,
@@ -204,7 +203,7 @@ pub fn parse_command(input: TSpan) -> PResult<Node> {
         parse_writebin,
         parse_incbin,
         parse_incbin_ref,
-        parse_setdp,
+        parse_6809_only_command,
         parse_various_fills,
         parse_fill,
         parse_fcb,
@@ -226,13 +225,22 @@ pub fn parse_command(input: TSpan) -> PResult<Node> {
     Ok((rest, matched))
 }
 
+
+pub(crate) fn parse_setdp(_input: TSpan) -> PResult<Node> {
+    simple_command(CommandKind::SetDp, MC6809::SetDp)(_input)
+}
+
+pub fn parse_6809_only_command(input: TSpan) -> PResult<Node> { 
+    parse_setdp(input)
+}
+
 #[allow(unused_imports)]
 #[cfg(test)]
 mod test {
     use crate::{
         cli::parse_command_line,
+        cpu6809::frontend::MC6809,
         frontend::{
-            item6809::MC6809,
             Item::{self, *},
             ParsedFrom::*,
             *,
@@ -321,7 +329,7 @@ mod test {
     #[test]
     fn test_parse_setdp() {
         let text = "setdp $ff00";
-        let desired = Item::Cpu6809(MC6809::SetDp);
+        let desired = Item::CpuSpecific(MC6809::SetDp);
         let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(super::parse_setdp, text, desired, &desired_args);
     }

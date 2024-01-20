@@ -1,9 +1,10 @@
 use crate::{
     error::GResult,
     frontend::{Item, LabelDefinition, Node},
-    frontend::item6809::MC6809::OpCode,
     opts::Opts,
 };
+
+use crate::cpu6809::frontend::MC6809::OpCode;
 
 use itertools::Itertools;
 
@@ -83,7 +84,7 @@ pub fn render_nodes(nodes: &[Node], text: String) -> String {
                     columns[1] = format!("\"{}\"", file.to_string_lossy())
                 }
 
-                Cpu6809(OpCode(txt, _ins, _addr_mode)) => {
+                CpuSpecific(OpCode(txt, _ins, _addr_mode)) => {
                     let arg = get_operand(n, &text);
                     // let original_txt = text[n.ctx.range.clone()].to_string().replace('\t', " ");
                     columns[1] = txt.to_owned().to_lowercase();

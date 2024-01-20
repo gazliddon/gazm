@@ -4,15 +4,17 @@ use emu6809::cpu::RegEnum;
 use std::collections::HashSet;
 use unraveler::{cut, match_span as ms, sep_list, sep_pair, };
 
-use super::{
+use crate::frontend::{
     get_label_string,
     err_error, err_fatal, error, 
-    item6809::{
-        AddrModeParseType,
-        MC6809::{Operand, RegisterSet},
-    },
     Item, Node, PResult, TSpan,
     TokenKind::{ *},
+};
+
+use crate::cpu6809::frontend::{
+        AddrModeParseType,
+        MC6809::{Operand, RegisterSet},
+
 };
 
 pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, RegEnum)> {
@@ -23,7 +25,7 @@ pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, R
 
 pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
-    let item = Item::Cpu6809(RegisterSet(matched));
+    let item = Item::CpuSpecific(RegisterSet(matched));
     let node = Node::from_item_tspan(item, sp);
     Ok((rest, node))
 }

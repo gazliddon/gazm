@@ -14,6 +14,7 @@ use grl_sources::{
     grl_utils::{FResult, FileError, Stack},
     Position, SourceFile,
 };
+
 use itertools::Itertools;
 use rayon::iter::ParallelDrainFull;
 use std::{path::{Path, PathBuf}, f32::NEG_INFINITY};

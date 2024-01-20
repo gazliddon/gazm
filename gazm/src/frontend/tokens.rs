@@ -1,9 +1,13 @@
 #![deny(unused_imports)]
+
+// TODO: Remove6809
+
+use crate::cpu6809::assembler::ISA_DBASE;
+
 use std::collections::HashMap;
 
 use super::{ basetoken::Token as BaseToken, ParseText };
 
-use emu6809::isa::Dbase;
 use logos::{Lexer, Logos};
 use strum::{EnumIter, IntoEnumIterator};
 
@@ -64,7 +68,7 @@ impl From<IdentifierKind> for TokenKind {
 }
 
 lazy_static::lazy_static! {
-    static ref COMS : HashMap<String, CommandKind> = {
+    pub static ref COMS : HashMap<String, CommandKind> = {
 
     let hash: HashMap<String, CommandKind> = CommandKind::iter()
         .map(|com| (format!("{:?}", com).to_lowercase(), com))
@@ -72,8 +76,6 @@ lazy_static::lazy_static! {
 
     hash
     };
-
-    static ref DBASE_6809 : Dbase = Dbase::new();
 }
 
 trait CpuLexer {
@@ -93,7 +95,7 @@ impl Cpu6809Lexer {
 impl CpuLexer for Cpu6809Lexer {
     fn identifier(&self, text: &str) -> Option<IdentifierKind> {
         use IdentifierKind::*;
-        if DBASE_6809.get_opcode(text).is_some() {
+        if ISA_DBASE.get_opcode(text).is_some() {
             Some(Opcode)
         } else {
             None
@@ -102,7 +104,6 @@ impl CpuLexer for Cpu6809Lexer {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
 lazy_static::lazy_static! {
     static ref PRE_HEX : regex::Regex = regex::Regex::new(r"(0[xX]|\$)(.*)").unwrap();
     static ref PRE_BIN : regex::Regex = regex::Regex::new(r"(0[bB]|%)(.*)").unwrap();
@@ -259,10 +260,6 @@ impl TokenKind {
 
 pub type Token<'a> = BaseToken<ParseText<'a>>;
 
-pub fn tokenize_6809<'a>(token: &Token<'a>) -> Token<'a> {
-    *token
-}
-
 pub fn to_tokens_kinds(
     source_file: &grl_sources::SourceFile,
 ) -> Vec<(TokenKind, std::ops::Range<usize>)> {
@@ -274,18 +271,6 @@ pub fn to_tokens_kinds(
         })
         .collect()
 }
-
-// fn to_tokens(source_file: &grl_sources::SourceFile) -> Vec<Token> {
-//     let ret = to_tokens_kinds(source_file);
-
-//     ret.into_iter()
-//         .map(|(tk, r)| {
-//             let pt = ParseText::new(source_file, r);
-//             let t: Token = Token::new(tk, pt);
-//             t
-//         })
-//         .collect()
-// }
 
 pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token> {
     use TokenKind::*;
