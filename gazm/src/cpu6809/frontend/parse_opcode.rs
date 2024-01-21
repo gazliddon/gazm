@@ -1,13 +1,12 @@
 #![deny(unused_imports)]
 use crate::frontend::{
-    err_fatal, get_text, parse_expr, Cpu6809AssemblyErrorKind, IdentifierKind, Item, Node, PResult, TSpan,
-    TokenKind,
+    err_fatal, get_text, parse_expr, IdentifierKind, Item, Node, PResult, TSpan, TokenKind,
 };
 
 use super::{
     parse_opcode_reg_pair, parse_reg_set_operand, AddrModeParseType,
     AddrModeParseType::Inherent as ParseInherent,
-    MC6809,
+    Cpu6809AssemblyErrorKind, MC6809,
     MC6809::{OpCode, Operand, OperandIndexed},
 };
 
@@ -152,13 +151,10 @@ pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {
 
 #[allow(unused_imports)]
 mod test {
-    use super::*;
-    use crate::cpu6809::frontend::IndexParseType;
+    use super::super::{parse_multi_opcode_vec, parse_opcode, AddrModeParseType, MC6809::OpCode};
+    use crate::frontend::Item;
     use crate::frontend::{create_source_file, get_items, make_tspan, to_tokens_no_comment};
-    use crate::frontend::{Item, ParsedFrom};
     use crate::opts::Opts;
-    use emu6809::cpu::RegEnum;
-    use unraveler::Collection;
 
     fn check_opcode(
         text: &str,

@@ -14,4 +14,6 @@ pub trait AssemblerCpuTrait<K> {
     ) -> GResult<()>;
 
     fn size_node(&mut self, sizer: &mut Sizer,_asm: &mut Assembler, _id: AstNodeId, _node_kind: K) -> GResult<()>;
+
 }
+

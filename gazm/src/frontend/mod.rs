@@ -16,6 +16,7 @@ mod tokenize;
 mod tokens;
 mod utils;
 mod basetoken;
+pub mod traits;
 
 // Public inside module
 pub use {
