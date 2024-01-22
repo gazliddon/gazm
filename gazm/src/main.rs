@@ -2,9 +2,10 @@ use gazm::{
     assembler::Assembler,
     cli::{parse_command_line, styling::get_banner},
     error::{ErrorCollectorTrait, GazmErrorKind},
-    fmt, frontend, info_mess, messages,
+    frontend, info_mess, messages,
     opts::{BuildType, Opts},
     status_mess,
+    cpu6809::assembler::Compiler6809,
 };
 
 fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
@@ -15,7 +16,7 @@ fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
         std::env::set_current_dir(assemble_dir).expect("Can't change dir")
     }
 
-    let mut asm = Assembler::new(opts.clone());
+    let mut asm = Assembler::<Compiler6809>::new(opts.clone());
 
     match opts.build_type {
         BuildType::Test => {
@@ -26,11 +27,12 @@ fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
 
         BuildType::Format => {
             status_mess!("Format file");
-            fmt::fmt(opts)?;
+            todo!()
         }
 
         BuildType::Lsp => {
             status_mess!("LSP");
+            todo!()
             // lsp::do_lsp(opts)?;
         }
 

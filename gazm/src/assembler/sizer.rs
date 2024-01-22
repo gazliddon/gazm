@@ -1,8 +1,8 @@
 #![forbid(unused_imports)]
 use super::{
-    bytesizes::{ByteSize, ByteSizes},
     Assembler,
     scopetracker::ScopeTracker,
+    traits::AssemblerCpuTrait,
 };
 
 /// Take the AST and work out the sizes of everything
@@ -10,48 +10,38 @@ use super::{
 use crate::{
     semantic::{Ast, AstNodeId, AstNodeRef},
     error::GResult,
-    frontend::{Item, LabelDefinition, },
+    frontend::{Item, LabelDefinition, }, 
 };
 
-use crate::cpu6809::{
-    frontend::{get_opcode_info,AddrModeParseType, MC6809::{OpCode,SetDp}, IndexParseType},
-};
+use crate::cpu6809::assembler::Compiler6809;
 
-
-use emu6809::isa::AddrModeEnum;
-use std::path::Path;
+use std::{path::Path, marker::PhantomData};
 
 /// Ast tree sizer
 /// gets the size of everything
 /// assigns values to labels that
 /// are defined by value of PC
-pub struct Sizer<'a> {
-    tree: &'a Ast,
-    scopes: ScopeTracker,
-    pc: usize,
+pub struct Sizer<'a, C = Compiler6809> 
+where 
+    C : AssemblerCpuTrait,
+{
+    pub tree: &'a Ast<C>,
+    pub scopes: ScopeTracker,
+    pub pc: usize,
+
+    phantom: std::marker::PhantomData<&'a C>,
 }
 
-pub fn size(asm: &mut Assembler, ast_tree: &Ast) -> GResult<()> {
-    let _ = Sizer::try_new(ast_tree, asm)?;
+pub fn size<C: AssemblerCpuTrait>(asm: &mut Assembler<C>, ast_tree: &Ast<C>) -> GResult<()> {
+    let _ = Sizer::<C>::try_new(ast_tree, asm)?;
     Ok(())
 }
 
-impl<'a> Sizer<'a> {
-    fn advance_pc(&mut self, val: usize) {
-        assert!(self.pc < 65536);
-        self.pc += val;
-    }
-
-    fn get_pc(&self) -> usize {
-        self.pc
-    }
-
-    fn set_pc(&mut self, val: usize) {
-        self.pc = val;
-        assert!(self.pc < 65536);
-    }
-
-    pub fn try_new(tree: &'a Ast, asm: &mut Assembler) -> GResult<Sizer<'a>> {
+impl<'a, C> Sizer<'a,C> 
+where 
+    C : AssemblerCpuTrait,
+{
+    pub fn try_new(tree: &'a Ast<C>, asm: &mut Assembler<C>) -> GResult<Sizer<'a, C>> {
         let pc = 0;
 
         asm.set_pc_symbol(pc).expect("Can't set PC symbol");
@@ -62,6 +52,7 @@ impl<'a> Sizer<'a> {
             tree,
             scopes: ScopeTracker::new(root_id),
             pc,
+            phantom: PhantomData
         };
 
         let id = ret.tree.as_ref().root().id();
@@ -70,95 +61,21 @@ impl<'a> Sizer<'a> {
         Ok(ret)
     }
 
-    fn size_indexed(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        use Item::*;
-        // let i = &self.get_node(id).value().item;
-
-        if let CpuSpecific(OpCode(text, ins, AddrModeParseType::Indexed(pmode, indirect))) =
-            &self.get_node(id).value().item
-        {
-            let current_scope_id = self.scopes.scope();
-            let pmode = *pmode;
-            let indirect = *indirect;
-            let text = text.clone();
-            let ins = ins.clone();
-
-            self.advance_pc(ins.size);
-            use IndexParseType::*;
-
-            match pmode {
-                Zero(..) | AddA(..) | AddB(..) | AddD(..) | PostInc(..) | PostIncInc(..) | PreDec(..)
-                | PreDecDec(..) => (),
-
-                ConstantByteOffset(..)
-                | PcOffsetByte(..)
-                | PcOffsetWord(..)
-                | ConstantWordOffset(..)
-                | Constant5BitOffset(..) => {}
-
-                ConstantOffset(r) => {
-                    let node = self.get_node(id);
-                    let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
-
-                    let mut bs = v.byte_size();
-
-                    if let ByteSizes::Bits5(val) = bs {
-                        if indirect {
-                            // Indirect constant offset does not support
-                            // 5 bit offsets so promote to 8 bit
-                            bs = ByteSizes::Byte(val);
-                        }
-                    }
-
-                    let new_amode = match bs {
-                        ByteSizes::Zero => Zero(r),
-                        ByteSizes::Bits5(v) => Constant5BitOffset(r, v),
-                        ByteSizes::Word(v) => {
-                            self.advance_pc(2);
-                            ConstantWordOffset(r, v)
-                        }
-                        ByteSizes::Byte(v) => {
-                            self.advance_pc(1);
-                            ConstantByteOffset(r, v)
-                        }
-                    };
-
-                    let new_item =
-                        OpCode(text, ins, AddrModeParseType::Indexed(new_amode, indirect));
-
-                    asm.add_fixup(id, new_item, current_scope_id);
-                }
-
-                PCOffset => {
-                    let node = self.get_node(id);
-                    let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
-                    self.advance_pc(1);
-
-                    let new_amode = match v.byte_size() {
-                        ByteSizes::Zero => PcOffsetByte(0),
-                        ByteSizes::Bits5(v) | ByteSizes::Byte(v) => PcOffsetByte(v),
-                        ByteSizes::Word(v) => {
-                            self.advance_pc(1);
-                            PcOffsetWord(v)
-                        }
-                    };
-
-                    let new_item =
-                        OpCode(text, ins, AddrModeParseType::Indexed(new_amode, indirect));
-                    asm.add_fixup(id, new_item, current_scope_id);
-                }
-
-                ExtendedIndirect => {
-                    self.advance_pc(2);
-                }
-            };
-            Ok(())
-        } else {
-            panic!()
-        }
+    pub fn advance_pc(&mut self, val: usize) {
+        assert!(self.pc < 65536);
+        self.pc += val;
     }
 
-    fn size_node(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    pub fn get_pc(&self) -> usize {
+        self.pc
+    }
+
+    pub fn set_pc(&mut self, val: usize) {
+        self.pc = val;
+        assert!(self.pc < 65536);
+    }
+
+    fn size_node(&mut self, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
         use Item::*;
 
         let node = self.get_node(id);
@@ -222,50 +139,9 @@ impl<'a> Sizer<'a> {
                 self.advance_pc(bytes as usize);
             }
 
-            CpuSpecific(OpCode(text, ins, amode)) => {
-                match amode {
-                    AddrModeParseType::Extended(false) => {
-                        // If there is a direct page set AND
-                        // I can evaluate the arg AND
-                        // the instruction supports DIRECT addressing (phew)
-                        // I can changing this to a direct page mode instruction
-                        // !!!! and it wasn't forced (need someway to propogate this from parse)
-
-                        let mut size = ins.size;
-
-                        let dp_info = get_opcode_info(ins)
-                            .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
-                            .and_then(|ins| asm.asm_out.direct_page.map(|dp| (ins, dp)));
-
-                        if let Some((new_ins, dp)) = dp_info {
-                            if let Ok((value, _)) = asm.eval_first_arg(node, current_scope_id) {
-                                let top_byte = ((value >> 8) & 0xff) as u8;
-
-                                if top_byte == dp {
-                                    // Here we go!
-                                    let new_ins = new_ins.clone();
-                                    size = new_ins.size;
-                                    let new_item = CpuSpecific(OpCode(
-                                        text.clone(),
-                                        Box::new(new_ins),
-                                        AddrModeParseType::Direct,
-                                    ));
-                                    asm.add_fixup(id, new_item, current_scope_id);
-                                }
-                            }
-                        }
-                        self.advance_pc(size);
-                    }
-
-                    AddrModeParseType::Indexed(..) => {
-                        self.size_indexed(asm, id)?;
-                    }
-
-                    _ => {
-                        self.advance_pc(ins.size);
-                    }
-                };
-            }
+            CpuSpecific(i) => { 
+                C::size_node(self,asm,id,i.clone())?;
+            },
 
             AssignmentFromPc(LabelDefinition::Scoped(symbol_id)) => {
                 let pcv = if node.first_child().is_some() {
@@ -313,18 +189,6 @@ impl<'a> Sizer<'a> {
                 self.advance_pc(size as usize);
             }
 
-            CpuSpecific(SetDp) => {
-                let (dp, _) = asm.eval_first_arg(node, current_scope_id)?;
-                if dp < 0 {
-                    panic!("Less than zerp?!?!?");
-                }
-
-                if dp >= 256 {
-                    panic!("Too big!")
-                }
-
-                asm.asm_out.set_dp(( ( dp as u64 )&0xff ) as u8);
-            }
 
             IncBin(file_name) => {
                 let r = self.get_binary_extents(asm, file_name, node)?;
@@ -351,9 +215,9 @@ impl<'a> Sizer<'a> {
 
     fn get_binary_extents<P: AsRef<Path>>(
         &self,
-        asm: &Assembler,
+        asm: &Assembler<C>,
         file_name: P,
-        node: AstNodeRef,
+        node: AstNodeRef<C>,
     ) -> GResult<std::ops::Range<usize>> {
         use itertools::Itertools;
 
@@ -385,7 +249,7 @@ impl<'a> Sizer<'a> {
         Ok(r)
     }
 
-    fn get_node(&self, id: AstNodeId) -> AstNodeRef {
+    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<C> {
         self.tree.as_ref().get(id).expect("Can't fetch node")
     }
 }

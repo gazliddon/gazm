@@ -2,9 +2,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    semantic::{iter_refs_recursive, AstNodeId, Ast},
-    gazmsymbols::{SymbolScopeId, SymbolTree},
+    assembler::AssemblerCpuTrait,
     frontend::{Item, LabelDefinition},
+    gazmsymbols::{SymbolScopeId, SymbolTree},
+    semantic::{iter_refs_recursive, Ast, AstNodeId},
 };
 
 use grl_sources::Position;
@@ -21,7 +22,10 @@ pub struct LabelUsageAndDefintions {
 }
 
 impl LabelUsageAndDefintions {
-    pub fn new(tree: &Ast, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self {
+    pub fn new<C>(tree: &Ast<C>, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self
+    where
+        C: AssemblerCpuTrait,
+    {
         use Item::*;
 
         let mut reference_pos_and_id: Vec<(Position, SymbolScopeId)> = vec![];
@@ -50,9 +54,7 @@ impl LabelUsageAndDefintions {
         // smallest will be the enclosing span
         let pos_node_id = iter_refs_recursive(tree.as_ref().root())
             .map(|n| (n.value().pos, n.id()))
-            .sorted_by(|(a,_),(b,_)| {
-                Ord::cmp(&a.range().len(),&b.range().len())
-            })
+            .sorted_by(|(a, _), (b, _)| Ord::cmp(&a.range().len(), &b.range().len()))
             .collect();
 
         Self {
@@ -83,15 +85,16 @@ impl LabelUsageAndDefintions {
     /// Find node that contains this position
     /// will return the smallest node that intersects with this position
     pub fn find_node_from_pos(&self, pos: &Position) -> Option<AstNodeId> {
-        self
-            .pos_node_id
+        self.pos_node_id
             .iter()
-            .find(|(p,_)| p.overlaps(pos))
-            .map(|(_p,id)| *id)
+            .find(|(p, _)| p.overlaps(pos))
+            .map(|(_p, id)| *id)
     }
 
     pub fn find_docs(&self, pos: &Position) -> Option<String> {
-        self.find_node_from_pos(pos).and_then(|id| self.docs.get(&id)).cloned()
+        self.find_node_from_pos(pos)
+            .and_then(|id| self.docs.get(&id))
+            .cloned()
     }
 
     /// Find all references to this symbol
@@ -113,7 +116,10 @@ impl LabelUsageAndDefintions {
     }
 
     pub fn find_symbol_referenced_at_pos(&self, pos: &Position) -> Option<SymbolScopeId> {
-        self.reference_pos_and_id.iter().find(|(p,_)| p.overlaps(pos)).map(|(_,id)| *id)
+        self.reference_pos_and_id
+            .iter()
+            .find(|(p, _)| p.overlaps(pos))
+            .map(|(_, id)| *id)
     }
 
     pub fn find_scope_at_pos(&self, _p: &Position) -> u64 {
@@ -121,7 +127,10 @@ impl LabelUsageAndDefintions {
     }
 
     pub fn find_symbol_defined_at_pos(&self, pos: &Position) -> Option<SymbolScopeId> {
-        self.symbol_id_to_definition_pos.iter().find(|(_,p)| p.overlaps(pos)).map(|(id,_)| *id)
+        self.symbol_id_to_definition_pos
+            .iter()
+            .find(|(_, p)| p.overlaps(pos))
+            .map(|(id, _)| *id)
     }
 
     /// Finds a symbol id at Pos

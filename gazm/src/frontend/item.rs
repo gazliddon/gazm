@@ -3,14 +3,14 @@ use grl_sources::Position;
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thin_vec::ThinVec;
 
-use crate::{error::ParseError, gazmsymbols::SymbolScopeId, semantic::AstNodeId};
+use crate::{error::ParseError, gazmsymbols::SymbolScopeId, semantic::AstNodeId, assembler::AssemblerCpuTrait};
 
 use super::{BaseNode, CtxTrait};
 
 
 impl CtxTrait for Position {}
 
-pub type Node = BaseNode<Item, Position>;
+pub type Node<C> = BaseNode<Item<C>, Position>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum StructMemberType {
@@ -38,7 +38,9 @@ impl FromStr for StructMemberType {
 }
 
 impl StructMemberType {
-    pub fn to_size_item(&self) -> Item {
+    pub fn to_size_item<C>(&self) -> Item<C::NodeKind> 
+        where C: AssemblerCpuTrait
+    {
         use Item::*;
         use ParsedFrom::Expression;
         match self {
@@ -128,7 +130,10 @@ impl std::fmt::Display for LabelDefinition {
 
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
-pub enum Item<C = MC6809> {
+pub enum Item<C> 
+where
+    C : PartialEq + Clone + std::fmt::Debug
+{
     CpuSpecific(C),
     Import,
     Doc(String),
@@ -213,7 +218,11 @@ pub enum Item<C = MC6809> {
 }
 
 
-impl Item {
+impl<C> Item<C> 
+where
+ C : std::fmt::Debug + Clone + PartialEq
+
+{
     pub fn zero() -> Self {
         Item::Num(0, ParsedFrom::Expression)
     }
@@ -271,118 +280,104 @@ impl Item {
     }
 }
 
-impl BaseNode<Item, Position> {
-    pub fn from_item_pos<P: Into<Position>>(item: Item, p: P) -> Self {
-        Self::new(item, p.into())
-    }
-
-    pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Self {
-        Self::new(Item::Num(n, ParsedFrom::Expression), pos.into())
-    }
-    pub fn with_pos(self, sp: Position) -> Self {
-        let mut ret = self;
-        ret.ctx = sp;
-        ret
-    }
-}
-
 pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {
     let ret: Vec<_> = v.iter().map(|x| x.to_string()).collect();
     ret.join(sep)
 }
 
-impl Display for BaseNode<Item, Position> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Item::*;
+// impl Display for BaseNode<Item<MC6809>, Position> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         use Item::*;
 
-        let item = &self.item;
+//         let item = &self.item;
 
-        let join_children = |sep| join_vec(&self.children, sep);
+//         let join_children = |sep| join_vec(&self.children, sep);
 
-        let ret: String = match item {
-            AssignmentFromPc(name) | LocalAssignmentFromPc(name) => {
-                format!("{name} equ *")
-            }
+//         let ret: String = match item {
+//             AssignmentFromPc(name) | LocalAssignmentFromPc(name) => {
+//                 format!("{name} equ *")
+//             }
 
-            Pc => "*".to_string(),
+//             Pc => "*".to_string(),
 
-            Label(name) | LocalLabel(name) => {
-                format!("{name}")
-            }
+//             Label(name) | LocalLabel(name) => {
+//                 format!("{name}")
+//             }
 
-            Comment(comment) => comment.clone(),
-            // QuotedString(test) => format!("\"{}\"", test),
-            // Register(r) => r.to_string(),
+//             Comment(comment) => comment.clone(),
+//             // QuotedString(test) => format!("\"{}\"", test),
+//             // Register(r) => r.to_string(),
 
-            // RegisterList(vec) => join_vec(vec, ","),
-            LocalAssignment(name) | Assignment(name) => {
-                format!("{} equ {}", name, self.children[0])
-            }
+//             // RegisterList(vec) => join_vec(vec, ","),
+//             LocalAssignment(name) | Assignment(name) => {
+//                 format!("{} equ {}", name, self.children[0])
+//             }
 
-            Expr => join_children(""),
+//             Expr => join_children(""),
 
-            Include(file) => format!("include \"{}\"", file.to_string_lossy()),
+//             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
-            Num(n, p) => match &p {
-                ParsedFrom::Hexadecimal => format!("${n:x}"),
-                ParsedFrom::Expression | ParsedFrom::Decimal | ParsedFrom::Character => {
-                    n.to_string()
-                }
-                ParsedFrom::Binary => format!("%{n:b}"),
-            },
-            UnaryTerm => join_children(""),
+//             Num(n, p) => match &p {
+//                 ParsedFrom::Hexadecimal => format!("${n:x}"),
+//                 ParsedFrom::Expression | ParsedFrom::Decimal | ParsedFrom::Character => {
+//                     n.to_string()
+//                 }
+//                 ParsedFrom::Binary => format!("%{n:b}"),
+//             },
+//             UnaryTerm => join_children(""),
 
-            Mul => "*".to_string(),
-            Div => "/".to_string(),
-            Add => "+".to_string(),
-            Sub => "-".to_string(),
-            BitAnd => "&".to_string(),
-            BitOr => "|".to_string(),
-            BitXor => "^".to_string(),
-            Org => {
-                format!("org {}", self.children[0])
-            }
+//             Mul => "*".to_string(),
+//             Div => "/".to_string(),
+//             Add => "+".to_string(),
+//             Sub => "-".to_string(),
+//             BitAnd => "&".to_string(),
+//             BitOr => "|".to_string(),
+//             BitXor => "^".to_string(),
+//             Org => {
+//                 format!("org {}", self.children[0])
+//             }
 
-            BracketedExpr => {
-                format!("({})", join_children(""))
-            }
+//             BracketedExpr => {
+//                 format!("({})", join_children(""))
+//             }
 
-            TokenizedFile(file, ..) => {
-                let header = format!("; included file {}", file.to_string_lossy());
-                let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
-                format!("{}\n{}", header, children.join("\n"))
-            }
+//             TokenizedFile(file, ..) => {
+//                 let header = format!("; included file {}", file.to_string_lossy());
+//                 let children: Vec<String> = self.children.iter().map(|n| format!("{n}")).collect();
+//                 format!("{}\n{}", header, children.join("\n"))
+//             }
 
-            CpuSpecific(cpu_kind) => {
-                handle_6809_fmt(self, cpu_kind.clone())
-            }
+//             CpuSpecific(cpu_kind) => {
+//                 handle_6809_fmt(self, cpu_kind.clone())
+//             }
 
-            _ => format!("{item:?} not implemented"),
-        };
+//             _ => format!("{item:?} not implemented"),
+//         };
 
-        write!(f, "{ret}")
-    }
-}
+//         write!(f, "{ret}")
+//     }
+// }
 
 // TODO: Remove6809
 use crate::cpu6809::frontend::MC6809;
 
-pub fn handle_6809_fmt(node: &BaseNode<Item, Position>, k: MC6809) -> String {
-    use crate::cpu6809::frontend::MC6809::*;
-    match k {
-        SetDp => {
-            let children: Vec<String> = node.children.iter().map(|n| format!("{n}")).collect();
-            children.join("\n")
-        }
-        OpCode(txt, _ins, addr_type) => {
-            format!("{txt} {addr_type:?}")
-        }
-        _ => format!("{k:?} not implemented"),
-    }
-}
+// pub fn handle_6809_fmt(node: &BaseNode<Item<MC6809>, Position>, k: MC6809) -> String {
+//     use crate::cpu6809::frontend::MC6809::*;
+//     match k {
+//         SetDp => {
+//             todo!()
+//             // let children: Vec<String> = node.children.iter().map(|n| format!("{n}")).collect();
+//             // children.join("\n")
+//         }
+//         OpCode(txt, _ins, addr_type) => {
+//             format!("{txt} {addr_type:?}")
+//         }
+//         _ => format!("{k:?} not implemented"),
+//     }
+// }
 
-impl From<Item> for grl_sources::ItemType {
-    fn from(value: Item) -> Self {
+impl From<Item<MC6809>> for grl_sources::ItemType {
+    fn from(value: Item<MC6809>) -> Self {
         use grl_sources::ItemType::*;
         match value {
             Item::CpuSpecific(m) => match m {
@@ -390,6 +385,7 @@ impl From<Item> for grl_sources::ItemType {
                 MC6809::RegisterSet(..) => Other,
                 MC6809::OperandIndexed(..) | MC6809::OpCode(..) => OpCode,
                 MC6809::SetDp => Command,
+                _ => todo!(),
             },
             _ => Other,
         }

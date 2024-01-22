@@ -199,7 +199,7 @@ pub enum AddrModeParseType {
     RegisterPair(RegEnum, RegEnum),
 }
 
-impl From<AddrModeParseType> for Item {
+impl From<AddrModeParseType> for Item<MC6809> {
     fn from(value: AddrModeParseType) -> Self {
         Item::CpuSpecific(MC6809::Operand(value))
     }
@@ -222,14 +222,16 @@ impl AddrModeParseType {
     }
 }
 
-impl From<MC6809> for Item {
+impl From<MC6809> for Item<MC6809> {
     fn from(value: MC6809) -> Self {
         Item::CpuSpecific(value)
     }
 }
 // TODO: Ultimately this contains all of the CPU dependent AST node items
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub enum MC6809 {
+    #[default]
+    Illegal,
     SetDp,
     OpCode(String, Box<Instruction>, AddrModeParseType),
     Operand(AddrModeParseType),
@@ -238,7 +240,7 @@ pub enum MC6809 {
 }
 
 impl MC6809 {
-    pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> Item {
+    pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> Item<MC6809> {
         MC6809::OperandIndexed(imode, indirect).into()
     }
 }

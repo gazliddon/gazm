@@ -1,19 +1,21 @@
 use crate::{
     assembler::{Assembler, AssemblerCpuTrait, BinaryError, Compiler, ScopeTracker, Sizer},
     error::GResult,
-    frontend::Item,
+    frontend::{Item, Node},
     semantic::AstNodeId,
 };
 
 use grl_sources::ItemType;
 
 use emu6809::isa;
+use tower_lsp::lsp_types::notification;
 
 use super::super::{
     frontend::{AddrModeParseType, IndexParseType, MC6809},
     reg_pair_to_flags, registers_to_flags,
 };
 
+#[derive(Debug, Clone,Copy, PartialEq, Default)]
 pub struct Compiler6809 {}
 
 impl Compiler6809 {
@@ -22,9 +24,8 @@ impl Compiler6809 {
     }
 
     fn compile_indexed(
-        &mut self,
-        compiler: &mut Compiler,
-        asm: &mut Assembler,
+        compiler: &mut Compiler<Self>,
+        asm: &mut Assembler<Self>,
         id: AstNodeId,
         imode: IndexParseType,
         indirect: bool,
@@ -65,9 +66,8 @@ impl Compiler6809 {
 
     /// Compile an opcode
     fn compile_opcode(
-        &mut self,
-        compiler: &mut Compiler,
-        asm: &mut Assembler,
+        compiler: &mut Compiler<Self>,
+        asm: &mut Assembler<Self>,
         id: AstNodeId,
         ins: &isa::Instruction,
         amode: AddrModeParseType,
@@ -89,7 +89,7 @@ impl Compiler6809 {
         match ins_amode {
             Indexed => {
                 if let AddrModeParseType::Indexed(imode, indirect) = amode {
-                    self.compile_indexed(compiler, asm, id, imode, indirect)?;
+                    Self::compile_indexed(compiler, asm, id, imode, indirect)?;
                 }
             }
 
@@ -185,17 +185,29 @@ impl Compiler6809 {
     }
 }
 
-impl<'a> AssemblerCpuTrait<MC6809> for Compiler6809 {
+impl AsRef<Node<Compiler6809>> for Node<Compiler6809> {
+    fn as_ref(&self) -> &Node<Compiler6809> {
+        todo!()
+    }
+}
+
+impl<'a> AssemblerCpuTrait for Compiler6809 {
+    type Node = Node<Self>;
+    type NodeKind = MC6809;
+
+    fn new() -> Self {
+        Compiler6809::new()
+    }
+
     fn compile_node(
-        &mut self,
-        compiler: &mut Compiler,
-        asm: &mut Assembler,
+        compiler: &mut Compiler<Self>,
+        asm: &mut Assembler<Self>,
         id: AstNodeId,
-        node_kind: MC6809,
+        node_kind: Self::NodeKind,
     ) -> GResult<()> {
         match node_kind {
             MC6809::OpCode(_, ins, amode) => {
-                self.compile_opcode(compiler, asm, id, &ins, amode)?;
+                Self::compile_opcode(compiler, asm, id, &ins, amode)?;
             }
             _ => (),
         }
@@ -203,12 +215,11 @@ impl<'a> AssemblerCpuTrait<MC6809> for Compiler6809 {
     }
 
     fn size_node(
-        &mut self,
-        _sizer: &mut Sizer,
-        _asm: &mut Assembler,
+        _sizer: &mut Sizer<Self>,
+        _asm: &mut Assembler<Self>,
         _id: AstNodeId,
-        _node_kind: MC6809,
+        _node_kind: Self::NodeKind,
     ) -> GResult<()> {
-        panic!()
+        Self::size_node_internal(_sizer,_asm,_id,_node_kind)
     }
 }

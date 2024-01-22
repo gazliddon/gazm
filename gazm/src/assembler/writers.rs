@@ -1,5 +1,5 @@
 #![forbid(unused_imports)]
-use super::Assembler;
+use super::{ Assembler,AssemblerCpuTrait };
 
 use crate::{
     astformat, debug_mess,
@@ -23,7 +23,11 @@ fn join_paths<P: AsRef<Path>, I: Iterator<Item = P>>(i: I, sep: &str) -> String 
     z.join(sep)
 }
 
-impl Assembler {
+impl<C> Assembler <C>
+
+where
+    C: AssemblerCpuTrait,
+{
     /// Write any outputs that need writing
     pub fn write_outputs(&mut self) -> GResult<()> {
         status("Writing files", |_| {

@@ -1,10 +1,12 @@
 #![deny(unused_imports)]
 
+use crate::assembler::AssemblerCpuTrait;
+
 use super::{
     get_text,
     item::{Item, Node, StructMemberType},
-    parse_block, parse_expr, parse_label, CommandKind, IdentifierKind, PResult, TSpan,
-    TokenKind::{Colon, Comma, Identifier,OpenSquareBracket, CloseSquareBracket},
+    parse_block,  CommandKind, GazmParser, IdentifierKind, PResult, TSpan,
+    TokenKind::{CloseSquareBracket, Colon, Comma, Identifier, OpenSquareBracket},
 };
 
 use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded, tag, tuple};
@@ -12,51 +14,62 @@ use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded
 use CommandKind::Struct;
 use IdentifierKind::Label;
 
-pub fn parse_struct_arg_type(input: TSpan) -> PResult<(TSpan, StructMemberType)> {
+impl<C> GazmParser<C>
+where
+    C: AssemblerCpuTrait,
+{
+    pub fn parse_array_def(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        let (rest, (_, matched, _)) =
+            tuple((OpenSquareBracket, Self::parse_expr, CloseSquareBracket))(input)?;
+
+        Ok((rest, matched))
+    }
+
+    pub fn parse_struct_entry(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        let (rest, (name, _, (entry_span, entry_type), (array_def_sp, array))) = tuple((
+            Identifier(IdentifierKind::Label),
+            Colon,
+            parse_struct_arg_type,
+            ms(opt(Self::parse_array_def)),
+        ))(input)?;
+
+        let size =entry_type.to_size_item::<C>();
+
+        let kids = [
+            array.unwrap_or(Self::from_num_tspan(1, array_def_sp)),
+            Self::from_item_tspan(Item::Mul, array_def_sp),
+            Self::from_item_tspan(size, entry_span),
+        ];
+
+        let name = get_text(name).to_owned();
+
+        let expr = Self::from_item_kids_tspan(Item::Expr, &kids, entry_span);
+        let node = Self::from_item_kid_tspan(Item::StructEntry(name), expr, input);
+
+        Ok((rest, node))
+    }
+
+    pub fn parse_struct(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        let (rest, (sp, (label, entries))) = ms(pair(
+            preceded(Struct, Identifier(Label)),
+            parse_block(succeeded(
+                sep_list0(Self::parse_struct_entry, Comma),
+                opt(Comma),
+            )),
+        ))(input)?;
+
+        let text = get_text(label);
+
+        let node = Self::from_item_kids_tspan(Item::StructDef(text), &entries, sp);
+
+        Ok((rest, node))
+    }
+}
+
+fn parse_struct_arg_type(input: TSpan) -> PResult<(TSpan, StructMemberType)> {
     let as_arg_type =
         |i| -> StructMemberType { get_text(i).to_string().parse::<StructMemberType>().unwrap() };
     ms(map(tag(Identifier(Label)), as_arg_type))(input)
-}
-pub fn parse_array_def(input: TSpan) -> PResult<Node> {
-    let (rest, (_, matched, _)) =
-        tuple((OpenSquareBracket, parse_expr, CloseSquareBracket))(input)?;
-
-    Ok((rest, matched))
-}
-
-pub fn parse_struct_entry(input: TSpan) -> PResult<Node> {
-    let (rest, (name, _, (entry_span, entry_type), (array_def_sp, array))) = tuple((
-        parse_label,
-        Colon,
-        parse_struct_arg_type,
-        ms(opt(parse_array_def)),
-    ))(input)?;
-
-    let size = entry_type.to_size_item();
-
-    let kids = [
-        array.unwrap_or(Node::from_num_tspan(1, array_def_sp)),
-        Node::from_item_tspan(Item::Mul, array_def_sp),
-        Node::from_item_tspan(size, entry_span),
-    ];
-
-    let expr = Node::from_item_kids_tspan(Item::Expr, &kids, entry_span);
-    let node = Node::from_item_kid_tspan(Item::StructEntry(name.to_string()), expr, input);
-
-    Ok((rest, node))
-}
-
-pub fn parse_struct(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, (label, entries))) = ms(pair(
-        preceded(Struct, Identifier(Label)),
-        parse_block(succeeded(sep_list0(parse_struct_entry, Comma), opt(Comma))),
-    ))(input)?;
-
-    let text = get_text(label);
-
-    let node = Node::from_item_kids_tspan(Item::StructDef(text), &entries, sp);
-
-    Ok((rest, node))
 }
 
 // Always compile so I get IDE errors

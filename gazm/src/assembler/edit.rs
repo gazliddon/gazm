@@ -1,17 +1,16 @@
 #![forbid(unused_imports)]
 
-use grl_sources::{
-    EditErrorKind, EditResult, 
-    TextEditTrait,
-};
+use grl_sources::{EditErrorKind, EditResult, TextEditTrait};
 
+use super::{Assembler, AssemblerCpuTrait};
 use crate::error::GResult;
-use super::Assembler;
 
 use std::path::Path;
 
-impl Assembler {
-
+impl<C> Assembler<C>
+where
+    C: AssemblerCpuTrait,
+{
     pub fn edit_source_file<P: AsRef<Path>, X>(
         &mut self,
         file: P,

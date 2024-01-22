@@ -1,13 +1,14 @@
 #![forbid(unused_imports)]
 
-use itertools::Itertools;
 
-use crate::semantic::*;
+use crate::assembler::AssemblerCpuTrait;
 use crate::frontend::Item;
+use crate::semantic::*;
 
-use crate::cpu6809::frontend::{AddrModeParseType,IndexParseType, MC6809::{self, OpCode} };
-
-impl<'a> std::fmt::Display for AstCtx<'a> {
+impl<'a, C> std::fmt::Display for AstCtx<'a, C>
+where
+    C: AssemblerCpuTrait,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let wrapped = DisplayWrapper {
             node: self.get_tree().root(),
@@ -16,30 +17,40 @@ impl<'a> std::fmt::Display for AstCtx<'a> {
     }
 }
 
-struct DisplayWrapper<'a> {
-    node: AstNodeRef<'a>,
+struct DisplayWrapper<'a, C> 
+where C: AssemblerCpuTrait
+{
+    node: AstNodeRef<'a, C>,
 }
 
-impl<'a> From<AstNodeRef<'a>> for DisplayWrapper<'a> {
-    fn from(ast: AstNodeRef<'a>) -> Self {
+impl<'a, C> From<AstNodeRef<'a, C>> for DisplayWrapper<'a, C> 
+where C: AssemblerCpuTrait
+
+{
+    fn from(ast: AstNodeRef<'a, C>) -> Self {
         Self { node: ast }
     }
 }
 
-pub fn as_string(n: AstNodeRef) -> String {
-    let x: DisplayWrapper = n.into();
+pub fn as_string<C>(n: AstNodeRef<C>) -> String
+where C: AssemblerCpuTrait
+{
+    let x = DisplayWrapper{node: n};
     x.to_string()
 }
 
-impl<'a> std::fmt::Display for DisplayWrapper<'a> {
+impl<'a, C> std::fmt::Display for DisplayWrapper<'a, C>
+where C: AssemblerCpuTrait
+
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Item::*;
 
         let node = self.node;
         let item = &node.value().item;
 
-        let to_string = |n: AstNodeRef| -> String {
-            let x: DisplayWrapper = n.into();
+        let to_string = |n: AstNodeRef<C>| -> String {
+            let x: DisplayWrapper<C> = n.into();
             x.to_string()
         };
 
@@ -111,11 +122,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             }
 
             TokenizedFile(..) => {
-
                 format!("TokFile:\n{}", join_kids("\n"))
             }
 
-            CpuSpecific(OpCode(_, ins, AddrModeParseType::Inherent)) => ins.action.clone(),
 
             StructDef(name) => {
                 let body = join_kids(",\n");
@@ -139,67 +148,68 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
                 format!("fill {body}")
             }
 
-            MacroDef(name,vars) => {
+            MacroDef(name, vars) => {
                 format!("macro {name} ({vars:?}) [{}]", join_kids(" : "))
             }
 
-            CpuSpecific(OpCode(_, instruction, amode)) => {
-                use AddrModeParseType::*;
+            CpuSpecific(..) => todo!(),
+            // CpuSpecific(OpCode(_, instruction, amode)) => {
+            //     use AddrModeParseType::*;
 
-                let ind = |s: String, indirect: &bool| -> String {
-                    if *indirect {
-                        format!("[{s}]")
-                    } else {
-                        s
-                    }
-                };
+            //     let ind = |s: String, indirect: &bool| -> String {
+            //         if *indirect {
+            //             format!("[{s}]")
+            //         } else {
+            //             s
+            //         }
+            //     };
 
-                let operand = match amode {
-                    RegisterSet => {
-                        let rset = &node.first_child().unwrap().value().item;
-                        if let CpuSpecific(MC6809::RegisterSet(regs)) = rset {
-                            let r = regs
-                                .iter()
-                                .sorted()
-                                .map(|r| r.to_string())
-                                .collect_vec()
-                                .join(",");
-                            r.to_string()
-                        } else {
-                            panic!("Whut!")
-                        }
-                    }
-                    Immediate => format!("#{}", child_string(0)),
-                    Direct => format!("<{}", child_string(0)),
-                    Extended(..) => child_string(0),
-                    Indexed(index_mode, indirect) => {
-                        use IndexParseType::*;
-                        match index_mode {
-                            ConstantByteOffset(r, v) | Constant5BitOffset(r, v) => {
-                                ind(format!("{v},{r}"), indirect)
-                            }
+            //     let operand = match amode {
+            //         RegisterSet => {
+            //             let rset = &node.first_child().unwrap().value().item;
+            //             if let CpuSpecific(MC6809::RegisterSet(regs)) = rset {
+            //                 let r = regs
+            //                     .iter()
+            //                     .sorted()
+            //                     .map(|r| r.to_string())
+            //                     .collect_vec()
+            //                     .join(",");
+            //                 r.to_string()
+            //             } else {
+            //                 panic!("Whut!")
+            //             }
+            //         }
+            //         Immediate => format!("#{}", child_string(0)),
+            //         Direct => format!("<{}", child_string(0)),
+            //         Extended(..) => child_string(0),
+            //         Indexed(index_mode, indirect) => {
+            //             use IndexParseType::*;
+            //             match index_mode {
+            //                 ConstantByteOffset(r, v) | Constant5BitOffset(r, v) => {
+            //                     ind(format!("{v},{r}"), indirect)
+            //                 }
 
-                            ConstantWordOffset(r, v) => ind(format!("{v},{r}"), indirect),
-                            PcOffsetWord(v) => ind(format!("{v},PC"), indirect),
-                            PcOffsetByte(v) => ind(format!("{v},PC"), indirect),
-                            ConstantOffset(r) => ind(format!("{},{r}", child_string(0)), indirect),
-                            Zero(r) => ind(format!(",{r}"), indirect),
-                            PreDecDec(r) => ind(format!(",--{r}"), indirect),
-                            PreDec(r) => format!(",-{r}"),
-                            PostIncInc(r) => ind(format!(",{r}++"), indirect),
-                            PostInc(r) => format!(",{r}+"),
-                            AddA(r) => ind(format!("A,{r}"), indirect),
-                            AddB(r) => ind(format!("B,{r}"), indirect),
-                            AddD(r) => ind(format!("D,{r}"), indirect),
-                            PCOffset => ind(format!("{},PC", child_string(0)), indirect),
-                            ExtendedIndirect => format!("[{}]", child_string(0)),
-                        }
-                    }
-                    _ => format!("{:?} NOT IMPLEMENTED", instruction.addr_mode),
-                };
+            //                 ConstantWordOffset(r, v) => ind(format!("{v},{r}"), indirect),
+            //                 PcOffsetWord(v) => ind(format!("{v},PC"), indirect),
+            //                 PcOffsetByte(v) => ind(format!("{v},PC"), indirect),
+            //                 ConstantOffset(r) => ind(format!("{},{r}", child_string(0)), indirect),
+            //                 Zero(r) => ind(format!(",{r}"), indirect),
+            //                 PreDecDec(r) => ind(format!(",--{r}"), indirect),
+            //                 PreDec(r) => format!(",-{r}"),
+            //                 PostIncInc(r) => ind(format!(",{r}++"), indirect),
+            //                 PostInc(r) => format!(",{r}+"),
+            //                 AddA(r) => ind(format!("A,{r}"), indirect),
+            //                 AddB(r) => ind(format!("B,{r}"), indirect),
+            //                 AddD(r) => ind(format!("D,{r}"), indirect),
+            //                 PCOffset => ind(format!("{},PC", child_string(0)), indirect),
+            //                 ExtendedIndirect => format!("[{}]", child_string(0)),
+            //             }
+            //         }
+            //         _ => format!("{:?} NOT IMPLEMENTED", instruction.addr_mode),
+            //     };
 
-                format!("{} {operand}", instruction.action)
-            }
+            //     format!("{} {operand}", instruction.action)
+            // }
 
             _ => format!("{item:?} not implemented"),
         };

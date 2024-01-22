@@ -1,7 +1,9 @@
 #![deny(unused_imports)]
+use crate::assembler::AssemblerCpuTrait;
+
 use super::{
-    BaseNode, FrontEndError, FrontEndErrorKind, IdentifierKind, Item, Node, PResult, ParsedFrom,
-    TSpan, TokenKind::*,
+    FrontEndError, FrontEndErrorKind, GazmParser, IdentifierKind, Item, Node, PResult,
+    ParsedFrom, TSpan, TokenKind::*,
 };
 
 use grl_sources::{Position, SourceFile};
@@ -10,43 +12,94 @@ use unraveler::{
     map, match_span as ms, tag, wrapped_cut, Collection, ParseErrorKind, Parser, Severity,
 };
 
-pub fn mk_pc_equate(node: &Node) -> Node {
-    use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
-    let pos = node.ctx;
+impl<C> GazmParser<C>
+where
+    C: AssemblerCpuTrait,
+{
+    pub fn mk_pc_equate(node: &Node<C::NodeKind>) -> Node<C::NodeKind> {
+        use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
+        let pos = node.ctx;
 
-    match &node.item {
-        Label(label_def) => Node::new(AssignmentFromPc(label_def.clone()), pos),
-        LocalLabel(label_def) => Node::new(LocalAssignmentFromPc(label_def.clone()), pos),
-        _ => panic!("shouldn't happen"),
+        match &node.item {
+            Label(label_def) => Node::new(AssignmentFromPc(label_def.clone()), pos),
+            LocalLabel(label_def) => Node::new(LocalAssignmentFromPc(label_def.clone()), pos),
+            _ => panic!("shouldn't happen"),
+        }
     }
-}
 
-impl BaseNode<Item, Position> {
-    pub fn block(items: ThinVec<Self>, sp: TSpan) -> Self {
+    pub fn block(items: ThinVec<Node<C::NodeKind>>, sp: TSpan) -> Node<C::NodeKind> {
         Self::from_item_tspan(Item::Block, sp).with_children_vec(items)
     }
 
-    pub fn from_item_tspan(item: Item, sp: TSpan) -> Self {
-        Self::from_item_pos(item, to_pos(sp))
+    pub fn from_item_tspan(_item: Item<C::NodeKind>, _sp: TSpan) -> Node<C::NodeKind> {
+        todo!()
+        // Node::from_item_pos(item, to_pos(sp))
     }
 
-    pub fn from_item_kids_tspan(item: Item, kids: &[Node], sp: TSpan) -> Self {
-        Self::new_with_children(item, kids, to_pos(sp))
+    pub fn from_item_kids_tspan(item: Item<C::NodeKind>, kids: &[Node<C::NodeKind>], sp: TSpan) -> Node<C::NodeKind> {
+        Node::new_with_children(item, kids, to_pos(sp))
     }
-    pub fn from_item_kid_tspan(item: Item, kid: Node, sp: TSpan) -> Self {
-        Self::new_with_children(item, &[kid], to_pos(sp))
-    }
-
-    pub fn from_num_tspan(num: i64, sp: TSpan) -> Self {
-        Node::from_item_tspan(Item::from_number(num, ParsedFrom::Expression), sp)
+    pub fn from_item_kid_tspan(item: Item<C::NodeKind>, kid: Node<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
+        Node::new_with_children(item, &[kid], to_pos(sp))
     }
 
-    pub fn with_tspan(self, sp: TSpan) -> Self {
-        let mut ret = self;
+    pub fn from_num_tspan(num: i64, sp: TSpan) -> Node<C::NodeKind> {
+        Self::from_item_tspan(Item::from_number(num, ParsedFrom::Expression), sp)
+    }
+
+    pub fn with_tspan( n: Node<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
+        let mut ret = n.clone();
         ret.ctx = to_pos(sp);
         ret
     }
+
+    pub fn from_item_pos<P: Into<Position>>(_item: Item<C::NodeKind>, _p: P) -> Self {
+        todo!()
+        // Self::new(item, p.into())
+    }
+
+    pub fn from_number_pos<P: Into<Position>>(_n: i64, _pos: P) -> Node<C::NodeKind> {
+        todo!()
+        // Self::new(Item::Num(n, ParsedFrom::Expression), pos.into())
+    }
+
+    pub fn with_pos(self, n: Node<C::NodeKind>,sp: Position) -> Node<C::NodeKind> {
+        let mut ret = n;
+        ret.ctx = sp;
+        ret
+    }
 }
+
+
+// impl<C> BaseNode<Item<C::NodeKind>, Position>
+// where
+//     C: AssemblerCpuTrait,
+// {
+//     pub fn block(items: ThinVec<Self>, sp: TSpan) -> Self {
+//         Self::from_item_tspan(Item::Block, sp).with_children_vec(items)
+//     }
+
+//     pub fn from_item_tspan(item: Item<C::NodeKind>, sp: TSpan) -> Self {
+//         Self::from_item_pos(item, to_pos(sp))
+//     }
+
+//     pub fn from_item_kids_tspan(item: Item<C::NodeKind>, kids: &[Self], sp: TSpan) -> Self {
+//         Self::new_with_children(item, kids, to_pos(sp))
+//     }
+//     pub fn from_item_kid_tspan(item: Item<C::NodeKind>, kid: Self, sp: TSpan) -> Self {
+//         Self::new_with_children(item, &[kid], to_pos(sp))
+//     }
+
+//     pub fn from_num_tspan(num: i64, sp: TSpan) -> Self {
+//         Self::from_item_tspan(Item::from_number(num, ParsedFrom::Expression), sp)
+//     }
+
+//     pub fn with_tspan(self, sp: TSpan) -> Self {
+//         let mut ret = self;
+//         ret.ctx = to_pos(sp);
+//         ret
+//     }
+// }
 
 pub fn to_pos(input: TSpan) -> Position {
     let r = input.extra().get_pos(input);
@@ -69,7 +122,10 @@ where
     x.into_iter().chain(xxs.1).collect()
 }
 
-pub fn get_items(node: &Node) -> (Item, ThinVec<Item>) {
+pub fn get_items<C>(node: &Node<C>) -> (Item<C>, ThinVec<Item<C>>)
+where
+    C: std::fmt::Debug + Clone + PartialEq,
+{
     let items = node.children.iter().map(|c| c.item.clone()).collect();
     (node.item.clone(), items)
 }

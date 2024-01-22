@@ -10,25 +10,33 @@ use crate::{
     semantic::{Ast, AstNodeId, AstNodeRef},
 };
 
-use crate::cpu6809::assembler::Compiler6809;
-
 
 use grl_sources::ItemType;
 
-pub struct Compiler<'a> {
-    tree: &'a Ast,
+pub struct Compiler<'a, C>
+where
+    C: AssemblerCpuTrait,
+{
+    tree: &'a Ast<C>,
     pub scopes: ScopeTracker,
 }
 
-pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()> {
+pub fn compile<C>(asm: &mut Assembler<C>, tree: &Ast<C>) -> GResult<()>
+where
+    C: AssemblerCpuTrait,
+{
     let root_id = asm.get_symbols().get_root_scope_id();
     let mut compiler = Compiler::new(tree, root_id)?;
     compiler.compile_root(asm)?;
     Ok(())
 }
 
-impl<'a> Compiler<'a> {
-    pub fn new(tree: &'a Ast, current_scope_id: u64) -> GResult<Self> {
+
+impl<'a, C> Compiler<'a, C>
+where
+    C: AssemblerCpuTrait,
+{
+    pub fn new(tree: &'a Ast<C>, current_scope_id: u64) -> GResult<Self> {
         let ret = Self {
             tree,
             scopes: ScopeTracker::new(current_scope_id),
@@ -36,28 +44,28 @@ impl<'a> Compiler<'a> {
         Ok(ret)
     }
 
-    pub fn compile_root(&mut self, asm: &mut Assembler) -> GResult<()> {
+    pub fn compile_root(&mut self, asm: &mut Assembler<C>) -> GResult<()> {
         let scope_id = asm.get_symbols().get_root_scope_id();
         self.scopes.set_scope(scope_id);
         asm.set_pc_symbol(0).expect("Can't set pc symbol");
         self.compile_node_error(asm, self.tree.as_ref().root().id())
     }
 
-    fn get_node_id_item(&self, asm: &Assembler, id: AstNodeId) -> (AstNodeId, Item) {
+    fn get_node_id_item(&self, asm: &Assembler<C>, id: AstNodeId) -> (AstNodeId, Item<C::NodeKind>) {
         let node = self.tree.as_ref().get(id).unwrap();
         let this_i = &node.value().item;
         let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
         (node.id(), i)
     }
 
-    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef {
+    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<C> {
         let node = self.tree.as_ref().get(id).unwrap();
         node
     }
 
     pub fn binary_error(
         &self,
-        asm: &mut Assembler,
+        asm: &mut Assembler<C>,
         id: AstNodeId,
         e: BinaryError,
     ) -> GazmErrorKind {
@@ -69,7 +77,7 @@ impl<'a> Compiler<'a> {
 
     pub fn binary_error_map<T>(
         &self,
-        asm: &mut Assembler,
+        asm: &mut Assembler<C>,
         id: AstNodeId,
         e: Result<T, BinaryError>,
     ) -> Result<T, GazmErrorKind> {
@@ -78,7 +86,7 @@ impl<'a> Compiler<'a> {
 
     pub fn relative_error(
         &self,
-        asm: &Assembler,
+        asm: &Assembler<C>,
         id: AstNodeId,
         val: i64,
         bits: usize,
@@ -101,7 +109,7 @@ impl<'a> Compiler<'a> {
     /// ( physical range, logical_range )
     pub fn add_mapping(
         &self,
-        asm: &mut Assembler,
+        asm: &mut Assembler<C>,
         phys_range: std::ops::Range<usize>,
         range: std::ops::Range<usize>,
         id: AstNodeId,
@@ -114,7 +122,7 @@ impl<'a> Compiler<'a> {
     }
 
     /// Grab memory and copy it the PC
-    fn grab_mem(&self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    fn grab_mem(&self, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
         let node = self.get_node(id);
         let args = asm.eval_n_args(node, 2, self.scopes.scope())?;
         let source = args[0];
@@ -137,7 +145,7 @@ impl<'a> Compiler<'a> {
     /// Add a binary to write
     fn add_binary_to_write<P: AsRef<Path>>(
         &self,
-        asm: &mut Assembler,
+        asm: &mut Assembler<C>,
         id: AstNodeId,
         path: P,
     ) -> GResult<()> {
@@ -153,7 +161,7 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn inc_bin_ref<P: AsRef<Path>>(&self, asm: &mut Assembler, file_name: P) -> GResult<()> {
+    fn inc_bin_ref<P: AsRef<Path>>(&self, asm: &mut Assembler<C>, file_name: P) -> GResult<()> {
         use crate::assembler::binary::BinRef;
 
         let file = file_name.as_ref().to_path_buf();
@@ -181,13 +189,13 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    pub fn write_word(&mut self, val: u16, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    pub fn write_word(&mut self, val: u16, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
         let ret = asm.get_binary_mut().write_word(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
-    pub fn write_byte(&mut self, val: u8, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    pub fn write_byte(&mut self, val: u8, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
         let ret = asm.get_binary_mut().write_byte(val);
         self.binary_error_map(asm, id, ret)?;
         Ok(())
@@ -196,7 +204,7 @@ impl<'a> Compiler<'a> {
     pub fn write_byte_check_size(
         &mut self,
         val: i64,
-        asm: &mut Assembler,
+        asm: &mut Assembler<C>,
         id: AstNodeId,
     ) -> GResult<()> {
         let ret = asm.get_binary_mut().write_byte_check_size(val);
@@ -207,7 +215,7 @@ impl<'a> Compiler<'a> {
     pub fn write_word_check_size(
         &mut self,
         val: i64,
-        asm: &mut Assembler,
+        asm: &mut Assembler<C>,
         id: AstNodeId,
     ) -> GResult<()> {
         let ret = asm.get_binary_mut().write_word_check_size(val);
@@ -218,7 +226,7 @@ impl<'a> Compiler<'a> {
     fn _write_byte_word_size(
         &mut self,
         val: i64,
-        asm: &mut Assembler,
+        asm: &mut Assembler<C>,
         id: AstNodeId,
     ) -> GResult<()> {
         let ret = asm.get_binary_mut().write_word_check_size(val);
@@ -228,7 +236,7 @@ impl<'a> Compiler<'a> {
 
     fn incbin_resolved<P: AsRef<Path>>(
         &self,
-        asm: &mut Assembler,
+        asm: &mut Assembler<C>,
         id: AstNodeId,
         file: P,
         r: &std::ops::Range<usize>,
@@ -250,7 +258,7 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn compile_children(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    fn compile_children(&mut self, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
         let node = self.get_node(id);
         let kids: Vec<_> = node.children().map(|n| n.id()).collect();
         for c in kids {
@@ -259,13 +267,16 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn add_source_mapping(&self, asm: &mut Assembler, id: AstNodeId, addr: usize) {
+    fn add_source_mapping(&self, asm: &mut Assembler<C>, id: AstNodeId, addr: usize) {
         let node = self.get_node(id);
-        let kind: grl_sources::ItemType = node.value().item.clone().into();
+        let _i = node.value().item.clone();
+        // TODO Fix this fucker!
+        let kind: ItemType = ItemType::OpCode;
+
         asm.add_source_mapping(&node.value().pos, addr, kind);
     }
 
-    fn compile_node_error(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    fn compile_node_error(&mut self, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
         use Item::*;
 
         let (node_id, i) = self.get_node_id_item(asm, id);
@@ -422,8 +433,8 @@ impl<'a> Compiler<'a> {
             | StructDef(..) | MacroDef(..) | MacroCall(..) | Import => (),
 
             CpuSpecific(node_kind) => {
-                let mut cpu6809 = Compiler6809::new();
-                cpu6809.compile_node(self, asm, id, node_kind)?;
+                C::compile_node(self, asm, id, node_kind)?;
+
             }
 
             _ => {

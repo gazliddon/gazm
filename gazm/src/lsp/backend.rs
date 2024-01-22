@@ -1,6 +1,6 @@
 use crate::{
     semantic::{AstNodeId, ItemWithPos},
-    assembler::Assembler,
+    assembler::{Assembler, AssemblerCpuTrait},
     error::{GResult, GazmErrorKind},
     utils::with_state,
     gazmsymbols::{SymbolInfo, SymbolScopeId},
@@ -28,9 +28,12 @@ use tower_lsp::{
     {Client, LanguageServer},
 };
 
-pub struct Backend {
+pub struct Backend<C>
+where C : AssemblerCpuTrait
+
+{
     pub client: Client,
-    pub asm_ctx: Arc<Mutex<Assembler>>,
+    pub asm_ctx: Arc<Mutex<Assembler<C>>>,
 }
 
 pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
@@ -44,7 +47,10 @@ pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
     te
 }
 
-impl Assembler {
+impl<C> Assembler<C> 
+where C: AssemblerCpuTrait
+
+{
     fn find_symbol_id(&self, position: &Position, uri: &Url) -> Option<SymbolScopeId> {
         self.do_pos_lookup_work(position, uri, |pos, lookup| {
             lookup.find_symbol_id_at_pos(pos)
@@ -158,9 +164,11 @@ impl Assembler {
     }
 }
 
-impl Backend {
-    pub fn get_ast_node_at_file_pos(&self, position: &Position, uri : &Url) -> Option<(AstNodeId, ItemWithPos )> {
-        let value = with_state(&self.asm_ctx, |asm_ctx| -> Option<(AstNodeId, ItemWithPos )> {
+impl<C> Backend<C> 
+where C : AssemblerCpuTrait
+{
+    pub fn get_ast_node_at_file_pos(&self, position: &Position, uri : &Url) -> Option<(AstNodeId, ItemWithPos<C> )> {
+        let value = with_state(&self.asm_ctx, |asm_ctx| -> Option<(AstNodeId, ItemWithPos<C> )> {
             if let Some(p) = asm_ctx.find_nodes_at_location(position, uri) {
                 if !p.is_empty() {
                     if let Some(ast) = asm_ctx.asm_out.ast.as_ref() {
@@ -253,7 +261,9 @@ impl Backend {
     }
 }
 
-impl Assembler {
+impl<C> Assembler<C> 
+where C: AssemblerCpuTrait
+{
     fn apply_change<P: AsRef<Path>>(
         &mut self,
         doc: P,
@@ -313,7 +323,9 @@ fn make_location<P: AsRef<Path>>(line: usize, character: usize, path: P) -> Loca
 }
 
 #[tower_lsp::async_trait]
-impl LanguageServer for Backend {
+impl<C> LanguageServer for Backend<C> 
+where C: AssemblerCpuTrait
+{
     async fn goto_declaration(
         &self,
         params: GotoDeclarationParams,

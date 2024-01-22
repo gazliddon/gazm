@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 
 use crate::{
-    assembler,
+    assembler::{self, AssemblerCpuTrait},
     frontend::{FrontEndError, FrontEndErrorKind},
     semantic::{AstNodeId, AstNodeRef},
     vars::VarsErrorKind,
@@ -85,9 +85,10 @@ pub struct AstError {
 }
 
 impl AstError {
-    pub fn from_node<S>(msg: S, n: AstNodeRef) -> Self
+    pub fn from_node<S,C: AssemblerCpuTrait>(msg: S, n: AstNodeRef<C>) -> Self
     where
         S: Into<String>,
+        C: AssemblerCpuTrait
     {
         Self::from_node_id(msg, n.id(), n.value().pos)
     }

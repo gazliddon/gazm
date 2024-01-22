@@ -14,27 +14,28 @@ pub struct LspConfig {
     pub log_file: Option<PathBuf>,
 }
 
-pub fn do_lsp(opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
+pub fn do_lsp(_opts: &Opts) -> Result<(), Box<dyn std::error::Error>> {
     // TODO: have the logger log to the file in the lsp_config opt
-    if let Some(log_path) = &opts.lsp_config.log_file {
-        simple_logging::log_to_file(log_path, LevelFilter::Info).unwrap();
-    }
+    todo!()
+    // if let Some(log_path) = &opts.lsp_config.log_file {
+    //     simple_logging::log_to_file(log_path, LevelFilter::Info).unwrap();
+    // }
 
-    info!("**Starting up gazm lsp");
+    // info!("**Starting up gazm lsp");
 
-    let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
-    let (service, socket) = LspService::new(|client| Backend::new(client, opts.clone()));
+    // let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
+    // let (service, socket) = LspService::new(|client| Backend::new(client, opts.clone()));
 
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(async {
-            info!("**About to create server");
-            let server = Server::new(stdin, stdout, socket);
-            server.serve(service).await;
-            info!("**About to exit");
-        });
+    // tokio::runtime::Builder::new_multi_thread()
+    //     .enable_all()
+    //     .build()
+    //     .unwrap()
+    //     .block_on(async {
+    //         info!("**About to create server");
+    //         let server = Server::new(stdin, stdout, socket);
+    //         server.serve(service).await;
+    //         info!("**About to exit");
+    //     });
 
-    Ok(())
+    // Ok(())
 }

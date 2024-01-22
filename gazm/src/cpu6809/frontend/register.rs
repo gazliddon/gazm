@@ -1,21 +1,19 @@
 #![deny(unused_imports)]
-use crate::help::ErrCode::*;
+use crate::{frontend::GazmParser, help::ErrCode::*};
 use emu6809::cpu::RegEnum;
 use std::collections::HashSet;
-use unraveler::{cut, match_span as ms, sep_list, sep_pair, };
+use unraveler::{cut, match_span as ms, sep_list, sep_pair};
 
 use crate::frontend::{
-    get_label_string,
-    err_error, err_fatal, error, 
-    Item, Node, PResult, TSpan,
-    TokenKind::{ *},
+    err_error, err_fatal, error, get_label_string, Item, Node, PResult, TSpan, TokenKind::*,
 };
 
 use crate::cpu6809::frontend::{
-        AddrModeParseType,
-        MC6809::{Operand, RegisterSet},
-
+    AddrModeParseType,
+    MC6809::{self, Operand, RegisterSet},
 };
+
+use crate::cpu6809::assembler::Compiler6809;
 
 pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, RegEnum)> {
     let (rest, ((sp_r1, r1), (sp_r2, r2))) =
@@ -23,18 +21,28 @@ pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, R
     Ok((rest, (sp_r1, r1, sp_r2, r2)))
 }
 
-pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
-    let item = Item::CpuSpecific(RegisterSet(matched));
-    let node = Node::from_item_tspan(item, sp);
-    Ok((rest, node))
-}
+impl GazmParser<Compiler6809> {
+    pub fn parse_reg_set(input: TSpan) -> PResult<Node<MC6809>> {
+        let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
+        let item = Item::CpuSpecific(RegisterSet(matched));
+        let node = Self::from_item_tspan(item, sp);
+        Ok((rest, node))
+    }
 
-pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched)) = ms(parse_reg_set)(input)?;
-    let matched = Node::from_item_tspan(Operand(AddrModeParseType::RegisterSet).into(), sp)
-        .with_child(matched);
-    Ok((rest, matched))
+    pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node<MC6809>> {
+        let (rest, (sp, matched)) = ms(Self::parse_reg_set)(input)?;
+        let matched = Self::from_item_tspan(Operand(AddrModeParseType::RegisterSet).into(), sp)
+            .with_child(matched);
+        Ok((rest, matched))
+    }
+    /// Parse opcodes with 2 reg list
+    /// eg tfr a,b
+    pub fn parse_opcode_reg_pair(input: TSpan) -> PResult<Node<MC6809>> {
+        use AddrModeParseType::RegisterPair;
+        let (rest, (sp, (a, b))) = ms(sep_pair(get_register, Comma, cut(get_register)))(input)?;
+        let node = Self::from_item_tspan(Operand(RegisterPair(a, b)).into(), sp);
+        Ok((rest, node))
+    }
 }
 
 fn parse_this_reg_local(input: TSpan, r: RegEnum) -> PResult<RegEnum> {
@@ -85,8 +93,6 @@ pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
         .ok_or(error(sp, ErrExpectedIndexRegister))
 }
 
-
-
 /// Parse a single register
 pub fn get_register(input: TSpan) -> PResult<RegEnum> {
     let (rest, (sp, text)) = ms(get_label_string)(input)?;
@@ -95,13 +101,4 @@ pub fn get_register(input: TSpan) -> PResult<RegEnum> {
         .parse::<RegEnum>()
         .map(|reg| (rest, reg))
         .map_err(|_| error(sp, ErrExpectedRegister))
-}
-
-/// Parse opcodes with 2 reg list
-/// eg tfr a,b
-pub fn parse_opcode_reg_pair(input: TSpan) -> PResult<Node> {
-    use AddrModeParseType::RegisterPair;
-    let (rest, (sp, (a, b))) = ms(sep_pair(get_register, Comma, cut(get_register)))(input)?;
-    let node = Node::from_item_tspan(Operand(RegisterPair(a, b)).into(), sp);
-    Ok((rest, node))
 }

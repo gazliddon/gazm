@@ -4,16 +4,12 @@ use unraveler::{
     Parser,
 };
 
+use crate::assembler::AssemblerCpuTrait;
+
 use super::{
-    LabelDefinition, Node, PResult, TSpan, Token,
-    Item,get_text,
+    get_text, CommandKind, FrontEndError, GazmParser, IdentifierKind, Item, LabelDefinition, Node,
+    NumberKind, PResult, ParsedFrom, TSpan, Token,
     TokenKind::{self, *},
-    ParsedFrom,
-    IdentifierKind,
-    parse_expr,
-    NumberKind,
-    CommandKind,
-    FrontEndError,
 };
 
 fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
@@ -21,61 +17,79 @@ fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
     Ok((rest, (sp, matched.kind)))
 }
 
-pub fn parse_number(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, kind)) = match_number(input)?;
+impl<C> GazmParser<C>
+where
+    C: AssemblerCpuTrait,
+{
+    pub fn parse_number(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        let (rest, (sp, kind)) = match_number(input)?;
 
-    match kind {
-        Number((n, nk)) => {
-            let node = Node::from_item_tspan(Item::Num(n, nk.into()), sp);
-            Ok((rest, node))
+        match kind {
+            Number((n, nk)) => {
+                let node = Self::from_item_tspan(Item::Num(n, nk.into()), sp);
+                Ok((rest, node))
+            }
+            _ => panic!(),
         }
-        _ => panic!(),
     }
-}
 
-pub(crate) fn get_label<F: Fn(String) -> LabelDefinition>(
-    input: TSpan,
-    mut tag_kind: TokenKind,
-    to_label_def: F,
-) -> PResult<Node> {
-    let (rest, sp) = tag_kind.parse(input)?;
-    let node = Node::from_item_tspan(Item::Label(to_label_def(get_text(sp))), sp);
-    Ok((rest, node))
-}
+    pub(crate) fn get_label<F: Fn(String) -> LabelDefinition>(
+        input: TSpan,
+        mut tag_kind: TokenKind,
+        to_label_def: F,
+    ) -> PResult<Node<C::NodeKind>> {
+        let (rest, sp) = tag_kind.parse(input)?;
+        let node = Self::from_item_tspan(Item::Label(to_label_def(get_text(sp))), sp);
+        Ok((rest, node))
+    }
 
-fn parse_local_label(input: TSpan) -> PResult<Node> {
-    use {IdentifierKind::*, Item::LocalLabel, LabelDefinition::Text};
-    let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), Identifier(Label)))(input)?;
+    fn parse_local_label(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        use {IdentifierKind::*, Item::LocalLabel, LabelDefinition::Text};
+        let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), Identifier(Label)))(input)?;
 
-    let label_def = Text(get_text(matched));
-    let node = Node::from_item_tspan(LocalLabel(label_def), sp);
-    Ok((rest, node))
-}
+        let label_def = Text(get_text(matched));
+        let node = Self::from_item_tspan(LocalLabel(label_def), sp);
+        Ok((rest, node))
+    }
 
-pub fn parse_non_scoped_label(input: TSpan) -> PResult<Node> {
-    use {IdentifierKind::*, LabelDefinition::Text};
-    get_label(input, Identifier(Label), Text)
-}
+    pub fn parse_non_scoped_label(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        use {IdentifierKind::*, LabelDefinition::Text};
+        Self::get_label(input, Identifier(Label), Text)
+    }
 
-pub fn parse_scoped_label(input: TSpan) -> PResult<Node> {
-    use LabelDefinition::TextScoped;
-    get_label(input, FqnIdentifier, TextScoped)
-}
+    pub fn parse_scoped_label(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        use LabelDefinition::TextScoped;
+        Self::get_label(input, FqnIdentifier, TextScoped)
+    }
 
-pub fn parse_label(input: TSpan) -> PResult<Node> {
-    alt((
-        parse_local_label,
-        parse_scoped_label,
-        parse_non_scoped_label,
-    ))(input)
-}
+    pub fn parse_label(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        alt((
+            Self::parse_local_label,
+            Self::parse_scoped_label,
+            Self::parse_non_scoped_label,
+        ))(input)
+    }
 
-pub fn parse_label_assignment_pc(input: TSpan) -> PResult<Node> {
-    alt((
-        parse_local_label,
-        parse_scoped_label,
-        parse_non_scoped_label,
-    ))(input)
+    pub fn parse_label_assignment_pc(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        alt((
+            Self::parse_local_label,
+            Self::parse_scoped_label,
+            Self::parse_non_scoped_label,
+        ))(input)
+    }
+    pub fn parse_big_import(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        use CommandKind::Import;
+        let (rest, (span, matched)) = ms(preceded(
+            Import,
+            wrapped_cut(
+                OpenBrace,
+                sep_list(Self::parse_scoped_label, Comma),
+                CloseBrace,
+            ),
+        ))(input)?;
+        let node = Self::from_item_kids_tspan(Item::Import, &matched, span);
+        Ok((rest, node))
+    }
 }
 
 impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
@@ -90,16 +104,6 @@ impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for TokenKind {
     }
 }
 
-pub fn parse_big_import(input: TSpan) -> PResult<Node> {
-    use CommandKind::Import;
-    let (rest, (span, matched)) = ms(preceded(
-        Import,
-        wrapped_cut(OpenBrace, sep_list(parse_scoped_label, Comma), CloseBrace),
-    ))(input)?;
-    let node = Node::from_item_kids_tspan(Item::Import, &matched, span);
-    Ok((rest, node))
-}
-
 impl From<NumberKind> for ParsedFrom {
     fn from(nk: NumberKind) -> Self {
         match nk {
@@ -111,36 +115,47 @@ impl From<NumberKind> for ParsedFrom {
     }
 }
 
-fn get_label_definition(item: &Item) -> Option<LabelDefinition> {
-    match item {
-        Item::Label(l) | Item::LocalLabel(l) => Some(l.clone()),
-        _ => None,
+impl<C> GazmParser<C>
+where
+    C: AssemblerCpuTrait,
+{
+    fn get_label_definition(item: &Item<C::NodeKind>) -> Option<LabelDefinition> {
+        match item {
+            Item::Label(l) | Item::LocalLabel(l) => Some(l.clone()),
+            _ => None,
+        }
     }
-}
 
-fn parse_local_assignment(input: TSpan) -> PResult<Item> {
-    use Item::LocalAssignment;
-    map(parse_local_label, |e| {
-        LocalAssignment(get_label_definition(&e.item).unwrap())
-    })(input)
-}
+    fn parse_local_assignment(input: TSpan) -> PResult<Item<C::NodeKind>>
+    where
+        C: std::fmt::Debug + Clone + PartialEq,
+    {
+        use Item::LocalAssignment;
+        map(Self::parse_local_label, |e| {
+            LocalAssignment(Self::get_label_definition(&e.item).unwrap())
+        })(input)
+    }
 
-fn parse_assignment(input: TSpan) -> PResult<Item> {
-    use Item::Assignment;
-    map(parse_label, |e| {
-        Assignment(get_label_definition(&e.item).unwrap())
-    })(input)
-}
+    fn parse_assignment(input: TSpan) -> PResult<Item<C::NodeKind>>
+    where
+        C: std::fmt::Debug + Clone + PartialEq,
+    {
+        use Item::Assignment;
+        map(Self::parse_label, |e| {
+            Assignment(Self::get_label_definition(&e.item).unwrap())
+        })(input)
+    }
 
-pub fn parse_equate(input: TSpan) -> PResult<Node> {
-    use super::CommandKind::Equ;
-    let command: TokenKind = Equ.into();
-    let (rest, (sp, (assignment, expr))) = ms(sep_pair(
-        alt((parse_local_assignment, parse_assignment)),
-        tag(command),
-        cut(parse_expr),
-    ))(input)?;
+    pub fn parse_equate(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        use super::CommandKind::Equ;
+        let command: TokenKind = Equ.into();
+        let (rest, (sp, (assignment, expr))) = ms(sep_pair(
+            alt((Self::parse_local_assignment, Self::parse_assignment)),
+            tag(command),
+            cut(Self::parse_expr),
+        ))(input)?;
 
-    let node = Node::from_item_kid_tspan(assignment, expr, sp);
-    Ok((rest, node))
+        let node = Self::from_item_kid_tspan(assignment, expr, sp);
+        Ok((rest, node))
+    }
 }
