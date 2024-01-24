@@ -15,17 +15,17 @@ use num_traits::Float;
 use thin_vec::ThinVec;
 use unraveler::{alt, many0, map, Collection, ParseError, ParseErrorKind, Severity};
 
-struct NodeCollector<'a, C>
+struct NodeCollector<'a, ASM>
 where
-    C: AssemblerCpuTrait,
+    ASM: AssemblerCpuTrait,
 {
-    nodes: ThinVec<Node<C::NodeKind>>,
+    nodes: ThinVec<Node<ASM::NodeKind>>,
     _span: TSpan<'a>,
 }
 
-impl<'a, C> NodeCollector<'a, C>
+impl<'a, ASM> NodeCollector<'a, ASM>
 where
-    C: AssemblerCpuTrait,
+    ASM: AssemblerCpuTrait,
 {
     pub fn new(sp: TSpan<'a>) -> Self {
         Self {
@@ -34,7 +34,7 @@ where
         }
     }
 
-    pub fn add(&mut self, n: Node<C::NodeKind>) {
+    pub fn add(&mut self, n: Node<ASM::NodeKind>) {
         if n.item == Item::Block {
             for i in n.children {
                 self.add(i)
@@ -44,7 +44,7 @@ where
         }
     }
 
-    pub fn add_vec(&mut self, nodes: Vec<Node<C::NodeKind>>) {
+    pub fn add_vec(&mut self, nodes: Vec<Node<ASM::NodeKind>>) {
         self.nodes.reserve(nodes.len());
         for n in nodes {
             self.add(n)
@@ -131,9 +131,9 @@ where
     }
 }
 
-fn as_vec<C>(n: Node<C::NodeKind>) -> Vec<Node<C::NodeKind>>
+fn as_vec<ASM>(n: Node<ASM::NodeKind>) -> Vec<Node<ASM::NodeKind>>
 where
-    C: AssemblerCpuTrait,
+    ASM: AssemblerCpuTrait,
 {
     vec![n]
 }

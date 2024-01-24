@@ -1,17 +1,14 @@
 #![deny(unused_imports)]
-
 use grl_sources::{ SourceFile,Position };
-use crate::cli::CpuKind; 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParserState {
-    pub cpu : CpuKind,
 }
 
-// TODO: Remove6809
 impl Default for ParserState {
     fn default() -> Self {
-        Self { cpu: CpuKind::Cpu6809 }
+        Self {
+        }
     }
 }
 

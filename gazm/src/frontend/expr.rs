@@ -1,8 +1,8 @@
 #![deny(unused_imports)]
 
-use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0};
-
 use crate::assembler::AssemblerCpuTrait;
+
+use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0};
 
 use super::{
     concat, parse_bracketed,  GazmParser, Item, Node, PResult, TSpan,

@@ -13,7 +13,7 @@ use crate::{
     frontend::{Item, LabelDefinition, }, 
 };
 
-use crate::cpu6809::assembler::Compiler6809;
+// use crate::cpu6809::Compiler6809;
 
 use std::{path::Path, marker::PhantomData};
 
@@ -21,7 +21,7 @@ use std::{path::Path, marker::PhantomData};
 /// gets the size of everything
 /// assigns values to labels that
 /// are defined by value of PC
-pub struct Sizer<'a, C = Compiler6809> 
+pub struct Sizer<'a, C > 
 where 
     C : AssemblerCpuTrait,
 {

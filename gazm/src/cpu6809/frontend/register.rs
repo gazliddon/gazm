@@ -13,7 +13,7 @@ use crate::cpu6809::frontend::{
     MC6809::{self, Operand, RegisterSet},
 };
 
-use crate::cpu6809::assembler::Compiler6809;
+use crate::cpu6809::assembler::Assembler6809;
 
 pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, RegEnum)> {
     let (rest, ((sp_r1, r1), (sp_r2, r2))) =
@@ -21,7 +21,7 @@ pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, R
     Ok((rest, (sp_r1, r1, sp_r2, r2)))
 }
 
-impl GazmParser<Compiler6809> {
+impl GazmParser<Assembler6809> {
     pub fn parse_reg_set(input: TSpan) -> PResult<Node<MC6809>> {
         let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
         let item = Item::CpuSpecific(RegisterSet(matched));

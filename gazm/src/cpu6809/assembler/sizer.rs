@@ -7,7 +7,7 @@ use crate::cpu6809::frontend::{
 
 use emu6809::isa::{AddrModeEnum, Instruction};
 
-use super::Compiler6809;
+use super::Assembler6809;
 
 use crate::{
     assembler::{Assembler, ByteSize, ByteSizes, Sizer},
@@ -16,9 +16,9 @@ use crate::{
     semantic::AstNodeId,
 };
 
-impl Compiler6809 {
+impl Assembler6809 {
     fn size_indexed(
-        sizer: &mut Sizer,
+        sizer: &mut Sizer<Self>,
         asm: &mut Assembler<Self>,
         id: AstNodeId,
         pmode: IndexParseType,
@@ -104,7 +104,7 @@ impl Compiler6809 {
     }
 
     pub fn size_node_internal(
-        sizer: &mut Sizer<Compiler6809>,
+        sizer: &mut Sizer<Assembler6809>,
         asm: &mut Assembler<Self>,
         id: AstNodeId,
         node_kind: MC6809,

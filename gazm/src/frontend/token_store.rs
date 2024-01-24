@@ -12,16 +12,17 @@ use std::{
 use thin_vec::ThinVec;
 
 #[derive(Default, Clone, Debug)]
-pub struct TokenStore<C> 
-where C: AssemblerCpuTrait
+pub struct TokenStore<ASM>
+where
+    ASM: AssemblerCpuTrait,
 {
-    pub tokens: HashMap<PathBuf, TokenizeResult<C>>,
+    pub tokens: HashMap<PathBuf, TokenizeResult<ASM>>,
 }
 
 /// Cache containing tokenized versions of source files
-impl<C> TokenStore<C> 
-where C: AssemblerCpuTrait
-
+impl<ASM> TokenStore<ASM>
+where
+    ASM: AssemblerCpuTrait,
 {
     pub fn new() -> Self {
         Self {
@@ -30,12 +31,12 @@ where C: AssemblerCpuTrait
     }
 
     /// Get any cached tokens for this file
-    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult<C>> {
+    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult<ASM>> {
         self.tokens.get(&file.as_ref().to_path_buf())
     }
 
     /// Add tokens for this file
-    pub fn add_tokens(&mut self, tokes: TokenizeResult<C>) {
+    pub fn add_tokens(&mut self, tokes: TokenizeResult<ASM>) {
         let file = tokes.request.get_file_name().clone();
         self.tokens.insert(file, tokes);
     }

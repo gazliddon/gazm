@@ -1,11 +1,10 @@
 #![deny(unused_imports)]
 use unraveler::{alt, match_span as ms, pair, sep_pair, succeeded};
 
-use crate::{
-    cpu6809::assembler::Compiler6809,
-    frontend::{
-        err_fatal, parse_sq_bracketed, GazmParser, Item, Node, PResult, TSpan, TokenKind::Comma,
-    },
+use crate::cpu6809::assembler::Assembler6809;
+
+use crate::frontend::{
+    err_fatal, parse_sq_bracketed, GazmParser, Item, Node, PResult, TSpan, TokenKind::Comma,
 };
 
 use super::{
@@ -15,7 +14,7 @@ use super::{
 
 use crate::help::ErrCode;
 
-impl GazmParser<Compiler6809> {
+impl GazmParser<Assembler6809> {
     /// Parses for simple offset indexed addressing
     /// ```    addr,<index reg>```
     fn parse_offset(input: TSpan) -> PResult<Node<MC6809>> {

@@ -1,12 +1,13 @@
 #![forbid(unused_imports)]
-use thin_vec::{thin_vec, ThinVec};
-use std::fmt::Debug;
 use super::NodeIter;
+use std::fmt::Debug;
+use thin_vec::{thin_vec, ThinVec};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Node
 pub trait CtxTrait: Clone + std::fmt::Debug {}
 
+/// I: Item
 #[derive(PartialEq, Clone)]
 pub struct BaseNode<I: Clone, C: CtxTrait = Dummy> {
     pub item: I,
@@ -14,14 +15,18 @@ pub struct BaseNode<I: Clone, C: CtxTrait = Dummy> {
     pub children: ThinVec<Self>,
 }
 
-impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
-    pub fn get_child(&self, n: usize) -> Option<&BaseNode<I, C>> {
+impl<ITEM, CTX> BaseNode<ITEM, CTX>
+where
+    ITEM: Clone,
+    CTX: CtxTrait,
+{
+    pub fn get_child(&self, n: usize) -> Option<&BaseNode<ITEM, CTX>> {
         self.children.get(n)
     }
 
-    pub fn new_with_children<X>(item: I, children: &[Self], ctx: X) -> Self
+    pub fn new_with_children<X>(item: ITEM, children: &[Self], ctx: X) -> Self
     where
-        X: Into<C>,
+        X: Into<CTX>,
     {
         Self {
             item,
@@ -30,9 +35,9 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
         }
     }
 
-    pub fn new<X>(item: I, ctx: X) -> Self
+    pub fn new<X>(item: ITEM, ctx: X) -> Self
     where
-        X: Into<C>,
+        X: Into<CTX>,
     {
         Self {
             item,
@@ -45,21 +50,30 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
         self.with_children(&other.children)
     }
 
-    pub fn with_children_vec<V>(self, children: V) -> Self 
+    pub fn with_children_vec<V>(self, children: V) -> Self
     where
-        V : Into<ThinVec<Self>>
+        V: Into<ThinVec<Self>>,
     {
-        Self { children : children.into() , ..self }
+        Self {
+            children: children.into(),
+            ..self
+        }
     }
 
     pub fn with_children(self, children: &[Self]) -> Self {
-        Self { children : children.into() , ..self }
+        Self {
+            children: children.into(),
+            ..self
+        }
     }
 
     pub fn with_child(self, child: Self) -> Self {
-        Self { children : thin_vec![child], ..self }
+        Self {
+            children: thin_vec![child],
+            ..self
+        }
     }
-    pub fn with_item(self, item: I) -> Self {
+    pub fn with_item(self, item: ITEM) -> Self {
         Self { item, ..self }
     }
 
@@ -70,10 +84,13 @@ impl<I: Clone, C: CtxTrait> BaseNode<I, C> {
     pub fn iter(&self) -> NodeIter<Self> {
         NodeIter::new(self)
     }
-
 }
 
-impl<I: Debug + Clone, C: CtxTrait> Debug for BaseNode<I, C> {
+impl<ITEM, CTX> Debug for BaseNode<ITEM, CTX>
+where
+    ITEM: Clone + Debug,
+    CTX: CtxTrait,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut db = f.debug_struct("Node");
         db.field("item", &self.item);

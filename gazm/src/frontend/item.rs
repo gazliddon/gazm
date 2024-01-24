@@ -358,38 +358,6 @@ pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {
 //     }
 // }
 
-// TODO: Remove6809
-use crate::cpu6809::frontend::MC6809;
 
-// pub fn handle_6809_fmt(node: &BaseNode<Item<MC6809>, Position>, k: MC6809) -> String {
-//     use crate::cpu6809::frontend::MC6809::*;
-//     match k {
-//         SetDp => {
-//             todo!()
-//             // let children: Vec<String> = node.children.iter().map(|n| format!("{n}")).collect();
-//             // children.join("\n")
-//         }
-//         OpCode(txt, _ins, addr_type) => {
-//             format!("{txt} {addr_type:?}")
-//         }
-//         _ => format!("{k:?} not implemented"),
-//     }
-// }
-
-impl From<Item<MC6809>> for grl_sources::ItemType {
-    fn from(value: Item<MC6809>) -> Self {
-        use grl_sources::ItemType::*;
-        match value {
-            Item::CpuSpecific(m) => match m {
-                MC6809::Operand(..) => Other,
-                MC6809::RegisterSet(..) => Other,
-                MC6809::OperandIndexed(..) | MC6809::OpCode(..) => OpCode,
-                MC6809::SetDp => Command,
-                _ => todo!(),
-            },
-            _ => Other,
-        }
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////

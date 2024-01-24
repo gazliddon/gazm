@@ -1,4 +1,5 @@
 #![deny(unused_imports)]
+
 use crate::assembler::AssemblerCpuTrait;
 
 use super::{
@@ -31,9 +32,8 @@ where
         Self::from_item_tspan(Item::Block, sp).with_children_vec(items)
     }
 
-    pub fn from_item_tspan(_item: Item<C::NodeKind>, _sp: TSpan) -> Node<C::NodeKind> {
-        todo!()
-        // Node::from_item_pos(item, to_pos(sp))
+    pub fn from_item_tspan(item: Item<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
+        Self::from_item_pos(item,to_pos(sp))
     }
 
     pub fn from_item_kids_tspan(item: Item<C::NodeKind>, kids: &[Node<C::NodeKind>], sp: TSpan) -> Node<C::NodeKind> {
@@ -53,14 +53,15 @@ where
         ret
     }
 
-    pub fn from_item_pos<P: Into<Position>>(_item: Item<C::NodeKind>, _p: P) -> Self {
-        todo!()
-        // Self::new(item, p.into())
+    pub fn from_item_pos<P: Into<Position>>(_item: Item<C::NodeKind>, _p: P) -> Node<C::NodeKind> {
+        let  n: Node<C::NodeKind> = Node::new(_item, _p.into());
+        n
     }
 
-    pub fn from_number_pos<P: Into<Position>>(_n: i64, _pos: P) -> Node<C::NodeKind> {
-        todo!()
-        // Self::new(Item::Num(n, ParsedFrom::Expression), pos.into())
+    pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Node<C::NodeKind> {
+        let i = Item::<C::NodeKind>::Num(n,ParsedFrom::Expression);
+        let n : Node<C::NodeKind> = Node::new(i, pos.into());
+        n
     }
 
     pub fn with_pos(self, n: Node<C::NodeKind>,sp: Position) -> Node<C::NodeKind> {

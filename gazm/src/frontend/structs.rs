@@ -14,18 +14,18 @@ use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded
 use CommandKind::Struct;
 use IdentifierKind::Label;
 
-impl<C> GazmParser<C>
+impl<ASM> GazmParser<ASM>
 where
-    C: AssemblerCpuTrait,
+    ASM: AssemblerCpuTrait,
 {
-    pub fn parse_array_def(input: TSpan) -> PResult<Node<C::NodeKind>> {
+    pub fn parse_array_def(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
         let (rest, (_, matched, _)) =
             tuple((OpenSquareBracket, Self::parse_expr, CloseSquareBracket))(input)?;
 
         Ok((rest, matched))
     }
 
-    pub fn parse_struct_entry(input: TSpan) -> PResult<Node<C::NodeKind>> {
+    pub fn parse_struct_entry(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
         let (rest, (name, _, (entry_span, entry_type), (array_def_sp, array))) = tuple((
             Identifier(IdentifierKind::Label),
             Colon,
@@ -33,7 +33,7 @@ where
             ms(opt(Self::parse_array_def)),
         ))(input)?;
 
-        let size =entry_type.to_size_item::<C>();
+        let size =entry_type.to_size_item::<ASM>();
 
         let kids = [
             array.unwrap_or(Self::from_num_tspan(1, array_def_sp)),
@@ -49,7 +49,7 @@ where
         Ok((rest, node))
     }
 
-    pub fn parse_struct(input: TSpan) -> PResult<Node<C::NodeKind>> {
+    pub fn parse_struct(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
         let (rest, (sp, (label, entries))) = ms(pair(
             preceded(Struct, Identifier(Label)),
             parse_block(succeeded(

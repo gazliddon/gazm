@@ -77,8 +77,6 @@ impl<'a,N:Clone> NodeIter<'a,N> {
     }
 }
 
-
-
 pub trait IterTree<'a> {
     type Node: Clone + HasKids;
 
@@ -143,8 +141,8 @@ pub trait IterTree<'a> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-impl<'a, I: Clone, C: CtxTrait> IterTree<'a> for NodeIter<'a, BaseNode<I, C>> {
-    type Node = BaseNode<I, C>;
+impl<'a, I: Clone, CTX: CtxTrait> IterTree<'a> for NodeIter<'a, BaseNode<I, CTX>> {
+    type Node = BaseNode<I, CTX>;
 
     fn handle_root(&mut self, root: &'a Self::Node) -> NodeInfo<'a, Self::Node> {
         NodeInfo::new(root, 0, 0)

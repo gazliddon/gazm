@@ -5,7 +5,7 @@ use gazm::{
     frontend, info_mess, messages,
     opts::{BuildType, Opts},
     status_mess,
-    cpu6809::assembler::Compiler6809,
+    cpu6809::assembler::Assembler6809,
 };
 
 fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
@@ -16,7 +16,7 @@ fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
         std::env::set_current_dir(assemble_dir).expect("Can't change dir")
     }
 
-    let mut asm = Assembler::<Compiler6809>::new(opts.clone());
+    let mut asm = Assembler::<Assembler6809>::new(opts.clone());
 
     match opts.build_type {
         BuildType::Test => {

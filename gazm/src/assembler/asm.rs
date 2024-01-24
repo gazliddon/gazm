@@ -6,8 +6,10 @@ use crate::{
         to_user_error, ErrorCollector, ErrorCollectorTrait, GResult, GazmErrorKind,
         NewErrorCollector, UserError,
     },
-    frontend::{tokenize_async, tokenize_no_async, TokenStore, TokenizeResult, Node},
-    frontend::{FrontEndError, FrontEndErrorKind, Item},
+    frontend::{
+        tokenize_async, tokenize_no_async, FrontEndError, FrontEndErrorKind, Item, Node,
+        TokenStore, TokenizeResult,
+    },
     gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
     messages::status,
@@ -23,6 +25,7 @@ use grl_sources::{
     AsmSource, BinToWrite, ItemType, Position, SourceDatabase, SourceErrorType, SourceFile,
     SourceFiles, SourceInfo, SourceMapping,
 };
+
 use itertools::Itertools;
 
 use super::{
@@ -234,8 +237,8 @@ where
 }
 
 impl<C> From<&Assembler<C>> for SourceDatabase
-where C: AssemblerCpuTrait
-
+where
+    C: AssemblerCpuTrait,
 {
     fn from(c: &Assembler<C>) -> Self {
         let bins: Vec<_> = c
@@ -255,8 +258,9 @@ where C: AssemblerCpuTrait
 }
 
 /// Default settings for Context
-impl<C> Default for Assembler<C> 
-where C: AssemblerCpuTrait
+impl<C> Default for Assembler<C>
+where
+    C: AssemblerCpuTrait,
 {
     fn default() -> Self {
         Self {
@@ -354,8 +358,9 @@ where
         Ok(ret)
     }
 }
-impl<C> Assembler<C> 
-where C: AssemblerCpuTrait
+impl<C> Assembler<C>
+where
+    C: AssemblerCpuTrait,
 {
     /// Create an Assembler
     pub fn new(opts: Opts) -> Self {
@@ -447,8 +452,8 @@ where C: AssemblerCpuTrait
 use crate::gazmsymbols::{SymbolError, SymbolScopeId};
 
 impl<C> Assembler<C>
-where C: AssemblerCpuTrait
-
+where
+    C: AssemblerCpuTrait,
 {
     pub fn set_symbol_value(
         &mut self,
@@ -461,9 +466,9 @@ where C: AssemblerCpuTrait
 }
 
 // File fuunction
-impl<C> Assembler <C>
-
-where C: AssemblerCpuTrait
+impl<C> Assembler<C>
+where
+    C: AssemblerCpuTrait,
 {
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
         let ret = self.get_source_file_loader().get_size(path)?;
@@ -488,8 +493,8 @@ where C: AssemblerCpuTrait
 }
 
 impl<C> Assembler<C>
-
-where C: AssemblerCpuTrait
+where
+    C: AssemblerCpuTrait,
 {
     pub fn get_binary(&self) -> &Binary {
         &self.asm_out.binary
@@ -526,8 +531,8 @@ where C: AssemblerCpuTrait
 
 // Fixup
 impl<C> Assembler<C>
-where C : AssemblerCpuTrait
-
+where
+    C: AssemblerCpuTrait,
 {
     pub fn get_fixup_or_default(
         &self,
@@ -561,4 +566,3 @@ where C : AssemblerCpuTrait
         UserError::from_text(err, &info, is_failure)
     }
 }
-
