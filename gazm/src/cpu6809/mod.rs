@@ -1,3 +1,4 @@
+#![deny(unused_imports)]
 mod regutils;
 pub mod assembler;
 pub mod frontend;

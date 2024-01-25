@@ -3,8 +3,8 @@
 use crate::assembler::AssemblerCpuTrait;
 
 use super::{
-    FrontEndError, FrontEndErrorKind, GazmParser, Item, Node, PResult,
-    ParsedFrom, TSpan, TokenKind::*,
+    FrontEndError, FrontEndErrorKind, GazmParser, Item, Node, PResult, ParsedFrom, TSpan,
+    TokenKind::*,
 };
 
 use grl_sources::{Position, SourceFile};
@@ -33,13 +33,21 @@ where
     }
 
     pub fn from_item_tspan(item: Item<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
-        Self::from_item_pos(item,to_pos(sp))
+        Self::from_item_pos(item, to_pos(sp))
     }
 
-    pub fn from_item_kids_tspan(item: Item<C::NodeKind>, kids: &[Node<C::NodeKind>], sp: TSpan) -> Node<C::NodeKind> {
+    pub fn from_item_kids_tspan(
+        item: Item<C::NodeKind>,
+        kids: &[Node<C::NodeKind>],
+        sp: TSpan,
+    ) -> Node<C::NodeKind> {
         Node::new_with_children(item, kids, to_pos(sp))
     }
-    pub fn from_item_kid_tspan(item: Item<C::NodeKind>, kid: Node<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
+    pub fn from_item_kid_tspan(
+        item: Item<C::NodeKind>,
+        kid: Node<C::NodeKind>,
+        sp: TSpan,
+    ) -> Node<C::NodeKind> {
         Node::new_with_children(item, &[kid], to_pos(sp))
     }
 
@@ -47,30 +55,29 @@ where
         Self::from_item_tspan(Item::from_number(num, ParsedFrom::Expression), sp)
     }
 
-    pub fn with_tspan( n: Node<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
+    pub fn with_tspan(n: Node<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
         let mut ret = n.clone();
         ret.ctx = to_pos(sp);
         ret
     }
 
     pub fn from_item_pos<P: Into<Position>>(_item: Item<C::NodeKind>, _p: P) -> Node<C::NodeKind> {
-        let  n: Node<C::NodeKind> = Node::new(_item, _p.into());
+        let n: Node<C::NodeKind> = Node::new(_item, _p.into());
         n
     }
 
     pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Node<C::NodeKind> {
-        let i = Item::<C::NodeKind>::Num(n,ParsedFrom::Expression);
-        let n : Node<C::NodeKind> = Node::new(i, pos.into());
+        let i = Item::<C::NodeKind>::Num(n, ParsedFrom::Expression);
+        let n: Node<C::NodeKind> = Node::new(i, pos.into());
         n
     }
 
-    pub fn with_pos(self, n: Node<C::NodeKind>,sp: Position) -> Node<C::NodeKind> {
+    pub fn with_pos(self, n: Node<C::NodeKind>, sp: Position) -> Node<C::NodeKind> {
         let mut ret = n;
         ret.ctx = sp;
         ret
     }
 }
-
 
 // impl<C> BaseNode<Item<C::NodeKind>, Position>
 // where
@@ -224,7 +231,6 @@ pub fn get_label_string(input: TSpan) -> PResult<String> {
 
 #[allow(unused_imports)]
 mod test {
-
     use super::*;
     use crate::frontend::*;
     use crate::opts::Opts;

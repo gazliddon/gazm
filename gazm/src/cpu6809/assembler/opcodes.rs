@@ -1,22 +1,22 @@
 use super::Assembler6809;
 
 use crate::{
-    assembler::{Assembler, AssemblerCpuTrait, BinaryError, Compiler, ScopeTracker, Sizer},
+    assembler::{Assembler, Compiler, BinaryError::*},
     error::GResult,
-    frontend::{Item, Node, GazmParser, PResult},
+    frontend::Item,
     semantic::AstNodeId,
 };
 
 use super::super::{
     frontend::{AddrModeParseType, IndexParseType, MC6809},
-    regutils::reg_pair_to_flags, regutils::registers_to_flags,
+    regutils::reg_pair_to_flags,
+    regutils::registers_to_flags,
 };
 
-use grl_sources::ItemType;
 use emu6809::isa;
+use grl_sources::ItemType;
 
 impl Assembler6809 {
-
     fn compile_indexed(
         compiler: &mut Compiler<Self>,
         asm: &mut Assembler<Self>,
@@ -103,7 +103,6 @@ impl Assembler6809 {
             }
 
             Relative => {
-                use BinaryError::*;
                 let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
                 let arg_n = compiler.get_node(arg_id);
                 let val = arg - (pc as i64 + ins.size as i64);
@@ -133,7 +132,6 @@ impl Assembler6809 {
             }
 
             Relative16 => {
-                use BinaryError::*;
 
                 let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
 

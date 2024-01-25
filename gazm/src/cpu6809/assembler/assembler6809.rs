@@ -1,48 +1,24 @@
+#[deny(unused_imports)]
 use crate::{
-    assembler::{Assembler, AssemblerCpuTrait, BinaryError, Compiler, ScopeTracker, Sizer},
+    assembler::{Assembler, AssemblerCpuTrait, Compiler, Sizer},
+    cpu6809::frontend::lex_identifier,
     error::GResult,
-    frontend::{Item, Node, GazmParser, PResult},
-    semantic::AstNodeId, cpu6809::frontend::lex_identifier,
+    frontend::{GazmParser, Node, PResult},
+    semantic::AstNodeId,
 };
 
-use grl_sources::ItemType;
+use crate::cpu6809::frontend::MC6809;
 
-use emu6809::isa;
-
-use crate::cpu6809::{
-    frontend::{AddrModeParseType, IndexParseType, MC6809},
-    regutils::reg_pair_to_flags, regutils::registers_to_flags,
-};
-
-
-#[derive(Debug, Clone,Copy, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Assembler6809 {
     dp: Option<u8>,
-}
-
-impl From<Item<MC6809>> for grl_sources::ItemType {
-    fn from(value: Item<MC6809>) -> Self {
-        use grl_sources::ItemType::*;
-        match value {
-            Item::CpuSpecific(m) => match m {
-                MC6809::Operand(..) => Other,
-                MC6809::RegisterSet(..) => Other,
-                MC6809::OperandIndexed(..) | MC6809::OpCode(..) => OpCode,
-                MC6809::SetDp => Command,
-                _ => todo!(),
-            },
-            _ => Other,
-        }
-    }
 }
 
 impl<'a> AssemblerCpuTrait for Assembler6809 {
     type NodeKind = MC6809;
 
     fn new() -> Self {
-        Self{
-            dp: None,
-        }
+        Self { dp: None }
     }
 
     fn lex_identifier(_id: &str) -> crate::frontend::TokenKind {
@@ -56,7 +32,6 @@ impl<'a> AssemblerCpuTrait for Assembler6809 {
     fn parse_commands(input: crate::frontend::TSpan) -> PResult<Node<Self::NodeKind>> {
         GazmParser::parse_commands(input)
     }
-
 
     fn compile_node(
         compiler: &mut Compiler<Self>,
@@ -79,6 +54,6 @@ impl<'a> AssemblerCpuTrait for Assembler6809 {
         id: AstNodeId,
         node_kind: Self::NodeKind,
     ) -> GResult<()> {
-        Self::size_node_internal(sizer,asm,id,node_kind)
+        Self::size_node_internal(sizer, asm, id, node_kind)
     }
 }
