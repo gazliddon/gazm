@@ -1,6 +1,6 @@
 
 use crate::error::GResult;
-use crate::frontend::{ TSpan, PResult };
+use crate::frontend::{ TSpan, PResult, TokenKind };
 use crate::semantic::AstNodeId;
 use super::Compiler;
 use super::Assembler;
@@ -26,9 +26,6 @@ pub trait AssemblerCpuTrait : Sized  + Send + 'static + std::fmt::Debug + Clone 
 
     fn parse_commands(_input: TSpan) -> PResult<Node<Self::NodeKind>> ;
 
-    fn lex_identifier() {
-        panic!()
-    }
-
+    fn lex_identifier(_id: &str) -> TokenKind;
 }
 

@@ -6,7 +6,7 @@ use crate::cpu6809::assembler::ISA_DBASE;
 
 use std::collections::HashMap;
 
-use super::{ basetoken::Token as BaseToken, ParseText };
+use super::{basetoken::Token as BaseToken,  ParseText};
 
 use logos::{Lexer, Logos};
 use strum::{EnumIter, IntoEnumIterator};
@@ -109,18 +109,19 @@ lazy_static::lazy_static! {
     static ref PRE_BIN : regex::Regex = regex::Regex::new(r"(0[bB]|%)(.*)").unwrap();
 }
 
-fn identifier(lex: &mut Lexer<TokenKind>) -> Option<IdentifierKind> {
+fn identifier(_lex: &mut Lexer<TokenKind>) -> Option<IdentifierKind> {
     use IdentifierKind::*;
-    let cpu_lex = Cpu6809Lexer::new();
-    let text = lex.slice().to_lowercase();
+    // let cpu_lex = Cpu6809Lexer::new();
+    // let text = lex.slice().to_lowercase();
 
-    if let Some(c) = COMS.get(&text) {
-        Some(Command(*c))
-    } else if let Some(x) = cpu_lex.identifier(&text) {
-        Some(x)
-    } else {
-        Some(IdentifierKind::Label)
-    }
+    // if let Some(c) = COMS.get(&text) {
+    //     Some(Command(*c))
+    // } else if let Some(x) = cpu_lex.identifier(&text) {
+    //     Some(x)
+    // } else {
+    //     Some(IdentifierKind::Label)
+    // }
+    Some(Label)
 }
 
 fn get_num(txt: &str, re: &regex::Regex, radix: usize) -> Option<i64> {
@@ -139,7 +140,10 @@ fn from_hex(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
 }
 
 fn from_char(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
-    lex.slice().as_bytes().get(1).map(|c| (*c as i64, NumberKind::Char))
+    lex.slice()
+        .as_bytes()
+        .get(1)
+        .map(|c| (*c as i64, NumberKind::Char))
 }
 
 fn from_dec(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
@@ -160,6 +164,10 @@ pub struct State {}
 #[logos(subpattern pre_bin = r"(0[bB]|%)")]
 pub enum TokenKind {
     Error,
+
+    OpCode,
+    Command,
+    Label,
 
     // #[regex(r"\[\[[^\]]*\]\]", priority=10)]
     #[regex(r"```[^`]*```", priority = 10)]
@@ -266,7 +274,28 @@ pub fn to_tokens_kinds(
     TokenKind::lexer(&source_file.get_text().source)
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
-            Ok(kind) => (kind, pos),
+            Ok(kind) => {
+                let kind = match kind {
+                    TokenKind::Identifier(IdentifierKind::Label) => {
+                        let text = &source_file.get_text().source[pos.clone()].to_lowercase();
+
+                        if let Some(c) = COMS.get(text) {
+                            TokenKind::Identifier(IdentifierKind::Command(*c))
+                        } else {
+                            let cpu_lex = Cpu6809Lexer::new();
+                            if let Some(_) = cpu_lex.identifier(&text) {
+                                TokenKind::Identifier(IdentifierKind::Opcode)
+                            } else {
+                                TokenKind::Identifier(IdentifierKind::Label)
+                            }
+                        }
+                    }
+
+                    _ => kind,
+                };
+
+                (kind, pos)
+            }
             Err(_) => (TokenKind::Error, pos),
         })
         .collect()

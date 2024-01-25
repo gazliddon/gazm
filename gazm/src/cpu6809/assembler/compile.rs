@@ -45,6 +45,10 @@ impl<'a> AssemblerCpuTrait for Assembler6809 {
         }
     }
 
+    fn lex_identifier(_id: &str) -> crate::frontend::TokenKind {
+        panic!()
+    }
+
     fn parse_multi_opcode_vec(input: crate::frontend::TSpan) -> PResult<Vec<Node<Self::NodeKind>>> {
         GazmParser::parse_multi_opcode_vec(input)
     }
