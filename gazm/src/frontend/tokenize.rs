@@ -116,7 +116,7 @@ impl TokenizeRequest {
         &mut self,
     ) -> (Node<ASM::NodeKind>, NewErrorCollector<FrontEndError>) {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
-        let tokens = to_tokens_no_comment(&self.source_file);
+        let tokens = to_tokens_no_comment::<ASM>(&self.source_file);
         let mut span = make_tspan(&tokens, &self.source_file, &self.opts);
 
         let mut final_nodes = vec![];

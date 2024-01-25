@@ -7,12 +7,12 @@ use unraveler::{
 use crate::assembler::AssemblerCpuTrait;
 
 use super::{
-    get_text, CommandKind, FrontEndError, GazmParser, IdentifierKind, Item, LabelDefinition, Node,
-    NumberKind, PResult, ParsedFrom, TSpan, Token,
-    TokenKind::{self, *},
+    get_text, CommandKind, FrontEndError, GazmParser, Item, LabelDefinition, Node,
+    NumberKind, PResult, ParsedFrom, TSpan, Token, TokenKind
 };
 
 fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
+    use TokenKind::Number;
     let (rest, (sp, matched)) = ms(match_item(|i: &Token| matches!(i.kind, Number(..))))(input)?;
     Ok((rest, (sp, matched.kind)))
 }
@@ -22,6 +22,7 @@ where
     C: AssemblerCpuTrait,
 {
     pub fn parse_number(input: TSpan) -> PResult<Node<C::NodeKind>> {
+    use TokenKind::Number;
         let (rest, (sp, kind)) = match_number(input)?;
 
         match kind {
@@ -44,8 +45,10 @@ where
     }
 
     fn parse_local_label(input: TSpan) -> PResult<Node<C::NodeKind>> {
-        use {IdentifierKind::*, Item::LocalLabel, LabelDefinition::Text};
-        let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), Identifier(Label)))(input)?;
+        
+        use TokenKind::{Pling,At};
+        use { Item::LocalLabel, LabelDefinition::Text};
+        let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), TokenKind::Label))(input)?;
 
         let label_def = Text(get_text(matched));
         let node = Self::from_item_tspan(LocalLabel(label_def), sp);
@@ -53,11 +56,12 @@ where
     }
 
     pub fn parse_non_scoped_label(input: TSpan) -> PResult<Node<C::NodeKind>> {
-        use {IdentifierKind::*, LabelDefinition::Text};
-        Self::get_label(input, Identifier(Label), Text)
+        use { LabelDefinition::Text, TokenKind::Label};
+        Self::get_label(input, Label, Text)
     }
 
     pub fn parse_scoped_label(input: TSpan) -> PResult<Node<C::NodeKind>> {
+    use TokenKind::FqnIdentifier;
         use LabelDefinition::TextScoped;
         Self::get_label(input, FqnIdentifier, TextScoped)
     }
@@ -78,6 +82,7 @@ where
         ))(input)
     }
     pub fn parse_big_import(input: TSpan) -> PResult<Node<C::NodeKind>> {
+        use TokenKind::{OpenBrace,CloseBrace, Comma};
         use CommandKind::Import;
         let (rest, (span, matched)) = ms(preceded(
             Import,
@@ -94,7 +99,7 @@ where
 
 impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
     fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), FrontEndError> {
-        TokenKind::Identifier(IdentifierKind::Command(*self)).parse(i)
+        TokenKind::Command(*self).parse(i)
     }
 }
 
@@ -147,8 +152,7 @@ where
     }
 
     pub fn parse_equate(input: TSpan) -> PResult<Node<C::NodeKind>> {
-        use super::CommandKind::Equ;
-        let command: TokenKind = Equ.into();
+        let command =  TokenKind::Command(CommandKind::Equ);
         let (rest, (sp, (assignment, expr))) = ms(sep_pair(
             alt((Self::parse_local_assignment, Self::parse_assignment)),
             tag(command),

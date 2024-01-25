@@ -5,14 +5,13 @@ use crate::assembler::AssemblerCpuTrait;
 use super::{
     get_text,
     item::{Item, Node, StructMemberType},
-    parse_block,  CommandKind, GazmParser, IdentifierKind, PResult, TSpan,
-    TokenKind::{CloseSquareBracket, Colon, Comma, Identifier, OpenSquareBracket},
+    parse_block,  CommandKind, GazmParser, PResult, TSpan,
+    TokenKind::{CloseSquareBracket, Colon, Comma, OpenSquareBracket, Label},
 };
 
 use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded, tag, tuple};
 
 use CommandKind::Struct;
-use IdentifierKind::Label;
 
 impl<ASM> GazmParser<ASM>
 where
@@ -27,7 +26,7 @@ where
 
     pub fn parse_struct_entry(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
         let (rest, (name, _, (entry_span, entry_type), (array_def_sp, array))) = tuple((
-            Identifier(IdentifierKind::Label),
+            Label,
             Colon,
             parse_struct_arg_type,
             ms(opt(Self::parse_array_def)),
@@ -51,7 +50,7 @@ where
 
     pub fn parse_struct(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
         let (rest, (sp, (label, entries))) = ms(pair(
-            preceded(Struct, Identifier(Label)),
+            preceded(Struct, Label),
             parse_block(succeeded(
                 sep_list0(Self::parse_struct_entry, Comma),
                 opt(Comma),
@@ -69,7 +68,7 @@ where
 fn parse_struct_arg_type(input: TSpan) -> PResult<(TSpan, StructMemberType)> {
     let as_arg_type =
         |i| -> StructMemberType { get_text(i).to_string().parse::<StructMemberType>().unwrap() };
-    ms(map(tag(Identifier(Label)), as_arg_type))(input)
+    ms(map(tag(Label), as_arg_type))(input)
 }
 
 // Always compile so I get IDE errors

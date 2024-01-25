@@ -1,14 +1,9 @@
 #![deny(unused_imports)]
 
-// TODO: Remove6809
-
-use crate::cpu6809::assembler::ISA_DBASE;
-
-use std::collections::HashMap;
-
-use super::{basetoken::Token as BaseToken,  ParseText};
-
+use super::{basetoken::Token as BaseToken, ParseText};
+use crate::assembler::AssemblerCpuTrait;
 use logos::{Lexer, Logos};
+use std::collections::HashMap;
 use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -48,25 +43,6 @@ pub enum CommandKind {
     Equ,
 }
 
-impl From<CommandKind> for TokenKind {
-    fn from(value: CommandKind) -> Self {
-        TokenKind::Identifier(IdentifierKind::Command(value))
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum IdentifierKind {
-    Command(CommandKind),
-    Opcode,
-    Label,
-}
-
-impl From<IdentifierKind> for TokenKind {
-    fn from(value: IdentifierKind) -> Self {
-        TokenKind::Identifier(value)
-    }
-}
-
 lazy_static::lazy_static! {
     pub static ref COMS : HashMap<String, CommandKind> = {
 
@@ -78,50 +54,12 @@ lazy_static::lazy_static! {
     };
 }
 
-trait CpuLexer {
-    fn identifier(&self, text: &str) -> Option<IdentifierKind>;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
-#[derive(Default)]
-struct Cpu6809Lexer {}
-
-impl Cpu6809Lexer {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
-impl CpuLexer for Cpu6809Lexer {
-    fn identifier(&self, text: &str) -> Option<IdentifierKind> {
-        use IdentifierKind::*;
-        if ISA_DBASE.get_opcode(text).is_some() {
-            Some(Opcode)
-        } else {
-            None
-        }
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 lazy_static::lazy_static! {
     static ref PRE_HEX : regex::Regex = regex::Regex::new(r"(0[xX]|\$)(.*)").unwrap();
     static ref PRE_BIN : regex::Regex = regex::Regex::new(r"(0[bB]|%)(.*)").unwrap();
-}
-
-fn identifier(_lex: &mut Lexer<TokenKind>) -> Option<IdentifierKind> {
-    use IdentifierKind::*;
-    // let cpu_lex = Cpu6809Lexer::new();
-    // let text = lex.slice().to_lowercase();
-
-    // if let Some(c) = COMS.get(&text) {
-    //     Some(Command(*c))
-    // } else if let Some(x) = cpu_lex.identifier(&text) {
-    //     Some(x)
-    // } else {
-    //     Some(IdentifierKind::Label)
-    // }
-    Some(Label)
 }
 
 fn get_num(txt: &str, re: &regex::Regex, radix: usize) -> Option<i64> {
@@ -166,15 +104,15 @@ pub enum TokenKind {
     Error,
 
     OpCode,
-    Command,
+    Command(CommandKind),
     Label,
 
     // #[regex(r"\[\[[^\]]*\]\]", priority=10)]
     #[regex(r"```[^`]*```", priority = 10)]
     BigDocText,
 
-    #[regex("(?&id)", identifier)]
-    Identifier(IdentifierKind),
+    #[regex("(?&id)")]
+    Identifier,
 
     #[regex(r"[0-9][0-9_]*", from_dec)]
     #[regex(r"(?&pre_hex)[0-9a-fA-F][0-9a-fA-F_]*", from_hex)]
@@ -268,26 +206,24 @@ impl TokenKind {
 
 pub type Token<'a> = BaseToken<ParseText<'a>>;
 
-pub fn to_tokens_kinds(
+pub fn to_tokens_kinds<ASM>(
     source_file: &grl_sources::SourceFile,
-) -> Vec<(TokenKind, std::ops::Range<usize>)> {
+) -> Vec<(TokenKind, std::ops::Range<usize>)>
+where
+    ASM: AssemblerCpuTrait,
+{
     TokenKind::lexer(&source_file.get_text().source)
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
             Ok(kind) => {
                 let kind = match kind {
-                    TokenKind::Identifier(IdentifierKind::Label) => {
+                    TokenKind::Identifier => {
                         let text = &source_file.get_text().source[pos.clone()].to_lowercase();
 
                         if let Some(c) = COMS.get(text) {
-                            TokenKind::Identifier(IdentifierKind::Command(*c))
+                            TokenKind::Command(*c)
                         } else {
-                            let cpu_lex = Cpu6809Lexer::new();
-                            if let Some(_) = cpu_lex.identifier(&text) {
-                                TokenKind::Identifier(IdentifierKind::Opcode)
-                            } else {
-                                TokenKind::Identifier(IdentifierKind::Label)
-                            }
+                            ASM::lex_identifier(&text)
                         }
                     }
 
@@ -301,18 +237,22 @@ pub fn to_tokens_kinds(
         .collect()
 }
 
-pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token> {
+pub fn to_tokens_no_comment<ASM>(source_file: &grl_sources::SourceFile) -> Vec<Token>
+where
+    ASM: AssemblerCpuTrait,
+{
     use TokenKind::*;
     let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment;
-    let tokens = to_tokens_filter(source_file, not_comment);
+    let tokens = to_tokens_filter::<ASM, _>(source_file, not_comment);
     tokens
 }
 
-pub fn to_tokens_filter<P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
+fn to_tokens_filter<ASM, P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
 where
+    ASM: AssemblerCpuTrait,
     P: Fn(&TokenKind) -> bool,
 {
-    let ret = to_tokens_kinds(source_file);
+    let ret = to_tokens_kinds::<ASM>(source_file);
 
     ret.into_iter()
         .filter(|(tk, _)| predicate(tk))

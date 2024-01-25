@@ -2,7 +2,7 @@ use crate::{
     assembler::{Assembler, AssemblerCpuTrait, BinaryError, Compiler, ScopeTracker, Sizer},
     error::GResult,
     frontend::{Item, Node, GazmParser, PResult},
-    semantic::AstNodeId,
+    semantic::AstNodeId, cpu6809::frontend::lex_identifier,
 };
 
 use grl_sources::ItemType;
@@ -46,7 +46,7 @@ impl<'a> AssemblerCpuTrait for Assembler6809 {
     }
 
     fn lex_identifier(_id: &str) -> crate::frontend::TokenKind {
-        panic!()
+        lex_identifier(_id)
     }
 
     fn parse_multi_opcode_vec(input: crate::frontend::TSpan) -> PResult<Vec<Node<Self::NodeKind>>> {

@@ -3,7 +3,7 @@
 use crate::assembler::AssemblerCpuTrait;
 
 use super::{
-    FrontEndError, FrontEndErrorKind, GazmParser, IdentifierKind, Item, Node, PResult,
+    FrontEndError, FrontEndErrorKind, GazmParser, Item, Node, PResult,
     ParsedFrom, TSpan, TokenKind::*,
 };
 
@@ -219,8 +219,7 @@ where
 
 /// Get's a string if this is label
 pub fn get_label_string(input: TSpan) -> PResult<String> {
-    use IdentifierKind::*;
-    map(tag(Identifier(Label)), |sp| get_text(sp))(input)
+    map(tag(Label), |sp| get_text(sp))(input)
 }
 
 #[allow(unused_imports)]

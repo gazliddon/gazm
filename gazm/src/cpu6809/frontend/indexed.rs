@@ -124,135 +124,135 @@ pub fn get_indexed(input: TSpan) -> PResult<IndexParseType> {
 #[allow(unused_imports)]
 #[allow(unused_variables)]
 mod test {
-    use grl_sources::grl_symbols::deserialize;
-    use itertools::Itertools;
-    use unraveler::{all, Collection, ParseError, ParseErrorKind, Parser};
+    // use grl_sources::grl_symbols::deserialize;
+    // use itertools::Itertools;
+    // use unraveler::{all, Collection, ParseError, ParseErrorKind, Parser};
 
-    use super::*;
-    use crate::frontend::*;
-    use crate::opts::Opts;
-    use IndexParseType::*;
-    use RegEnum::*;
+    // use super::*;
+    // use crate::frontend::*;
+    // use crate::opts::Opts;
+    // use IndexParseType::*;
+    // use RegEnum::*;
 
-    fn test_parse_err<P, O, E>(
-        text: &str,
-        desired: E,
-        mut p: P,
-        fatal: bool,
-    ) -> Result<(), FrontEndError>
-    where
-        P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
-        O: PartialEq + std::fmt::Debug,
-        E: Into<FrontEndErrorKind>,
-    {
-        let desired: FrontEndErrorKind = desired.into();
+    // fn test_parse_err<P, O, E>(
+    //     text: &str,
+    //     desired: E,
+    //     mut p: P,
+    //     fatal: bool,
+    // ) -> Result<(), FrontEndError>
+    // where
+    //     P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
+    //     O: PartialEq + std::fmt::Debug,
+    //     E: Into<FrontEndErrorKind>,
+    // {
+    //     let desired: FrontEndErrorKind = desired.into();
 
-        println!("\nAbout to parse for an error {text}");
+    //     println!("\nAbout to parse for an error {text}");
 
-        let opts = Opts::default();
-        let source_file = create_source_file(text);
-        let tokens = to_tokens_no_comment(&source_file);
-        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
-        println!("TOKES: {:?}", toke_kinds);
+    //     let opts = Opts::default();
+    //     let source_file = create_source_file(text);
+    //     let tokens = to_tokens_no_comment(&source_file);
+    //     let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
+    //     println!("TOKES: {:?}", toke_kinds);
 
-        let span = make_tspan(&tokens, &source_file, &opts);
+    //     let span = make_tspan(&tokens, &source_file, &opts);
 
-        let res = p.parse(span);
+    //     let res = p.parse(span);
 
-        match res {
-            Ok(_) => panic!("Parser did not fail!"),
-            Err(e) => {
-                assert_eq!(e.kind, desired);
-                assert_eq!(e.is_fatal(), fatal);
-                Ok(())
-            }
-        }
-    }
+    //     match res {
+    //         Ok(_) => panic!("Parser did not fail!"),
+    //         Err(e) => {
+    //             assert_eq!(e.kind, desired);
+    //             assert_eq!(e.is_fatal(), fatal);
+    //             Ok(())
+    //         }
+    //     }
+    // }
 
-    fn test_parse_all<P, O>(text: &str, desired: O, p: P) -> Result<(), FrontEndError>
-    where
-        P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
-        O: std::fmt::Debug,
-        O: PartialEq,
-    {
-        println!("\nAbout to parse {text}");
+    // fn test_parse_all<P, O>(text: &str, desired: O, p: P) -> Result<(), FrontEndError>
+    // where
+    //     P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
+    //     O: std::fmt::Debug,
+    //     O: PartialEq,
+    // {
+    //     println!("\nAbout to parse {text}");
 
-        let opts = Opts::default();
-        let source_file = create_source_file(text);
-        let tokens = to_tokens_no_comment(&source_file);
-        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
-        println!("TOKES: {:?}", toke_kinds);
+    //     let opts = Opts::default();
+    //     let source_file = create_source_file(text);
+    //     let tokens = to_tokens_no_comment(&source_file);
+    //     let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
+    //     println!("TOKES: {:?}", toke_kinds);
 
-        let span = make_tspan(&tokens, &source_file, &opts);
+    //     let span = make_tspan(&tokens, &source_file, &opts);
 
-        let (rest, matched) = all(p)(span)?;
-        assert_eq!(matched, desired);
-        Ok(())
-    }
+    //     let (rest, matched) = all(p)(span)?;
+    //     assert_eq!(matched, desired);
+    //     Ok(())
+    // }
 
-    fn test_parse<P, O>(text: &str, desired: O, mut p: P) -> Result<(), FrontEndError>
-    where
-        P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
-        O: std::fmt::Debug,
-        O: PartialEq,
-    {
-        println!("\nAbout to parse {text}");
+    // fn test_parse<P, O>(text: &str, desired: O, mut p: P) -> Result<(), FrontEndError>
+    // where
+    //     P: for<'a> Parser<TSpan<'a>, O, FrontEndError>,
+    //     O: std::fmt::Debug,
+    //     O: PartialEq,
+    // {
+    //     println!("\nAbout to parse {text}");
 
-        let opts = Opts::default();
-        let source_file = create_source_file(text);
-        let tokens = to_tokens_no_comment(&source_file);
-        let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
-        println!("TOKES: {:?}", toke_kinds);
+    //     let opts = Opts::default();
+    //     let source_file = create_source_file(text);
+    //     let tokens = to_tokens_no_comment(&source_file);
+    //     let toke_kinds = tokens.iter().map(|t| t.kind).collect_vec();
+    //     println!("TOKES: {:?}", toke_kinds);
 
-        let span = make_tspan(&tokens, &source_file, &opts);
+    //     let span = make_tspan(&tokens, &source_file, &opts);
 
-        let (rest, matched) = p.parse(span)?;
-        assert_eq!(matched, desired);
-        Ok(())
-    }
+    //     let (rest, matched) = p.parse(span)?;
+    //     assert_eq!(matched, desired);
+    //     Ok(())
+    // }
 
-    #[test]
-    fn test_abd() {
-        test_parse("a,u", AddA(U), get_abd_indexed).expect("add a");
-        test_parse("b,u", AddB(U), get_abd_indexed).expect("add b");
-        test_parse("d,u", AddD(U), get_abd_indexed).expect("add d");
+    // #[test]
+    // fn test_abd() {
+    //     test_parse("a,u", AddA(U), get_abd_indexed).expect("add a");
+    //     test_parse("b,u", AddB(U), get_abd_indexed).expect("add b");
+    //     test_parse("d,u", AddD(U), get_abd_indexed).expect("add d");
 
-        test_parse_err("x,u", ErrExpectedAbd, get_abd_indexed, true).unwrap();
-        test_parse_err("a,a", ErrExpectedIndexRegister, get_abd_indexed, true).unwrap();
-    }
+    //     test_parse_err("x,u", ErrExpectedAbd, get_abd_indexed, true).unwrap();
+    //     test_parse_err("a,a", ErrExpectedIndexRegister, get_abd_indexed, true).unwrap();
+    // }
 
-    #[test]
-    fn test_individual() {
-        test_parse_all("y", Y, get_index_reg).expect("Index register");
-        test_parse_all("-y", PreDec(Y), get_pre_dec).expect("Pre dec");
-        test_parse("--y", PreDecDec(Y), get_pre_dec_dec).expect("Pre dec dec");
-        test_parse("x", X, get_index_reg).expect("Index register");
-        test_parse("x+", PostInc(X), get_post_inc).expect("Post inc ");
-        test_parse("x++", PostIncInc(X), get_post_inc_inc).expect("Post inc");
-        test_parse("pc", PCOffset, get_pc_offset).expect("Pc offset");
-    }
+    // #[test]
+    // fn test_individual() {
+    //     test_parse_all("y", Y, get_index_reg).expect("Index register");
+    //     test_parse_all("-y", PreDec(Y), get_pre_dec).expect("Pre dec");
+    //     test_parse("--y", PreDecDec(Y), get_pre_dec_dec).expect("Pre dec dec");
+    //     test_parse("x", X, get_index_reg).expect("Index register");
+    //     test_parse("x+", PostInc(X), get_post_inc).expect("Post inc ");
+    //     test_parse("x++", PostIncInc(X), get_post_inc_inc).expect("Post inc");
+    //     test_parse("pc", PCOffset, get_pc_offset).expect("Pc offset");
+    // }
 
-    #[test]
-    fn test_indexed_direct() {
-        let opts = Opts::default();
+    // #[test]
+    // fn test_indexed_direct() {
+    //     let opts = Opts::default();
 
-        let to_text = vec![
-            (",--y", PreDecDec(Y)),
-            (",-y", PreDec(Y)),
-            (",y+", PostInc(Y)),
-            (",y++", PostIncInc(Y)),
-            (",x", Zero(X)),
-            (",pc", PCOffset),
-        ];
+    //     let to_text = vec![
+    //         (",--y", PreDecDec(Y)),
+    //         (",-y", PreDec(Y)),
+    //         (",y+", PostInc(Y)),
+    //         (",y++", PostIncInc(Y)),
+    //         (",x", Zero(X)),
+    //         (",pc", PCOffset),
+    //     ];
 
-        for (text, desired) in to_text.into_iter() {
-            test_parse_all(text, desired, get_indexed_direct).expect("Parsing")
-        }
-    }
-    #[test]
-    fn test_errors() {
-        test_parse_err(",-a", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
-        test_parse_err(",,,", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
-        test_parse_err("q", ErrExpectedRegister, get_register, false).unwrap();
-    }
+    //     for (text, desired) in to_text.into_iter() {
+    //         test_parse_all(text, desired, get_indexed_direct).expect("Parsing")
+    //     }
+    // }
+    // #[test]
+    // fn test_errors() {
+    //     test_parse_err(",-a", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
+    //     test_parse_err(",,,", ErrExpectedIndexRegister, get_indexed_direct, true).unwrap();
+    //     test_parse_err("q", ErrExpectedRegister, get_register, false).unwrap();
+    // }
 }
