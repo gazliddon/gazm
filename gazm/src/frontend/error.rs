@@ -165,8 +165,6 @@ impl<'a> ParseError<TSpan<'a>> for FrontEndError {
     }
 }
 
-
 // TODO: Remove6809
-// TODO Remove all of this, replace with help text
 use crate::cpu6809::frontend::Cpu6809AssemblyErrorKind;
 

@@ -13,14 +13,13 @@ mod structs;
 mod testit;
 mod token_store;
 mod tokenize;
-mod tokens;
+mod lexer;
 mod utils;
 mod basetoken;
-pub mod traits;
 
 // Public inside module
 pub use {
     commands::*, error::*, expr::*, gazmunraveller::*, item::*, macros::*, misc::*, node::*,
     nodeiter::*, parse::*, parsetext::*, structs::*,
-    testit::*, token_store::*, tokenize::*, tokens::*, utils::*,
+    testit::*, token_store::*, tokenize::*, lexer::*, utils::*,
 };
