@@ -6,6 +6,8 @@ use logos::{Lexer, Logos};
 use std::collections::HashMap;
 use strum::{EnumIter, IntoEnumIterator};
 
+pub type Token<'a> = BaseToken<ParseText<'a>>;
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum NumberKind {
     Hex,
@@ -198,43 +200,29 @@ pub enum TokenKind {
     At,
 }
 
-impl TokenKind {
-    pub fn is_comment(&self) -> bool {
-        self == &TokenKind::Comment
-    }
-}
 
-pub type Token<'a> = BaseToken<ParseText<'a>>;
-
-pub fn to_tokens_kinds<ASM>(
+pub fn map_token<ASM>(
+    kind: TokenKind,
+    pos: std::ops::Range<usize>,
     source_file: &grl_sources::SourceFile,
-) -> Vec<(TokenKind, std::ops::Range<usize>)>
+) -> (TokenKind, std::ops::Range<usize>)
 where
     ASM: AssemblerCpuTrait,
 {
-    TokenKind::lexer(&source_file.get_text().source)
-        .spanned()
-        .map(|(tok_res, pos)| match tok_res {
-            Ok(kind) => {
-                let kind = match kind {
-                    TokenKind::TempIdentifier => {
-                        let text = &source_file.get_text().source[pos.clone()].to_lowercase();
+    let kind = match kind {
+        TokenKind::TempIdentifier => {
+            let text = &source_file.get_text().source[pos.clone()].to_lowercase();
 
-                        if let Some(c) = COMS.get(text) {
-                            TokenKind::Command(*c)
-                        } else {
-                            ASM::lex_identifier(&text)
-                        }
-                    }
-
-                    _ => kind,
-                };
-
-                (kind, pos)
+            if let Some(c) = COMS.get(text) {
+                TokenKind::Command(*c)
+            } else {
+                ASM::lex_identifier(text.as_str())
             }
-            Err(_) => (TokenKind::Error, pos),
-        })
-        .collect()
+        }
+
+        _ => kind,
+    };
+    (kind, pos)
 }
 
 pub fn to_tokens_no_comment<ASM>(source_file: &grl_sources::SourceFile) -> Vec<Token>
@@ -245,6 +233,21 @@ where
     let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment;
     let tokens = to_tokens_filter::<ASM, _>(source_file, not_comment);
     tokens
+}
+
+fn to_tokens_kinds<ASM>(
+    source_file: &grl_sources::SourceFile,
+) -> Vec<(TokenKind, std::ops::Range<usize>)>
+where
+    ASM: AssemblerCpuTrait,
+{
+    TokenKind::lexer(&source_file.get_text().source)
+        .spanned()
+        .map(|(tok_res, pos)| match tok_res {
+            Ok(kind) => map_token::<ASM>(kind, pos, source_file),
+            Err(_) => (TokenKind::Error, pos),
+        })
+        .collect()
 }
 
 fn to_tokens_filter<ASM, P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
