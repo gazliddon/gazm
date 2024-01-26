@@ -1,14 +1,17 @@
 use gazm::{
-    assembler::Assembler,
+    assembler::{Assembler, AssemblerCpuTrait},
     cli::{parse_command_line, styling::get_banner},
     error::{ErrorCollectorTrait, GazmErrorKind},
     frontend, info_mess, messages,
     opts::{BuildType, Opts},
     status_mess,
-    cpu6809::assembler::Assembler6809,
+    cpu6809::Assembler6809,
+    // cpu6800::Assembler6800,
 };
 
-fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
+fn do_build<ASM>(opts: &Opts) -> Result<(), GazmErrorKind> 
+where ASM: AssemblerCpuTrait
+{
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
 
@@ -16,7 +19,7 @@ fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
         std::env::set_current_dir(assemble_dir).expect("Can't change dir")
     }
 
-    let mut asm = Assembler::<Assembler6809>::new(opts.clone());
+    let mut asm = Assembler::<ASM>::new(opts.clone());
 
     match opts.build_type {
         BuildType::Test => {
@@ -70,7 +73,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Todo move directory handling into assemble_from_opts
     // probably as a function of Opts
     let cur_dir = current_dir().unwrap();
-    let ret = do_build(&opts);
+
+
+    let ret = do_build::<Assembler6809>(&opts);
 
     match ret {
         Err(GazmErrorKind::UserErrors(user_errors)) => {

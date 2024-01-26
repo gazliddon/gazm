@@ -29,6 +29,7 @@ tryvial="0.2.0"
 logos="0.13.0"
 
 emu6809 = {path="../../crates/emu6809"}
+emu6800 = {path="../../crates/emu6800"}
 grl-sources = {path = "../../crates/grl-sources"}
 grl-eval = {path="../../crates/grl-eval"}
 unraveler = {path="../../crates/unraveler"}

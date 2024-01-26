@@ -10,6 +10,7 @@ pub mod messages;
 pub mod opts;
 pub mod error;
 pub mod cpu6809;
+pub mod cpu6800;
 
 mod astformat;
 mod docs;
