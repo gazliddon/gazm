@@ -1,4 +1,13 @@
     org 0
 
     nop
+    ldaa #10
+    staa 100
+
+    ldab <100
+    ldab >100
+
+    asl b
+    asl a
+    ldaa 10,x
 

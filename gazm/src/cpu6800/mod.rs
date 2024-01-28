@@ -10,6 +10,9 @@ use emu6800::cpu_core::RegEnum;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum AddrModeParseType {
+    AccA,
+    AccB,
+    Indexed,
     Direct,
     Extended,
     Relative,
