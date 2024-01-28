@@ -18,7 +18,7 @@ where
         let (rest, (sp, (label, args))) =
             ms(pair(get_label_string, parse_bracketed(Self::parse_expr_list0)))(input)?;
 
-        let node = Self::from_item_kids_tspan(MacroCall(label), &args, sp);
+        let node = from_item_kids_tspan::<C>(MacroCall(label), &args, sp);
         Ok((rest, node))
     }
 
@@ -34,7 +34,7 @@ where
 
         let body: Vec<Node<C::NodeKind>> = body.into_iter().flatten().collect();
 
-        let node = Self::from_item_kids_tspan(MacroDef(label, args.into()), &body, sp);
+        let node = from_item_kids_tspan::<C>(MacroDef(label, args.into()), &body, sp);
         Ok((rest, node))
     }
 }

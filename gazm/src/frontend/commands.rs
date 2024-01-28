@@ -2,7 +2,8 @@
 
 use super::{
     get_label_string, get_text, CommandKind, FeResult, FrontEndError, Item, Node, PResult, TSpan,
-    TokenKind, TokenKind::Comma,
+    TokenKind, TokenKind::Comma,parse_expr, from_item_tspan
+        ,from_item_kids_tspan
 };
 
 use crate::{assembler::AssemblerCpuTrait, debug_mess};
@@ -57,25 +58,26 @@ where
     where
         I: Into<Item<C::NodeKind>>,
     {
-        let (rest, (sp, matched)) = ms(preceded(command_kind, Self::parse_expr))(input)?;
-        let node = Self::from_item_kids_tspan(item.into(), &[matched], sp);
+        let (rest, (sp, matched)) = ms(preceded(command_kind, parse_expr::<C>))(input)?;
+        let node = from_item_kids_tspan::<C>(item.into(), &[matched], sp);
+
         Ok((rest, node))
     }
     pub(crate) fn parse_scope(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, name)) = ms(preceded(CommandKind::Scope, get_label_string))(input)?;
-        Ok((rest, Self::from_item_tspan(Item::Scope(name), sp)))
+        Ok((rest, from_item_tspan::<C>(Item::Scope(name), sp)))
     }
     pub(crate) fn parse_require(input: TSpan) -> PResult<Node<C::NodeKind>>
     where
         C: AssemblerCpuTrait,
     {
         command_with_file(input, CommandKind::Require)
-            .map(|(rest, (sp, file))| (rest, Self::from_item_tspan(Item::Require(file), sp)))
+            .map(|(rest, (sp, file))| (rest, from_item_tspan::<C>(Item::Require(file), sp)))
     }
     pub(crate) fn parse_include(input: TSpan) -> PResult<Node<C::NodeKind>> {
         command_with_file(input, CommandKind::Include).and_then(|(rest, (sp, file))| {
             let path = expand_path(sp, file)?;
-            Ok((rest, Self::from_item_tspan(Item::Include(path), sp)))
+            Ok((rest, from_item_tspan::<C>(Item::Include(path), sp)))
         })
     }
 
@@ -84,7 +86,7 @@ where
         use CommandKind::*;
         let (rest, (sp, (value, count))) = ms(preceded(
             Fill,
-            sep_pair(Self::parse_expr, Comma, Self::parse_expr),
+            sep_pair(parse_expr::<C>, Comma, parse_expr::<C>),
         ))(input)?;
         Ok((rest, Self::mk_fill(sp, (value, count))))
     }
@@ -94,7 +96,7 @@ where
         use CommandKind::*;
         let (rest, (sp, (a1, a2))) = ms(preceded(
             alt((Bsz, Zmb, Rzb)),
-            pair(Self::parse_expr, opt(preceded(Comma, Self::parse_expr))),
+            pair(parse_expr::<C>, opt(preceded(Comma, parse_expr::<C>))),
         ))(input)?;
 
         let cv = (a1, a2.unwrap_or(Self::from_num_tspan(0, sp)));
@@ -102,15 +104,15 @@ where
     }
 
     fn mk_fill(input: TSpan, cv: (Node<C::NodeKind>, Node<C::NodeKind>)) -> Node<C::NodeKind> {
-        Self::from_item_kids_tspan(Item::Fill, &[cv.0, cv.1], input)
+        from_item_kids_tspan::<C>(Item::Fill, &[cv.0, cv.1], input)
     }
 
     pub(crate) fn parse_grabmem(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, (src, size))) = ms(preceded(
             CommandKind::GrabMem,
-            sep_pair(Self::parse_expr, Comma, Self::parse_expr),
+            sep_pair(parse_expr::<C>, Comma, parse_expr::<C>),
         ))(input)?;
-        let node = Self::from_item_kids_tspan(Item::GrabMem, &[src, size], sp);
+        let node = from_item_kids_tspan::<C>(Item::GrabMem, &[src, size], sp);
         Ok((rest, node))
     }
 
@@ -122,59 +124,59 @@ where
             tuple((
                 get_file_name,
                 Comma,
-                Self::parse_expr,
+                parse_expr::<C>,
                 Comma,
-                Self::parse_expr,
+                parse_expr::<C>,
             )),
         ))(input)?;
 
-        let node = Self::from_item_kids_tspan(Item::WriteBin(file_name), &[source_addr, size], sp);
+        let node = from_item_kids_tspan::<C>(Item::WriteBin(file_name), &[source_addr, size], sp);
         Ok((rest, node))
     }
 
     /// Parses for file with optional list of com sep expr
     fn incbin_args(_input: TSpan) -> PResult<(PathBuf, Vec<Node<C::NodeKind>>)> {
         let (rest, (file, extra_args)) =
-            tuple((get_file_name, many0(preceded(Comma, Self::parse_expr))))(_input)?;
+            tuple((get_file_name, many0(preceded(Comma, parse_expr::<C>))))(_input)?;
         Ok((rest, (file, extra_args)))
     }
 
     pub(crate) fn parse_incbin(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, (file, extra_args))) =
             ms(preceded(CommandKind::IncBin, Self::incbin_args))(input)?;
-        let node = Self::from_item_kids_tspan(Item::IncBin(file), &extra_args, sp);
+        let node = from_item_kids_tspan::<C>(Item::IncBin(file), &extra_args, sp);
         Ok((rest, node))
     }
     pub(crate) fn parse_incbin_ref(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, (file, extra_args))) =
             ms(preceded(CommandKind::IncBinRef, Self::incbin_args))(input)?;
-        let node = Self::from_item_kids_tspan(Item::IncBinRef(file), &extra_args, sp);
+        let node = from_item_kids_tspan::<C>(Item::IncBinRef(file), &extra_args, sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_fcb(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, matched)) =
             ms(preceded(CommandKind::Fcb, cut(Self::parse_expr_list)))(input)?;
-        let node = Self::from_item_kids_tspan(Item::Fcb(matched.len()), &matched, sp);
+        let node = from_item_kids_tspan::<C>(Item::Fcb(matched.len()), &matched, sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_fdb(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, matched)) = ms(preceded(CommandKind::Fdb, Self::parse_expr_list))(input)?;
-        let node = Self::from_item_kids_tspan(Item::Fdb(matched.len()), &matched, sp);
+        let node = from_item_kids_tspan::<C>(Item::Fdb(matched.len()), &matched, sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_fcc(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, matched)) = ms(preceded(CommandKind::Fcc, get_quoted_string))(input)?;
-        let node = Self::from_item_tspan(Item::Fcc(matched), sp);
+        let node = from_item_tspan::<C>(Item::Fcc(matched), sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_import(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, matched)) =
             ms(preceded(CommandKind::Import, Self::parse_scoped_label))(input)?;
-        let node = Self::from_item_kids_tspan(Item::Import, &[matched], sp);
+        let node = from_item_kids_tspan::<C>(Item::Import, &[matched], sp);
         Ok((rest, node))
     }
 
@@ -250,7 +252,7 @@ mod test {
     use crate::{
         assembler::AssemblerCpuTrait,
         cli::parse_command_line,
-        cpu6809::{frontend::MC6809, Assembler6809},
+        cpu6809::{frontend::NodeKind6809, Asm6809},
         frontend::{
             Item::{self, *},
             ParsedFrom::*,
@@ -259,7 +261,7 @@ mod test {
         opts::Opts,
     };
 
-    pub type GParser = GazmParser<Assembler6809>;
+    pub type GParser = GazmParser<Asm6809>;
 
     use grl_sources::SourceFile;
     use pretty_assertions::{assert_eq, assert_ne};
@@ -345,7 +347,7 @@ mod test {
     #[test]
     fn test_parse_setdp() {
         let text = "setdp $ff00";
-        let desired = Item::CpuSpecific(MC6809::SetDp);
+        let desired = Item::CpuSpecific(NodeKind6809::SetDp);
         let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(GParser::parse_setdp, text, desired, &desired_args);
     }

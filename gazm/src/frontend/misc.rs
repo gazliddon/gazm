@@ -8,7 +8,10 @@ use crate::assembler::AssemblerCpuTrait;
 
 use super::{
     get_text, CommandKind, FrontEndError, GazmParser, Item, LabelDefinition, Node,
-    NumberKind, PResult, ParsedFrom, TSpan, Token, TokenKind
+    NumberKind, PResult, ParsedFrom, TSpan, Token, TokenKind,
+        from_item_tspan, parse_expr,
+        from_item_kids_tspan,
+        from_item_kid_tspan,
 };
 
 fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
@@ -27,7 +30,7 @@ where
 
         match kind {
             Number((n, nk)) => {
-                let node = Self::from_item_tspan(Item::Num(n, nk.into()), sp);
+                let node = from_item_tspan::<C>(Item::Num(n, nk.into()), sp);
                 Ok((rest, node))
             }
             _ => panic!(),
@@ -40,7 +43,7 @@ where
         to_label_def: F,
     ) -> PResult<Node<C::NodeKind>> {
         let (rest, sp) = tag_kind.parse(input)?;
-        let node = Self::from_item_tspan(Item::Label(to_label_def(get_text(sp))), sp);
+        let node = from_item_tspan::<C>(Item::Label(to_label_def(get_text(sp))), sp);
         Ok((rest, node))
     }
 
@@ -51,7 +54,7 @@ where
         let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), TokenKind::Label))(input)?;
 
         let label_def = Text(get_text(matched));
-        let node = Self::from_item_tspan(LocalLabel(label_def), sp);
+        let node = from_item_tspan::<C>(LocalLabel(label_def), sp);
         Ok((rest, node))
     }
 
@@ -92,7 +95,7 @@ where
                 CloseBrace,
             ),
         ))(input)?;
-        let node = Self::from_item_kids_tspan(Item::Import, &matched, span);
+        let node = from_item_kids_tspan::<C>(Item::Import, &matched, span);
         Ok((rest, node))
     }
 }
@@ -156,10 +159,10 @@ where
         let (rest, (sp, (assignment, expr))) = ms(sep_pair(
             alt((Self::parse_local_assignment, Self::parse_assignment)),
             tag(command),
-            cut(Self::parse_expr),
+            cut(parse_expr::<C>),
         ))(input)?;
 
-        let node = Self::from_item_kid_tspan(assignment, expr, sp);
+        let node = from_item_kid_tspan::<C>(assignment, expr, sp);
         Ok((rest, node))
     }
 }

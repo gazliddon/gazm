@@ -1,0 +1,66 @@
+{
+  "id_to_source_file": {
+    "0": "/Users/garyliddon/development/gazm/gazm/assets/test_src/6800/main.src"
+  },
+  "mappings": {
+    "addr_to_mapping": [
+      {
+        "file_id": 0,
+        "line": 0,
+        "mem_range": {
+          "start": 0,
+          "end": 0
+        },
+        "physical_mem_range": {
+          "start": 0,
+          "end": 0
+        },
+        "item_type": "OpCode"
+      },
+      {
+        "file_id": 0,
+        "line": 0,
+        "mem_range": {
+          "start": 0,
+          "end": 0
+        },
+        "physical_mem_range": {
+          "start": 0,
+          "end": 0
+        },
+        "item_type": "OpCode"
+      }
+    ],
+    "phys_addr_to_mapping": [
+      {
+        "file_id": 0,
+        "line": 0,
+        "mem_range": {
+          "start": 0,
+          "end": 0
+        },
+        "physical_mem_range": {
+          "start": 0,
+          "end": 0
+        },
+        "item_type": "OpCode"
+      },
+      {
+        "file_id": 0,
+        "line": 0,
+        "mem_range": {
+          "start": 0,
+          "end": 0
+        },
+        "physical_mem_range": {
+          "start": 0,
+          "end": 0
+        },
+        "item_type": "OpCode"
+      }
+    ]
+  },
+  "bin_written": [],
+  "exec_addr": null,
+  "file_name": "/Users/garyliddon/development/gazm/gazm/assets/test_src/6800/vsndrm2.map"
+}

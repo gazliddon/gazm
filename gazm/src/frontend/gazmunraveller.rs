@@ -1,17 +1,17 @@
 #![deny(unused_imports)]
+use super::{to_pos, Token, TokenKind};
+use crate::opts::Opts;
 use grl_sources::{Position, SourceFile};
 use unraveler::Collection;
-use crate::opts::Opts;
-use super::{to_pos, Token, TokenKind};
 
-#[derive(Default,Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq)]
 pub struct ParseState {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct OriginalSource<'a> {
     pub source_file: &'a SourceFile,
-    pub is_parsing_macro_def : bool,
-    pub opts : &'a Opts,
+    pub is_parsing_macro_def: bool,
+    pub opts: &'a Opts,
 }
 
 impl<'a> OriginalSource<'a> {
@@ -26,7 +26,7 @@ impl<'a> OriginalSource<'a> {
         y
     }
 
-    pub fn set_macro(&mut self, v : bool) {
+    pub fn set_macro(&mut self, v: bool) {
         self.is_parsing_macro_def = v
     }
 }
@@ -57,8 +57,19 @@ pub fn get_start_end_token(input: TSpan) -> (Token, Token) {
     }
 }
 
-pub fn make_tspan<'a>(tokens: &'a [Token], sf: &'a grl_sources::SourceFile, opts: &'a Opts) -> TSpan<'a> {
-    let span = TSpan::from_slice(tokens, OriginalSource { source_file: sf, is_parsing_macro_def : false, opts });
+pub fn make_tspan<'a>(
+    tokens: &'a [Token],
+    sf: &'a grl_sources::SourceFile,
+    opts: &'a Opts,
+) -> TSpan<'a> {
+    let span = TSpan::from_slice(
+        tokens,
+        OriginalSource {
+            source_file: sf,
+            is_parsing_macro_def: false,
+            opts,
+        },
+    );
     span
 }
 

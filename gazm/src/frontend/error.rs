@@ -7,8 +7,6 @@ use unraveler::{ParseError, ParseErrorKind, Severity};
 
 pub type PResult<'a, T> = Result<(TSpan<'a>, T), FrontEndError>;
 
-
-
 impl From<ErrCode> for FrontEndErrorKind {
     fn from(value: ErrCode) -> Self {
         FrontEndErrorKind::HelpText(value)
@@ -21,6 +19,8 @@ pub enum FrontEndErrorKind {
     HelpText(ErrCode),
     #[error(transparent)]
     AsmErrorKind(#[from] Cpu6809AssemblyErrorKind),
+    #[error(transparent)]
+    AsmErrorKind6800(#[from] crate::cpu6800::frontend::AssemblyErrorKind6800),
     #[error(transparent)]
     SourceError(#[from] SourceErrorType),
     #[error(transparent)]
@@ -68,6 +68,10 @@ impl<T> From<FrontEndError> for Result<T, FrontEndError> {
     fn from(value: FrontEndError) -> Self {
         Err(value)
     }
+}
+
+pub fn err_nomatch<T>(sp: TSpan) -> PResult<T> {
+    Err( FrontEndError::error(sp, ParseErrorKind::NoMatch) )
 }
 
 pub fn err_error<T, E: Into<FrontEndErrorKind>>(sp: TSpan, kind: E) -> PResult<T> {

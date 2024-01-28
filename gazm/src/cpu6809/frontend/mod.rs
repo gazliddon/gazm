@@ -12,6 +12,8 @@ pub use parse_opcode::*;
 pub use register::*;
 pub use commands::*;
 pub use lexer::*;
+use parseindexed::*;
 
 pub use error::*;
+
 

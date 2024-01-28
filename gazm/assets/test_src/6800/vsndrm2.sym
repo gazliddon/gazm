@@ -1,0 +1,50 @@
+{
+  "root_scope_id": 0,
+  "next_scope_id": 2,
+  "scopes": [
+    {
+      "parent_id": null,
+      "scope": "",
+      "fqn_scope": "",
+      "name_to_id": {
+        "*": 1
+      },
+      "ref_name_to_symbol_id": {},
+      "highest_id": 2,
+      "scope_id": 0,
+      "symbol_resolution_barrier": "Global"
+    },
+    {
+      "parent_id": 0,
+      "scope": "gazm",
+      "fqn_scope": "::gazm",
+      "name_to_id": {
+        "mem_size": 1
+      },
+      "ref_name_to_symbol_id": {},
+      "highest_id": 2,
+      "scope_id": 1,
+      "symbol_resolution_barrier": "Global"
+    }
+  ],
+  "symbols": [
+    {
+      "name": "mem_size",
+      "scoped_name": "::gazm::mem_size",
+      "value": 65536,
+      "symbol_id": {
+        "scope_id": 1,
+        "symbol_id": 1
+      }
+    },
+    {
+      "name": "*",
+      "scoped_name": "::*",
+      "value": 0,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 1
+      }
+    }
+  ]
+}

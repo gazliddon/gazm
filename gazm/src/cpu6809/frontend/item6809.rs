@@ -1,6 +1,6 @@
 #![forbid(unused_imports)]
 use std::collections::HashSet;
-use crate::frontend::Item;
+use crate::cpu6809::Item;
 
 use emu6809::{
     cpu::{IndexedFlags, RegEnum},
@@ -198,9 +198,9 @@ pub enum AddrModeParseType {
     RegisterPair(RegEnum, RegEnum),
 }
 
-impl From<AddrModeParseType> for Item<MC6809> {
+impl From<AddrModeParseType> for Item {
     fn from(value: AddrModeParseType) -> Self {
-        Item::CpuSpecific(MC6809::Operand(value))
+        Item::CpuSpecific(NodeKind6809::Operand(value))
     }
 }
 
@@ -221,14 +221,15 @@ impl AddrModeParseType {
     }
 }
 
-impl From<MC6809> for Item<MC6809> {
-    fn from(value: MC6809) -> Self {
+impl From<NodeKind6809> for Item {
+    fn from(value: NodeKind6809) -> Self {
         Item::CpuSpecific(value)
     }
 }
+
 // TODO: Ultimately this contains all of the CPU dependent AST node items
 #[derive(Debug, PartialEq, Clone, Default)]
-pub enum MC6809 {
+pub enum NodeKind6809 {
     #[default]
     Illegal,
     SetDp,
@@ -238,8 +239,8 @@ pub enum MC6809 {
     RegisterSet(HashSet<RegEnum>),
 }
 
-impl MC6809 {
-    pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> Item<MC6809> {
-        MC6809::OperandIndexed(imode, indirect).into()
+impl NodeKind6809 {
+    pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> Item {
+        NodeKind6809::OperandIndexed(imode, indirect).into()
     }
 }

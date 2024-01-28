@@ -41,6 +41,8 @@ pub enum GazmErrorKind {
     EditError(#[from] EditErrorKind),
     #[error(transparent)]
     FileError(#[from] FileError),
+    #[error("Not implemented {0}")]
+    NotImplemented(String)
 }
 
 impl From<String> for GazmErrorKind {

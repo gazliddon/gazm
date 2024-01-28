@@ -47,7 +47,7 @@ pub struct Opts {
     pub max_errors: usize,
     pub no_async: bool,
     pub bin_references: Vec<BinReference>,
-    pub cpu: Option<crate::cli::CpuKind>,
+    pub cpu: crate::cli::CpuKind,
 
     pub verbose_errors: bool,
 
@@ -89,26 +89,28 @@ impl Opts {
 impl Default for Opts {
     fn default() -> Self {
         Self {
-            cpu: None,
+            cpu: Default::default(),
             assemble_dir: Default::default(),
-            verbose: Verbosity::Silent,
             source_mapping: Default::default(),
             ignore_relative_offset_errors: false,
             as6809_sym: Default::default(),
             deps_file: Default::default(),
-            mem_size: 64 * 1024,
             project_file: Default::default(),
             ast_file: Default::default(),
-            max_errors: 10,
             vars: Default::default(),
             checksums: Default::default(),
             bin_references: Default::default(),
-            build_type: BuildType::Build,
             lsp_config: Default::default(),
-            do_includes: true,
             no_async: false,
             syms_file: Default::default(),
             verbose_errors: false,
+
+            do_includes: true,
+            build_type: BuildType::Build,
+            verbose: Verbosity::Silent,
+            mem_size: 64 * 1024,
+            max_errors: 10,
+
         }
     }
 }

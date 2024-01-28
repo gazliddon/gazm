@@ -3,4 +3,6 @@ mod regutils;
 pub mod assembler;
 pub mod frontend;
 
-pub use assembler::Assembler6809;
+mod assembler6809;
+
+pub use assembler6809::*;

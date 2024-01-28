@@ -1,15 +1,14 @@
 #![allow(unused_imports)]
 
-use serde::de::Expected;
 use serde_yaml::Index;
 use tower_lsp::lsp_types::RegularExpressionsClientCapabilities;
+
 use unraveler::{
     alt, and_then, cut, map, match_span as ms, pair, preceded, sep_pair, succeeded, tag,
     ParseError, Severity,
 };
 
-use crate::help::ErrCode;
-use crate::help::ErrCode::*;
+use crate::help::ErrCode::{*,self};
 use emu6809::cpu::RegEnum;
 
 use crate::frontend::{
@@ -17,7 +16,7 @@ use crate::frontend::{
     *,
 };
 
-use super::{IndexParseType, MC6809::OperandIndexed, *};
+use super::{IndexParseType, NodeKind6809::OperandIndexed, *};
 
 fn get_pre_dec(input: TSpan) -> PResult<IndexParseType> {
     map(preceded(Minus, cut(get_index_reg)), |r| {

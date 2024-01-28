@@ -4,9 +4,13 @@ use crate::assembler::AssemblerCpuTrait;
 
 use super::{
     get_text,
+    parse_expr,
     item::{Item, Node, StructMemberType},
     parse_block,  CommandKind, GazmParser, PResult, TSpan,
     TokenKind::{CloseSquareBracket, Colon, Comma, OpenSquareBracket, Label},
+    from_item_tspan,
+    from_item_kids_tspan,
+    from_item_kid_tspan,
 };
 
 use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded, tag, tuple};
@@ -19,7 +23,7 @@ where
 {
     pub fn parse_array_def(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
         let (rest, (_, matched, _)) =
-            tuple((OpenSquareBracket, Self::parse_expr, CloseSquareBracket))(input)?;
+            tuple((OpenSquareBracket, parse_expr::<ASM>, CloseSquareBracket))(input)?;
 
         Ok((rest, matched))
     }
@@ -36,14 +40,14 @@ where
 
         let kids = [
             array.unwrap_or(Self::from_num_tspan(1, array_def_sp)),
-            Self::from_item_tspan(Item::Mul, array_def_sp),
-            Self::from_item_tspan(size, entry_span),
+            from_item_tspan::<ASM>(Item::Mul, array_def_sp),
+            from_item_tspan::<ASM>(size, entry_span),
         ];
 
         let name = get_text(name).to_owned();
 
-        let expr = Self::from_item_kids_tspan(Item::Expr, &kids, entry_span);
-        let node = Self::from_item_kid_tspan(Item::StructEntry(name), expr, input);
+        let expr = from_item_kids_tspan::<ASM>(Item::Expr, &kids, entry_span);
+        let node = from_item_kid_tspan::<ASM>(Item::StructEntry(name), expr, input);
 
         Ok((rest, node))
     }
@@ -59,7 +63,7 @@ where
 
         let text = get_text(label);
 
-        let node = Self::from_item_kids_tspan(Item::StructDef(text), &entries, sp);
+        let node = from_item_kids_tspan::<ASM>(Item::StructDef(text), &entries, sp);
 
         Ok((rest, node))
     }

@@ -1,12 +1,11 @@
 #![deny(unused_imports)]
 
-use super::{FrontEndError, FrontEndErrorKind, Item, Node};
+use super::{from_item_kids_tspan, FrontEndError, FrontEndErrorKind, GazmParser, Item, Node};
 
 use crate::{
     assembler::{Assembler, AssemblerCpuTrait},
     debug_mess,
     error::{ErrorCollectorTrait, NewErrorCollector},
-    frontend::GazmParser,
     opts::Opts,
 };
 
@@ -15,9 +14,9 @@ use grl_sources::{
     Position, SourceFile,
 };
 
+use itertools::Itertools;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
-use itertools::Itertools;
 
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
@@ -135,7 +134,7 @@ impl TokenizeRequest {
         }
 
         let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
-        let node = GazmParser::<ASM>::from_item_kids_tspan(item, &final_nodes, span);
+        let node = from_item_kids_tspan::<ASM>(item, &final_nodes, span);
         (node, errors)
     }
 }

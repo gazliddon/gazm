@@ -54,13 +54,16 @@ pub fn get_styles() -> clap::builder::Styles {
 }
 ////////////////////////////////////////////////////////////////////////////////
 pub fn get_banner() -> String {
+use termimad::crossterm::style::Stylize;
     let banner =  r"
   __ _  __ _ _____ __ ___
  / _` |/ _` |_  / '_ ` _ \
 | (_| | (_| |/ /| | | | | |
  \__, |\__,_/___|_| |_| |_|
- |___/ Assembler (currently only 6809)";
+ |___/ Assembler";
 
-    rainbow_lines(banner)
+    rainbow_lines(banner);
+    Stylize::green(banner).to_string()
+
 }
 

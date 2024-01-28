@@ -1,7 +1,19 @@
 mod assembler6800;
-mod frontend;
-mod assembler;
+pub mod frontend;
+pub mod assembler;
 
 pub use assembler6800::*;
 
 use emu6800::cpu_core::DBASE;
+
+use emu6800::cpu_core::RegEnum;
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum AddrModeParseType {
+    Direct,
+    Extended,
+    Relative,
+    Inherent,
+    Immediate,
+}
+

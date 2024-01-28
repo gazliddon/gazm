@@ -1,7 +1,8 @@
 use serde::Deserialize;
 
-#[derive(Debug, PartialEq, Clone, Copy, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Default)]
 pub enum CpuKind {
+    #[default]
     Cpu6809,
     Cpu6800,
     Cpu6502,

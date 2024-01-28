@@ -1,16 +1,12 @@
 #![deny(unused_imports)]
-use crate::{
-    cpu6809::assembler::Assembler6809,
-    frontend::{
-        err_fatal, get_text, GazmParser, Item, Node, PResult, TSpan, TokenKind,
-    },
-};
+use crate::frontend::{err_fatal, get_text, PResult, TSpan, TokenKind};
+use crate::cpu6809::{from_item_tspan, Item, Node, parse_expr};
 
 use super::{
-    AddrModeParseType,
+    parse_indexed, parse_opcode_reg_pair, parse_reg_set_operand, AddrModeParseType,
     AddrModeParseType::Inherent as ParseInherent,
-    Cpu6809AssemblyErrorKind, MC6809,
-    MC6809::{OpCode, Operand, OperandIndexed},
+    Cpu6809AssemblyErrorKind, NodeKind6809,
+    NodeKind6809::{OpCode, Operand, OperandIndexed},
 };
 
 use emu6809::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo};
@@ -24,101 +20,99 @@ pub fn get_opcode_info(i: &Instruction) -> Option<&InstructionInfo> {
     OPCODES_REC.get_opcode_info_from_opcode(i.opcode)
 }
 
-impl GazmParser<Assembler6809> {
-    fn parse_immediate(_input: TSpan) -> PResult<Node<MC6809>> {
-        use AddrModeParseType::*;
-        use TokenKind::Hash;
-        let (rest, (sp, matched)) = ms(preceded(Hash, Self::parse_expr))(_input)?;
-        let node = Self::from_item_tspan(Immediate.into(), sp).with_child(matched);
-        Ok((rest, node))
-    }
+fn parse_immediate(_input: TSpan) -> PResult<Node> {
+    use AddrModeParseType::*;
+    use TokenKind::Hash;
+    let (rest, (sp, matched)) = ms(preceded(Hash, parse_expr))(_input)?;
+    let node = from_item_tspan(Immediate.into(), sp).with_child(matched);
+    Ok((rest, node))
+}
 
-    fn parse_force_dp(_input: TSpan) -> PResult<Node<MC6809>> {
-        use AddrModeParseType::*;
-        use TokenKind::LessThan;
-        let (rest, (sp, matched)) = ms(preceded(LessThan, Self::parse_expr))(_input)?;
-        let node = Self::from_item_tspan(Direct.into(), sp).with_child(matched);
-        Ok((rest, node))
-    }
+fn parse_force_dp(_input: TSpan) -> PResult<Node> {
+    use AddrModeParseType::*;
+    use TokenKind::LessThan;
+    let (rest, (sp, matched)) = ms(preceded(LessThan, parse_expr))(_input)?;
+    let node = from_item_tspan(Direct.into(), sp).with_child(matched);
+    Ok((rest, node))
+}
 
-    fn parse_force_extended(_input: TSpan) -> PResult<Node<MC6809>> {
-        use AddrModeParseType::*;
-        use TokenKind::GreaterThan;
-        let (rest, (sp, matched)) = ms(preceded(GreaterThan, Self::parse_expr))(_input)?;
-        let node = Self::from_item_tspan(Extended(true).into(), sp).with_child(matched);
-        Ok((rest, node))
-    }
+fn parse_force_extended(_input: TSpan) -> PResult<Node> {
+    use AddrModeParseType::*;
+    use TokenKind::GreaterThan;
+    let (rest, (sp, matched)) = ms(preceded(GreaterThan, parse_expr))(_input)?;
+    let node = from_item_tspan(Extended(true).into(), sp).with_child(matched);
+    Ok((rest, node))
+}
 
-    fn parse_extended(_input: TSpan) -> PResult<Node<MC6809>> {
-        use AddrModeParseType::*;
-        let (rest, (sp, matched)) = ms(Self::parse_expr)(_input)?;
-        let node = Self::from_item_tspan(Extended(false).into(), sp).with_child(matched);
-        Ok((rest, node))
-    }
+fn parse_extended(_input: TSpan) -> PResult<Node> {
+    use AddrModeParseType::*;
+    let (rest, (sp, matched)) = ms(parse_expr)(_input)?;
+    let node = from_item_tspan(Extended(false).into(), sp).with_child(matched);
+    Ok((rest, node))
+}
 
-    fn parse_opcode_arg(input: TSpan) -> PResult<Node<MC6809>> {
-        let (rest, matched) = alt((
-            Self::parse_indexed,
-            Self::parse_immediate,
-            Self::parse_force_dp,
-            Self::parse_force_extended,
-            Self::parse_extended,
-        ))(input)?;
+fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
+    let (rest, matched) = alt((
+        parse_indexed,
+        parse_immediate,
+        parse_force_dp,
+        parse_force_extended,
+        parse_extended,
+    ))(input)?;
 
-        Ok((rest, matched))
-    }
+    Ok((rest, matched))
+}
 
-    fn parse_opcode_with_arg(input: TSpan) -> PResult<Node<MC6809>> {
-        use Item::*;
-        let (rest, (sp, text, info)) = get_opcode(input)?;
+fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
+    let (rest, (sp, text, info)) = get_opcode(input)?;
 
-        let (rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
-            Self::parse_reg_set_operand(rest)
-        } else if info.supports_addr_mode(AddrModeEnum::RegisterPair) {
-            Self::parse_opcode_reg_pair(rest)
-        } else {
-            Self::parse_opcode_arg(rest)
-        }?;
+    let (rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
+        parse_reg_set_operand(rest)
+    } else if info.supports_addr_mode(AddrModeEnum::RegisterPair) {
+        parse_opcode_reg_pair(rest)
+    } else {
+        parse_opcode_arg(rest)
+    }?;
 
-        let amode = match arg.item {
-            CpuSpecific(Operand(amode)) => amode,
-            CpuSpecific(OperandIndexed(amode, indirect)) => {
-                AddrModeParseType::Indexed(amode, indirect)
-            }
-            _ => return err_fatal(sp, Cpu6809AssemblyErrorKind::AddrModeUnsupported),
-        };
-
-        if let Some(instruction) = get_instruction(amode, info) {
-            let item = OpCode(text.to_string(), Box::new(instruction.clone()), amode);
-            let node = Self::from_item_tspan(item.into(), sp).take_others_children(arg);
-            Ok((rest, node))
-        } else {
-            err_fatal(sp, Cpu6809AssemblyErrorKind::ThisAddrModeUnsupported(amode))
+    let amode = match arg.item {
+        Item::CpuSpecific(Operand(amode)) => amode,
+        Item::CpuSpecific(OperandIndexed(amode, indirect)) => {
+            AddrModeParseType::Indexed(amode, indirect)
         }
-    }
-    fn parse_opcode_no_arg(input: TSpan) -> PResult<Node<MC6809>> {
-        use Cpu6809AssemblyErrorKind::OnlySupports;
-        let (rest, (sp, text, ins)) = get_opcode(input)?;
+        _ => return err_fatal(sp, Cpu6809AssemblyErrorKind::AddrModeUnsupported),
+    };
 
-        if let Some(ins) = ins.get_boxed_instruction(AddrModeEnum::Inherent) {
-            let oc = MC6809::OpCode(text, ins, ParseInherent);
-            let node = Self::from_item_tspan(oc.into(), sp);
-            Ok((rest, node))
-        } else {
-            err_fatal(sp, OnlySupports(AddrModeParseType::Inherent))
-        }
+    if let Some(instruction) = get_instruction(amode, info) {
+        let item = OpCode(text.to_string(), Box::new(instruction.clone()), amode);
+        let node = from_item_tspan(item.into(), sp).take_others_children(arg);
+        Ok((rest, node))
+    } else {
+        err_fatal(sp, Cpu6809AssemblyErrorKind::ThisAddrModeUnsupported(amode))
     }
-    pub fn parse_opcode(input: TSpan) -> PResult<Node<MC6809>> {
-        let (rest, item) = alt((Self::parse_opcode_with_arg, Self::parse_opcode_no_arg))(input)?;
-        Ok((rest, item))
-    }
+}
 
-    pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node<MC6809>>> {
-        use unraveler::tag;
-        use TokenKind::Colon;
-        let (rest, matched) = sep_list(Self::parse_opcode, tag(Colon))(input)?;
-        Ok((rest, matched))
+fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
+    use Cpu6809AssemblyErrorKind::OnlySupports;
+    let (rest, (sp, text, ins)) = get_opcode(input)?;
+
+    if let Some(ins) = ins.get_boxed_instruction(AddrModeEnum::Inherent) {
+        let oc = NodeKind6809::OpCode(text, ins, ParseInherent);
+        let node = from_item_tspan(oc.into(), sp);
+        Ok((rest, node))
+    } else {
+        err_fatal(sp, OnlySupports(AddrModeParseType::Inherent))
     }
+}
+pub fn parse_opcode(input: TSpan) -> PResult<Node> {
+    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;
+    Ok((rest, item))
+}
+
+pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {
+    use unraveler::tag;
+    use TokenKind::Colon;
+    let (rest, matched) = sep_list(parse_opcode, tag(Colon))(input)?;
+    Ok((rest, matched))
 }
 
 fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &InstructionInfo)> {
@@ -128,6 +122,7 @@ fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &InstructionInfo)> {
     let info = OPCODES_REC.get_opcode(text.as_str()).unwrap();
     Ok((rest, (sp, text, info)))
 }
+
 fn get_instruction(amode: AddrModeParseType, info: &InstructionInfo) -> Option<&Instruction> {
     use AddrModeEnum::*;
     let get = |amode| info.get_instruction(&amode);
@@ -155,9 +150,9 @@ fn get_instruction(amode: AddrModeParseType, info: &InstructionInfo) -> Option<&
 #[allow(unused_imports)]
 mod test {
     use crate::cpu6809::{
-        frontend::MC6809::{self, OpCode},
+        frontend::NodeKind6809::{self, OpCode},
         frontend::{AddrModeParseType, IndexParseType},
-        Assembler6809,
+        Asm6809,
     };
 
     use crate::frontend::{
@@ -166,7 +161,7 @@ mod test {
     };
     use crate::opts::Opts;
 
-    type GParser = GazmParser<Assembler6809>;
+    type GParser = GazmParser<Asm6809>;
 
     use emu6809::cpu::RegEnum;
 

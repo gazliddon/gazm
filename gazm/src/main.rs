@@ -1,16 +1,17 @@
 use gazm::{
     assembler::{Assembler, AssemblerCpuTrait},
     cli::{parse_command_line, styling::get_banner},
+    cpu6800::Asm6800,
+    cpu6809::Asm6809,
     error::{ErrorCollectorTrait, GazmErrorKind},
     frontend, info_mess, messages,
     opts::{BuildType, Opts},
     status_mess,
-    cpu6809::Assembler6809,
-    // cpu6800::Assembler6800,
 };
 
-fn do_build<ASM>(opts: &Opts) -> Result<(), GazmErrorKind> 
-where ASM: AssemblerCpuTrait
+fn do_build<ASM>(opts: &Opts) -> Result<(), GazmErrorKind>
+where
+    ASM: AssemblerCpuTrait,
 {
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
@@ -43,6 +44,7 @@ where ASM: AssemblerCpuTrait
         BuildType::Build | BuildType::Check => {
             status_mess!("{}", get_banner());
             mess.indent();
+            status_mess!("Targetting: {:?}", &opts.cpu);
             status_mess!("Verbosity: {:?}", &opts.verbose);
 
             if opts.no_async {
@@ -74,8 +76,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // probably as a function of Opts
     let cur_dir = current_dir().unwrap();
 
+    use gazm::cli::CpuKind::*;
 
-    let ret = do_build::<Assembler6809>(&opts);
+    let ret = match opts.cpu {
+        Cpu6809 => do_build::<Asm6809>(&opts),
+        Cpu6800 => do_build::<Asm6800>(&opts),
+        Cpu6502 | Cpu65c02 | CpuZ80 => Err(GazmErrorKind::NotImplemented(format!(
+            "Assembly for{:?}",
+            opts.cpu
+        ))),
+    };
 
     match ret {
         Err(GazmErrorKind::UserErrors(user_errors)) => {

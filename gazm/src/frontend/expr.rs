@@ -5,7 +5,8 @@ use crate::assembler::AssemblerCpuTrait;
 use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0};
 
 use super::{
-    concat, parse_bracketed,  GazmParser, Item, Node, PResult, TSpan,
+    concat, from_item_kids_tspan, from_item_tspan, parse_bracketed, GazmParser, Item, Node,
+    PResult, TSpan,
     TokenKind::{self, *},
 };
 
@@ -13,16 +14,20 @@ impl<C> GazmParser<C>
 where
     C: AssemblerCpuTrait,
 {
-    pub fn op_to_node(input: TSpan, toke: TokenKind, item: Item<C::NodeKind>) -> PResult<Node<C::NodeKind>> {
+    pub fn op_to_node(
+        input: TSpan,
+        toke: TokenKind,
+        item: Item<C::NodeKind>,
+    ) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, _)) = ms(toke)(input)?;
-        Ok((rest, Self::from_item_tspan(item, sp)))
+        Ok((rest, from_item_tspan::<C>(item, sp)))
     }
 
     pub fn parse_expr_list0(input: TSpan) -> PResult<Vec<Node<C::NodeKind>>> {
-        sep_list0(Self::parse_expr, Comma)(input)
+        sep_list0(parse_expr::<C>, Comma)(input)
     }
     pub fn parse_expr_list(input: TSpan) -> PResult<Vec<Node<C::NodeKind>>> {
-        sep_list(Self::parse_expr, Comma)(input)
+        sep_list(parse_expr::<C>, Comma)(input)
     }
 
     pub fn parse_term(input: TSpan) -> PResult<Node<C::NodeKind>> {
@@ -37,19 +42,25 @@ where
     }
 
     fn parse_bracketed_expr(input: TSpan) -> PResult<Node<C::NodeKind>> {
-        let (rest, (sp, mut matched)) = ms(parse_bracketed(Self::parse_expr))(input)?;
+        let (rest, (sp, mut matched)) = ms(parse_bracketed(parse_expr::<C>))(input)?;
         matched.item = Item::BracketedExpr;
-        Ok((rest, Self::with_tspan(matched,sp)))
+        Ok((rest, Self::with_tspan(matched, sp)))
     }
 
     pub fn parse_non_unary_term(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let parse_pc = |i| Self::op_to_node(i, Star, Item::Pc);
-        alt((Self::parse_bracketed_expr, Self::parse_number, Self::parse_label, parse_pc))(input)
+        alt((
+            Self::parse_bracketed_expr,
+            Self::parse_number,
+            Self::parse_label,
+            parse_pc,
+        ))(input)
     }
 
     fn parse_unary_term(input: TSpan) -> PResult<Node<C::NodeKind>> {
-        let (rest, (sp, (op, term))) = ms(pair(Self::parse_unary_op, Self::parse_non_unary_term))(input)?;
-        let node = Self::from_item_kids_tspan(Item::UnaryTerm, &[op, term], sp);
+        let (rest, (sp, (op, term))) =
+            ms(pair(Self::parse_unary_op, Self::parse_non_unary_term))(input)?;
+        let node = from_item_kids_tspan::<C>(Item::UnaryTerm, &[op, term], sp);
         Ok((rest, node))
     }
 
@@ -71,17 +82,23 @@ where
         let (rest, (op, term)) = pair(Self::parse_binary_op, Self::parse_term)(input)?;
         Ok((rest, (op, term)))
     }
+}
 
-    pub fn parse_expr(input: TSpan) -> PResult<Node<C::NodeKind>> {
-        let (rest, (sp, (term, vs))) = ms(pair(Self::parse_term, many0(Self::parse_op_term)))(input)?;
+pub fn parse_expr<C>(input: TSpan) -> PResult<Node<C::NodeKind>>
+where
+    C: AssemblerCpuTrait,
+{
+    let (rest, (sp, (term, vs))) = ms(pair(
+        GazmParser::<C>::parse_term,
+        many0(GazmParser::<C>::parse_op_term),
+    ))(input)?;
 
-        if vs.is_empty() && term.item.is_number() {
-            Ok((rest, term))
-        } else {
-            let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
-            let node = Self::from_item_kids_tspan(Item::Expr, &concat((term, vs)), sp);
-            Ok((rest, node))
-        }
+    if vs.is_empty() && term.item.is_number() {
+        Ok((rest, term))
+    } else {
+        let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
+        let node = from_item_kids_tspan::<C>(Item::Expr, &concat((term, vs)), sp);
+        Ok((rest, node))
     }
 }
 

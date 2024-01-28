@@ -13,6 +13,42 @@ use unraveler::{
     map, match_span as ms, tag, wrapped_cut, Collection, ParseErrorKind, Parser, Severity,
 };
 
+pub fn from_item_tspan<C>(item: Item<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind>
+where
+    C: AssemblerCpuTrait,
+{
+    from_item_pos::<C, _>(item, to_pos(sp))
+}
+
+pub fn from_item_pos<C, P: Into<Position>>(_item: Item<C::NodeKind>, _p: P) -> Node<C::NodeKind>
+where
+    C: AssemblerCpuTrait,
+{
+    let n: Node<C::NodeKind> = Node::new(_item, _p.into());
+    n
+}
+pub fn from_item_kids_tspan<C>(
+    item: Item<C::NodeKind>,
+    kids: &[Node<C::NodeKind>],
+    sp: TSpan,
+) -> Node<C::NodeKind>
+where
+    C: AssemblerCpuTrait,
+{
+    Node::new_with_children(item, kids, to_pos(sp))
+}
+
+pub fn from_item_kid_tspan<C>(
+    item: Item<C::NodeKind>,
+    kid: Node<C::NodeKind>,
+    sp: TSpan,
+) -> Node<C::NodeKind>
+where
+    C: AssemblerCpuTrait,
+{
+    Node::new_with_children(item, &[kid], to_pos(sp))
+}
+
 impl<C> GazmParser<C>
 where
     C: AssemblerCpuTrait,
@@ -29,41 +65,17 @@ where
     }
 
     pub fn block(items: ThinVec<Node<C::NodeKind>>, sp: TSpan) -> Node<C::NodeKind> {
-        Self::from_item_tspan(Item::Block, sp).with_children_vec(items)
-    }
-
-    pub fn from_item_tspan(item: Item<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
-        Self::from_item_pos(item, to_pos(sp))
-    }
-
-    pub fn from_item_kids_tspan(
-        item: Item<C::NodeKind>,
-        kids: &[Node<C::NodeKind>],
-        sp: TSpan,
-    ) -> Node<C::NodeKind> {
-        Node::new_with_children(item, kids, to_pos(sp))
-    }
-    pub fn from_item_kid_tspan(
-        item: Item<C::NodeKind>,
-        kid: Node<C::NodeKind>,
-        sp: TSpan,
-    ) -> Node<C::NodeKind> {
-        Node::new_with_children(item, &[kid], to_pos(sp))
+        from_item_tspan::<C>(Item::Block, sp).with_children_vec(items)
     }
 
     pub fn from_num_tspan(num: i64, sp: TSpan) -> Node<C::NodeKind> {
-        Self::from_item_tspan(Item::from_number(num, ParsedFrom::Expression), sp)
+        from_item_tspan::<C>(Item::from_number(num, ParsedFrom::Expression), sp)
     }
 
     pub fn with_tspan(n: Node<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
         let mut ret = n.clone();
         ret.ctx = to_pos(sp);
         ret
-    }
-
-    pub fn from_item_pos<P: Into<Position>>(_item: Item<C::NodeKind>, _p: P) -> Node<C::NodeKind> {
-        let n: Node<C::NodeKind> = Node::new(_item, _p.into());
-        n
     }
 
     pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Node<C::NodeKind> {

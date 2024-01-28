@@ -1,20 +1,17 @@
-use crate::frontend::{CommandKind, GazmParser, Item, PResult, TSpan};
+use crate::frontend::{CommandKind, Item, PResult, TSpan};
 
-use super::super::assembler::Assembler6809;
-use super::MC6809;
+use super::super::{from_item_kid_tspan, parse_expr, Node};
 
-type Node = crate::frontend::Node<MC6809>;
+use super::NodeKind6809;
 
-use unraveler::{cut, preceded, match_span as ms};
+use unraveler::{cut, match_span as ms, preceded};
 
-impl GazmParser<Assembler6809> {
-    pub fn parse_set_dp(input: TSpan) -> PResult<Node> {
-        let (rest, (sp, matched)) = ms(preceded(CommandKind::SetDp, cut(Self::parse_expr)))(input)?;
-        let node = Self::from_item_kid_tspan(Item::CpuSpecific(MC6809::SetDp), matched, sp);
-        Ok((rest, node))
-    }
+pub fn parse_set_dp(input: TSpan) -> PResult<Node> {
+    let (rest, (sp, matched)) = ms(preceded(CommandKind::SetDp, cut(parse_expr)))(input)?;
+    let node = from_item_kid_tspan(Item::CpuSpecific(NodeKind6809::SetDp), matched, sp);
+    Ok((rest, node))
+}
 
-    pub fn parse_commands(input: TSpan) -> PResult<Node> {
-        Self::parse_set_dp(input)
-    }
+pub fn parse_commands(input: TSpan) -> PResult<Node> {
+    parse_set_dp(input)
 }
