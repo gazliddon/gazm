@@ -1,39 +1,41 @@
-NOGEN
-  NAM  STARGATE SOUNDS REV. 1.0 Y PHRED 9/81 
+; NOGEN
+; NAM  STARGATE SOUNDS REV. 1.0 Y PHRED 9/81 
 ; COPYRIGHT WILLIAMS ELECTRONICS INC. 1981
 ; PROGRAMMER: PHRED JARVIS, PSAM DICKER
 ; 
 ; SYSTEM CONSTANTS
 ; 
+
 ROM     EQU  $F800
 SOUND   EQU  $400
-CKORG   EQU  $F700  CHECKSUM PROG ORG
+CKORG   EQU  $F700  ; CHECKSUM PROG ORG
 ENDRAM  EQU  $7F
-VECTOR  EQU  $FFF8  RESET,INT VECTORS
+VECTOR  EQU  $FFF8  ; RESET,INT VECTORS
 WVELEN  EQU  72
 BG2MAX  EQU  29  
-SP1SND  EQU  $0E  SPINNER SOUND #1 CODE
-B2SND   EQU  $12  BONUS SOUND #2 CODE
+SP1SND  EQU  $0E    ; SPINNER SOUND #1 CODE
+B2SND   EQU  $12    ; BONUS SOUND #2 CODE
 SP1MAX  EQU  32
 NIN     EQU  5
 FIF     EQU  6
-TAF     EQU  34715!>1  NOTE TIMES
-TA      EQU  36780!>1
-TBF     EQU  38967!>1
-TB      EQU  41284!>1
-TC      EQU  43739!>1
-TCS     EQU  46340!>1
-TD      EQU  49096!>1
-TEF     EQU  52015!>1
-TE      EQU  55108!>1
-TF      EQU  58385!>1
-TFS     EQU  61857!>1
-TG      EQU  65535!>1
+TAF     EQU  34715  ; NOTE TIMES
+TA      EQU  36780
+TBF     EQU  38967
+TB      EQU  41284
+TC      EQU  43739
+TCS     EQU  46340
+TD      EQU  49096
+TEF     EQU  52015
+TE      EQU  55108
+TF      EQU  58385
+TFS     EQU  61857
+TG      EQU  65535
+
 ; 
 ;  TALKING EQUATES
 ; 
-TALK    EQU  $EFFD  ENTRY TO TALKING
-TALKD   EQU  $EFFA  ENTRY FOR DIAGNOSTICS
+TALK    EQU  $EFFD  ; ENTRY TO TALKING
+TALKD   EQU  $EFFA  ; ENTRY FOR DIAGNOSTICS
 
  
 ;  SCREAM EQUATES
@@ -107,54 +109,56 @@ HICNT   RMB  1
  
 ; NOISE ROUTINE PARAMETERS
  
-  ORG  LOCRAM
-DECAY  RMB  1
-NAMP  RMB  1
-CYCNT  RMB  1
-NFRQ1  RMB  2
-NFFLG  RMB  1
-LFREQ  RMB  1
-DFREQ  RMB  1
-; 
+        ORG  LOCRAM
+DECAY   RMB  1
+NAMP    RMB  1
+CYCNT   RMB  1
+NFRQ1   RMB  2
+NFFLG   RMB  1
+LFREQ   RMB  1
+DFREQ   RMB  1
+
+ 
 ; FILTERED NOISE ROUTINE PARAMETERS
-; 
-  ORG  LOCRAM
-FMAX  RMB  1  MAXIMUM_FREQUENCY
-FHI  RMB  1  FREQUENCY
-FLO  RMB  1 
-SAMPC  RMB  2  SAMPLE COUNT
-FDFLG  RMB  1  FREQUENCY DECREMENT FLAG
-DSFLG  RMB  1  DISTORTION FLAG
-; 
+ 
+        ORG  LOCRAM
+FMAX    RMB  1          ; MAXIMUM_FREQUENCY
+FHI     RMB  1          ; FREQUENCY
+FLO     RMB  1 
+SAMPC   RMB  2          ; SAMPLE COUNT
+FDFLG   RMB  1          ; FREQUENCY DECREMENT FLAG
+DSFLG   RMB  1          ; DISTORTION FLAG
+ 
 ; SCREAM TABLES
-; 
-  ORG  LOCRAM
-STABLE  RMB  2*ECHOS  SCREAM TABLE
-SRMEND  EQU  *
-; 
+ 
+        ORG  LOCRAM
+STABLE  RMB  2*ECHOS  ; SCREAM TABLE
+SRMEND
+ 
 ; ORGAN PARAMETERS
-; 
-  ORG  LOCRAM
-DUR  RMB  2  NOTE DURATION
-OSCIL  RMB  1  OSCILLATORS
-RDELAY  RMB  60  RAM DELAY LOAD
-; 
+
+        ORG  LOCRAM
+DUR     RMB  2      ; NOTE DURATION
+OSCIL   RMB  1      ; OSCILLATORS
+RDELAY  RMB  60     ; RAM DELAY LOAD
+
 ;  CHECKSUM CALCULATOR & RELOCATOR
-; 
-  ORG  CKORG
-CKSUM  LDX  #$FFFF  INDEX TO END OF ROM
-  CLRB    ZERO CHECKSUM
-CKSUM1  ADCB  0,X  ADD IN PROGRAM BYTE
-  DEX    TO NEXT BYTE
-  CPX  #$F800  DONE YET?
-  BNE  CKSUM1  NOPE...
-  STAB  0,X  SAVE CHECKSUM AT BEGINNING
-  WAI    TURN OFF LEDS
-FROM  RMB  2  FOR POINTER
-TO  RMB  2  FOR POINTER
-; 
+
+            ORG  CKORG
+CKSUM       LDX  #$FFFF         ; INDEX TO END OF ROM
+            CLRB                ; ZERO CHECKSUM
+CKSUM1      ADCB  0,X           ; ADD IN PROGRAM BYTE
+            DEX                 ; TO NEXT BYTE
+            CPX  #$F800         ; DONE YET?
+            BNE  CKSUM1         ; NOPE...
+            STAB  0,X           ; SAVE CHECKSUM AT BEGINNING
+            WAI                 ; TURN OFF LEDS
+
+FROM        RMB  2  ; FOR POINTER
+TO          RMB  2  ; FOR POINTER
+ 
 ;  MAIN PROGRAM
-; 
+ 
             ORG  ROM
 
             FCB  $DF  ; CHECKSUM BYTE
@@ -181,20 +185,20 @@ SETUP       SEI                 ; SET INTERRUPT MASK
             CLI                 ; CLEAR INTERRUPTS
             BRA  *              ; WAIT FOR INTERRUPT
 
-; VARI LOADER
+// VARI LOADER
 VARILD      TAB
-            ASLA    X2
-            ASLA    X4
-            ASLA    X8
-            ABA    X9
+            ASLA                ; X2
+            ASLA                ; X4
+            ASLA                ; X8
+            ABA                 ; X9
             LDX  #LOCRAM
-            STX  XPTR  SET XSFER
+            STX  XPTR           ; SET XSFER
             LDX  #VVECT
             JSR  ADDX
-            LDAB  #9  GET COUNT
+            LDAB  #9            ; GET COUNT
 VTRAN       JMP  TRANS
 
-; VARIABLE DUTY CYCLE SQUARE WAVE ROUTINE
+// VARIABLE DUTY CYCLE SQUARE WAVE ROUTINE
 VARI        LDAA  VAMP
             STAA  SOUND
 VAR0        LDAA  LOPER
@@ -202,24 +206,24 @@ VAR0        LDAA  LOPER
             LDAA  HIPER
             STAA  HICNT
 V0          LDX  SWPDT
-V0LP        LDAA  LOCNT  LO CYCLE
+V0LP        LDAA  LOCNT         ; LO CYCLE
             COM  SOUND
 V1          DEX
             BEQ  VSWEEP
             DECA
             BNE  V1
             COM  SOUND
-            LDAA  HICNT  HI CYCLE
-V2  DEX
+            LDAA  HICNT         ; HI CYCLE
+V2          DEX
             BEQ  VSWEEP
             DECA
             BNE  V2
-            BRA  V0LP  LOOP BACK
+            BRA  V0LP           ; LOOP BACK
 VSWEEP      LDAA  SOUND
             BMI  VS1
             COMA
 VS1         ADDA  #0
-            STAA  SOUND  OUTPUT
+            STAA  SOUND         ; OUTPUT
             LDAA  LOCNT
             ADDA  LODT
             STAA  LOCNT
@@ -236,29 +240,29 @@ VS1         ADDA  #0
 VARX        RTS
 
  
-; LIGHTNING
+// LIGHTNING
  
 LITE        LDAA  #1
             STAA  DFREQ
             LDAB  #3
             BRA  LITEN
  
-; APPEAR
+// APPEAR
  
-APPEAR  LDAA  #$FE
-        STAA  DFREQ
-        LDAA  #$C0
-        LDAB  #$10
-        BRA  LITEN
+APPEAR      LDAA  #$FE
+            STAA  DFREQ
+            LDAA  #$C0
+            LDAB  #$10
+            BRA  LITEN
  
-; LIGHTNING+APPEAR NOISE ROUTINE
+// LIGHTNING+APPEAR NOISE ROUTINE
  
 LITEN       STAA  LFREQ
-            LDAA  #$FF  HIGHEST AMP
+            LDAA  #$FF          ; HIGHEST AMP
             STAA  SOUND
             STAB  CYCNT
 LITE0       LDAB  CYCNT
-LITE1       LDAA  LO  GET RANDOM
+LITE1       LDAA  LO            ; GET RANDOM
             LSRA
             LSRA
             LSRA
@@ -268,10 +272,10 @@ LITE1       LDAA  LO  GET RANDOM
             ROR  LO
             BCC  LITE2
             COM  SOUND
-LITE2       LDAA  LFREQ  COUNT FREQ
+LITE2       LDAA  LFREQ         ; COUNT FREQ
 LITE3       DECA
             BNE  LITE3
-            DECB    COUNT CYCLES
+            DECB                ; COUNT CYCLES
             BNE  LITE1
             LDAA  LFREQ
             ADDA  DFREQ
@@ -279,7 +283,7 @@ LITE3       DECA
             BNE  LITE0
             RTS
  
-; TURBO
+// TURBO
  
 TURBO       LDAA  #$20
             STAA  CYCNT
@@ -289,9 +293,9 @@ TURBO       LDAA  #$20
             LDAB  #$FF
             BRA  NOISE
  
-; WHITE NOISE ROUTINE
-; X=INIT PERIOD, ACCB=INIT AMP, ACCA DECAY RATE
-; CYCNT=CYCLE COUNT, NFFLG= FREQ DECAY FLAG
+// WHITE NOISE ROUTINE
+// X=INIT PERIOD, ACCB=INIT AMP, ACCA DECAY RATE
+// CYCNT=CYCLE COUNT, NFFLG= FREQ DECAY FLAG
  
 NOISE       STAA  DECAY
 NOISE0      STX  NFRQ1
@@ -372,7 +376,7 @@ FNOIS2      STAB  FHI
             LDAB  FLO
             CMPA  LO
             BHI  FNOIS4
-FNOIS3      DEX SLOPE       ; UP
+FNOIS3      DEX             ; SLOPE UP
             BEQ  FNOIS6
             STAA  SOUND
             ADDB  FLO
@@ -381,7 +385,7 @@ FNOIS3      DEX SLOPE       ; UP
             CMPA  LO
             BLS  FNOIS3
             BRA  FNOIS5
-FNOIS4      DEX    SLOPE    ; DOWN
+FNOIS4      DEX             ; SLOPE DOWN
             BEQ  FNOIS6
             STAA  SOUND
             SUBB  FLO
@@ -416,95 +420,93 @@ FNOIS6      LDAB  FDFLG
 
 ; RADIO
 
-RADIO       LDAA  #RADSND/$100      ; SOUND TABLE
-            STAA  XPTR
-            LDX  #100               ; STARTING FREQ
-            STX  TEMPX
-RADIO1      ADDB  TEMPX+1           ; ADD FREQ TO TIMER
-            LDAA  TEMPA
-            ADCA  TEMPX
-            STAA  TEMPA
-            LDX  TEMPX
-            BCS  RADIO2  
+RADIO       LDAA #RADSND/$100       ; SOUND TABLE
+            STAA XPTR
+            LDX #100                ; STARTING FREQ
+            STX TEMPX
+RADIO1      ADDB TEMPX+1            ; ADD FREQ TO TIMER
+            LDAA TEMPA
+            ADCA TEMPX
+            STAA TEMPA
+            LDX TEMPX
+            BCS RADIO2  
             BRA  *+2                ; EQUALIZE TIME
-            BRA  RADIO3
+            BRA RADIO3
 RADIO2      INX                     ; CARRY?, RAISE FREQ
-            BEQ  RADIO4             ; DONE?
-RADIO3      STX  TEMPX
-            ANDA  #$F               ; SET POINTER
-            ADDA  #RADSND!.$FF
-            STAA  XPTR+1
-            LDX  XPTR
+            BEQ RADIO4              ; DONE?
+RADIO3      STX TEMPX
+            ANDA #$F                ; SET POINTER
+            ADDA #RADSND&$FF
+            STAA XPTR+1
+            LDX XPTR
             LDAA  ,X
             STAA  SOUND             ; PLAY SOUND
             BRA  RADIO1
 RADIO4      RTS  
 
-; HYPER
+// HYPER
+HYPER           CLRA
+                STAA  SOUND  
+                STAA  TEMPA             ; ZERO PHASE
+HYPER1          CLRA                    ; ZERO TIME COUNTER
+HYPER2          CMPA  TEMPA  
+                BNE  HYPER3
+                COM  SOUND              ; PHASE EDGE?, COMPLEMENT SOUND
+HYPER3          LDAB  #18               ; DELAY
+HYPER4          DECB
+                BNE  HYPER4
+                INCA                    ; ADVANCE TIME COUNTER
+                BPL  HYPER2  
+                COM  SOUND              ; CYCLE DONE?, CYCLE EDGE
+                INC  TEMPA              ; NEXT PHASE
+                BPL  HYPER1             ; DONE?
+                RTS
 
-HYPER  CLRA
-  STAA  SOUND  
-  STAA  TEMPA  ZERO PHASE
-HYPER1  CLRA    ZERO TIME COUNTER
-HYPER2  CMPA  TEMPA  
-  BNE  HYPER3
-  COM  SOUND  PHASE EDGE?, COMPLEMENT SOUND
-HYPER3  LDAB  #18  DELAY
-HYPER4  DECB
-  BNE  HYPER4
-  INCA    ADVANCE TIME COUNTER
-  BPL  HYPER2  
-  COM  SOUND  CYCLE DONE?, CYCLE EDGE
-  INC  TEMPA  NEXT PHASE
-  BPL  HYPER1  DONE?
-  RTS
-                                ; 
-                                ; SCREAM
-                                ; 
-SCREAM  LDX  #STABLE  ZERO FREQS AND TIMES
-SCREM1  CLR  ,X
-  INX
-  CPX  #SRMEND
-  BNE  SCREM1
-  LDAA  #$40  START FIRST ECHO
-  STAA  STABLE+FREQ
-SCREM2  LDX  #STABLE  INITIALIZE COUNTER
-  LDAA  #$80  INITIALIZE AMPLITUDE
-  STAA  TEMPA
-  CLRB    ZERO OUTPUT BUFFER
-SCREM3  LDAA  TIMER,X  ADD FREQ TO TIMER
-  ADDA  FREQ,X
-  STAA  TIMER,X
-  BPL  SCREM4  ADD AMPLITUDE IF MINUS
-  ADDB  TEMPA
-SCREM4  LSR  TEMPA  DECAY AMPLITUDE
-  INX    NEXT ECHO
-  INX
-  CPX  #SRMEND  LAST ECHO?
-  BNE  SCREM3  
-  STAB  SOUND  OUTPUT SOUND
-  INC  TEMPB  ADVANCE TIMER
-  BNE  SCREM2  
-  LDX  #STABLE  LOWER NON-ZERO FREQUENCIES
-  CLRB    ALL ZERO NOT FLAG
+// SCREAM
+SCREAM          LDX  #STABLE            ; ZERO FREQS AND TIMES
+SCREM1          CLR  ,X
+                INX
+                CPX  #SRMEND
+                BNE  SCREM1
+                LDAA  #$40              ; START FIRST ECHO
+                STAA  STABLE+FREQ
+SCREM2          LDX  #STABLE            ; INITIALIZE COUNTER
+                LDAA  #$80              ; INITIALIZE AMPLITUDE
+                STAA  TEMPA
+                CLRB                    ; ZERO OUTPUT BUFFER
+SCREM3          LDAA  TIMER,X           ; ADD FREQ TO TIMER
+                ADDA  FREQ,X
+                STAA  TIMER,X
+                BPL  SCREM4             ; ADD AMPLITUDE IF MINUS
+                ADDB  TEMPA
+SCREM4          LSR  TEMPA              ; DECAY AMPLITUDE
+                INX                     ; NEXT ECHO
+                INX
+                CPX  #SRMEND            ; LAST ECHO?
+                BNE  SCREM3  
+                STAB  SOUND             ; OUTPUT SOUND
+                INC  TEMPB              ; ADVANCE TIMER
+                BNE  SCREM2  
+                LDX  #STABLE            ; LOWER NON-ZERO FREQUENCIES
+                CLRB                    ; ALL ZERO NOT FLAG
 SCREM5          LDAA  FREQ,X  
                 BEQ  SCREM7  
                 CMPA  #$37  
                 BNE  SCREM6
-                LDAB  #$41  START NEXT ECHO
+                LDAB  #$41              ; START NEXT ECHO
                 STAB  FREQ+2,X
 SCREM6          DEC  FREQ,X
-                INCB    SET FLAG
+                INCB                    ; SET FLAG
 
 SCREM7          INX 
                 INX
                 CPX  #SRMEND
                 BNE  SCREM5
-                TSTB    DONE?
+                TSTB                    ; DONE?
                 BNE  SCREM2
                 RTS
  
-; ORGAN TUNE
+// ORGAN TUNE
  
 ORGANT          DEC  ORGFLG     ; MINUS ORGAN FLAG
                 RTS    
@@ -543,339 +545,336 @@ ORGNT4          LDAA  ,X        ; TUNE LOOP
 ORGNT5          RTS    
 
  
-; ORGAN NOTE
-; 4 BYTES(MODE,OSCILLATOR MASK HI+1,LO+1,NOTE#)
-ORGANN  RTS          
+// ORGAN NOTE
+// 4 BYTES(MODE,OSCILLATOR MASK HI+1,LO+1,NOTE#)
+ORGANN          RTS          
  
 ; ORGAN LOADER
 ; OSCIL=OSCILLATOR MASK, ACCA=DELAY, DUR=DURATION
 ; 
-ORGANL  LDX  #RDELAY
-  SUBA  #2
-LDLP  BLS  LD1
-  CMPA  #3
-  BEQ  LD2
-  LDAB  #1  NOP
-  STAB  ,X
-  INX
-  SUBA  #2
-  BRA  LDLP
-LD2  LDAB  #$91  CMPA 0
-  STAB  ,X
-  CLR  1,X
-  INX
-  INX
-LD1  LDAB  #$7E  JMP START2
-  STAB  ,X
-  LDAB  #ORGAN1!>8 MSB
-  STAB  1,X
-  LDAB  #ORGAN1!.$FF LSB
-  STAB  2,X
-                                ; 
-                                ; ORGAN ROUTINE
-                                ; DUR=DURATION, OSCILLATOR MASK
-                                ; 
-ORGAN  LDX  DUR
-ORGAN1  CLRA    
-  FCB  $F6  LOAD B EXTND TEMPB
-  FDB  TEMPB  
-  INCB    
-  STAB  TEMPB  
-  ANDB  OSCIL  MASK OSCILLATORS
-  LSRB
-  ADCA  #0
-  LSRB
-  ADCA  #0
-  LSRB
-  ADCA  #0
-  LSRB
-  ADCA  #0
-  LSRB
-  ADCA  #0  
-  LSRB
-  ADCA  #0
-  LSRB
-  ADCA  #0  
-  ABA    
-  ASLA
-  ASLA
-  ASLA
-  ASLA    
-  ASLA
-  STAA  SOUND  
-  DEX    
-  BEQ  ORGAN2  NOTE OVER?
-  JMP  RDELAY  
-ORGAN2  RTS
-                                ; 
-                                ; PARAMETER TRANSFER
-                                ; 
-TRANS  PSHA
-TRANS1  LDAA  0,X
-  STX  XPLAY
-  LDX  XPTR
-  STAA  0,X
-  INX
-  STX  XPTR
-  LDX  XPLAY
-  INX
-  DECB
-  BNE  TRANS1
-  PULA
-  RTS
-                                ; 
-                                ; BACKGROUND END ROUTINE
-                                ; 
-BGEND  CLRA 
-  STAA  BG1FLG  
-  STAA  BG2FLG  
-  RTS
-                                ; 
-                                ; BACKGROUND SOUND #2 INCREMENT
-                                ; 
-BG2INC  CLR  BG1FLG  KILL BG1
-  LDAA  BG2FLG  ACTIVATE BG2
-  ANDA  #$7F  REMOVE OVERRIDE
-  CMPA  #BG2MAX
-  BNE  BG2I0
-  CLRA
-BG2I0  INCA
-  STAA  BG2FLG
-  RTS
-                                ; 
-                                ; BACKGROUND 2 ROUTINE
-                                ; 
-BG2  LDAA  #(TRBV-SVTAB)/7 GET SOUND#
-  JSR  GWLD
-  LDAA  BG2FLG
-  ASLA
-  ASLA
-  COMA
-  JSR  GEND60
-BG2LP  INC  GDCNT
-  JSR  GEND61
-  BRA  BG2LP
-                                ; 
-                                ; SPINNER #1 SOUND
-                                ; 
-SP1  LDAA  #(CABSHK-VVECT)/9
-  JSR  VARILD
-  LDAB  SP1FLG
-  CMPB  #SP1MAX-1
-  BNE  SP1A
-  CLRB
-SP1A  INCB
-  STAB  SP1FLG
-  LDAA  #SP1MAX
-  SBA
-  CLRB
-SP11  CMPA  #20
-  BLS  SP12
-  ADDB  #14
-  DECA
-  BRA  SP11
-SP12  ADDB  #5
-  DECA
-  BNE  SP12
-  STAB  LOPER
-SP1LP  JSR  VARI  DO IT
-  BRA  SP1LP
-                                ; 
-                                ; LASER BALL BONUS #2
-                                ; 
-BON2  LDAA  B2FLG
-  BNE  BON21
-  INC  B2FLG
-  LDAA  #(BONV-SVTAB)/7
-  BSR  GWLD
-  BRA  GWAVE
-BON21  JMP  GEND50
-                                ; 
-                                ; GWAVE LOADER
-                                ; 
-GWLD  TAB    MULKT BY 7
-  ASLB
-  ABA
-  ABA
-  ABA
-  LDX  #SVTAB  SOUND VECTOR TABLE
-  JSR  ADDX
-  LDAA  ,X
-  TAB
-  ANDA  #$F
-  STAA  GCCNT  GET CYCLE COUNT
-  LSRB
-  LSRB
-  LSRB
-  LSRB
-  STAB  GECHO  GET #ECHOS
-  LDAA  1,X
-  TAB
-  LSRB
-  LSRB
-  LSRB
-  LSRB
-  STAB  GECDEC
-  ANDA  #$F  WAVE #
-  STAA  TEMPA  SAVE
-  STX  TEMPX  SAVE INDEX
-  LDX  #GWVTAB  CALC WAVEFORM ADDR
-GWLD2  DEC  TEMPA  WAVE FORM #
-  BMI  GWLD3  FINIS
-  LDAA  ,X
-  INCA
-  JSR  ADDX
-  BRA  GWLD2
-GWLD3  STX  GWFRM
-  JSR  WVTRAN  XSFER WAVE TO RAM
-  LDX  TEMPX  RESTORE INDEX
-  LDAA  2,X  GET PREDECAY
-  STAA  PRDECA
-  JSR  WVDECA  DECAY IT
-  LDX  TEMPX
-  LDAA  3,X  GET FREQ INC
-  STAA  GDFINC
-  LDAA  4,X  GET DELTA FREQ COUNT
-  STAA  GDCNT
-  LDAA  5,X  GET PATTERN COUNT
-  TAB    SAVE
-  LDAA  6,X  PATTERN OFFSET
-  LDX  #GFRTAB
-  JSR  ADDX
-  TBA    GET PATTERN LENGTH
-  STX  GWFRQ  FREQ TABLE ADDR
-  CLR  FOFSET
-  JSR  ADDX
-  STX  FRQEND
-  RTS
-                                ; 
-                                ; GWAVE ROUTINE
-                                ; ACCA= FREQ PATTERN LENGTH, X= FREQ PAT ADDR
-                                ; 
-GWAVE  LDAA  GECHO
-  STAA  GECNT
-GWT4  LDX  GWFRQ
-  STX  XPLAY
-GPLAY  LDX  XPLAY  GET NEW PERIOD
-  LDAA  ,X
-  ADDA  FOFSET
-  STAA  GPER
-  CPX  FRQEND
-  BEQ  GEND  FINISH ON ZERO
-  LDAB  GCCNT  CYCLE COUNT
-  INX
-  STX  XPLAY
-GOUT  LDX  #GWTAB  SETUP WAVEFORM POINTER
-GOUTLP  LDAA  GPER
-GPRLP  DECA    WAIT FOR PERIOD
-  BNE  GPRLP
-  LDAA  ,X  OUTPUT SOUND
-  STAA  SOUND
-GPR1  INX
-  CPX  WVEND  END OF WAVE?
-  BNE  GOUTLP
-  DECB
-  BEQ  GPLAY
-  INX
-  DEX
-  INX
-  DEX
-  INX
-  DEX
-  INX
-  DEX
-  NOP
-  NOP
-  BRA  GOUT  SYNC 36
-GEND  LDAA  GECDEC
-  BSR  WVDECA
-GEND40  DEC  GECNT  ECHO ON?
-  BNE  GWT4  YES
-  LDAA  B2FLG  STOP BONUS
-  BNE  GEND1
-GEND50  LDAA  GDFINC  CONTINUE FOR FREQ MOD SOUNDS
-  BEQ  GEND1  NO
-  DEC  GDCNT  DELTA FREQ OVER?
-  BEQ  GEND1  YES...
-  ADDA  FOFSET  UPDATE FREQ OFFSET
-GEND60  STAA  FOFSET
-GEND61  LDX  GWFRQ  GET INDEX
-  CLRB    START FOUND FLAG INIT CLEAR
-GW0  LDAA  FOFSET  INC OR DEC?
-  TST  GDFINC
-  BMI  GW1  DEC
-  ADDA  ,X  INC
-  BCS  GW2  CARRY=OVERFLOW
-  BRA  GW2A
-GW1  ADDA  ,X  DEC
-  BEQ  GW2  OVERFLOW ON EQ
-  BCS  GW2A  OVERFLOW IF CARRY CLEAR
-GW2  TSTB    FOUND START YET?
-  BEQ  GW2B  NO
-  BRA  GW3  YES, THIS IS THE END
-GW2A  TSTB
-  BNE  GW2B  ALREADY FOUND START
-  STX  GWFRQ  FOUND START
-  INCB
-GW2B  INX
-  CPX  FRQEND
-  BNE  GW0  NOT OVER YET
-  TSTB    FOUND START?
-  BNE  GW3  YES
-  RTS    ALL OVER
-GW3  STX  FRQEND
-  LDAA  GECDEC  RE:XSFER WAVE?
-  BEQ  GEND0  NO
-  BSR  WVTRAN  XSFER WAVE
-  LDAA  PRDECA
-  BSR  WVDECA
-GEND0  JMP  GWAVE
-GEND1  RTS    TERMINATE
+ORGANL          LDX  #RDELAY
+                SUBA  #2
+LDLP            BLS  LD1
+                CMPA  #3
+                BEQ  LD2
+                LDAB  #1            ; NOP
+                STAB  ,X
+                INX
+                SUBA  #2
+                BRA  LDLP
+LD2             LDAB  #$91          ; CMPA 0
+                STAB  ,X
+                CLR  1,X
+                INX
+                INX
+
+LD1             LDAB  #$7E              ; JMP START2
+                STAB  ,X
+                LDAB  #ORGAN1>>8        ; MSB
+                STAB  1,X
+                LDAB  #ORGAN1&$FF       ; LSB
+                STAB  2,X
+                                 
+// ORGAN ROUTINE
+// DUR=DURATION, OSCILLATOR MASK
+
+ORGAN       LDX  DUR
+ORGAN1      CLRA    
+            FCB  $F6                 ; LOAD B EXTND TEMPB
+            FDB  TEMPB  
+            INCB    
+            STAB  TEMPB  
+            ANDB  OSCIL              ; MASK OSCILLATORS
+            LSRB
+            ADCA  #0
+            LSRB
+            ADCA  #0
+            LSRB
+            ADCA  #0
+            LSRB
+            ADCA  #0
+            LSRB
+            ADCA  #0  
+            LSRB
+            ADCA  #0
+            LSRB
+            ADCA  #0  
+            ABA    
+            ASLA
+            ASLA
+            ASLA
+            ASLA    
+            ASLA
+            STAA  SOUND  
+            DEX    
+            BEQ  ORGAN2              ; NOTE OVER?
+            JMP  RDELAY  
+ORGAN2      RTS
+
+// PARAMETER TRANSFER
+TRANS       PSHA
+TRANS1      LDAA  0,X
+            STX  XPLAY
+            LDX  XPTR
+            STAA  0,X
+            INX
+            STX  XPTR
+            LDX  XPLAY
+            INX
+            DECB
+            BNE  TRANS1
+            PULA
+            RTS
+                                 
+// BACKGROUND END ROUTINE
+BGEND       CLRA 
+            STAA  BG1FLG  
+            STAA  BG2FLG  
+            RTS
+
+// BACKGROUND SOUND #2 INCREMENT
+BG2INC      CLR  BG1FLG     ; KILL BG1
+            LDAA  BG2FLG    ; ACTIVATE BG2
+            ANDA  #$7F      ; REMOVE OVERRIDE
+            CMPA  #BG2MAX
+            BNE  BG2I0
+            CLRA
+BG2I0       INCA
+            STAA  BG2FLG
+            RTS
+
+// BACKGROUND 2 ROUTINE
+BG2         LDAA  #(TRBV-SVTAB)/7 ; GET SOUND#
+            JSR  GWLD
+            LDAA  BG2FLG
+            ASLA
+            ASLA
+            COMA
+            JSR  GEND60
+BG2LP       INC  GDCNT
+            JSR  GEND61
+            BRA  BG2LP
+
+// SPINNER #1 SOUND
+SP1         LDAA  #(CABSHK-VVECT)/9
+            JSR  VARILD
+            LDAB  SP1FLG
+            CMPB  #SP1MAX-1
+            BNE  SP1A
+            CLRB
+SP1A        INCB
+            STAB  SP1FLG
+            LDAA  #SP1MAX
+            SBA
+            CLRB
+SP11        CMPA  #20
+            BLS  SP12
+            ADDB  #14
+            DECA
+            BRA  SP11
+SP12        ADDB  #5
+            DECA
+            BNE  SP12
+            STAB  LOPER
+SP1LP       JSR  VARI               ; DO IT
+            BRA  SP1LP
+
+// LASER BALL BONUS #2
+BON2        LDAA  B2FLG
+            BNE  BON21
+            INC  B2FLG
+            LDAA  #(BONV-SVTAB)/7
+            BSR  GWLD
+            BRA  GWAVE
+BON21       JMP  GEND50
  
-; WAVE TRANSFER ROUTINE
+// GWAVE LOADER
+GWLD        TAB                 ; MULKT BY 7
+            ASLB
+            ABA
+            ABA
+            ABA
+            LDX  #SVTAB         ; SOUND VECTOR TABLE
+            JSR  ADDX
+            LDAA  ,X
+            TAB
+            ANDA  #$F
+            STAA GCCNT          ; GET CYCLE COUNT
+            LSRB
+            LSRB
+            LSRB
+            LSRB
+            STAB GECHO          ; GET #ECHOS
+            LDAA  1,X
+            TAB
+            LSRB
+            LSRB
+            LSRB
+            LSRB
+            STAB  GECDEC
+            ANDA  #$F           ; WAVE #
+            STAA  TEMPA         ; SAVE
+            STX  TEMPX          ; SAVE INDEX
+            LDX  #GWVTAB        ; CALC WAVEFORM ADDR
+GWLD2       DEC  TEMPA          ; WAVE FORM #
+            BMI  GWLD3          ; FINIS
+            LDAA  ,X
+            INCA
+            JSR  ADDX
+            BRA  GWLD2
+GWLD3       STX  GWFRM
+            JSR  WVTRAN         ; XSFER WAVE TO RAM
+            LDX  TEMPX          ; RESTORE INDEX
+            LDAA  2,X           ; GET PREDECAY
+            STAA  PRDECA
+            JSR  WVDECA         ; DECAY IT
+            LDX  TEMPX
+            LDAA  3,X           ; GET FREQ INC
+            STAA  GDFINC
+            LDAA  4,X           ; GET DELTA FREQ COUNT
+            STAA  GDCNT
+            LDAA  5,X           ; GET PATTERN COUNT
+            TAB                 ; SAVE
+            LDAA  6,X           ; PATTERN OFFSET
+            LDX  #GFRTAB
+            JSR  ADDX
+            TBA                 ; GET PATTERN LENGTH
+            STX  GWFRQ          ; FREQ TABLE ADDR
+            CLR  FOFSET
+            JSR  ADDX
+            STX  FRQEND
+            RTS
+ 
+// GWAVE ROUTINE
+// ACCA= FREQ PATTERN LENGTH, X= FREQ PAT ADDR
+
+GWAVE       LDAA  GECHO
+            STAA  GECNT
+GWT4        LDX  GWFRQ
+            STX  XPLAY
+GPLAY       LDX  XPLAY                  ; GET NEW PERIOD
+            LDAA  ,X
+            ADDA  FOFSET
+            STAA  GPER
+            CPX  FRQEND
+            BEQ  GEND                   ; FINISH ON ZERO
+            LDAB  GCCNT                 ; CYCLE COUNT
+            INX
+            STX  XPLAY
+GOUT        LDX  #GWTAB                 ; SETUP WAVEFORM POINTER
+GOUTLP      LDAA  GPER
+GPRLP       DECA                        ; WAIT FOR PERIOD
+            BNE  GPRLP
+            LDAA  ,X                    ; OUTPUT SOUND
+            STAA  SOUND
+
+GPR1        INX
+            CPX  WVEND                  ; END OF WAVE?
+            BNE  GOUTLP
+            DECB
+            BEQ  GPLAY
+            INX
+            DEX
+            INX
+            DEX
+            INX
+            DEX
+            INX
+            DEX
+            NOP
+            NOP
+            BRA  GOUT                   ; SYNC 36
+GEND        LDAA  GECDEC
+            BSR  WVDECA
+GEND40      DEC  GECNT                  ; ECHO ON?
+            BNE  GWT4                   ; YES
+            LDAA  B2FLG                 ; STOP BONUS
+            BNE  GEND1
+
+GEND50      LDAA  GDFINC                ; CONTINUE FOR FREQ MOD SOUNDS
+            BEQ  GEND1                  ; NO
+            DEC  GDCNT                  ; DELTA FREQ OVER?
+            BEQ  GEND1                  ; YES...
+            ADDA  FOFSET                ; UPDATE FREQ OFFSET
+GEND60      STAA  FOFSET
+GEND61      LDX  GWFRQ                  ; GET INDEX
+            CLRB                        ; START FOUND FLAG INIT CLEAR
+GW0         LDAA  FOFSET                ; INC OR DEC?
+            TST  GDFINC
+            BMI  GW1                    ; DEC
+            ADDA  ,X                    ; INC
+            BCS  GW2                    ; CARRY=OVERFLOW
+            BRA  GW2A
+GW1         ADDA  ,X                    ; DEC
+            BEQ  GW2                    ; OVERFLOW ON EQ
+            BCS  GW2A                   ; OVERFLOW IF CARRY CLEAR
+GW2         TSTB                        ; FOUND START YET?
+            BEQ  GW2B                   ; NO
+            BRA  GW3                    ; YES, THIS IS THE END
+GW2A        TSTB
+            BNE  GW2B                   ; ALREADY FOUND START
+            STX  GWFRQ                  ; FOUND START
+            INCB
+GW2B        INX
+            CPX  FRQEND
+            BNE  GW0                    ; NOT OVER YET
+            TSTB                        ; FOUND START?
+            BNE  GW3                    ; YES
+            RTS                         ; ALL OVER
+GW3         STX  FRQEND
+            LDAA  GECDEC                ; RE:XSFER WAVE?
+            BEQ  GEND0                  ; NO
+            BSR  WVTRAN                 ; XSFER WAVE
+            LDAA  PRDECA
+            BSR  WVDECA
+GEND0       JMP  GWAVE
+GEND1       RTS                         ; TERMINATE
+    
+ 
+// WAVE TRANSFER ROUTINE
  
 WVTRAN      LDX  #GWTAB
             STX  XPTR
             LDX  GWFRM
-            LDAB  ,X  GET WAVE LENGTH
+            LDAB  ,X            ; GET WAVE LENGTH
             INX
             JSR  TRANS
             LDX  XPTR
-            STX  WVEND  GET END ADDR
+            STX  WVEND          ; GET END ADDR
             RTS
  
-; WAVE DECAY ROUTINE/ DECAY AMOUNT IN ACCA(1/16 PER DECAY)
+// WAVE DECAY ROUTINE/ DECAY AMOUNT IN ACCA(1/16 PER DECAY)
  
 WVDECA      TSTA
-            BEQ  WVDCX   ; NO DECAY
-            LDX  GWFRM   ; ROM WAVE INDEX
+            BEQ  WVDCX          ; NO DECAY
+            LDX  GWFRM          ; ROM WAVE INDEX
             STX  XPLAY
             LDX  #GWTAB
-            STAA  TEMPB  ; DECAY FACTOR
+            STAA  TEMPB         ; DECAY FACTOR
 WVDLP       STX  XPTR
             LDX  XPLAY
             LDAB  TEMPB
-            STAB  TEMPA  ; DECAY FACTOR TEMP
-            LDAB  1,X    ; OFFSET FOR WAVE LENGTH
+            STAB  TEMPA         ; DECAY FACTOR TEMP
+            LDAB  1,X           ; OFFSET FOR WAVE LENGTH
             LSRB
             LSRB
             LSRB
-            LSRB         ; CALC 1/16TH
+            LSRB                ; CALC 1/16TH
             INX
             STX  XPLAY
             LDX  XPTR
             LDAA  ,X
-WVDLP1      SBA    DECAY
-            DEC  TEMPA
-            BNE  WVDLP1
+WVDLP1      SBA                 ; DECAY
+            DEC TEMPA
+            BNE WVDLP1
             STAA  ,X
             INX
-            CPX  WVEND   ; END OF WAVE?
-            BNE  WVDLP   ; NO
+            CPX WVEND           ; END OF WAVE?
+            BNE WVDLP           ; NO
 WVDCX       RTS
  
 
-;  INTERRUPT PROCESSING
+//  INTERRUPT PROCESSING
  
 IRQ     LDS  #ENDRAM            ; RE-INITIALIZE STACK
         LDAA  SOUND+2           ; GET INPUT TRIGGER
@@ -888,7 +887,7 @@ IRQ     LDS  #ENDRAM            ; RE-INITIALIZE STACK
         JSR  ORGNT1             ; Do organ tune
 
 
-; Non organ sound effect
+// Non organ sound effect
 IRQ00       CLRB
             CMPA  #SP1SND       
             BEQ  IRQ00A
@@ -908,8 +907,8 @@ IRQ000      TSTA
 IRQ10       CMPA  #$1B              ; SPECIAL SOUND?
             BHI  IRQ20              ; VARI SOUND
 
-            ; sounds 13 or > get vectored through
-            ; the jump table
+// sounds 13 or > get vectored through
+// the jump table
             SUBA  #$D               ; SUB OFFSET
             ASLA                    ; DOUBLE FOR ADDRESSING
             LDX  #JMPTBL            ; INDEX TO JUMP TABLE
@@ -933,44 +932,43 @@ IRQ3        LDAA  BG1FLG            ; BGROUND ACTIVE?
 IRQXX       JMP  BG2
                                  
 
-;  ADD A TO INDEX REGISTER
-ADDX    STX  XPLAY
-        ADDA  XPLAY+1
-        STAA  XPLAY+1
-        BCC  ADDX1
-        INC  XPLAY  
-ADDX1   LDX  XPLAY
-        RTS
+//  ADD A TO INDEX REGISTER
+ADDX        STX  XPLAY
+            ADDA  XPLAY+1
+            STAA  XPLAY+1
+            BCC  ADDX1
+            INC  XPLAY  
+ADDX1       LDX  XPLAY
+            RTS
  
-;  DIAGNOSTIC PROCESSING HERE
- 
-NMI     SEI
-        LDS  #ENDRAM  RESET THE STACK
-        LDX  #$FFFF
-        CLRB
-NMI1    ADCB  0,X
-        DEX
-        CPX  #$F800
-        BNE  NMI1
-        CMPB  0,X
-        BEQ  NMI2
-        WAI
-NMI2    LDAA  #1  
-        JSR  VARILD
-        JSR  VARI
-        LDAA  #2
-        JSR  ORGASM
-        LDAA  #1
-        JSR  ORGASM
-        BRA  NMI  KEEP LOOPING
+//  DIAGNOSTIC PROCESSING HERE
+NMI         SEI
+            LDS  #ENDRAM  ; RESET THE STACK
+            LDX  #$FFFF
+            CLRB
+NMI1        ADCB  0,X
+            DEX
+            CPX  #$F800
+            BNE  NMI1
+            CMPB  0,X
+            BEQ  NMI2
+            WAI
+NMI2        LDAA  #1  
+            JSR  VARILD
+            JSR  VARI
+            LDAA  #2
+            JSR  ORGASM
+            LDAA  #1
+            JSR  ORGASM
+            BRA  NMI  ; KEEP LOOPING
 
-; SPECIAL ROUTINE JUMP TABLE
+// SPECIAL ROUTINE JUMP TABLE
 JMPTBL      FDB  SP1,BG1,BG2INC,LITE
             FDB  BON2,BGEND,TURBO,APPEAR
             FDB  THRUST,CANNON,RADIO,HYPER
             FDB  SCREAM,ORGANT,ORGANN
 
-; VARI VECTORS
+// VARI VECTORS
 
 VVECT  EQU  *
 
@@ -979,12 +977,12 @@ FOSHIT      FCB  $28,$01,$00,$08,$81,$02,$00,$FF,$FF
 QUASAR      FCB  $28,$81,$00,$FC,$01,$02,$00,$FC,$FF
 CABSHK      FCB  $FF,$01,$00,$18,$41,$04,$80,$00,$FF
  
-; RADIO SOUND WAVEFORM
+// RADIO SOUND WAVEFORM
  
 RADSND      FCB  $8C,$5B,$B6,$40,$BF,$49,$A4,$73
             FCB  $73,$A4,$49,$BF,$40,$B6,$5B,$8C
                                  
-;  NOTE DEFINITIONS AND ALL THAT JAZZ
+//  NOTE DEFINITIONS AND ALL THAT JAZZ
 
 AF1     EQU  $F847
 A1      EQU  $F83F
@@ -1036,8 +1034,8 @@ FS4     EQU  $1F08
 RS      EQU  $0004
 TR      EQU  TG
                                  
-; ORGAN TUNE TABLE
-; OSCILLATOR MASK(1),DELAY(1),DURATION(2)
+// ORGAN TUNE TABLE
+// OSCILLATOR MASK(1),DELAY(1),DURATION(2)
  
 ORGTAB  EQU  *
         FCB  NINTH-FIFTH-1
@@ -1142,19 +1140,19 @@ GS1.7       FCB  16,89,123,152,172,179,172,152,123
                                  
 SVTAB  EQU  *
 
-HBDV        FCB  $81,$24,0,0,0,22,HBDSND-GFRTAB 1
-STDV        FCB  $12,$05,$1A,$FF,0,39,STDSND-GFRTAB 2
-DP1V        FCB  $11,$05,$11,1,15,1,SWPAT-GFRTAB 3
-XBV         FCB  $11,$31,0,1,0,13,SPNSND-GFRTAB 4
-BBSV        FCB  $F4,$12,$0,0,0,20,BBSND-GFRTAB 5
-HBEV        FCB  $41,$45,0,0,0,15,HBESND-GFRTAB 6
-PROTV       FCB  $21,$35,$11,$FF,0,13,SPNSND-GFRTAB 7
-SPNRV       FCB  $15,$00,0,$FD,0,1,SPNR-GFRTAB 8
-CLDWNV      FCB  $31,$11,0,1,0,3,COOLDN-GFRTAB 9
-SV3         FCB  $01,$15,1,1,1,1,BBSND-GFRTAB 10
-ED10        FCB  $F6,$53,3,0,2,6,ED10FP-GFRTAB 11
-ED12        FCB  $6A,$10,2,0,2,6,ED13FP-GFRTAB 12
-ED17        FCB  $1F,$12,0,$FF,$10,4,SPNR-GFRTAB 13
+HBDV        FCB  $81,$24,0,0,0,22,HBDSND-GFRTAB         ; 1
+STDV        FCB  $12,$05,$1A,$FF,0,39,STDSND-GFRTAB     ; 2
+DP1V        FCB  $11,$05,$11,1,15,1,SWPAT-GFRTAB        ; 3
+XBV         FCB  $11,$31,0,1,0,13,SPNSND-GFRTAB         ; 4
+BBSV        FCB  $F4,$12,$0,0,0,20,BBSND-GFRTAB         ; 5
+HBEV        FCB  $41,$45,0,0,0,15,HBESND-GFRTAB         ; 6
+PROTV       FCB  $21,$35,$11,$FF,0,13,SPNSND-GFRTAB     ; 7
+SPNRV       FCB  $15,$00,0,$FD,0,1,SPNR-GFRTAB          ; 8
+CLDWNV      FCB  $31,$11,0,1,0,3,COOLDN-GFRTAB          ; 9
+SV3         FCB  $01,$15,1,1,1,1,BBSND-GFRTAB           ; 10
+ED10        FCB  $F6,$53,3,0,2,6,ED10FP-GFRTAB          ; 11
+ED12        FCB  $6A,$10,2,0,2,6,ED13FP-GFRTAB          ; 12
+ED17        FCB  $1F,$12,0,$FF,$10,4,SPNR-GFRTAB        ; 13
 BONV        FCB  $31,$11,0,$FF,0,13,BONSND-GFRTAB
 TRBV        FCB  $12,$06,$0,$FF,1,9,TRBPAT-GFRTAB
                                  

@@ -5,7 +5,7 @@ name = "vsndrm2"
 cpu="Cpu6800"
 verbose="Debug"
 mem-size = 65536
-project-file = "main.src"
+project-file = "vsndrm2.src"
 source-mapping = "vsndrm2.map"
 syms-file = "vsndrm2.sym"
 
