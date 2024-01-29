@@ -88,19 +88,6 @@ fn parse_extended(input: TSpan) -> PResult<Node> {
     Ok((rest, node))
 }
 
-fn parse_acc_a(input: TSpan) -> PResult<Node> {
-    use AddrModeParseType::*;
-    let (rest, (sp, _)) = ms(get_this_reg(RegEnum::A))(input)?;
-    let node = from_item_tspan(AccA, sp);
-    Ok((rest, node))
-}
-
-fn parse_acc_b(input: TSpan) -> PResult<Node> {
-    use AddrModeParseType::*;
-    let (rest, (sp, _)) = ms(get_this_reg(RegEnum::B))(input)?;
-    let node = from_item_tspan(AccB, sp);
-    Ok((rest, node))
-}
 
 fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
     let (rest, matched) = alt((
@@ -108,8 +95,6 @@ fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
         parse_immediate,
         parse_force_direct,
         parse_force_extended,
-        parse_acc_a,
-        parse_acc_b,
         parse_extended,
     ))(input)?;
 
@@ -122,8 +107,6 @@ fn get_instruction(amode: AddrModeParseType, info: &Instruction) -> Option<&Opco
     let get = |amode| info.get_opcode_data(amode);
 
     match amode {
-        PT::AccA => get(AccA),
-        PT::AccB => get(AccB),
         PT::Indexed => get(Indexed),
         PT::Direct => get(Direct),
         PT::Extended => get(Extended),
