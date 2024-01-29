@@ -74,6 +74,10 @@ pub fn err_nomatch<T>(sp: TSpan) -> PResult<T> {
     Err( FrontEndError::error(sp, ParseErrorKind::NoMatch) )
 }
 
+pub fn err_kind_nomatch(sp: TSpan) -> FrontEndError {
+    FrontEndError::error(sp, ParseErrorKind::NoMatch)
+}
+
 pub fn err_error<T, E: Into<FrontEndErrorKind>>(sp: TSpan, kind: E) -> PResult<T> {
     FrontEndError::error(sp, kind).into()
 }

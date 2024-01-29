@@ -1,6 +1,9 @@
-use crate::cpu6800::frontend::{ get_this_reg};
+use crate::cpu6800::frontend::get_this_reg;
 use crate::cpu6809::frontend::Cpu6809AssemblyErrorKind;
-use crate::frontend::{err_fatal, err_nomatch, get_text, PResult, TSpan, TokenKind};
+use crate::frontend::{
+    err_fatal, err_kind_nomatch, err_nomatch, get_text, is_parsing_macro_def, FrontEndError,
+    FrontEndErrorKind, PResult, TSpan, TokenKind,
+};
 
 use crate::cpu6800::{
     from_item_tspan,
@@ -12,15 +15,17 @@ use crate::cpu6800::{
     parse_expr, AddrModeParseType,
 };
 
-use emu6800::cpu_core::{AddrModeEnum, Instruction, InstructionInfo, OpcodeData, DBASE, RegEnum};
+use emu6800::cpu_core::{AddrModeEnum, Instruction, InstructionInfo, OpcodeData, RegEnum, DBASE};
 
 use serde_json::value::Index;
-use unraveler::{alt, match_span as ms, preceded, sep_list, tag, sep_pair};
+use unraveler::{alt, match_span as ms, opt, preceded, sep_list, sep_pair, tag};
 
 fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &Instruction)> {
     let (rest, (sp, matched)) = ms(TokenKind::OpCode)(input)?;
-    let text = get_text(matched);
-    let info = DBASE.get_opcode(text.as_str()).unwrap();
+    let text = get_text(matched).to_lowercase();
+    let info = DBASE
+        .get_opcode(text.as_str())
+        .ok_or(err_kind_nomatch(sp))?;
     Ok((rest, (sp, text, info)))
 }
 
@@ -39,7 +44,15 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
 fn parse_indexed(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     use TokenKind::Comma;
-    let (rest, (sp, (matched,_))) = ms(sep_pair(parse_expr, Comma,get_this_reg(RegEnum::X)))(input)?;
+    let (rest, (sp, (matched, _))) =
+        ms(sep_pair(opt(parse_expr), Comma, get_this_reg(RegEnum::X)))(input)?;
+
+    let matched = matched.unwrap_or_else(|| {
+        let item = Item::from_number(0, crate::frontend::ParsedFrom::Expression);
+        let node = from_item_tspan(item, sp);
+        node
+    });
+
     let node = from_item_tspan(Indexed, sp).with_child(matched);
     Ok((rest, node))
 }
@@ -75,14 +88,14 @@ fn parse_extended(input: TSpan) -> PResult<Node> {
     Ok((rest, node))
 }
 
-fn parse_acc_a(input: TSpan) -> PResult<Node> { 
+fn parse_acc_a(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     let (rest, (sp, _)) = ms(get_this_reg(RegEnum::A))(input)?;
     let node = from_item_tspan(AccA, sp);
     Ok((rest, node))
 }
 
-fn parse_acc_b(input: TSpan) -> PResult<Node> { 
+fn parse_acc_b(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     let (rest, (sp, _)) = ms(get_this_reg(RegEnum::B))(input)?;
     let node = from_item_tspan(AccB, sp);
@@ -128,13 +141,19 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     let (rest, arg) = parse_opcode_arg(rest)?;
 
     if let Item::CpuSpecific(Operand(amode)) = arg.item {
-        if let Some(instruction) = get_instruction(amode, info) {
+        if info.supports(AddrModeEnum::Relative) && amode == AddrModeParseType::Extended {
+            let instruction = get_instruction(AddrModeParseType::Relative, info).unwrap();
             let item = OpCode(text.to_string(), instruction.clone(), amode);
             let node = from_item_tspan(item, sp).take_others_children(arg);
             Ok((rest, node))
         } else {
-            panic!()
-            // err_fatal(sp, Cpu6809AssemblyErrorKind::ThisAddrModeUnsupported(amode))
+            if let Some(instruction) = get_instruction(amode, info) {
+                let item = OpCode(text.to_string(), instruction.clone(), amode);
+                let node = from_item_tspan(item, sp).take_others_children(arg);
+                Ok((rest, node))
+            } else {
+                err_fatal(sp, FrontEndErrorKind::Unexpected)
+            }
         }
     } else {
         panic!()
