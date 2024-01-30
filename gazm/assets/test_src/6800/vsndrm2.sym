@@ -3,18 +3,6 @@
   "next_scope_id": 2,
   "scopes": [
     {
-      "parent_id": null,
-      "scope": "",
-      "fqn_scope": "",
-      "name_to_id": {
-        "*": 1
-      },
-      "ref_name_to_symbol_id": {},
-      "highest_id": 2,
-      "scope_id": 0,
-      "symbol_resolution_barrier": "Global"
-    },
-    {
       "parent_id": 0,
       "scope": "gazm",
       "fqn_scope": "::gazm",
@@ -25,9 +13,2728 @@
       "highest_id": 2,
       "scope_id": 1,
       "symbol_resolution_barrier": "Global"
+    },
+    {
+      "parent_id": null,
+      "scope": "",
+      "fqn_scope": "",
+      "name_to_id": {
+        "ORGASM": 149,
+        "DSFLG": 81,
+        "LITE": 103,
+        "RS": 271,
+        "NOISE": 111,
+        "AF1": 224,
+        "CS4": 265,
+        "TA": 14,
+        "GWFRQ": 52,
+        "HYPER1": 135,
+        "ORGTAB": 273,
+        "VTRAN": 93,
+        "SCREM5": 144,
+        "BG2MAX": 7,
+        "TRANS1": 163,
+        "WVDECA": 200,
+        "F3": 257,
+        "V0LP": 97,
+        "SOUND": 2,
+        "GDFINC": 48,
+        "GPRLP": 184,
+        "SP1FLG": 33,
+        "FS1": 234,
+        "NINTH": 275,
+        "SPNRV": 296,
+        "NAMP": 70,
+        "FNOISE": 121,
+        "HBDV": 289,
+        "PRDECA": 51,
+        "GECHO": 45,
+        "ROM": 1,
+        "FIF": 12,
+        "ORGANL": 155,
+        "IRQ000": 207,
+        "GEND": 186,
+        "RADIO1": 130,
+        "GS12": 284,
+        "GEND40": 187,
+        "GEND50": 188,
+        "GWTAB": 58,
+        "B2": 239,
+        "GSSQ2": 282,
+        "EF2": 243,
+        "SCREAM": 139,
+        "FILLER": 318,
+        "FLO": 78,
+        "SAW": 219,
+        "HICNT": 68,
+        "WVDLP": 201,
+        "DUR": 84,
+        "TRANS": 162,
+        "D1": 230,
+        "GFRTAB": 304,
+        "FREQ": 28,
+        "VVECT": 218,
+        "ORGANT": 147,
+        "STDV": 290,
+        "GW3": 196,
+        "SPNR": 313,
+        "B2FLG": 34,
+        "DFREQ": 75,
+        "C1": 228,
+        "TIMER": 29,
+        "GWLD3": 178,
+        "LD2": 157,
+        "BONSND": 305,
+        "TALKD": 26,
+        "VARILD": 92,
+        "C4": 264,
+        "SP11": 171,
+        "GWVTAB": 280,
+        "GCCNT": 46,
+        "NFFLG": 73,
+        "VARI": 94,
+        "FNOIS1": 123,
+        "GEND1": 198,
+        "ED10FP": 316,
+        "NOISE1": 114,
+        "F4": 269,
+        "TEF": 20,
+        "TG": 24,
+        "HIPER": 60,
+        "EF3": 255,
+        "BG2LP": 168,
+        "NIN": 11,
+        "GWLD": 176,
+        "GOUTLP": 183,
+        "TAF": 13,
+        "SPNSND": 307,
+        "RADSND": 223,
+        "GWLD2": 177,
+        "TALK": 25,
+        "LOMOD": 65,
+        "RADIO2": 131,
+        "TE": 21,
+        "TO": 90,
+        "SCREM3": 142,
+        "IRQ20": 209,
+        "ORGFLG": 35,
+        "E2": 244,
+        "ORGANN": 154,
+        "GS2": 281,
+        "TRBPAT": 308,
+        "LITE1": 107,
+        "BG1": 118,
+        "AF3": 248,
+        "ORGAN": 159,
+        "NFRQ1": 72,
+        "ORGNT3": 151,
+        "SETUP": 91,
+        "GSQ22": 285,
+        "ED12": 300,
+        "VARX": 102,
+        "BG2": 167,
+        "RADIO": 129,
+        "BF1": 226,
+        "SVTAB": 288,
+        "SP1MAX": 10,
+        "NOISE2": 115,
+        "BGEND": 164,
+        "GOUT": 182,
+        "GW2A": 194,
+        "AF4": 260,
+        "F2": 245,
+        "GEND0": 197,
+        "B3": 251,
+        "SRMEND": 83,
+        "WVEND": 54,
+        "IRQ10": 208,
+        "E4": 268,
+        "AF2": 236,
+        "LOPER": 59,
+        "FIFTH": 274,
+        "CABSHK": 222,
+        "TURBO": 110,
+        "GEND61": 190,
+        "TUNE": 278,
+        "HBTSND": 306,
+        "FRQEND": 53,
+        "GEND60": 189,
+        "GW0": 191,
+        "NMI": 214,
+        "PROTV": 295,
+        "TEMPB": 43,
+        "GECNT": 56,
+        "FOFSET": 57,
+        "CANNON": 120,
+        "IRQ00A": 206,
+        "QUASAR": 221,
+        "FS4": 270,
+        "SP1": 169,
+        "NMIV": 321,
+        "TUNEND": 276,
+        "HBEV": 294,
+        "FDFLG": 80,
+        "HYPER2": 136,
+        "FMAX": 76,
+        "FOSHIT": 220,
+        "VECTOR": 5,
+        "LITEN": 105,
+        "GPER": 55,
+        "V1": 98,
+        "RADIO3": 132,
+        "NOIS00": 113,
+        "SCREM7": 146,
+        "LAST": 277,
+        "CLDWNV": 297,
+        "LODT": 61,
+        "IRQ00": 205,
+        "GWFRM": 50,
+        "SP1LP": 173,
+        "F1": 233,
+        "CS2": 241,
+        "D2": 242,
+        "LITE0": 106,
+        "LOCRAM": 44,
+        "FROM": 89,
+        "CS1": 229,
+        "VAR0": 95,
+        "EF1": 231,
+        "BF3": 250,
+        "FS3": 258,
+        "GS72": 286,
+        "TC": 17,
+        "DECAY": 69,
+        "SV3": 298,
+        "BONV": 302,
+        "*": 323,
+        "STDSND": 315,
+        "CKSUM1": 88,
+        "ADDX1": 213,
+        "ADDX": 212,
+        "BBSV": 293,
+        "GW1": 192,
+        "TLKGL": 30,
+        "GS1.7": 287,
+        "FNOIS0": 122,
+        "GW2B": 195,
+        "SWIV": 320,
+        "SP1A": 170,
+        "ORGNT5": 153,
+        "HIEN": 63,
+        "NOISE3": 116,
+        "LFREQ": 74,
+        "LITE2": 108,
+        "RADIO4": 133,
+        "NMI1": 215,
+        "E1": 232,
+        "HBESND": 312,
+        "WVDCX": 203,
+        "FS2": 246,
+        "LITE3": 109,
+        "TMPRAM": 38,
+        "BON2": 174,
+        "D3": 254,
+        "SCREM4": 143,
+        "WVELEN": 6,
+        "TR": 272,
+        "B2SND": 9,
+        "TEMPA": 42,
+        "JMPTBL": 217,
+        "GDCNT": 49,
+        "B1": 227,
+        "FNOIS5": 127,
+        "SCREM2": 141,
+        "E3": 256,
+        "TRBV": 303,
+        "TCS": 18,
+        "SWPDT": 64,
+        "ORGNT4": 152,
+        "COOLDN": 314,
+        "V0": 96,
+        "LDLP": 156,
+        "BG2FLG": 32,
+        "HYPER": 134,
+        "BG2INC": 165,
+        "BBSND": 311,
+        "BG1FLG": 31,
+        "FNOIS6": 128,
+        "GPLAY": 181,
+        "SCREM1": 140,
+        "BG2I0": 166,
+        "WVTRAN": 199,
+        "A1": 225,
+        "SAMPC": 79,
+        "NOTTAB": 279,
+        "ED10": 299,
+        "ORGNT2": 150,
+        "SWPAT": 310,
+        "G4": 259,
+        "NOISE0": 112,
+        "VSWEEP": 100,
+        "TFS": 23,
+        "GWT4": 180,
+        "CYCNT": 71,
+        "SCREM6": 145,
+        "SP12": 172,
+        "A3": 249,
+        "D4": 266,
+        "IRQV": 319,
+        "HI": 36,
+        "LD1": 158,
+        "VS1": 101,
+        "STABLE": 82,
+        "LO": 37,
+        "TBF": 15,
+        "CKSUM": 87,
+        "XPLAY": 40,
+        "GW2": 193,
+        "CKORG": 3,
+        "BF4": 262,
+        "FNOIS2": 124,
+        "B4": 263,
+        "GS1": 283,
+        "GPR1": 185,
+        "TB": 16,
+        "C2": 240,
+        "ED13FP": 317,
+        "DP1V": 291,
+        "ENDRAM": 4,
+        "IRQXX": 211,
+        "C3": 252,
+        "TD": 19,
+        "LOCNT": 67,
+        "ORGAN1": 160,
+        "BF2": 238,
+        "ECHOS": 27,
+        "HBDSND": 309,
+        "OSCIL": 85,
+        "IRQ3": 210,
+        "TF": 22,
+        "TEMPX": 39,
+        "NSEND": 117,
+        "HYPER3": 137,
+        "G2": 235,
+        "RESETV": 322,
+        "FHI": 77,
+        "A2": 237,
+        "EF4": 267,
+        "APPEAR": 104,
+        "ED17": 301,
+        "HIDT": 62,
+        "WVDLP1": 202,
+        "A4": 261,
+        "XPTR": 41,
+        "ORGAN2": 161,
+        "ORGNT1": 148,
+        "HYPER4": 138,
+        "NMI2": 216,
+        "XBV": 292,
+        "THRUST": 119,
+        "FNOIS3": 125,
+        "FNOIS4": 126,
+        "G3": 247,
+        "VAMP": 66,
+        "V2": 99,
+        "GWAVE": 179,
+        "CS3": 253,
+        "RDELAY": 86,
+        "GECDEC": 47,
+        "IRQ": 204,
+        "SP1SND": 8,
+        "BON21": 175
+      },
+      "ref_name_to_symbol_id": {},
+      "highest_id": 324,
+      "scope_id": 0,
+      "symbol_resolution_barrier": "Global"
     }
   ],
   "symbols": [
+    {
+      "name": "E3",
+      "scoped_name": "::E3",
+      "value": 15890,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 256
+      }
+    },
+    {
+      "name": "SP1MAX",
+      "scoped_name": "::SP1MAX",
+      "value": 32,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 10
+      }
+    },
+    {
+      "name": "SWPDT",
+      "scoped_name": "::SWPDT",
+      "value": 24,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 64
+      }
+    },
+    {
+      "name": "ORGANL",
+      "scoped_name": "::ORGANL",
+      "value": 64134,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 155
+      }
+    },
+    {
+      "name": "D1",
+      "scoped_name": "::D1",
+      "value": 63517,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 230
+      }
+    },
+    {
+      "name": "FS2",
+      "scoped_name": "::FS2",
+      "value": 31752,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 246
+      }
+    },
+    {
+      "name": "NSEND",
+      "scoped_name": "::NSEND",
+      "value": 63762,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 117
+      }
+    },
+    {
+      "name": "SOUND",
+      "scoped_name": "::SOUND",
+      "value": 1024,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 2
+      }
+    },
+    {
+      "name": "EF4",
+      "scoped_name": "::EF4",
+      "value": 7959,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 267
+      }
+    },
+    {
+      "name": "RS",
+      "scoped_name": "::RS",
+      "value": 4,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 271
+      }
+    },
+    {
+      "name": "SPNRV",
+      "scoped_name": "::SPNRV",
+      "value": 65305,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 296
+      }
+    },
+    {
+      "name": "TE",
+      "scoped_name": "::TE",
+      "value": 55108,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 21
+      }
+    },
+    {
+      "name": "HYPER1",
+      "scoped_name": "::HYPER1",
+      "value": 63960,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 135
+      }
+    },
+    {
+      "name": "EF3",
+      "scoped_name": "::EF3",
+      "value": 15895,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 255
+      }
+    },
+    {
+      "name": "CS4",
+      "scoped_name": "::CS4",
+      "value": 7971,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 265
+      }
+    },
+    {
+      "name": "DFREQ",
+      "scoped_name": "::DFREQ",
+      "value": 26,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 75
+      }
+    },
+    {
+      "name": "LITEN",
+      "scoped_name": "::LITEN",
+      "value": 63646,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 105
+      }
+    },
+    {
+      "name": "RADSND",
+      "scoped_name": "::RADSND",
+      "value": 64862,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 223
+      }
+    },
+    {
+      "name": "GECDEC",
+      "scoped_name": "::GECDEC",
+      "value": 21,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 47
+      }
+    },
+    {
+      "name": "AF1",
+      "scoped_name": "::AF1",
+      "value": 63559,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 224
+      }
+    },
+    {
+      "name": "F1",
+      "scoped_name": "::F1",
+      "value": 63501,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 233
+      }
+    },
+    {
+      "name": "A4",
+      "scoped_name": "::A4",
+      "value": 7999,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 261
+      }
+    },
+    {
+      "name": "FOSHIT",
+      "scoped_name": "::FOSHIT",
+      "value": 64835,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 220
+      }
+    },
+    {
+      "name": "TEF",
+      "scoped_name": "::TEF",
+      "value": 52015,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 20
+      }
+    },
+    {
+      "name": "FNOIS1",
+      "scoped_name": "::FNOIS1",
+      "value": 63804,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 123
+      }
+    },
+    {
+      "name": "E4",
+      "scoped_name": "::E4",
+      "value": 7954,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 268
+      }
+    },
+    {
+      "name": "ORGTAB",
+      "scoped_name": "::ORGTAB",
+      "value": 64878,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 273
+      }
+    },
+    {
+      "name": "BF3",
+      "scoped_name": "::BF3",
+      "value": 15927,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 250
+      }
+    },
+    {
+      "name": "RDELAY",
+      "scoped_name": "::RDELAY",
+      "value": 22,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 86
+      }
+    },
+    {
+      "name": "SAMPC",
+      "scoped_name": "::SAMPC",
+      "value": 22,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 79
+      }
+    },
+    {
+      "name": "TF",
+      "scoped_name": "::TF",
+      "value": 58385,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 22
+      }
+    },
+    {
+      "name": "D2",
+      "scoped_name": "::D2",
+      "value": 31773,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 242
+      }
+    },
+    {
+      "name": "FNOIS0",
+      "scoped_name": "::FNOIS0",
+      "value": 63799,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 122
+      }
+    },
+    {
+      "name": "ECHOS",
+      "scoped_name": "::ECHOS",
+      "value": 4,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 27
+      }
+    },
+    {
+      "name": "HI",
+      "scoped_name": "::HI",
+      "value": 9,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 36
+      }
+    },
+    {
+      "name": "SCREAM",
+      "scoped_name": "::SCREAM",
+      "value": 63985,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 139
+      }
+    },
+    {
+      "name": "TC",
+      "scoped_name": "::TC",
+      "value": 43739,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 17
+      }
+    },
+    {
+      "name": "GEND50",
+      "scoped_name": "::GEND50",
+      "value": 64514,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 188
+      }
+    },
+    {
+      "name": "HYPER",
+      "scoped_name": "::HYPER",
+      "value": 63954,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 134
+      }
+    },
+    {
+      "name": "GWLD2",
+      "scoped_name": "::GWLD2",
+      "value": 64383,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 177
+      }
+    },
+    {
+      "name": "IRQXX",
+      "scoped_name": "::IRQXX",
+      "value": 64738,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 211
+      }
+    },
+    {
+      "name": "F2",
+      "scoped_name": "::F2",
+      "value": 31757,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 245
+      }
+    },
+    {
+      "name": "GSQ22",
+      "scoped_name": "::GSQ22",
+      "value": 65149,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 285
+      }
+    },
+    {
+      "name": "IRQ3",
+      "scoped_name": "::IRQ3",
+      "value": 64722,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 210
+      }
+    },
+    {
+      "name": "FRQEND",
+      "scoped_name": "::FRQEND",
+      "value": 29,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 53
+      }
+    },
+    {
+      "name": "V0",
+      "scoped_name": "::V0",
+      "value": 63564,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 96
+      }
+    },
+    {
+      "name": "SCREM6",
+      "scoped_name": "::SCREM6",
+      "value": 64052,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 145
+      }
+    },
+    {
+      "name": "BG2FLG",
+      "scoped_name": "::BG2FLG",
+      "value": 5,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 32
+      }
+    },
+    {
+      "name": "HICNT",
+      "scoped_name": "::HICNT",
+      "value": 29,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 68
+      }
+    },
+    {
+      "name": "GWLD",
+      "scoped_name": "::GWLD",
+      "value": 64341,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 176
+      }
+    },
+    {
+      "name": "GWAVE",
+      "scoped_name": "::GWAVE",
+      "value": 64443,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 179
+      }
+    },
+    {
+      "name": "ADDX1",
+      "scoped_name": "::ADDX1",
+      "value": 64752,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 213
+      }
+    },
+    {
+      "name": "HBDV",
+      "scoped_name": "::HBDV",
+      "value": 65256,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 289
+      }
+    },
+    {
+      "name": "B3",
+      "scoped_name": "::B3",
+      "value": 15920,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 251
+      }
+    },
+    {
+      "name": "SV3",
+      "scoped_name": "::SV3",
+      "value": 65319,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 298
+      }
+    },
+    {
+      "name": "GFRTAB",
+      "scoped_name": "::GFRTAB",
+      "value": 65361,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 304
+      }
+    },
+    {
+      "name": "IRQ",
+      "scoped_name": "::IRQ",
+      "value": 64650,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 204
+      }
+    },
+    {
+      "name": "BF4",
+      "scoped_name": "::BF4",
+      "value": 7991,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 262
+      }
+    },
+    {
+      "name": "FNOIS2",
+      "scoped_name": "::FNOIS2",
+      "value": 63826,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 124
+      }
+    },
+    {
+      "name": "ORGANN",
+      "scoped_name": "::ORGANN",
+      "value": 64133,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 154
+      }
+    },
+    {
+      "name": "LITE",
+      "scoped_name": "::LITE",
+      "value": 63628,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 103
+      }
+    },
+    {
+      "name": "IRQ00",
+      "scoped_name": "::IRQ00",
+      "value": 64667,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 205
+      }
+    },
+    {
+      "name": "GWFRM",
+      "scoped_name": "::GWFRM",
+      "value": 24,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 50
+      }
+    },
+    {
+      "name": "GWFRQ",
+      "scoped_name": "::GWFRQ",
+      "value": 27,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 52
+      }
+    },
+    {
+      "name": "TALKD",
+      "scoped_name": "::TALKD",
+      "value": 61434,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 26
+      }
+    },
+    {
+      "name": "NOISE",
+      "scoped_name": "::NOISE",
+      "value": 63708,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 111
+      }
+    },
+    {
+      "name": "FNOIS3",
+      "scoped_name": "::FNOIS3",
+      "value": 63834,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 125
+      }
+    },
+    {
+      "name": "HYPER4",
+      "scoped_name": "::HYPER4",
+      "value": 63970,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 138
+      }
+    },
+    {
+      "name": "GW3",
+      "scoped_name": "::GW3",
+      "value": 64569,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 196
+      }
+    },
+    {
+      "name": "NOIS00",
+      "scoped_name": "::NOIS00",
+      "value": 63712,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 113
+      }
+    },
+    {
+      "name": "IRQ10",
+      "scoped_name": "::IRQ10",
+      "value": 64696,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 208
+      }
+    },
+    {
+      "name": "G3",
+      "scoped_name": "::G3",
+      "value": 31748,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 247
+      }
+    },
+    {
+      "name": "C4",
+      "scoped_name": "::C4",
+      "value": 7977,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 264
+      }
+    },
+    {
+      "name": "LAST",
+      "scoped_name": "::LAST",
+      "value": 65085,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 277
+      }
+    },
+    {
+      "name": "CYCNT",
+      "scoped_name": "::CYCNT",
+      "value": 21,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 71
+      }
+    },
+    {
+      "name": "SRMEND",
+      "scoped_name": "::SRMEND",
+      "value": 27,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 83
+      }
+    },
+    {
+      "name": "LITE1",
+      "scoped_name": "::LITE1",
+      "value": 63657,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 107
+      }
+    },
+    {
+      "name": "SP1LP",
+      "scoped_name": "::SP1LP",
+      "value": 64320,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 173
+      }
+    },
+    {
+      "name": "EF1",
+      "scoped_name": "::EF1",
+      "value": 63511,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 231
+      }
+    },
+    {
+      "name": "B2FLG",
+      "scoped_name": "::B2FLG",
+      "value": 7,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 34
+      }
+    },
+    {
+      "name": "CLDWNV",
+      "scoped_name": "::CLDWNV",
+      "value": 65312,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 297
+      }
+    },
+    {
+      "name": "HYPER3",
+      "scoped_name": "::HYPER3",
+      "value": 63968,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 137
+      }
+    },
+    {
+      "name": "BON2",
+      "scoped_name": "::BON2",
+      "value": 64325,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 174
+      }
+    },
+    {
+      "name": "LOCRAM",
+      "scoped_name": "::LOCRAM",
+      "value": 19,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 44
+      }
+    },
+    {
+      "name": "ROM",
+      "scoped_name": "::ROM",
+      "value": 63488,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 1
+      }
+    },
+    {
+      "name": "BBSND",
+      "scoped_name": "::BBSND",
+      "value": 65432,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 311
+      }
+    },
+    {
+      "name": "WVEND",
+      "scoped_name": "::WVEND",
+      "value": 31,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 54
+      }
+    },
+    {
+      "name": "GECHO",
+      "scoped_name": "::GECHO",
+      "value": 19,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 45
+      }
+    },
+    {
+      "name": "ED13FP",
+      "scoped_name": "::ED13FP",
+      "value": 65515,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 317
+      }
+    },
+    {
+      "name": "RADIO1",
+      "scoped_name": "::RADIO1",
+      "value": 63917,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 130
+      }
+    },
+    {
+      "name": "WVDECA",
+      "scoped_name": "::WVDECA",
+      "value": 64603,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 200
+      }
+    },
+    {
+      "name": "DSFLG",
+      "scoped_name": "::DSFLG",
+      "value": 25,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 81
+      }
+    },
+    {
+      "name": "FHI",
+      "scoped_name": "::FHI",
+      "value": 20,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 77
+      }
+    },
+    {
+      "name": "STDV",
+      "scoped_name": "::STDV",
+      "value": 65263,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 290
+      }
+    },
+    {
+      "name": "PRDECA",
+      "scoped_name": "::PRDECA",
+      "value": 26,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 51
+      }
+    },
+    {
+      "name": "FREQ",
+      "scoped_name": "::FREQ",
+      "value": 0,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 28
+      }
+    },
+    {
+      "name": "BG2MAX",
+      "scoped_name": "::BG2MAX",
+      "value": 29,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 7
+      }
+    },
+    {
+      "name": "GWT4",
+      "scoped_name": "::GWT4",
+      "value": 64447,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 180
+      }
+    },
+    {
+      "name": "FIFTH",
+      "scoped_name": "::FIFTH",
+      "value": 64879,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 274
+      }
+    },
+    {
+      "name": "RADIO",
+      "scoped_name": "::RADIO",
+      "value": 63908,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 129
+      }
+    },
+    {
+      "name": "C2",
+      "scoped_name": "::C2",
+      "value": 31785,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 240
+      }
+    },
+    {
+      "name": "GS72",
+      "scoped_name": "::GS72",
+      "value": 65166,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 286
+      }
+    },
+    {
+      "name": "GPER",
+      "scoped_name": "::GPER",
+      "value": 33,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 55
+      }
+    },
+    {
+      "name": "C1",
+      "scoped_name": "::C1",
+      "value": 63529,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 228
+      }
+    },
+    {
+      "name": "XPLAY",
+      "scoped_name": "::XPLAY",
+      "value": 13,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 40
+      }
+    },
+    {
+      "name": "V1",
+      "scoped_name": "::V1",
+      "value": 63571,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 98
+      }
+    },
+    {
+      "name": "JMPTBL",
+      "scoped_name": "::JMPTBL",
+      "value": 64796,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 217
+      }
+    },
+    {
+      "name": "NOISE2",
+      "scoped_name": "::NOISE2",
+      "value": 63736,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 115
+      }
+    },
+    {
+      "name": "VAR0",
+      "scoped_name": "::VAR0",
+      "value": 63556,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 95
+      }
+    },
+    {
+      "name": "TALK",
+      "scoped_name": "::TALK",
+      "value": 61437,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 25
+      }
+    },
+    {
+      "name": "BONSND",
+      "scoped_name": "::BONSND",
+      "value": 65361,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 305
+      }
+    },
+    {
+      "name": "NMIV",
+      "scoped_name": "::NMIV",
+      "value": 65532,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 321
+      }
+    },
+    {
+      "name": "ED10FP",
+      "scoped_name": "::ED10FP",
+      "value": 65509,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 316
+      }
+    },
+    {
+      "name": "RESETV",
+      "scoped_name": "::RESETV",
+      "value": 65534,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 322
+      }
+    },
+    {
+      "name": "TB",
+      "scoped_name": "::TB",
+      "value": 41284,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 16
+      }
+    },
+    {
+      "name": "GW2",
+      "scoped_name": "::GW2",
+      "value": 64549,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 193
+      }
+    },
+    {
+      "name": "NINTH",
+      "scoped_name": "::NINTH",
+      "value": 64908,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 275
+      }
+    },
+    {
+      "name": "TIMER",
+      "scoped_name": "::TIMER",
+      "value": 1,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 29
+      }
+    },
+    {
+      "name": "RADIO4",
+      "scoped_name": "::RADIO4",
+      "value": 63953,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 133
+      }
+    },
+    {
+      "name": "BG2",
+      "scoped_name": "::BG2",
+      "value": 64264,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 167
+      }
+    },
+    {
+      "name": "TCS",
+      "scoped_name": "::TCS",
+      "value": 46340,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 18
+      }
+    },
+    {
+      "name": "QUASAR",
+      "scoped_name": "::QUASAR",
+      "value": 64844,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 221
+      }
+    },
+    {
+      "name": "TLKGL",
+      "scoped_name": "::TLKGL",
+      "value": 0,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 30
+      }
+    },
+    {
+      "name": "ED12",
+      "scoped_name": "::ED12",
+      "value": 65333,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 300
+      }
+    },
+    {
+      "name": "FDFLG",
+      "scoped_name": "::FDFLG",
+      "value": 24,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 80
+      }
+    },
+    {
+      "name": "GOUTLP",
+      "scoped_name": "::GOUTLP",
+      "value": 64471,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 183
+      }
+    },
+    {
+      "name": "FMAX",
+      "scoped_name": "::FMAX",
+      "value": 19,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 76
+      }
+    },
+    {
+      "name": "NMI2",
+      "scoped_name": "::NMI2",
+      "value": 64776,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 216
+      }
+    },
+    {
+      "name": "SCREM7",
+      "scoped_name": "::SCREM7",
+      "value": 64055,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 146
+      }
+    },
+    {
+      "name": "VARX",
+      "scoped_name": "::VARX",
+      "value": 63627,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 102
+      }
+    },
+    {
+      "name": "BG2I0",
+      "scoped_name": "::BG2I0",
+      "value": 64260,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 166
+      }
+    },
+    {
+      "name": "V2",
+      "scoped_name": "::V2",
+      "value": 63582,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 99
+      }
+    },
+    {
+      "name": "GW2A",
+      "scoped_name": "::GW2A",
+      "value": 64554,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 194
+      }
+    },
+    {
+      "name": "TEMPB",
+      "scoped_name": "::TEMPB",
+      "value": 18,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 43
+      }
+    },
+    {
+      "name": "LITE2",
+      "scoped_name": "::LITE2",
+      "value": 63676,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 108
+      }
+    },
+    {
+      "name": "VTRAN",
+      "scoped_name": "::VTRAN",
+      "value": 63548,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 93
+      }
+    },
+    {
+      "name": "BG2INC",
+      "scoped_name": "::BG2INC",
+      "value": 64248,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 165
+      }
+    },
+    {
+      "name": "AF2",
+      "scoped_name": "::AF2",
+      "value": 31815,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 236
+      }
+    },
+    {
+      "name": "ORGAN2",
+      "scoped_name": "::ORGAN2",
+      "value": 64221,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 161
+      }
+    },
+    {
+      "name": "HBDSND",
+      "scoped_name": "::HBDSND",
+      "value": 65410,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 309
+      }
+    },
+    {
+      "name": "V0LP",
+      "scoped_name": "::V0LP",
+      "value": 63566,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 97
+      }
+    },
+    {
+      "name": "ORGASM",
+      "scoped_name": "::ORGASM",
+      "value": 64075,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 149
+      }
+    },
+    {
+      "name": "WVDCX",
+      "scoped_name": "::WVDCX",
+      "value": 64649,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 203
+      }
+    },
+    {
+      "name": "ADDX",
+      "scoped_name": "::ADDX",
+      "value": 64741,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 212
+      }
+    },
+    {
+      "name": "NAMP",
+      "scoped_name": "::NAMP",
+      "value": 20,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 70
+      }
+    },
+    {
+      "name": "CANNON",
+      "scoped_name": "::CANNON",
+      "value": 63779,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 120
+      }
+    },
+    {
+      "name": "BBSV",
+      "scoped_name": "::BBSV",
+      "value": 65284,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 293
+      }
+    },
+    {
+      "name": "SP12",
+      "scoped_name": "::SP12",
+      "value": 64313,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 172
+      }
+    },
+    {
+      "name": "G4",
+      "scoped_name": "::G4",
+      "value": 15876,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 259
+      }
+    },
+    {
+      "name": "HBESND",
+      "scoped_name": "::HBESND",
+      "value": 65452,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 312
+      }
+    },
+    {
+      "name": "GOUT",
+      "scoped_name": "::GOUT",
+      "value": 64468,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 182
+      }
+    },
+    {
+      "name": "GEND",
+      "scoped_name": "::GEND",
+      "value": 64501,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 186
+      }
+    },
+    {
+      "name": "SP1A",
+      "scoped_name": "::SP1A",
+      "value": 64297,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 170
+      }
+    },
+    {
+      "name": "GW0",
+      "scoped_name": "::GW0",
+      "value": 64530,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 191
+      }
+    },
+    {
+      "name": "NOTTAB",
+      "scoped_name": "::NOTTAB",
+      "value": 65085,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 279
+      }
+    },
+    {
+      "name": "SPNR",
+      "scoped_name": "::SPNR",
+      "value": 65466,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 313
+      }
+    },
+    {
+      "name": "ENDRAM",
+      "scoped_name": "::ENDRAM",
+      "value": 127,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 4
+      }
+    },
+    {
+      "name": "FLO",
+      "scoped_name": "::FLO",
+      "value": 21,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 78
+      }
+    },
+    {
+      "name": "NOISE0",
+      "scoped_name": "::NOISE0",
+      "value": 63710,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 112
+      }
+    },
+    {
+      "name": "ORGNT3",
+      "scoped_name": "::ORGNT3",
+      "value": 64098,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 151
+      }
+    },
+    {
+      "name": "BG2LP",
+      "scoped_name": "::BG2LP",
+      "value": 64277,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 168
+      }
+    },
+    {
+      "name": "BON21",
+      "scoped_name": "::BON21",
+      "value": 64338,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 175
+      }
+    },
+    {
+      "name": "CKSUM",
+      "scoped_name": "::CKSUM",
+      "value": 63232,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 87
+      }
+    },
+    {
+      "name": "TR",
+      "scoped_name": "::TR",
+      "value": 65535,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 272
+      }
+    },
+    {
+      "name": "EF2",
+      "scoped_name": "::EF2",
+      "value": 31767,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 243
+      }
+    },
+    {
+      "name": "GSSQ2",
+      "scoped_name": "::GSSQ2",
+      "value": 65106,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 282
+      }
+    },
+    {
+      "name": "SCREM4",
+      "scoped_name": "::SCREM4",
+      "value": 64018,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 143
+      }
+    },
+    {
+      "name": "ORGANT",
+      "scoped_name": "::ORGANT",
+      "value": 64066,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 147
+      }
+    },
+    {
+      "name": "ORGNT4",
+      "scoped_name": "::ORGNT4",
+      "value": 64108,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 152
+      }
+    },
+    {
+      "name": "GEND60",
+      "scoped_name": "::GEND60",
+      "value": 64525,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 189
+      }
+    },
+    {
+      "name": "NFRQ1",
+      "scoped_name": "::NFRQ1",
+      "value": 22,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 72
+      }
+    },
+    {
+      "name": "CKSUM1",
+      "scoped_name": "::CKSUM1",
+      "value": 63236,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 88
+      }
+    },
+    {
+      "name": "LD1",
+      "scoped_name": "::LD1",
+      "value": 64162,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 158
+      }
+    },
+    {
+      "name": "B4",
+      "scoped_name": "::B4",
+      "value": 7984,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 263
+      }
+    },
+    {
+      "name": "LODT",
+      "scoped_name": "::LODT",
+      "value": 21,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 61
+      }
+    },
+    {
+      "name": "G2",
+      "scoped_name": "::G2",
+      "value": 63492,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 235
+      }
+    },
+    {
+      "name": "TD",
+      "scoped_name": "::TD",
+      "value": 49096,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 19
+      }
+    },
+    {
+      "name": "DECAY",
+      "scoped_name": "::DECAY",
+      "value": 19,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 69
+      }
+    },
+    {
+      "name": "LITE3",
+      "scoped_name": "::LITE3",
+      "value": 63678,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 109
+      }
+    },
+    {
+      "name": "AF3",
+      "scoped_name": "::AF3",
+      "value": 15943,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 248
+      }
+    },
+    {
+      "name": "ORGAN1",
+      "scoped_name": "::ORGAN1",
+      "value": 64176,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 160
+      }
+    },
+    {
+      "name": "WVDLP",
+      "scoped_name": "::WVDLP",
+      "value": 64615,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 201
+      }
+    },
+    {
+      "name": "A3",
+      "scoped_name": "::A3",
+      "value": 15935,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 249
+      }
+    },
+    {
+      "name": "F4",
+      "scoped_name": "::F4",
+      "value": 7949,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 269
+      }
+    },
+    {
+      "name": "IRQV",
+      "scoped_name": "::IRQV",
+      "value": 65528,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 319
+      }
+    },
+    {
+      "name": "D3",
+      "scoped_name": "::D3",
+      "value": 15901,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 254
+      }
+    },
+    {
+      "name": "WVTRAN",
+      "scoped_name": "::WVTRAN",
+      "value": 64585,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 199
+      }
+    },
+    {
+      "name": "TFS",
+      "scoped_name": "::TFS",
+      "value": 61857,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 23
+      }
+    },
+    {
+      "name": "GWVTAB",
+      "scoped_name": "::GWVTAB",
+      "value": 65097,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 280
+      }
+    },
+    {
+      "name": "GDFINC",
+      "scoped_name": "::GDFINC",
+      "value": 22,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 48
+      }
+    },
+    {
+      "name": "VSWEEP",
+      "scoped_name": "::VSWEEP",
+      "value": 63590,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 100
+      }
+    },
+    {
+      "name": "HIEN",
+      "scoped_name": "::HIEN",
+      "value": 23,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 63
+      }
+    },
+    {
+      "name": "ORGNT1",
+      "scoped_name": "::ORGNT1",
+      "value": 64070,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 148
+      }
+    },
+    {
+      "name": "APPEAR",
+      "scoped_name": "::APPEAR",
+      "value": 63636,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 104
+      }
+    },
+    {
+      "name": "AF4",
+      "scoped_name": "::AF4",
+      "value": 8007,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 260
+      }
+    },
+    {
+      "name": "NMI1",
+      "scoped_name": "::NMI1",
+      "value": 64763,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 215
+      }
+    },
+    {
+      "name": "GCCNT",
+      "scoped_name": "::GCCNT",
+      "value": 20,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 46
+      }
+    },
+    {
+      "name": "VVECT",
+      "scoped_name": "::VVECT",
+      "value": 64826,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 218
+      }
+    },
+    {
+      "name": "IRQ00A",
+      "scoped_name": "::IRQ00A",
+      "value": 64674,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 206
+      }
+    },
+    {
+      "name": "TUNE",
+      "scoped_name": "::TUNE",
+      "value": 65085,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 278
+      }
+    },
+    {
+      "name": "GEND61",
+      "scoped_name": "::GEND61",
+      "value": 64527,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 190
+      }
+    },
+    {
+      "name": "TBF",
+      "scoped_name": "::TBF",
+      "value": 38967,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 15
+      }
+    },
+    {
+      "name": "SVTAB",
+      "scoped_name": "::SVTAB",
+      "value": 65256,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 288
+      }
+    },
+    {
+      "name": "BGEND",
+      "scoped_name": "::BGEND",
+      "value": 64242,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 164
+      }
+    },
+    {
+      "name": "TRBV",
+      "scoped_name": "::TRBV",
+      "value": 65354,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 303
+      }
+    },
+    {
+      "name": "CS2",
+      "scoped_name": "::CS2",
+      "value": 31779,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 241
+      }
+    },
+    {
+      "name": "DP1V",
+      "scoped_name": "::DP1V",
+      "value": 65270,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 291
+      }
+    },
+    {
+      "name": "SCREM5",
+      "scoped_name": "::SCREM5",
+      "value": 64040,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 144
+      }
+    },
+    {
+      "name": "VARILD",
+      "scoped_name": "::VARILD",
+      "value": 63530,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 92
+      }
+    },
+    {
+      "name": "SP1SND",
+      "scoped_name": "::SP1SND",
+      "value": 14,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 8
+      }
+    },
+    {
+      "name": "LFREQ",
+      "scoped_name": "::LFREQ",
+      "value": 25,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 74
+      }
+    },
+    {
+      "name": "GEND1",
+      "scoped_name": "::GEND1",
+      "value": 64584,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 198
+      }
+    },
+    {
+      "name": "SCREM1",
+      "scoped_name": "::SCREM1",
+      "value": 63988,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 140
+      }
+    },
+    {
+      "name": "ED10",
+      "scoped_name": "::ED10",
+      "value": 65326,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 299
+      }
+    },
+    {
+      "name": "GS2",
+      "scoped_name": "::GS2",
+      "value": 65097,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 281
+      }
+    },
+    {
+      "name": "SCREM2",
+      "scoped_name": "::SCREM2",
+      "value": 64000,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 141
+      }
+    },
+    {
+      "name": "GPLAY",
+      "scoped_name": "::GPLAY",
+      "value": 64451,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 181
+      }
+    },
+    {
+      "name": "FS4",
+      "scoped_name": "::FS4",
+      "value": 7944,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 270
+      }
+    },
+    {
+      "name": "HIPER",
+      "scoped_name": "::HIPER",
+      "value": 20,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 60
+      }
+    },
+    {
+      "name": "GWLD3",
+      "scoped_name": "::GWLD3",
+      "value": 64396,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 178
+      }
+    },
+    {
+      "name": "SAW",
+      "scoped_name": "::SAW",
+      "value": 64826,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 219
+      }
+    },
+    {
+      "name": "E2",
+      "scoped_name": "::E2",
+      "value": 31762,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 244
+      }
+    },
+    {
+      "name": "GW1",
+      "scoped_name": "::GW1",
+      "value": 64543,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 192
+      }
+    },
+    {
+      "name": "GW2B",
+      "scoped_name": "::GW2B",
+      "value": 64560,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 195
+      }
+    },
+    {
+      "name": "HYPER2",
+      "scoped_name": "::HYPER2",
+      "value": 63961,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 136
+      }
+    },
+    {
+      "name": "DUR",
+      "scoped_name": "::DUR",
+      "value": 19,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 84
+      }
+    },
+    {
+      "name": "LDLP",
+      "scoped_name": "::LDLP",
+      "value": 64139,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 156
+      }
+    },
+    {
+      "name": "PROTV",
+      "scoped_name": "::PROTV",
+      "value": 65298,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 295
+      }
+    },
+    {
+      "name": "VECTOR",
+      "scoped_name": "::VECTOR",
+      "value": 65528,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 5
+      }
+    },
+    {
+      "name": "SPNSND",
+      "scoped_name": "::SPNSND",
+      "value": 65388,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 307
+      }
+    },
+    {
+      "name": "TEMPX",
+      "scoped_name": "::TEMPX",
+      "value": 11,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 39
+      }
+    },
+    {
+      "name": "CKORG",
+      "scoped_name": "::CKORG",
+      "value": 63232,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 3
+      }
+    },
+    {
+      "name": "GS1.7",
+      "scoped_name": "::GS1.7",
+      "value": 65239,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 287
+      }
+    },
+    {
+      "name": "ORGFLG",
+      "scoped_name": "::ORGFLG",
+      "value": 8,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 35
+      }
+    },
+    {
+      "name": "TRANS",
+      "scoped_name": "::TRANS",
+      "value": 64222,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 162
+      }
+    },
+    {
+      "name": "TRBPAT",
+      "scoped_name": "::TRBPAT",
+      "value": 65401,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 308
+      }
+    },
+    {
+      "name": "HIDT",
+      "scoped_name": "::HIDT",
+      "value": 22,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 62
+      }
+    },
+    {
+      "name": "FNOIS6",
+      "scoped_name": "::FNOIS6",
+      "value": 63875,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 128
+      }
+    },
+    {
+      "name": "GEND40",
+      "scoped_name": "::GEND40",
+      "value": 64505,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 187
+      }
+    },
+    {
+      "name": "FS1",
+      "scoped_name": "::FS1",
+      "value": 63496,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 234
+      }
+    },
+    {
+      "name": "BONV",
+      "scoped_name": "::BONV",
+      "value": 65347,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 302
+      }
+    },
+    {
+      "name": "TRANS1",
+      "scoped_name": "::TRANS1",
+      "value": 64223,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 163
+      }
+    },
+    {
+      "name": "IRQ000",
+      "scoped_name": "::IRQ000",
+      "value": 64680,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 207
+      }
+    },
+    {
+      "name": "GECNT",
+      "scoped_name": "::GECNT",
+      "value": 34,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 56
+      }
+    },
+    {
+      "name": "TG",
+      "scoped_name": "::TG",
+      "value": 65535,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 24
+      }
+    },
+    {
+      "name": "C3",
+      "scoped_name": "::C3",
+      "value": 15913,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 252
+      }
+    },
+    {
+      "name": "BG1FLG",
+      "scoped_name": "::BG1FLG",
+      "value": 4,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 31
+      }
+    },
+    {
+      "name": "D4",
+      "scoped_name": "::D4",
+      "value": 7965,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 266
+      }
+    },
+    {
+      "name": "TUNEND",
+      "scoped_name": "::TUNEND",
+      "value": 65084,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 276
+      }
+    },
+    {
+      "name": "FNOIS4",
+      "scoped_name": "::FNOIS4",
+      "value": 63852,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 126
+      }
+    },
+    {
+      "name": "TEMPA",
+      "scoped_name": "::TEMPA",
+      "value": 17,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 42
+      }
+    },
+    {
+      "name": "NMI",
+      "scoped_name": "::NMI",
+      "value": 64755,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 214
+      }
+    },
+    {
+      "name": "SWIV",
+      "scoped_name": "::SWIV",
+      "value": 65530,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 320
+      }
+    },
+    {
+      "name": "BG1",
+      "scoped_name": "::BG1",
+      "value": 63763,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 118
+      }
+    },
+    {
+      "name": "FIF",
+      "scoped_name": "::FIF",
+      "value": 6,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 12
+      }
+    },
+    {
+      "name": "NOISE3",
+      "scoped_name": "::NOISE3",
+      "value": 63741,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 116
+      }
+    },
+    {
+      "name": "TMPRAM",
+      "scoped_name": "::TMPRAM",
+      "value": 11,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 38
+      }
+    },
+    {
+      "name": "IRQ20",
+      "scoped_name": "::IRQ20",
+      "value": 64714,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 209
+      }
+    },
+    {
+      "name": "LO",
+      "scoped_name": "::LO",
+      "value": 10,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 37
+      }
+    },
+    {
+      "name": "B1",
+      "scoped_name": "::B1",
+      "value": 63536,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 227
+      }
+    },
+    {
+      "name": "BF2",
+      "scoped_name": "::BF2",
+      "value": 31799,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 238
+      }
+    },
+    {
+      "name": "ORGNT5",
+      "scoped_name": "::ORGNT5",
+      "value": 64132,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 153
+      }
+    },
+    {
+      "name": "SP1",
+      "scoped_name": "::SP1",
+      "value": 64285,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 169
+      }
+    },
+    {
+      "name": "NIN",
+      "scoped_name": "::NIN",
+      "value": 5,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 11
+      }
+    },
+    {
+      "name": "SETUP",
+      "scoped_name": "::SETUP",
+      "value": 63489,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 91
+      }
+    },
     {
       "name": "mem_size",
       "scoped_name": "::gazm::mem_size",
@@ -38,12 +2745,525 @@
       }
     },
     {
-      "name": "*",
-      "scoped_name": "::*",
-      "value": 0,
+      "name": "CABSHK",
+      "scoped_name": "::CABSHK",
+      "value": 64853,
       "symbol_id": {
         "scope_id": 0,
-        "symbol_id": 1
+        "symbol_id": 222
+      }
+    },
+    {
+      "name": "OSCIL",
+      "scoped_name": "::OSCIL",
+      "value": 21,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 85
+      }
+    },
+    {
+      "name": "GPR1",
+      "scoped_name": "::GPR1",
+      "value": 64481,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 185
+      }
+    },
+    {
+      "name": "CS3",
+      "scoped_name": "::CS3",
+      "value": 15907,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 253
+      }
+    },
+    {
+      "name": "FNOISE",
+      "scoped_name": "::FNOISE",
+      "value": 63792,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 121
+      }
+    },
+    {
+      "name": "XBV",
+      "scoped_name": "::XBV",
+      "value": 65277,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 292
+      }
+    },
+    {
+      "name": "WVELEN",
+      "scoped_name": "::WVELEN",
+      "value": 72,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 6
+      }
+    },
+    {
+      "name": "GPRLP",
+      "scoped_name": "::GPRLP",
+      "value": 64473,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 184
+      }
+    },
+    {
+      "name": "B2",
+      "scoped_name": "::B2",
+      "value": 31792,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 239
+      }
+    },
+    {
+      "name": "TA",
+      "scoped_name": "::TA",
+      "value": 36780,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 14
+      }
+    },
+    {
+      "name": "SP1FLG",
+      "scoped_name": "::SP1FLG",
+      "value": 6,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 33
+      }
+    },
+    {
+      "name": "GDCNT",
+      "scoped_name": "::GDCNT",
+      "value": 23,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 49
+      }
+    },
+    {
+      "name": "RADIO2",
+      "scoped_name": "::RADIO2",
+      "value": 63933,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 131
+      }
+    },
+    {
+      "name": "FILLER",
+      "scoped_name": "::FILLER",
+      "value": 65525,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 318
+      }
+    },
+    {
+      "name": "COOLDN",
+      "scoped_name": "::COOLDN",
+      "value": 65467,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 314
+      }
+    },
+    {
+      "name": "B2SND",
+      "scoped_name": "::B2SND",
+      "value": 18,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 9
+      }
+    },
+    {
+      "name": "LOMOD",
+      "scoped_name": "::LOMOD",
+      "value": 26,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 65
+      }
+    },
+    {
+      "name": "TAF",
+      "scoped_name": "::TAF",
+      "value": 34715,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 13
+      }
+    },
+    {
+      "name": "FROM",
+      "scoped_name": "::FROM",
+      "value": 63247,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 89
+      }
+    },
+    {
+      "name": "WVDLP1",
+      "scoped_name": "::WVDLP1",
+      "value": 64636,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 202
+      }
+    },
+    {
+      "name": "FS3",
+      "scoped_name": "::FS3",
+      "value": 15880,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 258
+      }
+    },
+    {
+      "name": "TO",
+      "scoped_name": "::TO",
+      "value": 63249,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 90
+      }
+    },
+    {
+      "name": "FOFSET",
+      "scoped_name": "::FOFSET",
+      "value": 35,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 57
+      }
+    },
+    {
+      "name": "NOISE1",
+      "scoped_name": "::NOISE1",
+      "value": 63716,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 114
+      }
+    },
+    {
+      "name": "THRUST",
+      "scoped_name": "::THRUST",
+      "value": 63772,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 119
+      }
+    },
+    {
+      "name": "ED17",
+      "scoped_name": "::ED17",
+      "value": 65340,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 301
+      }
+    },
+    {
+      "name": "A1",
+      "scoped_name": "::A1",
+      "value": 63551,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 225
+      }
+    },
+    {
+      "name": "SCREM3",
+      "scoped_name": "::SCREM3",
+      "value": 64008,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 142
+      }
+    },
+    {
+      "name": "BF1",
+      "scoped_name": "::BF1",
+      "value": 63543,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 226
+      }
+    },
+    {
+      "name": "VS1",
+      "scoped_name": "::VS1",
+      "value": 63596,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 101
+      }
+    },
+    {
+      "name": "SWPAT",
+      "scoped_name": "::SWPAT",
+      "value": 65432,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 310
+      }
+    },
+    {
+      "name": "VAMP",
+      "scoped_name": "::VAMP",
+      "value": 27,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 66
+      }
+    },
+    {
+      "name": "ORGNT2",
+      "scoped_name": "::ORGNT2",
+      "value": 64083,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 150
+      }
+    },
+    {
+      "name": "ORGAN",
+      "scoped_name": "::ORGAN",
+      "value": 64174,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 159
+      }
+    },
+    {
+      "name": "SP11",
+      "scoped_name": "::SP11",
+      "value": 64304,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 171
+      }
+    },
+    {
+      "name": "*",
+      "scoped_name": "::*",
+      "value": 65534,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 323
+      }
+    },
+    {
+      "name": "GEND0",
+      "scoped_name": "::GEND0",
+      "value": 64581,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 197
+      }
+    },
+    {
+      "name": "E1",
+      "scoped_name": "::E1",
+      "value": 63506,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 232
+      }
+    },
+    {
+      "name": "NFFLG",
+      "scoped_name": "::NFFLG",
+      "value": 24,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 73
+      }
+    },
+    {
+      "name": "CS1",
+      "scoped_name": "::CS1",
+      "value": 63523,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 229
+      }
+    },
+    {
+      "name": "GS12",
+      "scoped_name": "::GS12",
+      "value": 65132,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 284
+      }
+    },
+    {
+      "name": "GS1",
+      "scoped_name": "::GS1",
+      "value": 65115,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 283
+      }
+    },
+    {
+      "name": "LD2",
+      "scoped_name": "::LD2",
+      "value": 64154,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 157
+      }
+    },
+    {
+      "name": "LOCNT",
+      "scoped_name": "::LOCNT",
+      "value": 28,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 67
+      }
+    },
+    {
+      "name": "LOPER",
+      "scoped_name": "::LOPER",
+      "value": 19,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 59
+      }
+    },
+    {
+      "name": "XPTR",
+      "scoped_name": "::XPTR",
+      "value": 15,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 41
+      }
+    },
+    {
+      "name": "VARI",
+      "scoped_name": "::VARI",
+      "value": 63551,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 94
+      }
+    },
+    {
+      "name": "FNOIS5",
+      "scoped_name": "::FNOIS5",
+      "value": 63868,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 127
+      }
+    },
+    {
+      "name": "TURBO",
+      "scoped_name": "::TURBO",
+      "value": 63693,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 110
+      }
+    },
+    {
+      "name": "F3",
+      "scoped_name": "::F3",
+      "value": 15885,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 257
+      }
+    },
+    {
+      "name": "GWTAB",
+      "scoped_name": "::GWTAB",
+      "value": 36,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 58
+      }
+    },
+    {
+      "name": "STABLE",
+      "scoped_name": "::STABLE",
+      "value": 19,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 82
+      }
+    },
+    {
+      "name": "RADIO3",
+      "scoped_name": "::RADIO3",
+      "value": 63936,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 132
+      }
+    },
+    {
+      "name": "A2",
+      "scoped_name": "::A2",
+      "value": 31807,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 237
+      }
+    },
+    {
+      "name": "HBTSND",
+      "scoped_name": "::HBTSND",
+      "value": 65374,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 306
+      }
+    },
+    {
+      "name": "HBEV",
+      "scoped_name": "::HBEV",
+      "value": 65291,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 294
+      }
+    },
+    {
+      "name": "LITE0",
+      "scoped_name": "::LITE0",
+      "value": 63655,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 106
+      }
+    },
+    {
+      "name": "STDSND",
+      "scoped_name": "::STDSND",
+      "value": 65470,
+      "symbol_id": {
+        "scope_id": 0,
+        "symbol_id": 315
       }
     }
   ]
