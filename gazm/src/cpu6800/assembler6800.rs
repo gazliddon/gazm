@@ -1,4 +1,5 @@
 use crate::assembler::AssemblerCpuTrait;
+use crate::cpu6800::assembler::compile_node;
 use crate::frontend::{PResult, TSpan, TokenKind};
 
 use super::assembler::size_node_internal;
@@ -56,13 +57,12 @@ impl AssemblerCpuTrait for Asm6800 {
     }
 
     fn compile_node(
-            _compiler: &mut crate::assembler::Compiler<Self>,
-            _asm: &mut crate::assembler::Assembler<Self>,
-            _id: crate::semantic::AstNodeId,
-            _node_kind: Self::NodeKind,
+            compiler: &mut crate::assembler::Compiler<Self>,
+            asm: &mut crate::assembler::Assembler<Self>,
+            id: crate::semantic::AstNodeId,
+            node_kind: Self::NodeKind,
         ) -> crate::error::GResult<()> {
-        panic!()
-        
+        compile_node(compiler, asm, id, node_kind)
     }
 
     fn parse_multi_opcode_vec(_input: crate::frontend::TSpan) -> PResult<Vec<Node>> {
