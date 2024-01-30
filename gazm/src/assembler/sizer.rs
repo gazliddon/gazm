@@ -10,7 +10,7 @@ use super::{
 use crate::{
     semantic::{Ast, AstNodeId, AstNodeRef},
     error::GResult,
-    frontend::{Item, LabelDefinition, }, 
+    frontend::{Item, LabelDefinition, }, debug_mess, 
 };
 
 // use crate::cpu6809::Compiler6809;
@@ -151,6 +151,10 @@ where
                     // Otherwise it's just the current PC
                     self.get_pc() as i64
                 };
+
+                
+                let sym = asm.get_symbols().get_symbol_info_from_id(*symbol_id).unwrap();
+                debug_mess!("Assigning {} = ${:04x}",sym.name(), pcv );
 
                 asm.set_symbol_value(*symbol_id, pcv as usize).unwrap();
             }

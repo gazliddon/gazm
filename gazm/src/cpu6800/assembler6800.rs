@@ -1,6 +1,7 @@
 use crate::assembler::AssemblerCpuTrait;
 use crate::frontend::{PResult, TSpan, TokenKind};
 
+use super::assembler::size_node_internal;
 use super::frontend::{lex_identifier, parse_commands, parse_multi_opcode_vec, MC6800};
 
 pub type Node = crate::frontend::Node<MC6800>;
@@ -42,6 +43,26 @@ impl AssemblerCpuTrait for Asm6800 {
 
     fn get_cpu_name() -> &'static str {
         "6800"
+    }
+
+    fn size_node(
+            sizer: &mut crate::assembler::Sizer<Self>,
+            asm: &mut crate::assembler::Assembler<Self>,
+            id: crate::semantic::AstNodeId,
+            node_kind: Self::NodeKind,
+        ) -> crate::error::GResult<()> {
+
+        size_node_internal(sizer, asm, id, node_kind)
+    }
+
+    fn compile_node(
+            _compiler: &mut crate::assembler::Compiler<Self>,
+            _asm: &mut crate::assembler::Assembler<Self>,
+            _id: crate::semantic::AstNodeId,
+            _node_kind: Self::NodeKind,
+        ) -> crate::error::GResult<()> {
+        panic!()
+        
     }
 
     fn parse_multi_opcode_vec(_input: crate::frontend::TSpan) -> PResult<Vec<Node>> {
