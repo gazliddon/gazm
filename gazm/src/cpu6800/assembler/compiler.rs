@@ -1,27 +1,24 @@
+use std::i64;
+
 use crate::cpu6800::{frontend::MC6800, AddrModeParseType, Assembler, Compiler};
 
-use emu6800::cpu_core::{OpcodeData, DBASE};
+use emu6800::cpu_core::{AddrModeEnum, InstructionInfo, DBASE};
 
-use crate::{error::GResult, semantic::AstNodeId, assembler::BinaryError};
+use crate::{assembler::BinaryError, error::GResult, semantic::AstNodeId};
 
 /// Compile an opcode
 pub fn compile_opcode(
     compiler: &mut Compiler,
     asm: &mut Assembler,
     id: AstNodeId,
-    ins: &OpcodeData,
+    ins: InstructionInfo,
     _amode: AddrModeParseType,
 ) -> GResult<()> {
-    let opcode = ins.opcode;
-    let size = ins.size;
-    let ins = DBASE.get_instruction_info_from_opcode(ins.opcode).unwrap();
     let current_scope_id = compiler.scopes.scope();
 
-    compiler.write_byte(opcode as u8, asm, id)?;
+    compiler.write_byte(ins.opcode_data.opcode as u8, asm, id)?;
 
     let node = compiler.get_node(id);
-
-    use emu6800::cpu_core::AddrModeEnum;
 
     match ins.addr_mode {
         AddrModeEnum::Indexed | AddrModeEnum::Direct | AddrModeEnum::Immediate8 => {
@@ -37,36 +34,24 @@ pub fn compile_opcode(
         AddrModeEnum::Inherent => (),
 
         AddrModeEnum::Relative => {
-
             use BinaryError::*;
+            let size = ins.opcode_data.size as i64;
 
-            let pc = asm.get_binary().get_write_address();
+            let pc = asm.get_binary().get_write_address() as i64;
+
             let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
-            let arg_n = compiler.get_node(arg_id);
-            let val = arg - (pc as i64 + size as i64);
-            // offset is from PC after Instruction and operand has been fetched
-            let res = asm
-                .asm_out
-                .binary
-                .write_ibyte_check_size(val)
-                .map_err(|x| match x {
-                    DoesNotFit { .. } => compiler.relative_error(asm, id, val, 8),
-                    DoesNotMatchReference { .. } => compiler.binary_error(asm, id, x),
-                    _ => asm.make_user_error(format!("{x:?}"), arg_n, false).into(),
-                });
 
-            match &res {
-                Ok(_) => (),
-                Err(_) => {
-                    if asm.opts.ignore_relative_offset_errors {
-                        // messages::warning("Skipping writing relative offset");
-                        let res = asm.get_binary_mut().write_ibyte_check_size(0);
-                        compiler.binary_error_map(asm, id, res)?;
-                    } else {
-                        res?;
-                    }
+            let val = arg - (pc as i64 + size);
+            // offset is from PC after Instruction and operand has been fetched
+            let binary = &mut asm.asm_out.binary;
+            binary.write_ibyte_check_size(val).map_err(|x| match x {
+                DoesNotFit { .. } => compiler.relative_error(asm, id, val, 8),
+                DoesNotMatchReference { .. } => compiler.binary_error(asm, id, x),
+                _ => {
+                    let arg_n = compiler.get_node(arg_id);
+                    asm.make_user_error(format!("{x:?}"), arg_n, false).into()
                 }
-            }
+            })?;
         }
 
         AddrModeEnum::Illegal => todo!(),
@@ -85,7 +70,8 @@ pub fn compile_node(
 
     match node_kind {
         OpCode(_, ins, amode) => {
-            compile_opcode(compiler, asm, id, &ins, amode)?;
+            let ins = DBASE.get_instruction_info_from_opcode(ins.opcode).unwrap();
+            compile_opcode(compiler, asm, id, ins, amode)?;
         }
 
         Illegal => todo!("Illegal"),
