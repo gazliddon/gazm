@@ -76,8 +76,6 @@ impl TomlConfig {
                 Ok(config)
             }
 
-            // TODO : Need to generate more info,
-            // line numbers etc
             Err(err) => {
                 use grl_sources::TextFile;
 

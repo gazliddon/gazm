@@ -1,5 +1,23 @@
 # Gazm - 6809 Assembler Release Notes
 
+## 0.9.2
+
+### Done
+
+### Todo
+* Remove stargate source and binaries
+* Add CSUM checks for SG compilation
+* Add sound rom compilation to stargate
+* Add 6502
+* Endian agnosticism in Binary struct (can I use a memblock?)
+* Find a that I can have CPU specific data in the Assembler class
+    * Specifically for SetDp - Dp storage on 6809
+    * Remove SetDp warnings
+* Collect warnings for binary mismatches for non opocode binary writing
+* ast.rs TODO trying to import non existant labels should be an error
+* tokenize.rs TODO: BUG Replace parent with incstack
+* error.rs // TODO: Remove6809
+
 ## 0.9.16
 * Added 6800 assembly
 * Can assembly stargate sound rom

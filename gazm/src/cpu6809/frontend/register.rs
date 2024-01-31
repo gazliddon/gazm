@@ -68,7 +68,7 @@ pub fn get_this_reg(r: RegEnum) -> impl FnMut(TSpan) -> PResult<RegEnum> + Copy 
 fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
     use crate::help::ErrCode::*;
 
-    // TODO
+    // TODO : Optimisation
     // rewrite so
     // - parse for an initial register, error if not
     // - parse for a comma then a comma sep list

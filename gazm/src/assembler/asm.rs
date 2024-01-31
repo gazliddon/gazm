@@ -193,7 +193,7 @@ where
         Ok(sf)
     }
 
-    // TODO Remove this and do all path expansion in the opts reading
+    // TODO: TIDY  Remove this and do all path expansion in the opts reading
     pub fn expand_path_to_deprecate<P: AsRef<Path>>(
         &self,
         path: P,

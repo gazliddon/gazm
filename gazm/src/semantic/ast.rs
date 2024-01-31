@@ -337,7 +337,7 @@ where
                                     .add_reference_symbol(&name, scopes.scope(), symbol_id)
                                     .unwrap();
                             } else {
-                                // TODO this is an error!
+                                // TODO trying to import non existant labels should be an error
                                 eprintln!("{:?}", item);
                                 panic!()
                             }

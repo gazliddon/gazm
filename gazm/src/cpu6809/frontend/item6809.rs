@@ -227,7 +227,6 @@ impl From<NodeKind6809> for Item {
     }
 }
 
-// TODO: Ultimately this contains all of the CPU dependent AST node items
 #[derive(Debug, PartialEq, Clone, Default)]
 pub enum NodeKind6809 {
     #[default]

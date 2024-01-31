@@ -514,7 +514,7 @@ where C: AssemblerCpuTrait
         let uri = &params.text_document_position_params.text_document.uri;
         let position = &params.text_document_position_params.position;
 
-        // @TODO: get some infotmation about the AST node so we can decide what to do
+        // TODO: LSP get some infotmation about the AST node so we can decide what to do
         let ret = with_state(&self.asm_ctx, |asm_ctx| -> Option<SymbolInfo> {
             let id = asm_ctx.find_symbol_id(position, uri)?;
             let reader = asm_ctx.get_symbols().get_reader(id.scope_id);

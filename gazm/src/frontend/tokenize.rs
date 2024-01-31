@@ -299,7 +299,7 @@ where
             |(mut to_tok, mut incs), (pos, req_file, parent)| {
                 use GetTokensResult::*;
 
-                // TODO: Replace parent with incstack
+                // TODO: BUG Replace parent with incstack
                 let tokes_res = ctx.get_tokens(req_file, parent.clone(), Some(pos));
 
                 match tokes_res {
