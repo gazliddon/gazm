@@ -33,7 +33,7 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
     let (rest, (sp, text, ins)) = get_opcode(input)?;
 
     if let Some(ins) = ins.get_opcode_data(AddrModeEnum::Inherent) {
-        let oc = OpCode(text, ins.clone(), AddrModeParseType::Inherent);
+        let oc = OpCode(text, ins.clone(), );
         let node = from_item_tspan(Item::CpuSpecific(oc), sp);
         Ok((rest, node))
     } else {
@@ -123,15 +123,15 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
 
     let (rest, arg) = parse_opcode_arg(rest)?;
 
-    if let Item::CpuSpecific(Operand(amode)) = arg.item {
-        if info.supports(AddrModeEnum::Relative) && amode == AddrModeParseType::Extended {
+    if let Item::CpuSpecific(Operand(parsed_addressing_mode)) = arg.item {
+        if info.supports(AddrModeEnum::Relative) && parsed_addressing_mode == AddrModeParseType::Extended {
             let instruction = get_instruction(AddrModeParseType::Relative, info).unwrap();
-            let item = OpCode(text.to_string(), instruction.clone(), amode);
+            let item = OpCode(text.to_string(), instruction.clone()); 
             let node = from_item_tspan(item, sp).take_others_children(arg);
             Ok((rest, node))
         } else {
-            if let Some(instruction) = get_instruction(amode, info) {
-                let item = OpCode(text.to_string(), instruction.clone(), amode);
+            if let Some(instruction) = get_instruction(parsed_addressing_mode, info) {
+                let item = OpCode(text.to_string(), instruction.clone());
                 let node = from_item_tspan(item, sp).take_others_children(arg);
                 Ok((rest, node))
             } else {

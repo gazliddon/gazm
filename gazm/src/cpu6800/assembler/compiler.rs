@@ -1,10 +1,53 @@
-use std::i64;
+use crate::cpu6800::{frontend::MC6800, Assembler, Compiler, DBASE};
 
-use crate::cpu6800::{frontend::MC6800, AddrModeParseType, Assembler, Compiler};
+use emu6800::cpu_core::{AddrModeEnum, InstructionInfo};
 
-use emu6800::cpu_core::{AddrModeEnum, InstructionInfo, DBASE};
+use crate::{assembler::BinaryError, error::{ GResult, GazmErrorKind }, semantic::AstNodeId};
+/// Compile an opcode
+pub fn compile_operand(
+    compiler: &mut Compiler,
+    asm: &mut Assembler,
+    id: AstNodeId,
+    ins: InstructionInfo,
+    pc: i64,
+) -> GResult<()> {
+    let current_scope_id = compiler.scopes.scope();
+    let node = compiler.get_node(id);
 
-use crate::{assembler::BinaryError, error::GResult, semantic::AstNodeId};
+    match ins.addr_mode {
+        AddrModeEnum::Indexed | AddrModeEnum::Direct | AddrModeEnum::Immediate8 => {
+            let (arg, _id) = asm.eval_first_arg(node, current_scope_id)?;
+                asm.get_binary_mut()
+                .write_byte_check_size(arg)?;
+        }
+
+        AddrModeEnum::Extended => {
+            let (arg, _id) = asm.eval_first_arg(node, current_scope_id)?;
+            asm.get_binary_mut()
+                .write_word_check_size(arg, )?;
+        }
+
+        AddrModeEnum::Immediate16 => {
+            let (arg, _id) = asm.eval_first_arg(node, current_scope_id)?;
+            asm.get_binary_mut().write_word_check_size(arg)?;
+        }
+
+        AddrModeEnum::Inherent => (),
+
+        AddrModeEnum::Relative => {
+            let size = ins.opcode_data.size as i64;
+            let (arg, _arg_id) = asm.eval_first_arg(node, current_scope_id)?;
+
+            let val = arg - (pc as i64 + size);
+            let binary = &mut asm.asm_out.binary;
+            binary.write_ibyte_check_size(val)?;
+        }
+
+        AddrModeEnum::Illegal => todo!(),
+    };
+
+    Ok(())
+}
 
 /// Compile an opcode
 pub fn compile_opcode(
@@ -12,51 +55,21 @@ pub fn compile_opcode(
     asm: &mut Assembler,
     id: AstNodeId,
     ins: InstructionInfo,
-    _amode: AddrModeParseType,
 ) -> GResult<()> {
-    let current_scope_id = compiler.scopes.scope();
+    let pc = asm.get_binary().get_write_address() as i64;
 
     compiler.write_byte(ins.opcode_data.opcode as u8, asm, id)?;
 
-    let node = compiler.get_node(id);
+    let ret = compile_operand(compiler, asm, id, ins, pc);
 
-    match ins.addr_mode {
-        AddrModeEnum::Indexed | AddrModeEnum::Direct | AddrModeEnum::Immediate8 => {
-            let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
-            compiler.write_byte_check_size(arg, asm, id)?
-        }
-
-        AddrModeEnum::Extended | AddrModeEnum::Immediate16 => {
-            let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
-            compiler.write_word_check_size(arg, asm, id)?;
-        }
-
-        AddrModeEnum::Inherent => (),
-
-        AddrModeEnum::Relative => {
-            use BinaryError::*;
-            let size = ins.opcode_data.size as i64;
-
-            let pc = asm.get_binary().get_write_address() as i64;
-
-            let (arg, arg_id) = asm.eval_first_arg(node, current_scope_id)?;
-
-            let val = arg - (pc as i64 + size);
-            // offset is from PC after Instruction and operand has been fetched
-            let binary = &mut asm.asm_out.binary;
-            binary.write_ibyte_check_size(val).map_err(|x| match x {
-                DoesNotFit { .. } => compiler.relative_error(asm, id, val, 8),
-                DoesNotMatchReference { .. } => compiler.binary_error(asm, id, x),
-                _ => {
-                    let arg_n = compiler.get_node(arg_id);
-                    asm.make_user_error(format!("{x:?}"), arg_n, false).into()
-                }
-            })?;
-        }
-
-        AddrModeEnum::Illegal => todo!(),
-    };
-    Ok(())
+    match ret {
+        Ok(()) => Ok(()),
+        Err(GazmErrorKind::BinaryError(BinaryError::DoesNotMatchReference(..))) => {
+            eprintln!("Waring!");
+            Ok(())
+        },
+        Err(_) => {println!("ret {ret:?}"); ret},
+    }
 }
 
 /// Compile a node
@@ -69,9 +82,9 @@ pub fn compile_node(
     use MC6800::*;
 
     match node_kind {
-        OpCode(_, ins, amode) => {
+        OpCode(_, ins) => {
             let ins = DBASE.get_instruction_info_from_opcode(ins.opcode).unwrap();
-            compile_opcode(compiler, asm, id, ins, amode)?;
+            compile_opcode(compiler, asm, id, ins)?;
         }
 
         Illegal => todo!("Illegal"),

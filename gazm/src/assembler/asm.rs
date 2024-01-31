@@ -496,6 +496,41 @@ impl<C> Assembler<C>
 where
     C: AssemblerCpuTrait,
 {
+
+    pub fn get_binary_extents<P: AsRef<Path>>(
+        &self,
+        asm: &Assembler<C>,
+        file_name: P,
+        node: AstNodeRef<C>,
+        current_scope_id: u64,
+    ) -> GResult<std::ops::Range<usize>> {
+
+        let data_len = asm.get_file_size(&file_name)?;
+
+        let mut r = 0..data_len;
+
+        if let Some((offset, size)) = node.children().collect_tuple() {
+            let offset = asm.eval_node(offset, current_scope_id)?;
+            let size = asm.eval_node(size, current_scope_id)?;
+            let offset_usize = offset as usize;
+            let size_usize = size as usize;
+            let last = (offset_usize + size_usize) - 1;
+
+            if !(r.contains(&offset_usize) && r.contains(&last)) {
+                let msg =
+                    format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
+                return Err(asm.make_user_error(msg, node, true).into());
+            };
+
+            r.start = offset_usize;
+            r.end = offset_usize + size_usize;
+        } else {
+            panic!("Should not happen!")
+        }
+
+        Ok(r)
+    }
+
     pub fn get_binary(&self) -> &Binary {
         &self.asm_out.binary
     }

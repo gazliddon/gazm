@@ -51,6 +51,8 @@ pub struct Opts {
 
     pub verbose_errors: bool,
 
+    pub error_mismatches: bool,
+
     #[serde(skip)]
     pub do_includes: bool,
 
@@ -104,6 +106,7 @@ impl Default for Opts {
             no_async: false,
             syms_file: Default::default(),
             verbose_errors: false,
+            error_mismatches: false,
 
             do_includes: true,
             build_type: BuildType::Build,

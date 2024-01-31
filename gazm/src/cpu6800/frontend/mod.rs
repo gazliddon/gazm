@@ -21,7 +21,7 @@ use super::AddrModeParseType;
 pub enum MC6800 {
     #[default]
     Illegal,
-    OpCode(String,OpcodeData, AddrModeParseType),
+    OpCode(String,OpcodeData),
     Operand(AddrModeParseType),
 }
 

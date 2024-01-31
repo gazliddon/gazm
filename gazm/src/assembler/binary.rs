@@ -49,6 +49,7 @@ pub struct Binary {
     access_type: AccessType,
     bin_refs: Vec<BinRefChunk>,
     unchecked_writes: Vec<MemoryLocation>,
+    mismatches: Vec<ReferenceMismatch>,
 }
 
 impl Default for Binary {
@@ -246,6 +247,7 @@ impl Binary {
             access_type,
             bin_refs: vec![],
             unchecked_writes: vec![],
+            mismatches: Default::default(),
         }
     }
 
@@ -365,7 +367,7 @@ impl Binary {
         }
     }
 
-    pub fn write_byte(&mut self, val: u8) -> Result<WriteStatus, BinaryError> {
+    fn write_byte_internal(&mut self, val: u8) -> Result<usize, BinaryError> {
         let loc = self.get_write_location();
 
         let physical = loc.physical;
@@ -401,27 +403,43 @@ impl Binary {
 
         self.data[physical] = val;
         self.write_address += 1;
+        Ok(physical)
+    }
 
-        if let Some(expected) = self.get_expected(physical) {
+    pub fn write_byte(&mut self, val: u8) -> Result<WriteStatus, BinaryError> {
+        let physical = self.write_byte_internal(val)?;
+        self.check_byte(physical, val)?;
+        Ok(WriteStatus::Checked)
+    }
+
+    fn check_byte(&mut self, physical_address: usize, val: u8) -> Result<WriteStatus, BinaryError> {
+        if let Some(expected) = self.get_expected(physical_address) {
             if expected != val {
                 let loc = self.get_write_location();
-                return Err(BinaryError::DoesNotMatchReference(ReferenceMismatch {
+                let mismatch = ReferenceMismatch {
                     addr: loc.physical,
                     logical_addr: loc.logical,
                     val: val as usize,
                     expected: expected as usize,
-                }));
+                };
+
+                self.mismatches.push(mismatch.clone());
+
+                return Err(BinaryError::DoesNotMatchReference(mismatch));
             }
         }
-
         Ok(WriteStatus::Checked)
     }
 
     pub fn fill(&mut self, count: usize, byte: u8) -> Result<(), BinaryError> {
+        let mut ret = Ok(());
         for _i in 0..count {
-            self.write_byte(byte)?;
+            let phys = self.write_byte_internal(byte)?;
+            if let Err(e) = self.check_byte(phys, byte) {
+                ret = Err(e)
+            }
         }
-        Ok(())
+        ret
     }
 
     pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<WriteStatus, BinaryError> {
@@ -455,9 +473,13 @@ impl Binary {
     }
 
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {
-        let hi = val >> 8;
-        let lo = val & 0xff;
-        self.write_byte(hi as u8)?;
-        self.write_byte(lo as u8)
+        // TODO needs to write in correct order for dest processor
+        // rather than hard coded to big endian
+        let hi = ( val >> 8 ) as u8;
+        let lo = ( val & 0xff ) as u8;
+        let p1 = self.write_byte_internal(hi )?;
+        let p2 = self.write_byte_internal(lo )?;
+        self.check_byte(p1, hi)?;
+        self.check_byte(p2,lo)
     }
 }

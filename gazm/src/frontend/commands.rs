@@ -147,11 +147,23 @@ where
         let node = from_item_kids_tspan::<C>(Item::IncBin(file), &extra_args, sp);
         Ok((rest, node))
     }
+
     pub(crate) fn parse_incbin_ref(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, (file, extra_args))) =
             ms(preceded(CommandKind::IncBinRef, Self::incbin_args))(input)?;
-        let node = from_item_kids_tspan::<C>(Item::IncBinRef(file), &extra_args, sp);
-        Ok((rest, node))
+
+        let num_of_args = extra_args.len();
+
+        if num_of_args < 1 {
+            panic!("Too few args for incbinref")
+
+        } else if num_of_args > 2 {
+            panic!("Too many args for incbinref")
+
+        } else {
+            let node = from_item_kids_tspan::<C>(Item::IncBinRef(file), &extra_args, sp);
+            Ok((rest, node))
+        }
     }
 
     pub(crate) fn parse_fcb(input: TSpan) -> PResult<Node<C::NodeKind>> {

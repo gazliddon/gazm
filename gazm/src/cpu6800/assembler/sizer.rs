@@ -1,9 +1,10 @@
+use emu6800::cpu::ISA_DBASE;
 use emu6800::cpu_core::{AddrModeEnum, DBASE};
 
 use crate::debug_mess;
 use crate::{error::GResult, semantic::AstNodeId};
 
-use crate::cpu6800::{frontend::MC6800, AddrModeParseType, Assembler, Item, Sizer};
+use crate::cpu6800::{frontend::MC6800, Assembler, Item, Sizer};
 
 pub fn size_node_internal(
     sizer: &mut Sizer,
@@ -19,11 +20,15 @@ pub fn size_node_internal(
     match &node_kind {
         Illegal => todo!(),
 
-        OpCode(text, ins, amode) => {
+        OpCode(text, ins) => {
             // get the size of this instruction
             let mut size = ins.size;
 
-            if amode == &AddrModeParseType::Extended {
+            let ins_info = ISA_DBASE
+                .get_instruction_info_from_opcode(ins.opcode)
+                .unwrap();
+
+            if ins_info.addr_mode == AddrModeEnum::Extended {
                 // Is this extend addressing and we support direct?
                 // If see evaluate the operand and see if the result is
                 // in the first page
@@ -44,11 +49,7 @@ pub fn size_node_internal(
 
                             let new_ins = new_ins.clone();
                             size = new_ins.size;
-                            let new_item = Item::CpuSpecific(OpCode(
-                                text.clone(),
-                                new_ins,
-                                AddrModeParseType::Direct,
-                            ));
+                            let new_item = Item::CpuSpecific(OpCode(text.clone(), new_ins));
 
                             asm.add_fixup(id, new_item, current_scope_id);
                         }

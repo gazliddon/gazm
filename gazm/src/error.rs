@@ -18,7 +18,6 @@ use thiserror::Error;
 
 pub type GResult<T> = Result<T, GazmErrorKind>;
 
-
 #[derive(Error, Debug, Clone)]
 pub enum GazmErrorKind {
     #[error("{0}")]
@@ -42,7 +41,15 @@ pub enum GazmErrorKind {
     #[error(transparent)]
     FileError(#[from] FileError),
     #[error("Not implemented {0}")]
-    NotImplemented(String)
+    NotImplemented(String),
+    #[error("{0} : {1}")]
+    WithContext(String, Box<GazmErrorKind>),
+}
+
+impl GazmErrorKind {
+    pub fn context<T: Into<String>>(self, txt: T) -> Self {
+        Self::WithContext(txt.into(),Box::new(self))
+    }
 }
 
 impl From<String> for GazmErrorKind {

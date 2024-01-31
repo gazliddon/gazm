@@ -1,29 +1,27 @@
 #![forbid(unused_imports)]
-use super::{
-    Assembler,
-    scopetracker::ScopeTracker,
-    traits::AssemblerCpuTrait,
-};
+
+use super::{scopetracker::ScopeTracker, traits::AssemblerCpuTrait, Assembler};
 
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
 use crate::{
-    semantic::{Ast, AstNodeId, AstNodeRef},
+    debug_mess,
     error::GResult,
-    frontend::{Item, LabelDefinition, }, debug_mess, 
+    frontend::{Item, LabelDefinition},
+    semantic::{Ast, AstNodeId, AstNodeRef},
 };
 
 // use crate::cpu6809::Compiler6809;
 
-use std::{path::Path, marker::PhantomData};
+use std::marker::PhantomData;
 
 /// Ast tree sizer
 /// gets the size of everything
 /// assigns values to labels that
 /// are defined by value of PC
-pub struct Sizer<'a, C > 
-where 
-    C : AssemblerCpuTrait,
+pub struct Sizer<'a, C>
+where
+    C: AssemblerCpuTrait,
 {
     pub tree: &'a Ast<C>,
     pub scopes: ScopeTracker,
@@ -37,9 +35,9 @@ pub fn size<C: AssemblerCpuTrait>(asm: &mut Assembler<C>, ast_tree: &Ast<C>) -> 
     Ok(())
 }
 
-impl<'a, C> Sizer<'a,C> 
-where 
-    C : AssemblerCpuTrait,
+impl<'a, C> Sizer<'a, C>
+where
+    C: AssemblerCpuTrait,
 {
     pub fn try_new(tree: &'a Ast<C>, asm: &mut Assembler<C>) -> GResult<Sizer<'a, C>> {
         let pc = 0;
@@ -52,7 +50,7 @@ where
             tree,
             scopes: ScopeTracker::new(root_id),
             pc,
-            phantom: PhantomData
+            phantom: PhantomData,
         };
 
         let id = ret.tree.as_ref().root().id();
@@ -139,9 +137,9 @@ where
                 self.advance_pc(bytes as usize);
             }
 
-            CpuSpecific(i) => { 
-                C::size_node(self,asm,id,i.clone())?;
-            },
+            CpuSpecific(i) => {
+                C::size_node(self, asm, id, i.clone())?;
+            }
 
             AssignmentFromPc(LabelDefinition::Scoped(symbol_id)) => {
                 let pcv = if node.first_child().is_some() {
@@ -152,9 +150,11 @@ where
                     self.get_pc() as i64
                 };
 
-                
-                let sym = asm.get_symbols().get_symbol_info_from_id(*symbol_id).unwrap();
-                debug_mess!("Assigning {} = ${:04x}",sym.name(), pcv );
+                let sym = asm
+                    .get_symbols()
+                    .get_symbol_info_from_id(*symbol_id)
+                    .unwrap();
+                debug_mess!("Assigning {} = ${:04x}", sym.name(), pcv);
 
                 asm.set_symbol_value(*symbol_id, pcv as usize).unwrap();
             }
@@ -193,9 +193,8 @@ where
                 self.advance_pc(size as usize);
             }
 
-
             IncBin(file_name) => {
-                let r = self.get_binary_extents(asm, file_name, node)?;
+                let r = asm.get_binary_extents(asm, file_name, node, current_scope_id)?;
                 let new_item = IncBinResolved {
                     file: file_name.clone(),
                     r: r.clone(),
@@ -215,42 +214,6 @@ where
         };
 
         Ok(())
-    }
-
-    fn get_binary_extents<P: AsRef<Path>>(
-        &self,
-        asm: &Assembler<C>,
-        file_name: P,
-        node: AstNodeRef<C>,
-    ) -> GResult<std::ops::Range<usize>> {
-        use itertools::Itertools;
-
-        let data_len = asm.get_file_size(&file_name)?;
-
-        let mut r = 0..data_len;
-
-        let current_scope_id = self.scopes.scope();
-
-        if let Some((offset, size)) = node.children().collect_tuple() {
-            let offset = asm.eval_node(offset, current_scope_id)?;
-            let size = asm.eval_node(size, current_scope_id)?;
-            let offset_usize = offset as usize;
-            let size_usize = size as usize;
-            let last = (offset_usize + size_usize) - 1;
-
-            if !(r.contains(&offset_usize) && r.contains(&last)) {
-                let msg =
-                    format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
-                return Err(asm.make_user_error(msg, node, true).into());
-            };
-
-            r.start = offset_usize;
-            r.end = offset_usize + size_usize;
-        } else {
-            panic!("Should not happen!")
-        }
-
-        Ok(r)
     }
 
     pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<C> {

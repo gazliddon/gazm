@@ -7,6 +7,7 @@ use crate::frontend::Item;
 use crate::{
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
+    info_mess,
     semantic::{Ast, AstNodeId, AstNodeRef},
 };
 
@@ -47,6 +48,7 @@ where
         let scope_id = asm.get_symbols().get_root_scope_id();
         self.scopes.set_scope(scope_id);
         asm.set_pc_symbol(0).expect("Can't set pc symbol");
+
         self.compile_node_error(asm, self.tree.as_ref().root().id())
     }
 
@@ -84,7 +86,14 @@ where
         id: AstNodeId,
         e: Result<T, BinaryError>,
     ) -> Result<T, GazmErrorKind> {
-        e.map_err(|e| self.binary_error(asm, id, e))
+        if !asm.opts.error_mismatches {
+            if let Err(BinaryError::DoesNotMatchReference(_r)) = &e {
+            }
+        }
+
+        let ret = e.map_err(|e| self.binary_error(asm, id, e));
+
+        ret
     }
 
     pub fn relative_error(
@@ -131,17 +140,14 @@ where
         let source = args[0];
         let size = args[1];
 
-        let bytes_ret = asm
+        let bytes = asm
             .get_binary()
             .get_bytes(source as usize, size as usize)
-            .map(|n| n.to_vec());
+            .map(|n| n.to_vec()).map_err(|e| self.binary_error(asm, id, e))?;
 
-        let bytes = bytes_ret.map_err(|e| self.binary_error(asm, id, e))?;
+        let ret = asm.get_binary_mut().write_bytes(&bytes);
 
-        asm.get_binary_mut()
-            .write_bytes(&bytes)
-            .map_err(|e| self.binary_error(asm, id, e))?;
-
+        self.binary_error_map(asm, id, ret)?;
         Ok(())
     }
 
@@ -164,29 +170,44 @@ where
         Ok(())
     }
 
-    fn inc_bin_ref<P: AsRef<Path>>(&self, asm: &mut Assembler<C>, file_name: P) -> GResult<()> {
+    fn inc_bin_ref<P: AsRef<Path>>(
+        &self,
+        asm: &mut Assembler<C>,
+        file_name: P,
+        node_id: AstNodeId,
+        current_scope_id: u64,
+    ) -> GResult<()> {
         use crate::assembler::binary::BinRef;
-
         let file = file_name.as_ref().to_path_buf();
-
         let (.., data) = asm.read_binary_file(&file_name)?;
 
-        let dest = asm.get_binary().get_write_location().physical;
+        let node = self.get_node(node_id);
+
+        let mut result = asm.eval_all_args(node, current_scope_id)?;
+
+        if result.len() == 1 {
+            result.push(data.len() as i64)
+        }
+
+        let dest = result[0] as usize;
+        let size = result[1] as usize;
+
+        assert!(size <= data.len());
 
         let bin_ref = BinRef {
             file: file.clone(),
             start: 0,
-            size: data.len(),
+            size,
             dest,
         };
 
         asm.get_binary_mut().add_bin_reference(&bin_ref, &data);
 
-        debug_mess!(
-            "Adding binary reference {} for {:05X} - {:05X}",
+        info_mess!(
+            "Adding binary reference {} for ${:04x} - ${:04x}",
             file.to_string_lossy(),
             dest,
-            dest + data.len()
+            (dest + data.len()) - 1
         );
 
         Ok(())
@@ -254,9 +275,9 @@ where
         let (.., bin) = asm.read_binary_file_chunk(file, r.clone())?;
 
         for val in bin {
-            asm.get_binary_mut()
-                .write_byte(val)
-                .map_err(|e| self.binary_error(asm, id, e))?;
+            let ret = asm.get_binary_mut().write_byte(val);
+
+            self.binary_error_map(asm, id, ret)?;
         }
         Ok(())
     }
@@ -285,6 +306,7 @@ where
         let (node_id, i) = self.get_node_id_item(asm, id);
 
         let mut pc = asm.get_binary().get_write_address();
+
         let mut do_source_mapping = true;
         let current_scope_id = self.scopes.scope();
 
@@ -298,7 +320,7 @@ where
             WriteBin(file_name) => self.add_binary_to_write(asm, id, &file_name)?,
 
             IncBinRef(file_name) => {
-                self.inc_bin_ref(asm, &file_name)?;
+                self.inc_bin_ref(asm, &file_name, id, current_scope_id)?;
             }
 
             IncBinResolved { file, r } => {

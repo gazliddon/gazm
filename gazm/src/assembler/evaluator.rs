@@ -112,6 +112,16 @@ where
         Ok((args[0], args[1]))
     }
 
+    pub fn eval_all_args(
+        &self,
+        node: AstNodeRef<C>,
+        current_scope_id: u64,
+    ) -> GResult<Vec<i64>> {
+        node.children()
+            .map(|node| self.eval_node(node, current_scope_id))
+            .collect()
+    }
+
     pub fn eval_n_args(
         &self,
         node: AstNodeRef<C>,

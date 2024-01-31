@@ -1,13 +1,5 @@
-    org 0
+    incbinref "video_sound_rom_2_std_744.ic12", 0xf800
 
-    nop
-    ldaa #10
-    staa 100
+    include "vsndrm2.src"
 
-    ldab <100
-    ldab >100
-
-    asl b
-    asl a
-    ldaa 10,x
-
+    writebin "a.bin", 0xf800,0x800
