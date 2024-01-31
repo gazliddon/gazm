@@ -1,7 +1,12 @@
 # Gazm - 6809 Assembler Release Notes
 
 ## 0.9.16
-
+* Added 6800 assembly
+* Can assembly stargate sound rom
+* Midway through refactoring binary errors
+* Still assembles stargate
+* LSP removed (for now)
+    * Needs to be able to work multi CPU
 
 ## 0.9.15
 * Replacement front end
