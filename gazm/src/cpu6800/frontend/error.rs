@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::cpu6800::AddrModeParseType;
+use crate::cpu6800::frontend::AddrModeParseType;
 
 // use super::AddrModeParseType;
 

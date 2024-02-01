@@ -1,6 +1,6 @@
-use crate::cpu6800::{frontend::MC6800, Assembler, Compiler, DBASE};
+use crate::cpu6800::{frontend::NodeKind6800, Assembler, Compiler};
 
-use emu6800::cpu_core::{AddrModeEnum, InstructionInfo};
+use emu6800::cpu_core::{AddrModeEnum, InstructionInfo, DBASE};
 
 use crate::{assembler::BinaryError, error::{ GResult, GazmErrorKind }, semantic::AstNodeId};
 /// Compile an opcode
@@ -77,9 +77,9 @@ pub fn compile_node(
     compiler: &mut Compiler,
     asm: &mut Assembler,
     id: AstNodeId,
-    node_kind: MC6800,
+    node_kind: NodeKind6800,
 ) -> GResult<()> {
-    use MC6800::*;
+    use NodeKind6800::*;
 
     match node_kind {
         OpCode(_, ins) => {

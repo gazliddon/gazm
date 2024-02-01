@@ -1,4 +1,5 @@
-use crate::cpu6800::DBASE;
+
+use emu6800::cpu_core::DBASE;
 
 use crate::frontend::CommandKind;
 use crate::frontend::TokenKind;

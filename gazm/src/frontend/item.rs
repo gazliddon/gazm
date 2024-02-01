@@ -3,7 +3,7 @@ use grl_sources::Position;
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thin_vec::ThinVec;
 
-use crate::{error::ParseError, gazmsymbols::SymbolScopeId, semantic::AstNodeId, assembler::AssemblerCpuTrait};
+use crate::{error::ParseError, gazmsymbols::SymbolScopeId, semantic::AstNodeId, assembler::AssemblerCpuTrait, cpu6809::frontend::NodeKind6809, cpu6800::frontend::NodeKind6800};
 
 use super::{BaseNode, CtxTrait};
 
@@ -126,6 +126,12 @@ impl std::fmt::Display for LabelDefinition {
             Text(x) => write!(f, "{x}"),
         }
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum CpuSpecific {
+    Cpu6809(NodeKind6809),
+    Cpu6800(NodeKind6800),
 }
 
 ///Ast Node Items

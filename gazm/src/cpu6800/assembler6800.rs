@@ -7,11 +7,11 @@ use crate::{
 
 use super::{
     assembler::size_node_internal,
-    frontend::{lex_identifier, parse_commands, parse_multi_opcode_vec, MC6800},
+    frontend::{lex_identifier, parse_commands, parse_multi_opcode_vec, NodeKind6800},
 };
 
-pub type Node = crate::frontend::Node<MC6800>;
-pub type Item = crate::frontend::Item<MC6800>;
+pub type Node = crate::frontend::Node<NodeKind6800>;
+pub type Item = crate::frontend::Item<NodeKind6800>;
 pub type Compiler<'a> = crate::assembler::Compiler<'a, Asm6800>;
 pub type Assembler = crate::assembler::Assembler<Asm6800>;
 pub type Sizer<'a> = crate::assembler::Sizer<'a, Asm6800>;
@@ -41,7 +41,7 @@ pub fn parse_expr(input: TSpan) -> PResult<Node> {
 }
 
 impl AssemblerCpuTrait for Asm6800 {
-    type NodeKind = MC6800;
+    type NodeKind = NodeKind6800;
 
     fn new() -> Self {
         Self {}

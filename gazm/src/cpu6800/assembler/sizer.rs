@@ -4,18 +4,18 @@ use emu6800::cpu_core::{AddrModeEnum, DBASE};
 use crate::debug_mess;
 use crate::{error::GResult, semantic::AstNodeId};
 
-use crate::cpu6800::{frontend::MC6800, Assembler, Item, Sizer};
+use crate::cpu6800::{frontend::NodeKind6800, Assembler, Item, Sizer};
 
 pub fn size_node_internal(
     sizer: &mut Sizer,
     asm: &mut Assembler,
     id: AstNodeId,
-    node_kind: MC6800,
+    node_kind: NodeKind6800,
 ) -> GResult<()> {
     let current_scope_id = sizer.scopes.scope();
     let node = sizer.get_node(id);
 
-    use MC6800::*;
+    use NodeKind6800::*;
 
     match &node_kind {
         Illegal => todo!(),

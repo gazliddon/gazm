@@ -3,14 +3,15 @@
 ## 0.9.2
 
 ### Done
-
-### Todo
 * Remove stargate source and binaries
 * Add CSUM checks for SG compilation
 * Add sound rom compilation to stargate
-* Add 6502
+
+### Todo
+* Make tokenize CPU agnostic
 * Endian agnosticism in Binary struct (can I use a memblock?)
-* Find a that I can have CPU specific data in the Assembler class
+* Add 6502
+* Find a way to separate and persist CPU specific data in the Assembler class
     * Specifically for SetDp - Dp storage on 6809
     * Remove SetDp warnings
 * Collect warnings for binary mismatches for non opocode binary writing
