@@ -2,7 +2,7 @@
 
 use crate::{
     error::GResult,
-    frontend::{err_nomatch, Node, PResult, TSpan, TokenKind},
+    frontend::{err_nomatch, Node, PResult, TSpan, TokenKind, CpuSpecific},
     semantic::AstNodeId,
 };
 
@@ -26,7 +26,7 @@ pub trait AssemblerCpuTrait: Sized + Send + 'static + Debug + Clone + Default + 
         _compiler: &mut Compiler<Self>,
         _asm: &mut Assembler<Self>,
         _id: AstNodeId,
-        _node_kind: Self::NodeKind,
+        _node_kind: CpuSpecific
     ) -> GResult<()> {
         Self::err("Compile Node")
     }
@@ -35,7 +35,7 @@ pub trait AssemblerCpuTrait: Sized + Send + 'static + Debug + Clone + Default + 
         _sizer: &mut Sizer<Self>,
         _asm: &mut Assembler<Self>,
         _id: AstNodeId,
-        _node_kind: Self::NodeKind,
+        _node_kind: CpuSpecific
     ) -> GResult<()> {
         Self::err("Size Node")
     }

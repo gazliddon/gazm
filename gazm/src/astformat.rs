@@ -152,7 +152,7 @@ where C: AssemblerCpuTrait
                 format!("macro {name} ({vars:?}) [{}]", join_kids(" : "))
             }
 
-            CpuSpecific(..) => todo!(),
+            TargetSpecific(..) => todo!(),
             // CpuSpecific(OpCode(_, instruction, amode)) => {
             //     use AddrModeParseType::*;
 

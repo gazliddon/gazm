@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
-use crate::frontend::{err_fatal, get_text, PResult, TSpan, TokenKind};
-use crate::cpu6809::{from_item_tspan, NodeKind, Node, parse_expr};
+use crate::cpu6809::{from_item_tspan, parse_expr, Node, NodeKind, };
+use crate::frontend::{err_fatal, get_text, CpuSpecific, PResult, TSpan, TokenKind};
 
 use super::{
     parse_indexed, parse_opcode_reg_pair, parse_reg_set_operand, AddrModeParseType,
@@ -75,8 +75,8 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     }?;
 
     let amode = match arg.item {
-        NodeKind::CpuSpecific(Operand(amode)) => amode,
-        NodeKind::CpuSpecific(OperandIndexed(amode, indirect)) => {
+        NodeKind::TargetSpecific(CpuSpecific::Cpu6809(Operand(amode))) => amode,
+        NodeKind::TargetSpecific(CpuSpecific::Cpu6809(OperandIndexed(amode, indirect))) => {
             AddrModeParseType::Indexed(amode, indirect)
         }
         _ => return err_fatal(sp, Cpu6809AssemblyErrorKind::AddrModeUnsupported),
@@ -156,7 +156,7 @@ mod test {
     };
 
     use crate::frontend::{
-        create_source_file, get_items, make_tspan, to_tokens_no_comment, GazmParser, AstNodeKind,
+        create_source_file, get_items, make_tspan, to_tokens_no_comment, AstNodeKind, GazmParser,
         ParsedFrom,
     };
     use crate::opts::Opts;

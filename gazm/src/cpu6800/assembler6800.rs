@@ -1,8 +1,10 @@
+use num_traits::cast;
+
 use crate::{
     assembler::AssemblerCpuTrait,
     cpu6800::assembler::compile_node,
     error::GResult,
-    frontend::{PResult, TSpan, TokenKind},
+    frontend::{PResult, TSpan, TokenKind, CpuSpecific},
 };
 
 use super::{
@@ -11,7 +13,7 @@ use super::{
 };
 
 pub type Node = crate::frontend::Node<NodeKind6800>;
-pub type Item = crate::frontend::AstNodeKind<NodeKind6800>;
+pub type NodeKind = crate::frontend::AstNodeKind<NodeKind6800>;
 pub type Compiler<'a> = crate::assembler::Compiler<'a, Asm6800>;
 pub type Assembler = crate::assembler::Assembler<Asm6800>;
 pub type Sizer<'a> = crate::assembler::Sizer<'a, Asm6800>;
@@ -22,15 +24,15 @@ pub struct Asm6800 {}
 #[inline]
 pub fn from_item_tspan<I>(item: I, sp: TSpan) -> Node
 where
-    I: Into<Item>,
+    I: Into<NodeKind>,
 {
     crate::frontend::from_item_tspan::<Asm6800>(item.into(), sp)
 }
 
 #[inline]
-pub fn from_item_kid_tspan<I>(item: Item, node: Node, sp: TSpan) -> Node
+pub fn from_item_kid_tspan<I>(item: NodeKind, node: Node, sp: TSpan) -> Node
 where
-    I: Into<Item>,
+    I: Into<NodeKind>,
 {
     crate::frontend::from_item_kid_tspan::<Asm6800>(item.into(), node, sp)
 }
@@ -55,18 +57,24 @@ impl AssemblerCpuTrait for Asm6800 {
         sizer: &mut crate::assembler::Sizer<Self>,
         asm: &mut crate::assembler::Assembler<Self>,
         id: crate::semantic::AstNodeId,
-        node_kind: Self::NodeKind,
+        node_kind: CpuSpecific,
     ) -> GResult<()> {
-        size_node_internal(sizer, asm, id, node_kind)
+        match node_kind {
+            CpuSpecific::Cpu6800(node_kind) => size_node_internal(sizer, asm, id, node_kind),
+            _ => panic!(),
+        }
     }
 
     fn compile_node(
         compiler: &mut crate::assembler::Compiler<Self>,
         asm: &mut crate::assembler::Assembler<Self>,
         id: crate::semantic::AstNodeId,
-        node_kind: Self::NodeKind,
+        node_kind: CpuSpecific,
     ) -> crate::error::GResult<()> {
-        compile_node(compiler, asm, id, node_kind)
+        match node_kind {
+            CpuSpecific::Cpu6800(node_kind) => compile_node(compiler, asm, id, node_kind),
+            _ => panic!(),
+        }
     }
 
     fn parse_multi_opcode_vec(_input: crate::frontend::TSpan) -> PResult<Vec<Node>> {

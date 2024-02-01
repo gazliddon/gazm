@@ -35,7 +35,7 @@ pub enum AstNodeKind<C>
 where
     C: PartialEq + Clone + std::fmt::Debug,
 {
-    CpuSpecific(C),
+    XCpuSpecific(C),
     TargetSpecific(CpuSpecific),
     Import,
     Doc(String),

@@ -8,7 +8,7 @@ use unraveler::{cut, match_span as ms, preceded};
 
 pub fn parse_set_dp(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(preceded(CommandKind::SetDp, cut(parse_expr)))(input)?;
-    let node = from_item_kid_tspan(AstNodeKind::CpuSpecific(NodeKind6809::SetDp), matched, sp);
+    let node = from_item_kid_tspan(AstNodeKind::TargetSpecific(NodeKind6809::SetDp.into()), matched, sp);
     Ok((rest, node))
 }
 

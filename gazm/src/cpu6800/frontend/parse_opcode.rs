@@ -34,7 +34,7 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
 
     if let Some(ins) = ins.get_opcode_data(AddrModeEnum::Inherent) {
         let oc = OpCode(text, ins.clone());
-        let node = from_item_tspan(AstNodeKind::CpuSpecific(oc), sp);
+        let node = from_item_tspan(oc, sp);
         Ok((rest, node))
     } else {
         err_fatal(sp, OnlySupports(AddrModeParseType::Inherent))
@@ -117,12 +117,14 @@ fn get_instruction(amode: AddrModeParseType, info: &Instruction) -> Option<&Opco
 
 fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     use NodeKind6800::{OpCode, Operand};
+    use CpuSpecific::Cpu6800 as Cpu;
+    use crate::frontend::CpuSpecific;
 
     let (rest, (sp, text, info)) = get_opcode(input)?;
 
     let (rest, arg) = parse_opcode_arg(rest)?;
 
-    if let AstNodeKind::CpuSpecific(Operand(parsed_addressing_mode)) = arg.item {
+    if let AstNodeKind::TargetSpecific(Cpu(Operand(parsed_addressing_mode))) = arg.item {
         if info.supports(AddrModeEnum::Relative)
             && parsed_addressing_mode == AddrModeParseType::Extended
         {

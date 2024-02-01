@@ -6,10 +6,10 @@ use crate::{
     semantic::AstNodeId,
 };
 
-use crate::cpu6809::{
+use crate::{cpu6809::{
     assembler::{compile_node, size_node_internal},
     frontend::{lex_identifier, parse_commands, parse_multi_opcode_vec, NodeKind6809},
-};
+}, frontend::CpuSpecific};
 
 pub type Node = frontend::Node<NodeKind6809>;
 pub type NodeKind = frontend::AstNodeKind<NodeKind6809>;
@@ -64,17 +64,27 @@ impl<'a> AssemblerCpuTrait for Asm6809 {
         compiler: &mut Compiler,
         asm: &mut Assembler,
         id: AstNodeId,
-        node_kind: NodeKind6809,
+        node_kind: CpuSpecific,
     ) -> GResult<()> {
-        compile_node(compiler, asm, id, node_kind)
+
+        match node_kind {
+            CpuSpecific::Cpu6809(node_kind)  => compile_node(compiler, asm, id, node_kind),
+            _ => panic!()
+
+        }
+
     }
 
     fn size_node(
         sizer: &mut Sizer,
         asm: &mut Assembler,
         id: AstNodeId,
-        node_kind: NodeKind6809,
+        node_kind: CpuSpecific,
     ) -> GResult<()> {
-        size_node_internal(sizer, asm, id, node_kind)
+        match node_kind {
+            CpuSpecific::Cpu6809(node_kind)  => size_node_internal(sizer, asm, id, node_kind),
+            _ => panic!()
+
+        }
     }
 }

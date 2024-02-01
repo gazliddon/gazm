@@ -4,7 +4,7 @@ use emu6800::cpu_core::{AddrModeEnum, DBASE};
 use crate::debug_mess;
 use crate::{error::GResult, semantic::AstNodeId};
 
-use crate::cpu6800::{frontend::NodeKind6800, Assembler, Item, Sizer};
+use crate::cpu6800::{frontend::NodeKind6800, Assembler, Sizer};
 
 pub fn size_node_internal(
     sizer: &mut Sizer,
@@ -49,7 +49,7 @@ pub fn size_node_internal(
 
                             let new_ins = new_ins.clone();
                             size = new_ins.size;
-                            let new_item = Item::CpuSpecific(OpCode(text.clone(), new_ins));
+                            let new_item = OpCode(text.clone(), new_ins);
 
                             asm.add_fixup(id, new_item, current_scope_id);
                         }

@@ -11,7 +11,7 @@ use emu6809::isa::{AddrModeEnum, Instruction};
 use crate::{
     assembler::{ByteSize, ByteSizes},
     error::GResult,
-    frontend::AstNodeKind::CpuSpecific,
+    // frontend::AstNodeKind::TargetSpecific,
     semantic::AstNodeId,
 };
 
@@ -152,11 +152,11 @@ pub fn size_node_internal(
                                 // Here we go!
                                 let new_ins = new_ins.clone();
                                 size = new_ins.size;
-                                let new_item = CpuSpecific(OpCode(
+                                let new_item = OpCode(
                                     text.clone(),
                                     Box::new(new_ins),
                                     AddrModeParseType::Direct,
-                                ));
+                                );
                                 asm.add_fixup(id, new_item, current_scope_id);
                             }
                         }

@@ -1,6 +1,6 @@
 #![forbid(unused_imports)]
 use std::collections::HashSet;
-use crate::cpu6809::NodeKind;
+use crate::{cpu6809::NodeKind, frontend::CpuSpecific};
 
 use emu6809::{
     cpu::{IndexedFlags, RegEnum},
@@ -200,7 +200,9 @@ pub enum AddrModeParseType {
 
 impl From<AddrModeParseType> for NodeKind {
     fn from(value: AddrModeParseType) -> Self {
-        NodeKind::CpuSpecific(NodeKind6809::Operand(value))
+        NodeKind::TargetSpecific(
+            NodeKind6809::Operand(value).into()
+            )
     }
 }
 
@@ -223,7 +225,7 @@ impl AddrModeParseType {
 
 impl From<NodeKind6809> for NodeKind {
     fn from(value: NodeKind6809) -> Self {
-        NodeKind::CpuSpecific(value)
+        NodeKind::TargetSpecific(value.into())
     }
 }
 
@@ -237,6 +239,13 @@ pub enum NodeKind6809 {
     OperandIndexed(IndexParseType, bool),
     RegisterSet(HashSet<RegEnum>),
 }
+
+impl Into<CpuSpecific> for NodeKind6809 {
+    fn into(self) -> CpuSpecific {
+        CpuSpecific::Cpu6809(self)
+    }
+}
+
 
 impl NodeKind6809 {
     pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> NodeKind {

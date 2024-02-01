@@ -137,7 +137,7 @@ where
                 self.advance_pc(bytes as usize);
             }
 
-            CpuSpecific(i) => {
+            TargetSpecific(i) => {
                 C::size_node(self, asm, id, i.clone())?;
             }
 

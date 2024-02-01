@@ -457,7 +457,7 @@ where
             IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
             | StructDef(..) | MacroDef(..) | MacroCall(..) | Import => (),
 
-            CpuSpecific(node_kind) => {
+            TargetSpecific(node_kind) => {
                 C::compile_node(self, asm, id, node_kind)?;
             }
 

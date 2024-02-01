@@ -35,7 +35,7 @@ pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
 
 pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
-    let item = NodeKind::CpuSpecific(RegisterSet(matched));
+    let item = NodeKind::TargetSpecific(RegisterSet(matched).into());
     let node = from_item_tspan(item, sp);
     Ok((rest, node))
 }

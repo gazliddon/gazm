@@ -3,7 +3,7 @@ use crate::{assembler::BinaryError::*, error::GResult, semantic::AstNodeId};
 use crate::cpu6809::{
     frontend::{AddrModeParseType, IndexParseType, NodeKind6809},
     regutils::{reg_pair_to_flags, registers_to_flags},
-    Assembler, Compiler, NodeKind,
+    Assembler, Compiler,
 };
 
 use emu6809::isa;
@@ -173,12 +173,15 @@ pub fn compile_opcode(
         }
 
         AddrModeEnum::RegisterSet => {
+            use crate::frontend::{AstNodeKind, CpuSpecific::Cpu6809};
+            use NodeKind6809::RegisterSet;
             let rset = &node.first_child().unwrap().value().item;
-            if let NodeKind::CpuSpecific(NodeKind6809::RegisterSet(regs)) = rset {
+
+            if let AstNodeKind::TargetSpecific(Cpu6809(RegisterSet(regs))) = &rset {
                 let flags = registers_to_flags(regs);
                 compiler.write_byte(flags, asm, id)?;
             } else {
-                panic!("Whut!")
+                panic!()
             }
         }
     };
