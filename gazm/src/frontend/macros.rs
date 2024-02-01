@@ -5,7 +5,7 @@ use unraveler::{many0, match_span as ms, pair, preceded, sep_list0, tuple};
 use crate::assembler::AssemblerCpuTrait;
 
 use super::{
-    Item::{MacroCall, MacroDef},
+    AstNodeKind::{MacroCall, MacroDef},
     TokenKind::Comma,
     *,
 };

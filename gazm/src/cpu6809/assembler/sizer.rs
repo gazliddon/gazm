@@ -11,7 +11,7 @@ use emu6809::isa::{AddrModeEnum, Instruction};
 use crate::{
     assembler::{ByteSize, ByteSizes},
     error::GResult,
-    frontend::Item::CpuSpecific,
+    frontend::AstNodeKind::CpuSpecific,
     semantic::AstNodeId,
 };
 

@@ -15,7 +15,7 @@ use crate::cpu6809::{
         NodeKind6809::{Operand, RegisterSet},
     },
     Node,
-    Item,
+    NodeKind,
     from_item_tspan,
 };
 
@@ -35,7 +35,7 @@ pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
 
 pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(get_reg_set)(input)?;
-    let item = Item::CpuSpecific(RegisterSet(matched));
+    let item = NodeKind::CpuSpecific(RegisterSet(matched));
     let node = from_item_tspan(item, sp);
     Ok((rest, node))
 }

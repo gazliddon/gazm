@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 
-use super::{from_item_kids_tspan, FrontEndError, FrontEndErrorKind, GazmParser, Item, Node};
+use super::{from_item_kids_tspan, FrontEndError, FrontEndErrorKind, GazmParser, AstNodeKind, Node};
 
 use crate::{
     assembler::{Assembler, AssemblerCpuTrait},
@@ -133,7 +133,7 @@ impl TokenizeRequest {
             }
         }
 
-        let item = Item::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
+        let item = AstNodeKind::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
         let node = from_item_kids_tspan::<ASM>(item, &final_nodes, span);
         (node, errors)
     }

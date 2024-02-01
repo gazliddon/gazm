@@ -3,7 +3,7 @@ use std::path::Path;
 
 use super::{binary::BinaryError, scopetracker::ScopeTracker, Assembler, AssemblerCpuTrait};
 
-use crate::frontend::Item;
+use crate::frontend::AstNodeKind;
 use crate::{
     debug_mess,
     error::{GResult, GazmErrorKind, UserError},
@@ -56,7 +56,7 @@ where
         &self,
         asm: &Assembler<C>,
         id: AstNodeId,
-    ) -> (AstNodeId, Item<C::NodeKind>) {
+    ) -> (AstNodeId, AstNodeKind<C::NodeKind>) {
         let node = self.tree.as_ref().get(id).unwrap();
         let this_i = &node.value().item;
         let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
@@ -301,7 +301,7 @@ where
     }
 
     fn compile_node_error(&mut self, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
-        use Item::*;
+        use AstNodeKind::*;
 
         let (node_id, i) = self.get_node_id_item(asm, id);
 

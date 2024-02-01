@@ -2,7 +2,7 @@
 
 
 use crate::assembler::AssemblerCpuTrait;
-use crate::frontend::Item;
+use crate::frontend::AstNodeKind;
 use crate::semantic::*;
 
 impl<'a, C> std::fmt::Display for AstCtx<'a, C>
@@ -44,7 +44,7 @@ where C: AssemblerCpuTrait
 
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Item::*;
+        use AstNodeKind::*;
 
         let node = self.node;
         let item = &node.value().item;

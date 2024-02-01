@@ -5,7 +5,7 @@ use crate::assembler::AssemblerCpuTrait;
 use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0};
 
 use super::{
-    concat, from_item_kids_tspan, from_item_tspan, parse_bracketed, GazmParser, Item, Node,
+    concat, from_item_kids_tspan, from_item_tspan, parse_bracketed, GazmParser, AstNodeKind, Node,
     PResult, TSpan,
     TokenKind::{self, *},
 };
@@ -17,7 +17,7 @@ where
     pub fn op_to_node(
         input: TSpan,
         toke: TokenKind,
-        item: Item<C::NodeKind>,
+        item: AstNodeKind<C::NodeKind>,
     ) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, _)) = ms(toke)(input)?;
         Ok((rest, from_item_tspan::<C>(item, sp)))
@@ -36,19 +36,19 @@ where
 
     fn parse_unary_op(input: TSpan) -> PResult<Node<C::NodeKind>> {
         alt((
-            |i| Self::op_to_node(i, Minus, Item::Sub),
-            |i| Self::op_to_node(i, GreaterThan, Item::UnaryGreaterThan),
+            |i| Self::op_to_node(i, Minus, AstNodeKind::Sub),
+            |i| Self::op_to_node(i, GreaterThan, AstNodeKind::UnaryGreaterThan),
         ))(input)
     }
 
     fn parse_bracketed_expr(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, mut matched)) = ms(parse_bracketed(parse_expr::<C>))(input)?;
-        matched.item = Item::BracketedExpr;
+        matched.item = AstNodeKind::BracketedExpr;
         Ok((rest, Self::with_tspan(matched, sp)))
     }
 
     pub fn parse_non_unary_term(input: TSpan) -> PResult<Node<C::NodeKind>> {
-        let parse_pc = |i| Self::op_to_node(i, Star, Item::Pc);
+        let parse_pc = |i| Self::op_to_node(i, Star, AstNodeKind::Pc);
         alt((
             Self::parse_bracketed_expr,
             Self::parse_number,
@@ -60,21 +60,21 @@ where
     fn parse_unary_term(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, (op, term))) =
             ms(pair(Self::parse_unary_op, Self::parse_non_unary_term))(input)?;
-        let node = from_item_kids_tspan::<C>(Item::UnaryTerm, &[op, term], sp);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::UnaryTerm, &[op, term], sp);
         Ok((rest, node))
     }
 
     fn parse_binary_op(input: TSpan) -> PResult<Node<C::NodeKind>> {
         alt((
-            |i| Self::op_to_node(i, Plus, Item::Add),
-            |i| Self::op_to_node(i, Minus, Item::Sub),
-            |i| Self::op_to_node(i, Star, Item::Mul),
-            |i| Self::op_to_node(i, Slash, Item::Div),
-            |i| Self::op_to_node(i, Bar, Item::BitOr),
-            |i| Self::op_to_node(i, Ampersand, Item::BitAnd),
-            |i| Self::op_to_node(i, Caret, Item::BitXor),
-            |i| Self::op_to_node(i, DoubleGreaterThan, Item::ShiftR),
-            |i| Self::op_to_node(i, DoubleLessThan, Item::ShiftL),
+            |i| Self::op_to_node(i, Plus, AstNodeKind::Add),
+            |i| Self::op_to_node(i, Minus, AstNodeKind::Sub),
+            |i| Self::op_to_node(i, Star, AstNodeKind::Mul),
+            |i| Self::op_to_node(i, Slash, AstNodeKind::Div),
+            |i| Self::op_to_node(i, Bar, AstNodeKind::BitOr),
+            |i| Self::op_to_node(i, Ampersand, AstNodeKind::BitAnd),
+            |i| Self::op_to_node(i, Caret, AstNodeKind::BitXor),
+            |i| Self::op_to_node(i, DoubleGreaterThan, AstNodeKind::ShiftR),
+            |i| Self::op_to_node(i, DoubleLessThan, AstNodeKind::ShiftL),
         ))(input)
     }
 
@@ -97,7 +97,7 @@ where
         Ok((rest, term))
     } else {
         let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
-        let node = from_item_kids_tspan::<C>(Item::Expr, &concat((term, vs)), sp);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::Expr, &concat((term, vs)), sp);
         Ok((rest, node))
     }
 }
@@ -108,19 +108,19 @@ mod test {
     use crate::frontend::*;
     use crate::opts::Opts;
     use item::{
-        Item::{self, *},
+        AstNodeKind::{self, *},
         ParsedFrom::*,
     };
     use unraveler::Collection;
 
     #[test]
     fn test_expr() {
-        use Item::*;
+        use AstNodeKind::*;
         let test = [
             ("3", Num(3, Decimal), vec![]),
             (
                 "3 * 4 + 0x1 + (10  + 4)",
-                Item::Expr,
+                AstNodeKind::Expr,
                 vec![
                     Num(3, Decimal),
                     Mul,

@@ -11,7 +11,7 @@ use crate::{
     astformat::as_string,
     debug_mess,
     error::{AstError, UserError},
-    frontend::{Item, LabelDefinition, Node},
+    frontend::{AstNodeKind, LabelDefinition, Node},
     gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
     interesting_mess,
     messages::*,
@@ -28,7 +28,7 @@ pub struct ItemWithPos<C>
 where
     C: AssemblerCpuTrait,
 {
-    pub item: Item<C::NodeKind>,
+    pub item: AstNodeKind<C::NodeKind>,
     pub pos: Position,
 }
 
@@ -143,7 +143,7 @@ where
         .collect()
     }
 
-    pub fn create_orphan(&mut self, item: Item<C::NodeKind>, pos: Position) -> AstNodeId
+    pub fn create_orphan(&mut self, item: AstNodeKind<C::NodeKind>, pos: Position) -> AstNodeId
     where
         C: std::fmt::Debug + Clone + PartialEq,
     {
@@ -229,7 +229,7 @@ where C: AssemblerCpuTrait
     iter::from_fn(move || i.next().and_then(|id| node.tree().get(id)))
 }
 
-fn iter_items_recursive<C>(node: AstNodeRef<C>) -> impl Iterator<Item = (AstNodeId, &Item<C::NodeKind>)>
+fn iter_items_recursive<C>(node: AstNodeRef<C>) -> impl Iterator<Item = (AstNodeId, &AstNodeKind<C::NodeKind>)>
 where C: AssemblerCpuTrait
 
 {
@@ -297,7 +297,7 @@ where
 
     /// Bring all of the imports needed into the correct namespaces
     fn process_imports(&mut self) -> Result<(), UserError> {
-        use Item::*;
+        use AstNodeKind::*;
 
         info("Processing imports", |_| {
             interesting_mess!("Import labels");
@@ -372,7 +372,7 @@ where
         for id in iter_ids_recursive(self.get_tree().root()) {
             let node = self.get_tree().get(id).unwrap();
 
-            if let Item::Doc(text, ..) = &node.value().item {
+            if let AstNodeKind::Doc(text, ..) = &node.value().item {
                 let parent_id = node.parent().unwrap().id();
                 doc_map.insert(parent_id, text.to_string());
                 self.get_tree_mut().get_mut(id).unwrap().detach();
@@ -447,13 +447,13 @@ where
         info("Processing macro definitions", |_| {
             // TODO: should be written in a way that can detect
             // redefinitions of a macro
-            use Item::{MacroCall, MacroCallProcessed, ScopeId};
+            use AstNodeKind::{MacroCall, MacroCallProcessed, ScopeId};
 
             // Detach all of the MacroDef nodes
             let detached = self
                 .ast_tree
                 .detach_nodes_filter(iter_ids_recursive(self.get_tree().root()), |nref| {
-                    matches!(nref.value().item, Item::MacroDef(..))
+                    matches!(nref.value().item, AstNodeKind::MacroDef(..))
                 });
 
             let mdefs: HashMap<String, (AstNodeId, Vec<String>)> = detached
@@ -534,7 +534,7 @@ where
 
     fn rename_locals(&mut self) {
         info("Renaming locals into globals", |_x| {
-            use Item::*;
+            use AstNodeKind::*;
             use LabelDefinition::*;
 
             let mut label_scopes = ScopeBuilder::new();
@@ -601,7 +601,7 @@ where
             self.get_tree_mut().get_mut(node_id).unwrap().append_id(t);
         }
 
-        self.get_tree_mut().get_mut(node_id).unwrap().value().item = Item::PostFixExpr;
+        self.get_tree_mut().get_mut(node_id).unwrap().value().item = AstNodeKind::PostFixExpr;
 
         Ok(())
     }
@@ -637,7 +637,7 @@ where
         let item = &node.value().item;
         let err = |m| self.node_error(m, id, true);
 
-        if let Item::PostFixExpr = item {
+        if let AstNodeKind::PostFixExpr = item {
             let reader = self.ctx.asm_out.symbols.get_reader(current_scope_id);
             eval(&reader, node).map_err(|e| self.convert_error(e.into()))
         } else {
@@ -665,7 +665,7 @@ where
         let scopes = self.get_root_scope_tracker();
 
         info("Generating symbols for struct definitions", |_| {
-            use Item::*;
+            use AstNodeKind::*;
 
             // self.ctx.asm_out.symbols.set_root();
 
@@ -707,7 +707,7 @@ where
     /// Traverse all nodes and create scopes from Scope(name)
     /// and change node from Scope(name) -> ScopeId(scope_id)
     fn create_scopes(&mut self) -> Result<(), UserError> {
-        use Item::*;
+        use AstNodeKind::*;
 
         let scopes = self.get_root_scope_tracker();
 
@@ -765,7 +765,7 @@ where
         id: AstNodeId,
         mut scopes: ScopeTracker,
     ) -> Result<(), UserError> {
-        use Item::*;
+        use AstNodeKind::*;
 
         let root_node = self.get_tree().get(id).unwrap();
 
@@ -806,7 +806,7 @@ where
             interesting_mess!("Scoping AST labels");
             self.scope_labels_node(root_node_id, scopes)?;
 
-            use Item::*;
+            use AstNodeKind::*;
 
             interesting_mess!("Scoping macro labels");
 
@@ -831,7 +831,7 @@ where
     /// Traverse through all assignments and reserve a label for them at the correct scope
     fn scope_assignments(&mut self) -> Result<(), UserError> {
         info("Scoping assignments", |_| {
-            use Item::*;
+            use AstNodeKind::*;
             let mut scopes = self.get_root_scope_tracker();
 
             for node_id in iter_ids_recursive(self.get_tree().root()) {
@@ -867,7 +867,7 @@ where
     fn evaluate_assignments(&mut self) -> Result<(), UserError> {
         info("Evaluating assignments", |_| {
             use super::gazmeval::eval;
-            use Item::*;
+            use AstNodeKind::*;
 
             let mut scopes = self.get_root_scope_tracker();
 
@@ -891,7 +891,7 @@ where
                                 ..
                             }) => {
                                 self.ast_tree.alter_node(node_id, |ipos| {
-                                    ipos.item = Item::AssignmentFromPc(label_id.into())
+                                    ipos.item = AstNodeKind::AssignmentFromPc(label_id.into())
                                 });
                             }
 
@@ -981,11 +981,11 @@ impl GetPriority for Term {
     }
 }
 
-pub fn to_priority<C>(i: &Item<C>) -> Option<usize>
+pub fn to_priority<C>(i: &AstNodeKind<C>) -> Option<usize>
 where
     C: std::fmt::Debug + Clone + PartialEq,
 {
-    use Item::*;
+    use AstNodeKind::*;
     match i {
         Mul | Div => Some(12),
         Add | Sub => Some(11),

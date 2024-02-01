@@ -7,7 +7,7 @@ use super::{scopetracker::ScopeTracker, traits::AssemblerCpuTrait, Assembler};
 use crate::{
     debug_mess,
     error::GResult,
-    frontend::{Item, LabelDefinition},
+    frontend::{AstNodeKind, LabelDefinition},
     semantic::{Ast, AstNodeId, AstNodeRef},
 };
 
@@ -74,7 +74,7 @@ where
     }
 
     fn size_node(&mut self, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
-        use Item::*;
+        use AstNodeKind::*;
 
         let node = self.get_node(id);
         let i = &node.value().item.clone();
@@ -110,7 +110,7 @@ where
 
             Org => {
                 let pc = asm.eval_first_arg(node, current_scope_id)?.0 as usize;
-                asm.add_fixup(id, Item::SetPc(pc), current_scope_id);
+                asm.add_fixup(id, AstNodeKind::SetPc(pc), current_scope_id);
                 self.set_pc(pc);
             }
 
@@ -121,7 +121,7 @@ where
             Put => {
                 let (value, _) = asm.eval_first_arg(node, current_scope_id)?;
                 let offset = (value - self.get_pc() as i64) as isize;
-                asm.add_fixup(id, Item::SetPutOffset(offset), current_scope_id);
+                asm.add_fixup(id, AstNodeKind::SetPutOffset(offset), current_scope_id);
             }
 
             Rmb => {
@@ -133,7 +133,7 @@ where
                         .into());
                 };
 
-                asm.add_fixup(id, Item::Skip(bytes as usize), current_scope_id);
+                asm.add_fixup(id, AstNodeKind::Skip(bytes as usize), current_scope_id);
                 self.advance_pc(bytes as usize);
             }
 

@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::{
     assembler::AssemblerCpuTrait,
     error::AstError,
-    frontend::{Item, LabelDefinition, ParsedFrom},
+    frontend::{AstNodeKind, LabelDefinition, ParsedFrom},
     gazmsymbols::{SymbolError, SymbolTreeReader},
     semantic::{AstNodeId, AstNodeRef},
 };
@@ -65,12 +65,12 @@ impl From<EvalError> for AstError {
     }
 }
 
-impl<C> GetPriority for Item<C>
+impl<C> GetPriority for AstNodeKind<C>
 where
     C: std::fmt::Debug + Clone + PartialEq,
 {
     fn priority(&self) -> Option<usize> {
-        use Item::*;
+        use AstNodeKind::*;
         match self {
             Div => Some(12),
             Mul => Some(12),
@@ -97,11 +97,11 @@ where
 fn eval_internal<C>(
     symbols: &SymbolTreeReader,
     n: AstNodeRef<C>,
-) -> Result<Item<C::NodeKind>, EvalError>
+) -> Result<AstNodeKind<C::NodeKind>, EvalError>
 where
     C: AssemblerCpuTrait,
 {
-    use Item::*;
+    use AstNodeKind::*;
 
     let i = &n.value().item;
 
@@ -109,7 +109,7 @@ where
         symbols
             .get_symbol_info(name)
             .and_then(|si| si.value.ok_or(SymbolError::NoValue))
-            .map(|n| Item::from_number(n, ParsedFrom::Expression))
+            .map(|n| AstNodeKind::from_number(n, ParsedFrom::Expression))
             .map_err(|_| EvalError::new(e, n))
     };
 
@@ -120,7 +120,7 @@ where
             symbols
                 .get_symbol_info_from_id(*id)
                 .and_then(|si| si.value.ok_or(SymbolError::NoValue))
-                .map(|n| Item::from_number(n, ParsedFrom::Expression))
+                .map(|n| AstNodeKind::from_number(n, ParsedFrom::Expression))
                 .map_err(|_| {
                     // let name = symbols
                     //     .get_symbol_info_from_id(*id)
@@ -147,7 +147,7 @@ where
             let num = r.unrwap_number().unwrap();
 
             let num = &match ops.value().item {
-                Item::Sub => Item::Num(-num, ParsedFrom::Expression),
+                AstNodeKind::Sub => AstNodeKind::Num(-num, ParsedFrom::Expression),
                 _ => return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n)),
             };
 
@@ -162,7 +162,7 @@ where
     };
 
     // If this isn't a number return an error
-    if let Item::Num(_, _) = rez {
+    if let AstNodeKind::Num(_, _) = rez {
         Ok(rez)
     } else {
         Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n))
@@ -173,14 +173,14 @@ where
 fn eval_postfix<C>(
     symbols: &SymbolTreeReader,
     n: AstNodeRef<C>,
-) -> Result<Item<C::NodeKind>, EvalError>
+) -> Result<AstNodeKind<C::NodeKind>, EvalError>
 where
     C: AssemblerCpuTrait,
 {
-    use Item::*;
+    use AstNodeKind::*;
 
-    let mut s: Stack<Item<C::NodeKind>> = Stack::with_capacity(1024);
-    let mut items: Vec<(AstNodeRef<C>, Item<C::NodeKind>)> = Vec::with_capacity(1024);
+    let mut s: Stack<AstNodeKind<C::NodeKind>> = Stack::with_capacity(1024);
+    let mut items: Vec<(AstNodeRef<C>, AstNodeKind<C::NodeKind>)> = Vec::with_capacity(1024);
 
     {
         for c in n.children() {

@@ -4,7 +4,7 @@ use unraveler::{alt, match_span as ms, pair, sep_pair, succeeded};
 use crate::cpu6809::{Node, parse_expr, from_item_tspan, from_item_kid_tspan};
 
 use crate::frontend::{
-    err_fatal, parse_sq_bracketed, Item, PResult, TSpan, TokenKind::Comma,
+    err_fatal, parse_sq_bracketed, AstNodeKind, PResult, TSpan, TokenKind::Comma,
 };
 
 use super::{
@@ -76,7 +76,7 @@ use crate::help::ErrCode;
         ));
         let (rest, mut matched) = parse_sq_bracketed(indexed_indirect)(input)?;
 
-        if let Item::CpuSpecific(OperandIndexed(amode, _)) = matched.item {
+        if let AstNodeKind::CpuSpecific(OperandIndexed(amode, _)) = matched.item {
             matched.item = OperandIndexed(amode, true).into();
         } else {
             panic!("Should not happen")

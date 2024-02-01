@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 
 use super::{
-    get_label_string, get_text, CommandKind, FeResult, FrontEndError, Item, Node, PResult, TSpan,
+    get_label_string, get_text, CommandKind, FeResult, FrontEndError, AstNodeKind, Node, PResult, TSpan,
     TokenKind, TokenKind::Comma,parse_expr, from_item_tspan
         ,from_item_kids_tspan
 };
@@ -45,7 +45,7 @@ where
     ) -> impl for<'a> FnMut(TSpan<'a>) -> PResult<Node<C::NodeKind>>
     where
         C: AssemblerCpuTrait,
-        I: Into<Item<C::NodeKind>> + Clone,
+        I: Into<AstNodeKind<C::NodeKind>> + Clone,
     {
         move |i| Self::parse_simple_command(i, command_kind, item.clone().into())
     }
@@ -56,7 +56,7 @@ where
         item: I,
     ) -> PResult<Node<C::NodeKind>>
     where
-        I: Into<Item<C::NodeKind>>,
+        I: Into<AstNodeKind<C::NodeKind>>,
     {
         let (rest, (sp, matched)) = ms(preceded(command_kind, parse_expr::<C>))(input)?;
         let node = from_item_kids_tspan::<C>(item.into(), &[matched], sp);
@@ -65,19 +65,19 @@ where
     }
     pub(crate) fn parse_scope(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, name)) = ms(preceded(CommandKind::Scope, get_label_string))(input)?;
-        Ok((rest, from_item_tspan::<C>(Item::Scope(name), sp)))
+        Ok((rest, from_item_tspan::<C>(AstNodeKind::Scope(name), sp)))
     }
     pub(crate) fn parse_require(input: TSpan) -> PResult<Node<C::NodeKind>>
     where
         C: AssemblerCpuTrait,
     {
         command_with_file(input, CommandKind::Require)
-            .map(|(rest, (sp, file))| (rest, from_item_tspan::<C>(Item::Require(file), sp)))
+            .map(|(rest, (sp, file))| (rest, from_item_tspan::<C>(AstNodeKind::Require(file), sp)))
     }
     pub(crate) fn parse_include(input: TSpan) -> PResult<Node<C::NodeKind>> {
         command_with_file(input, CommandKind::Include).and_then(|(rest, (sp, file))| {
             let path = expand_path(sp, file)?;
-            Ok((rest, from_item_tspan::<C>(Item::Include(path), sp)))
+            Ok((rest, from_item_tspan::<C>(AstNodeKind::Include(path), sp)))
         })
     }
 
@@ -104,7 +104,7 @@ where
     }
 
     fn mk_fill(input: TSpan, cv: (Node<C::NodeKind>, Node<C::NodeKind>)) -> Node<C::NodeKind> {
-        from_item_kids_tspan::<C>(Item::Fill, &[cv.0, cv.1], input)
+        from_item_kids_tspan::<C>(AstNodeKind::Fill, &[cv.0, cv.1], input)
     }
 
     pub(crate) fn parse_grabmem(input: TSpan) -> PResult<Node<C::NodeKind>> {
@@ -112,7 +112,7 @@ where
             CommandKind::GrabMem,
             sep_pair(parse_expr::<C>, Comma, parse_expr::<C>),
         ))(input)?;
-        let node = from_item_kids_tspan::<C>(Item::GrabMem, &[src, size], sp);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::GrabMem, &[src, size], sp);
         Ok((rest, node))
     }
 
@@ -130,7 +130,7 @@ where
             )),
         ))(input)?;
 
-        let node = from_item_kids_tspan::<C>(Item::WriteBin(file_name), &[source_addr, size], sp);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::WriteBin(file_name), &[source_addr, size], sp);
         Ok((rest, node))
     }
 
@@ -144,7 +144,7 @@ where
     pub(crate) fn parse_incbin(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, (file, extra_args))) =
             ms(preceded(CommandKind::IncBin, Self::incbin_args))(input)?;
-        let node = from_item_kids_tspan::<C>(Item::IncBin(file), &extra_args, sp);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::IncBin(file), &extra_args, sp);
         Ok((rest, node))
     }
 
@@ -161,7 +161,7 @@ where
             panic!("Too many args for incbinref")
 
         } else {
-            let node = from_item_kids_tspan::<C>(Item::IncBinRef(file), &extra_args, sp);
+            let node = from_item_kids_tspan::<C>(AstNodeKind::IncBinRef(file), &extra_args, sp);
             Ok((rest, node))
         }
     }
@@ -169,50 +169,50 @@ where
     pub(crate) fn parse_fcb(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, matched)) =
             ms(preceded(CommandKind::Fcb, cut(Self::parse_expr_list)))(input)?;
-        let node = from_item_kids_tspan::<C>(Item::Fcb(matched.len()), &matched, sp);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::Fcb(matched.len()), &matched, sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_fdb(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, matched)) = ms(preceded(CommandKind::Fdb, Self::parse_expr_list))(input)?;
-        let node = from_item_kids_tspan::<C>(Item::Fdb(matched.len()), &matched, sp);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::Fdb(matched.len()), &matched, sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_fcc(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, matched)) = ms(preceded(CommandKind::Fcc, get_quoted_string))(input)?;
-        let node = from_item_tspan::<C>(Item::Fcc(matched), sp);
+        let node = from_item_tspan::<C>(AstNodeKind::Fcc(matched), sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_import(input: TSpan) -> PResult<Node<C::NodeKind>> {
         let (rest, (sp, matched)) =
             ms(preceded(CommandKind::Import, Self::parse_scoped_label))(input)?;
-        let node = from_item_kids_tspan::<C>(Item::Import, &[matched], sp);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::Import, &[matched], sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_org(_input: TSpan) -> PResult<Node<C::NodeKind>> {
-        Self::simple_command(CommandKind::Org, Item::Org)(_input)
+        Self::simple_command(CommandKind::Org, AstNodeKind::Org)(_input)
     }
 
     pub(crate) fn parse_put(_input: TSpan) -> PResult<Node<C::NodeKind>> {
-        Self::simple_command(CommandKind::Put, Item::Put)(_input)
+        Self::simple_command(CommandKind::Put, AstNodeKind::Put)(_input)
     }
 
     pub(crate) fn parse_rmb(_input: TSpan) -> PResult<Node<C::NodeKind>> {
-        Self::simple_command(CommandKind::Rmb, Item::Rmb)(_input)
+        Self::simple_command(CommandKind::Rmb, AstNodeKind::Rmb)(_input)
     }
 
     pub(crate) fn parse_rmd(_input: TSpan) -> PResult<Node<C::NodeKind>> {
-        Self::simple_command(CommandKind::Rmd, Item::Rmd)(_input)
+        Self::simple_command(CommandKind::Rmd, AstNodeKind::Rmd)(_input)
     }
     pub(crate) fn parse_zmd(_input: TSpan) -> PResult<Node<C::NodeKind>> {
-        Self::simple_command(CommandKind::Zmd, Item::Zmd)(_input)
+        Self::simple_command(CommandKind::Zmd, AstNodeKind::Zmd)(_input)
     }
 
     pub(crate) fn parse_exec(_input: TSpan) -> PResult<Node<C::NodeKind>> {
-        Self::simple_command(CommandKind::Exec, Item::Exec)(_input)
+        Self::simple_command(CommandKind::Exec, AstNodeKind::Exec)(_input)
     }
 
     pub fn parse_command(input: TSpan) -> PResult<Node<C::NodeKind>> {
@@ -266,7 +266,7 @@ mod test {
         cli::parse_command_line,
         cpu6809::{frontend::NodeKind6809, Asm6809},
         frontend::{
-            Item::{self, *},
+            AstNodeKind::{self, *},
             ParsedFrom::*,
             *,
         },
@@ -280,7 +280,7 @@ mod test {
     use thin_vec::ThinVec;
     use unraveler::{Collection, Parser};
 
-    fn test_command<P, C>(mut parser: P, text: &str, x: Item<C>, xs: &[Item<C>])
+    fn test_command<P, C>(mut parser: P, text: &str, x: AstNodeKind<C>, xs: &[AstNodeKind<C>])
     where
         P: for<'a> Parser<TSpan<'a>, Node<C::NodeKind>, FrontEndError>,
         C: AssemblerCpuTrait,
@@ -314,7 +314,7 @@ mod test {
     #[test]
     fn test_parse_scope() {
         let text = "scope hello";
-        let desired = Item::Scope("hello".to_owned());
+        let desired = AstNodeKind::Scope("hello".to_owned());
         let desired_args = [];
         test_command(GParser::parse_scope, text, desired, &desired_args);
     }
@@ -322,7 +322,7 @@ mod test {
     #[test]
     fn test_parse_put() {
         let text = "put 3 + 4";
-        let desired = Item::Put;
+        let desired = AstNodeKind::Put;
         let desired_args = [Expr];
         test_command(GParser::parse_put, text, desired, &desired_args);
     }
@@ -330,7 +330,7 @@ mod test {
     #[test]
     fn test_parse_writebin() {
         let text = "writebin \"out.bin\",0,10";
-        let desired = Item::WriteBin("out.bin".into());
+        let desired = AstNodeKind::WriteBin("out.bin".into());
         let desired_args = [Num(0, Decimal), Num(10, Decimal)];
         test_command(GParser::parse_writebin, text, desired, &desired_args);
     }
@@ -338,12 +338,12 @@ mod test {
     #[test]
     fn test_parse_incbin() {
         let text = "incbin \"a\", 10,10";
-        let desired = Item::IncBin("a".into());
+        let desired = AstNodeKind::IncBin("a".into());
         let desired_args = [Num(10, Decimal), Num(10, Decimal)];
         test_command(GParser::parse_incbin, text, desired, &desired_args);
 
         let text = "incbin \"a\"";
-        let desired = Item::IncBin("a".into());
+        let desired = AstNodeKind::IncBin("a".into());
         let desired_args = [];
         test_command(GParser::parse_incbin, text, desired, &desired_args);
     }
@@ -351,7 +351,7 @@ mod test {
     #[test]
     fn test_parse_incbin_ref() {
         let text = "incbinref \"a\", 10,20";
-        let desired = Item::IncBinRef("a".into());
+        let desired = AstNodeKind::IncBinRef("a".into());
         let desired_args = [Num(10, Decimal), Num(20, Decimal)];
         test_command(GParser::parse_incbin_ref, text, desired, &desired_args);
     }
@@ -359,7 +359,7 @@ mod test {
     #[test]
     fn test_parse_setdp() {
         let text = "setdp $ff00";
-        let desired = Item::CpuSpecific(NodeKind6809::SetDp);
+        let desired = AstNodeKind::CpuSpecific(NodeKind6809::SetDp);
         let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(GParser::parse_setdp, text, desired, &desired_args);
     }
@@ -367,17 +367,17 @@ mod test {
     #[test]
     fn test_parse_various_fills() {
         let text = "rzb $ff00";
-        let desired = Item::Fill;
+        let desired = AstNodeKind::Fill;
         let desired_args = [Num(0xff00, Hexadecimal), Num(0, Expression)];
         test_command(GParser::parse_various_fills, text, desired, &desired_args);
 
         let text = "rzb $ff00";
-        let desired = Item::Fill;
+        let desired = AstNodeKind::Fill;
         let desired_args = [Num(0xff00, Hexadecimal), Num(0, Expression)];
         test_command(GParser::parse_various_fills, text, desired, &desired_args);
 
         let text = "bsz $ff00,0";
-        let desired = Item::Fill;
+        let desired = AstNodeKind::Fill;
         let desired_args = [Num(0xff00, Hexadecimal), Num(0, Decimal)];
         test_command(GParser::parse_various_fills, text, desired, &desired_args);
     }
@@ -385,7 +385,7 @@ mod test {
     #[test]
     fn test_parse_fill() {
         let text = "fill 10,$ff00";
-        let desired = Item::Fill;
+        let desired = AstNodeKind::Fill;
         let desired_args = [Num(10, Decimal), Num(0xff00, Hexadecimal)];
         test_command(GParser::parse_fill, text, desired, &desired_args);
     }
@@ -393,7 +393,7 @@ mod test {
     #[test]
     fn test_parse_fcb() {
         let text = "fcb $ff00,10";
-        let desired = Item::Fcb(2);
+        let desired = AstNodeKind::Fcb(2);
         let desired_args = [Num(0xff00, Hexadecimal), Num(10, Decimal)];
         test_command(GParser::parse_fcb, text, desired, &desired_args);
     }
@@ -401,7 +401,7 @@ mod test {
     #[test]
     fn test_parse_fdb() {
         let text = "fdb $ff00,10";
-        let desired = Item::Fdb(2);
+        let desired = AstNodeKind::Fdb(2);
         let desired_args = [Num(0xff00, Hexadecimal), Num(10, Decimal)];
         test_command(GParser::parse_fdb, text, desired, &desired_args);
     }
@@ -409,14 +409,14 @@ mod test {
     #[test]
     fn test_parse_fcc() {
         let text = "fcc \"Hello!\"";
-        let desired = Item::Fcc("Hello!".into());
+        let desired = AstNodeKind::Fcc("Hello!".into());
         test_command(GParser::parse_fcc, text, desired, &[]);
     }
 
     #[test]
     fn test_parse_zmd() {
         let text = "zmd $ff00";
-        let desired = Item::Zmd;
+        let desired = AstNodeKind::Zmd;
         let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(GParser::parse_zmd, text, desired, &desired_args);
     }
@@ -424,7 +424,7 @@ mod test {
     #[test]
     fn test_parse_rmb() {
         let text = "rmb $ff00";
-        let desired = Item::Rmb;
+        let desired = AstNodeKind::Rmb;
         let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(GParser::parse_rmb, text, desired, &desired_args);
     }
@@ -432,7 +432,7 @@ mod test {
     #[test]
     fn test_parse_org() {
         let text = "org $ff00";
-        let desired = Item::Org;
+        let desired = AstNodeKind::Org;
         let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(GParser::parse_org, text, desired, &desired_args);
     }
@@ -440,7 +440,7 @@ mod test {
     #[test]
     fn test_parse_include() {
         let text = "include \"a\"";
-        let desired = Item::Include("a".into());
+        let desired = AstNodeKind::Include("a".into());
         let desired_args = [];
         test_command(GParser::parse_include, text, desired, &desired_args);
     }
@@ -448,7 +448,7 @@ mod test {
     #[test]
     fn test_parse_exec() {
         let text = "exec $ff00";
-        let desired = Item::Exec;
+        let desired = AstNodeKind::Exec;
         let desired_args = [Num(0xff00, Hexadecimal)];
         test_command(GParser::parse_exec, text, desired, &desired_args);
     }
@@ -456,7 +456,7 @@ mod test {
     #[test]
     fn test_parse_require() {
         let text = "require \"a\"";
-        let desired = Item::Require("a".into());
+        let desired = AstNodeKind::Require("a".into());
         let desired_args = [];
         test_command(GParser::parse_require, text, desired, &desired_args);
     }
@@ -464,8 +464,8 @@ mod test {
     #[test]
     fn test_parse_import() {
         let text = "import ::xx::y";
-        let desired = Item::Import;
-        let desired_args = [Item::Label(LabelDefinition::TextScoped("::xx::y".into()))];
+        let desired = AstNodeKind::Import;
+        let desired_args = [AstNodeKind::Label(LabelDefinition::TextScoped("::xx::y".into()))];
         test_command(GParser::parse_import, text, desired, &desired_args);
     }
 }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::{
     assembler::AssemblerCpuTrait,
-    frontend::{Item, LabelDefinition},
+    frontend::{AstNodeKind, LabelDefinition},
     gazmsymbols::{SymbolScopeId, SymbolTree},
     semantic::{iter_refs_recursive, Ast, AstNodeId},
 };
@@ -27,7 +27,7 @@ impl LabelUsageAndDefintions {
     where
         C: AssemblerCpuTrait,
     {
-        use Item::*;
+        use AstNodeKind::*;
 
         let mut reference_pos_and_id: Vec<(Position, SymbolScopeId)> = vec![];
         let mut symbol_id_to_definition: HashMap<SymbolScopeId, Position> = HashMap::new();

@@ -3,7 +3,7 @@
 use crate::assembler::AssemblerCpuTrait;
 
 use super::{
-    FrontEndError, FrontEndErrorKind, GazmParser, Item, Node, PResult, ParsedFrom, TSpan,
+    FrontEndError, FrontEndErrorKind, GazmParser, AstNodeKind, Node, PResult, ParsedFrom, TSpan,
     TokenKind::*,
 };
 
@@ -13,14 +13,14 @@ use unraveler::{
     map, match_span as ms, tag, wrapped_cut, Collection, ParseErrorKind, Parser, Severity,
 };
 
-pub fn from_item_tspan<C>(item: Item<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind>
+pub fn from_item_tspan<C>(item: AstNodeKind<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind>
 where
     C: AssemblerCpuTrait,
 {
     from_item_pos::<C, _>(item, to_pos(sp))
 }
 
-pub fn from_item_pos<C, P: Into<Position>>(_item: Item<C::NodeKind>, _p: P) -> Node<C::NodeKind>
+pub fn from_item_pos<C, P: Into<Position>>(_item: AstNodeKind<C::NodeKind>, _p: P) -> Node<C::NodeKind>
 where
     C: AssemblerCpuTrait,
 {
@@ -28,7 +28,7 @@ where
     n
 }
 pub fn from_item_kids_tspan<C>(
-    item: Item<C::NodeKind>,
+    item: AstNodeKind<C::NodeKind>,
     kids: &[Node<C::NodeKind>],
     sp: TSpan,
 ) -> Node<C::NodeKind>
@@ -39,7 +39,7 @@ where
 }
 
 pub fn from_item_kid_tspan<C>(
-    item: Item<C::NodeKind>,
+    item: AstNodeKind<C::NodeKind>,
     kid: Node<C::NodeKind>,
     sp: TSpan,
 ) -> Node<C::NodeKind>
@@ -54,7 +54,7 @@ where
     C: AssemblerCpuTrait,
 {
     pub fn mk_pc_equate(node: &Node<C::NodeKind>) -> Node<C::NodeKind> {
-        use Item::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
+        use AstNodeKind::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
         let pos = node.ctx;
 
         match &node.item {
@@ -65,11 +65,11 @@ where
     }
 
     pub fn block(items: ThinVec<Node<C::NodeKind>>, sp: TSpan) -> Node<C::NodeKind> {
-        from_item_tspan::<C>(Item::Block, sp).with_children_vec(items)
+        from_item_tspan::<C>(AstNodeKind::Block, sp).with_children_vec(items)
     }
 
     pub fn from_num_tspan(num: i64, sp: TSpan) -> Node<C::NodeKind> {
-        from_item_tspan::<C>(Item::from_number(num, ParsedFrom::Expression), sp)
+        from_item_tspan::<C>(AstNodeKind::from_number(num, ParsedFrom::Expression), sp)
     }
 
     pub fn with_tspan(n: Node<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
@@ -79,7 +79,7 @@ where
     }
 
     pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Node<C::NodeKind> {
-        let i = Item::<C::NodeKind>::Num(n, ParsedFrom::Expression);
+        let i = AstNodeKind::<C::NodeKind>::Num(n, ParsedFrom::Expression);
         let n: Node<C::NodeKind> = Node::new(i, pos.into());
         n
     }
@@ -142,7 +142,7 @@ where
     x.into_iter().chain(xxs.1).collect()
 }
 
-pub fn get_items<C>(node: &Node<C>) -> (Item<C>, ThinVec<Item<C>>)
+pub fn get_items<C>(node: &Node<C>) -> (AstNodeKind<C>, ThinVec<AstNodeKind<C>>)
 where
     C: std::fmt::Debug + Clone + PartialEq,
 {

@@ -12,18 +12,18 @@ use crate::cpu6809::{
 };
 
 pub type Node = frontend::Node<NodeKind6809>;
+pub type NodeKind = frontend::AstNodeKind<NodeKind6809>;
 pub type Compiler<'a> = assembler::Compiler<'a, Asm6809>;
 pub type Assembler = assembler::Assembler<Asm6809>;
 pub type Sizer<'a> = assembler::Sizer<'a, Asm6809>;
-pub type Item = crate::frontend::Item<NodeKind6809>;
 
 #[inline]
-pub fn from_item_tspan(item: Item, sp: TSpan) -> Node {
+pub fn from_item_tspan(item: NodeKind, sp: TSpan) -> Node {
     frontend::from_item_tspan::<Asm6809>(item, sp)
 }
 
 #[inline]
-pub fn from_item_kid_tspan(item: Item, node: Node, sp: TSpan) -> Node {
+pub fn from_item_kid_tspan(item: NodeKind, node: Node, sp: TSpan) -> Node {
     frontend::from_item_kid_tspan::<Asm6809>(item, node, sp)
 }
 

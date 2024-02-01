@@ -5,7 +5,8 @@ use crate::assembler::AssemblerCpuTrait;
 use super::{
     get_text,
     parse_expr,
-    item::{Item, Node, StructMemberType},
+    AstNodeKind, Node,
+    StructMemberType,
     parse_block,  CommandKind, GazmParser, PResult, TSpan,
     TokenKind::{CloseSquareBracket, Colon, Comma, OpenSquareBracket, Label},
     from_item_tspan,
@@ -40,14 +41,14 @@ where
 
         let kids = [
             array.unwrap_or(Self::from_num_tspan(1, array_def_sp)),
-            from_item_tspan::<ASM>(Item::Mul, array_def_sp),
+            from_item_tspan::<ASM>(AstNodeKind::Mul, array_def_sp),
             from_item_tspan::<ASM>(size, entry_span),
         ];
 
         let name = get_text(name).to_owned();
 
-        let expr = from_item_kids_tspan::<ASM>(Item::Expr, &kids, entry_span);
-        let node = from_item_kid_tspan::<ASM>(Item::StructEntry(name), expr, input);
+        let expr = from_item_kids_tspan::<ASM>(AstNodeKind::Expr, &kids, entry_span);
+        let node = from_item_kid_tspan::<ASM>(AstNodeKind::StructEntry(name), expr, input);
 
         Ok((rest, node))
     }
@@ -63,7 +64,7 @@ where
 
         let text = get_text(label);
 
-        let node = from_item_kids_tspan::<ASM>(Item::StructDef(text), &entries, sp);
+        let node = from_item_kids_tspan::<ASM>(AstNodeKind::StructDef(text), &entries, sp);
 
         Ok((rest, node))
     }
@@ -93,7 +94,7 @@ mod test {
 
     #[test]
     fn test_struct() {
-        use Item::*;
+        use AstNodeKind::*;
 
         let text = r#"
         struct my_struct 

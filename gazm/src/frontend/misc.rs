@@ -7,7 +7,7 @@ use unraveler::{
 use crate::assembler::AssemblerCpuTrait;
 
 use super::{
-    get_text, CommandKind, FrontEndError, GazmParser, Item, LabelDefinition, Node,
+    get_text, CommandKind, FrontEndError, GazmParser, AstNodeKind, LabelDefinition, Node,
     NumberKind, PResult, ParsedFrom, TSpan, Token, TokenKind,
         from_item_tspan, parse_expr,
         from_item_kids_tspan,
@@ -30,7 +30,7 @@ where
 
         match kind {
             Number((n, nk)) => {
-                let node = from_item_tspan::<C>(Item::Num(n, nk.into()), sp);
+                let node = from_item_tspan::<C>(AstNodeKind::Num(n, nk.into()), sp);
                 Ok((rest, node))
             }
             _ => panic!(),
@@ -43,14 +43,14 @@ where
         to_label_def: F,
     ) -> PResult<Node<C::NodeKind>> {
         let (rest, sp) = tag_kind.parse(input)?;
-        let node = from_item_tspan::<C>(Item::Label(to_label_def(get_text(sp))), sp);
+        let node = from_item_tspan::<C>(AstNodeKind::Label(to_label_def(get_text(sp))), sp);
         Ok((rest, node))
     }
 
     fn parse_local_label(input: TSpan) -> PResult<Node<C::NodeKind>> {
         
         use TokenKind::{Pling,At};
-        use { Item::LocalLabel, LabelDefinition::Text};
+        use { AstNodeKind::LocalLabel, LabelDefinition::Text};
         let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), TokenKind::Label))(input)?;
 
         let label_def = Text(get_text(matched));
@@ -95,7 +95,7 @@ where
                 CloseBrace,
             ),
         ))(input)?;
-        let node = from_item_kids_tspan::<C>(Item::Import, &matched, span);
+        let node = from_item_kids_tspan::<C>(AstNodeKind::Import, &matched, span);
         Ok((rest, node))
     }
 }
@@ -127,28 +127,28 @@ impl<C> GazmParser<C>
 where
     C: AssemblerCpuTrait,
 {
-    fn get_label_definition(item: &Item<C::NodeKind>) -> Option<LabelDefinition> {
+    fn get_label_definition(item: &AstNodeKind<C::NodeKind>) -> Option<LabelDefinition> {
         match item {
-            Item::Label(l) | Item::LocalLabel(l) => Some(l.clone()),
+            AstNodeKind::Label(l) | AstNodeKind::LocalLabel(l) => Some(l.clone()),
             _ => None,
         }
     }
 
-    fn parse_local_assignment(input: TSpan) -> PResult<Item<C::NodeKind>>
+    fn parse_local_assignment(input: TSpan) -> PResult<AstNodeKind<C::NodeKind>>
     where
         C: std::fmt::Debug + Clone + PartialEq,
     {
-        use Item::LocalAssignment;
+        use AstNodeKind::LocalAssignment;
         map(Self::parse_local_label, |e| {
             LocalAssignment(Self::get_label_definition(&e.item).unwrap())
         })(input)
     }
 
-    fn parse_assignment(input: TSpan) -> PResult<Item<C::NodeKind>>
+    fn parse_assignment(input: TSpan) -> PResult<AstNodeKind<C::NodeKind>>
     where
         C: std::fmt::Debug + Clone + PartialEq,
     {
-        use Item::Assignment;
+        use AstNodeKind::Assignment;
         map(Self::parse_label, |e| {
             Assignment(Self::get_label_definition(&e.item).unwrap())
         })(input)

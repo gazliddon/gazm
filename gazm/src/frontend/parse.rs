@@ -6,7 +6,7 @@ use crate::{
 // #![deny(unused_imports)]
 use super::{
     get_text, parse_line, split_at_next_line,  FrontEndError,
-    FrontEndErrorKind, GazmParser, Item, Node, PResult, TSpan,
+    FrontEndErrorKind, GazmParser, AstNodeKind, Node, PResult, TSpan,
 };
 
 
@@ -35,7 +35,7 @@ where
     }
 
     pub fn add(&mut self, n: Node<ASM::NodeKind>) {
-        if n.item == Item::Block {
+        if n.item == AstNodeKind::Block {
             for i in n.children {
                 self.add(i)
             }

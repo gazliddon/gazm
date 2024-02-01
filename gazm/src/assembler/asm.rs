@@ -7,7 +7,7 @@ use crate::{
         NewErrorCollector, UserError,
     },
     frontend::{
-        tokenize_async, tokenize_no_async, FrontEndError, FrontEndErrorKind, Item, Node,
+        tokenize_async, tokenize_no_async, FrontEndError, FrontEndErrorKind, AstNodeKind, Node,
         TokenStore, TokenizeResult,
     },
     gazmsymbols::SymbolTree,
@@ -572,13 +572,13 @@ where
     pub fn get_fixup_or_default(
         &self,
         id: AstNodeId,
-        i: &Item<C::NodeKind>,
+        i: &AstNodeKind<C::NodeKind>,
         scope_id: u64,
-    ) -> Item<C::NodeKind> {
+    ) -> AstNodeKind<C::NodeKind> {
         self.fixer_upper.get_fixup_or_default(scope_id, id, i)
     }
 
-    pub fn add_fixup<I: Into<Item<C::NodeKind>>>(
+    pub fn add_fixup<I: Into<AstNodeKind<C::NodeKind>>>(
         &mut self,
         id: AstNodeId,
         v: I,

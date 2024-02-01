@@ -2,7 +2,7 @@
 
 use crate::{
     error::{GResult, UserError},
-    frontend::Item::*,
+    frontend::AstNodeKind::*,
     gazmsymbols::SymbolInfo,
     semantic::{eval, Ast, AstNodeId, AstNodeRef, EvalErrorEnum},
 };

@@ -11,7 +11,7 @@ use super::{
 };
 
 pub type Node = crate::frontend::Node<NodeKind6800>;
-pub type Item = crate::frontend::Item<NodeKind6800>;
+pub type Item = crate::frontend::AstNodeKind<NodeKind6800>;
 pub type Compiler<'a> = crate::assembler::Compiler<'a, Asm6800>;
 pub type Assembler = crate::assembler::Assembler<Asm6800>;
 pub type Sizer<'a> = crate::assembler::Sizer<'a, Asm6800>;

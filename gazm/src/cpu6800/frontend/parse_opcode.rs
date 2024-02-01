@@ -9,7 +9,7 @@ use crate::cpu6800::{
     from_item_tspan,
     frontend::{
         error::AssemblyErrorKind6800::OnlySupports,
-        AddrModeParseType, GParser, Item, Node,
+        AddrModeParseType, GParser, AstNodeKind, Node,
         NodeKind6800::{self, OpCode, Operand},
     },
     parse_expr, Asm6800,
@@ -34,7 +34,7 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
 
     if let Some(ins) = ins.get_opcode_data(AddrModeEnum::Inherent) {
         let oc = OpCode(text, ins.clone());
-        let node = from_item_tspan(Item::CpuSpecific(oc), sp);
+        let node = from_item_tspan(AstNodeKind::CpuSpecific(oc), sp);
         Ok((rest, node))
     } else {
         err_fatal(sp, OnlySupports(AddrModeParseType::Inherent))
@@ -48,7 +48,7 @@ fn parse_indexed(input: TSpan) -> PResult<Node> {
         ms(sep_pair(opt(parse_expr), Comma, get_this_reg(RegEnum::X)))(input)?;
 
     let matched = matched.unwrap_or_else(|| {
-        let item = Item::from_number(0, crate::frontend::ParsedFrom::Expression);
+        let item = AstNodeKind::from_number(0, crate::frontend::ParsedFrom::Expression);
         let node = from_item_tspan(item, sp);
         node
     });
@@ -122,7 +122,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
 
     let (rest, arg) = parse_opcode_arg(rest)?;
 
-    if let Item::CpuSpecific(Operand(parsed_addressing_mode)) = arg.item {
+    if let AstNodeKind::CpuSpecific(Operand(parsed_addressing_mode)) = arg.item {
         if info.supports(AddrModeEnum::Relative)
             && parsed_addressing_mode == AddrModeParseType::Extended
         {

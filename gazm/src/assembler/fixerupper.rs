@@ -1,5 +1,5 @@
 #![forbid(unused_imports)]
-use crate::{frontend::Item, semantic::AstNodeId};
+use crate::{frontend::AstNodeKind, semantic::AstNodeId};
 
 use std::collections::HashMap;
 
@@ -16,7 +16,7 @@ pub struct FixerUpper<C>
 where
     C: AssemblerCpuTrait,
 {
-    pub fixups: HashMap<FixKey, Item<C::NodeKind>>,
+    pub fixups: HashMap<FixKey, AstNodeKind<C::NodeKind>>,
 }
 
 impl<C> Default for FixerUpper<C>
@@ -36,11 +36,11 @@ where
         Self::default()
     }
 
-    pub fn add_fixup(&mut self, scope: u64, id: AstNodeId, v: Item<C::NodeKind>) {
+    pub fn add_fixup(&mut self, scope: u64, id: AstNodeId, v: AstNodeKind<C::NodeKind>) {
         let k = FixKey { id, scope };
         self.fixups.insert(k, v);
     }
-    pub fn get_fixup(&self, scope: u64, id: AstNodeId) -> Option<&Item<C::NodeKind>> {
+    pub fn get_fixup(&self, scope: u64, id: AstNodeId) -> Option<&AstNodeKind<C::NodeKind>> {
         self.fixups.get(&FixKey { scope, id })
     }
 
@@ -48,8 +48,8 @@ where
         &self,
         scope: u64,
         id: AstNodeId,
-        i: &Item<C::NodeKind>,
-    ) -> Item<C::NodeKind> {
+        i: &AstNodeKind<C::NodeKind>,
+    ) -> AstNodeKind<C::NodeKind> {
         self.get_fixup(scope, id).unwrap_or(i).clone()
     }
 }
