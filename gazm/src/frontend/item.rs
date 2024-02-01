@@ -2,11 +2,14 @@
 use grl_sources::Position;
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use thin_vec::ThinVec;
+use crate::frontend::LabelDefinition;
 
-use crate::{error::ParseError, gazmsymbols::SymbolScopeId, semantic::AstNodeId, assembler::AssemblerCpuTrait, cpu6809::frontend::NodeKind6809, cpu6800::frontend::NodeKind6800};
+use crate::{
+    assembler::AssemblerCpuTrait, cpu6800::frontend::NodeKind6800, cpu6809::frontend::NodeKind6809,
+    error::ParseError, gazmsymbols::SymbolScopeId, semantic::AstNodeId,
+};
 
 use super::{BaseNode, CtxTrait};
-
 
 impl CtxTrait for Position {}
 
@@ -38,8 +41,9 @@ impl FromStr for StructMemberType {
 }
 
 impl StructMemberType {
-    pub fn to_size_item<C>(&self) -> Item<C::NodeKind> 
-        where C: AssemblerCpuTrait
+    pub fn to_size_item<C>(&self) -> Item<C::NodeKind>
+    where
+        C: AssemblerCpuTrait,
     {
         use Item::*;
         use ParsedFrom::Expression;
@@ -68,66 +72,6 @@ pub enum ParsedFrom {
     Expression,
 }
 
-#[derive(Debug, PartialEq, Hash, Clone)]
-pub enum LabelDefinition {
-    Text(String),
-    TextScoped(String),
-    Scoped(SymbolScopeId),
-}
-
-impl LabelDefinition {
-    pub fn get_text(&self) -> Option<&str> {
-        match self {
-            LabelDefinition::TextScoped(x) | LabelDefinition::Text(x) => Some(x),
-            LabelDefinition::Scoped(_) => None,
-        }
-    }
-
-    pub fn get_id(&self) -> Option<SymbolScopeId> {
-        use LabelDefinition::*;
-        match self {
-            TextScoped(..) | LabelDefinition::Text(..) => None,
-            Scoped(id) => Some(*id),
-        }
-    }
-
-    pub fn map_string<F>(&self, f: F) -> Self
-    where
-        F: FnOnce(&str) -> String,
-    {
-        use LabelDefinition::*;
-        match self {
-            TextScoped(x) => LabelDefinition::TextScoped(f(x)),
-            Text(x) => LabelDefinition::Text(f(x)),
-            Scoped(_) => self.clone(),
-        }
-    }
-
-    pub fn as_string(&self) -> String {
-        match self {
-            LabelDefinition::TextScoped(x) | LabelDefinition::Text(x) => x.clone(),
-            LabelDefinition::Scoped(x) => format!("{x:?}"),
-        }
-    }
-}
-
-impl From<SymbolScopeId> for LabelDefinition {
-    fn from(value: SymbolScopeId) -> Self {
-        Self::Scoped(value)
-    }
-}
-
-impl std::fmt::Display for LabelDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use LabelDefinition::*;
-        match self {
-            Scoped(x) => write!(f, "Scoped({},{})", x.scope_id, x.symbol_id),
-            TextScoped(x) => write!(f, "{x}"),
-            Text(x) => write!(f, "{x}"),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 enum CpuSpecific {
     Cpu6809(NodeKind6809),
@@ -136,9 +80,9 @@ enum CpuSpecific {
 
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
-pub enum Item<C> 
+pub enum Item<C>
 where
-    C : PartialEq + Clone + std::fmt::Debug
+    C: PartialEq + Clone + std::fmt::Debug,
 {
     CpuSpecific(C),
     Import,
@@ -223,11 +167,9 @@ where
     Block,
 }
 
-
-impl<C> Item<C> 
+impl<C> Item<C>
 where
- C : std::fmt::Debug + Clone + PartialEq
-
+    C: std::fmt::Debug + Clone + PartialEq,
 {
     pub fn zero() -> Self {
         Item::Num(0, ParsedFrom::Expression)
@@ -363,7 +305,5 @@ pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {
 //         write!(f, "{ret}")
 //     }
 // }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
