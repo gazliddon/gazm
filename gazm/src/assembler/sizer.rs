@@ -1,6 +1,6 @@
 #![forbid(unused_imports)]
 
-use super::{scopetracker::ScopeTracker, traits::AssemblerCpuTrait, Assembler};
+use super::{scopetracker::ScopeTracker, Assembler};
 
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
@@ -13,33 +13,23 @@ use crate::{
 
 // use crate::cpu6809::Compiler6809;
 
-use std::marker::PhantomData;
-
 /// Ast tree sizer
 /// gets the size of everything
 /// assigns values to labels that
 /// are defined by value of PC
-pub struct Sizer<'a, C>
-where
-    C: AssemblerCpuTrait,
-{
-    pub tree: &'a Ast<C>,
+pub struct Sizer<'a> {
+    pub tree: &'a Ast,
     pub scopes: ScopeTracker,
     pub pc: usize,
-
-    phantom: std::marker::PhantomData<&'a C>,
 }
 
-pub fn size<C: AssemblerCpuTrait>(asm: &mut Assembler<C>, ast_tree: &Ast<C>) -> GResult<()> {
-    let _ = Sizer::<C>::try_new(ast_tree, asm)?;
+pub fn size(asm: &mut Assembler, ast_tree: &Ast) -> GResult<()> {
+    let _ = Sizer::try_new(ast_tree, asm)?;
     Ok(())
 }
 
-impl<'a, C> Sizer<'a, C>
-where
-    C: AssemblerCpuTrait,
-{
-    pub fn try_new(tree: &'a Ast<C>, asm: &mut Assembler<C>) -> GResult<Sizer<'a, C>> {
+impl<'a> Sizer<'a> {
+    pub fn try_new(tree: &'a Ast, asm: &mut Assembler) -> GResult<Sizer<'a>> {
         let pc = 0;
 
         asm.set_pc_symbol(pc).expect("Can't set PC symbol");
@@ -50,7 +40,6 @@ where
             tree,
             scopes: ScopeTracker::new(root_id),
             pc,
-            phantom: PhantomData,
         };
 
         let id = ret.tree.as_ref().root().id();
@@ -73,7 +62,7 @@ where
         assert!(self.pc < 65536);
     }
 
-    fn size_node(&mut self, asm: &mut Assembler<C>, id: AstNodeId) -> GResult<()> {
+    fn size_node(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         use AstNodeKind::*;
 
         let node = self.get_node(id);
@@ -137,8 +126,9 @@ where
                 self.advance_pc(bytes as usize);
             }
 
-            TargetSpecific(i) => {
-                C::size_node(self, asm, id, i.clone())?;
+            TargetSpecific(_i) => {
+                // C::size_node(self, asm, id, i.clone())?;
+                todo!()
             }
 
             AssignmentFromPc(LabelDefinition::Scoped(symbol_id)) => {
@@ -216,7 +206,7 @@ where
         Ok(())
     }
 
-    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<C> {
+    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef {
         self.tree.as_ref().get(id).expect("Can't fetch node")
     }
 }

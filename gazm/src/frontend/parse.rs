@@ -5,28 +5,21 @@ use crate::{
 
 // #![deny(unused_imports)]
 use super::{
-    get_text, parse_line, split_at_next_line,  FrontEndError,
-    FrontEndErrorKind, GazmParser, AstNodeKind, Node, PResult, TSpan,
+    get_text, parse_line, split_at_next_line, AstNodeKind, FrontEndError, FrontEndErrorKind,
+    GazmParser, Node, PResult, TSpan,
 };
-
 
 use itertools::Itertools;
 use num_traits::Float;
 use thin_vec::ThinVec;
 use unraveler::{alt, many0, map, Collection, ParseError, ParseErrorKind, Severity};
 
-struct NodeCollector<'a, ASM>
-where
-    ASM: AssemblerCpuTrait,
-{
-    nodes: ThinVec<Node<ASM::NodeKind>>,
+struct NodeCollector<'a> {
+    nodes: ThinVec<Node>,
     _span: TSpan<'a>,
 }
 
-impl<'a, ASM> NodeCollector<'a, ASM>
-where
-    ASM: AssemblerCpuTrait,
-{
+impl<'a> NodeCollector<'a> {
     pub fn new(sp: TSpan<'a>) -> Self {
         Self {
             nodes: thin_vec::ThinVec::with_capacity(4096),
@@ -34,7 +27,7 @@ where
         }
     }
 
-    pub fn add(&mut self, n: Node<ASM::NodeKind>) {
+    pub fn add(&mut self, n: Node) {
         if n.item == AstNodeKind::Block {
             for i in n.children {
                 self.add(i)
@@ -44,7 +37,7 @@ where
         }
     }
 
-    pub fn add_vec(&mut self, nodes: Vec<Node<ASM::NodeKind>>) {
+    pub fn add_vec(&mut self, nodes: Vec<Node>) {
         self.nodes.reserve(nodes.len());
         for n in nodes {
             self.add(n)
@@ -55,25 +48,22 @@ where
 // I need isolate parse_command
 // and parse opcode
 
-impl<C> GazmParser<C>
-where
-    C: AssemblerCpuTrait,
-{
-    pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node<C::NodeKind>>> {
+impl GazmParser {
+    pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node>> {
         parse_line(alt((
             map(Self::parse_macro_call, |n| vec![n]),
             map(Self::parse_equate, |n| vec![n]),
             map(Self::parse_command, |n| vec![n]),
-            C::parse_multi_opcode_vec,
+            // C::parse_multi_opcode_vec,
         )))(input)
     }
 
-    pub fn parse_pc_equate(input: TSpan) -> PResult<Node<C::NodeKind>> {
+    pub fn parse_pc_equate(input: TSpan) -> PResult<Node> {
         map(Self::parse_label, |n| Self::mk_pc_equate(&n))(input)
     }
 
     /// Parse the next chunk of valid source
-    pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node<C::NodeKind>>> {
+    pub fn parse_next_source_chunk(input: TSpan) -> PResult<Vec<Node>> {
         use FrontEndErrorKind::*;
 
         // If we can't parse this chunk we need to xform the ParseError into
@@ -88,9 +78,9 @@ where
 
         let (rest, matched) = alt((
             Self::parse_single_line,
-            map(Self::parse_macro_def, as_vec::<C>),
-            map(Self::parse_struct, as_vec::<C>),
-            map(Self::parse_pc_equate, as_vec::<C>),
+            map(Self::parse_macro_def, as_vec),
+            map(Self::parse_struct, as_vec),
+            map(Self::parse_pc_equate, as_vec),
         ))(input)
         .map_err(err_map)?;
 
@@ -101,7 +91,7 @@ where
     /// until we have too many errors or have parsed everything
     pub fn parse_all_with_resume(
         mut input: TSpan,
-    ) -> Result<(TSpan, Vec<Node<C::NodeKind>>), NewErrorCollector<FrontEndError>> {
+    ) -> Result<(TSpan, Vec<Node>), NewErrorCollector<FrontEndError>> {
         let mut ret = vec![];
         let max_errors = input.extra().opts.max_errors;
         let mut errors: NewErrorCollector<FrontEndError> = NewErrorCollector::new(max_errors);
@@ -131,9 +121,6 @@ where
     }
 }
 
-fn as_vec<ASM>(n: Node<ASM::NodeKind>) -> Vec<Node<ASM::NodeKind>>
-where
-    ASM: AssemblerCpuTrait,
-{
+fn as_vec(n: Node) -> Vec<Node> {
     vec![n]
 }

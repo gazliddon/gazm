@@ -1,13 +1,10 @@
 #![forbid(unused_imports)]
 
 
-use crate::assembler::AssemblerCpuTrait;
 use crate::frontend::AstNodeKind;
 use crate::semantic::*;
 
-impl<'a, C> std::fmt::Display for AstCtx<'a, C>
-where
-    C: AssemblerCpuTrait,
+impl<'a> std::fmt::Display for AstCtx<'a>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let wrapped = DisplayWrapper {
@@ -17,30 +14,26 @@ where
     }
 }
 
-struct DisplayWrapper<'a, C> 
-where C: AssemblerCpuTrait
+struct DisplayWrapper<'a> 
 {
-    node: AstNodeRef<'a, C>,
+    node: AstNodeRef<'a>,
 }
 
-impl<'a, C> From<AstNodeRef<'a, C>> for DisplayWrapper<'a, C> 
-where C: AssemblerCpuTrait
+impl<'a, > From<AstNodeRef<'a>> for DisplayWrapper<'a> 
 
 {
-    fn from(ast: AstNodeRef<'a, C>) -> Self {
+    fn from(ast: AstNodeRef<'a, >) -> Self {
         Self { node: ast }
     }
 }
 
-pub fn as_string<C>(n: AstNodeRef<C>) -> String
-where C: AssemblerCpuTrait
+pub fn as_string(n: AstNodeRef) -> String
 {
     let x = DisplayWrapper{node: n};
     x.to_string()
 }
 
-impl<'a, C> std::fmt::Display for DisplayWrapper<'a, C>
-where C: AssemblerCpuTrait
+impl<'a> std::fmt::Display for DisplayWrapper<'a>
 
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -49,8 +42,8 @@ where C: AssemblerCpuTrait
         let node = self.node;
         let item = &node.value().item;
 
-        let to_string = |n: AstNodeRef<C>| -> String {
-            let x: DisplayWrapper<C> = n.into();
+        let to_string = |n: AstNodeRef| -> String {
+            let x: DisplayWrapper = n.into();
             x.to_string()
         };
 

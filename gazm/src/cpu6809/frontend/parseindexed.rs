@@ -1,10 +1,9 @@
 #![deny(unused_imports)]
 use unraveler::{alt, match_span as ms, pair, sep_pair, succeeded};
 
-use crate::cpu6809::{from_item_kid_tspan, from_item_tspan, parse_expr, Node};
-
 use crate::frontend::{
-    err_fatal, parse_sq_bracketed, AstNodeKind, CpuSpecific, PResult, TSpan, TokenKind::Comma,
+    err_fatal, from_item_kid_tspan, from_item_tspan, parse_expr, parse_sq_bracketed, AstNodeKind,
+    CpuSpecific, Node, PResult, TSpan, TokenKind::Comma,
 };
 
 use super::{
@@ -47,7 +46,7 @@ fn parse_extended_indirect(input: TSpan) -> PResult<Node> {
 ///     ,-u
 fn parse_index_only(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(get_indexed)(input)?;
-    let matched = from_item_tspan(OperandIndexed(matched, false).into(), sp);
+    let matched = from_item_tspan(OperandIndexed(matched, false), sp);
     Ok((rest, matched))
 }
 
@@ -60,7 +59,7 @@ fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
         IndexParseType::PostInc(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
         IndexParseType::PreDec(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
         _ => {
-            let matched = from_item_tspan(OperandIndexed(matched, false).into(), sp);
+            let matched = from_item_tspan(OperandIndexed(matched, false), sp);
             Ok((rest, matched))
         }
     }

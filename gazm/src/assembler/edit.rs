@@ -2,14 +2,12 @@
 
 use grl_sources::{EditErrorKind, EditResult, TextEditTrait};
 
-use super::{Assembler, AssemblerCpuTrait};
+use super::Assembler;
 use crate::error::GResult;
 
 use std::path::Path;
 
-impl<C> Assembler<C>
-where
-    C: AssemblerCpuTrait,
+impl Assembler
 {
     pub fn edit_source_file<P: AsRef<Path>, X>(
         &mut self,

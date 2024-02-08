@@ -1,17 +1,13 @@
 use gazm::{
-    assembler::{Assembler, AssemblerCpuTrait},
+    assembler::{Assembler, },
     cli::{parse_command_line, styling::get_banner},
-    cpu6800::Asm6800,
-    cpu6809::Asm6809,
     error::{ErrorCollectorTrait, GazmErrorKind},
     frontend, info_mess, messages,
     opts::{BuildType, Opts},
     status_mess,
 };
 
-fn do_build<ASM>(opts: &Opts) -> Result<(), GazmErrorKind>
-where
-    ASM: AssemblerCpuTrait,
+fn do_build(opts: &Opts) -> Result<(), GazmErrorKind>
 {
     let mess = messages::messages();
     mess.set_verbosity(&opts.verbose);
@@ -20,7 +16,7 @@ where
         std::env::set_current_dir(assemble_dir).expect("Can't change dir")
     }
 
-    let mut asm = Assembler::<ASM>::new(opts.clone());
+    let mut asm = Assembler::new(opts.clone());
 
     match opts.build_type {
         BuildType::Test => {
@@ -76,11 +72,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // probably as a function of Opts
     let cur_dir = current_dir().unwrap();
 
-    use gazm::cli::CpuKind::*;
+    use gazm::cpukind::CpuKind::*;
 
     let ret = match opts.cpu {
-        Cpu6809 => do_build::<Asm6809>(&opts),
-        Cpu6800 => do_build::<Asm6800>(&opts),
+        Cpu6809 => do_build(&opts),
+        Cpu6800 => do_build(&opts),
         Cpu6502 | Cpu65c02 | CpuZ80 => Err(GazmErrorKind::NotImplemented(format!(
             "Assembly for{:?}",
             opts.cpu

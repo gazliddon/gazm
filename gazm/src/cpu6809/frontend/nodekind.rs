@@ -1,6 +1,6 @@
 #![forbid(unused_imports)]
-use std::collections::HashSet;
 use crate::{cpu6809::NodeKind, frontend::CpuSpecific};
+use std::collections::HashSet;
 
 use emu6809::{
     cpu::{IndexedFlags, RegEnum},
@@ -9,17 +9,17 @@ use emu6809::{
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {
-    ConstantOffset(RegEnum),    // arg,R
-    PostInc(RegEnum),           // ,R+                    2 0 |
-    PostIncInc(RegEnum),        // ,R++                   3 0 |
-    PreDec(RegEnum),            // ,-R                    2 0 |
-    PreDecDec(RegEnum),         // ,--R                   3 0 |
-    Zero(RegEnum),              // ,R                     0 0 |
-    AddB(RegEnum),              // (+/- B),R              1 0 |
-    AddA(RegEnum),              // (+/- A),R              1 0 |
-    AddD(RegEnum),              // (+/- D),R              4 0 |
-    PCOffset,                   // (+/- 7 bit offset),PC  1 1 |
-    ExtendedIndirect,           //  [expr]
+    ConstantOffset(RegEnum), // arg,R
+    PostInc(RegEnum),        // ,R+                    2 0 |
+    PostIncInc(RegEnum),     // ,R++                   3 0 |
+    PreDec(RegEnum),         // ,-R                    2 0 |
+    PreDecDec(RegEnum),      // ,--R                   3 0 |
+    Zero(RegEnum),           // ,R                     0 0 |
+    AddB(RegEnum),           // (+/- B),R              1 0 |
+    AddA(RegEnum),           // (+/- A),R              1 0 |
+    AddD(RegEnum),           // (+/- D),R              4 0 |
+    PCOffset,                // (+/- 7 bit offset),PC  1 1 |
+    ExtendedIndirect,        //  [expr]
     Constant5BitOffset(RegEnum, i8),
     ConstantByteOffset(RegEnum, i8),
     ConstantWordOffset(RegEnum, i16),
@@ -28,11 +28,11 @@ pub enum IndexParseType {
 }
 
 impl IndexParseType {
-    pub fn allowed_indirect(&self) -> bool { 
+    pub fn allowed_indirect(&self) -> bool {
         use IndexParseType::*;
         match self {
-            PostInc(..) => false,          // ,R+                    2 0 |
-            PreDec(..) => false,           // ,-R                    2 0 |
+            PostInc(..) => false, // ,R+                    2 0 |
+            PreDec(..) => false,  // ,-R                    2 0 |
             _ => true,
         }
     }
@@ -41,17 +41,17 @@ impl IndexParseType {
         use IndexParseType::*;
 
         match self {
-            ConstantOffset(..) => true,    // arg,R
-            PostInc(..) => false,          // ,R+                    2 0 |
-            PostIncInc(..) => false,       // ,R++                   3 0 |
-            PreDec(..) => false,           // ,-R                    2 0 |
-            PreDecDec(..) => false,        // ,--R                   3 0 |
-            Zero(..) => false,             // ,R                     0 0 |
-            AddB(..) => false,             // (+/- B),R              1 0 |
-            AddA(..) => false,             // (+/- A),R              1 0 |
-            AddD(..) => false,             // (+/- D),R              4 0 |
-            PCOffset => true,              // (+/- 7 bit offset),PC  1 1 |
-            ExtendedIndirect => true,      // [expr]
+            ConstantOffset(..) => true, // arg,R
+            PostInc(..) => false,       // ,R+                    2 0 |
+            PostIncInc(..) => false,    // ,R++                   3 0 |
+            PreDec(..) => false,        // ,-R                    2 0 |
+            PreDecDec(..) => false,     // ,--R                   3 0 |
+            Zero(..) => false,          // ,R                     0 0 |
+            AddB(..) => false,          // (+/- B),R              1 0 |
+            AddA(..) => false,          // (+/- A),R              1 0 |
+            AddD(..) => false,          // (+/- D),R              4 0 |
+            PCOffset => true,           // (+/- 7 bit offset),PC  1 1 |
+            ExtendedIndirect => true,   // [expr]
             Constant5BitOffset(..) => true,
             ConstantByteOffset(..) => true,
             ConstantWordOffset(..) => true,
@@ -200,9 +200,7 @@ pub enum AddrModeParseType {
 
 impl From<AddrModeParseType> for NodeKind {
     fn from(value: AddrModeParseType) -> Self {
-        NodeKind::TargetSpecific(
-            NodeKind6809::Operand(value).into()
-            )
+        NodeKind::TargetSpecific(NodeKind6809::Operand(value).into())
     }
 }
 
@@ -240,12 +238,11 @@ pub enum NodeKind6809 {
     RegisterSet(HashSet<RegEnum>),
 }
 
-impl Into<CpuSpecific> for NodeKind6809 {
-    fn into(self) -> CpuSpecific {
-        CpuSpecific::Cpu6809(self)
+impl From<NodeKind6809> for CpuSpecific {
+    fn from(value: NodeKind6809) -> Self {
+        CpuSpecific::Cpu6809(value)
     }
 }
-
 
 impl NodeKind6809 {
     pub fn operand_from_index_mode(imode: IndexParseType, indirect: bool) -> NodeKind {

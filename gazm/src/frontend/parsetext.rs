@@ -1,15 +1,8 @@
 #![deny(unused_imports)]
 use grl_sources::{ SourceFile,Position };
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ParserState {
-}
-
-impl Default for ParserState {
-    fn default() -> Self {
-        Self {
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

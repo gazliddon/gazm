@@ -18,6 +18,7 @@ mod utils;
 mod basetoken;
 mod labeldefinition;
 mod struct_def;
+mod identifier;
 
 // Public inside module
 pub use {
@@ -26,4 +27,5 @@ pub use {
     testit::*, token_store::*, tokenize::*, lexer::*, utils::*,
     labeldefinition::*,
     struct_def::*,
+    identifier::*,
 };

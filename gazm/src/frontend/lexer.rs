@@ -1,10 +1,10 @@
 #![deny(unused_imports)]
 
 use super::{basetoken::Token as BaseToken, ParseText};
-use crate::assembler::AssemblerCpuTrait;
 use logos::{Lexer, Logos};
 use std::collections::HashMap;
-use strum::{EnumIter, IntoEnumIterator};
+use strum_macros::EnumIter;
+use strum::IntoEnumIterator;
 
 pub type Token<'a> = BaseToken<ParseText<'a>>;
 
@@ -201,13 +201,11 @@ pub enum TokenKind {
 }
 
 
-pub fn map_token<ASM>(
+pub fn map_token(
     kind: TokenKind,
     pos: std::ops::Range<usize>,
     source_file: &grl_sources::SourceFile,
 ) -> (TokenKind, std::ops::Range<usize>)
-where
-    ASM: AssemblerCpuTrait,
 {
     let kind = match kind {
         TokenKind::TempIdentifier => {
@@ -216,7 +214,8 @@ where
             if let Some(c) = COMS.get(text) {
                 TokenKind::Command(*c)
             } else {
-                ASM::lex_identifier(text.as_str())
+                todo!()
+                // C::lex_identifier(text.as_str())
             }
         }
 
@@ -225,37 +224,32 @@ where
     (kind, pos)
 }
 
-pub fn to_tokens_no_comment<ASM>(source_file: &grl_sources::SourceFile) -> Vec<Token>
-where
-    ASM: AssemblerCpuTrait,
+pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token>
 {
     use TokenKind::*;
     let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment;
-    let tokens = to_tokens_filter::<ASM, _>(source_file, not_comment);
+    let tokens = to_tokens_filter(source_file, not_comment);
     tokens
 }
 
-fn to_tokens_kinds<ASM>(
+fn to_tokens_kinds(
     source_file: &grl_sources::SourceFile,
 ) -> Vec<(TokenKind, std::ops::Range<usize>)>
-where
-    ASM: AssemblerCpuTrait,
 {
     TokenKind::lexer(&source_file.get_text().source)
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
-            Ok(kind) => map_token::<ASM>(kind, pos, source_file),
+            Ok(kind) => map_token(kind, pos, source_file),
             Err(_) => (TokenKind::Error, pos),
         })
         .collect()
 }
 
-fn to_tokens_filter<ASM, P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
+fn to_tokens_filter< P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
 where
-    ASM: AssemblerCpuTrait,
     P: Fn(&TokenKind) -> bool,
 {
-    let ret = to_tokens_kinds::<ASM>(source_file);
+    let ret = to_tokens_kinds(source_file);
 
     ret.into_iter()
         .filter(|(tk, _)| predicate(tk))

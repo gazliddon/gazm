@@ -11,6 +11,7 @@ pub mod opts;
 pub mod error;
 pub mod cpu6809;
 pub mod cpu6800;
+pub mod cpukind;
 
 mod astformat;
 mod docs;

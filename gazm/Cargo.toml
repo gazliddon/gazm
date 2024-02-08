@@ -35,7 +35,8 @@ grl-eval = {path="../../crates/grl-eval"}
 unraveler = {path="../../crates/unraveler"}
 
 num-traits = "0.2.17"
-strum = { version = "0.25", features = ["derive"] }
+strum = { version = "0.26" }
+strum_macros = { version = "0.26" }
 regex = "1.10.0"
 termimad = "0.25.5"
 glob = "0.3.1"

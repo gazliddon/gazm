@@ -1,5 +1,4 @@
 #![forbid(unused_imports)]
-use crate::assembler::AssemblerCpuTrait;
 
 use super::TokenizeResult;
 
@@ -12,17 +11,13 @@ use std::{
 use thin_vec::ThinVec;
 
 #[derive(Default, Clone, Debug)]
-pub struct TokenStore<ASM>
-where
-    ASM: AssemblerCpuTrait,
+pub struct TokenStore
 {
-    pub tokens: HashMap<PathBuf, TokenizeResult<ASM>>,
+    pub tokens: HashMap<PathBuf, TokenizeResult>,
 }
 
 /// Cache containing tokenized versions of source files
-impl<ASM> TokenStore<ASM>
-where
-    ASM: AssemblerCpuTrait,
+impl TokenStore
 {
     pub fn new() -> Self {
         Self {
@@ -31,12 +26,12 @@ where
     }
 
     /// Get any cached tokens for this file
-    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult<ASM>> {
+    pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult> {
         self.tokens.get(&file.as_ref().to_path_buf())
     }
 
     /// Add tokens for this file
-    pub fn add_tokens(&mut self, tokes: TokenizeResult<ASM>) {
+    pub fn add_tokens(&mut self, tokes: TokenizeResult) {
         let file = tokes.request.get_file_name().clone();
         self.tokens.insert(file, tokes);
     }

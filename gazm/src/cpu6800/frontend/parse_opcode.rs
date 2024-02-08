@@ -1,18 +1,17 @@
 use crate::cpu6800::frontend::get_this_reg;
 use crate::cpu6809::frontend::Cpu6809AssemblyErrorKind;
 use crate::frontend::{
-    err_fatal, err_kind_nomatch, err_nomatch, get_text, is_parsing_macro_def, FrontEndError,
-    FrontEndErrorKind, PResult, TSpan, TokenKind,
+    err_fatal, err_kind_nomatch, err_nomatch, from_item_tspan, get_text, is_parsing_macro_def,
+    parse_expr, AstNodeKind, FrontEndError, FrontEndErrorKind, Node, PResult, TSpan, TokenKind,
 };
 
 use crate::cpu6800::{
-    from_item_tspan,
     frontend::{
         error::AssemblyErrorKind6800::OnlySupports,
-        AddrModeParseType, GParser, AstNodeKind, Node,
+        AddrModeParseType,
         NodeKind6800::{self, OpCode, Operand},
     },
-    parse_expr, Asm6800,
+    Asm6800,
 };
 
 use emu6800::cpu_core::{AddrModeEnum, Instruction, InstructionInfo, OpcodeData, RegEnum, DBASE};
@@ -33,7 +32,7 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
     let (rest, (sp, text, ins)) = get_opcode(input)?;
 
     if let Some(ins) = ins.get_opcode_data(AddrModeEnum::Inherent) {
-        let oc = OpCode(text, ins.clone());
+        let oc = OpCode(text.into(), ins.clone().into());
         let node = from_item_tspan(oc, sp);
         Ok((rest, node))
     } else {
@@ -49,8 +48,7 @@ fn parse_indexed(input: TSpan) -> PResult<Node> {
 
     let matched = matched.unwrap_or_else(|| {
         let item = AstNodeKind::from_number(0, crate::frontend::ParsedFrom::Expression);
-        let node = from_item_tspan(item, sp);
-        node
+        from_item_tspan(item, sp)
     });
 
     let node = from_item_tspan(Indexed, sp).with_child(matched);
@@ -116,9 +114,9 @@ fn get_instruction(amode: AddrModeParseType, info: &Instruction) -> Option<&Opco
 }
 
 fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
-    use NodeKind6800::{OpCode, Operand};
-    use CpuSpecific::Cpu6800 as Cpu;
     use crate::frontend::CpuSpecific;
+    use CpuSpecific::Cpu6800 as Cpu;
+    use NodeKind6800::{OpCode, Operand};
 
     let (rest, (sp, text, info)) = get_opcode(input)?;
 
@@ -129,18 +127,17 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
             && parsed_addressing_mode == AddrModeParseType::Extended
         {
             let instruction = get_instruction(AddrModeParseType::Relative, info).unwrap();
-            let item = OpCode(text.to_string(), instruction.clone());
+            let item = NodeKind6800::opcode(text,instruction);
+            let node = from_item_tspan(item, sp).take_others_children(arg);
+            Ok((rest, node))
+        } else if let Some(instruction) = get_instruction(parsed_addressing_mode, info) {
+            let item = NodeKind6800::opcode(text,instruction);
             let node = from_item_tspan(item, sp).take_others_children(arg);
             Ok((rest, node))
         } else {
-            if let Some(instruction) = get_instruction(parsed_addressing_mode, info) {
-                let item = OpCode(text.to_string(), instruction.clone());
-                let node = from_item_tspan(item, sp).take_others_children(arg);
-                Ok((rest, node))
-            } else {
-                err_fatal(sp, FrontEndErrorKind::Unexpected)
-            }
+            err_fatal(sp, FrontEndErrorKind::Unexpected)
         }
+
     } else {
         panic!()
     }

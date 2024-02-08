@@ -28,12 +28,10 @@ use tower_lsp::{
     {Client, LanguageServer},
 };
 
-pub struct Backend<C>
-where C : AssemblerCpuTrait
-
+pub struct Backend
 {
     pub client: Client,
-    pub asm_ctx: Arc<Mutex<Assembler<C>>>,
+    // pub asm_ctx: Arc<Mutex<Assembler>>,
 }
 
 pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
@@ -47,8 +45,7 @@ pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
     te
 }
 
-impl<C> Assembler<C> 
-where C: AssemblerCpuTrait
+impl Assembler 
 
 {
     fn find_symbol_id(&self, position: &Position, uri: &Url) -> Option<SymbolScopeId> {
@@ -164,29 +161,31 @@ where C: AssemblerCpuTrait
     }
 }
 
-impl<C> Backend<C> 
-where C : AssemblerCpuTrait
+impl Backend 
 {
-    pub fn get_ast_node_at_file_pos(&self, position: &Position, uri : &Url) -> Option<(AstNodeId, ItemWithPos<C> )> {
-        let value = with_state(&self.asm_ctx, |asm_ctx| -> Option<(AstNodeId, ItemWithPos<C> )> {
-            if let Some(p) = asm_ctx.find_nodes_at_location(position, uri) {
-                if !p.is_empty() {
-                    if let Some(ast) = asm_ctx.asm_out.ast.as_ref() {
-                        let v = ast.as_ref().get(*p.first().unwrap()).unwrap().value();
-                        return Some((*p.first().unwrap(),v.clone() ))
-                    }
-                }
-            }
-            None
-        });
+    pub fn get_ast_node_at_file_pos(&self, _position: &Position, _uri : &Url) -> Option<(AstNodeId, ItemWithPos )> {
+        panic!()
 
-        value
+        // let value = with_state(&self.asm_ctx, |asm_ctx| -> Option<(AstNodeId, ItemWithPos )> {
+        //     if let Some(p) = asm_ctx.find_nodes_at_location(position, uri) {
+        //         if !p.is_empty() {
+        //             if let Some(ast) = asm_ctx.asm_out.ast.as_ref() {
+        //                 let v = ast.as_ref().get(*p.first().unwrap()).unwrap().value();
+        //                 return Some((*p.first().unwrap(),v.clone() ))
+        //             }
+        //         }
+        //     }
+        //     None
+        // });
+
+        // value
     }
 
-    pub fn new(client: Client, opts: Opts) -> Self {
-        info!("Backend created!");
-        let asm_ctx = Arc::new(Mutex::new(Assembler::new(opts)));
-        Self { client, asm_ctx }
+    pub fn new(_client: Client, _opts: Opts) -> Self {
+        panic!()
+        // info!("Backend created!");
+        // let asm_ctx = Arc::new(Mutex::new(Assembler::new(opts)));
+        // Self { client, asm_ctx }
     }
 
     fn create_diagnostics(&self, err: GazmErrorKind) -> Vec<(PathBuf, Diagnostic)> {
@@ -223,46 +222,47 @@ where C : AssemblerCpuTrait
         diags
     }
 
-    async fn reassemble_file(&self, uri: Url) {
-        let doc = PathBuf::from(uri.path());
-        info!("Reassmbling {}", doc.to_string_lossy());
+    async fn reassemble_file(&self, _uri: Url) 
+    {
+        panic!()
+        // let doc = PathBuf::from(uri.path());
+        // info!("Reassmbling {}", doc.to_string_lossy());
 
-        let r = with_state(&self.asm_ctx, |asm| asm.reassemble());
+        // let r = with_state(&self.asm_ctx, |asm| asm.reassemble());
 
-        let diags = match r {
-            Ok(_) => vec![],
-            Err(e) => {
-                // Get any diags for this file
-                self.create_diagnostics(e)
-                    .into_iter()
-                    .filter_map(|(p, d)| {
-                        if p == doc {
-                            Some(d)
-                        } else {
-                            error!(
-                                "Shouldn't happen! expected {} got {}",
-                                p.to_string_lossy(),
-                                doc.to_string_lossy()
-                            );
-                            None
-                        }
-                    })
-                    .collect()
-            }
-        };
+        // let diags = match r {
+        //     Ok(_) => vec![],
+        //     Err(e) => {
+        //         // Get any diags for this file
+        //         self.create_diagnostics(e)
+        //             .into_iter()
+        //             .filter_map(|(p, d)| {
+        //                 if p == doc {
+        //                     Some(d)
+        //                 } else {
+        //                     error!(
+        //                         "Shouldn't happen! expected {} got {}",
+        //                         p.to_string_lossy(),
+        //                         doc.to_string_lossy()
+        //                     );
+        //                     None
+        //                 }
+        //             })
+        //             .collect()
+        //     }
+        // };
 
-        let uri = Url::parse(&format!("file://{}", doc.to_string_lossy()));
+        // let uri = Url::parse(&format!("file://{}", doc.to_string_lossy()));
 
-        if let Ok(uri) = uri {
-            self.client.publish_diagnostics(uri, diags, None).await;
-        } else {
-            error!("{:?}", uri);
-        }
+        // if let Ok(uri) = uri {
+        //     self.client.publish_diagnostics(uri, diags, None).await;
+        // } else {
+        //     error!("{:?}", uri);
+        // }
     }
 }
 
-impl<C> Assembler<C> 
-where C: AssemblerCpuTrait
+impl Assembler 
 {
     fn apply_change<P: AsRef<Path>>(
         &mut self,
@@ -323,8 +323,7 @@ fn make_location<P: AsRef<Path>>(line: usize, character: usize, path: P) -> Loca
 }
 
 #[tower_lsp::async_trait]
-impl<C> LanguageServer for Backend<C> 
-where C: AssemblerCpuTrait
+impl LanguageServer for Backend 
 {
     async fn goto_declaration(
         &self,
@@ -335,21 +334,22 @@ where C: AssemblerCpuTrait
         Err(jsonrpc::Error::method_not_found())
     }
 
-    async fn references(&self, params: ReferenceParams) -> jsonrpc::Result<Option<Vec<Location>>> {
-        info!("Finding references");
-        let uri = &params.text_document_position.text_document.uri;
-        let position = &params.text_document_position.position;
+    async fn references(&self, _params: ReferenceParams) -> jsonrpc::Result<Option<Vec<Location>>> {
+        panic!()
+        // info!("Finding references");
+        // let uri = &params.text_document_position.text_document.uri;
+        // let position = &params.text_document_position.position;
 
-        let res = with_state(
-            &self.asm_ctx,
-            |asm| -> jsonrpc::Result<Option<Vec<Location>>> {
-                let pos = asm.find_references(position, uri);
-                Ok(pos)
-            },
-        );
+        // let res = with_state(
+        //     &self.asm_ctx,
+        //     |asm| -> jsonrpc::Result<Option<Vec<Location>>> {
+        //         let pos = asm.find_references(position, uri);
+        //         Ok(pos)
+        //     },
+        // );
 
-        info!("Done Finding references {:?}", res);
-        res
+        // info!("Done Finding references {:?}", res);
+        // res
     }
 
     async fn initialize(&self, _init: InitializeParams) -> TResult<InitializeResult> {
@@ -434,14 +434,15 @@ where C: AssemblerCpuTrait
 
     async fn goto_definition(
         &self,
-        params: GotoDefinitionParams,
+        _params: GotoDefinitionParams,
     ) -> jsonrpc::Result<Option<GotoDefinitionResponse>> {
-        let position = &params.text_document_position_params.position;
-        let uri = &params.text_document_position_params.text_document.uri;
+        panic!()
+        // let position = &params.text_document_position_params.position;
+        // let uri = &params.text_document_position_params.text_document.uri;
 
-        let position = with_state(&self.asm_ctx, |asm| asm.find_definition(position, uri));
+        // let position = with_state(&self.asm_ctx, |asm| asm.find_definition(position, uri));
 
-        Ok(position.map(GotoDefinitionResponse::Scalar))
+        // Ok(position.map(GotoDefinitionResponse::Scalar))
     }
 
     async fn execute_command(&self, _: ExecuteCommandParams) -> TResult<Option<Value>> {
@@ -459,32 +460,36 @@ where C: AssemblerCpuTrait
         Ok(None)
     }
 
-    async fn did_open(&self, x: DidOpenTextDocumentParams) {
-        let doc = x.text_document.uri.path();
-        info!("did_open {}", doc);
-        self.reassemble_file(x.text_document.uri).await;
+    async fn did_open(&self, _x: DidOpenTextDocumentParams) 
+
+    {
+        panic!()
+        // let doc = x.text_document.uri.path();
+        // info!("did_open {}", doc);
+        // self.reassemble_file::<C>(x.text_document.uri).await;
     }
 
-    async fn did_change(&self, x: DidChangeTextDocumentParams) {
-        info!("did change!");
-        info!("About to apply changes to {}", x.text_document.uri.path());
+    async fn did_change(&self, _x: DidChangeTextDocumentParams) {
+        panic!()
+        // info!("did change!");
+        // info!("About to apply changes to {}", x.text_document.uri.path());
 
-        let uri = x.text_document.uri;
+        // let uri = x.text_document.uri;
 
-        let e = with_state(&self.asm_ctx, |asm| {
-            asm.apply_changes(PathBuf::from(uri.path()), &x.content_changes)
-        });
+        // let e = with_state(&self.asm_ctx, |asm| {
+        //     asm.apply_changes(PathBuf::from(uri.path()), &x.content_changes)
+        // });
 
-        match e {
-            Err(e) => {
-                info!("Error applying changes! {e}");
-                return;
-            }
+        // match e {
+        //     Err(e) => {
+        //         info!("Error applying changes! {e}");
+        //         return;
+        //     }
 
-            Ok(_) => info!("Applied changes"),
-        };
+        //     Ok(_) => info!("Applied changes"),
+        // };
 
-        self.reassemble_file(uri).await;
+        // self.reassemble_file(uri).await;
     }
 
     async fn did_save(&self, _: DidSaveTextDocumentParams) {
@@ -509,62 +514,63 @@ where C: AssemblerCpuTrait
         ])))
     }
 
-    async fn hover(&self, params: HoverParams) -> TResult<Option<Hover>> {
-        info!("hover");
-        let uri = &params.text_document_position_params.text_document.uri;
-        let position = &params.text_document_position_params.position;
+    async fn hover(&self, _params: HoverParams) -> TResult<Option<Hover>> {
+        panic!()
+        // info!("hover");
+        // let uri = &params.text_document_position_params.text_document.uri;
+        // let position = &params.text_document_position_params.position;
 
-        // TODO: LSP get some infotmation about the AST node so we can decide what to do
-        let ret = with_state(&self.asm_ctx, |asm_ctx| -> Option<SymbolInfo> {
-            let id = asm_ctx.find_symbol_id(position, uri)?;
-            let reader = asm_ctx.get_symbols().get_reader(id.scope_id);
-            let si = reader.get_symbol_info_from_id(id).unwrap();
-            Some(si.clone())
-        });
+        // // TODO: LSP get some infotmation about the AST node so we can decide what to do
+        // let ret = with_state(&self.asm_ctx, |asm_ctx| -> Option<SymbolInfo> {
+        //     let id = asm_ctx.find_symbol_id(position, uri)?;
+        //     let reader = asm_ctx.get_symbols().get_reader(id.scope_id);
+        //     let si = reader.get_symbol_info_from_id(id).unwrap();
+        //     Some(si.clone())
+        // });
 
-        if let Some((_id,value)) = self.get_ast_node_at_file_pos(position, uri) {
-            info!("Got node with value {:#?}", value);
-        }
+        // if let Some((_id,value)) = self.get_ast_node_at_file_pos(position, uri) {
+        //     info!("Got node with value {:#?}", value);
+        // }
 
-        let doc_text = with_state(&self.asm_ctx, |asm_ctx| -> Option<String> {
-            asm_ctx.find_docs(position, uri)
-        })
-        .unwrap_or("".to_string());
+        // let doc_text = with_state(&self.asm_ctx, |asm_ctx| -> Option<String> {
+        //     asm_ctx.find_docs(position, uri)
+        // })
+        // .unwrap_or("".to_string());
 
-        let reply = if let Some(si) = ret {
-            let mut markup: Vec<String> = vec![];
+        // let reply = if let Some(si) = ret {
+        //     let mut markup: Vec<String> = vec![];
 
-            let value = si
-                .value
-                .map(|x| format!("{x:5} 0x{x:04x}"))
-                .unwrap_or("UNDEFINED".to_owned());
+        //     let value = si
+        //         .value
+        //         .map(|x| format!("{x:5} 0x{x:04x}"))
+        //         .unwrap_or("UNDEFINED".to_owned());
 
-            let scoped_name = si.scoped_name();
-            let name = si.name();
+        //     let scoped_name = si.scoped_name();
+        //     let name = si.name();
 
-            let to_print = vec![("full name", scoped_name), ("value", &value)];
-            let mut text = tabulate(&to_print, 10);
+        //     let to_print = vec![("full name", scoped_name), ("value", &value)];
+        //     let mut text = tabulate(&to_print, 10);
 
-            markup.push(format!("**Symbol** `{name}`"));
-            markup.append(&mut text);
+        //     markup.push(format!("**Symbol** `{name}`"));
+        //     markup.append(&mut text);
 
-            if !doc_text.is_empty() {
-                markup.push("---".to_string());
-                markup.push(doc_text.clone());
-            }
+        //     if !doc_text.is_empty() {
+        //         markup.push("---".to_string());
+        //         markup.push(doc_text.clone());
+        //     }
 
-            let markup = markup.into_iter().map(MarkedString::String);
+        //     let markup = markup.into_iter().map(MarkedString::String);
 
-            let reply = Hover {
-                contents: HoverContents::Array(markup.collect()),
-                range: None,
-            };
-            Some(reply)
-        } else {
-            None
-        };
+        //     let reply = Hover {
+        //         contents: HoverContents::Array(markup.collect()),
+        //         range: None,
+        //     };
+        //     Some(reply)
+        // } else {
+        //     None
+        // };
 
-        Ok(reply)
+        // Ok(reply)
     }
 }
 

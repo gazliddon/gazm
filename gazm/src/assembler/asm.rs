@@ -2,13 +2,14 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
+    assembler::Sizer,
     error::{
         to_user_error, ErrorCollector, ErrorCollectorTrait, GResult, GazmErrorKind,
         NewErrorCollector, UserError,
     },
     frontend::{
-        tokenize_async, tokenize_no_async, FrontEndError, FrontEndErrorKind, AstNodeKind, Node,
-        TokenStore, TokenizeResult,
+        tokenize_async, tokenize_no_async, AstNodeKind, CpuSpecific, FrontEndError,
+        FrontEndErrorKind, Node, TokenStore, TokenizeResult,
     },
     gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
@@ -31,30 +32,26 @@ use itertools::Itertools;
 use super::{
     binary::{AccessType, BinRef, Binary},
     fixerupper::FixerUpper,
-    AssemblerCpuTrait,
+    AssemblerCpuTrait, BinaryError,
 };
 
-#[derive(Debug)]
-pub struct Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
-    pub token_store: TokenStore<C>,
+pub struct Assemblers {}
+
+pub struct Assembler {
+    pub token_store: TokenStore,
     pub source_file_loader: SourceFileLoader,
     pub cwd: PathBuf,
     pub opts: Opts,
-    pub asm_out: AsmOut<C>,
-    pub fixer_upper: FixerUpper<C>,
+
+    pub asm_out: AsmOut,
+    pub fixer_upper: FixerUpper,
 }
 
 /// Collects the output of a project being assembled
 // TODO Need to split out Ast and Lookup to a separate struct
 //      that handles mapping source code -> binary lookups
 #[derive(Debug, Clone, Default)]
-pub struct AsmOut<C>
-where
-    C: AssemblerCpuTrait,
-{
+pub struct AsmOut {
     /// Holds the symbol ID of the current PC value
     pub pc_symbol_id: Option<SymbolScopeId>,
     /// Direct page value
@@ -71,27 +68,27 @@ where
     pub exec_addr: Option<usize>,
     /// Binary chunks to write out
     pub bin_to_write_chunks: Vec<BinToWrite>,
-    pub ast: Option<Ast<C>>,
+    pub ast: Option<Ast>,
     /// Used for mapping labesl to source position
     pub lookup: Option<LabelUsageAndDefintions>,
 }
 
-impl<C> AsmOut<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl AsmOut {
     pub fn set_dp(&mut self, val: u8) {
         self.direct_page = Some(val)
     }
     pub fn reset_dp(&mut self) {
         self.direct_page = None;
     }
+    pub fn get_binary_mut(&mut self) -> &mut Binary {
+        &mut self.binary
+    }
+    pub fn get_binary(&self) -> &Binary {
+        &self.binary
+    }
 }
 
-impl<C> AsmOut<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl AsmOut {
     pub fn add_source_mapping(&mut self, pos: Position, addr: usize, item_type: ItemType) {
         let (logical_range, phys_range) = self.binary.range_to_write_address(addr);
         self.source_map
@@ -113,10 +110,42 @@ impl LstFile {
     }
 }
 
-impl<C> Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl Assembler {
+    pub fn cpu_asm(&self) -> &dyn AssemblerCpuTrait {
+        panic!()
+    }
+
+    pub fn cpu_asm_mut(&mut self) -> &mut dyn AssemblerCpuTrait {
+        panic!()
+    }
+
+    pub fn compile_node(
+        &mut self,
+        node: AstNodeRef,
+        node_kind: CpuSpecific,
+        current_scope_id: u64,
+    ) -> GResult<()> {
+        use CpuSpecific::*;
+        match node_kind {
+            Cpu6800(node_kind) => self.compile_node_6800(node_kind, node, current_scope_id),
+            Cpu6809(node_kind) => self.compile_node_6809(node_kind, node, current_scope_id),
+        }
+    }
+
+    fn size_node(
+        &mut self,
+        sizer: &mut Sizer,
+        id: AstNodeId,
+        node_kind: CpuSpecific,
+        current_scope_id: u64,
+    ) -> GResult<()> {
+        use CpuSpecific::*;
+        match node_kind {
+            Cpu6800(node_kind) => self.size_node_6800(sizer,id,node_kind,current_scope_id),
+            Cpu6809(node_kind) => self.size_node_6809(sizer,id,node_kind,current_scope_id),
+        }
+    }
+
     pub fn get_untokenized_files(&self, files: &[(Position, PathBuf)]) -> Vec<(Position, PathBuf)> {
         files
             .iter()
@@ -152,11 +181,11 @@ where
         &mut self.source_file_loader
     }
 
-    pub fn get_token_store_mut(&mut self) -> &mut TokenStore<C> {
+    pub fn get_token_store_mut(&mut self) -> &mut TokenStore {
         &mut self.token_store
     }
 
-    pub fn get_tokens_from_full_path<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult<C>> {
+    pub fn get_tokens_from_full_path<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult> {
         self.token_store.get_tokens(&file)
     }
 
@@ -234,13 +263,51 @@ where
     pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, SourceErrorType> {
         self.get_source_file_loader().sources.get_source_info(pos)
     }
+
+    pub fn binary_error(&self, _node: AstNodeRef, _e: BinaryError) -> GazmErrorKind {
+        panic!()
+    }
+
+    pub fn binary_error_map<T>(
+        &self,
+        node: AstNodeRef,
+        e: Result<T, BinaryError>,
+    ) -> Result<T, GazmErrorKind> {
+        if !self.opts.error_mismatches {
+            if let Err(BinaryError::DoesNotMatchReference(_r)) = &e {}
+        }
+
+        e.map_err(|e| self.binary_error(node, e))
+
+    }
+
+    pub fn write_word(&mut self, val: u16, node: AstNodeRef) -> GResult<()> {
+        let ret = self.get_binary_mut().write_word(val);
+        self.binary_error_map(node, ret)?;
+        Ok(())
+    }
+
+    pub fn write_byte(&mut self, val: u8, node: AstNodeRef) -> GResult<()> {
+        let ret = self.get_binary_mut().write_byte(val);
+        self.binary_error_map(node, ret)?;
+        Ok(())
+    }
+
+    pub fn write_byte_check_size(&mut self, val: i64, node: AstNodeRef) -> GResult<()> {
+        let ret = self.get_binary_mut().write_byte_check_size(val);
+        self.binary_error_map(node, ret)?;
+        Ok(())
+    }
+
+    pub fn write_word_check_size(&mut self, val: i64, node: AstNodeRef) -> GResult<()> {
+        let ret = self.get_binary_mut().write_word_check_size(val);
+        self.binary_error_map(node, ret)?;
+        Ok(())
+    }
 }
 
-impl<C> From<&Assembler<C>> for SourceDatabase
-where
-    C: AssemblerCpuTrait,
-{
-    fn from(c: &Assembler<C>) -> Self {
+impl From<&Assembler> for SourceDatabase {
+    fn from(c: &Assembler) -> Self {
         let bins: Vec<_> = c
             .asm_out
             .bin_to_write_chunks
@@ -258,10 +325,7 @@ where
 }
 
 /// Default settings for Context
-impl<C> Default for Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl Default for Assembler {
     fn default() -> Self {
         Self {
             source_file_loader: Default::default(),
@@ -284,13 +348,10 @@ impl BinRef {
 }
 
 /// Create a Context from the command line Opts
-impl<C> TryFrom<Opts> for AsmOut<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl TryFrom<Opts> for AsmOut {
     type Error = String;
 
-    fn try_from(opts: Opts) -> Result<AsmOut<C>, String> {
+    fn try_from(opts: Opts) -> Result<AsmOut, String> {
         let mut binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
 
         for br in &opts.bin_references {
@@ -319,10 +380,7 @@ where
     }
 }
 
-impl<C> AsmOut<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl AsmOut {
     /// Add in default symbols from build
     pub fn add_default_symbols(&mut self, opts: &Opts) {
         let mut write = self.symbols.get_root_writer();
@@ -334,10 +392,7 @@ where
 }
 
 /// Create a Context from the command line Opts
-impl<C> TryFrom<Opts> for Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl TryFrom<Opts> for Assembler {
     type Error = String;
 
     fn try_from(opts: Opts) -> Result<Self, String> {
@@ -358,10 +413,8 @@ where
         Ok(ret)
     }
 }
-impl<C> Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
+
+impl Assembler {
     /// Create an Assembler
     pub fn new(opts: Opts) -> Self {
         Assembler::try_from(opts).expect("Can't create context")
@@ -393,7 +446,7 @@ where
 
             for fe_err in errors.to_vec() {
                 let ue = self.to_user_error(fe_err);
-                let _ = err_col.add(ue);
+                err_col.add(ue);
             }
 
             GazmErrorKind::UserErrors(err_col)
@@ -432,8 +485,8 @@ where
         }
     }
 
-    fn assemble_tokens(&mut self, tokens: &Node<C::NodeKind>) -> GResult<()> {
-        let AstCtx { docs, ast_tree, .. } = AstCtx::<C>::from_nodes(self, tokens)?;
+    fn assemble_tokens(&mut self, tokens: &Node) -> GResult<()> {
+        let AstCtx { docs, ast_tree, .. } = AstCtx::from_nodes(self, tokens)?;
 
         status("Compiling", |_| {
             super::sizer::size(self, &ast_tree)?;
@@ -451,10 +504,7 @@ where
 // Symbol
 use crate::gazmsymbols::{SymbolError, SymbolScopeId};
 
-impl<C> Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl Assembler {
     pub fn set_symbol_value(
         &mut self,
         symbol_id: SymbolScopeId,
@@ -466,10 +516,7 @@ where
 }
 
 // File fuunction
-impl<C> Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl Assembler {
     pub fn get_file_size<P: AsRef<Path>>(&self, path: P) -> GResult<usize> {
         let ret = self.get_source_file_loader().get_size(path)?;
         Ok(ret)
@@ -492,19 +539,14 @@ where
     }
 }
 
-impl<C> Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
-
+impl Assembler {
     pub fn get_binary_extents<P: AsRef<Path>>(
         &self,
-        asm: &Assembler<C>,
+        asm: &Assembler,
         file_name: P,
-        node: AstNodeRef<C>,
+        node: AstNodeRef,
         current_scope_id: u64,
     ) -> GResult<std::ops::Range<usize>> {
-
         let data_len = asm.get_file_size(&file_name)?;
 
         let mut r = 0..data_len;
@@ -565,20 +607,17 @@ where
 }
 
 // Fixup
-impl<C> Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl Assembler {
     pub fn get_fixup_or_default(
         &self,
         id: AstNodeId,
-        i: &AstNodeKind<C::NodeKind>,
+        i: &AstNodeKind,
         scope_id: u64,
-    ) -> AstNodeKind<C::NodeKind> {
+    ) -> AstNodeKind {
         self.fixer_upper.get_fixup_or_default(scope_id, id, i)
     }
 
-    pub fn add_fixup<I: Into<AstNodeKind<C::NodeKind>>>(
+    pub fn add_fixup<I: Into<AstNodeKind>>(
         &mut self,
         id: AstNodeId,
         v: I,
@@ -594,7 +633,7 @@ where
     pub fn make_user_error<S: Into<String>>(
         &self,
         err: S,
-        node: AstNodeRef<C>,
+        node: AstNodeRef,
         is_failure: bool,
     ) -> UserError {
         let info = self.get_source_info(&node.value().pos).unwrap();

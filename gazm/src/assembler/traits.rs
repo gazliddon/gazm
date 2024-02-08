@@ -2,51 +2,52 @@
 
 use crate::{
     error::GResult,
-    frontend::{err_nomatch, Node, PResult, TSpan, TokenKind, CpuSpecific},
-    semantic::AstNodeId,
+    frontend::{Node, PResult, TSpan, TokenKind, CpuSpecific},
+    semantic::{ AstNodeId, AstNodeRef},
 };
 
-use super::{Assembler, Compiler, Sizer};
+use super::{Assembler, Sizer};
 
-use std::{default::Default, fmt::Debug};
 
-pub trait AssemblerCpuTrait: Sized + Send + 'static + Debug + Clone + Default + PartialEq {
-    type NodeKind: Debug + Clone + PartialEq + Send;
+pub trait AssemblerCpuTrait {
 
-    fn new() -> Self;
+    fn get_cpu_name(&self) -> &'static str;
 
-    fn get_cpu_name() -> &'static str;
-
-    fn err(text: &str) -> GResult<()> {
-        let err = format!("{text} :: {}", Self::get_cpu_name());
+    fn err(&self, text: &str) -> GResult<()> {
+        let err = format!("{text} :: {}", self.get_cpu_name());
         Err(crate::error::GazmErrorKind::NotImplemented(err))
     }
 
     fn compile_node(
-        _compiler: &mut Compiler<Self>,
-        _asm: &mut Assembler<Self>,
-        _id: AstNodeId,
-        _node_kind: CpuSpecific
+        &self,
+        _asm: &mut Assembler,
+        _node: AstNodeRef,
+        _node_kind: CpuSpecific,
+        _current_scope_id: u64
     ) -> GResult<()> {
-        Self::err("Compile Node")
+        self.err("Compile Node")
     }
 
     fn size_node(
-        _sizer: &mut Sizer<Self>,
-        _asm: &mut Assembler<Self>,
+        &self,
+        _sizer: &mut Sizer,
+        _asm: &mut Assembler,
         _id: AstNodeId,
-        _node_kind: CpuSpecific
+        _node_kind: CpuSpecific,
+        _current_scope_id: u64
     ) -> GResult<()> {
-        Self::err("Size Node")
+        self.err("Size Node")
     }
 
-    fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node<Self::NodeKind>>> {
-        err_nomatch(input)
+    fn parse_multi_opcode_vec(&self,_input: TSpan) -> PResult<Vec<Node>> {
+        todo!()
+        // err_nomatch(input)
     }
 
-    fn parse_commands(input: TSpan) -> PResult<Node<Self::NodeKind>> {
-        err_nomatch(input)
+    fn parse_commands(&self,_input: TSpan) -> PResult<Node> {
+        todo!()
+        // err_nomatch(input)
     }
 
-    fn lex_identifier(_id: &str) -> TokenKind;
+    fn lex_identifier(&self,_id: &str) -> TokenKind;
 }

@@ -7,7 +7,7 @@ use thin_vec::{thin_vec, ThinVec};
 use super::{EvalError, EvalErrorEnum};
 
 use crate::{
-    assembler::{Assembler, AssemblerCpuTrait, ScopeBuilder, ScopeTracker},
+    assembler::{Assembler, ScopeBuilder, ScopeTracker},
     astformat::as_string,
     debug_mess,
     error::{AstError, UserError},
@@ -17,26 +17,22 @@ use crate::{
     messages::*,
 };
 
-pub type AstTree<C> = ego_tree::Tree<ItemWithPos<C>>;
-pub type AstNodeRef<'a, C> = ego_tree::NodeRef<'a, ItemWithPos<C>>;
+pub type AstTree = ego_tree::Tree<ItemWithPos>;
+pub type AstNodeRef<'a> = ego_tree::NodeRef<'a, ItemWithPos>;
 pub type AstNodeId = ego_tree::NodeId;
-pub type AstNodeMut<'a, C> = ego_tree::NodeMut<'a, ItemWithPos<C>>;
+pub type AstNodeMut<'a> = ego_tree::NodeMut<'a, ItemWithPos>;
 
 #[derive(Debug, PartialEq, Clone)]
 
-pub struct ItemWithPos<C>
-where
-    C: AssemblerCpuTrait,
+pub struct ItemWithPos
 {
-    pub item: AstNodeKind<C::NodeKind>,
+    pub item: AstNodeKind,
     pub pos: Position,
 }
 
-impl<C> ItemWithPos<C>
-where
-    C: AssemblerCpuTrait,
+impl ItemWithPos
 {
-    pub fn new(n: &Node<C::NodeKind>) -> Self {
+    pub fn new(n: &Node) -> Self {
         Self {
             item: n.item.clone(),
             pos: n.ctx,
@@ -46,16 +42,12 @@ where
 
 /// Ast
 #[derive(Debug, Clone)]
-pub struct Ast<C>
-where
-    C: AssemblerCpuTrait,
+pub struct Ast
 {
-    pub tree: AstTree<C>,
+    pub tree: AstTree,
 }
 
-impl<C> std::fmt::Display for Ast<C>
-where
-    C: AssemblerCpuTrait,
+impl std::fmt::Display for Ast
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let txt = as_string(self.tree.root());
@@ -63,15 +55,13 @@ where
     }
 }
 
-impl<C> Ast<C>
-where
-    C: AssemblerCpuTrait,
+impl Ast
 {
-    pub fn new(tree: AstTree<C>) -> Self {
+    pub fn new(tree: AstTree) -> Self {
         Self { tree }
     }
 
-    pub fn from_node(node: &Node<C::NodeKind>) -> Self {
+    pub fn from_node(node: &Node) -> Self {
         let mut ret = AstTree::new(ItemWithPos::new(node));
 
         for c in &node.children {
@@ -80,7 +70,7 @@ where
         Ast { tree: ret }
     }
 
-    fn add_node(parent: &mut AstNodeMut<C>, node: &Node<C::NodeKind>) {
+    fn add_node(parent: &mut AstNodeMut, node: &Node) {
         let ipos = ItemWithPos::new(node);
         let mut this_node = parent.append(ipos);
 
@@ -98,7 +88,7 @@ where
             .collect()
     }
 
-    pub fn create_ast_node(&mut self, node: &Node<C::NodeKind>) -> AstNodeId {
+    pub fn create_ast_node(&mut self, node: &Node) -> AstNodeId {
         let ipos = ItemWithPos::new(node);
 
         let mut this_node = self.as_mut().orphan(ipos);
@@ -129,7 +119,7 @@ where
     pub fn detach_nodes_filter<I, F>(&mut self, i: I, f: F) -> ThinVec<AstNodeId>
     where
         I: Iterator<Item = AstNodeId>,
-        F: Fn(AstNodeRef<C>) -> bool,
+        F: Fn(AstNodeRef) -> bool,
     {
         i.filter(|id| {
             let node = self.as_ref().get(*id).unwrap();
@@ -143,57 +133,47 @@ where
         .collect()
     }
 
-    pub fn create_orphan(&mut self, item: AstNodeKind<C::NodeKind>, pos: Position) -> AstNodeId
-    where
-        C: std::fmt::Debug + Clone + PartialEq,
+    pub fn create_orphan(&mut self, item: AstNodeKind, pos: Position) -> AstNodeId
     {
         self.as_mut().orphan(ItemWithPos { item, pos }).id()
     }
 
     pub fn alter_node<F>(&mut self, node_id: AstNodeId, f: F)
     where
-        F: Fn(&mut ItemWithPos<C>),
+        F: Fn(&mut ItemWithPos),
     {
         let mut this_node_mut = self.as_mut().get_mut(node_id).unwrap();
         f(this_node_mut.value())
     }
 }
 
-impl<C> AsRef<AstTree<C>> for Ast<C>
-where
-    C: AssemblerCpuTrait,
+impl AsRef<AstTree> for Ast
 {
-    fn as_ref(&self) -> &AstTree<C> {
+    fn as_ref(&self) -> &AstTree {
         &self.tree
     }
 }
-impl<C> AsMut<AstTree<C>> for Ast<C>
-where
-    C: AssemblerCpuTrait,
+impl AsMut<AstTree> for Ast
 {
-    fn as_mut(&mut self) -> &mut AstTree<C> {
+    fn as_mut(&mut self) -> &mut AstTree {
         &mut self.tree
     }
 }
 
 /// AstCtx
 /// Does semantic analysis and ast lowering
-#[derive(Debug)]
-pub struct AstCtx<'a, C>
-where
-    C: AssemblerCpuTrait,
+pub struct AstCtx<'a>
 {
-    pub ast_tree: Ast<C>,
+    pub ast_tree: Ast,
     pub macro_defs: ThinVec<AstNodeId>,
-    pub ctx: &'a mut Assembler<C>,
+    pub ctx: &'a mut Assembler,
     pub docs: HashMap<AstNodeId, String>,
 }
 
 /// Iterate through the nodes recursively, depth first
-fn get_recursive<F, C>(node: AstNodeRef<C>, f: &mut F)
+fn get_recursive<F>(node: AstNodeRef, f: &mut F)
 where
-    C: AssemblerCpuTrait,
-    F: FnMut(AstNodeRef<C>),
+    F: FnMut(AstNodeRef),
 {
     f(node);
 
@@ -203,34 +183,28 @@ where
 }
 
 /// Return a vec of depth first node ids
-fn get_ids_recursive<C>(node: AstNodeRef<C>) -> ThinVec<AstNodeId> 
-
-where C: AssemblerCpuTrait
-
+fn get_ids_recursive(node: AstNodeRef) -> ThinVec<AstNodeId> 
 {
     let mut ret = thin_vec![];
-    get_recursive(node, &mut |x: AstNodeRef<C>| ret.push(x.id()));
+    get_recursive(node, &mut |x: AstNodeRef| ret.push(x.id()));
     ret
 }
 
 /// Depth first iteration of all node ids
-pub fn iter_ids_recursive<C>(node: AstNodeRef<C>) -> impl Iterator<Item = AstNodeId>
+pub fn iter_ids_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeId>
 
-where C: AssemblerCpuTrait
 {
     let mut i = get_ids_recursive(node).into_iter();
     iter::from_fn(move || i.next())
 }
 
-pub fn iter_refs_recursive<C>(node: AstNodeRef<C>) -> impl Iterator<Item = AstNodeRef<C>> 
-where C: AssemblerCpuTrait
+pub fn iter_refs_recursive(node: AstNodeRef) -> impl Iterator<Item = AstNodeRef> 
 {
     let mut i = get_ids_recursive(node).into_iter();
     iter::from_fn(move || i.next().and_then(|id| node.tree().get(id)))
 }
 
-fn iter_items_recursive<C>(node: AstNodeRef<C>) -> impl Iterator<Item = (AstNodeId, &AstNodeKind<C::NodeKind>)>
-where C: AssemblerCpuTrait
+fn iter_items_recursive(node: AstNodeRef) -> impl Iterator<Item = (AstNodeId, &AstNodeKind)>
 
 {
     let mut i = get_ids_recursive(node).into_iter();
@@ -241,10 +215,8 @@ where C: AssemblerCpuTrait
 }
 
 #[allow(dead_code)]
-fn iter_values_recursive<C>(
-    node: AstNodeRef<C>,
-) -> impl Iterator<Item = (AstNodeId, &ItemWithPos<C>)> 
-where C: AssemblerCpuTrait
+fn iter_values_recursive(node: AstNodeRef
+) -> impl Iterator<Item = (AstNodeId, &ItemWithPos)> 
 
 {
     let mut i = get_ids_recursive(node).into_iter();
@@ -254,17 +226,15 @@ where C: AssemblerCpuTrait
     })
 }
 
-impl<'a, C> AstCtx<'a, C>
-where
-    C: AssemblerCpuTrait,
+impl<'a> AstCtx<'a>
 {
-    pub fn new(tree: Ast<C>, ctx: &'a mut Assembler<C>) -> Result<Self, UserError> {
+    pub fn new(tree: Ast, ctx: &'a mut Assembler) -> Result<Self, UserError> {
         let mut ret = Self::base(tree, ctx);
         ret.process()?;
         Ok(ret)
     }
 
-    pub fn from_nodes(ctx: &'a mut Assembler<C>, node: &Node<C::NodeKind>) -> Result<Self, UserError> {
+    pub fn from_nodes(ctx: &'a mut Assembler, node: &Node) -> Result<Self, UserError> {
         let tree = Ast::from_node(node);
         let r = Self::new(tree, ctx)?;
         Ok(r)
@@ -287,11 +257,11 @@ where
         })
     }
 
-    pub fn get_tree(&self) -> &AstTree<C> {
+    pub fn get_tree(&self) -> &AstTree {
         self.ast_tree.as_ref()
     }
 
-    pub fn get_tree_mut(&mut self) -> &mut AstTree<C> {
+    pub fn get_tree_mut(&mut self) -> &mut AstTree {
         self.ast_tree.as_mut()
     }
 
@@ -384,7 +354,7 @@ where
         Ok(())
     }
 
-    fn base(tree: Ast<C>, ctx: &'a mut Assembler<C>) -> Self {
+    fn base(tree: Ast, ctx: &'a mut Assembler) -> Self {
         Self {
             ast_tree: tree,
             ctx,
@@ -912,9 +882,7 @@ where
 
 ////////////////////////////////////////////////////////////////////////////////
 // Node management stuff
-impl<'a, C> AstCtx<'a, C>
-where
-    C: AssemblerCpuTrait,
+impl<'a> AstCtx<'a>
 {
     fn set_symbol(
         &mut self,
@@ -981,9 +949,7 @@ impl GetPriority for Term {
     }
 }
 
-pub fn to_priority<C>(i: &AstNodeKind<C>) -> Option<usize>
-where
-    C: std::fmt::Debug + Clone + PartialEq,
+pub fn to_priority(i: &AstNodeKind) -> Option<usize>
 {
     use AstNodeKind::*;
     match i {
@@ -997,11 +963,9 @@ where
     }
 }
 
-impl<C> From<AstNodeRef<'_, C>> for Term
-where
-    C: AssemblerCpuTrait,
+impl From<AstNodeRef<'_>> for Term
 {
-    fn from(node: AstNodeRef<C>) -> Self {
+    fn from(node: AstNodeRef) -> Self {
         Self {
             node: node.id(),
             priority: to_priority(&node.value().item),

@@ -47,7 +47,7 @@ pub struct Opts {
     pub max_errors: usize,
     pub no_async: bool,
     pub bin_references: Vec<BinReference>,
-    pub cpu: crate::cli::CpuKind,
+    pub cpu: crate::cpukind::CpuKind,
 
     pub verbose_errors: bool,
 

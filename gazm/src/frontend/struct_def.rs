@@ -2,7 +2,6 @@
 use crate::frontend::LabelDefinition;
 use std::str::FromStr;
 
-use crate::assembler::AssemblerCpuTrait;
 
 use super::{ AstNodeKind,ParsedFrom };
 
@@ -32,9 +31,7 @@ impl FromStr for StructMemberType {
 }
 
 impl StructMemberType {
-    pub fn to_size_item<C>(&self) -> AstNodeKind<C::NodeKind>
-    where
-        C: AssemblerCpuTrait,
+    pub fn to_size_item(&self) -> AstNodeKind
     {
         use AstNodeKind::*;
         use ParsedFrom::Expression;

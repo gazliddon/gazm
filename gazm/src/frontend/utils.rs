@@ -1,9 +1,8 @@
 #![deny(unused_imports)]
 
-use crate::assembler::AssemblerCpuTrait;
 
 use super::{
-    FrontEndError, FrontEndErrorKind, GazmParser, AstNodeKind, Node, PResult, ParsedFrom, TSpan,
+    AstNodeKind, FrontEndError, FrontEndErrorKind, GazmParser, Node, PResult, ParsedFrom, TSpan,
     TokenKind::*,
 };
 
@@ -13,47 +12,34 @@ use unraveler::{
     map, match_span as ms, tag, wrapped_cut, Collection, ParseErrorKind, Parser, Severity,
 };
 
-pub fn from_item_tspan<C>(item: AstNodeKind<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind>
+pub fn from_item_tspan<K>(item: K, sp: TSpan) -> Node
 where
-    C: AssemblerCpuTrait,
+    K: Into<AstNodeKind>,
 {
-    from_item_pos::<C, _>(item, to_pos(sp))
+    from_item_pos(item, to_pos(sp))
 }
 
-pub fn from_item_pos<C, P: Into<Position>>(_item: AstNodeKind<C::NodeKind>, _p: P) -> Node<C::NodeKind>
-where
-    C: AssemblerCpuTrait,
-{
-    let n: Node<C::NodeKind> = Node::new(_item, _p.into());
+pub fn from_item_pos<K: Into<AstNodeKind>,P: Into<Position>>(_item: K, _p: P) -> Node {
+    let n: Node = Node::new(_item.into(), _p.into());
     n
 }
-pub fn from_item_kids_tspan<C>(
-    item: AstNodeKind<C::NodeKind>,
-    kids: &[Node<C::NodeKind>],
-    sp: TSpan,
-) -> Node<C::NodeKind>
+pub fn from_item_kids_tspan<K>(item: K, kids: &[Node], sp: TSpan) -> Node 
 where
-    C: AssemblerCpuTrait,
+    K: Into<AstNodeKind>,
 {
-    Node::new_with_children(item, kids, to_pos(sp))
+    Node::new_with_children(item.into(), kids, to_pos(sp))
 }
 
-pub fn from_item_kid_tspan<C>(
-    item: AstNodeKind<C::NodeKind>,
-    kid: Node<C::NodeKind>,
-    sp: TSpan,
-) -> Node<C::NodeKind>
+pub fn from_item_kid_tspan<K>(item: K, kid: Node, sp: TSpan) -> Node 
 where
-    C: AssemblerCpuTrait,
+    K: Into<AstNodeKind>,
+
 {
-    Node::new_with_children(item, &[kid], to_pos(sp))
+    Node::new_with_children(item.into(), &[kid], to_pos(sp))
 }
 
-impl<C> GazmParser<C>
-where
-    C: AssemblerCpuTrait,
-{
-    pub fn mk_pc_equate(node: &Node<C::NodeKind>) -> Node<C::NodeKind> {
+impl GazmParser {
+    pub fn mk_pc_equate(node: &Node) -> Node {
         use AstNodeKind::{AssignmentFromPc, Label, LocalAssignmentFromPc, LocalLabel};
         let pos = node.ctx;
 
@@ -64,34 +50,34 @@ where
         }
     }
 
-    pub fn block(items: ThinVec<Node<C::NodeKind>>, sp: TSpan) -> Node<C::NodeKind> {
-        from_item_tspan::<C>(AstNodeKind::Block, sp).with_children_vec(items)
+    pub fn block(items: ThinVec<Node>, sp: TSpan) -> Node {
+        from_item_tspan(AstNodeKind::Block, sp).with_children_vec(items)
     }
 
-    pub fn from_num_tspan(num: i64, sp: TSpan) -> Node<C::NodeKind> {
-        from_item_tspan::<C>(AstNodeKind::from_number(num, ParsedFrom::Expression), sp)
+    pub fn from_num_tspan(num: i64, sp: TSpan) -> Node {
+        from_item_tspan(AstNodeKind::from_number(num, ParsedFrom::Expression), sp)
     }
 
-    pub fn with_tspan(n: Node<C::NodeKind>, sp: TSpan) -> Node<C::NodeKind> {
+    pub fn with_tspan(n: Node, sp: TSpan) -> Node {
         let mut ret = n.clone();
         ret.ctx = to_pos(sp);
         ret
     }
 
-    pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Node<C::NodeKind> {
-        let i = AstNodeKind::<C::NodeKind>::Num(n, ParsedFrom::Expression);
-        let n: Node<C::NodeKind> = Node::new(i, pos.into());
+    pub fn from_number_pos<P: Into<Position>>(n: i64, pos: P) -> Node {
+        let i = AstNodeKind::Num(n, ParsedFrom::Expression);
+        let n: Node = Node::new(i, pos.into());
         n
     }
 
-    pub fn with_pos(self, n: Node<C::NodeKind>, sp: Position) -> Node<C::NodeKind> {
+    pub fn with_pos(self, n: Node, sp: Position) -> Node {
         let mut ret = n;
         ret.ctx = sp;
         ret
     }
 }
 
-// impl<C> BaseNode<Item<C::NodeKind>, Position>
+// impl BaseNode<Item, Position>
 // where
 //     C: AssemblerCpuTrait,
 // {
@@ -99,14 +85,14 @@ where
 //         Self::from_item_tspan(Item::Block, sp).with_children_vec(items)
 //     }
 
-//     pub fn from_item_tspan(item: Item<C::NodeKind>, sp: TSpan) -> Self {
+//     pub fn from_item_tspan(item: Item, sp: TSpan) -> Self {
 //         Self::from_item_pos(item, to_pos(sp))
 //     }
 
-//     pub fn from_item_kids_tspan(item: Item<C::NodeKind>, kids: &[Self], sp: TSpan) -> Self {
+//     pub fn from_item_kids_tspan(item: Item, kids: &[Self], sp: TSpan) -> Self {
 //         Self::new_with_children(item, kids, to_pos(sp))
 //     }
-//     pub fn from_item_kid_tspan(item: Item<C::NodeKind>, kid: Self, sp: TSpan) -> Self {
+//     pub fn from_item_kid_tspan(item: Item, kid: Self, sp: TSpan) -> Self {
 //         Self::new_with_children(item, &[kid], to_pos(sp))
 //     }
 
@@ -142,10 +128,7 @@ where
     x.into_iter().chain(xxs.1).collect()
 }
 
-pub fn get_items<C>(node: &Node<C>) -> (AstNodeKind<C>, ThinVec<AstNodeKind<C>>)
-where
-    C: std::fmt::Debug + Clone + PartialEq,
-{
+pub fn get_items(node: &Node) -> (AstNodeKind, ThinVec<AstNodeKind>) {
     let items = node.children.iter().map(|c| c.item.clone()).collect();
     (node.item.clone(), items)
 }

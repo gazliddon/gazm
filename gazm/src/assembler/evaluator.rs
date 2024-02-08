@@ -7,25 +7,22 @@ use crate::{
     semantic::{eval, Ast, AstNodeId, AstNodeRef, EvalErrorEnum},
 };
 
-use super::{Assembler, AssemblerCpuTrait};
+use super::Assembler;
 
-impl<C> Assembler<C>
-where
-    C: AssemblerCpuTrait,
-{
+impl Assembler {
     /// Evaluate all macro args
     /// if all arguments were evaluated returns true
     pub fn eval_macro_args_node(
         &mut self,
         scope_id: u64,
         caller_id: AstNodeId,
-        tree: &Ast<C>,
+        tree: &Ast,
     ) -> bool {
         let node = tree.as_ref().get(caller_id).unwrap();
         self.eval_macro_args(scope_id, node)
     }
 
-    pub fn eval_macro_args(&mut self, eval_scope_id: u64, caller_node: AstNodeRef<C>) -> bool {
+    pub fn eval_macro_args(&mut self, eval_scope_id: u64, caller_node: AstNodeRef) -> bool {
         if let MacroCallProcessed {
             params_vec_of_id, ..
         } = &caller_node.value().item
@@ -72,11 +69,11 @@ where
         }
     }
 
-    pub fn get_node_children(&self, node: AstNodeRef<C>) -> Vec<AstNodeId> {
+    pub fn get_node_children(&self, node: AstNodeRef) -> Vec<AstNodeId> {
         node.children().map(|n| n.id()).collect()
     }
 
-    pub fn eval_node(&self, node: AstNodeRef<C>, current_scope_id: u64) -> GResult<i64> {
+    pub fn eval_node(&self, node: AstNodeRef, current_scope_id: u64) -> GResult<i64> {
         let info = self.get_source_info(&node.value().pos).unwrap();
         let reader = self.asm_out.symbols.get_reader(current_scope_id);
 
@@ -94,9 +91,21 @@ where
         })
     }
 
+    pub fn eval_first_arg_n<'a>(
+        &self,
+        node: AstNodeRef<'a>,
+        current_scope_id: u64,
+    ) -> GResult<(i64, AstNodeRef<'a>)> {
+        let c = node
+            .first_child()
+            .ok_or_else(|| self.make_user_error("Missing argument", node, true))?;
+        let v = self.eval_node(c, current_scope_id)?;
+        Ok((v, c))
+    }
+
     pub fn eval_first_arg(
         &self,
-        node: AstNodeRef<C>,
+        node: AstNodeRef,
         current_scope_id: u64,
     ) -> GResult<(i64, AstNodeId)> {
         let c = node
@@ -106,17 +115,13 @@ where
         Ok((v, c.id()))
     }
 
-    pub fn eval_two_args(&self, node: AstNodeRef<C>, current_scope_id: u64) -> GResult<(i64, i64)> {
+    pub fn eval_two_args(&self, node: AstNodeRef, current_scope_id: u64) -> GResult<(i64, i64)> {
         let args = self.eval_n_args(node, 2, current_scope_id)?;
         assert!(args.len() == 2);
         Ok((args[0], args[1]))
     }
 
-    pub fn eval_all_args(
-        &self,
-        node: AstNodeRef<C>,
-        current_scope_id: u64,
-    ) -> GResult<Vec<i64>> {
+    pub fn eval_all_args(&self, node: AstNodeRef, current_scope_id: u64) -> GResult<Vec<i64>> {
         node.children()
             .map(|node| self.eval_node(node, current_scope_id))
             .collect()
@@ -124,7 +129,7 @@ where
 
     pub fn eval_n_args(
         &self,
-        node: AstNodeRef<C>,
+        node: AstNodeRef,
         n: usize,
         current_scope_id: u64,
     ) -> GResult<Vec<i64>> {

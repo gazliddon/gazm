@@ -1,11 +1,14 @@
 #![deny(unused_imports)]
-use crate::cpu6809::{from_item_tspan, parse_expr, Node, NodeKind, };
-use crate::frontend::{err_fatal, get_text, CpuSpecific, PResult, TSpan, TokenKind};
+use crate::cpu6809::frontend::NodeKind6809;
+use crate::frontend::{
+    err_fatal, from_item_tspan, get_text, parse_expr, AstNodeKind, CpuSpecific, Node, PResult,
+    TSpan, TokenKind,
+};
 
 use super::{
     parse_indexed, parse_opcode_reg_pair, parse_reg_set_operand, AddrModeParseType,
     AddrModeParseType::Inherent as ParseInherent,
-    Cpu6809AssemblyErrorKind, NodeKind6809,
+    Cpu6809AssemblyErrorKind,
     NodeKind6809::{OpCode, Operand, OperandIndexed},
 };
 
@@ -24,7 +27,7 @@ fn parse_immediate(_input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     use TokenKind::Hash;
     let (rest, (sp, matched)) = ms(preceded(Hash, parse_expr))(_input)?;
-    let node = from_item_tspan(Immediate.into(), sp).with_child(matched);
+    let node = from_item_tspan(Immediate, sp).with_child(matched);
     Ok((rest, node))
 }
 
@@ -32,7 +35,7 @@ fn parse_force_dp(_input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     use TokenKind::LessThan;
     let (rest, (sp, matched)) = ms(preceded(LessThan, parse_expr))(_input)?;
-    let node = from_item_tspan(Direct.into(), sp).with_child(matched);
+    let node = from_item_tspan(Direct, sp).with_child(matched);
     Ok((rest, node))
 }
 
@@ -40,14 +43,14 @@ fn parse_force_extended(_input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     use TokenKind::GreaterThan;
     let (rest, (sp, matched)) = ms(preceded(GreaterThan, parse_expr))(_input)?;
-    let node = from_item_tspan(Extended(true).into(), sp).with_child(matched);
+    let node = from_item_tspan(Extended(true), sp).with_child(matched);
     Ok((rest, node))
 }
 
 fn parse_extended(_input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     let (rest, (sp, matched)) = ms(parse_expr)(_input)?;
-    let node = from_item_tspan(Extended(false).into(), sp).with_child(matched);
+    let node = from_item_tspan(Extended(false), sp).with_child(matched);
     Ok((rest, node))
 }
 
@@ -75,8 +78,8 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     }?;
 
     let amode = match arg.item {
-        NodeKind::TargetSpecific(CpuSpecific::Cpu6809(Operand(amode))) => amode,
-        NodeKind::TargetSpecific(CpuSpecific::Cpu6809(OperandIndexed(amode, indirect))) => {
+        AstNodeKind::TargetSpecific(CpuSpecific::Cpu6809(Operand(amode))) => amode,
+        AstNodeKind::TargetSpecific(CpuSpecific::Cpu6809(OperandIndexed(amode, indirect))) => {
             AddrModeParseType::Indexed(amode, indirect)
         }
         _ => return err_fatal(sp, Cpu6809AssemblyErrorKind::AddrModeUnsupported),
@@ -84,7 +87,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
 
     if let Some(instruction) = get_instruction(amode, info) {
         let item = OpCode(text.to_string(), Box::new(instruction.clone()), amode);
-        let node = from_item_tspan(item.into(), sp).take_others_children(arg);
+        let node = from_item_tspan(item, sp).take_others_children(arg);
         Ok((rest, node))
     } else {
         err_fatal(sp, Cpu6809AssemblyErrorKind::ThisAddrModeUnsupported(amode))
@@ -97,7 +100,7 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
 
     if let Some(ins) = ins.get_boxed_instruction(AddrModeEnum::Inherent) {
         let oc = NodeKind6809::OpCode(text, ins, ParseInherent);
-        let node = from_item_tspan(oc.into(), sp);
+        let node = from_item_tspan(oc, sp);
         Ok((rest, node))
     } else {
         err_fatal(sp, OnlySupports(AddrModeParseType::Inherent))
@@ -150,7 +153,6 @@ fn get_instruction(amode: AddrModeParseType, info: &InstructionInfo) -> Option<&
 #[allow(unused_imports)]
 mod test {
     use crate::cpu6809::{
-        frontend::NodeKind6809::{self, OpCode},
         frontend::{AddrModeParseType, IndexParseType},
         Asm6809,
     };
@@ -160,8 +162,6 @@ mod test {
         ParsedFrom,
     };
     use crate::opts::Opts;
-
-    type GParser = GazmParser<Asm6809>;
 
     use emu6809::cpu::RegEnum;
 

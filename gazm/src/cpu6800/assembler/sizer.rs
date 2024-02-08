@@ -2,17 +2,33 @@ use emu6800::cpu::ISA_DBASE;
 use emu6800::cpu_core::{AddrModeEnum, DBASE};
 
 use crate::debug_mess;
-use crate::{error::GResult, semantic::AstNodeId};
+use crate::{
+    assembler::{Assembler, Sizer},
+    error::GResult,
+    semantic::AstNodeId,
+};
 
-use crate::cpu6800::{frontend::NodeKind6800, Assembler, Sizer};
+use crate::cpu6800::frontend::NodeKind6800;
 
-pub fn size_node_internal(
+impl Assembler {
+    pub fn size_node_6800(
+        &mut self,
+        sizer: &mut Sizer,
+        id: AstNodeId,
+        node_kind: NodeKind6800,
+        current_scope_id: u64,
+    ) -> GResult<()> {
+        size_node_internal(sizer, self, id, node_kind, current_scope_id)
+    }
+}
+
+fn size_node_internal(
     sizer: &mut Sizer,
     asm: &mut Assembler,
     id: AstNodeId,
     node_kind: NodeKind6800,
+    current_scope_id: u64,
 ) -> GResult<()> {
-    let current_scope_id = sizer.scopes.scope();
     let node = sizer.get_node(id);
 
     use NodeKind6800::*;
@@ -49,7 +65,7 @@ pub fn size_node_internal(
 
                             let new_ins = new_ins.clone();
                             size = new_ins.size;
-                            let new_item = OpCode(text.clone(), new_ins);
+                            let new_item = OpCode(text.clone(), new_ins.into());
 
                             asm.add_fixup(id, new_item, current_scope_id);
                         }

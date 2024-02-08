@@ -4,7 +4,6 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::{
-    assembler::AssemblerCpuTrait,
     error::AstError,
     frontend::{AstNodeKind, LabelDefinition, ParsedFrom},
     gazmsymbols::{SymbolError, SymbolTreeReader},
@@ -41,9 +40,7 @@ pub struct EvalError {
 }
 
 impl EvalError {
-    pub fn new<C>(source: EvalErrorEnum, node: AstNodeRef<C>) -> Self
-    where
-        C: AssemblerCpuTrait,
+    pub fn new(source: EvalErrorEnum, node: AstNodeRef) -> Self
     {
         Self {
             node: node.id(),
@@ -65,9 +62,7 @@ impl From<EvalError> for AstError {
     }
 }
 
-impl<C> GetPriority for AstNodeKind<C>
-where
-    C: std::fmt::Debug + Clone + PartialEq,
+impl GetPriority for AstNodeKind
 {
     fn priority(&self) -> Option<usize> {
         use AstNodeKind::*;
@@ -94,12 +89,10 @@ where
 ///  - PostFixExpr containing only labels and numbers
 ///  - UnaryTerm
 ///  - Must eval to a number
-fn eval_internal<C>(
+fn eval_internal(
     symbols: &SymbolTreeReader,
-    n: AstNodeRef<C>,
-) -> Result<AstNodeKind<C::NodeKind>, EvalError>
-where
-    C: AssemblerCpuTrait,
+    n: AstNodeRef,
+) -> Result<AstNodeKind, EvalError>
 {
     use AstNodeKind::*;
 
@@ -170,17 +163,15 @@ where
 }
 
 /// Evaluates a postfix expression
-fn eval_postfix<C>(
+fn eval_postfix(
     symbols: &SymbolTreeReader,
-    n: AstNodeRef<C>,
-) -> Result<AstNodeKind<C::NodeKind>, EvalError>
-where
-    C: AssemblerCpuTrait,
+    n: AstNodeRef,
+) -> Result<AstNodeKind, EvalError>
 {
     use AstNodeKind::*;
 
-    let mut s: Stack<AstNodeKind<C::NodeKind>> = Stack::with_capacity(1024);
-    let mut items: Vec<(AstNodeRef<C>, AstNodeKind<C::NodeKind>)> = Vec::with_capacity(1024);
+    let mut s: Stack<AstNodeKind> = Stack::with_capacity(1024);
+    let mut items: Vec<(AstNodeRef, AstNodeKind)> = Vec::with_capacity(1024);
 
     {
         for c in n.children() {
@@ -225,9 +216,7 @@ where
     s.pop().ok_or(EvalError::new(EvalErrorEnum::CantPopTop, n))
 }
 
-pub fn eval<C>(symbols: &SymbolTreeReader, n: AstNodeRef<C>) -> Result<i64, EvalError>
-where
-    C: AssemblerCpuTrait,
+pub fn eval(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError>
 {
     let ret = eval_internal(symbols, n)?;
     Ok(ret.unrwap_number().unwrap())

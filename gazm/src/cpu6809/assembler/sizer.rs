@@ -4,14 +4,13 @@ use crate::cpu6809::frontend::{
     get_opcode_info, AddrModeParseType, IndexParseType,
     NodeKind6809::{self, OpCode},
 };
-use crate::cpu6809::{Assembler, Sizer};
+
 
 use emu6809::isa::{AddrModeEnum, Instruction};
 
 use crate::{
-    assembler::{ByteSize, ByteSizes},
+    assembler::{ByteSize, ByteSizes, Assembler,Sizer},
     error::GResult,
-    // frontend::AstNodeKind::TargetSpecific,
     semantic::AstNodeId,
 };
 
@@ -140,7 +139,7 @@ pub fn size_node_internal(
 
                     let mut size = ins.size;
 
-                    let dp_info = get_opcode_info(&ins)
+                    let dp_info = get_opcode_info(ins)
                         .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
                         .and_then(|ins| asm.asm_out.direct_page.map(|dp| (ins, dp)));
 

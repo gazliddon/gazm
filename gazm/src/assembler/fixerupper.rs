@@ -3,7 +3,6 @@ use crate::{frontend::AstNodeKind, semantic::AstNodeId};
 
 use std::collections::HashMap;
 
-use super::AssemblerCpuTrait;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct FixKey {
@@ -11,36 +10,23 @@ pub struct FixKey {
     id: AstNodeId,
 }
 
-#[derive(Debug)]
-pub struct FixerUpper<C>
-where
-    C: AssemblerCpuTrait,
+#[derive(Debug, Default)]
+pub struct FixerUpper
 {
-    pub fixups: HashMap<FixKey, AstNodeKind<C::NodeKind>>,
+    pub fixups: HashMap<FixKey, AstNodeKind>,
 }
 
-impl<C> Default for FixerUpper<C>
-where
-    C: AssemblerCpuTrait,
-{
-    fn default() -> Self {
-        Self { fixups: Default::default() }
-    }
-}
-
-impl<C> FixerUpper<C>
-where
-    C: AssemblerCpuTrait,
+impl FixerUpper
 {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn add_fixup(&mut self, scope: u64, id: AstNodeId, v: AstNodeKind<C::NodeKind>) {
+    pub fn add_fixup(&mut self, scope: u64, id: AstNodeId, v: AstNodeKind) {
         let k = FixKey { id, scope };
         self.fixups.insert(k, v);
     }
-    pub fn get_fixup(&self, scope: u64, id: AstNodeId) -> Option<&AstNodeKind<C::NodeKind>> {
+    pub fn get_fixup(&self, scope: u64, id: AstNodeId) -> Option<&AstNodeKind> {
         self.fixups.get(&FixKey { scope, id })
     }
 
@@ -48,8 +34,8 @@ where
         &self,
         scope: u64,
         id: AstNodeId,
-        i: &AstNodeKind<C::NodeKind>,
-    ) -> AstNodeKind<C::NodeKind> {
+        i: &AstNodeKind,
+    ) -> AstNodeKind {
         self.get_fixup(scope, id).unwrap_or(i).clone()
     }
 }

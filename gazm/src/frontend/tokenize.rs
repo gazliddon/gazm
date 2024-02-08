@@ -1,9 +1,11 @@
 #![deny(unused_imports)]
 
-use super::{from_item_kids_tspan, FrontEndError, FrontEndErrorKind, GazmParser, AstNodeKind, Node};
+use super::{
+    from_item_kids_tspan, AstNodeKind, FrontEndError, FrontEndErrorKind, GazmParser, Node,
+};
 
 use crate::{
-    assembler::{Assembler, AssemblerCpuTrait},
+    assembler::Assembler,
     debug_mess,
     error::{ErrorCollectorTrait, NewErrorCollector},
     opts::Opts,
@@ -52,19 +54,13 @@ impl TokenizeRequest {
 }
 
 #[derive(Debug, Clone)]
-pub struct TokenizeResult<ASM>
-where
-    ASM: AssemblerCpuTrait,
-{
-    pub node: Node<ASM::NodeKind>,
+pub struct TokenizeResult {
+    pub node: Node,
     pub request: TokenizeRequest,
     pub errors: NewErrorCollector<FrontEndError>,
 }
 
-impl<ASM> TokenizeResult<ASM>
-where
-    ASM: AssemblerCpuTrait,
-{
+impl TokenizeResult {
     pub fn has_errors(&self) -> bool {
         self.errors.has_errors()
     }
@@ -83,14 +79,11 @@ where
     }
 }
 
-impl<C> TryInto<TokenizeResult<C>> for TokenizeRequest
-where
-    C: AssemblerCpuTrait,
-{
+impl TryInto<TokenizeResult> for TokenizeRequest {
     type Error = FrontEndError;
 
-    fn try_into(mut self) -> Result<TokenizeResult<C>, Self::Error> {
-        let (node, errors) = self.tokenize::<C>();
+    fn try_into(mut self) -> Result<TokenizeResult, Self::Error> {
+        let (node, errors) = self.tokenize();
         Ok(TokenizeResult {
             node,
             errors,
@@ -100,8 +93,8 @@ where
 }
 
 impl TokenizeRequest {
-    pub fn to_result<C: AssemblerCpuTrait>(mut self) -> TokenizeResult<C> {
-        let (node, errors) = self.tokenize::<C>();
+    pub fn to_result(mut self) -> TokenizeResult {
+        let (node, errors) = self.tokenize();
         TokenizeResult {
             node,
             errors,
@@ -111,18 +104,16 @@ impl TokenizeRequest {
 }
 
 impl TokenizeRequest {
-    pub fn tokenize<ASM: AssemblerCpuTrait>(
-        &mut self,
-    ) -> (Node<ASM::NodeKind>, NewErrorCollector<FrontEndError>) {
+    pub fn tokenize(&mut self) -> (Node, NewErrorCollector<FrontEndError>) {
         use crate::frontend::{make_tspan, to_tokens_no_comment};
-        let tokens = to_tokens_no_comment::<ASM>(&self.source_file);
+        let tokens = to_tokens_no_comment(&self.source_file);
         let mut span = make_tspan(&tokens, &self.source_file, &self.opts);
 
         let mut final_nodes = vec![];
         let mut errors: NewErrorCollector<FrontEndError> =
             NewErrorCollector::new(self.opts.max_errors);
 
-        let result = GazmParser::<ASM>::parse_all_with_resume(span);
+        let result = GazmParser::parse_all_with_resume(span);
 
         match result {
             Err(e) => errors.add_errors(e),
@@ -134,7 +125,7 @@ impl TokenizeRequest {
         }
 
         let item = AstNodeKind::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
-        let node = from_item_kids_tspan::<ASM>(item, &final_nodes, span);
+        let node = from_item_kids_tspan(item, &final_nodes, span);
         (node, errors)
     }
 }
@@ -188,18 +179,12 @@ impl IncludeStack {
     }
 }
 ////////////////////////////////////////////////////////////////////////////////
-pub enum GetTokensResult<ASM>
-where
-    ASM: AssemblerCpuTrait,
-{
-    Tokens(Box<TokenizeResult<ASM>>),
+pub enum GetTokensResult {
+    Tokens(Box<TokenizeResult>),
     Request(Box<TokenizeRequest>),
 }
 
-impl<ASM> Assembler<ASM>
-where
-    ASM: AssemblerCpuTrait,
-{
+impl Assembler {
     fn get_full_paths_with_parent(
         &self,
         paths: &[(Position, PathBuf)],
@@ -228,7 +213,7 @@ where
         requested_file: P,
         parent: Option<PathBuf>,
         opt_pos: Option<Position>,
-    ) -> Result<GetTokensResult<ASM>, FrontEndErrorKind> {
+    ) -> Result<GetTokensResult, FrontEndErrorKind> {
         let expanded_file = self.get_full_path(&requested_file)?;
 
         if let Some(tokes) = self.get_tokens_from_full_path(&expanded_file) {
@@ -250,21 +235,13 @@ where
     }
 }
 
-pub fn tokenize_no_async<ASM>(
-    ctx: &mut Assembler<ASM>,
-) -> Result<(), NewErrorCollector<FrontEndError>>
-where
-    ASM: AssemblerCpuTrait,
-{
+pub fn tokenize_no_async(ctx: &mut Assembler) -> Result<(), NewErrorCollector<FrontEndError>> {
     tokenize_project(ctx, |to_tokenize| {
         to_tokenize.into_iter().map(|req| req.try_into()).collect()
     })
 }
 
-pub fn tokenize_async<ASM>(ctx: &mut Assembler<ASM>) -> Result<(), NewErrorCollector<FrontEndError>>
-where
-    ASM: AssemblerCpuTrait,
-{
+pub fn tokenize_async(ctx: &mut Assembler) -> Result<(), NewErrorCollector<FrontEndError>> {
     tokenize_project(ctx, |to_tokenize| {
         use rayon::prelude::*;
         to_tokenize
@@ -277,13 +254,12 @@ where
 /// Tokenize the entire project
 /// f = handler for tokenize request
 ///     allows me to pass async or synchronous versions of this routine
-fn tokenize_project<ASM, F>(
-    ctx: &mut Assembler<ASM>,
+fn tokenize_project<F>(
+    ctx: &mut Assembler,
     tokenize_fn: F,
 ) -> Result<(), NewErrorCollector<FrontEndError>>
 where
-    F: Fn(Vec<TokenizeRequest>) -> Vec<Result<TokenizeResult<ASM>, FrontEndError>>,
-    ASM: AssemblerCpuTrait,
+    F: Fn(Vec<TokenizeRequest>) -> Vec<Result<TokenizeResult, FrontEndError>>,
 {
     let mut errors: NewErrorCollector<FrontEndError> = NewErrorCollector::new(ctx.opts.max_errors);
 

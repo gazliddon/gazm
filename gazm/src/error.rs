@@ -94,7 +94,7 @@ pub struct AstError {
 }
 
 impl AstError {
-    pub fn from_node<S,C: AssemblerCpuTrait>(msg: S, n: AstNodeRef<C>) -> Self
+    pub fn from_node<S,C: AssemblerCpuTrait>(msg: S, n: AstNodeRef) -> Self
     where
         S: Into<String>,
         C: AssemblerCpuTrait

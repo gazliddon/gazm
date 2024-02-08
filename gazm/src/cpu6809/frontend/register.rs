@@ -6,7 +6,9 @@ use unraveler::{cut, match_span as ms, sep_list, sep_pair};
 
 use crate::frontend::{
     err_error, err_fatal, error, get_label_string, PResult, TSpan,
+    Node,
     TokenKind::*,
+    from_item_tspan,
 };
 
 use crate::cpu6809::{
@@ -14,9 +16,7 @@ use crate::cpu6809::{
         AddrModeParseType,
         NodeKind6809::{Operand, RegisterSet},
     },
-    Node,
     NodeKind,
-    from_item_tspan,
 };
 
 pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, RegEnum)> {
@@ -28,7 +28,7 @@ pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, R
 pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(parse_reg_set)(input)?;
     let matched =
-        from_item_tspan(Operand(AddrModeParseType::RegisterSet).into(), sp)
+        from_item_tspan(Operand(AddrModeParseType::RegisterSet), sp)
             .with_child(matched);
     Ok((rest, matched))
 }
@@ -45,7 +45,7 @@ pub fn parse_reg_set(input: TSpan) -> PResult<Node> {
 pub fn parse_opcode_reg_pair(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::RegisterPair;
     let (rest, (sp, (a, b))) = ms(sep_pair(get_register, Comma, cut(get_register)))(input)?;
-    let node = from_item_tspan(Operand(RegisterPair(a, b)).into(), sp);
+    let node = from_item_tspan(Operand(RegisterPair(a, b)), sp);
     Ok((rest, node))
 }
 

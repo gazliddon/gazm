@@ -2,7 +2,6 @@
 
 use unraveler::{many0, match_span as ms, pair, preceded, sep_list0, tuple};
 
-use crate::assembler::AssemblerCpuTrait;
 
 use super::{
     AstNodeKind::{MacroCall, MacroDef},
@@ -10,19 +9,17 @@ use super::{
     *,
 };
 
-impl<C> GazmParser<C>
-where
-    C: AssemblerCpuTrait,
+impl GazmParser
 {
-    pub fn parse_macro_call(input: TSpan) -> PResult<Node<C::NodeKind>> {
+    pub fn parse_macro_call(input: TSpan) -> PResult<Node> {
         let (rest, (sp, (label, args))) =
             ms(pair(get_label_string, parse_bracketed(Self::parse_expr_list0)))(input)?;
 
-        let node = from_item_kids_tspan::<C>(MacroCall(label), &args, sp);
+        let node = from_item_kids_tspan(MacroCall(label), &args, sp);
         Ok((rest, node))
     }
 
-    pub fn parse_macro_def(input: TSpan) -> PResult<Node<C::NodeKind>> {
+    pub fn parse_macro_def(input: TSpan) -> PResult<Node> {
         let (rest, (sp, (label, args, body))) = ms(preceded(
             CommandKind::Macro,
             tuple((
@@ -32,9 +29,9 @@ where
             )),
         ))(input)?;
 
-        let body: Vec<Node<C::NodeKind>> = body.into_iter().flatten().collect();
+        let body: Vec<Node> = body.into_iter().flatten().collect();
 
-        let node = from_item_kids_tspan::<C>(MacroDef(label, args.into()), &body, sp);
+        let node = from_item_kids_tspan(MacroDef(label, args.into()), &body, sp);
         Ok((rest, node))
     }
 }

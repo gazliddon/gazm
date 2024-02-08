@@ -1,15 +1,15 @@
 #![forbid(unused_imports)]
-use grl_sources::Position;
-use std::{fmt::Display, path::PathBuf, };
-use thin_vec::ThinVec;
 use crate::frontend::LabelDefinition;
+use grl_sources::Position;
+use std::{fmt::Display, path::PathBuf};
+use thin_vec::ThinVec;
 
 use crate::{
-     cpu6800::frontend::NodeKind6800, cpu6809::frontend::NodeKind6809,
-    error::ParseError, gazmsymbols::SymbolScopeId, semantic::AstNodeId,
+    cpu6800::frontend::NodeKind6800, cpu6809::frontend::NodeKind6809, error::ParseError,
+    gazmsymbols::SymbolScopeId, semantic::AstNodeId,
 };
 
-#[derive(Debug, PartialEq, Clone, )]
+#[derive(Debug, PartialEq, Clone)]
 pub enum CpuSpecific {
     Cpu6809(NodeKind6809),
     Cpu6800(NodeKind6800),
@@ -18,7 +18,7 @@ pub enum CpuSpecific {
 use super::{BaseNode, CtxTrait};
 
 impl CtxTrait for Position {}
-pub type Node<C> = BaseNode<AstNodeKind<C>, Position>;
+pub type Node = BaseNode<AstNodeKind, Position>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ParsedFrom {
@@ -31,11 +31,7 @@ pub enum ParsedFrom {
 
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
-pub enum AstNodeKind<C>
-where
-    C: PartialEq + Clone + std::fmt::Debug,
-{
-    XCpuSpecific(C),
+pub enum AstNodeKind {
     TargetSpecific(CpuSpecific),
     Import,
     Doc(String),
@@ -119,10 +115,7 @@ where
     Block,
 }
 
-impl<C> AstNodeKind<C>
-where
-    C: std::fmt::Debug + Clone + PartialEq,
-{
+impl AstNodeKind {
     pub fn zero() -> Self {
         AstNodeKind::Num(0, ParsedFrom::Expression)
     }

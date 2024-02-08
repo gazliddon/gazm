@@ -1,90 +1,106 @@
 #[deny(unused_imports)]
 use crate::{
-    assembler::{self, AssemblerCpuTrait},
+    assembler::{Assembler, AssemblerCpuTrait,  Sizer},
     error::GResult,
-    frontend::{self, PResult, TSpan},
-    semantic::AstNodeId,
+    frontend::{self, PResult},
+    semantic::{ AstNodeRef, AstNodeId },
 };
 
-use crate::{cpu6809::{
-    assembler::{compile_node, size_node_internal},
-    frontend::{lex_identifier, parse_commands, parse_multi_opcode_vec, NodeKind6809},
-}, frontend::CpuSpecific};
+use crate::{
+    cpu6809::{
+        assembler::{compile_node, size_node_internal},
+        frontend::{ lex_identifier, },
+    },
+    frontend::CpuSpecific,
+};
 
-pub type Node = frontend::Node<NodeKind6809>;
-pub type NodeKind = frontend::AstNodeKind<NodeKind6809>;
-pub type Compiler<'a> = assembler::Compiler<'a, Asm6809>;
-pub type Assembler = assembler::Assembler<Asm6809>;
-pub type Sizer<'a> = assembler::Sizer<'a, Asm6809>;
-
-#[inline]
-pub fn from_item_tspan(item: NodeKind, sp: TSpan) -> Node {
-    frontend::from_item_tspan::<Asm6809>(item, sp)
+impl Assembler {
+    pub fn compile_node_6809(
+        &mut self,
+        _node_kind: NodeKind6809,
+        _node: AstNodeRef,
+        _current_scope_id: u64,
+    ) -> GResult<()> { 
+        panic!()
 }
 
-#[inline]
-pub fn from_item_kid_tspan(item: NodeKind, node: Node, sp: TSpan) -> Node {
-    frontend::from_item_kid_tspan::<Asm6809>(item, node, sp)
+    pub fn size_node_6809(
+        &mut self,
+        _sizer: &mut Sizer,
+        _id: AstNodeId,
+        _node_kind: NodeKind6809,
+        _current_scope_id: u64,
+    ) -> GResult<()> {
+        panic!()
+    }
+
 }
 
-#[inline]
-pub fn parse_expr(input: TSpan) -> PResult<Node> {
-    frontend::parse_expr::<Asm6809>(input)
-}
+use frontend::Node;
+
+use super::frontend::NodeKind6809;
+pub type NodeKind = frontend::AstNodeKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Asm6809 {
     dp: Option<u8>,
 }
 
-impl<'a> AssemblerCpuTrait for Asm6809 {
-    type NodeKind = NodeKind6809;
+impl Asm6809 {
+    pub fn new() -> Self {
+        Self { dp: None }
+    }
+}
 
-    fn get_cpu_name() -> &'static str {
+impl AssemblerCpuTrait for Asm6809 {
+    // type NodeKind = NodeKind6809;
+
+    fn get_cpu_name(&self) -> &'static str {
         "6809"
     }
 
-    fn new() -> Self {
-        Self { dp: None }
-    }
+    // fn new() -> Self {
+    //     Self { dp: None }
+    // }
 
-    fn lex_identifier(_id: &str) -> crate::frontend::TokenKind {
+    fn lex_identifier(&self, _id: &str) -> crate::frontend::TokenKind {
         lex_identifier(_id)
     }
 
-    fn parse_multi_opcode_vec(input: crate::frontend::TSpan) -> PResult<Vec<Node>> {
-        parse_multi_opcode_vec(input)
+    fn parse_multi_opcode_vec(&self, _input: crate::frontend::TSpan) -> PResult<Vec<Node>> {
+        todo!()
+        // parse_multi_opcode_vec(input)
     }
 
-    fn parse_commands(input: crate::frontend::TSpan) -> PResult<Node> {
-        parse_commands(input)
+    fn parse_commands(&self, _input: crate::frontend::TSpan) -> PResult<Node> {
+        todo!()
+        // parse_commands(input)
     }
 
     fn compile_node(
-        compiler: &mut Compiler,
+        &self,
         asm: &mut Assembler,
-        id: AstNodeId,
+        node: AstNodeRef,
         node_kind: CpuSpecific,
+        current_scope_id: u64,
     ) -> GResult<()> {
-
         match node_kind {
-            CpuSpecific::Cpu6809(node_kind)  => compile_node(compiler, asm, id, node_kind),
-            _ => panic!()
-
+            CpuSpecific::Cpu6809(node_kind) => compile_node(asm, node, node_kind, current_scope_id),
+            _ => panic!(),
         }
-
     }
 
     fn size_node(
+        &self,
         sizer: &mut Sizer,
         asm: &mut Assembler,
         id: AstNodeId,
         node_kind: CpuSpecific,
+        _current_scope_id: u64
     ) -> GResult<()> {
         match node_kind {
-            CpuSpecific::Cpu6809(node_kind)  => size_node_internal(sizer, asm, id, node_kind),
-            _ => panic!()
-
+            CpuSpecific::Cpu6809(node_kind) => size_node_internal(sizer, asm, id, node_kind),
+            _ => panic!(),
         }
     }
 }

@@ -2,7 +2,6 @@
 use std::collections::HashMap;
 
 use crate::{
-    assembler::AssemblerCpuTrait,
     frontend::{AstNodeKind, LabelDefinition},
     gazmsymbols::{SymbolScopeId, SymbolTree},
     semantic::{iter_refs_recursive, Ast, AstNodeId},
@@ -23,9 +22,7 @@ pub struct LabelUsageAndDefintions {
 }
 
 impl LabelUsageAndDefintions {
-    pub fn new<C>(tree: &Ast<C>, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self
-    where
-        C: AssemblerCpuTrait,
+    pub fn new(tree: &Ast, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self
     {
         use AstNodeKind::*;
 

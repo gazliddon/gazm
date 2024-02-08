@@ -1,6 +1,5 @@
 #![deny(unused_imports)]
 
-use crate::assembler::AssemblerCpuTrait;
 
 use super::{
     get_text,
@@ -18,18 +17,16 @@ use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded
 
 use CommandKind::Struct;
 
-impl<ASM> GazmParser<ASM>
-where
-    ASM: AssemblerCpuTrait,
+impl GazmParser
 {
-    pub fn parse_array_def(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
+    pub fn parse_array_def(input: TSpan) -> PResult<Node> {
         let (rest, (_, matched, _)) =
-            tuple((OpenSquareBracket, parse_expr::<ASM>, CloseSquareBracket))(input)?;
+            tuple((OpenSquareBracket, parse_expr, CloseSquareBracket))(input)?;
 
         Ok((rest, matched))
     }
 
-    pub fn parse_struct_entry(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
+    pub fn parse_struct_entry(input: TSpan) -> PResult<Node> {
         let (rest, (name, _, (entry_span, entry_type), (array_def_sp, array))) = tuple((
             Label,
             Colon,
@@ -37,23 +34,23 @@ where
             ms(opt(Self::parse_array_def)),
         ))(input)?;
 
-        let size =entry_type.to_size_item::<ASM>();
+        let size =entry_type.to_size_item();
 
         let kids = [
             array.unwrap_or(Self::from_num_tspan(1, array_def_sp)),
-            from_item_tspan::<ASM>(AstNodeKind::Mul, array_def_sp),
-            from_item_tspan::<ASM>(size, entry_span),
+            from_item_tspan(AstNodeKind::Mul, array_def_sp),
+            from_item_tspan(size, entry_span),
         ];
 
         let name = get_text(name).to_owned();
 
-        let expr = from_item_kids_tspan::<ASM>(AstNodeKind::Expr, &kids, entry_span);
-        let node = from_item_kid_tspan::<ASM>(AstNodeKind::StructEntry(name), expr, input);
+        let expr = from_item_kids_tspan(AstNodeKind::Expr, &kids, entry_span);
+        let node = from_item_kid_tspan(AstNodeKind::StructEntry(name), expr, input);
 
         Ok((rest, node))
     }
 
-    pub fn parse_struct(input: TSpan) -> PResult<Node<ASM::NodeKind>> {
+    pub fn parse_struct(input: TSpan) -> PResult<Node> {
         let (rest, (sp, (label, entries))) = ms(pair(
             preceded(Struct, Label),
             parse_block(succeeded(
@@ -64,7 +61,7 @@ where
 
         let text = get_text(label);
 
-        let node = from_item_kids_tspan::<ASM>(AstNodeKind::StructDef(text), &entries, sp);
+        let node = from_item_kids_tspan(AstNodeKind::StructDef(text), &entries, sp);
 
         Ok((rest, node))
     }
