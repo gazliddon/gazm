@@ -55,7 +55,7 @@ fn parse_this_reg_local(input: TSpan, r: RegEnum) -> PResult<RegEnum> {
     let (rest, (sp, matched)) = ms(get_register)(input)?;
 
     if matched != r {
-        err_error(sp, ErrCode::ErrExpectedRegister)
+        err_error(sp, ErrCode::ExpectedRegister6809)
     } else {
         Ok((rest, matched))
     }
@@ -79,7 +79,7 @@ fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
 
     for r in matched {
         if hash_ret.contains(&r) {
-            return err_fatal(sp, ErrDuplicateRegisters);
+            return err_fatal(sp, DuplicateRegisters6809);
         }
         hash_ret.insert(r);
     }
@@ -89,12 +89,12 @@ fn get_reg_set(input: TSpan) -> PResult<HashSet<RegEnum>> {
 
 pub fn get_index_reg(input: TSpan) -> PResult<RegEnum> {
     let (rest, (sp, matched)) =
-        ms(get_register)(input).map_err(|e| e.change_kind(ErrExpectedIndexRegister))?;
+        ms(get_register)(input).map_err(|e| e.change_kind(ExpectedIndexRegister6809))?;
 
     matched
         .valid_for_index()
         .then_some((rest, matched))
-        .ok_or(error(sp, ErrExpectedIndexRegister))
+        .ok_or(error(sp, ExpectedIndexRegister6809))
 }
 
 /// Parse a single register
@@ -104,5 +104,5 @@ pub fn get_register(input: TSpan) -> PResult<RegEnum> {
     text.as_str()
         .parse::<RegEnum>()
         .map(|reg| (rest, reg))
-        .map_err(|_| error(sp, ErrExpectedRegister))
+        .map_err(|_| error(sp, ExpectedRegister6809))
 }

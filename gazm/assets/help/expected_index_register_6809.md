@@ -21,3 +21,4 @@ These are the regitsers you can use as index registers
 | X        | 16   | X Index register         | ✅     |
 | Y        | 16   | Y index register         | ✅     |
 | PC       | 16   | Program counter          | ✅     |
+

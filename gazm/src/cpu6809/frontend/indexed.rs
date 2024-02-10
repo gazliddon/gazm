@@ -35,7 +35,7 @@ fn check_index_reg<'a>(m: (TSpan<'a>, (TSpan<'a>, RegEnum))) -> PResult<'a, RegE
     if reg.valid_for_index() {
         Ok((rest, reg))
     } else {
-        err_fatal(sp, ErrExpectedIndexRegister)
+        err_fatal(sp, ExpectedIndexRegister6809)
     }
 }
 
@@ -73,7 +73,7 @@ fn check_for_illegal_indirect<'a>(
     if matched.allowed_indirect() {
         Ok((rest, matched))
     } else {
-        err_fatal(sp, ErrIndexModeNotValidIndirect)
+        err_fatal(sp, IndexModeNotValidIndirect6809)
     }
 }
 
@@ -102,7 +102,7 @@ fn get_abd_indexed(input: TSpan) -> PResult<IndexParseType> {
     let abd_reg = abd_reg
         .valid_abd()
         .then_some(abd_reg)
-        .ok_or(fatal(sp, ErrExpectedAbd))?;
+        .ok_or(fatal(sp, ExpectedAbd6809))?;
 
     let (rest, idx_reg) = cut(get_index_reg)(rest)?;
 

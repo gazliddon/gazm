@@ -56,8 +56,8 @@ fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(get_indexed)(input)?;
 
     match matched {
-        IndexParseType::PostInc(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
-        IndexParseType::PreDec(_) => err_fatal(sp, ErrIndexModeNotValidIndirect),
+        IndexParseType::PostInc(_) => err_fatal(sp, IndexModeNotValidIndirect6809),
+        IndexParseType::PreDec(_) => err_fatal(sp, IndexModeNotValidIndirect6809),
         _ => {
             let matched = from_item_tspan(OperandIndexed(matched, false), sp);
             Ok((rest, matched))
