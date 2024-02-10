@@ -11,7 +11,7 @@ use super::{PResult, TSpan, TokenKind, COMS};
 
 pub fn lex_identifier(c: CpuKind, text: &str) -> TokenKind {
     use CpuKind::*;
-    use TokenKind::{Command, Label, TempIdentifier};
+    use TokenKind::{Command, Label, Identifier};
     match c {
         Cpu6809 => lex6809(text),
         Cpu6800 => lex6800(text),
@@ -21,9 +21,9 @@ pub fn lex_identifier(c: CpuKind, text: &str) -> TokenKind {
 
 pub fn parse_identifier(c: CpuKind, input: TSpan) -> PResult<TokenKind> {
     use CpuKind::*;
-    use TokenKind::{Command, Label, TempIdentifier};
+    use TokenKind::{Command, Label, Identifier};
 
-    let (rest, matched) = tag(TempIdentifier)(input)?;
+    let (rest, matched) = tag(Identifier)(input)?;
 
     let text = get_str(&matched).to_lowercase();
 

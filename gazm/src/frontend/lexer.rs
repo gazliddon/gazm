@@ -114,7 +114,7 @@ pub enum TokenKind {
     BigDocText,
 
     #[regex("(?&id)")]
-    TempIdentifier,
+    Identifier,
 
     #[regex(r"[0-9][0-9_]*", from_dec)]
     #[regex(r"(?&pre_hex)[0-9a-fA-F][0-9a-fA-F_]*", from_hex)]
@@ -208,7 +208,7 @@ pub fn map_token(
 ) -> (TokenKind, std::ops::Range<usize>)
 {
     let kind = match kind {
-        TokenKind::TempIdentifier => {
+        TokenKind::Identifier => {
             let text = &source_file.get_text().source[pos.clone()].to_lowercase();
 
             if let Some(c) = COMS.get(text) {
