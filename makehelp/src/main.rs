@@ -6,9 +6,8 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "gs")]
+#[structopt(name = "makehelp", about = "Help generator for the Gazm assembler")]
 #[structopt(version = "0.1.0")]
-#[structopt(about = "git status checker")]
 #[structopt(author = "gazaxian")]
 #[structopt(rename_all = "kebab-case")]
 pub struct Opts {
