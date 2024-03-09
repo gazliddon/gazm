@@ -41,7 +41,7 @@ pub fn is_parsing_macro_def(i: TSpan) -> bool {
 }
 
 pub fn set_parsing_macro(i: TSpan, v: bool) -> TSpan {
-    i.lift_extra(|e| OriginalSource {
+    i.lift_extra(|e| ParseContext {
         is_parsing_macro_def: v,
         ..e
     })

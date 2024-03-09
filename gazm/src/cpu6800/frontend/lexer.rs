@@ -10,7 +10,7 @@ pub fn lex_identifier(text: &str) -> TokenKind {
     let text = text.to_lowercase();
 
     if DBASE.get_opcode(&text).is_some() {
-        TokenKind::OpCode
+        TokenKind::OpCode(crate::cpukind::CpuKind::Cpu6800)
     } else {
         Label
     }

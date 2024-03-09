@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use strum_macros::EnumIter;
 use strum::IntoEnumIterator;
 
+use crate::cpukind::CpuKind;
+
 pub type Token<'a> = BaseToken<ParseText<'a>>;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -43,6 +45,7 @@ pub enum CommandKind {
     Struct,
     Macro,
     Equ,
+    Target,
 }
 
 lazy_static::lazy_static! {
@@ -104,10 +107,12 @@ pub struct State {}
 #[logos(subpattern pre_bin = r"(0[bB]|%)")]
 pub enum TokenKind {
     Error,
-
-    OpCode,
+    OpCode(CpuKind),
     Command(CommandKind),
     Label,
+
+    #[regex("!(?&id)")]
+    LocalIdentifier,
 
     // #[regex(r"\[\[[^\]]*\]\]", priority=10)]
     #[regex(r"```[^`]*```", priority = 10)]
@@ -245,7 +250,25 @@ fn to_tokens_kinds(
         .collect()
 }
 
-fn to_tokens_filter< P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
+/// Converts a source file into a vector of tokens.
+///
+/// # Arguments
+/// * `source_file`: The source file to convert.
+/// * `predicate`: A predicate that determines which token kinds to include in the output.
+///
+/// # Returns
+/// A vector of tokens, where each token is created by calling the `Token::new` constructor with the given token kind and parse text.
+///
+/// # Examples
+/// ```
+/// use grl_sources::SourceFile;
+/// use grl_tokens::{TokenKind, Token};
+///
+/// let source_file = SourceFile::from_str("Hello, world!");
+/// let tokens = to_tokens_filter(&source_file, |tk| *tk == TokenKind::Identifier);
+/// println!("{:?}", tokens); // Output: [Token { kind: Identifier, text: "Hello" }, Token { kind: Identifier, text: "world!" }]
+/// ```
+pub fn to_tokens_filter< P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
 where
     P: Fn(&TokenKind) -> bool,
 {

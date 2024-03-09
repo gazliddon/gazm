@@ -4,11 +4,16 @@ use crate::{
     cpu6800::frontend::lex_identifier as lex6800,
     cpu6809::frontend::lex_identifier as lex6809,
     cpukind::CpuKind,
-    frontend::{get_str, get_text},
+    frontend::{err_nomatch, get_str, get_text},
 };
 
 use super::{PResult, TSpan, TokenKind, COMS};
 
+
+/// Returns either
+/// TokenKind::OpCode
+/// TokenKind::Label
+/// TokenKind::Command
 pub fn lex_identifier(c: CpuKind, text: &str) -> TokenKind {
     use CpuKind::*;
     use TokenKind::{Command, Label, Identifier};
@@ -19,9 +24,18 @@ pub fn lex_identifier(c: CpuKind, text: &str) -> TokenKind {
     }
 }
 
-pub fn parse_identifier(c: CpuKind, input: TSpan) -> PResult<TokenKind> {
+/// Returns either
+/// TokenKind::OpCode
+/// TokenKind::Label
+/// TokenKind::Command
+pub fn get_identifier(input: TSpan) -> PResult<TokenKind> {
+    // todo needs to handle local labels as well
+
     use CpuKind::*;
+
     use TokenKind::{Command, Label, Identifier};
+
+    let c = input.extra().cpu_kind;
 
     let (rest, matched) = tag(Identifier)(input)?;
 
@@ -30,7 +44,13 @@ pub fn parse_identifier(c: CpuKind, input: TSpan) -> PResult<TokenKind> {
     if let Some(command) = COMS.get(&text) {
         Ok((rest, Command(*command)))
     } else {
-        let id = lex_identifier(c, &text);
-        Ok((rest, id))
+        match c {
+            Some(c) =>  {
+                let id = lex_identifier(c, &text);
+                Ok((rest, id))
+            }
+            _ => err_nomatch(input)
+        }
     }
 }
+

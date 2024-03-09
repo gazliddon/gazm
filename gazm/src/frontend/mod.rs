@@ -19,6 +19,7 @@ mod basetoken;
 mod labeldefinition;
 mod struct_def;
 mod identifier;
+mod newparse;
 
 // Public inside module
 pub use {
@@ -28,4 +29,5 @@ pub use {
     labeldefinition::*,
     struct_def::*,
     identifier::*,
+    newparse::*,
 };

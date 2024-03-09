@@ -1,13 +1,15 @@
 #![deny(unused_imports)]
 
+use crate::cpukind::CpuKind;
+
 use super::{
-    get_label_string, get_text, CommandKind, FeResult, FrontEndError, AstNodeKind, Node, PResult, TSpan,
-    TokenKind, TokenKind::Comma,parse_expr, from_item_tspan
-        ,from_item_kids_tspan
+    from_item_kids_tspan, from_item_tspan, get_label_string, get_text, parse_expr,
+    AstNodeKind, CommandKind, FeResult, FrontEndError, Node, PResult, TSpan,
+    TokenKind, TokenKind::Comma,
 };
 
-
-use std::path::PathBuf;
+use core::panic;
+use std::{path::PathBuf, str::FromStr};
 
 use unraveler::{alt, cut, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Parser};
 
@@ -26,11 +28,9 @@ fn get_file_name(input: TSpan) -> PResult<PathBuf> {
     Ok((rest, p))
 }
 
-pub struct GazmParser {
-}
+pub struct GazmParser {}
 
-impl GazmParser
-{
+impl GazmParser {
     pub fn simple_command<I>(
         command_kind: CommandKind,
         item: I,
@@ -41,11 +41,7 @@ impl GazmParser
         move |i| Self::parse_simple_command(i, command_kind, item.clone().into())
     }
 
-    fn parse_simple_command<I>(
-        input: TSpan,
-        command_kind: CommandKind,
-        item: I,
-    ) -> PResult<Node>
+    fn parse_simple_command<I>(input: TSpan, command_kind: CommandKind, item: I) -> PResult<Node>
     where
         I: Into<AstNodeKind>,
     {
@@ -58,8 +54,7 @@ impl GazmParser
         let (rest, (sp, name)) = ms(preceded(CommandKind::Scope, get_label_string))(input)?;
         Ok((rest, from_item_tspan(AstNodeKind::Scope(name), sp)))
     }
-    pub(crate) fn parse_require(input: TSpan) -> PResult<Node>
-    {
+    pub(crate) fn parse_require(input: TSpan) -> PResult<Node> {
         command_with_file(input, CommandKind::Require)
             .map(|(rest, (sp, file))| (rest, from_item_tspan(AstNodeKind::Require(file), sp)))
     }
@@ -70,13 +65,17 @@ impl GazmParser
         })
     }
 
+    pub(crate) fn parse_target(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, cpu)) = ms(preceded(CommandKind::Target, get_label_string))(input)?;
+        let kind = CpuKind::from_str(&cpu).unwrap();
+        Ok((rest, from_item_tspan(AstNodeKind::Cpu(kind), sp)))
+    }
+
     /// FILL value,count
     pub(crate) fn parse_fill(input: TSpan) -> PResult<Node> {
         use CommandKind::*;
-        let (rest, (sp, (value, count))) = ms(preceded(
-            Fill,
-            sep_pair(parse_expr, Comma, parse_expr),
-        ))(input)?;
+        let (rest, (sp, (value, count))) =
+            ms(preceded(Fill, sep_pair(parse_expr, Comma, parse_expr)))(input)?;
         Ok((rest, Self::mk_fill(sp, (value, count))))
     }
 
@@ -110,13 +109,7 @@ impl GazmParser
         use TokenKind::*;
         let (rest, (sp, (file_name, _, source_addr, _, size))) = ms(preceded(
             CommandKind::WriteBin,
-            tuple((
-                get_file_name,
-                Comma,
-                parse_expr,
-                Comma,
-                parse_expr,
-            )),
+            tuple((get_file_name, Comma, parse_expr, Comma, parse_expr)),
         ))(input)?;
 
         let node = from_item_kids_tspan(AstNodeKind::WriteBin(file_name), &[source_addr, size], sp);
@@ -145,10 +138,8 @@ impl GazmParser
 
         if num_of_args < 1 {
             panic!("Too few args for incbinref")
-
         } else if num_of_args > 2 {
             panic!("Too many args for incbinref")
-
         } else {
             let node = from_item_kids_tspan(AstNodeKind::IncBinRef(file), &extra_args, sp);
             Ok((rest, node))

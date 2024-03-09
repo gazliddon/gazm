@@ -1,14 +1,14 @@
 use crate::{
-    semantic::{AstNodeId, ItemWithPos},
     assembler::{Assembler, AssemblerCpuTrait},
     error::{GResult, GazmErrorKind},
-    utils::with_state,
     gazmsymbols::{SymbolInfo, SymbolScopeId},
     lookup::LabelUsageAndDefintions,
     opts::Opts,
+    semantic::{AstNodeId, ItemWithPos},
+    utils::with_state,
 };
 
-use grl_sources::{AsmSource, Position as GazmPosition, TextEdit, TextPos};
+use grl_sources::{AsmSource, Position as GazmPosition, TextCoords, TextEdit};
 
 use std::{
     cmp::max,
@@ -28,26 +28,22 @@ use tower_lsp::{
     {Client, LanguageServer},
 };
 
-pub struct Backend
-{
+pub struct Backend {
     pub client: Client,
     // pub asm_ctx: Arc<Mutex<Assembler>>,
 }
 
 pub fn to_text_edit<'a>(range: &Range, txt: &'a str) -> TextEdit<'a> {
-    let te = TextEdit::new(
+    TextEdit::new(
         range.start.line as usize,
         range.start.character as usize,
         range.end.line as usize,
         range.end.character as usize,
         txt,
-    );
-    te
+    )
 }
 
-impl Assembler 
-
-{
+impl Assembler {
     fn find_symbol_id(&self, position: &Position, uri: &Url) -> Option<SymbolScopeId> {
         self.do_pos_lookup_work(position, uri, |pos, lookup| {
             lookup.find_symbol_id_at_pos(pos)
@@ -61,9 +57,7 @@ impl Assembler
     }
 
     pub fn find_node_at_location(&self, position: &Position, uri: &Url) -> Option<AstNodeId> {
-        self.do_pos_lookup_work(position, uri, |pos, lookup| {
-            lookup.find_node_from_pos(pos)
-        })
+        self.do_pos_lookup_work(position, uri, |pos, lookup| lookup.find_node_from_pos(pos))
     }
 
     fn lookup_ref(&self) -> Option<&LabelUsageAndDefintions> {
@@ -161,9 +155,12 @@ impl Assembler
     }
 }
 
-impl Backend 
-{
-    pub fn get_ast_node_at_file_pos(&self, _position: &Position, _uri : &Url) -> Option<(AstNodeId, ItemWithPos )> {
+impl Backend {
+    pub fn get_ast_node_at_file_pos(
+        &self,
+        _position: &Position,
+        _uri: &Url,
+    ) -> Option<(AstNodeId, ItemWithPos)> {
         panic!()
 
         // let value = with_state(&self.asm_ctx, |asm_ctx| -> Option<(AstNodeId, ItemWithPos )> {
@@ -222,8 +219,7 @@ impl Backend
         diags
     }
 
-    async fn reassemble_file(&self, _uri: Url) 
-    {
+    async fn reassemble_file(&self, _uri: Url) {
         panic!()
         // let doc = PathBuf::from(uri.path());
         // info!("Reassmbling {}", doc.to_string_lossy());
@@ -262,8 +258,7 @@ impl Backend
     }
 }
 
-impl Assembler 
-{
+impl Assembler {
     fn apply_change<P: AsRef<Path>>(
         &mut self,
         doc: P,
@@ -305,10 +300,10 @@ impl Assembler
     }
 }
 
-fn position_to_text_pos(p: &Position) -> TextPos {
+fn position_to_text_pos(p: &Position) -> TextCoords {
     let line = p.line as usize;
     let character = p.character as usize;
-    TextPos::new(line, character)
+    TextCoords::new(line, character)
 }
 
 fn make_location<P: AsRef<Path>>(line: usize, character: usize, path: P) -> Location {
@@ -323,8 +318,7 @@ fn make_location<P: AsRef<Path>>(line: usize, character: usize, path: P) -> Loca
 }
 
 #[tower_lsp::async_trait]
-impl LanguageServer for Backend 
-{
+impl LanguageServer for Backend {
     async fn goto_declaration(
         &self,
         params: GotoDeclarationParams,
@@ -377,7 +371,6 @@ impl LanguageServer for Backend
                 //     work_done_progress_options: Default::default(),
                 //     all_commit_characters: None,
                 // }),
-
                 execute_command_provider: Some(ExecuteCommandOptions {
                     commands: vec!["dummy.do_something".to_string()],
                     work_done_progress_options: Default::default(),
@@ -460,9 +453,7 @@ impl LanguageServer for Backend
         Ok(None)
     }
 
-    async fn did_open(&self, _x: DidOpenTextDocumentParams) 
-
-    {
+    async fn did_open(&self, _x: DidOpenTextDocumentParams) {
         panic!()
         // let doc = x.text_document.uri.path();
         // info!("did_open {}", doc);

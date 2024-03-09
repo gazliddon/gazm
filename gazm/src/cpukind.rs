@@ -3,10 +3,11 @@ use std::usize;
 use crate::{assembler::AssemblerCpuTrait, cpu6800::Asm6800, cpu6809::Asm6809};
 use emu6800::emucore::sha1::digest::DynDigest;
 use serde::Deserialize;
-use strum::{EnumCount, IntoEnumIterator};
-use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
+use strum::{EnumCount, IntoEnumIterator, };
 
-#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Default, EnumCountMacro, EnumIter)]
+use strum_macros::{EnumCount as EnumCountMacro, EnumIter, EnumString};
+
+#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Default, EnumCountMacro, EnumIter, EnumString, Eq)]
 #[repr(usize)]
 pub enum CpuKind {
     #[default]
@@ -88,18 +89,3 @@ impl CpuAssmbler {
     }
 }
 
-impl TryFrom<&str> for CpuKind {
-    type Error = ();
-    fn try_from(input: &str) -> Result<Self, Self::Error> {
-        use CpuKind::*;
-        let input = input.to_owned().to_lowercase();
-        match input.as_str() {
-            "6800" => Ok(Cpu6800),
-            "6502" => Ok(Cpu6809),
-            "65c02" => Ok(Cpu6809),
-            "z80" => Ok(CpuZ80),
-            "6809" => Ok(Cpu6809),
-            _ => panic!(),
-        }
-    }
-}

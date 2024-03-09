@@ -1,5 +1,5 @@
 #![forbid(unused_imports)]
-use crate::frontend::LabelDefinition;
+use crate::{ frontend::LabelDefinition, cpukind::CpuKind };
 use grl_sources::Position;
 use std::{fmt::Display, path::PathBuf};
 use thin_vec::ThinVec;
@@ -32,6 +32,7 @@ pub enum ParsedFrom {
 ///Ast Node Items
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstNodeKind {
+    Cpu(CpuKind),
     TargetSpecific(CpuSpecific),
     Import,
     Doc(String),

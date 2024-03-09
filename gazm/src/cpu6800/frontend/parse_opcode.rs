@@ -1,14 +1,14 @@
-use crate::cpu6800::frontend::get_this_reg;
-use crate::cpu6809::frontend::Cpu6809AssemblyErrorKind;
 use crate::frontend::{
     err_fatal, err_kind_nomatch, err_nomatch, from_item_tspan, get_text, is_parsing_macro_def,
     parse_expr, AstNodeKind, FrontEndError, FrontEndErrorKind, Node, PResult, TSpan, TokenKind,
 };
 
+use crate::cpukind::CpuKind::Cpu6800 as Cpu;
+
 use crate::cpu6800::{
     frontend::{
         error::AssemblyErrorKind6800::OnlySupports,
-        AddrModeParseType,
+        get_this_reg, AddrModeParseType,
         NodeKind6800::{self, OpCode, Operand},
     },
     Asm6800,
@@ -20,7 +20,7 @@ use serde_json::value::Index;
 use unraveler::{alt, match_span as ms, opt, preceded, sep_list, sep_pair, tag};
 
 fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &Instruction)> {
-    let (rest, (sp, matched)) = ms(TokenKind::OpCode)(input)?;
+    let (rest, (sp, matched)) = ms(TokenKind::OpCode(Cpu))(input)?;
     let text = get_text(matched).to_lowercase();
     let info = DBASE
         .get_opcode(text.as_str())
@@ -127,17 +127,16 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
             && parsed_addressing_mode == AddrModeParseType::Extended
         {
             let instruction = get_instruction(AddrModeParseType::Relative, info).unwrap();
-            let item = NodeKind6800::opcode(text,instruction);
+            let item = NodeKind6800::opcode(text, instruction);
             let node = from_item_tspan(item, sp).take_others_children(arg);
             Ok((rest, node))
         } else if let Some(instruction) = get_instruction(parsed_addressing_mode, info) {
-            let item = NodeKind6800::opcode(text,instruction);
+            let item = NodeKind6800::opcode(text, instruction);
             let node = from_item_tspan(item, sp).take_others_children(arg);
             Ok((rest, node))
         } else {
             err_fatal(sp, FrontEndErrorKind::Unexpected)
         }
-
     } else {
         panic!()
     }

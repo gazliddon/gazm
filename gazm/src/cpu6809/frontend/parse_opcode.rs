@@ -5,6 +5,8 @@ use crate::frontend::{
     TSpan, TokenKind,
 };
 
+use crate::cpukind::CpuKind;
+
 use super::{
     parse_indexed, parse_opcode_reg_pair, parse_reg_set_operand, AddrModeParseType,
     AddrModeParseType::Inherent as ParseInherent,
@@ -120,7 +122,7 @@ pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {
 
 fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &InstructionInfo)> {
     use TokenKind::OpCode;
-    let (rest, (sp, matched)) = ms(OpCode)(input)?;
+    let (rest, (sp, matched)) = ms(OpCode(CpuKind::Cpu6809))(input)?;
     let text = get_text(matched);
     let info = OPCODES_REC.get_opcode(text.as_str()).unwrap();
     Ok((rest, (sp, text, info)))

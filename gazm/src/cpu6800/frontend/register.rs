@@ -1,11 +1,10 @@
 use emu6800::cpu_core::RegEnum;
 use std::str::FromStr;
 
-use crate::help::ErrCode::ExpectedRegister6809;
-
-use crate::frontend::{TSpan, PResult, err_error, get_label_string,error};
-
-
+use crate::{
+    frontend::{err_error, error, get_label_string, PResult, TSpan},
+    help::ErrCode::ExpectedRegister6809,
+};
 
 use unraveler::match_span as ms;
 
@@ -34,5 +33,3 @@ pub fn get_register(input: TSpan) -> PResult<RegEnum> {
         .map(|reg| (rest, reg))
         .map_err(|_| error(sp, ExpectedRegister6809))
 }
-
-

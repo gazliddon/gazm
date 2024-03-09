@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 use super::{to_pos, Token, TokenKind};
-use crate::opts::Opts;
+use crate::{ opts::Opts,cpukind::CpuKind  };
 use grl_sources::{Position, SourceFile};
 use unraveler::Collection;
 
@@ -8,13 +8,14 @@ use unraveler::Collection;
 pub struct ParseState {}
 
 #[derive(Copy, Clone, Debug)]
-pub struct OriginalSource<'a> {
+pub struct ParseContext<'a> {
     pub source_file: &'a SourceFile,
     pub is_parsing_macro_def: bool,
+    pub cpu_kind: Option<CpuKind>,
     pub opts: &'a Opts,
 }
 
-impl<'a> OriginalSource<'a> {
+impl<'a> ParseContext<'a> {
     pub fn get_pos(&self, input: TSpan) -> Position {
         let (s, e) = get_start_end_token(input);
         get_start_end_position(&s, &e)
@@ -29,9 +30,13 @@ impl<'a> OriginalSource<'a> {
     pub fn set_macro(&mut self, v: bool) {
         self.is_parsing_macro_def = v
     }
+
+    pub fn set_cpu_kind(&mut self, v: CpuKind) {
+        self.cpu_kind = Some(v)
+    }
 }
 
-pub type TSpan<'a> = unraveler::Span<'a, Token<'a>, OriginalSource<'a>>;
+pub type TSpan<'a> = unraveler::Span<'a, Token<'a>, ParseContext<'a>>;
 
 pub fn get_start_end_position(s: &Token, e: &Token) -> Position {
     let extra_start = &s.extra;
@@ -64,10 +69,11 @@ pub fn make_tspan<'a>(
 ) -> TSpan<'a> {
     let span = TSpan::from_slice(
         tokens,
-        OriginalSource {
+        ParseContext {
             source_file: sf,
             is_parsing_macro_def: false,
             opts,
+            cpu_kind: None,
         },
     );
     span
