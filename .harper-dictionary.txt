@@ -1,0 +1,5 @@
+gazm
+gazm.toml
+gazm-plugin
+LSP
+treesitter
