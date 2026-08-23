@@ -2,13 +2,13 @@
 Docs
 ==================
 
-hello
+hello:
 ;;; Hello
 ;;; Hello2
 ;;; Hello3
 [[cakjakjkaj]]
 
-hello ;;; Doc
+hello: ;;; Doc
 
 ---
 (source_file

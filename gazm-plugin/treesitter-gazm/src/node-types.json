@@ -949,7 +949,17 @@
   {
     "type": "global_scoped_id",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "label",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "grabmem",
@@ -1101,15 +1111,59 @@
     }
   },
   {
+    "type": "import_group",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "label",
+            "named": true
+          }
+        ]
+      },
+      "scope": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "label",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "global_scoped_id",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "importer",
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
         {
           "type": "global_scoped_id",
+          "named": true
+        },
+        {
+          "type": "import_group",
+          "named": true
+        },
+        {
+          "type": "label",
           "named": true
         }
       ]
@@ -1626,6 +1680,10 @@
         },
         {
           "type": "scope",
+          "named": true
+        },
+        {
+          "type": "section",
           "named": true
         },
         {
@@ -2330,6 +2388,80 @@
     }
   },
   {
+    "type": "section",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "label",
+            "named": true
+          },
+          {
+            "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "string_literal",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "bin_num",
+          "named": true
+        },
+        {
+          "type": "binary_expression",
+          "named": true
+        },
+        {
+          "type": "char_literal",
+          "named": true
+        },
+        {
+          "type": "dec_num",
+          "named": true
+        },
+        {
+          "type": "hex_num",
+          "named": true
+        },
+        {
+          "type": "label",
+          "named": true
+        },
+        {
+          "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "parenthesized_expression",
+          "named": true
+        },
+        {
+          "type": "pc_expr",
+          "named": true
+        },
+        {
+          "type": "string_literal",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "setdp",
     "named": true,
     "fields": {},
@@ -2383,6 +2515,7 @@
   {
     "type": "source_file",
     "named": true,
+    "root": true,
     "fields": {},
     "children": {
       "multiple": true,
@@ -2482,6 +2615,10 @@
         },
         {
           "type": "scope",
+          "named": true
+        },
+        {
+          "type": "section",
           "named": true
         },
         {
@@ -2984,6 +3121,10 @@
     "named": false
   },
   {
+    "type": "=",
+    "named": false
+  },
+  {
     "type": "==",
     "named": false
   },
@@ -3021,19 +3162,19 @@
   },
   {
     "type": "a",
-    "named": false
+    "named": true
   },
   {
     "type": "a",
-    "named": true
-  },
-  {
-    "type": "b",
     "named": false
   },
   {
     "type": "b",
     "named": true
+  },
+  {
+    "type": "b",
+    "named": false
   },
   {
     "type": "bin_num",
@@ -3085,11 +3226,11 @@
   },
   {
     "type": "pc",
-    "named": true
+    "named": false
   },
   {
     "type": "pc",
-    "named": false
+    "named": true
   },
   {
     "type": "pcr",

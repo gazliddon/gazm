@@ -2,7 +2,7 @@
 ==================
 Example
 ==================
-    gaz equ 10
+    gaz: equ 10
     scope hello
     grabmem 1,2
     put 1+2*3
@@ -17,6 +17,8 @@ Example
     include "ksjkjska"
 
     exec_addr $ff
+    section rom_01, 1, 2
+    section rom_01
 	import ::hello::x
 
 ---
@@ -66,12 +68,6 @@ Example
 (include (string_literal))
 
 (exec_addr (hex_num))
-
-
-(importer (global_scoped_id)))
-
-
-
-
-
-
+(section name: (label) (dec_num) (dec_num))
+(section name: (label))
+(importer (global_scoped_id (label) (label))))

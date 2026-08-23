@@ -1,0 +1,33 @@
+{
+  "grammars": [
+    {
+      "name": "gazm",
+      "scope": "source.gazm",
+      "file-types": [
+        "68",
+        "gazm",
+        "asm"
+      ],
+      "injection-regex": "gazm"
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "license": "MIT",
+    "description": "Tree-sitter grammar for Gazm assembly",
+    "authors": [
+      {
+        "name": "Gazm contributors"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/garyliddon/gazm"
+    }
+  },
+  "bindings": {
+    "c": true,
+    "node": false,
+    "python": false,
+    "rust": true
+  }
+}

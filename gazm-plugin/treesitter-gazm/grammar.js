@@ -53,6 +53,10 @@ const MNEMONICS_REGEX = arrayToRegex(OPCODE_TABLE.map(i => i.action))
 module.exports = grammar({
     name: "gazm",
 
+    conflicts: $ => [
+        [$.import_group, $.global_scoped_id],
+    ],
+
     rules: {
         source_file: $ =>
             repeat(choice(
@@ -79,8 +83,21 @@ module.exports = grammar({
             optional($._incbinargs)
         ),
 
-        importer: $ => seq(asRegex('import'),
-             $.global_scoped_id
+        import_group: $ => seq(
+            repeat(seq(optional('::'), field('scope', $.label), '::')),
+            '{',
+            commaSep1(choice($.global_scoped_id, field('name', $.label))),
+            optional(','),
+            '}'
+        ),
+
+        importer: $ => seq(
+            asRegex('import'),
+            commaSep1(choice(
+                $.global_scoped_id,
+                $.import_group,
+                $.label,
+            )),
         ),
 
         incbinref: $ => seq(asRegex( 'incbinref' ),
@@ -107,6 +124,10 @@ module.exports = grammar({
         setdp: $ => seq(asRegex( 'setdp' ), $._expression),
 
         org: $ => seq(asRegex( 'org' ), $._expression),
+        section: $ => seq(asRegex( 'section' ),
+            field('name', choice($.label, $.local_label, $.string_literal)),
+            repeat(seq(',', optional(seq(choice($.label, $.local_label, $.string_literal), '=')), $._expression))
+        ),
 
         exec_addr: $ => seq(asRegex( 'exec_addr' ), $._expression),
         include: $ => seq(asRegex( 'include' ), $.string_literal),
@@ -126,17 +147,18 @@ module.exports = grammar({
             $.incbinref,
             $.setdp,
             $.org,
+            $.section,
             $.include,
             $.exec_addr,
             $.bsz,
             $.fill,
             $.fdb,
-            $.fcb,
-            $.fcc,
-            $.zmb,
-            $.zmd,
-            $.rmb,
-			$.importer,
+                $.fcb,
+                $.fcc,
+                $.zmb,
+                $.zmd,
+                $.rmb,
+				$.importer,
         ),
 
         struct_def: $ => seq("struct", $._identifier, '{', commaSep($.struct_elem), optional(','), '}'),
@@ -183,24 +205,33 @@ module.exports = grammar({
         _line: $ => seq(choice(
                 $.equate,
                 $.macro,
+                $._macro_label,
                 $._command,
                 $._command_label,
                 $.opcode,
                 $._opcode_label,
-                $._identifier,
+                $._label_definition,
             ),
             choice(optional($.doc),optional($.comment)),
             $._line_break),
 
-        _opcode_label: $ => seq(
-            $._identifier,
-            $.opcode,
-        ),
+        _opcode_label: $ => seq($._identifier, ':', $.opcode),
 
         _command_label: $ => seq(
             $._identifier,
+            ':',
             $._command,
         ),
+
+        // A macro invocation may be attached to a label just like an opcode
+        // or assembler command: `label: MACRO (args)`.
+        _macro_label: $ => seq(
+            $._identifier,
+            ':',
+            $.macro,
+        ),
+
+        _label_definition: $ => seq($._identifier, ':'),
 
         pc_expr: $ => '*',
 
@@ -269,14 +300,10 @@ module.exports = grammar({
 
         macro: $ => seq($._identifier, '(', commaSep($._expression), ')'),
 
-        reg_list_mnemonics: $ => {
-            return arrayToRegex(['psh', 'exg']);
-        },
-
+        reg_list_mnemonics: $ => arrayToRegex(['psh', 'exg']),
         _regsets: $ => seq(alias($.regset_mnemonics, $.mnemonic), $.reg_set),
         regset_mnemonics: $ => mnemonicRegex('RegisterSet'),
         reg_set: $ => commaSep1($._reg),
-
         _xfers: $ => seq(alias($.xfer_mnemonics, $.mnemonic), $.reg_xfer),
         xfer_mnemonics: $ => mnemonicRegex('RegisterPair'),
         reg_xfer: $ => seq($._reg, ',', $._reg),
@@ -288,7 +315,7 @@ module.exports = grammar({
         direct_page: $ => seq('>', $._expression),
 
         // equate
-        equate: $ => seq($._identifier, asRegex('equ'), $._expression),
+        equate: $ => seq($._identifier, ':', asRegex('equ'), $._expression),
 
         // Regs
         a: $ => /A|a/,
@@ -362,7 +389,7 @@ module.exports = grammar({
 
         mnemonic: $ => prec(1, MNEMONICS_REGEX),
 
-        opcode: $ => choice($._xfers, $._regsets, $.mnemonic, $._opcode_arg, ),
+        opcode: $ => choice($._xfers, $._regsets, $.mnemonic, $._opcode_arg),
 
         _opcode_arg: $ => seq(
             $.mnemonic,
@@ -370,7 +397,7 @@ module.exports = grammar({
 
         _identifier: $ => choice($.local_label, $.label),
 
-		global_scoped_id: $ => repeat1(seq("::",$._global_label )),
+		global_scoped_id: $ => repeat1(seq("::", $.label)),
 
         label: $ => $._global_label,
         local_label: $ => seq(/[@!]/, $._global_label),
@@ -444,4 +471,3 @@ function mnemonicRegex(addr_mode) {
     let opcodes = OPCODE_TABLE.filter(i => i.addr_mode == addr_mode).map(i => i.action)
     return arrayToRegex(opcodes)
 }
-

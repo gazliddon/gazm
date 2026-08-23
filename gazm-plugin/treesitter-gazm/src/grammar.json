@@ -1,4 +1,5 @@
 {
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/grammar.schema.json",
   "name": "gazm",
   "rules": {
     "source_file": {
@@ -171,6 +172,114 @@
         }
       ]
     },
+    "import_group": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": "::"
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              },
+              {
+                "type": "FIELD",
+                "name": "scope",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "label"
+                }
+              },
+              {
+                "type": "STRING",
+                "value": "::"
+              }
+            ]
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "{"
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "global_scoped_id"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "name",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "label"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": ","
+                  },
+                  {
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "global_scoped_id"
+                      },
+                      {
+                        "type": "FIELD",
+                        "name": "name",
+                        "content": {
+                          "type": "SYMBOL",
+                          "name": "label"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ","
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "}"
+        }
+      ]
+    },
     "importer": {
       "type": "SEQ",
       "members": [
@@ -179,8 +288,55 @@
           "value": "import|IMPORT"
         },
         {
-          "type": "SYMBOL",
-          "name": "global_scoped_id"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "global_scoped_id"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "import_group"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "label"
+                }
+              ]
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": ","
+                  },
+                  {
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "global_scoped_id"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "import_group"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "label"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -456,6 +612,86 @@
         }
       ]
     },
+    "section": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "PATTERN",
+          "value": "section|SECTION"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "label"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "local_label"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "string_literal"
+              }
+            ]
+          }
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "STRING",
+                "value": ","
+              },
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "SYMBOL",
+                            "name": "label"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "local_label"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "string_literal"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "STRING",
+                        "value": "="
+                      }
+                    ]
+                  },
+                  {
+                    "type": "BLANK"
+                  }
+                ]
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_expression"
+              }
+            ]
+          }
+        }
+      ]
+    },
     "exec_addr": {
       "type": "SEQ",
       "members": [
@@ -567,6 +803,10 @@
         {
           "type": "SYMBOL",
           "name": "org"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "section"
         },
         {
           "type": "SYMBOL",
@@ -1037,6 +1277,10 @@
             },
             {
               "type": "SYMBOL",
+              "name": "_macro_label"
+            },
+            {
+              "type": "SYMBOL",
               "name": "_command"
             },
             {
@@ -1053,7 +1297,7 @@
             },
             {
               "type": "SYMBOL",
-              "name": "_identifier"
+              "name": "_label_definition"
             }
           ]
         },
@@ -1100,6 +1344,10 @@
           "name": "_identifier"
         },
         {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
           "type": "SYMBOL",
           "name": "opcode"
         }
@@ -1113,8 +1361,42 @@
           "name": "_identifier"
         },
         {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
           "type": "SYMBOL",
           "name": "_command"
+        }
+      ]
+    },
+    "_macro_label": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_identifier"
+        },
+        {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "macro"
+        }
+      ]
+    },
+    "_label_definition": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_identifier"
+        },
+        {
+          "type": "STRING",
+          "value": ":"
         }
       ]
     },
@@ -2122,6 +2404,10 @@
           "name": "_identifier"
         },
         {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
           "type": "PATTERN",
           "value": "equ|EQU"
         },
@@ -2614,7 +2900,7 @@
           },
           {
             "type": "SYMBOL",
-            "name": "_global_label"
+            "name": "label"
           }
         ]
       }
@@ -2759,10 +3045,15 @@
       "value": "\\s"
     }
   ],
-  "conflicts": [],
+  "conflicts": [
+    [
+      "import_group",
+      "global_scoped_id"
+    ]
+  ],
   "precedences": [],
   "externals": [],
   "inline": [],
-  "supertypes": []
+  "supertypes": [],
+  "reserved": {}
 }
-

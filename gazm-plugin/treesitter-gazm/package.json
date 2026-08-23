@@ -4,8 +4,9 @@
   "description": "",
   "main": "bindings/node",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tree-sitter generate && node-gyp build"
+    "test": "tree-sitter test",
+    "build": "tree-sitter generate",
+    "build:node": "node-gyp configure build"
   },
   "author": "",
   "license": "ISC",
@@ -23,7 +24,9 @@
     {
       "scope": "source.gazm",
       "file-types": [
-        "68"
+        "68",
+        "gazm",
+        "asm"
       ]
     }
   ]

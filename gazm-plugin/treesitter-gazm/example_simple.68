@@ -16,7 +16,7 @@
     lda #0
     sta PALETTE+5
 
-@loop1
+@loop1:
     inc PALETTE+15*3
     inc PALETTE+15*3
     inc PALETTE+15*3
@@ -31,12 +31,12 @@
     nop
     bra @loop1
 
-clear_screen
+clear_screen:
     ldy #SCREEN
     ldd #0
-@loop2
+@loop2:
     std ,y++
     cmpy #SCREEN+SCREEN_SIZE_BYTES
     bne @loop2
     rts
-font
+font:

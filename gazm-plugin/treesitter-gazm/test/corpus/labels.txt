@@ -1,0 +1,14 @@
+
+==================
+Colon labels
+==================
+start: lda #1
+value: equ $10
+done:
+
+---
+(source_file
+  (label)
+  (opcode (mnemonic) (operand (immediate (dec_num))))
+  (equate (label) (hex_num))
+  (label))
