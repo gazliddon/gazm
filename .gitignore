@@ -5,6 +5,17 @@ glht.ini
 out
 bin
 Cargo.lock
+.tmp
+*.log
+snap
+cfg
+nvram
+mame-sound-dump.bin
+mame-stargate-boot.wav
+mame.ini
+plugin.ini
+startup-test.wav
+ui.ini
 
 # Local release artifacts downloaded by scripts/release.sh
 .release-artifacts/
