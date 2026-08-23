@@ -20,17 +20,20 @@ jobs:
         with:
           path: gazm
 
-      # gazm/Cargo.toml resolves its crates via ../../crates
+      # gazm/Cargo.toml resolves its crates via ../../crates from the crate
+      # dir (repo/gazm), i.e. $GITHUB_WORKSPACE/crates with the repo at
+      # path: gazm. checkout@v4 refuses paths outside the workspace, so
+      # these must be plain relative names, not ../.
       - uses: actions/checkout@v4
         with:
           repository: gazliddon/crates
-          path: ../crates
+          path: crates
 
       # Stargate fixture used by the byte-identity check below
       - uses: actions/checkout@v4
         with:
           repository: gazliddon/stargate
-          path: ../stargate
+          path: stargate
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -45,7 +48,7 @@ jobs:
         run: cargo build -p gazm --release
 
       - name: Assemble Stargate and compare ROMs byte-for-byte
-        working-directory: ../stargate
+        working-directory: stargate
         run: |
           # The fixture writes roms/* and compares against orig/roms/*
           # via bin-references in gazm.toml on every build; fail if the

@@ -49,16 +49,19 @@ jobs:
         with:
           path: gazm
 
-      # gazm/Cargo.toml resolves its crates via ../../crates; pin to the
-      # current crates@main and record the SHA so the release is reproducible.
+      # gazm/Cargo.toml resolves its crates via ../../crates from the crate
+      # dir (repo/gazm), i.e. $GITHUB_WORKSPACE/crates with the repo at
+      # path: gazm. checkout@v4 refuses paths outside the workspace, so use
+      # a plain relative name; pin to crates@main and record the SHA so the
+      # release is reproducible.
       - uses: actions/checkout@v4
         with:
           repository: gazliddon/crates
-          path: ../crates
+          path: crates
 
       - name: Record crates SHA
         id: crates-sha
-        run: echo "sha=$(git -C ../crates rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(git -C crates rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
