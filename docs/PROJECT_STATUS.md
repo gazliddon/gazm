@@ -25,6 +25,23 @@ other auxiliary tools are not priorities right now.
    instruction sizing, emitted bytes, and Stargate ROM comparisons.
 6. Make the codebase easier for AI agents and human contributors to navigate.
 
+## Open technical debt
+
+Tracked items that are not urgent but should be scheduled:
+
+- **Migrate bincode 1.x -> 2.x (or postcard)** for symbol/source-map
+  artifacts. `bincode` 1.3 is flagged unmaintained by
+  [RUSTSEC-2025-0141](https://rustsec.org/advisories/RUSTSEC-2025-0141);
+  it is the only runtime dependency with an audit warning. Usage is
+  confined to a single `bincode::serialize` call in
+  `gazm/src/assembler/writers.rs` (`encode_artifact`), behind the
+  versioned header documented in `docs/ARTIFACT_FORMAT.md`. Migrating to
+  bincode 2.x changes the on-disk payload encoding, so bump
+  `ARTIFACT_VERSION` (currently `3`) and confirm consumers reject the old
+  version cleanly. `paste` (unmaintained, RUSTSEC-2024-0436) is a
+  transitive compile-time dependency of `unraveler` in the shared crates
+  workspace; address it there if it ever matters.
+
 ## Repository and crate structure
 
 Gazm and the reusable support crates are currently separate Cargo workspaces:
