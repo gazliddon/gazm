@@ -86,8 +86,16 @@ if [ "$PREVIEW" = "1" ]; then
   gh workflow run release.yml -f "version=$VERSION"
   sleep 5
 fi
-RUN_ID="$(gh run list --workflow=release.yml --limit 1 --json databaseId -q '.[0].databaseId')"
-[ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] || die "could not find the release workflow run"
+# Find the run this script just triggered. For a tag push the tag push
+# itself triggers the workflow, so match on the tag as head branch (not
+# "latest run" — an older preview run may still be listed first).
+if [ "$PREVIEW" = "1" ]; then
+  RUN_ID="$(gh run list --workflow=release.yml --limit 3 --json databaseId -q '.[0].databaseId')"
+else
+  RUN_ID="$(gh run list --workflow=release.yml --limit 10 --json databaseId,headBranch \
+    -q ".[] | select(.headBranch == \"v$VERSION\") | .databaseId" | head -1)"
+fi
+[ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] || die "could not find the release workflow run for v$VERSION"
 say "Waiting for run $RUN_ID (this takes a few minutes)"
 gh run watch "$RUN_ID" --exit-status >/dev/null 2>&1 || {
   gh run view "$RUN_ID" >&2
