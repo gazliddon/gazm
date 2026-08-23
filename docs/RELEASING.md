@@ -64,7 +64,7 @@ git -C ~/development/stargate add -A && git -C ~/development/stargate commit -m 
 If you want to preview the release **build** without committing a tag at all,
 use the **manual trigger**: repo → Actions → Release workflow → "Run
 workflow" → optionally set a preview version label (e.g. `0.9.17-preview`).
-It builds all four targets into run artifacts exactly like a tag push, but
+It builds all three targets into run artifacts exactly like a tag push, but
 never creates a tag or release. Perfect for checking "does this build and
 what do the binaries look like" before committing to the version number.
 
@@ -72,11 +72,14 @@ what do the binaries look like" before committing to the version number.
 
 - Triggered by a `v*` tag push **or manually** from the Actions tab
   (`workflow_dispatch`, for previewing without a tag). Either way it builds
-  **four targets** in parallel:
+  **three targets** in parallel:
   `x86_64-unknown-linux-gnu` (Linux), `x86_64-pc-windows-msvc` (Windows),
-  `aarch64-apple-darwin` (Apple Silicon), `x86_64-apple-darwin` (Intel Mac).
-- Checks out `gazliddon/crates` at its current `main` and records the exact
-  SHA in each job's summary, so the build is reproducible.
+  `aarch64-apple-darwin` (Apple Silicon).
+- Checks out `gazliddon/crates` and `gazliddon/stargate` at their current
+  `main`, and writes a **`build-manifest.txt`** artifact recording all three
+  revisions (`gazm=<sha>`, `crates=<sha>`, `stargate=<sha>`), so every
+  release states exactly which crates the binary was built against and which
+  Stargate fixture the ROM checksums were verified against.
 - Uses `taiki-e/upload-rust-binary-action` in **dry-run mode**: it builds and
   compresses the binaries but does **not** upload them anywhere.
 - Uploads the `.tar.gz` / `.zip` / `.sha256` archives as **run artifacts**
@@ -88,23 +91,23 @@ It deliberately does **not** create a GitHub release. Publishing stays manual:
 
 1. Open the Actions run for the `v0.9.17` tag (from the repo → Actions →
    Release workflow).
-2. Download the four `gazm-<target>` artifact sets (each contains
-   `.tar.gz`/`.zip` + `.sha256`).
+2. Download the three `gazm-<target>` artifact sets (each contains
+   `.tar.gz`/`.zip` + `.sha256`), plus `build-manifest.txt`.
 3. Create the release and attach the archives:
 
 ```sh
-# Create the release (notes: include the crates@<sha> from the job summaries)
-gh release create v0.9.17 --title "v0.9.17" --notes "crates@<sha>"
+# Create the release (notes: copy gazm/crates/stargate SHAs from build-manifest.txt)
+gh release create v0.9.17 --title "v0.9.17" \
+  --notes "Built from gazm@<sha> with crates@<sha> (ROMs verified against stargate@<sha>)"
 
 # Upload each archive (adjust paths to your Downloads)
 gh release upload v0.9.17 \
   gazm-x86_64-unknown-linux-gnu.tar.gz gazm-x86_64-unknown-linux-gnu.tar.gz.sha256 \
   gazm-x86_64-pc-windows-msvc.zip    gazm-x86_64-pc-windows-msvc.zip.sha256 \
-  gazm-aarch64-apple-darwin.tar.gz   gazm-aarch64-apple-darwin.tar.gz.sha256 \
-  gazm-x86_64-apple-darwin.tar.gz    gazm-x86_64-apple-darwin.tar.gz.sha256
+  gazm-aarch64-apple-darwin.tar.gz   gazm-aarch64-apple-darwin.tar.gz.sha256
 ```
 
-4. Verify the release page shows all four platforms + checksums.
+4. Verify the release page shows all three platforms + checksums.
 
 ## Rebuilding an old release exactly
 
@@ -129,7 +132,7 @@ release. (Consider switching the action to its companion
 
 ## Notes
 
-- gazm has no platform-specific dependencies, so the four targets cover all
+- gazm has no platform-specific dependencies, so the three targets cover all
   supported platforms; add targets to the matrix as needed.
 - The Stargate check in `ci.yml` is the primary compatibility gate — a tag
   should only be cut after master is green.

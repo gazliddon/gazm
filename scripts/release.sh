@@ -96,13 +96,28 @@ rm -rf .release-artifacts && mkdir -p .release-artifacts
 gh run download "$RUN_ID" --dir .release-artifacts
 find .release-artifacts -type f | sort | sed 's/^/  /'
 
+# Build notes: prefer the manifest written by the workflow (authoritative:
+# the exact crates/stargate revisions the build used), else fall back to
+# the local SHAs captured before tagging.
+MANIFEST="$(find .release-artifacts -name build-manifest.txt | head -1)"
+if [ -n "$MANIFEST" ]; then
+  GAZM_SHA="$(sed -n 's/^gazm=//p' "$MANIFEST")"
+  CRATES_SHA="$(sed -n 's/^crates=//p' "$MANIFEST")"
+  STARGATE_SHA="$(sed -n 's/^stargate=//p' "$MANIFEST")"
+else
+  GAZM_SHA="$(git rev-parse HEAD)"
+  STARGATE_SHA="$(git -C "$STARGATE_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
+fi
+
 # ---------- publish (only with --publish) ----------
 if [ "$PUBLISH" = "1" ]; then
   if [ "$PREVIEW" = "1" ]; then
     die "--publish with --preview: publish a real tag instead (drop --preview)"
   fi
-  say "Creating release v$VERSION (crates@${CRATES_SHA:0:12})"
-  gh release create "v$VERSION" --title "v$VERSION" --notes "crates@$CRATES_SHA"
+  NOTES="Built from gazm@${GAZM_SHA} with crates@${CRATES_SHA} (ROMs verified against stargate@${STARGATE_SHA})"
+  say "Creating release v$VERSION"
+  echo "$NOTES"
+  gh release create "v$VERSION" --title "v$VERSION" --notes "$NOTES"
   find .release-artifacts -type f -print0 | while IFS= read -r -d '' f; do
     gh release upload "v$VERSION" "$f"
   done
@@ -110,6 +125,6 @@ if [ "$PUBLISH" = "1" ]; then
 else
   say "Build complete — artifacts in .release-artifacts/"
   say "To publish manually:"
-  echo "  gh release create v$VERSION --notes 'crates@$CRATES_SHA'"
+  echo "  gh release create v$VERSION --notes \"$NOTES\""
   echo "  gh release upload v$VERSION .release-artifacts/*/*"
 fi

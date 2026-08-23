@@ -61,6 +61,18 @@ jobs:
         id: crates-sha
         run: echo "sha=$(git -C crates rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      # Stargate is the byte-identity fixture the ROM checksums were verified
+      # against; record its revision so the release notes state exactly which
+      # fixture the binaries correspond to.
+      - uses: actions/checkout@v4
+        with:
+          repository: gazliddon/stargate
+          path: stargate
+
+      - name: Record stargate SHA
+        id: stargate-sha
+        run: echo "sha=$(git -C stargate rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -87,6 +99,26 @@ jobs:
             ${{ steps.build.outputs.sha256 }}
           if-no-files-found: error
 
+      # One job writes the build manifest (identical SHAs on every job);
+      # scripts/release.sh reads it to compose the release notes.
+      - name: Write build manifest
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          {
+            echo "gazm=${{ github.sha }}"
+            echo "crates=${{ steps.crates-sha.outputs.sha }}"
+            echo "stargate=${{ steps.stargate-sha.outputs.sha }}"
+          } > build-manifest.txt
+
+      - name: Upload build manifest
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-manifest
+          path: build-manifest.txt
+          if-no-files-found: error
+
       - name: Publish instructions for this target
         # Windows runners default to PowerShell for `run:` steps; force bash
         # so the heredoc works on all four platforms.
@@ -102,7 +134,10 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## gazm-${{ matrix.target }}
 
-          Built from ${{ github.sha }} (${TRIGGER}) against crates@\`${{ steps.crates-sha.outputs.sha }}\`.
+          Built from ${{ github.sha }} (${TRIGGER}) against:
+
+          - crates@\`${{ steps.crates-sha.outputs.sha }}\`
+          - stargate@\`${{ steps.stargate-sha.outputs.sha }}\` (ROM fixture)
 
           Download the **gazm-${{ matrix.target }}** artifact from this run,
           then attach it to the release:
