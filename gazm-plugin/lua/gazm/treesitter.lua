@@ -13,7 +13,7 @@ function M.add_treesitter(opts)
     local ok, tsparsers = pcall(require, "nvim-treesitter.parsers")
 
     if ok then
-        local ts_dir = tostring(paths.plugin_dir_path:joinpath('treesitter-gazm'))
+        local ts_dir = vim.fs.joinpath(paths.plugin_dir, 'treesitter-gazm')
         vim.opt.rtp:append(paths.plugin_dir)
 
         if type(tsparsers.get_parser_configs) == 'function' then

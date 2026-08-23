@@ -1,14 +1,13 @@
 local M = {}
 
-local Path = require("plenary.path")
-
+-- Absolute path to the plugin root (parent of `lua/`).
 local function find_plugin_dir()
-    local this_file = debug.getinfo(1).source:sub(2)
-    local p = Path.new(this_file):parent()
-    return p:find_upwards("ftdetect"):parent()
+    -- debug.getinfo gives the full path to this file:
+    --   <plugin>/lua/gazm/paths.lua  ->  <plugin>
+    local src = debug.getinfo(1, 'S').source:sub(2)
+    return vim.fn.fnamemodify(src, ':p:h:h:h')
 end
 
-M.plugin_dir_path = find_plugin_dir()
-M.plugin_dir = tostring(M.plugin_dir_path)
+M.plugin_dir = find_plugin_dir()
 
 return M

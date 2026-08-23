@@ -1,0 +1,6 @@
+# Parser build artifacts (nvim-treesitter `main` compiles in place)
+parser.so
+*.so
+
+# Node toolchain for grammar development
+node_modules/
