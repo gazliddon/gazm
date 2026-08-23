@@ -14,6 +14,11 @@ struct LoadedTomlConfig {
     checksums: Option<HashMap<String, CheckSum>>,
     lsp: Option<LspConfig>,
     targets: Option<Vec<LoadedTarget>>,
+    /// Minimum gazm version required to build this project, e.g.
+    /// `requires-gazm = "0.9.17"`. Stargate pins the assembler version it
+    /// was validated against; the CLI refuses to run with an older binary.
+    #[serde(rename = "requires-gazm", default)]
+    requires_gazm: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -46,6 +51,11 @@ pub enum ConfigErrorType {
     MissingConfigFile(PathBuf),
     #[error("Parse Error in config file: {0}\nline: {2}, col: {3}\n{1}")]
     ParseError(PathBuf, String, usize, usize),
+    #[error(
+        "This project requires gazm >= {required} (config key `requires-gazm`), but this binary is {running}.\n\
+         Build the newer assembler, or remove the `requires-gazm` key if you know what you're doing."
+    )]
+    VersionMismatch { required: String, running: String },
 }
 
 impl std::fmt::Debug for ConfigErrorType {
@@ -106,6 +116,16 @@ impl TomlConfig {
                     targets,
                 };
 
+                if let Some(required) = &toml.requires_gazm {
+                    let running = env!("CARGO_PKG_VERSION");
+                    if version_lt(running, required) {
+                        return Err(ConfigErrorType::VersionMismatch {
+                            required: required.clone(),
+                            running: running.to_string(),
+                        });
+                    }
+                }
+
                 Ok(config)
             }
 
@@ -136,5 +156,59 @@ mod test {
     fn yaml_test() {
         // let _y = YamlConfig::new();
         // print!("{:#?}", _y);
+    }
+}
+
+/// True if `a` is an older version than `b` ("0.9.16" < "0.9.17").
+/// Handles optional leading 'v' and 2- or 3-part versions; non-numeric
+/// parts are ignored defensively (treat them as equal).
+fn version_lt(a: &str, b: &str) -> bool {
+    fn parts(v: &str) -> Vec<u64> {
+        v.trim_start_matches('v')
+            .split('.')
+            .filter_map(|p| {
+                p.chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .parse()
+                    .ok()
+            })
+            .collect()
+    }
+    let (a, b) = (parts(a), parts(b));
+    for i in 0..a.len().max(b.len()) {
+        match (a.get(i), b.get(i)) {
+            (Some(x), Some(y)) if x != y => return x < y,
+            (Some(_), None) => return false,
+            (None, Some(_)) => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::version_lt;
+
+    #[test]
+    fn compares_patch() {
+        assert!(version_lt("0.9.16", "0.9.17"));
+        assert!(!version_lt("0.9.17", "0.9.17"));
+        assert!(!version_lt("0.9.18", "0.9.17"));
+    }
+
+    #[test]
+    fn compares_minor_and_major() {
+        assert!(version_lt("0.8.9", "0.9.0"));
+        assert!(version_lt("1.0.0", "2.0.0"));
+        assert!(!version_lt("2.0.0", "1.9.9"));
+    }
+
+    #[test]
+    fn tolerates_prefix_and_short_forms() {
+        assert!(version_lt("v0.9.16", "0.9.17"));
+        assert!(version_lt("0.9", "0.9.1"));
+        assert!(!version_lt("0.9.1", "0.9"));
     }
 }
