@@ -1,17 +1,50 @@
 ;; Highlights!
 
+;; Strings
 (string_literal) @string
-; (mnemonic (immediate) @tag)
-(operand (immediate) @operator) 
 
+;; Directives & Commands
+(importer) @keyword.import
+
+[(incbin) (org) (section) (scope) (fdb) (fcb) (fill) (rmb) (fcc) (include)
+ (writebin) (setdp) (bsz) (zmb) (zmd) (exec_addr)] @keyword.directive
+
+;; Structs & Macros
+(elem_type) @type.builtin
+
+;; Mnemonics & Opcodes
+(mnemonic) @function.builtin
+
+;; Labels & Identifiers
+(local_label) @label
+(label) @label
+
+;; Scope & Namespaces
+(scope (label) @module)
+(scope (local_label) @module)
+(import_group scope: (label) @module)
+(import_group name: (label) @label)
+
+;; Punctuation
+["{" "}" "[" "]"] @punctuation.bracket
+["," "::" ":"] @punctuation.delimiter
+
+;; Numbers
 [(dec_num) (hex_num) (bin_num)] @number
-(mnemonic) @tag
-(comment) @comment @spell
-[(label) (local_label)] @type.builtin
-[ (incbin) (org) (scope) (fdb) (fcb) (fill) (rmb) (fcc)] @keyword 
-(fcb (label) @number)
-[(x) (y) (s) (u) (dp) (a) (b) (d) (pc)] @tag
-(doc (doc_text) @operator)
-(doc) @comment
 
+;; Operators & Operands
+(operand (immediate) @operator)
+
+;; Registers
+(fcb (label) @number)
+[(x) (y) (s) (u) (dp) (a) (b) (d) (pc)] @variable.builtin
+
+;; Comments & Docs
+(comment) @comment @spell
+(doc (doc_text) @comment.documentation)
+(doc) @comment.documentation
+(long_doc) @comment.documentation
+
+;; Errors
 (ERROR) @error
+

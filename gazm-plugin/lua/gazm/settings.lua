@@ -4,7 +4,12 @@ local M = {}
 
 local DEFAULT_SETTINGS = {
     lsp = {
-        onattach = function()
+        -- Override this with an absolute path while developing Gazm, for
+        -- example: /.../gazm/target/debug/gazm.
+        command = "gazm",
+        config = "gazm.toml",
+        root_pattern = "gazm.toml",
+        on_attach = function()
         end
     }
 }

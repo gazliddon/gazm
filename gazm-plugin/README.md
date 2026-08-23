@@ -53,7 +53,9 @@ Passed to `setup` via lazy's `opts` (or `require('gazm').setup(...)`):
 - Tree-sitter highlighting, injections, and indentation queries
 - LSP: `gazm/target` notification handler feeds the statusline
   (`b.gazm_cpu`, `b.gazm_target`)
-- New statements start at the gazm opcode column (16 spaces)
+- New statements start at the gazm opcode column (16 spaces); labels at
+  column 0 and struct/macro bodies one level deeper are handled by
+  `indentexpr` (`lua/gazm/indent.lua`) plus the `indents.scm` query
 
 ## Development
 
