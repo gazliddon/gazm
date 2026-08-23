@@ -1,26 +1,23 @@
 use makehelp::{gencode, helpentry::HelpEntry};
 
 use anyhow::{Context, Result};
+use clap::Parser;
 use std::path::PathBuf;
 
-use structopt::StructOpt;
-
-#[derive(StructOpt, Debug)]
-#[structopt(name = "makehelp", about = "Help generator for the Gazm assembler")]
-#[structopt(version = "0.1.0")]
-#[structopt(author = "gazaxian")]
-#[structopt(rename_all = "kebab-case")]
+/// Help generator for the Gazm assembler
+#[derive(Parser, Debug)]
+#[command(name = "makehelp", version, author = "gazaxian")]
 pub struct Opts {
-    #[structopt(short, long)]
+    #[arg(short, long)]
     verbose: bool,
-    #[structopt(short, long, parse(from_os_str))]
+    #[arg(short, long)]
     out_file: Option<PathBuf>,
-    #[structopt(name = "FILE", parse(from_os_str))]
+    #[arg(name = "FILE")]
     paths: Vec<PathBuf>,
 }
 
 fn main() -> Result<()> {
-    let opts = Opts::from_args();
+    let opts = Opts::parse();
 
     let all: Result<Vec<HelpEntry>> = opts.paths.iter().map(HelpEntry::new).collect();
 
