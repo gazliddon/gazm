@@ -1,0 +1,67 @@
+# CI: verify gazm still builds and stays byte-compatible every push.
+#
+# gazm depends on the shared crates workspace via path deps (../../crates),
+# so CI checks out gazliddon/crates next to it. The Stargate fixture is the
+# primary compatibility gate: assembling it must reproduce the original ROMs
+# byte-for-byte.
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: gazm
+
+      # gazm/Cargo.toml resolves its crates via ../../crates
+      - uses: actions/checkout@v4
+        with:
+          repository: gazliddon/crates
+          path: ../crates
+
+      # Stargate fixture used by the byte-identity check below
+      - uses: actions/checkout@v4
+        with:
+          repository: gazliddon/stargate
+          path: ../stargate
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Test
+        working-directory: gazm
+        run: |
+          cargo test -p gazm
+          cargo fmt --all -- --check
+
+      - name: Build gazm
+        working-directory: gazm
+        run: cargo build -p gazm --release
+
+      - name: Assemble Stargate and compare ROMs byte-for-byte
+        working-directory: ../stargate
+        run: |
+          # The fixture writes roms/* and compares against orig/roms/*
+          # via bin-references in gazm.toml on every build; fail if the
+          # binary comparison reports any mismatch.
+          set -euo pipefail
+          "$GITHUB_WORKSPACE/gazm/target/release/gazm" build 2>&1 | tee build.log
+          if grep -q "Cannot load binary ref" build.log; then
+            echo "::error::Stargate build reported unloadable binary references"
+            exit 1
+          fi
+          for f in 01 02 03 04 05 06 07 08 09 10 11 12; do
+            cmp "roms/$f" "orig/roms/$f" \
+              || { echo "::error::roms/$f differs from orig"; exit 1; }
+          done
+          if [ -f orig/roms/sg.snd ]; then
+            cmp "roms/sound.bin" "orig/roms/sg.snd" \
+              || { echo "::error::sound.bin differs from orig"; exit 1; }
+          fi
+          echo "All 12 ROMs + sound board byte-identical to originals."

@@ -5,3 +5,6 @@ glht.ini
 out
 bin
 Cargo.lock
+
+# Local release artifacts downloaded by scripts/release.sh
+.release-artifacts/

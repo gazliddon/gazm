@@ -1,0 +1,109 @@
+# Release: build gazm binaries for Windows / macOS / Linux.
+#
+# This workflow is deliberately NON-publishing by default: it builds all four
+# targets and stores the archives as run artifacts, but does NOT create a
+# GitHub release or upload anything to it. Publish manually:
+#
+#   gh release create v0.9.17 --notes "crates@<sha>"
+#   gh release upload v0.9.17 <downloaded archives>
+#
+# Triggered either by a v* tag push (the real release build) or manually from
+# the Actions tab (workflow_dispatch) to preview the build without tagging.
+#
+# (See docs/RELEASING.md for the full loop. To make tags auto-publish later,
+# set dry_run to false and add permissions: contents: write.)
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Preview version label (e.g. 0.9.17-preview); tag name is used when triggered by a tag'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-13
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: gazm
+
+      # gazm/Cargo.toml resolves its crates via ../../crates; pin to the
+      # current crates@main and record the SHA so the release is reproducible.
+      - uses: actions/checkout@v4
+        with:
+          repository: gazliddon/crates
+          path: ../crates
+
+      - name: Record crates SHA
+        id: crates-sha
+        run: echo "sha=$(git -C ../crates rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build and compress binaries (no upload)
+        id: build
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: gazm
+          target: ${{ matrix.target }}
+          manifest-path: gazm/Cargo.toml
+          tar: unix
+          zip: windows
+          checksum: sha256
+          dry_run: true
+
+      - name: Upload archives as run artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gazm-${{ matrix.target }}
+          path: |
+            ${{ steps.build.outputs.tar }}
+            ${{ steps.build.outputs.zip }}
+            ${{ steps.build.outputs.sha256 }}
+          if-no-files-found: error
+
+      - name: Publish instructions for this target
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            RELEASE="${{ github.event.inputs.version }}"
+            TRIGGER="manual preview (no tag created)"
+          else
+            RELEASE="${GITHUB_REF_NAME}"
+            TRIGGER="tag ${GITHUB_REF_NAME}"
+          fi
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## gazm-${{ matrix.target }}
+
+          Built from ${{ github.sha }} (${TRIGGER}) against crates@\`${{ steps.crates-sha.outputs.sha }}\`.
+
+          Download the **gazm-${{ matrix.target }}** artifact from this run,
+          then attach it to the release:
+
+          \`\`\`sh
+          gh release upload ${RELEASE} <downloaded-archives>
+          \`\`\`
+          EOF
