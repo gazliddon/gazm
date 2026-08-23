@@ -61,24 +61,42 @@ else
   warn "stargate checkout not found at $STARGATE_DIR — skipping fixture check"
 fi
 
-# ---------- 2. version bump ----------
-CURRENT="$(grep -m1 '^version' "$GAZM_DIR/gazm/Cargo.toml" | sed -E 's/version = "([^"]+)"/\1/')"
-IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-case "$BUMP" in
-  major) NEW_MAJOR=$((MAJOR + 1)); NEW_MINOR=0; NEW_PATCH=0 ;;
-  minor) NEW_MAJOR=$MAJOR; NEW_MINOR=$((MINOR + 1)); NEW_PATCH=0 ;;
-  patch) NEW_MAJOR=$MAJOR; NEW_MINOR=$MINOR; NEW_PATCH=$((PATCH + 1)) ;;
-  *) die "unknown bump type: $BUMP (use major|minor|patch)" ;;
-esac
-NEW_VERSION="$NEW_MAJOR.$NEW_MINOR.$NEW_PATCH"
+# ---------- 2. decide whether to bump ----------
+# Only bump when gazm actually has something new: uncommitted changes or
+# unpushed commits. Running this twice in a row (e.g. after a prepare that
+# was already pushed) must NOT march the version forward.
+cd "$GAZM_DIR"
+DIRTY="$(git status --porcelain | wc -l | tr -d ' ')"
+UNPUSHED="$(git log --oneline @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ' || echo 0)"
+BUMP_NEEDED=1
+if [ "$DIRTY" = "0" ] && [ "$UNPUSHED" = "0" ]; then
+  warn "gazm has no uncommitted or unpushed changes — skipping version bump."
+  BUMP_NEEDED=0
+fi
 
-say "Bumping gazm $CURRENT -> $NEW_VERSION"
-sed -i '' "s/^version = \"$CURRENT\"/version = \"$NEW_VERSION\"/" "$GAZM_DIR/gazm/Cargo.toml"
+if [ "$BUMP_NEEDED" = "1" ]; then
+  CURRENT="$(grep -m1 '^version' "$GAZM_DIR/gazm/Cargo.toml" | sed -E 's/version = "([^"]+)"/\1/')"
+  IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+  case "$BUMP" in
+    major) NEW_MAJOR=$((MAJOR + 1)); NEW_MINOR=0; NEW_PATCH=0 ;;
+    minor) NEW_MAJOR=$MAJOR; NEW_MINOR=$((MINOR + 1)); NEW_PATCH=0 ;;
+    patch) NEW_MAJOR=$MAJOR; NEW_MINOR=$MINOR; NEW_PATCH=$((PATCH + 1)) ;;
+    *) die "unknown bump type: $BUMP (use major|minor|patch)" ;;
+  esac
+  NEW_VERSION="$NEW_MAJOR.$NEW_MINOR.$NEW_PATCH"
 
-# ---------- 3. keep stargate's requires-gazm in lockstep ----------
-if [ -f "$STARGATE_DIR/gazm.toml" ]; then
-  say "Updating stargate requires-gazm to $NEW_VERSION"
-  sed -i '' "s/^requires-gazm = \".*\"/requires-gazm = \"$NEW_VERSION\"/" "$STARGATE_DIR/gazm.toml"
+  say "Bumping gazm $CURRENT -> $NEW_VERSION"
+  sed -i '' "s/^version = \"$CURRENT\"/version = \"$NEW_VERSION\"/" "$GAZM_DIR/gazm/Cargo.toml"
+
+  # keep stargate's requires-gazm in lockstep
+  if [ -f "$STARGATE_DIR/gazm.toml" ]; then
+    say "Updating stargate requires-gazm to $NEW_VERSION"
+    sed -i '' "s/^requires-gazm = \".*\"/requires-gazm = \"$NEW_VERSION\"/" "$STARGATE_DIR/gazm.toml"
+  fi
+else
+  # No gazm bump, but crates/stargate may still have independent changes.
+  CURRENT="$(grep -m1 '^version' "$GAZM_DIR/gazm/Cargo.toml" | sed -E 's/version = "([^"]+)"/\1/')"
+  NEW_VERSION="$CURRENT"
 fi
 
 # ---------- 4/5. commit each repo that has changes ----------
@@ -90,11 +108,19 @@ commit_repo() { # $1 dir, $2 message
 }
 
 say "Committing gazm"
-commit_repo "$GAZM_DIR" "Bump version to $NEW_VERSION"
+if [ "$BUMP_NEEDED" = "1" ]; then
+  commit_repo "$GAZM_DIR" "Bump version to $NEW_VERSION"
+else
+  commit_repo "$GAZM_DIR" "gazm: pre-release state for $NEW_VERSION"
+fi
 
 if [ -d "$STARGATE_DIR/.git" ]; then
   say "Committing stargate"
-  commit_repo "$STARGATE_DIR" "Require gazm >= $NEW_VERSION"
+  if [ "$BUMP_NEEDED" = "1" ]; then
+    commit_repo "$STARGATE_DIR" "Require gazm >= $NEW_VERSION"
+  else
+    commit_repo "$STARGATE_DIR" "stargate: pre-release state for gazm $NEW_VERSION"
+  fi
 fi
 
 if [ -d "$CRATES_DIR/.git" ]; then
