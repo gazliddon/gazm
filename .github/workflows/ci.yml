@@ -47,24 +47,15 @@ jobs:
         working-directory: gazm
         run: cargo build -p gazm --release
 
-      - name: Assemble Stargate and compare ROMs byte-for-byte
+      - name: Assemble Stargate and verify ROM checksums
         working-directory: stargate
         run: |
-          # The fixture writes roms/* and compares against orig/roms/*
-          # via bin-references in gazm.toml on every build; fail if the
-          # binary comparison reports any mismatch.
+          # The original ROM images (orig/roms/*) are not committed to the
+          # fixture repo, so the build's bin-references cannot load on CI
+          # (gazm logs an error but still writes the ROMs and exits 0).
+          # Instead we verify the built ROMs against the committed
+          # roms.sha1 manifest (the hashes are also in the fixture README).
           set -euo pipefail
           "$GITHUB_WORKSPACE/gazm/target/release/gazm" build 2>&1 | tee build.log
-          if grep -q "Cannot load binary ref" build.log; then
-            echo "::error::Stargate build reported unloadable binary references"
-            exit 1
-          fi
-          for f in 01 02 03 04 05 06 07 08 09 10 11 12; do
-            cmp "roms/$f" "orig/roms/$f" \
-              || { echo "::error::roms/$f differs from orig"; exit 1; }
-          done
-          if [ -f orig/roms/sg.snd ]; then
-            cmp "roms/sound.bin" "orig/roms/sg.snd" \
-              || { echo "::error::sound.bin differs from orig"; exit 1; }
-          fi
-          echo "All 12 ROMs + sound board byte-identical to originals."
+          sha1sum -c roms.sha1
+          echo "All 12 ROMs + sound board match the committed SHA-1 manifest."
