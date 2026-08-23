@@ -1,21 +1,15 @@
 #![deny(unused_imports)]
 
-
 use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0};
 
 use super::{
-    concat, from_item_kids_tspan, from_item_tspan, parse_bracketed, GazmParser, AstNodeKind, Node,
-    PResult, TSpan,
+    concat, from_item_children_tspan, from_item_tspan, parse_bracketed, AstNodeKind, GazmParser,
+    Node, PResult, TSpan,
     TokenKind::{self, *},
 };
 
-impl GazmParser
-{
-    pub fn op_to_node(
-        input: TSpan,
-        toke: TokenKind,
-        item: AstNodeKind,
-    ) -> PResult<Node> {
+impl GazmParser {
+    pub fn op_to_node(input: TSpan, toke: TokenKind, item: AstNodeKind) -> PResult<Node> {
         let (rest, (sp, _)) = ms(toke)(input)?;
         Ok((rest, from_item_tspan(item, sp)))
     }
@@ -57,7 +51,7 @@ impl GazmParser
     fn parse_unary_term(input: TSpan) -> PResult<Node> {
         let (rest, (sp, (op, term))) =
             ms(pair(Self::parse_unary_op, Self::parse_non_unary_term))(input)?;
-        let node = from_item_kids_tspan(AstNodeKind::UnaryTerm, &[op, term], sp);
+        let node = from_item_children_tspan(AstNodeKind::UnaryTerm, &[op, term], sp);
         Ok((rest, node))
     }
 
@@ -81,8 +75,7 @@ impl GazmParser
     }
 }
 
-pub fn parse_expr(input: TSpan) -> PResult<Node>
-{
+pub fn parse_expr(input: TSpan) -> PResult<Node> {
     let (rest, (sp, (term, vs))) = ms(pair(
         GazmParser::parse_term,
         many0(GazmParser::parse_op_term),
@@ -92,7 +85,7 @@ pub fn parse_expr(input: TSpan) -> PResult<Node>
         Ok((rest, term))
     } else {
         let vs = vs.into_iter().flat_map(|(o, t)| [o, t]);
-        let node = from_item_kids_tspan(AstNodeKind::Expr, &concat((term, vs)), sp);
+        let node = from_item_children_tspan(AstNodeKind::Expr, &concat((term, vs)), sp);
         Ok((rest, node))
     }
 }

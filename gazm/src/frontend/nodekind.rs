@@ -1,7 +1,7 @@
 #![forbid(unused_imports)]
-use crate::{ frontend::LabelDefinition, cpukind::CpuKind };
+use crate::{cpukind::CpuKind, frontend::LabelDefinition};
 use grl_sources::Position;
-use std::{fmt::Display, path::PathBuf};
+use std::path::PathBuf;
 use thin_vec::ThinVec;
 
 use crate::{
@@ -59,6 +59,8 @@ pub enum AstNodeKind {
 
     SetPc(usize),
     SetPutOffset(isize),
+    SetSection(String),
+    Section(String),
 
     Scope(String),
     ScopeId(u64),
@@ -172,11 +174,6 @@ impl AstNodeKind {
             _ => None,
         }
     }
-}
-
-pub fn join_vec<I: Display>(v: &[I], sep: &str) -> String {
-    let ret: Vec<_> = v.iter().map(|x| x.to_string()).collect();
-    ret.join(sep)
 }
 
 // impl Display for BaseNode<Item<MC6809>, Position> {

@@ -9,8 +9,6 @@ use crate::{
 
 use grl_sources::Position;
 
-use itertools::Itertools;
-
 #[derive(Clone, Debug)]
 pub struct LabelUsageAndDefintions {
     reference_pos_and_id: Vec<(Position, SymbolScopeId)>,
@@ -22,8 +20,7 @@ pub struct LabelUsageAndDefintions {
 }
 
 impl LabelUsageAndDefintions {
-    pub fn new(tree: &Ast, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self
-    {
+    pub fn new(tree: &Ast, _syms: &SymbolTree, docs: HashMap<AstNodeId, String>) -> Self {
         use AstNodeKind::*;
 
         let mut reference_pos_and_id: Vec<(Position, SymbolScopeId)> = vec![];
@@ -50,10 +47,10 @@ impl LabelUsageAndDefintions {
         // Create a list of position -> node id
         // sorted by length, smallest first
         // smallest will be the enclosing span
-        let pos_node_id = iter_refs_recursive(tree.as_ref().root())
+        let mut pos_node_id: Vec<_> = iter_refs_recursive(tree.as_ref().root())
             .map(|n| (n.value().pos, n.id()))
-            .sorted_by(|(a, _), (b, _)| Ord::cmp(&a.range().len(), &b.range().len()))
             .collect();
+        pos_node_id.sort_by_key(|(a, _)| a.range().len());
 
         Self {
             reference_pos_and_id,
@@ -140,5 +137,32 @@ impl LabelUsageAndDefintions {
 
     pub fn find_definition(&self, id: SymbolScopeId) -> Option<&Position> {
         self.symbol_id_to_definition_pos.get(&id)
+    }
+
+    /// Return the resolved symbol names and their definition positions.
+    ///
+    /// Labels are converted from textual definitions to scoped symbol IDs
+    /// during semantic analysis, so consumers must use the symbol table here
+    /// rather than inspecting the post-analysis AST for label text.
+    pub fn definitions(&self) -> impl Iterator<Item = (String, Position)> + '_ {
+        self.symbol_id_to_definition_pos
+            .iter()
+            .filter_map(|(id, pos)| {
+                self.symbols
+                    .get_symbol_info_from_id(*id)
+                    .ok()
+                    .map(|info| (info.name().to_owned(), *pos))
+            })
+    }
+
+    pub fn references(&self) -> impl Iterator<Item = (String, Position)> + '_ {
+        self.reference_pos_and_id
+            .iter()
+            .filter_map(|(position, id)| {
+                self.symbols
+                    .get_symbol_info_from_id(*id)
+                    .ok()
+                    .map(|info| (info.name().to_owned(), *position))
+            })
     }
 }

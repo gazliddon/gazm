@@ -7,20 +7,19 @@ use crate::error::GResult;
 
 use std::path::Path;
 
-impl Assembler
-{
+impl Assembler {
     pub fn edit_source_file<P: AsRef<Path>, X>(
         &mut self,
         file: P,
         f: impl FnOnce(&mut dyn TextEditTrait) -> EditResult<X>,
     ) -> EditResult<X> {
         if let Ok(source) = self.sources_mut().get_source_mut(&file) {
-            let old_hash = source.get_text().get_hash().clone();
+            let old_hash = source.get_text().get_hash();
 
             let res = f(source.get_text_mut())?;
 
             // Invalidate token cache if needed
-            let new_hash = source.get_text().get_hash().clone();
+            let new_hash = source.get_text().get_hash();
 
             if new_hash != old_hash {
                 self.get_token_store_mut().invalidate_tokens(&file);

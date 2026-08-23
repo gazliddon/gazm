@@ -36,13 +36,14 @@ fn size_node_internal(
     match &node_kind {
         Illegal => todo!(),
 
-        OpCode(text, ins) => {
+        OpCode(ins) => {
+            let opcode_id = *ins;
+            let ins_info = ISA_DBASE
+                .get_instruction_info_from_opcode(opcode_id.0)
+                .unwrap();
+            let ins = ins_info.opcode_data;
             // get the size of this instruction
             let mut size = ins.size;
-
-            let ins_info = ISA_DBASE
-                .get_instruction_info_from_opcode(ins.opcode)
-                .unwrap();
 
             if ins_info.addr_mode == AddrModeEnum::Extended {
                 // Is this extend addressing and we support direct?
@@ -51,7 +52,7 @@ fn size_node_internal(
                 // If it is we can do direct addressing
 
                 let new_ins = DBASE
-                    .get_instruction_info_from_opcode(ins.opcode)
+                    .get_instruction_info_from_opcode(opcode_id.0)
                     .and_then(|i_type| i_type.instruction.get_opcode_data(AddrModeEnum::Direct));
 
                 if let Some(new_ins) = new_ins {
@@ -63,9 +64,8 @@ fn size_node_internal(
                                 debug_mess!("Xformed from Extended to Direct :  {}", src.line_str);
                             }
 
-                            let new_ins = new_ins.clone();
                             size = new_ins.size;
-                            let new_item = OpCode(text.clone(), new_ins.into());
+                            let new_item = OpCode(new_ins.id());
 
                             asm.add_fixup(id, new_item, current_scope_id);
                         }

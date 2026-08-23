@@ -5,48 +5,55 @@ edition = "2021"
 authors= ["Gaz Liddon"]
 
 [dependencies]
-anyhow="1.0.75"
-clap = { version = "4.4.4", features = ["derive", "color", "cargo"] }
-colored = "2.0.4"
-ego-tree="0.6.2"
-itertools="0.11.0"
-lazy_static="1.4.0"
-log="0.4.20"
-rayon = "1.8.0"
+anyhow="1.0.104"
+ariadne = "0.6"
+clap = { version = "4.6.6", features = ["derive", "color", "cargo"] }
+colored = "2.2.0"
+ego-tree="0.11.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-chrome = { version = "0.7.2", optional = true }
+rayon = "1.12.0"
 
-serde = { version="1.0.188", features=[ "derive" ]}
-serde_json = "1.0.107"
+serde = { version="1.0.229", features=[ "derive" ]}
+serde_json = "1.0.151"
+bincode = "1.3"
 serde_yaml = "0.9.25"
 
-simple-logging="2.0.2"
-thin-vec="0.2.12"
-thiserror="1.0.48"
-tokio = { version = "1.24.2", features = ["full"] }
-tokio-util = { version = "0.7.9", features = ["codec"] }
-toml="0.8.0"
-tower-lsp = { git = "https://github.com/gazliddon/tower-lsp", version = "*" }
-tryvial="0.2.0"
-logos="0.13.0"
+thin-vec="0.2.19"
+thiserror="1.0.69"
+toml="0.8.23"
+logos="0.16.1"
 
 emu6809 = {path="../../crates/emu6809"}
 emu6800 = {path="../../crates/emu6800"}
-grl-sources = {path = "../../crates/grl-sources"}
+grl-sources = {path = "../../crates/grl-sources", features = ["serde"]}
+grl-utils = {path = "../../crates/grl-utils"}
+grl-symbols = {path = "../../crates/grl-symbols", features = ["serde"]}
 grl-eval = {path="../../crates/grl-eval"}
 unraveler = {path="../../crates/unraveler"}
 
-num-traits = "0.2.17"
-strum = { version = "0.26" }
-strum_macros = { version = "0.26" }
-regex = "1.10.0"
+num-traits = "0.2.19"
+strum = { version = "0.26.3" }
+strum_macros = { version = "0.26.4" }
+regex = "1.13.1"
 termimad = "0.25.5"
-glob = "0.3.1"
+glob = "0.3.4"
 convert_case = "0.6.0"
+
+[features]
+default = []
+chrome-trace = ["dep:tracing-chrome"]
 
 [dev-dependencies]
 pretty_assertions="1.4.0"
+criterion = "0.5.1"
+
+[[bench]]
+name = "pipeline"
+harness = false
 
 [build-dependencies]
 glob = "0.3.1"
 makehelp ={path="../makehelp"} 
-anyhow="1.0.75"
-
+anyhow="1.0.104"

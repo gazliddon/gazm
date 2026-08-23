@@ -1,7 +1,7 @@
-use handlebars::Handlebars;
-use serde_json::json;
 use crate::helpentry::HelpEntry;
 use crate::template::TEMPLATE;
+use handlebars::Handlebars;
+use serde_json::json;
 
 pub fn generate_rust_code(_help: &[HelpEntry]) -> String {
     let reg = Handlebars::new();
@@ -24,5 +24,3 @@ pub fn generate_rust_code(_help: &[HelpEntry]) -> String {
     )
     .unwrap()
 }
-
-

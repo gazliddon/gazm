@@ -1,11 +1,9 @@
 #![forbid(unused_imports)]
 
-
 use crate::frontend::AstNodeKind;
 use crate::semantic::*;
 
-impl<'a> std::fmt::Display for AstCtx<'a>
-{
+impl<'a> std::fmt::Display for AstCtx<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let wrapped = DisplayWrapper {
             node: self.get_tree().root(),
@@ -14,28 +12,22 @@ impl<'a> std::fmt::Display for AstCtx<'a>
     }
 }
 
-struct DisplayWrapper<'a> 
-{
+struct DisplayWrapper<'a> {
     node: AstNodeRef<'a>,
 }
 
-impl<'a, > From<AstNodeRef<'a>> for DisplayWrapper<'a> 
-
-{
-    fn from(ast: AstNodeRef<'a, >) -> Self {
+impl<'a> From<AstNodeRef<'a>> for DisplayWrapper<'a> {
+    fn from(ast: AstNodeRef<'a>) -> Self {
         Self { node: ast }
     }
 }
 
-pub fn as_string(n: AstNodeRef) -> String
-{
-    let x = DisplayWrapper{node: n};
+pub fn as_string(n: AstNodeRef) -> String {
+    let x = DisplayWrapper { node: n };
     x.to_string()
 }
 
-impl<'a> std::fmt::Display for DisplayWrapper<'a>
-
-{
+impl<'a> std::fmt::Display for DisplayWrapper<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use AstNodeKind::*;
 
@@ -57,7 +49,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a>
             }
         };
 
-        let join_kids = |sep| {
+        let join_children = |sep| {
             let v: Vec<_> = node.children().map(to_string).collect();
             v.join(sep)
         };
@@ -82,9 +74,9 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a>
                 format!("{} equ {}", name, child_string(0))
             }
 
-            Expr => join_kids(""),
+            Expr => join_children(""),
 
-            PostFixExpr => join_kids(" "),
+            PostFixExpr => join_children(" "),
 
             Include(file) => format!("include \"{}\"", file.to_string_lossy()),
 
@@ -111,16 +103,15 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a>
             }
 
             BracketedExpr => {
-                format!("({})", join_kids(""))
+                format!("({})", join_children(""))
             }
 
             TokenizedFile(..) => {
-                format!("TokFile:\n{}", join_kids("\n"))
+                format!("TokFile:\n{}", join_children("\n"))
             }
 
-
             StructDef(name) => {
-                let body = join_kids(",\n");
+                let body = join_children(",\n");
                 format!("struct {name} {{\n {body}\n}}")
             }
 
@@ -133,16 +124,16 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a>
             ShiftL => "<<".into(),
             Fcc(text) => format!("{text:?}"),
             Fdb(_) | Fcb(_) => {
-                format!("fcb {}", join_kids(","))
+                format!("fcb {}", join_children(","))
             }
 
             Fill => {
-                let body = join_kids(",");
+                let body = join_children(",");
                 format!("fill {body}")
             }
 
             MacroDef(name, vars) => {
-                format!("macro {name} ({vars:?}) [{}]", join_kids(" : "))
+                format!("macro {name} ({vars:?}) [{}]", join_children(" : "))
             }
 
             TargetSpecific(..) => todo!(),
@@ -203,7 +194,6 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a>
 
             //     format!("{} {operand}", instruction.action)
             // }
-
             _ => format!("{item:?} not implemented"),
         };
 

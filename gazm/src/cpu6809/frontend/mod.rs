@@ -1,19 +1,17 @@
+mod commands;
+mod error;
+mod indexed;
+mod lexer;
 mod nodekind;
 mod parse_opcode;
 mod parseindexed;
-mod indexed;
 mod register;
-mod commands;
-mod error;
-mod lexer;
 
-pub use nodekind::*;
-pub use parse_opcode::*;
-pub use register::*;
 pub use commands::*;
 pub use lexer::*;
+pub use nodekind::*;
+pub use parse_opcode::*;
 use parseindexed::*;
+pub use register::*;
 
 pub use error::*;
-
-

@@ -3,26 +3,22 @@ use std::env::current_exe;
 use num_traits::cast;
 
 use crate::{
-    assembler::{ AssemblerCpuTrait,Assembler,Compiler },
+    assembler::{Assembler, AssemblerCpuTrait, Compiler},
     error::GResult,
-    frontend::{PResult, TSpan, TokenKind, CpuSpecific, AstNodeKind, Node},
-    semantic::{ AstNodeRef, AstNodeId },
+    frontend::{AstNodeKind, CpuSpecific, Node, PResult, TSpan, TokenKind},
+    semantic::{AstNodeId, AstNodeRef},
 };
 
-use super::{
-    frontend::{lex_identifier, parse_multi_opcode_vec, NodeKind6800},
-};
-
+use super::frontend::{lex_identifier, parse_multi_opcode_vec, NodeKind6800};
 
 #[derive(PartialEq, Debug, Default, Clone)]
 pub struct Asm6800 {}
 
 impl Asm6800 {
     pub fn new() -> Self {
-        panic!()
+        Self {}
     }
 }
-
 
 impl AssemblerCpuTrait for Asm6800 {
     // type NodeKind = NodeKind6800;
@@ -37,8 +33,7 @@ impl AssemblerCpuTrait for Asm6800 {
         _asm: &mut Assembler,
         _id: crate::semantic::AstNodeId,
         _node_kind: CpuSpecific,
-        _current_scope_id: u64
-
+        _current_scope_id: u64,
     ) -> GResult<()> {
         panic!()
         // match node_kind {
@@ -52,21 +47,25 @@ impl AssemblerCpuTrait for Asm6800 {
         asm: &mut Assembler,
         node: AstNodeRef,
         node_kind: CpuSpecific,
-        current_scope_id: u64
+        current_scope_id: u64,
     ) -> crate::error::GResult<()> {
-
         match node_kind {
-            CpuSpecific::Cpu6800(node_kind) => asm.compile_node_6800( node_kind, node,current_scope_id),
+            CpuSpecific::Cpu6800(node_kind) => {
+                asm.compile_node_6800(node_kind, node, current_scope_id)
+            }
             _ => panic!(),
         }
     }
 
-    fn parse_multi_opcode_vec(&self,_input: crate::frontend::TSpan) -> PResult<Vec<Node>> {
+    fn parse_multi_opcode_vec<'a>(
+        &self,
+        _input: crate::frontend::TSpan<'a>,
+    ) -> PResult<'a, Vec<Node>> {
         todo!()
         // parse_multi_opcode_vec(_input)
     }
 
-    fn lex_identifier(&self,_id: &str) -> TokenKind {
+    fn lex_identifier(&self, _id: &str) -> TokenKind {
         lex_identifier(_id)
     }
 }

@@ -35,6 +35,7 @@ impl BinRef {
 /// Structure that holds what should be in this memory physical range
 #[derive(Debug, Clone)]
 struct BinRefChunk {
+    file: PathBuf,
     physical_range: std::ops::Range<usize>,
     ref_data: Vec<u8>,
 }
@@ -50,6 +51,7 @@ pub struct Binary {
     bin_refs: Vec<BinRefChunk>,
     unchecked_writes: Vec<MemoryLocation>,
     mismatches: Vec<ReferenceMismatch>,
+    fail_on_reference_mismatch: bool,
 }
 
 impl Default for Binary {
@@ -82,6 +84,7 @@ impl std::fmt::Debug for MemoryLocation {
 
 #[derive(Clone)]
 pub struct ReferenceMismatch {
+    pub reference_file: PathBuf,
     pub addr: usize,
     pub logical_addr: usize,
     pub val: usize,
@@ -91,6 +94,7 @@ pub struct ReferenceMismatch {
 impl std::fmt::Debug for ReferenceMismatch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ReferenceMismatch")
+            .field("reference_file", &self.reference_file)
             .field("addr", &self.addr)
             .field("logical_addr", &self.logical_addr)
             .field("val", &self.val)
@@ -99,9 +103,22 @@ impl std::fmt::Debug for ReferenceMismatch {
     }
 }
 
+impl std::fmt::Display for ReferenceMismatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "reference {} differs at ${:04X}: generated ${:02X}, expected ${:02X}",
+            self.reference_file.display(),
+            self.logical_addr,
+            self.val,
+            self.expected
+        )
+    }
+}
+
 #[derive(Error, Debug, Clone)]
 pub enum BinaryError {
-    #[error("Mismatch: {0:?}")]
+    #[error("{0}")]
     DoesNotMatchReference(ReferenceMismatch),
     #[error("Tried to write to {0:X?}")]
     InvalidWriteAddress(usize),
@@ -185,6 +202,7 @@ impl Binary {
 
     pub fn add_bin_reference(&mut self, bin_ref: &BinRef, m: &[u8]) {
         let chunk = BinRefChunk {
+            file: bin_ref.file.clone(),
             physical_range: bin_ref.dest..bin_ref.dest + bin_ref.size,
             ref_data: m.into(),
         };
@@ -199,10 +217,10 @@ impl Binary {
     }
 
     /// Get the byte we expect to be at this address
-    fn get_expected(&self, addr: usize) -> Option<u8> {
+    fn get_expected(&self, addr: usize) -> Option<(u8, &Path)> {
         for c in &self.bin_refs {
             if c.physical_range.contains(&addr) {
-                return Some(c.ref_data[addr - c.physical_range.start]);
+                return Some((c.ref_data[addr - c.physical_range.start], &c.file));
             }
         }
         None
@@ -223,7 +241,7 @@ impl Binary {
         };
 
         for (addr, a) in self.data.iter().enumerate() {
-            if let Some(b) = self.get_expected(addr) {
+            if let Some((b, _)) = self.get_expected(addr) {
                 if *a != b {
                     add_err(addr, a, b)
                 }
@@ -248,11 +266,22 @@ impl Binary {
             bin_refs: vec![],
             unchecked_writes: vec![],
             mismatches: Default::default(),
+            fail_on_reference_mismatch: true,
         }
     }
 
     pub fn bump_write_address(&mut self, n: usize) {
         self.write_address += n;
+    }
+
+    /// In editor mode, retain the first reference mismatch and continue
+    /// assembling so other diagnostics can still be reported.
+    pub fn collect_reference_mismatches(&mut self) {
+        self.fail_on_reference_mismatch = false;
+    }
+
+    pub fn reference_mismatches(&self) -> &[ReferenceMismatch] {
+        &self.mismatches
     }
 
     pub fn get_write_address(&self) -> usize {
@@ -339,7 +368,7 @@ impl Binary {
 
     pub fn get_unchecked_writes(&self) -> Vec<MemoryLocation> {
         let mut x = self.unchecked_writes.clone();
-        x.sort_by(|a, b| a.logical.cmp(&b.logical));
+        x.sort_by_key(|a| a.logical);
         x
     }
 
@@ -413,19 +442,28 @@ impl Binary {
     }
 
     fn check_byte(&mut self, physical_address: usize, val: u8) -> Result<WriteStatus, BinaryError> {
-        if let Some(expected) = self.get_expected(physical_address) {
+        if let Some((expected, reference_file)) = self.get_expected(physical_address) {
             if expected != val {
                 let loc = self.get_write_location();
                 let mismatch = ReferenceMismatch {
+                    reference_file: reference_file.to_path_buf(),
                     addr: loc.physical,
                     logical_addr: loc.logical,
                     val: val as usize,
                     expected: expected as usize,
                 };
 
-                self.mismatches.push(mismatch.clone());
+                if self.fail_on_reference_mismatch {
+                    return Err(BinaryError::DoesNotMatchReference(mismatch));
+                }
 
-                return Err(BinaryError::DoesNotMatchReference(mismatch));
+                // Once output has diverged, later addresses are not useful
+                // reference diagnostics: one size change can shift all bytes.
+                // Keep assembling, but report only the first mismatch.
+                if self.mismatches.is_empty() {
+                    self.mismatches.push(mismatch);
+                }
+                return Ok(WriteStatus::Checked);
             }
         }
         Ok(WriteStatus::Checked)
@@ -475,11 +513,11 @@ impl Binary {
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {
         // TODO needs to write in correct order for dest processor
         // rather than hard coded to big endian
-        let hi = ( val >> 8 ) as u8;
-        let lo = ( val & 0xff ) as u8;
-        let p1 = self.write_byte_internal(hi )?;
-        let p2 = self.write_byte_internal(lo )?;
+        let hi = (val >> 8) as u8;
+        let lo = (val & 0xff) as u8;
+        let p1 = self.write_byte_internal(hi)?;
+        let p2 = self.write_byte_internal(lo)?;
         self.check_byte(p1, hi)?;
-        self.check_byte(p2,lo)
+        self.check_byte(p2, lo)
     }
 }

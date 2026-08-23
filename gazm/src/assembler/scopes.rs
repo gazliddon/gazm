@@ -105,7 +105,6 @@ impl Default for ScopeBuilder {
     fn default() -> Self {
         let scope_tree = StackTree::new(String::new());
         Self { scope_tree }
-        
     }
 }
 

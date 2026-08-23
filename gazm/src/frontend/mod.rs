@@ -1,33 +1,29 @@
+mod basetoken;
 mod commands;
 mod error;
 mod expr;
 mod gazmunraveller;
-mod nodekind;
+mod identifier;
+mod labeldefinition;
+mod lexer;
 mod macros;
 mod misc;
+mod newparse;
 mod node;
 mod nodeiter;
+mod nodekind;
 mod parse;
 mod parsetext;
+mod struct_def;
 mod structs;
 mod testit;
 mod token_store;
 mod tokenize;
-mod lexer;
 mod utils;
-mod basetoken;
-mod labeldefinition;
-mod struct_def;
-mod identifier;
-mod newparse;
 
 // Public inside module
 pub use {
-    commands::*, error::*, expr::*, gazmunraveller::*, nodekind::*, macros::*, misc::*, node::*,
-    nodeiter::*, parse::*, parsetext::*, structs::*,
-    testit::*, token_store::*, tokenize::*, lexer::*, utils::*,
-    labeldefinition::*,
-    struct_def::*,
-    identifier::*,
-    newparse::*,
+    commands::*, error::*, expr::*, gazmunraveller::*, identifier::*, labeldefinition::*, lexer::*,
+    macros::*, misc::*, newparse::*, node::*, nodeiter::*, nodekind::*, parse::*, parsetext::*,
+    struct_def::*, structs::*, testit::*, token_store::*, tokenize::*, utils::*,
 };

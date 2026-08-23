@@ -1,6 +1,6 @@
 #![forbid(unused_imports)]
 
-use grl_sources::grl_utils::Stack;
+use grl_utils::Stack;
 
 #[derive(Default, Debug, Clone)]
 pub struct ScopeTracker {

@@ -1,8 +1,7 @@
-use emu6800::cpu_core::{AddrModeEnum, OpcodeData, RegEnum, DBASE};
+use emu6800::cpu_core::{AddrModeEnum, OpcodeId, RegEnum, DBASE};
 
 use crate::cpu6800::Asm6800;
-use crate::frontend::{ GazmParser, CpuSpecific, AstNodeKind, Node };
-
+use crate::frontend::{AstNodeKind, CpuSpecific, GazmParser, Node};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum AddrModeParseType {
@@ -18,13 +17,13 @@ pub enum AddrModeParseType {
 pub enum NodeKind6800 {
     #[default]
     Illegal,
-    OpCode(Box<String>, Box<OpcodeData>),
+    OpCode(OpcodeId),
     Operand(AddrModeParseType),
 }
 
 impl NodeKind6800 {
-    pub fn opcode<T: Into<String>>(name : T, opcode_data: &OpcodeData) -> Self {
-        NodeKind6800::OpCode(Box::new(name.into()), Box::new(opcode_data.clone()))
+    pub fn opcode<I: Into<OpcodeId>>(opcode_id: I) -> Self {
+        NodeKind6800::OpCode(opcode_id.into())
     }
 }
 
@@ -39,4 +38,3 @@ impl From<AddrModeParseType> for AstNodeKind {
         NodeKind6800::Operand(value).into()
     }
 }
-

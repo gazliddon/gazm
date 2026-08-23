@@ -1,7 +1,15 @@
 #![forbid(unused_imports)]
-use std::{collections::HashMap, path::{ PathBuf,Path }};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
-use crate::{lsp::LspConfig, messages::Verbosity, vars::{ Vars, VarsErrorKind }, error::GResult};
+use crate::{
+    error::GResult,
+    lsp::LspConfig,
+    messages::Verbosity,
+    vars::{Vars, VarsErrorKind},
+};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -41,6 +49,8 @@ pub struct Opts {
     pub as6809_sym: Option<PathBuf>,
     pub deps_file: Option<PathBuf>,
     pub ast_file: Option<PathBuf>,
+    pub pretty_json: bool,
+    pub json_output: bool,
 
     pub ignore_relative_offset_errors: bool,
     pub mem_size: usize,
@@ -66,23 +76,29 @@ pub struct Opts {
     pub build_type: BuildType,
 
     #[serde(skip)]
-    pub lsp_config: LspConfig,
-}
+    pub format_project: bool,
 
+    #[serde(skip)]
+    pub lsp_config: LspConfig,
+
+    #[serde(skip)]
+    pub target_name: Option<String>,
+}
 
 impl Opts {
     pub fn update_vars(&mut self) {
-        self.vars.set_var("PROJECT_FILE", &self.project_file.to_string_lossy());
+        self.vars
+            .set_var("PROJECT_FILE", &self.project_file.to_string_lossy());
         self.vars.set_var("MEM_SIZE", &format!("{}", self.mem_size));
     }
 
-    pub fn update_paths(&mut self) -> GResult<()>{
+    pub fn update_paths(&mut self) -> GResult<()> {
         Ok(())
     }
 
-    pub fn expand_path<P>(&self, p: P) -> Result<PathBuf, VarsErrorKind> 
-        where 
-        P : AsRef<Path>
+    pub fn expand_path<P>(&self, p: P) -> Result<PathBuf, VarsErrorKind>
+    where
+        P: AsRef<Path>,
     {
         self.vars.expand_vars_in_path(p)
     }
@@ -99,21 +115,23 @@ impl Default for Opts {
             deps_file: Default::default(),
             project_file: Default::default(),
             ast_file: Default::default(),
+            pretty_json: false,
+            json_output: false,
             vars: Default::default(),
             checksums: Default::default(),
             bin_references: Default::default(),
             lsp_config: Default::default(),
+            target_name: Default::default(),
             no_async: false,
             syms_file: Default::default(),
             verbose_errors: false,
             error_mismatches: false,
-
             do_includes: true,
             build_type: BuildType::Build,
+            format_project: false,
             verbose: Verbosity::Silent,
             mem_size: 64 * 1024,
             max_errors: 10,
-
         }
     }
 }

@@ -21,6 +21,8 @@ pub struct Sizer<'a> {
     pub tree: &'a Ast,
     pub scopes: ScopeTracker,
     pub pc: usize,
+    pub sections: std::collections::HashMap<String, (usize, usize, Option<usize>)>,
+    pub current_section: Option<String>,
 }
 
 pub fn size(asm: &mut Assembler, ast_tree: &Ast) -> GResult<()> {
@@ -32,7 +34,7 @@ impl<'a> Sizer<'a> {
     pub fn try_new(tree: &'a Ast, asm: &mut Assembler) -> GResult<Sizer<'a>> {
         let pc = 0;
 
-        asm.set_pc_symbol(pc).expect("Can't set PC symbol");
+        asm.set_pc_symbol_internal(pc)?;
 
         let root_id = asm.get_symbols().get_root_scope_id();
 
@@ -40,17 +42,42 @@ impl<'a> Sizer<'a> {
             tree,
             scopes: ScopeTracker::new(root_id),
             pc,
+            sections: Default::default(),
+            current_section: None,
         };
 
         let id = ret.tree.as_ref().root().id();
         ret.size_node(asm, id)?;
+        ret.check_section_bounds(asm)?;
 
         Ok(ret)
     }
 
+    pub fn check_section_bounds(&self, asm: &mut Assembler) -> GResult<()> {
+        for (name, (start, pc, max_size)) in &self.sections {
+            if let Some(max) = max_size {
+                let used = pc.saturating_sub(*start);
+                if used > *max {
+                    let root_node = self.tree.as_ref().root();
+                    let msg = format!(
+                        "Section '{name}' overflowed by {} bytes (allocated {used} bytes, maximum size {max} bytes)",
+                        used - max
+                    );
+                    return Err(asm.make_user_error(msg, root_node, true).into());
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn advance_pc(&mut self, val: usize) {
-        assert!(self.pc < 65536);
+        assert!(self.pc + val <= 65536);
         self.pc += val;
+        if let Some(cur_name) = &self.current_section {
+            if let Some(state) = self.sections.get_mut(cur_name) {
+                state.1 = self.pc;
+            }
+        }
     }
 
     pub fn get_pc(&self) -> usize {
@@ -69,8 +96,7 @@ impl<'a> Sizer<'a> {
         let i = &node.value().item.clone();
         let current_scope_id = self.scopes.scope();
 
-        asm.set_pc_symbol(self.get_pc())
-            .expect("Can't set PC symbol value");
+        asm.set_pc_symbol_internal(self.get_pc())?;
 
         match &i {
             MacroCallProcessed {
@@ -81,8 +107,8 @@ impl<'a> Sizer<'a> {
                 self.scopes.push(*scope_id);
 
                 let m_node = self.get_node(*macro_id);
-                let kids: Vec<_> = m_node.children().map(|n| n.id()).collect();
-                for c in kids {
+                let children: Vec<_> = m_node.children().map(|n| n.id()).collect();
+                for c in children {
                     self.size_node(asm, c)?;
                 }
 
@@ -101,6 +127,38 @@ impl<'a> Sizer<'a> {
                 let pc = asm.eval_first_arg(node, current_scope_id)?.0 as usize;
                 asm.add_fixup(id, AstNodeKind::SetPc(pc), current_scope_id);
                 self.set_pc(pc);
+            }
+
+            Section(name) => {
+                let children: Vec<_> = node.children().collect();
+                if let Some(cur) = &self.current_section {
+                    if let Some(state) = self.sections.get_mut(cur) {
+                        state.1 = self.pc;
+                    }
+                }
+
+                if !children.is_empty() {
+                    let start = asm.eval_node(children[0], current_scope_id)? as usize;
+                    let size = if children.len() > 1 {
+                        Some(asm.eval_node(children[1], current_scope_id)? as usize)
+                    } else {
+                        None
+                    };
+
+                    self.sections.insert(name.clone(), (start, start, size));
+                    self.current_section = Some(name.clone());
+                    self.set_pc(start);
+                    asm.add_fixup(id, AstNodeKind::SetPc(start), current_scope_id);
+                } else if let Some(state) = self.sections.get_mut(name) {
+                    let pc = state.1;
+                    self.current_section = Some(name.clone());
+                    self.set_pc(pc);
+                    asm.add_fixup(id, AstNodeKind::SetPc(pc), current_scope_id);
+                } else {
+                    return Err(asm
+                        .make_user_error(format!("Unknown section '{name}'"), node, true)
+                        .into());
+                }
             }
 
             SetPc(val) => {
@@ -126,9 +184,8 @@ impl<'a> Sizer<'a> {
                 self.advance_pc(bytes as usize);
             }
 
-            TargetSpecific(_i) => {
-                // C::size_node(self, asm, id, i.clone())?;
-                todo!()
+            TargetSpecific(node_kind) => {
+                asm.size_node(self, id, node_kind.clone(), current_scope_id)?;
             }
 
             AssignmentFromPc(LabelDefinition::Scoped(symbol_id)) => {
@@ -146,10 +203,16 @@ impl<'a> Sizer<'a> {
                     .unwrap();
                 debug_mess!("Assigning {} = ${:04x}", sym.name(), pcv);
 
-                asm.set_symbol_value(*symbol_id, pcv as usize).unwrap();
+                asm.set_symbol_value_internal(*symbol_id, pcv as usize)?;
             }
 
             TokenizedFile(..) => {
+                for c in asm.get_node_children(node) {
+                    self.size_node(asm, c)?;
+                }
+            }
+
+            Block => {
                 for c in asm.get_node_children(node) {
                     self.size_node(asm, c)?;
                 }
@@ -162,7 +225,7 @@ impl<'a> Sizer<'a> {
             }
 
             Fcc(text) => {
-                self.advance_pc(text.as_bytes().len());
+                self.advance_pc(text.len());
             }
 
             Zmb => {
@@ -206,7 +269,78 @@ impl<'a> Sizer<'a> {
         Ok(())
     }
 
-    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef {
+    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<'a> {
         self.tree.as_ref().get(id).expect("Can't fetch node")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::assembler::Assembler;
+    use crate::opts::Opts;
+
+    #[test]
+    fn test_sections_independent_location_counters() {
+        let src = r#"
+            section rom_01, start = $1000, size = $1000
+ENTRY:      nop
+            nop
+            section dp_ram, start = $9800, size = $100
+VAR1:       rmb 2
+VAR2:       rmb 1
+            section rom_01
+CONT:       nop
+        "#;
+        let path = std::env::temp_dir().join("gazm_section_test.gazm");
+        std::fs::write(&path, src).unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(std::env::temp_dir()),
+            ..Default::default()
+        };
+        let mut asm = Assembler::new(opts);
+        let res = asm.assemble();
+        let _ = std::fs::remove_file(&path);
+        assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
+
+        let syms = asm.get_symbols();
+        let root_scope = syms.get_root_scope_id();
+        let entry_val = syms.get_symbol_info("ENTRY", root_scope).unwrap().value;
+        let var1_val = syms.get_symbol_info("VAR1", root_scope).unwrap().value;
+        let var2_val = syms.get_symbol_info("VAR2", root_scope).unwrap().value;
+        let cont_val = syms.get_symbol_info("CONT", root_scope).unwrap().value;
+
+        assert_eq!(entry_val, Some(0x1000));
+        assert_eq!(var1_val, Some(0x9800));
+        assert_eq!(var2_val, Some(0x9802));
+        assert_eq!(cont_val, Some(0x1002));
+    }
+
+    #[test]
+    fn test_section_overflow() {
+        let src = r#"
+            section small_sec, start = $1000, size = 4
+            nop
+            nop
+            nop
+            nop
+            nop
+        "#;
+        let path = std::env::temp_dir().join("gazm_section_overflow_test.gazm");
+        std::fs::write(&path, src).unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(std::env::temp_dir()),
+            ..Default::default()
+        };
+        let mut asm = Assembler::new(opts);
+        let res = asm.assemble();
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            res.is_err(),
+            "Expected overflow error but assembly succeeded"
+        );
     }
 }

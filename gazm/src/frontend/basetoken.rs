@@ -9,10 +9,6 @@ pub struct Token<X: Clone> {
 
 impl<X: Clone> Token<X> {
     pub fn new(kind: TokenKind, extra: X) -> Self {
-        Self {
-            kind,
-            extra,
-        }
+        Self { kind, extra }
     }
 }
-

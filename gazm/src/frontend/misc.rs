@@ -1,16 +1,13 @@
 #![deny(unused_imports)]
 use unraveler::{
-    alt, cut, map, match_item, match_span as ms, preceded, sep_list, sep_pair, tag, wrapped_cut,
+    alt, cut, delimited_kind, kind, map, match_item, match_span as ms, preceded, sep_list, tuple,
     Parser,
 };
 
-
 use super::{
-    get_text, CommandKind, FrontEndError, GazmParser, AstNodeKind, LabelDefinition, Node,
-    NumberKind, PResult, ParsedFrom, TSpan, Token, TokenKind,
-        from_item_tspan, parse_expr,
-        from_item_kids_tspan,
-        from_item_kid_tspan,
+    from_item_child_tspan, from_item_children_tspan, from_item_tspan, get_text, parse_expr,
+    AstNodeKind, CommandKind, FrontEndError, GazmParser, LabelDefinition, Node, NumberKind,
+    PResult, ParsedFrom, TSpan, Token, TokenKind,
 };
 
 fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
@@ -19,10 +16,9 @@ fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
     Ok((rest, (sp, matched.kind)))
 }
 
-impl GazmParser
-{
+impl GazmParser {
     pub fn parse_number(input: TSpan) -> PResult<Node> {
-    use TokenKind::Number;
+        use TokenKind::Number;
         let (rest, (sp, kind)) = match_number(input)?;
 
         match kind {
@@ -44,11 +40,20 @@ impl GazmParser
         Ok((rest, node))
     }
 
-    fn parse_local_label(input: TSpan) -> PResult<Node> {
-        
-        use TokenKind::{Pling,At};
-        use { AstNodeKind::LocalLabel, LabelDefinition::Text};
-        let (rest, (sp, matched)) = ms(preceded(alt((Pling, At)), TokenKind::Label))(input)?;
+    pub(crate) fn parse_local_label(input: TSpan) -> PResult<Node> {
+        use TokenKind::{At, LocalIdentifier, Pling};
+        use {AstNodeKind::LocalLabel, LabelDefinition::Text};
+        if let Ok((rest, span)) = LocalIdentifier.parse(input) {
+            let text = get_text(span);
+            return Ok((
+                rest,
+                from_item_tspan(LocalLabel(Text(text[1..].to_owned())), span),
+            ));
+        }
+        let (rest, (sp, matched)) = ms(preceded(
+            alt((Pling, At)),
+            alt((TokenKind::Label, TokenKind::Identifier)),
+        ))(input)?;
 
         let label_def = Text(get_text(matched));
         let node = from_item_tspan(LocalLabel(label_def), sp);
@@ -56,13 +61,17 @@ impl GazmParser
     }
 
     pub fn parse_non_scoped_label(input: TSpan) -> PResult<Node> {
-        use { LabelDefinition::Text, TokenKind::Label};
-        Self::get_label(input, Label, Text)
+        use LabelDefinition::Text;
+        let (rest, sp) = alt((TokenKind::Label, TokenKind::Identifier))(input)?;
+        Ok((
+            rest,
+            from_item_tspan(AstNodeKind::Label(Text(get_text(sp))), sp),
+        ))
     }
 
     pub fn parse_scoped_label(input: TSpan) -> PResult<Node> {
-    use TokenKind::FqnIdentifier;
         use LabelDefinition::TextScoped;
+        use TokenKind::FqnIdentifier;
         Self::get_label(input, FqnIdentifier, TextScoped)
     }
 
@@ -82,17 +91,17 @@ impl GazmParser
         ))(input)
     }
     pub fn parse_big_import(input: TSpan) -> PResult<Node> {
-        use TokenKind::{OpenBrace,CloseBrace, Comma};
         use CommandKind::Import;
+        use TokenKind::{CloseBrace, Comma, OpenBrace};
         let (rest, (span, matched)) = ms(preceded(
             Import,
-            wrapped_cut(
+            delimited_kind(
                 OpenBrace,
                 sep_list(Self::parse_scoped_label, Comma),
                 CloseBrace,
             ),
         ))(input)?;
-        let node = from_item_kids_tspan(AstNodeKind::Import, &matched, span);
+        let node = from_item_children_tspan(AstNodeKind::Import, &matched, span);
         Ok((rest, node))
     }
 }
@@ -105,7 +114,7 @@ impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
 
 impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for TokenKind {
     fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), FrontEndError> {
-        tag(*self)(i)
+        kind(*self)(i)
     }
 }
 
@@ -120,8 +129,7 @@ impl From<NumberKind> for ParsedFrom {
     }
 }
 
-impl GazmParser
-{
+impl GazmParser {
     fn get_label_definition(item: &AstNodeKind) -> Option<LabelDefinition> {
         match item {
             AstNodeKind::Label(l) | AstNodeKind::LocalLabel(l) => Some(l.clone()),
@@ -129,16 +137,14 @@ impl GazmParser
         }
     }
 
-    fn parse_local_assignment(input: TSpan) -> PResult<AstNodeKind>
-    {
+    fn parse_local_assignment(input: TSpan) -> PResult<AstNodeKind> {
         use AstNodeKind::LocalAssignment;
         map(Self::parse_local_label, |e| {
             LocalAssignment(Self::get_label_definition(&e.item).unwrap())
         })(input)
     }
 
-    fn parse_assignment(input: TSpan) -> PResult<AstNodeKind>
-    {
+    fn parse_assignment(input: TSpan) -> PResult<AstNodeKind> {
         use AstNodeKind::Assignment;
         map(Self::parse_label, |e| {
             Assignment(Self::get_label_definition(&e.item).unwrap())
@@ -146,14 +152,15 @@ impl GazmParser
     }
 
     pub fn parse_equate(input: TSpan) -> PResult<Node> {
-        let command =  TokenKind::Command(CommandKind::Equ);
-        let (rest, (sp, (assignment, expr))) = ms(sep_pair(
+        let command = TokenKind::Command(CommandKind::Equ);
+        let (rest, (sp, (assignment, _, _, expr))) = ms(tuple((
             alt((Self::parse_local_assignment, Self::parse_assignment)),
-            tag(command),
+            kind(TokenKind::Colon),
+            kind(command),
             cut(parse_expr),
-        ))(input)?;
+        )))(input)?;
 
-        let node = from_item_kid_tspan(assignment, expr, sp);
+        let node = from_item_child_tspan(assignment, expr, sp);
         Ok((rest, node))
     }
 }

@@ -1,11 +1,8 @@
 #![deny(unused_imports)]
 use super::{to_pos, Token, TokenKind};
-use crate::{ opts::Opts,cpukind::CpuKind  };
+use crate::{cpukind::CpuKind, opts::Opts};
 use grl_sources::{Position, SourceFile};
 use unraveler::Collection;
-
-#[derive(Default, Clone, Copy, PartialEq)]
-pub struct ParseState {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct ParseContext<'a> {
@@ -17,8 +14,15 @@ pub struct ParseContext<'a> {
 
 impl<'a> ParseContext<'a> {
     pub fn get_pos(&self, input: TSpan) -> Position {
-        let (s, e) = get_start_end_token(input);
-        get_start_end_position(&s, &e)
+        if let Some((s, e)) = get_start_end_token(input) {
+            return get_start_end_position(&s, &e);
+        }
+
+        // An empty token document has no source token to anchor to. Keep the
+        // diagnostic representable without panicking; normal lexed input is
+        // non-empty, so this is only a defensive fallback.
+        let offset = input.offset();
+        Position::new(0, 0, offset..offset, self.source_file.file_id)
     }
 
     pub fn get_str(&self, input: TSpan) -> &str {
@@ -48,17 +52,14 @@ pub fn get_start_end_position(s: &Token, e: &Token) -> Position {
     Position::new(tp.line(), tp.col(), r, file_id)
 }
 
-pub fn get_start_end_token(input: TSpan) -> (Token, Token) {
+pub fn get_start_end_token(input: TSpan) -> Option<(Token, Token)> {
     if input.is_empty() {
         let doc = input.get_document();
-        assert!(!doc.is_empty());
         let start = input.offset();
-        let toke = doc.get(start).or_else(|| doc.last()).unwrap();
-        (*toke, *toke)
+        let token = doc.get(start).or_else(|| doc.last())?;
+        Some((*token, *token))
     } else {
-        let first = input.first().unwrap();
-        let last = input.last().unwrap();
-        (*first, *last)
+        Some((*input.first()?, *input.last()?))
     }
 }
 
@@ -73,7 +74,7 @@ pub fn make_tspan<'a>(
             source_file: sf,
             is_parsing_macro_def: false,
             opts,
-            cpu_kind: None,
+            cpu_kind: Some(opts.cpu),
         },
     );
     span
@@ -85,25 +86,5 @@ impl unraveler::Item for Token<'_> {
 
     fn get_kind(&self) -> Self::Kind {
         self.kind
-    }
-}
-
-impl unraveler::Item for TokenKind {
-    type Kind = TokenKind;
-
-    fn get_kind(&self) -> Self::Kind {
-        *self
-    }
-}
-
-impl unraveler::Collection for TokenKind {
-    type Item = TokenKind;
-
-    fn at(&self, _index: usize) -> Option<&Self::Item> {
-        Some(self)
-    }
-
-    fn length(&self) -> usize {
-        1
     }
 }

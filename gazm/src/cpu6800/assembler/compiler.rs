@@ -1,4 +1,4 @@
-use crate::{cpu6800::frontend::NodeKind6800, semantic::AstNodeRef, };
+use crate::{cpu6800::frontend::NodeKind6800, semantic::AstNodeRef};
 
 use emu6800::cpu_core::{AddrModeEnum, InstructionInfo, DBASE};
 
@@ -6,8 +6,6 @@ use crate::{
     assembler::{Assembler, BinaryError},
     error::{GResult, GazmErrorKind},
 };
-/// Compile an opcode
-
 impl Assembler {
     pub fn compile_operand_6800(
         &mut self,
@@ -84,10 +82,9 @@ impl Assembler {
     ) -> GResult<()> {
         use NodeKind6800::*;
 
-
         match node_kind {
-            OpCode(_, ins) => {
-                let ins = DBASE.get_instruction_info_from_opcode(ins.opcode).unwrap();
+            OpCode(ins) => {
+                let ins = DBASE.get_instruction_info_from_opcode(ins.0).unwrap();
                 self.compile_opcode_6800(node, ins, current_scope_id)?;
             }
 

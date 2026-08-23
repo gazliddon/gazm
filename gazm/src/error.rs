@@ -1,27 +1,58 @@
 #![deny(unused_imports)]
 
 use crate::{
-    assembler::{self, AssemblerCpuTrait},
+    assembler,
     frontend::{FrontEndError, FrontEndErrorKind},
-    semantic::{AstNodeId, AstNodeRef},
+    semantic::AstNodeId,
     vars::VarsErrorKind,
 };
 
 use thin_vec::ThinVec;
 
-use grl_sources::{
-    grl_utils::FileError, EditErrorKind, Position, SourceFile, SourceFiles, SourceInfo,
-    TextEditTrait,
-};
+use grl_sources::{EditErrorKind, Position, SourceFile, SourceFiles, SourceInfo, TextEditTrait};
+use grl_utils::FileError;
 
 use thiserror::Error;
 
 pub type GResult<T> = Result<T, GazmErrorKind>;
 
+/// A failure in Gazm's implementation or in the contract it has with one of
+/// its support crates. These are not errors in the user's assembly source.
+#[derive(Error, Debug, Clone)]
+pub enum InternalCompilerError {
+    #[error("{component}: {message}")]
+    Invariant {
+        component: &'static str,
+        message: String,
+    },
+    #[error("grl-sources failure: {0}")]
+    Source(#[from] grl_sources::SourceErrorType),
+    #[error("symbol-table invariant failed during {operation}: {error}")]
+    SymbolInvariant {
+        operation: &'static str,
+        error: crate::gazmsymbols::SymbolError,
+    },
+}
+
+impl InternalCompilerError {
+    pub fn invariant(component: &'static str, message: impl Into<String>) -> Self {
+        Self::Invariant {
+            component,
+            message: message.into(),
+        }
+    }
+
+    pub fn symbol(operation: &'static str, error: crate::gazmsymbols::SymbolError) -> Self {
+        Self::SymbolInvariant { operation, error }
+    }
+}
+
 #[derive(Error, Debug, Clone)]
 pub enum GazmErrorKind {
     #[error("{0}")]
     UserErrors(NewErrorCollector<UserError>),
+    #[error("{0}")]
+    Diagnostics(DiagnosticBag),
     #[error("{0}")]
     FrontEndErrors(NewErrorCollector<FrontEndError>),
     #[error(transparent)]
@@ -30,6 +61,8 @@ pub enum GazmErrorKind {
     VarError(#[from] VarsErrorKind),
     #[error(transparent)]
     UserError(#[from] UserError),
+    #[error(transparent)]
+    Diagnostic(#[from] Diagnostic),
     #[error("Misc: {0}")]
     Misc(String),
     #[error("Too Many Errors")]
@@ -42,13 +75,15 @@ pub enum GazmErrorKind {
     FileError(#[from] FileError),
     #[error("Not implemented {0}")]
     NotImplemented(String),
+    #[error("internal compiler error: {0}")]
+    Internal(#[from] InternalCompilerError),
     #[error("{0} : {1}")]
     WithContext(String, Box<GazmErrorKind>),
 }
 
 impl GazmErrorKind {
     pub fn context<T: Into<String>>(self, txt: T) -> Self {
-        Self::WithContext(txt.into(),Box::new(self))
+        Self::WithContext(txt.into(), Box::new(self))
     }
 }
 
@@ -57,6 +92,13 @@ impl From<String> for GazmErrorKind {
         GazmErrorKind::Misc(x)
     }
 }
+
+impl From<grl_sources::SourceErrorType> for GazmErrorKind {
+    fn from(error: grl_sources::SourceErrorType) -> Self {
+        GazmErrorKind::Internal(InternalCompilerError::Source(error))
+    }
+}
+
 impl From<anyhow::Error> for GazmErrorKind {
     fn from(x: anyhow::Error) -> Self {
         GazmErrorKind::Misc(x.to_string())
@@ -94,14 +136,6 @@ pub struct AstError {
 }
 
 impl AstError {
-    pub fn from_node<S,C: AssemblerCpuTrait>(msg: S, n: AstNodeRef) -> Self
-    where
-        S: Into<String>,
-        C: AssemblerCpuTrait
-    {
-        Self::from_node_id(msg, n.id(), n.value().pos)
-    }
-
     pub fn from_node_id<S>(msg: S, id: AstNodeId, pos: Position) -> Self
     where
         S: Into<String>,
@@ -228,43 +262,50 @@ impl UserErrorData {
     }
 
     pub fn print_pretty(&self, _verbose_errors: bool) {
-        use termimad::*;
-        let skin = MadSkin::default();
+        use ariadne::{Color, Label, Report, ReportKind, Source};
 
-        let pos = &self.pos;
-        let (line, col) = pos.line_col_from_one();
+        let message = match &self.message {
+            ErrorMessage::Plain(txt) => txt.as_str(),
+            ErrorMessage::Markdown(short, _) => short.as_str(),
+        };
+        let file = self.file.to_string_lossy().into_owned();
+        let source = std::fs::read_to_string(&self.file).unwrap_or_else(|_| self.line.clone());
+        // Positions currently carry absolute offsets, but diagnostics should
+        // underline the reported line only. Deriving the line offset here
+        // also keeps old parser positions from accidentally spanning several
+        // source lines in the renderer.
+        let line_start = source
+            .split_inclusive('\n')
+            .take(self.pos.line())
+            .map(str::len)
+            .sum::<usize>();
+        let line_end = source[line_start..]
+            .find('\n')
+            .map(|n| line_start + n)
+            .unwrap_or(source.len());
+        let start = (line_start + self.pos.col()).min(line_end.saturating_sub(1));
+        let end = (start + self.pos.range().len())
+            .min(line_end)
+            .max(start + 1);
+        let range = start..end;
 
-        let line_num = format!("{line}");
-        let spaces = " ".repeat(1 + line_num.len());
-        let bar = format!("{spaces}|").info();
-        let bar_line = format!("{line_num} |").info();
+        let report = Report::build(ReportKind::Error, (file.clone(), range.clone()))
+            .with_message(message)
+            .with_label(
+                Label::new((file.clone(), range))
+                    .with_message(message)
+                    .with_color(Color::Red),
+            )
+            .finish();
 
-        let error = "\nError".bold().red();
-
-        match &self.message {
-            ErrorMessage::Plain(txt) => {
-                println!("{error}: {}", txt.bold());
-            }
-            ErrorMessage::Markdown(short, _) => {
-                println!("{error}: {}", short.bold())
-            }
+        if let Err(err) = report.eprint((file, Source::from(source))) {
+            eprintln!("{message}: {err}");
         }
-
-        println!(
-            "   {} {}:{}:{}",
-            "-->".info(),
-            self.file.to_string_lossy(),
-            line,
-            col
-        );
-
-        println!("{bar}");
-        println!("{bar_line} {}", self.line);
-        println!("{bar}{}^", " ".repeat(col));
 
         if _verbose_errors {
             if let ErrorMessage::Markdown(_, full_text) = &self.message {
-                skin.print_text(full_text);
+                use termimad::*;
+                MadSkin::default().print_text(full_text);
             }
         }
     }
@@ -627,6 +668,269 @@ pub fn to_user_error(e: FrontEndError, sf: &SourceFile) -> UserError {
     };
 
     UserError { data: ued.into() }
+}
+
+/// Structured diagnostic independent of terminal or LSP formatting.
+///
+/// The existing parser and assembler error types are being migrated to this
+/// representation incrementally.  Keeping the source position as a
+/// `Position` means it can later be rendered by Ariadne, converted to LSP, or
+/// serialized for an agent without reparsing formatted text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Diagnostic {
+    pub severity: DiagnosticSeverity,
+    pub message: String,
+    pub code: Option<String>,
+    pub help: Option<String>,
+    pub position: Position,
+    pub file: std::path::PathBuf,
+}
+
+impl std::fmt::Display for Diagnostic {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for Diagnostic {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticSeverity {
+    Error,
+    Warning,
+    Note,
+    Fatal,
+}
+
+impl Diagnostic {
+    pub fn from_ast_error(error: AstError, info: &SourceInfo) -> Self {
+        Self::from_text(
+            error.message.unwrap_or_else(|| "Error".to_string()),
+            info,
+            error.failure,
+        )
+    }
+
+    pub fn from_text<S: Into<String>>(message: S, info: &SourceInfo, failure: bool) -> Self {
+        Self {
+            severity: if failure {
+                DiagnosticSeverity::Fatal
+            } else {
+                DiagnosticSeverity::Error
+            },
+            message: message.into(),
+            code: None,
+            help: None,
+            position: info.pos,
+            file: info.file.clone(),
+        }
+    }
+
+    pub fn error<S: Into<String>>(
+        message: S,
+        position: Position,
+        file: std::path::PathBuf,
+    ) -> Self {
+        Self {
+            severity: DiagnosticSeverity::Error,
+            message: message.into(),
+            code: None,
+            help: None,
+            position,
+            file,
+        }
+    }
+
+    pub fn with_code<S: Into<String>>(mut self, code: S) -> Self {
+        self.code = Some(code.into());
+        self
+    }
+
+    pub fn with_help<S: Into<String>>(mut self, help: S) -> Self {
+        self.help = Some(help.into());
+        self
+    }
+
+    pub fn print_pretty(&self, verbose: bool) {
+        use ariadne::{Color, Label, Report, ReportKind, Source};
+
+        let source = std::fs::read_to_string(&self.file).unwrap_or_default();
+        let line_start = source
+            .split_inclusive('\n')
+            .take(self.position.line())
+            .map(str::len)
+            .sum::<usize>();
+        let line_end = source[line_start..]
+            .find('\n')
+            .map(|n| line_start + n)
+            .unwrap_or(source.len());
+        let start = (line_start + self.position.col()).min(line_end.saturating_sub(1));
+        let end = (start + self.position.range().len())
+            .min(line_end)
+            .max(start + 1);
+        let file = self.file.to_string_lossy().into_owned();
+        let report = Report::build(ReportKind::Error, (file.clone(), start..end))
+            .with_message(&self.message)
+            .with_label(
+                Label::new((file.clone(), start..end))
+                    .with_message(&self.message)
+                    .with_color(Color::Red),
+            )
+            .finish();
+        if let Err(error) = report.eprint((file, Source::from(source))) {
+            eprintln!("{}: {error}", self.message);
+        }
+        if verbose {
+            if let Some(help) = &self.help {
+                println!("help: {help}");
+            }
+        }
+    }
+}
+
+impl From<UserError> for Diagnostic {
+    fn from(error: UserError) -> Self {
+        let data = error.data;
+        let (message, help) = match data.message {
+            ErrorMessage::Plain(message) => (message, None),
+            ErrorMessage::Markdown(short, full) => (short, Some(full)),
+        };
+        Self {
+            severity: if data.failure {
+                DiagnosticSeverity::Fatal
+            } else {
+                DiagnosticSeverity::Error
+            },
+            message,
+            code: None,
+            help,
+            position: data.pos,
+            file: data.file,
+        }
+    }
+}
+
+/// Bounded collection of diagnostics. Adding a fatal diagnostic stops further
+/// recovery; ordinary errors are retained until the configured limit.
+#[derive(Debug, Clone, Default)]
+pub struct DiagnosticBag {
+    diagnostics: Vec<Diagnostic>,
+    max_errors: usize,
+}
+
+impl std::fmt::Display for DiagnosticBag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for diagnostic in &self.diagnostics {
+            writeln!(f, "{diagnostic}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for DiagnosticBag {}
+
+impl DiagnosticBag {
+    pub fn new(max_errors: usize) -> Self {
+        Self {
+            diagnostics: Vec::new(),
+            max_errors,
+        }
+    }
+
+    pub fn push(&mut self, diagnostic: Diagnostic) -> bool {
+        let stop = diagnostic.severity == DiagnosticSeverity::Fatal;
+        self.diagnostics.push(diagnostic);
+        stop || self.error_count() >= self.max_errors
+    }
+
+    pub fn push_user_error(&mut self, error: UserError) -> bool {
+        self.push(error.into())
+    }
+
+    pub fn error_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|d| {
+                matches!(
+                    d.severity,
+                    DiagnosticSeverity::Error | DiagnosticSeverity::Fatal
+                )
+            })
+            .count()
+    }
+
+    pub fn has_errors(&self) -> bool {
+        self.error_count() > 0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.diagnostics.is_empty()
+    }
+
+    pub fn has_fatal(&self) -> bool {
+        self.diagnostics
+            .iter()
+            .any(|d| d.severity == DiagnosticSeverity::Fatal)
+    }
+
+    pub fn as_slice(&self) -> &[Diagnostic] {
+        &self.diagnostics
+    }
+
+    pub fn into_vec(self) -> Vec<Diagnostic> {
+        self.diagnostics
+    }
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    use super::{
+        Diagnostic, DiagnosticBag, DiagnosticSeverity, GazmErrorKind, InternalCompilerError,
+    };
+    use grl_sources::{AsmSource, Position};
+    use std::{ops::Range, path::PathBuf};
+
+    fn position() -> Position {
+        Position::new(2, 4, Range { start: 20, end: 22 }, AsmSource::FileId(1))
+    }
+
+    #[test]
+    fn bag_stops_at_error_limit() {
+        let mut bag = DiagnosticBag::new(2);
+        let d = || Diagnostic::error("bad", position(), PathBuf::from("test.asm"));
+        assert!(!bag.push(d()));
+        assert!(bag.push(d()));
+        assert_eq!(bag.error_count(), 2);
+    }
+
+    #[test]
+    fn fatal_diagnostic_stops_recovery() {
+        let mut bag = DiagnosticBag::new(10);
+        let mut d = Diagnostic::error("fatal", position(), PathBuf::from("test.asm"));
+        d.severity = DiagnosticSeverity::Fatal;
+        assert!(bag.push(d));
+        assert!(bag.has_fatal());
+    }
+
+    #[test]
+    fn source_contract_failures_are_internal_errors() {
+        let error = GazmErrorKind::from(InternalCompilerError::invariant(
+            "source map",
+            "missing file identity",
+        ));
+        assert!(error.to_string().contains("internal compiler error"));
+        assert!(error.to_string().contains("missing file identity"));
+    }
+
+    #[test]
+    fn symbol_id_failures_are_internal_errors() {
+        let error = GazmErrorKind::from(InternalCompilerError::symbol(
+            "setting a resolved symbol",
+            crate::gazmsymbols::SymbolError::InvalidId,
+        ));
+        assert!(error.to_string().contains("internal compiler error"));
+        assert!(error.to_string().contains("Invalid symbol id"));
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

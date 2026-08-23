@@ -11,7 +11,7 @@ use structopt::StructOpt;
 #[structopt(author = "gazaxian")]
 #[structopt(rename_all = "kebab-case")]
 pub struct Opts {
-    #[structopt(short, long,)]
+    #[structopt(short, long)]
     verbose: bool,
     #[structopt(short, long, parse(from_os_str))]
     out_file: Option<PathBuf>,

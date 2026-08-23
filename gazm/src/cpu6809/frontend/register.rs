@@ -5,10 +5,8 @@ use std::collections::HashSet;
 use unraveler::{cut, match_span as ms, sep_list, sep_pair};
 
 use crate::frontend::{
-    err_error, err_fatal, error, get_label_string, PResult, TSpan,
-    Node,
+    err_error, err_fatal, error, from_item_tspan, get_label_string, Node, PResult, TSpan,
     TokenKind::*,
-    from_item_tspan,
 };
 
 use crate::cpu6809::{
@@ -27,9 +25,7 @@ pub fn get_comma_sep_reg_pair(input: TSpan) -> PResult<(TSpan, RegEnum, TSpan, R
 
 pub fn parse_reg_set_operand(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(parse_reg_set)(input)?;
-    let matched =
-        from_item_tspan(Operand(AddrModeParseType::RegisterSet), sp)
-            .with_child(matched);
+    let matched = from_item_tspan(Operand(AddrModeParseType::RegisterSet), sp).with_child(matched);
     Ok((rest, matched))
 }
 

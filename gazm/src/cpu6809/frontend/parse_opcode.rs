@@ -1,10 +1,11 @@
 #![deny(unused_imports)]
 use crate::cpu6809::frontend::NodeKind6809;
 use crate::frontend::{
-    err_fatal, from_item_tspan, get_text, parse_expr, AstNodeKind, CpuSpecific, Node, PResult,
-    TSpan, TokenKind,
+    err_fatal, from_item_tspan, parse_expr, AstNodeKind, CpuSpecific, Node, PResult, TSpan,
+    TokenKind,
 };
 
+use crate::cpu6809::assembler::ISA_DBASE;
 use crate::cpukind::CpuKind;
 
 use super::{
@@ -14,15 +15,11 @@ use super::{
     NodeKind6809::{OpCode, Operand, OperandIndexed},
 };
 
-use emu6809::isa::{AddrModeEnum, Dbase, Instruction, InstructionInfo};
-use unraveler::{alt, match_span as ms, preceded, sep_list};
+use emu6809::isa::{AddrModeEnum, Instruction, InstructionId, InstructionInfo};
+use unraveler::{alt, match_span as ms, preceded, Collection};
 
-lazy_static::lazy_static! {
-    pub static ref OPCODES_REC: Dbase = Dbase::new();
-}
-
-pub fn get_opcode_info(i: &Instruction) -> Option<&InstructionInfo> {
-    OPCODES_REC.get_opcode_info_from_opcode(i.opcode)
+pub fn get_opcode_info(id: InstructionId) -> Option<&'static InstructionInfo> {
+    ISA_DBASE.get_opcode_info_from_opcode(id.0)
 }
 
 fn parse_immediate(_input: TSpan) -> PResult<Node> {
@@ -57,20 +54,29 @@ fn parse_extended(_input: TSpan) -> PResult<Node> {
 }
 
 fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
-    let (rest, matched) = alt((
-        parse_indexed,
-        parse_immediate,
-        parse_force_dp,
-        parse_force_extended,
-        parse_extended,
-    ))(input)?;
+    use TokenKind::{GreaterThan, Hash, LessThan, OpenSquareBracket};
 
-    Ok((rest, matched))
+    // A comma cannot occur in a 6809 expression, so its presence identifies
+    // indexed syntax, including width-qualified offsets such as `<<5,u`.
+    let indexed = matches!(
+        input.first().map(|token| token.kind),
+        Some(OpenSquareBracket)
+    ) || input.iter().any(|token| token.kind == TokenKind::Comma);
+
+    match input.first().map(|token| token.kind) {
+        Some(Hash) => parse_immediate(input),
+        _ if indexed => parse_indexed(input),
+        Some(LessThan) => parse_force_dp(input),
+        Some(GreaterThan) => parse_force_extended(input),
+        _ => parse_extended(input),
+    }
 }
 
-fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, text, info)) = get_opcode(input)?;
-
+fn parse_opcode_with_arg_parts<'a>(
+    rest: TSpan<'a>,
+    sp: TSpan<'a>,
+    info: &'a InstructionInfo,
+) -> PResult<'a, Node> {
     let (rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
         parse_reg_set_operand(rest)
     } else if info.supports_addr_mode(AddrModeEnum::RegisterPair) {
@@ -88,7 +94,7 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     };
 
     if let Some(instruction) = get_instruction(amode, info) {
-        let item = OpCode(text.to_string(), Box::new(instruction.clone()), amode);
+        let item = OpCode(instruction.id(), amode);
         let node = from_item_tspan(item, sp).take_others_children(arg);
         Ok((rest, node))
     } else {
@@ -96,12 +102,15 @@ fn parse_opcode_with_arg(input: TSpan) -> PResult<Node> {
     }
 }
 
-fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
+fn parse_opcode_no_arg_parts<'a>(
+    rest: TSpan<'a>,
+    sp: TSpan<'a>,
+    ins: &'a InstructionInfo,
+) -> PResult<'a, Node> {
     use Cpu6809AssemblyErrorKind::OnlySupports;
-    let (rest, (sp, text, ins)) = get_opcode(input)?;
 
-    if let Some(ins) = ins.get_boxed_instruction(AddrModeEnum::Inherent) {
-        let oc = NodeKind6809::OpCode(text, ins, ParseInherent);
+    if let Some(ins) = ins.get_instruction_id(AddrModeEnum::Inherent) {
+        let oc = NodeKind6809::OpCode(ins, ParseInherent);
         let node = from_item_tspan(oc, sp);
         Ok((rest, node))
     } else {
@@ -109,23 +118,25 @@ fn parse_opcode_no_arg(input: TSpan) -> PResult<Node> {
     }
 }
 pub fn parse_opcode(input: TSpan) -> PResult<Node> {
-    let (rest, item) = alt((parse_opcode_with_arg, parse_opcode_no_arg))(input)?;
-    Ok((rest, item))
+    let (rest, (sp, info)) = get_opcode(input)?;
+    if rest.is_empty() {
+        parse_opcode_no_arg_parts(rest, sp, info)
+    } else {
+        parse_opcode_with_arg_parts(rest, sp, info)
+    }
 }
 
 pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {
-    use unraveler::tag;
-    use TokenKind::Colon;
-    let (rest, matched) = sep_list(parse_opcode, tag(Colon))(input)?;
-    Ok((rest, matched))
+    let (rest, opcode) = parse_opcode(input)?;
+    Ok((rest, vec![opcode]))
 }
 
-fn get_opcode(input: TSpan) -> PResult<(TSpan, String, &InstructionInfo)> {
-    use TokenKind::OpCode;
-    let (rest, (sp, matched)) = ms(OpCode(CpuKind::Cpu6809))(input)?;
-    let text = get_text(matched);
-    let info = OPCODES_REC.get_opcode(text.as_str()).unwrap();
-    Ok((rest, (sp, text, info)))
+fn get_opcode(input: TSpan<'_>) -> PResult<'_, (TSpan<'_>, &InstructionInfo)> {
+    use TokenKind::{CpuOpcode, Identifier};
+    let (rest, (sp, matched)) = ms(alt((CpuOpcode(CpuKind::Cpu6809), Identifier)))(input)?;
+    let text = crate::frontend::get_text(matched);
+    let info = ISA_DBASE.get_opcode(text.as_str()).unwrap();
+    Ok((rest, (sp, info)))
 }
 
 fn get_instruction(amode: AddrModeParseType, info: &InstructionInfo) -> Option<&Instruction> {
@@ -171,7 +182,7 @@ mod test {
     //     text: &str,
     //     opcode: &str,
     //     expected_amode: AddrModeParseType,
-    //     expected_kids: &[Item<MC6809>],
+    //     expected_children: &[Item<MC6809>],
     // ) {
     //     let opts = Opts::default();
 
@@ -183,12 +194,12 @@ mod test {
     //     let (_, p) = GParser::parse_opcode(span).expect("Can't parse opcode");
     //     let items = get_items(&p);
     //     println!("{:?}", items);
-    //     let (item, kids) = get_items(&p);
+    //     let (item, children) = get_items(&p);
 
     //     if let Item::CpuSpecific(OpCode(_, i, addr_mode)) = item {
     //         assert_eq!(i.action, opcode);
     //         assert_eq!(addr_mode, expected_amode);
-    //         assert_eq!(kids, expected_kids);
+    //         assert_eq!(children, expected_children);
     //     } else {
     //         panic!("Failed")
     //     }
@@ -233,8 +244,8 @@ mod test {
     //         ("lda", "lda >(10+8/2)", Extended(true), vec![Expr]),
     //     ];
 
-    //     for (opcode, text, expected_amode, expected_kids) in test_data {
-    //         check_opcode(text, opcode, expected_amode, &expected_kids);
+    //     for (opcode, text, expected_amode, expected_children) in test_data {
+    //         check_opcode(text, opcode, expected_amode, &expected_children);
     //     }
     // }
 }

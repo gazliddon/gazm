@@ -1,7 +1,6 @@
 #![deny(unused_imports)]
-use itertools::Itertools;
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use thiserror::Error;
@@ -9,7 +8,7 @@ use thiserror::Error;
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum VarsErrorKind {
     #[error("Unknown var {0} in {1}")]
-    UnableToExpand(String, String)
+    UnableToExpand(String, String),
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -61,12 +60,21 @@ impl Vars {
 
         let regex = Regex::new(r"\$\(()[^\)]*\)").unwrap();
 
-        for to_expand in regex.find_iter(&ret.clone()).map(strip_it).unique() {
+        let mut expanded = HashSet::new();
+        let to_expand_names: Vec<String> = regex
+            .find_iter(&ret)
+            .map(strip_it)
+            .filter(|name| expanded.insert(name.clone()))
+            .collect();
+        for to_expand in to_expand_names {
             if let Some(to) = self.vars.get(&to_expand) {
                 let from = format!("$({to_expand})");
                 ret = ret.replace(&from, to);
             } else {
-                return Err(VarsErrorKind::UnableToExpand(to_expand.to_string(), original));
+                return Err(VarsErrorKind::UnableToExpand(
+                    to_expand.to_string(),
+                    original,
+                ));
             }
         }
         Ok(ret)
@@ -97,7 +105,7 @@ mod test {
         let vars = Vars::from(vars);
         let to_expand = "$(OUTDIR)/hello/$(BINGBONG)/hello/$(ERR)";
         let res = vars.expand_vars(to_expand);
-        let expected = VarsErrorKind::UnableToExpand("ERR".to_string(),to_expand.to_string());
+        let expected = VarsErrorKind::UnableToExpand("ERR".to_string(), to_expand.to_string());
         assert_eq!(res, Err(expected));
     }
 }

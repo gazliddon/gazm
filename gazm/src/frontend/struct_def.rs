@@ -2,8 +2,7 @@
 use crate::frontend::LabelDefinition;
 use std::str::FromStr;
 
-
-use super::{ AstNodeKind,ParsedFrom };
+use super::{AstNodeKind, ParsedFrom};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum StructMemberType {
@@ -31,8 +30,7 @@ impl FromStr for StructMemberType {
 }
 
 impl StructMemberType {
-    pub fn to_size_item(&self) -> AstNodeKind
-    {
+    pub fn to_size_item(&self) -> AstNodeKind {
         use AstNodeKind::*;
         use ParsedFrom::Expression;
         match self {

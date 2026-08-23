@@ -9,7 +9,6 @@ use super::{
     GazmParser, Node, PResult, TSpan,
 };
 
-use itertools::Itertools;
 use num_traits::Float;
 use thin_vec::ThinVec;
 use unraveler::{alt, many0, map, Collection, ParseError, ParseErrorKind, Severity};
@@ -50,12 +49,7 @@ impl<'a> NodeCollector<'a> {
 
 impl GazmParser {
     pub fn parse_single_line(input: TSpan) -> PResult<Vec<Node>> {
-        parse_line(alt((
-            map(Self::parse_macro_call, |n| vec![n]),
-            map(Self::parse_equate, |n| vec![n]),
-            map(Self::parse_command, |n| vec![n]),
-            // C::parse_multi_opcode_vec,
-        )))(input)
+        parse_line(map(Self::parse_statement, |n| vec![n]))(input)
     }
 
     pub fn parse_pc_equate(input: TSpan) -> PResult<Node> {
@@ -77,10 +71,10 @@ impl GazmParser {
         };
 
         let (rest, matched) = alt((
-            Self::parse_single_line,
             map(Self::parse_macro_def, as_vec),
             map(Self::parse_struct, as_vec),
-            map(Self::parse_pc_equate, as_vec),
+            map(Self::parse_import, as_vec),
+            Self::parse_single_line,
         ))(input)
         .map_err(err_map)?;
 
@@ -107,6 +101,12 @@ impl GazmParser {
                 }
 
                 Ok((rest, matched)) => {
+                    if rest.length() >= input.length() {
+                        let mut progress_error = NewErrorCollector::new(max_errors);
+                        progress_error
+                            .add(FrontEndError::error(input, FrontEndErrorKind::Unexpected));
+                        return Err(progress_error);
+                    }
                     ret.extend(matched);
                     input = rest;
                 }

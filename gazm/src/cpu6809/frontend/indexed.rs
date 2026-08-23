@@ -1,14 +1,12 @@
 #![allow(unused_imports)]
 
 use serde_yaml::Index;
-use tower_lsp::lsp_types::RegularExpressionsClientCapabilities;
-
 use unraveler::{
-    alt, and_then, cut, map, match_span as ms, pair, preceded, sep_pair, succeeded, tag,
+    alt, and_then, cut, map, match_span as ms, pair, preceded, sep_pair, succeeded, tag_kinds,
     ParseError, Severity,
 };
 
-use crate::help::ErrCode::{*,self};
+use crate::help::ErrCode::{self, *};
 use emu6809::cpu::RegEnum;
 
 use crate::frontend::{
@@ -25,7 +23,7 @@ fn get_pre_dec(input: TSpan) -> PResult<IndexParseType> {
 }
 
 fn get_pre_dec_dec(input: TSpan) -> PResult<IndexParseType> {
-    map(preceded(tag([Minus, Minus]), get_index_reg), |r| {
+    map(preceded(tag_kinds([Minus, Minus]), get_index_reg), |r| {
         IndexParseType::PreDecDec(r)
     })(input)
 }
@@ -48,7 +46,7 @@ fn get_post_inc(input: TSpan) -> PResult<IndexParseType> {
 }
 
 fn get_post_inc_inc(input: TSpan) -> PResult<IndexParseType> {
-    let postfix = tag([Plus, Plus]);
+    let postfix = tag_kinds([Plus, Plus]);
 
     map(
         and_then(succeeded(ms(get_register), postfix), check_index_reg),
@@ -67,7 +65,7 @@ fn get_pc_offset(input: TSpan) -> PResult<IndexParseType> {
 
 fn check_for_illegal_indirect<'a>(
     res: (TSpan<'a>, (TSpan<'a>, IndexParseType)),
-) -> PResult<IndexParseType> {
+) -> PResult<'a, IndexParseType> {
     let (rest, (sp, matched)) = res;
 
     if matched.allowed_indirect() {

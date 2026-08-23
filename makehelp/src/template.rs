@@ -1,4 +1,4 @@
-pub const TEMPLATE : & str = r#"
+pub const TEMPLATE: &str = r#"
 
     #[derive(Clone,Debug)]
     pub struct HelpItem {
@@ -48,4 +48,3 @@ pub const TEMPLATE : & str = r#"
         }
     }
 "#;
-

@@ -8,10 +8,17 @@ use std::path::PathBuf;
 fn load_config(m: &ArgMatches) -> ConfigError<TomlConfig> {
     // Get the config file or use the default gazm.toml
     let mut path: PathBuf = m
-        .get_one::<String>("config-file")
+        .try_get_one::<PathBuf>("config-file")
+        .ok()
+        .flatten()
         .cloned()
-        .unwrap_or("gazm.toml".to_string())
-        .into();
+        .or_else(|| {
+            m.try_get_one::<String>("config-file")
+                .ok()
+                .flatten()
+                .map(PathBuf::from)
+        })
+        .unwrap_or_else(|| PathBuf::from("gazm.toml"));
 
     // If the file is a directory then add gazm.toml to the file
     if path.is_dir() {
@@ -25,25 +32,51 @@ fn load_config(m: &ArgMatches) -> ConfigError<TomlConfig> {
     TomlConfig::new_from_file(path)
 }
 
-fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigError<Opts> {
+fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigError<Vec<Opts>> {
     let mut conf = load_config(m)?;
-    conf.opts.build_type = build_type;
-    Ok(conf.opts.clone())
+    conf.opts.build_type = build_type.clone();
+    let mut opts = if conf.targets.is_empty() {
+        vec![conf.opts.clone()]
+    } else {
+        conf.targets
+    };
+    for target in &mut opts {
+        target.build_type = build_type.clone();
+        target.pretty_json = m.get_flag("pretty-json");
+        target.json_output = m.get_flag("json-output");
+        target.update_vars();
+    }
+    Ok(opts)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 impl Opts {
-    pub fn from_arg_matches(orig_matches: ArgMatches) -> ConfigError<Opts> {
+    pub fn from_arg_matches(orig_matches: ArgMatches) -> ConfigError<Vec<Opts>> {
         let mut opts = match orig_matches.subcommand() {
             Some(("build", m)) => load_opts_with_build_type(m, BuildType::Build)?,
             Some(("check", m)) => load_opts_with_build_type(m, BuildType::Check)?,
             Some(("lsp", m)) => load_opts_with_build_type(m, BuildType::Lsp)?,
 
             Some(("fmt", m)) => {
-                let mut o = load_opts_with_build_type(m, BuildType::Format)?;
-                o.project_file = m.get_one::<String>("fmt-file").map(PathBuf::from).unwrap();
-                o
+                let mut opts = if let Some(project) = m.get_one::<PathBuf>("project-config") {
+                    let config = TomlConfig::new_from_file(project)?;
+                    if config.targets.is_empty() {
+                        vec![config.opts]
+                    } else {
+                        config.targets
+                    }
+                } else {
+                    load_opts_with_build_type(m, BuildType::Format)?
+                };
+                for target in &mut opts {
+                    target.build_type = BuildType::Format;
+                    target.format_project = m.get_one::<PathBuf>("project-config").is_some();
+                    if !target.format_project {
+                        target.project_file = m.get_one::<PathBuf>("fmt-file").cloned().unwrap();
+                    }
+                }
+                opts
             }
 
             Some(("test", m)) => {
@@ -54,7 +87,7 @@ impl Opts {
                     ..Default::default()
                 };
 
-                opts
+                vec![opts]
             }
 
             Some(("asm", m)) => {
@@ -65,6 +98,8 @@ impl Opts {
                     ignore_relative_offset_errors: m.contains_id("ignore-relative-offset-errors"),
                     project_file: m.get_one::<String>("project-file").unwrap().into(),
                     ast_file: m.get_one::<String>("ast-file").map(PathBuf::from),
+                    pretty_json: m.get_flag("pretty-json"),
+                    json_output: m.get_flag("json-output"),
                     assemble_dir: Some(std::env::current_dir().unwrap()),
                     ..Default::default()
                 };
@@ -86,10 +121,10 @@ impl Opts {
                     let vals: Vec<Vec<&String>> = vals.map(Iterator::collect).collect();
                     for x in vals {
                         opts.vars
-                            .set_var(x.get(0).unwrap().as_str(), x.get(1).unwrap().as_str())
+                            .set_var(x.first().unwrap().as_str(), x.get(1).unwrap().as_str())
                     }
                 }
-                opts
+                vec![opts]
             }
             _ => {
                 panic!()
@@ -97,21 +132,23 @@ impl Opts {
         };
 
         // Global opts
-        opts.verbose = match orig_matches.get_count("verbose") {
+        let verbose = match orig_matches.get_count("verbose") {
             0 => Verbosity::Silent,
             1 => Verbosity::Normal,
             2 => Verbosity::Info,
             3 => Verbosity::Interesting,
             _ => Verbosity::Debug,
         };
+        let verbose_errors = orig_matches.get_flag("verbose-errors");
+        let no_async = *orig_matches.get_one("no-async").unwrap();
 
-        opts.verbose_errors = orig_matches.get_flag("verbose-errors");
-
-        opts.no_async = *orig_matches.get_one("no-async").unwrap();
-
-        opts.update_vars();
-
-        let _ = opts.update_paths();
+        for opts in &mut opts {
+            opts.verbose = verbose;
+            opts.verbose_errors = verbose_errors;
+            opts.no_async = no_async;
+            opts.update_vars();
+            let _ = opts.update_paths();
+        }
 
         Ok(opts)
     }
@@ -142,7 +179,7 @@ pub fn parse_command_line() -> ArgMatches {
                 .help("Verbose errors")
                 .short('e')
                 .global(true)
-                .action(ArgAction::SetTrue)
+                .action(ArgAction::SetTrue),
         )
         .arg(
             Arg::new("verbose")
@@ -160,12 +197,32 @@ pub fn parse_command_line() -> ArgMatches {
                 .help("Disable async build"),
         )
         .arg(
-            Arg::new("new-index")
-                .action(ArgAction::SetTrue)
+            Arg::new("trace-file")
+                .long("trace")
                 .global(true)
-                .long("new-index")
-                .short('n')
-                .help("Use new index parser"),
+                .value_parser(PathBufValueParser::new())
+                .help("Write a Perfetto/Chrome trace (requires --features chrome-trace)"),
+        )
+        .arg(
+            Arg::new("timings-file")
+                .long("timings")
+                .global(true)
+                .value_parser(PathBufValueParser::new())
+                .help("Append per-target timing records as JSONL"),
+        )
+        .arg(
+            Arg::new("pretty-json")
+                .long("pretty-json")
+                .global(true)
+                .action(ArgAction::SetTrue)
+                .help("Format JSON outputs with indentation"),
+        )
+        .arg(
+            Arg::new("json-output")
+                .long("json-output")
+                .global(true)
+                .action(ArgAction::SetTrue)
+                .help("Write symbol and source-map outputs as JSON instead of bincode"),
         )
         .subcommand_required(true)
         .subcommand(
@@ -182,6 +239,31 @@ pub fn parse_command_line() -> ArgMatches {
             Command::new("lsp")
                 .about("Launch LSP using config file")
                 .arg(make_config_file_arg()),
+        )
+        .subcommand(
+            Command::new("fmt")
+                .about("Format a Gazm source file or project in place")
+                .arg(
+                    Arg::new("fmt-file")
+                        .value_parser(PathBufValueParser::new())
+                        .help("source file to format")
+                        .required_unless_present("project-config")
+                        .index(1),
+                )
+                .arg(
+                    Arg::new("project-config")
+                        .long("project")
+                        .value_parser(PathBufValueParser::new())
+                        .help("format the project sources declared by this config file")
+                        .conflicts_with("fmt-file"),
+                )
+                .arg(
+                    Arg::new("config-file")
+                        .long("config")
+                        .value_parser(PathBufValueParser::new())
+                        .default_value("gazm.toml")
+                        .help("Gazm configuration file"),
+                ),
         )
         .subcommand(
             Command::new("test").about("Some test shit").arg(

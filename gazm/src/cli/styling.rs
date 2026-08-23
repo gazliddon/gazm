@@ -12,7 +12,7 @@ fn colour_lines(txt: &str, colours: &[Color]) -> String {
     lines.join("\n")
 }
 
-fn rainbow_lines(txt: &str, ) -> String {
+fn rainbow_lines(txt: &str) -> String {
     let mut rainbow = [
         Color::TrueColor {
             r: 148,
@@ -54,8 +54,8 @@ pub fn get_styles() -> clap::builder::Styles {
 }
 ////////////////////////////////////////////////////////////////////////////////
 pub fn get_banner() -> String {
-use termimad::crossterm::style::Stylize;
-    let banner =  r"
+    use termimad::crossterm::style::Stylize;
+    let banner = r"
   __ _  __ _ _____ __ ___
  / _` |/ _` |_  / '_ ` _ \
 | (_| | (_| |/ /| | | | | |
@@ -64,6 +64,4 @@ use termimad::crossterm::style::Stylize;
 
     rainbow_lines(banner);
     Stylize::green(banner).to_string()
-
 }
-

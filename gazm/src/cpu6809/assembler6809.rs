@@ -1,15 +1,15 @@
 #[deny(unused_imports)]
 use crate::{
-    assembler::{Assembler, AssemblerCpuTrait,  Sizer},
+    assembler::{Assembler, AssemblerCpuTrait, Sizer},
     error::GResult,
     frontend::{self, PResult},
-    semantic::{ AstNodeRef, AstNodeId },
+    semantic::{AstNodeId, AstNodeRef},
 };
 
 use crate::{
     cpu6809::{
         assembler::{compile_node, size_node_internal},
-        frontend::{ lex_identifier, },
+        frontend::lex_identifier,
     },
     frontend::CpuSpecific,
 };
@@ -17,23 +17,34 @@ use crate::{
 impl Assembler {
     pub fn compile_node_6809(
         &mut self,
-        _node_kind: NodeKind6809,
-        _node: AstNodeRef,
-        _current_scope_id: u64,
-    ) -> GResult<()> { 
-        panic!()
-}
+        node_kind: NodeKind6809,
+        node: AstNodeRef,
+        current_scope_id: u64,
+    ) -> GResult<()> {
+        match node_kind {
+            NodeKind6809::SetDp => {
+                let (dp, _) = self.eval_first_arg(node, current_scope_id)?;
+                if !(0..=0xff).contains(&dp) {
+                    return Err(self
+                        .make_user_error("SETDP value must be between 0 and 255", node, true)
+                        .into());
+                }
+                self.asm_out.set_dp(dp as u8);
+                Ok(())
+            }
+            node_kind => compile_node(self, node, node_kind, current_scope_id),
+        }
+    }
 
     pub fn size_node_6809(
         &mut self,
-        _sizer: &mut Sizer,
-        _id: AstNodeId,
-        _node_kind: NodeKind6809,
+        sizer: &mut Sizer,
+        id: AstNodeId,
+        node_kind: NodeKind6809,
         _current_scope_id: u64,
     ) -> GResult<()> {
-        panic!()
+        size_node_internal(sizer, self, id, node_kind)
     }
-
 }
 
 use frontend::Node;
@@ -67,12 +78,15 @@ impl AssemblerCpuTrait for Asm6809 {
         lex_identifier(_id)
     }
 
-    fn parse_multi_opcode_vec(&self, _input: crate::frontend::TSpan) -> PResult<Vec<Node>> {
+    fn parse_multi_opcode_vec<'a>(
+        &self,
+        _input: crate::frontend::TSpan<'a>,
+    ) -> PResult<'a, Vec<Node>> {
         todo!()
         // parse_multi_opcode_vec(input)
     }
 
-    fn parse_commands(&self, _input: crate::frontend::TSpan) -> PResult<Node> {
+    fn parse_commands<'a>(&self, _input: crate::frontend::TSpan<'a>) -> PResult<'a, Node> {
         todo!()
         // parse_commands(input)
     }
@@ -96,7 +110,7 @@ impl AssemblerCpuTrait for Asm6809 {
         asm: &mut Assembler,
         id: AstNodeId,
         node_kind: CpuSpecific,
-        _current_scope_id: u64
+        _current_scope_id: u64,
     ) -> GResult<()> {
         match node_kind {
             CpuSpecific::Cpu6809(node_kind) => size_node_internal(sizer, asm, id, node_kind),

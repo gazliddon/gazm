@@ -1,7 +1,8 @@
 #![deny(unused_imports)]
 use super::{to_pos, TSpan};
 use crate::{help::ErrCode, vars::VarsErrorKind};
-use grl_sources::{grl_utils::FileError, Position, SourceErrorType};
+use grl_sources::{Position, SourceErrorType};
+use grl_utils::FileError;
 use thiserror::Error;
 use unraveler::{ParseError, ParseErrorKind, Severity};
 
@@ -40,6 +41,15 @@ pub enum FrontEndErrorKind {
     #[error("Unexpected character")]
     Unexpected,
 
+    #[error("Invalid number")]
+    InvalidNumber,
+
+    #[error("Invalid string literal")]
+    InvalidString,
+
+    #[error("Invalid character literal")]
+    InvalidCharacterLiteral,
+
     #[error("Expected close bracket ')'")]
     NoCloseBracket,
     #[error("Expected close square bracket ']'")]
@@ -71,7 +81,7 @@ impl<T> From<FrontEndError> for Result<T, FrontEndError> {
 }
 
 pub fn err_nomatch<T>(sp: TSpan) -> PResult<T> {
-    Err( FrontEndError::error(sp, ParseErrorKind::NoMatch) )
+    Err(FrontEndError::error(sp, ParseErrorKind::NoMatch))
 }
 
 pub fn err_kind_nomatch(sp: TSpan) -> FrontEndError {
@@ -168,11 +178,50 @@ impl<'a> ParseError<TSpan<'a>> for FrontEndError {
         self.severity
     }
 
-    fn append(_input: TSpan, _kind: ParseErrorKind, _other: Self) -> Self {
-        todo!()
+    fn merge(self, other: Self) -> Self {
+        let severity = if self.severity == Severity::Fatal || other.severity == Severity::Fatal {
+            Severity::Fatal
+        } else {
+            Severity::Error
+        };
+
+        if other.position.offset() > self.position.offset() {
+            Self { severity, ..other }
+        } else {
+            Self { severity, ..self }
+        }
+    }
+
+    fn append(input: TSpan, kind: ParseErrorKind, other: Self) -> Self {
+        // Keep the diagnostic that got furthest through the input. If either
+        // branch is fatal, preserve that severity while still preferring the
+        // furthest position for useful editor diagnostics.
+        let current = Self::from_error_kind(input, kind, Severity::Error);
+        if current.position.offset() >= other.position.offset() {
+            Self {
+                severity: if current.severity == Severity::Fatal
+                    || other.severity == Severity::Fatal
+                {
+                    Severity::Fatal
+                } else {
+                    current.severity
+                },
+                ..current
+            }
+        } else {
+            Self {
+                severity: if current.severity == Severity::Fatal
+                    || other.severity == Severity::Fatal
+                {
+                    Severity::Fatal
+                } else {
+                    other.severity
+                },
+                ..other
+            }
+        }
     }
 }
 
 // TODO: Remove6809
 use crate::cpu6809::frontend::Cpu6809AssemblyErrorKind;
-

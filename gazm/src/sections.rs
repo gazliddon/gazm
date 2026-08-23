@@ -22,7 +22,7 @@ struct SerializedSection {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct SectionToml {
     addr: usize,
-    len : usize,
+    len: usize,
 }
 
 impl From<SerializedSection> for SectionDescriptor {
@@ -158,7 +158,6 @@ pub enum SectionError {
     #[error("Error loading section file {0}")]
     ErrorLoadingSectionFile(String),
 }
-
 
 #[allow(dead_code)]
 impl Sections {

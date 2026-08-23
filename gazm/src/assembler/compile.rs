@@ -1,49 +1,42 @@
 #![forbid(unused_imports)]
 use std::path::Path;
 
-use super::{binary::BinaryError, scopetracker::ScopeTracker, Assembler, };
+use super::{binary::BinaryError, scopetracker::ScopeTracker, Assembler};
 
-use crate::cpukind::CpuAssmbler;
 use crate::frontend::AstNodeKind;
 use crate::{
     debug_mess,
-    error::{GResult, GazmErrorKind, UserError},
+    error::{Diagnostic, GResult, GazmErrorKind},
     info_mess,
     semantic::{Ast, AstNodeId, AstNodeRef},
 };
 
 use grl_sources::ItemType;
 
-
-pub struct Compiler<'a>
-{
+pub struct Compiler<'a> {
     tree: &'a Ast,
     pub scopes: ScopeTracker,
-    pub cpu_asm : CpuAssmbler
 }
 
-pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()>
-{
+pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()> {
     let root_id = asm.get_symbols().get_root_scope_id();
     let mut compiler = Compiler::new(tree, root_id)?;
     compiler.compile_root(asm)?;
     Ok(())
 }
 
-impl<'a> Compiler<'a>
-{
+impl<'a> Compiler<'a> {
     pub fn new(tree: &'a Ast, current_scope_id: u64) -> GResult<Self> {
         Ok(Self {
             tree,
             scopes: ScopeTracker::new(current_scope_id),
-            cpu_asm: CpuAssmbler::new(),
         })
     }
 
     pub fn compile_root(&mut self, asm: &mut Assembler) -> GResult<()> {
         let scope_id = asm.get_symbols().get_root_scope_id();
         self.scopes.set_scope(scope_id);
-        asm.set_pc_symbol(0).expect("Can't set pc symbol");
+        asm.set_pc_symbol_internal(0)?;
         self.compile_node_error(asm, self.tree.as_ref().root().id())
     }
 
@@ -51,14 +44,14 @@ impl<'a> Compiler<'a>
         &self,
         asm: &Assembler,
         id: AstNodeId,
-    ) -> (AstNodeId, AstNodeKind) {
+    ) -> (AstNodeId, std::sync::Arc<AstNodeKind>) {
         let node = self.tree.as_ref().get(id).unwrap();
         let this_i = &node.value().item;
         let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
         (node.id(), i)
     }
 
-    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef {
+    pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<'_> {
         let node = self.tree.as_ref().get(id).unwrap();
         node
     }
@@ -72,7 +65,7 @@ impl<'a> Compiler<'a>
         let n = self.get_node(id);
         let info = &asm.get_source_info(&n.value().pos).unwrap();
         let msg = e.to_string();
-        UserError::from_text(msg, info, true).into()
+        Diagnostic::from_text(msg, info, true).into()
     }
 
     pub fn binary_error_map<T>(
@@ -82,8 +75,7 @@ impl<'a> Compiler<'a>
         e: Result<T, BinaryError>,
     ) -> Result<T, GazmErrorKind> {
         if !asm.opts.error_mismatches {
-            if let Err(BinaryError::DoesNotMatchReference(_r)) = &e {
-            }
+            if let Err(BinaryError::DoesNotMatchReference(_r)) = &e {}
         }
 
         e.map_err(|e| self.binary_error(asm, id, e))
@@ -107,7 +99,7 @@ impl<'a> Compiler<'a>
 
         let info = &asm.get_source_info(&n.value().pos).unwrap();
         let msg = message;
-        UserError::from_text(msg, info, true).into()
+        Diagnostic::from_text(msg, info, true).into()
     }
 
     /// Adds a mapping of this source file fragment to a physicl and logical range of memory
@@ -136,7 +128,8 @@ impl<'a> Compiler<'a>
         let bytes = asm
             .get_binary()
             .get_bytes(source as usize, size as usize)
-            .map(|n| n.to_vec()).map_err(|e| self.binary_error(asm, id, e))?;
+            .map(|n| n.to_vec())
+            .map_err(|e| self.binary_error(asm, id, e))?;
 
         let ret = asm.get_binary_mut().write_bytes(&bytes);
 
@@ -277,8 +270,8 @@ impl<'a> Compiler<'a>
 
     fn compile_children(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
         let node = self.get_node(id);
-        let kids: Vec<_> = node.children().map(|n| n.id()).collect();
-        for c in kids {
+        let children: Vec<_> = node.children().map(|n| n.id()).collect();
+        for c in children {
             self.compile_node_error(asm, c)?;
         }
         Ok(())
@@ -286,7 +279,6 @@ impl<'a> Compiler<'a>
 
     fn add_source_mapping(&self, asm: &mut Assembler, id: AstNodeId, addr: usize) {
         let node = self.get_node(id);
-        let _i = node.value().item.clone();
         // TODO Fix this fucker!
         let kind: ItemType = ItemType::OpCode;
 
@@ -303,37 +295,37 @@ impl<'a> Compiler<'a>
         let mut do_source_mapping = true;
         let current_scope_id = self.scopes.scope();
 
-        asm.set_pc_symbol(pc).expect("Can't set PC symbol value");
+        asm.set_pc_symbol_internal(pc)?;
 
-        match i {
-            ScopeId(scope_id) => self.scopes.set_scope(scope_id),
+        match i.as_ref() {
+            ScopeId(scope_id) => self.scopes.set_scope(*scope_id),
 
             GrabMem => self.grab_mem(asm, id)?,
 
-            WriteBin(file_name) => self.add_binary_to_write(asm, id, &file_name)?,
+            WriteBin(file_name) => self.add_binary_to_write(asm, id, file_name)?,
 
             IncBinRef(file_name) => {
-                self.inc_bin_ref(asm, &file_name, id, current_scope_id)?;
+                self.inc_bin_ref(asm, file_name, id, current_scope_id)?;
             }
 
             IncBinResolved { file, r } => {
-                self.incbin_resolved(asm, id, &file, &r)?;
+                self.incbin_resolved(asm, id, file, r)?;
             }
 
             Skip(skip) => {
-                asm.get_binary_mut().skip(skip);
+                asm.get_binary_mut().skip(*skip);
             }
 
             SetPc(new_pc) => {
-                asm.get_binary_mut().set_write_address(new_pc, 0);
+                asm.get_binary_mut().set_write_address(*new_pc, 0);
 
-                pc = new_pc;
+                pc = *new_pc;
                 debug_mess!("Set PC to {:02X}", pc);
             }
 
             SetPutOffset(offset) => {
                 debug_mess!("Set put offset to {}", offset);
-                asm.get_binary_mut().set_write_offset(offset);
+                asm.get_binary_mut().set_write_offset(*offset);
             }
 
             MacroCallProcessed {
@@ -341,12 +333,12 @@ impl<'a> Compiler<'a>
             } => {
                 let node = self.get_node(node_id);
                 do_source_mapping = false;
-                let ret = asm.eval_macro_args(scope_id, node);
+                let ret = asm.eval_macro_args(*scope_id, node);
 
                 if !ret {
                     let pos = &node.value().pos;
                     let si = asm.get_source_info(pos).unwrap();
-                    return Err(UserError::from_text(
+                    return Err(Diagnostic::from_text(
                         "Couldn't evaluate all macro args",
                         &si,
                         true,
@@ -354,13 +346,13 @@ impl<'a> Compiler<'a>
                     .into());
                 }
 
-                self.scopes.push(scope_id);
+                self.scopes.push(*scope_id);
 
                 {
-                    let m_node = self.get_node(macro_id);
-                    let kids: Vec<_> = m_node.children().map(|n| n.id()).collect();
+                    let m_node = self.get_node(*macro_id);
+                    let children: Vec<_> = m_node.children().map(|n| n.id()).collect();
 
-                    for c_node in kids {
+                    for c_node in children {
                         self.compile_node_error(asm, c_node)?;
                     }
                 }
@@ -369,6 +361,10 @@ impl<'a> Compiler<'a>
             }
 
             TokenizedFile(..) => {
+                self.compile_children(asm, id)?;
+            }
+
+            Block => {
                 self.compile_children(asm, id)?;
             }
 
@@ -447,15 +443,14 @@ impl<'a> Compiler<'a>
                 asm.asm_out.exec_addr = Some(exec_addr as usize);
             }
 
-            IncBin(..) | Org | AssignmentFromPc(..) | Assignment(..) | Comment(..) | Rmb
-            | StructDef(..) | MacroDef(..) | MacroCall(..) | Import => (),
+            IncBin(..) | Org | Section(..) | SetSection(..) | AssignmentFromPc(..)
+            | Assignment(..) | Comment(..) | Rmb | StructDef(..) | MacroDef(..) | MacroCall(..)
+            | Import => (),
 
-            TargetSpecific(_node_kind) => {
+            TargetSpecific(node_kind) => {
                 let node = self.get_node(id);
 
-                asm.compile_node(node, _node_kind, current_scope_id)?;
-                todo!()
-                // C::compile_node(self, asm, id, node_kind)?;
+                asm.compile_node(node, node_kind.clone(), current_scope_id)?;
             }
 
             _ => {

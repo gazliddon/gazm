@@ -4,27 +4,35 @@ use std::collections::HashSet;
 
 use emu6809::{
     cpu::{IndexedFlags, RegEnum},
-    isa::Instruction,
+    isa::InstructionId,
 };
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndexParseType {
-    ConstantOffset(RegEnum), // arg,R
-    PostInc(RegEnum),        // ,R+                    2 0 |
-    PostIncInc(RegEnum),     // ,R++                   3 0 |
-    PreDec(RegEnum),         // ,-R                    2 0 |
-    PreDecDec(RegEnum),      // ,--R                   3 0 |
-    Zero(RegEnum),           // ,R                     0 0 |
-    AddB(RegEnum),           // (+/- B),R              1 0 |
-    AddA(RegEnum),           // (+/- A),R              1 0 |
-    AddD(RegEnum),           // (+/- D),R              4 0 |
-    PCOffset,                // (+/- 7 bit offset),PC  1 1 |
-    ExtendedIndirect,        //  [expr]
+    ConstantOffset(RegEnum, IndexWidth), // arg,R
+    PostInc(RegEnum),                    // ,R+                    2 0 |
+    PostIncInc(RegEnum),                 // ,R++                   3 0 |
+    PreDec(RegEnum),                     // ,-R                    2 0 |
+    PreDecDec(RegEnum),                  // ,--R                   3 0 |
+    Zero(RegEnum),                       // ,R                     0 0 |
+    AddB(RegEnum),                       // (+/- B),R              1 0 |
+    AddA(RegEnum),                       // (+/- A),R              1 0 |
+    AddD(RegEnum),                       // (+/- D),R              4 0 |
+    PCOffset,                            // (+/- 7 bit offset),PC  1 1 |
+    ExtendedIndirect,                    //  [expr]
     Constant5BitOffset(RegEnum, i8),
     ConstantByteOffset(RegEnum, i8),
     ConstantWordOffset(RegEnum, i16),
     PcOffsetWord(i16),
     PcOffsetByte(i8),
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum IndexWidth {
+    Auto,
+    Bits5,
+    Byte,
+    Word,
 }
 
 impl IndexParseType {
@@ -232,7 +240,7 @@ pub enum NodeKind6809 {
     #[default]
     Illegal,
     SetDp,
-    OpCode(String, Box<Instruction>, AddrModeParseType),
+    OpCode(InstructionId, AddrModeParseType),
     Operand(AddrModeParseType),
     OperandIndexed(IndexParseType, bool),
     RegisterSet(HashSet<RegEnum>),

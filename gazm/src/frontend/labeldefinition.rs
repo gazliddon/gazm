@@ -60,4 +60,3 @@ impl std::fmt::Display for LabelDefinition {
         }
     }
 }
-

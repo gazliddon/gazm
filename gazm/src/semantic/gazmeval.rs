@@ -11,7 +11,8 @@ use crate::{
 };
 
 use grl_eval::GetPriority;
-use grl_sources::{grl_utils::Stack, Position};
+use grl_sources::Position;
+use grl_utils::Stack;
 
 #[derive(Error, Debug, Clone)]
 pub enum EvalErrorEnum {
@@ -40,8 +41,7 @@ pub struct EvalError {
 }
 
 impl EvalError {
-    pub fn new(source: EvalErrorEnum, node: AstNodeRef) -> Self
-    {
+    pub fn new(source: EvalErrorEnum, node: AstNodeRef) -> Self {
         Self {
             node: node.id(),
             pos: node.value().pos,
@@ -62,8 +62,7 @@ impl From<EvalError> for AstError {
     }
 }
 
-impl GetPriority for AstNodeKind
-{
+impl GetPriority for AstNodeKind {
     fn priority(&self) -> Option<usize> {
         use AstNodeKind::*;
         match self {
@@ -89,11 +88,7 @@ impl GetPriority for AstNodeKind
 ///  - PostFixExpr containing only labels and numbers
 ///  - UnaryTerm
 ///  - Must eval to a number
-fn eval_internal(
-    symbols: &SymbolTreeReader,
-    n: AstNodeRef,
-) -> Result<AstNodeKind, EvalError>
-{
+fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind, EvalError> {
     use AstNodeKind::*;
 
     let i = &n.value().item;
@@ -163,11 +158,7 @@ fn eval_internal(
 }
 
 /// Evaluates a postfix expression
-fn eval_postfix(
-    symbols: &SymbolTreeReader,
-    n: AstNodeRef,
-) -> Result<AstNodeKind, EvalError>
-{
+fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind, EvalError> {
     use AstNodeKind::*;
 
     let mut s: Stack<AstNodeKind> = Stack::with_capacity(1024);
@@ -216,8 +207,7 @@ fn eval_postfix(
     s.pop().ok_or(EvalError::new(EvalErrorEnum::CantPopTop, n))
 }
 
-pub fn eval(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError>
-{
+pub fn eval(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError> {
     let ret = eval_internal(symbols, n)?;
     Ok(ret.unrwap_number().unwrap())
 }

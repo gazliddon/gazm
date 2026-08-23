@@ -2,20 +2,20 @@
 
 use unraveler::{many0, match_span as ms, pair, preceded, sep_list0, tuple};
 
-
 use super::{
     AstNodeKind::{MacroCall, MacroDef},
     TokenKind::Comma,
     *,
 };
 
-impl GazmParser
-{
+impl GazmParser {
     pub fn parse_macro_call(input: TSpan) -> PResult<Node> {
-        let (rest, (sp, (label, args))) =
-            ms(pair(get_label_string, parse_bracketed(Self::parse_expr_list0)))(input)?;
+        let (rest, (sp, (label, args))) = ms(pair(
+            get_label_string,
+            parse_bracketed(Self::parse_expr_list0),
+        ))(input)?;
 
-        let node = from_item_kids_tspan(MacroCall(label), &args, sp);
+        let node = from_item_children_tspan(MacroCall(label), &args, sp);
         Ok((rest, node))
     }
 
@@ -31,7 +31,7 @@ impl GazmParser
 
         let body: Vec<Node> = body.into_iter().flatten().collect();
 
-        let node = from_item_kids_tspan(MacroDef(label, args.into()), &body, sp);
+        let node = from_item_children_tspan(MacroDef(label, args.into()), &body, sp);
         Ok((rest, node))
     }
 }
@@ -85,10 +85,10 @@ mod test {
     // fn test_parse_macro_def() {
     //     use itertools::Itertools;
     //     let text = r#"
-// macro MKPROB(process,object_pic,collion_vec,blip) {
+    // macro MKPROB(process,object_pic,collion_vec,blip) {
     // fdb    MPROB
     // FDB    process,object_pic,collion_vec,blip
-// }
+    // }
     //     "#;
 
     //     let opts = Opts::default();

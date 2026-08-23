@@ -6,6 +6,7 @@ use crate::cpu6809::{
     regutils::{reg_pair_to_flags, registers_to_flags},
 };
 
+use crate::cpu6809::assembler::ISA_DBASE;
 use emu6809::isa;
 
 pub fn compile_indexed(
@@ -55,8 +56,8 @@ pub fn compile_node(
 ) -> GResult<()> {
     use NodeKind6809::*;
     match node_kind {
-        OpCode(_, ins, amode) => {
-            compile_opcode(asm, node, &ins, amode, current_scope_id)?;
+        OpCode(ins, amode) => {
+            compile_opcode(asm, node, ISA_DBASE.get_by_id(ins), amode, current_scope_id)?;
         }
 
         SetDp => eprintln!("Warning! SetDP node not compiled!"),

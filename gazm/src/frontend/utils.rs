@@ -1,6 +1,5 @@
 #![deny(unused_imports)]
 
-
 use super::{
     AstNodeKind, FrontEndError, FrontEndErrorKind, GazmParser, Node, PResult, ParsedFrom, TSpan,
     TokenKind::*,
@@ -9,7 +8,7 @@ use super::{
 use grl_sources::{Position, SourceFile};
 use thin_vec::{thin_vec, ThinVec};
 use unraveler::{
-    map, match_span as ms, tag, wrapped_cut, Collection, ParseErrorKind, Parser, Severity,
+    alt, delimited_kind, kind, map, spanned, Collection, ParseErrorKind, Parser, Severity,
 };
 
 pub fn from_item_tspan<K>(item: K, sp: TSpan) -> Node
@@ -19,23 +18,22 @@ where
     from_item_pos(item, to_pos(sp))
 }
 
-pub fn from_item_pos<K: Into<AstNodeKind>,P: Into<Position>>(_item: K, _p: P) -> Node {
+pub fn from_item_pos<K: Into<AstNodeKind>, P: Into<Position>>(_item: K, _p: P) -> Node {
     let n: Node = Node::new(_item.into(), _p.into());
     n
 }
-pub fn from_item_kids_tspan<K>(item: K, kids: &[Node], sp: TSpan) -> Node 
+pub fn from_item_children_tspan<K>(item: K, children: &[Node], sp: TSpan) -> Node
 where
     K: Into<AstNodeKind>,
 {
-    Node::new_with_children(item.into(), kids, to_pos(sp))
+    Node::new_with_children(item.into(), children, to_pos(sp))
 }
 
-pub fn from_item_kid_tspan<K>(item: K, kid: Node, sp: TSpan) -> Node 
+pub fn from_item_child_tspan<K>(item: K, child: Node, sp: TSpan) -> Node
 where
     K: Into<AstNodeKind>,
-
 {
-    Node::new_with_children(item.into(), &[kid], to_pos(sp))
+    Node::new_with_children(item.into(), &[child], to_pos(sp))
 }
 
 impl GazmParser {
@@ -89,11 +87,11 @@ impl GazmParser {
 //         Self::from_item_pos(item, to_pos(sp))
 //     }
 
-//     pub fn from_item_kids_tspan(item: Item, kids: &[Self], sp: TSpan) -> Self {
-//         Self::new_with_children(item, kids, to_pos(sp))
+//     pub fn from_item_children_tspan(item: Item, children: &[Self], sp: TSpan) -> Self {
+//         Self::new_with_children(item, children, to_pos(sp))
 //     }
-//     pub fn from_item_kid_tspan(item: Item, kid: Self, sp: TSpan) -> Self {
-//         Self::new_with_children(item, &[kid], to_pos(sp))
+//     pub fn from_item_child_tspan(item: Item, child: Self, sp: TSpan) -> Self {
+//         Self::new_with_children(item, &[child], to_pos(sp))
 //     }
 
 //     pub fn from_num_tspan(num: i64, sp: TSpan) -> Self {
@@ -145,36 +143,31 @@ fn wrong_termination(e: FrontEndError, kind: FrontEndErrorKind) -> FrontEndError
     }
 }
 
-pub fn parse_block<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
-where
-    P: Parser<TSpan<'a>, O, FrontEndError> + Copy,
-{
-    use FrontEndErrorKind::*;
-    move |i| {
-        wrapped_cut(OpenBrace, p, CloseBrace)(i).map_err(|e| wrong_termination(e, NoCloseBrace))
-    }
-}
-
-pub fn parse_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
+pub fn parse_block<'a, O, P>(p: P) -> impl FnMut(TSpan<'a>) -> PResult<O>
 where
     P: Parser<TSpan<'a>, O, FrontEndError>,
 {
     use FrontEndErrorKind::*;
-    move |i| {
-        wrapped_cut(OpenBracket, p, CloseBracket)(i)
-            .map_err(|e| wrong_termination(e, NoCloseBracket))
-    }
+    let mut parser = delimited_kind(OpenBrace, p, CloseBrace);
+    move |i| parser(i).map_err(|e| wrong_termination(e, NoCloseBrace))
 }
 
-pub fn parse_sq_bracketed<'a, O, P>(p: P) -> impl Fn(TSpan<'a>) -> PResult<O> + Copy
+pub fn parse_bracketed<'a, O, P>(p: P) -> impl FnMut(TSpan<'a>) -> PResult<O>
 where
     P: Parser<TSpan<'a>, O, FrontEndError>,
 {
     use FrontEndErrorKind::*;
-    move |i| {
-        wrapped_cut(OpenSquareBracket, p, CloseSquareBracket)(i)
-            .map_err(|e| wrong_termination(e, NoCloseSqBracket))
-    }
+    let mut parser = delimited_kind(OpenBracket, p, CloseBracket);
+    move |i| parser(i).map_err(|e| wrong_termination(e, NoCloseBracket))
+}
+
+pub fn parse_sq_bracketed<'a, O, P>(p: P) -> impl FnMut(TSpan<'a>) -> PResult<O>
+where
+    P: Parser<TSpan<'a>, O, FrontEndError>,
+{
+    use FrontEndErrorKind::*;
+    let mut parser = delimited_kind(OpenSquareBracket, p, CloseSquareBracket);
+    move |i| parser(i).map_err(|e| wrong_termination(e, NoCloseSqBracket))
 }
 
 /// Split this span at the next line
@@ -204,15 +197,16 @@ pub fn take_line(full_span: TSpan) -> TSpan {
     }
 }
 
-pub fn parse_line<'a, P, O>(p: P) -> impl FnMut(TSpan<'a>) -> PResult<O> + Copy
+pub fn parse_line<'a, P, O>(p: P) -> impl FnMut(TSpan<'a>) -> PResult<O>
 where
-    P: FnMut(TSpan<'a>) -> PResult<O> + Copy,
+    P: FnMut(TSpan<'a>) -> PResult<O>,
 {
+    let mut parser = spanned(p);
     move |i| {
         // grab 1 lines worth
         let line = take_line(i);
         // parse that line and capture what was parsed
-        let (_, (sp, matched)) = ms(p)(line)?;
+        let (_, (sp, matched)) = parser(line)?;
         // drop however many we parsed
         let new_span = i.drop(sp.length()).unwrap();
         Ok((new_span, matched))
@@ -221,7 +215,7 @@ where
 
 /// Get's a string if this is label
 pub fn get_label_string(input: TSpan) -> PResult<String> {
-    map(tag(Label), |sp| get_text(sp))(input)
+    map(alt((kind(Label), kind(Identifier))), |sp| get_text(sp))(input)
 }
 
 #[allow(unused_imports)]

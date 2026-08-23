@@ -1,24 +1,18 @@
 #![deny(unused_imports)]
 
-
 use super::{
-    get_text,
-    parse_expr,
-    AstNodeKind, Node,
-    StructMemberType,
-    parse_block,  CommandKind, GazmParser, PResult, TSpan,
-    TokenKind::{CloseSquareBracket, Colon, Comma, OpenSquareBracket, Label},
-    from_item_tspan,
-    from_item_kids_tspan,
-    from_item_kid_tspan,
+    from_item_child_tspan, from_item_children_tspan, from_item_tspan, get_text, parse_block,
+    parse_expr, AstNodeKind, CommandKind, GazmParser, Node, PResult, StructMemberType, TSpan,
+    TokenKind::{CloseSquareBracket, Colon, Comma, Identifier, Label, OpenSquareBracket},
 };
 
-use unraveler::{map, match_span as ms, opt, pair, preceded, sep_list0, succeeded, tag, tuple};
+use unraveler::{
+    alt, kind, map, match_span as ms, opt, pair, preceded, sep_list0, succeeded, tuple,
+};
 
 use CommandKind::Struct;
 
-impl GazmParser
-{
+impl GazmParser {
     pub fn parse_array_def(input: TSpan) -> PResult<Node> {
         let (rest, (_, matched, _)) =
             tuple((OpenSquareBracket, parse_expr, CloseSquareBracket))(input)?;
@@ -28,15 +22,15 @@ impl GazmParser
 
     pub fn parse_struct_entry(input: TSpan) -> PResult<Node> {
         let (rest, (name, _, (entry_span, entry_type), (array_def_sp, array))) = tuple((
-            Label,
+            alt((Label, Identifier)),
             Colon,
             parse_struct_arg_type,
             ms(opt(Self::parse_array_def)),
         ))(input)?;
 
-        let size =entry_type.to_size_item();
+        let size = entry_type.to_size_item();
 
-        let kids = [
+        let children = [
             array.unwrap_or(Self::from_num_tspan(1, array_def_sp)),
             from_item_tspan(AstNodeKind::Mul, array_def_sp),
             from_item_tspan(size, entry_span),
@@ -44,15 +38,15 @@ impl GazmParser
 
         let name = get_text(name).to_owned();
 
-        let expr = from_item_kids_tspan(AstNodeKind::Expr, &kids, entry_span);
-        let node = from_item_kid_tspan(AstNodeKind::StructEntry(name), expr, input);
+        let expr = from_item_children_tspan(AstNodeKind::Expr, &children, entry_span);
+        let node = from_item_child_tspan(AstNodeKind::StructEntry(name), expr, input);
 
         Ok((rest, node))
     }
 
     pub fn parse_struct(input: TSpan) -> PResult<Node> {
         let (rest, (sp, (label, entries))) = ms(pair(
-            preceded(Struct, Label),
+            preceded(Struct, alt((Label, Identifier))),
             parse_block(succeeded(
                 sep_list0(Self::parse_struct_entry, Comma),
                 opt(Comma),
@@ -61,7 +55,7 @@ impl GazmParser
 
         let text = get_text(label);
 
-        let node = from_item_kids_tspan(AstNodeKind::StructDef(text), &entries, sp);
+        let node = from_item_children_tspan(AstNodeKind::StructDef(text), &entries, sp);
 
         Ok((rest, node))
     }
@@ -70,7 +64,7 @@ impl GazmParser
 fn parse_struct_arg_type(input: TSpan) -> PResult<(TSpan, StructMemberType)> {
     let as_arg_type =
         |i| -> StructMemberType { get_text(i).to_string().parse::<StructMemberType>().unwrap() };
-    ms(map(tag(Label), as_arg_type))(input)
+    ms(map(alt((kind(Label), kind(Identifier))), as_arg_type))(input)
 }
 
 // Always compile so I get IDE errors
@@ -109,10 +103,10 @@ mod test {
 
         let span = make_tspan(&tokens, &sf, &opts);
 
-        let (rest, matched) = parse_struct(span).unwrap();
+        let (rest, matched) = GazmParser::parse_struct(span).unwrap();
 
         let sub_kinds: Vec<_> = matched.children.iter().map(|t| &t.item).collect();
-        println!("Kids: {:?}", sub_kinds);
+        println!("Children: {:?}", sub_kinds);
 
         let items = get_items(&matched);
         let desired = (

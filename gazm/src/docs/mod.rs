@@ -1,17 +1,12 @@
-
 use convert_case::{Case, Casing};
 use core::hash::Hash;
-use std::{collections::HashMap, fs, io::Result, path::PathBuf};
+use std::{collections::HashMap, fs, io::Result, path::PathBuf, sync::LazyLock};
 
-lazy_static::lazy_static! {
-
-    pub static ref HELP : HelpText<String> = {
+pub static HELP: LazyLock<HelpText<String>> = LazyLock::new(|| {
     let docs = gather_docs().unwrap();
 
     HelpText::new(docs)
-
-    };
-}
+});
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -62,11 +57,7 @@ pub fn gather_doc_files() -> Result<Vec<(PathBuf, String)>> {
 
     for markdown_file in glob("assets/help/*.md").expect("Failed to read glob pattern") {
         let markdown_file = markdown_file.unwrap();
-        let file_name_no_path = markdown_file
-            .iter()
-            .last()
-            .unwrap()
-            .to_string_lossy();
+        let file_name_no_path = markdown_file.iter().next_back().unwrap().to_string_lossy();
         let captures = re.captures(&file_name_no_path).unwrap();
 
         if let Some(captured) = captures.get(1) {

@@ -13,11 +13,24 @@ struct LoadedTomlConfig {
     vars: Option<HashMap<String, String>>,
     checksums: Option<HashMap<String, CheckSum>>,
     lsp: Option<LspConfig>,
+    targets: Option<Vec<LoadedTarget>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct LoadedTarget {
+    #[serde(rename = "name")]
+    _name: String,
+    #[serde(flatten)]
+    opts: Opts,
+    vars: Option<HashMap<String, String>>,
+    checksums: Option<HashMap<String, CheckSum>>,
 }
 
 pub struct TomlConfig {
     pub file: PathBuf,
     pub opts: Opts,
+    pub targets: Vec<Opts>,
 }
 
 pub(super) type ConfigError<T> = Result<T, ConfigErrorType>;
@@ -45,32 +58,52 @@ impl TomlConfig {
     pub fn new_from_file<P: AsRef<std::path::Path>>(file: P) -> ConfigError<Self> {
         let file = file.as_ref();
 
-        let run_dir = file.parent().and_then(|p| {
-            (p.to_string_lossy() != "")
-                .then_some(p)
-                .map(|p| p.to_path_buf())
-        });
+        let run_dir = file
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf()));
 
         let f = std::fs::read_to_string(file).expect("can't read");
         let toml = toml::from_str::<LoadedTomlConfig>(&f);
 
         match toml {
             Ok(toml) => {
+                let common_vars = toml.vars.clone().unwrap_or_default();
+                let common_checksums = toml.checksums.clone().unwrap_or_default();
                 let mut opts = toml.opts.clone().unwrap_or_default();
-                opts.vars = toml
-                    .vars
-                    .unwrap_or_default()
+                opts.vars = common_vars
+                    .clone()
                     .into_iter()
                     .collect::<Vec<(String, String)>>()
                     .into();
 
                 opts.checksums = toml.checksums.clone().unwrap_or_default();
-                opts.assemble_dir = run_dir;
-                opts.lsp_config = toml.lsp.unwrap_or_default();
+                opts.assemble_dir = run_dir.clone();
+                opts.lsp_config = toml.lsp.clone().unwrap_or_default();
+
+                let targets = toml
+                    .targets
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|target| {
+                        let mut target_opts = target.opts;
+                        let mut vars = common_vars.clone();
+                        vars.extend(target.vars.unwrap_or_default());
+                        target_opts.vars = vars.into_iter().collect::<Vec<_>>().into();
+                        target_opts.checksums =
+                            target.checksums.unwrap_or_else(|| common_checksums.clone());
+                        target_opts.assemble_dir = run_dir.clone();
+                        target_opts.lsp_config = toml.lsp.clone().unwrap_or_default();
+                        target_opts.target_name = Some(target._name);
+                        target_opts.update_vars();
+                        target_opts
+                    })
+                    .collect();
 
                 let config = TomlConfig {
                     file: file.to_path_buf(),
                     opts,
+                    targets,
                 };
 
                 Ok(config)

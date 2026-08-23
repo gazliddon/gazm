@@ -1,15 +1,14 @@
 #![forbid(unused_imports)]
 
 use crate::cpu6809::frontend::{
-    get_opcode_info, AddrModeParseType, IndexParseType,
+    get_opcode_info, AddrModeParseType, IndexParseType, IndexWidth,
     NodeKind6809::{self, OpCode},
 };
 
-
-use emu6809::isa::{AddrModeEnum, Instruction};
+use emu6809::isa::{AddrModeEnum, InstructionId};
 
 use crate::{
-    assembler::{ByteSize, ByteSizes, Assembler,Sizer},
+    assembler::{Assembler, ByteSize, ByteSizes, Sizer},
     error::GResult,
     semantic::AstNodeId,
 };
@@ -20,14 +19,13 @@ fn size_indexed(
     id: AstNodeId,
     pmode: IndexParseType,
     indirect: bool,
-    text: &str,
-    ins: &Instruction,
+    ins: InstructionId,
 ) -> GResult<()> {
     {
         let current_scope_id = sizer.scopes.scope();
-        let ins = Box::new(ins.clone());
+        let instruction = crate::cpu6809::assembler::ISA_DBASE.get_by_id(ins);
 
-        sizer.advance_pc(ins.size);
+        sizer.advance_pc(instruction.size);
         use IndexParseType::*;
 
         match pmode {
@@ -40,14 +38,47 @@ fn size_indexed(
             | ConstantWordOffset(..)
             | Constant5BitOffset(..) => {}
 
-            ConstantOffset(r) => {
+            ConstantOffset(r, width) => {
                 let node = sizer.get_node(id);
                 let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
 
-                let mut bs = v.byte_size();
+                let mut bs = match width {
+                    IndexWidth::Auto => v.byte_size(),
+                    IndexWidth::Bits5 if (-16..=15).contains(&v) => ByteSizes::Bits5(v as i8),
+                    IndexWidth::Byte if (-128..=127).contains(&v) => ByteSizes::Byte(v as i8),
+                    IndexWidth::Word if (-32768..=32767).contains(&v) => ByteSizes::Word(v as i16),
+                    IndexWidth::Bits5 => {
+                        return Err(crate::assembler::BinaryError::DoesNotFit {
+                            dest_type: "5-bit indexed offset".to_string(),
+                            val: v,
+                        }
+                        .into())
+                    }
+                    IndexWidth::Byte => {
+                        return Err(crate::assembler::BinaryError::DoesNotFit {
+                            dest_type: "8-bit indexed offset".to_string(),
+                            val: v,
+                        }
+                        .into())
+                    }
+                    IndexWidth::Word => {
+                        return Err(crate::assembler::BinaryError::DoesNotFit {
+                            dest_type: "16-bit indexed offset".to_string(),
+                            val: v,
+                        }
+                        .into())
+                    }
+                };
 
                 if let ByteSizes::Bits5(val) = bs {
                     if indirect {
+                        if width == IndexWidth::Bits5 {
+                            return Err(crate::assembler::BinaryError::DoesNotFit {
+                                dest_type: "5-bit indirect indexed offset".to_string(),
+                                val: v,
+                            }
+                            .into());
+                        }
                         // Indirect constant offset does not support
                         // 5 bit offsets so promote to 8 bit
                         bs = ByteSizes::Byte(val);
@@ -67,11 +98,7 @@ fn size_indexed(
                     }
                 };
 
-                let new_item = OpCode(
-                    text.to_string(),
-                    ins,
-                    AddrModeParseType::Indexed(new_amode, indirect),
-                );
+                let new_item = OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
 
                 asm.add_fixup(id, new_item, current_scope_id);
             }
@@ -90,11 +117,7 @@ fn size_indexed(
                     }
                 };
 
-                let new_item = OpCode(
-                    text.to_string(),
-                    ins,
-                    AddrModeParseType::Indexed(new_amode, indirect),
-                );
+                let new_item = OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
                 asm.add_fixup(id, new_item, current_scope_id);
             }
 
@@ -128,7 +151,8 @@ pub fn size_node_internal(
             asm.asm_out.set_dp(((dp as u64) & 0xff) as u8);
         }
 
-        NodeKind6809::OpCode(text, ins, amode) => {
+        NodeKind6809::OpCode(ins, amode) => {
+            let instruction = crate::cpu6809::assembler::ISA_DBASE.get_by_id(*ins);
             match amode {
                 AddrModeParseType::Extended(false) => {
                     // If there is a direct page set AND
@@ -137,11 +161,11 @@ pub fn size_node_internal(
                     // I can changing this to a direct page mode instruction
                     // !!!! and it wasn't forced (need someway to propogate this from parse)
 
-                    let mut size = ins.size;
+                    let mut size = instruction.size;
 
-                    let dp_info = get_opcode_info(ins)
+                    let dp_info = get_opcode_info(*ins)
                         .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
-                        .and_then(|ins| asm.asm_out.direct_page.map(|dp| (ins, dp)));
+                        .zip(asm.asm_out.direct_page);
 
                     if let Some((new_ins, dp)) = dp_info {
                         if let Ok((value, _)) = asm.eval_first_arg(node, current_scope_id) {
@@ -149,13 +173,8 @@ pub fn size_node_internal(
 
                             if top_byte == dp {
                                 // Here we go!
-                                let new_ins = new_ins.clone();
                                 size = new_ins.size;
-                                let new_item = OpCode(
-                                    text.clone(),
-                                    Box::new(new_ins),
-                                    AddrModeParseType::Direct,
-                                );
+                                let new_item = OpCode(new_ins.id(), AddrModeParseType::Direct);
                                 asm.add_fixup(id, new_item, current_scope_id);
                             }
                         }
@@ -164,11 +183,11 @@ pub fn size_node_internal(
                 }
 
                 AddrModeParseType::Indexed(pmode, indirect) => {
-                    size_indexed(sizer, asm, id, *pmode, *indirect, text, ins)?;
+                    size_indexed(sizer, asm, id, *pmode, *indirect, *ins)?;
                 }
 
                 _ => {
-                    sizer.advance_pc(ins.size);
+                    sizer.advance_pc(instruction.size);
                 }
             };
         }

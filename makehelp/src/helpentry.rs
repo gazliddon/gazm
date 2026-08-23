@@ -2,8 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use convert_case::{Case, Casing};
 use regex::Regex;
 use serde::Deserialize;
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::{default, fs, marker};
 
 #[derive(Debug)]
 pub struct HelpEntry {
@@ -24,7 +24,7 @@ pub fn split_out_yaml(text: &str) -> Option<(&str, &str)> {
     let yaml = caps.get(1)?;
     let rest = caps.get(2)?;
     let rest = &text[rest.range().start..];
-    return Some((yaml.as_str(), rest));
+    Some((yaml.as_str(), rest))
 }
 
 impl HelpEntry {
@@ -63,7 +63,6 @@ fn get_id<P: AsRef<Path>>(p: P) -> Result<String> {
 }
 
 pub fn file_name_no_path<P: AsRef<Path>>(p: P) -> String {
-    let p = p.as_ref().to_path_buf();
-    let file_name_no_path = p.iter().last().unwrap().to_string_lossy();
+    let file_name_no_path = p.as_ref().iter().next_back().unwrap().to_string_lossy();
     file_name_no_path.to_string()
 }

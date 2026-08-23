@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 
 use super::{
-    from_item_kids_tspan, AstNodeKind, FrontEndError, FrontEndErrorKind, GazmParser, Node,
+    from_item_children_tspan, AstNodeKind, FrontEndError, FrontEndErrorKind, GazmParser, Node,
 };
 
 use crate::{
@@ -11,12 +11,10 @@ use crate::{
     opts::Opts,
 };
 
-use grl_sources::{
-    grl_utils::{FResult, FileError, Stack},
-    Position, SourceFile,
-};
+use grl_sources::{Position, SourceFile};
+use grl_utils::{FResult, FileError, Stack};
 
-use itertools::Itertools;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
@@ -105,13 +103,32 @@ impl TokenizeRequest {
 
 impl TokenizeRequest {
     pub fn tokenize(&mut self) -> (Node, NewErrorCollector<FrontEndError>) {
-        use crate::frontend::{make_tspan, to_tokens_no_comment};
-        let tokens = to_tokens_no_comment(&self.source_file);
-        let mut span = make_tspan(&tokens, &self.source_file, &self.opts);
-
+        use crate::frontend::{make_tspan, to_tokens_no_comment_with_errors, LexErrorKind};
+        let (tokens, lex_errors) = to_tokens_no_comment_with_errors(&self.source_file);
         let mut final_nodes = vec![];
         let mut errors: NewErrorCollector<FrontEndError> =
             NewErrorCollector::new(self.opts.max_errors);
+
+        for lex_error in lex_errors {
+            let kind = match lex_error.kind {
+                LexErrorKind::InvalidCharacter => FrontEndErrorKind::Unexpected,
+                LexErrorKind::InvalidNumber => FrontEndErrorKind::InvalidNumber,
+                LexErrorKind::InvalidString => FrontEndErrorKind::InvalidString,
+                LexErrorKind::InvalidCharacterLiteral => FrontEndErrorKind::InvalidCharacterLiteral,
+            };
+            errors.add(FrontEndError::error_pos(
+                self.source_file.get_position(lex_error.span),
+                kind,
+            ));
+        }
+
+        let item = AstNodeKind::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
+        if tokens.is_empty() {
+            let position = self.source_file.get_position(0..0);
+            return (Node::new(item, position), errors);
+        }
+
+        let mut span = make_tspan(&tokens, &self.source_file, &self.opts);
 
         let result = GazmParser::parse_all_with_resume(span);
 
@@ -124,8 +141,7 @@ impl TokenizeRequest {
             }
         }
 
-        let item = AstNodeKind::TokenizedFile(self.source_file.file.clone(), self.parent.clone());
-        let node = from_item_kids_tspan(item, &final_nodes, span);
+        let node = from_item_children_tspan(item, &final_nodes, span);
         (node, errors)
     }
 }
@@ -135,6 +151,40 @@ impl TokenizeRequest {
 #[allow(dead_code)]
 pub struct IncludeStack {
     include_stack: Stack<PathBuf>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::frontend::FrontEndErrorKind;
+    use grl_sources::{AsmSource, SourceFile};
+
+    #[test]
+    fn lexer_failures_are_reported_with_source_positions() {
+        let source = SourceFile::new(
+            "test.gazm",
+            "  lda #999999999999999999999999\n",
+            AsmSource::FromStr,
+        );
+        let result = TokenizeRequest::for_single_source_file(source, &Opts::default()).to_result();
+        let errors = result.errors.to_vec();
+        assert!(errors.iter().any(|error| {
+            matches!(error.kind, FrontEndErrorKind::InvalidNumber)
+                && error.position.line() == 0
+                && error.position.col() == 7
+        }));
+    }
+
+    #[test]
+    fn lexer_failure_does_not_panic_when_no_tokens_remain() {
+        let source = SourceFile::new("test.gazm", "~", AsmSource::FromStr);
+        let result = TokenizeRequest::for_single_source_file(source, &Opts::default()).to_result();
+        assert!(result
+            .errors
+            .to_vec()
+            .iter()
+            .any(|error| matches!(error.kind, FrontEndErrorKind::Unexpected)));
+    }
 }
 
 #[derive(Error, Debug, Clone)]
@@ -179,8 +229,8 @@ impl IncludeStack {
     }
 }
 ////////////////////////////////////////////////////////////////////////////////
-pub enum GetTokensResult {
-    Tokens(Box<TokenizeResult>),
+pub enum GetTokensResult<'a> {
+    Tokens(&'a TokenizeResult),
     Request(Box<TokenizeRequest>),
 }
 
@@ -200,9 +250,10 @@ impl Assembler {
     }
 
     fn get_full_paths(&self, paths: &[(Position, PathBuf)]) -> FResult<Vec<(Position, PathBuf)>> {
+        let mut seen = HashSet::new();
         let res: Result<Vec<(Position, PathBuf)>, FileError> = paths
             .iter()
-            .unique()
+            .filter(|path| seen.insert((*path).clone()))
             .map(|(pos, path)| Ok((*pos, self.get_full_path(path)?)))
             .collect();
         res
@@ -213,25 +264,28 @@ impl Assembler {
         requested_file: P,
         parent: Option<PathBuf>,
         opt_pos: Option<Position>,
-    ) -> Result<GetTokensResult, FrontEndErrorKind> {
+    ) -> Result<GetTokensResult<'_>, FrontEndErrorKind> {
         let expanded_file = self.get_full_path(&requested_file)?;
 
-        if let Some(tokes) = self.get_tokens_from_full_path(&expanded_file) {
-            Ok(GetTokensResult::Tokens(tokes.clone().into()))
-        } else {
-            let sf = self.read_source(&requested_file)?;
-
-            let toke_req = TokenizeRequest {
-                source_file: sf.clone(),
-                requested_file: requested_file.as_ref().to_path_buf(),
-                parent,
-                opts: self.opts.clone(),
-                include_stack: Default::default(),
-                opt_pos,
-            };
-
-            Ok(GetTokensResult::Request(toke_req.into()))
+        if self.get_tokens_from_full_path(&expanded_file).is_some() {
+            // Keep the cached result borrowed.  Cloning it here duplicates the
+            // complete token and parser tree on every cache hit.
+            let tokes = self.get_tokens_from_full_path(&expanded_file).unwrap();
+            return Ok(GetTokensResult::Tokens(tokes));
         }
+
+        let sf = self.read_source(&requested_file)?;
+
+        let toke_req = TokenizeRequest {
+            source_file: sf.clone(),
+            requested_file: requested_file.as_ref().to_path_buf(),
+            parent,
+            opts: self.opts.clone(),
+            include_stack: Default::default(),
+            opt_pos,
+        };
+
+        Ok(GetTokensResult::Request(toke_req.into()))
     }
 }
 
@@ -286,6 +340,7 @@ where
                     Ok(tokes) => {
                         match tokes {
                             Tokens(tokes) => {
+                                crate::messages::record_token_cache_hit();
                                 debug_mess!("TOKES: Got {:?}", tokes.request.get_file_name());
 
                                 let includes = tokes.get_includes();
@@ -299,6 +354,7 @@ where
 
                             // If I don't have tokens then add it to a q of requestes
                             Request(req) => {
+                                crate::messages::record_token_cache_miss();
                                 debug_mess!("TOKES:Requesting {:?}", req.get_file_name());
                                 to_tok.push(*req)
                             }
@@ -356,7 +412,7 @@ where
 #[allow(dead_code)]
 #[cfg(test)]
 mod test {
-    use grl_sources::grl_utils::PathSearcher;
+    use grl_utils::PathSearcher;
     use std::path;
     use std::{thread::current, time::Instant};
 

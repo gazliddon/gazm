@@ -1,14 +1,13 @@
 #![deny(unused_imports)]
-use grl_sources::{ SourceFile,Position };
+use grl_sources::{Position, SourceFile};
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct ParserState {
-}
+pub struct ParserState {}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ParseText<'a> {
-    pub pos : Position,
-    pub source_file : &'a SourceFile,
+    pub pos: Position,
+    pub source_file: &'a SourceFile,
     pub state: ParserState,
 }
 

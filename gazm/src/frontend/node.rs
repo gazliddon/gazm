@@ -81,7 +81,7 @@ where
         self.children.push(n)
     }
 
-    pub fn iter(&self) -> NodeIter<Self> {
+    pub fn iter(&self) -> NodeIter<'_, Self> {
         NodeIter::new(self)
     }
 }

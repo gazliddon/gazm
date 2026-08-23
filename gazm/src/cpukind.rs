@@ -1,13 +1,9 @@
-use std::usize;
-
 use crate::{assembler::AssemblerCpuTrait, cpu6800::Asm6800, cpu6809::Asm6809};
-use emu6800::emucore::sha1::digest::DynDigest;
 use serde::Deserialize;
-use strum::{EnumCount, IntoEnumIterator, };
 
-use strum_macros::{EnumCount as EnumCountMacro, EnumIter, EnumString};
+use strum_macros::EnumString;
 
-#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Default, EnumCountMacro, EnumIter, EnumString, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Default, EnumString, Eq)]
 #[repr(usize)]
 pub enum CpuKind {
     #[default]
@@ -22,7 +18,7 @@ impl From<CpuKind> for Box<dyn AssemblerCpuTrait> {
     fn from(cpu: CpuKind) -> Box<dyn AssemblerCpuTrait> {
         match cpu {
             CpuKind::Cpu6809 => Box::new(Asm6809::new()),
-            CpuKind::Cpu6800 => Box::new(Asm6809::new()),
+            CpuKind::Cpu6800 => Box::new(Asm6800::new()),
             CpuKind::Cpu6502 => todo!(),
             CpuKind::Cpu65c02 => todo!(),
             CpuKind::CpuZ80 => todo!(),
@@ -30,62 +26,17 @@ impl From<CpuKind> for Box<dyn AssemblerCpuTrait> {
     }
 }
 
-pub struct Assemblers {
-    asm: [Box<dyn AssemblerCpuTrait>; CpuKind::COUNT],
-}
+#[cfg(test)]
+mod tests {
+    use super::CpuKind;
+    use crate::assembler::AssemblerCpuTrait;
 
-impl Default for Assemblers {
-    fn default() -> Self {
-        let res: Vec<Box<dyn AssemblerCpuTrait>> = CpuKind::iter().map(|x| x.into()).collect();
+    #[test]
+    fn cpu_kind_selects_matching_backend() {
+        let cpu6809: Box<dyn AssemblerCpuTrait> = CpuKind::Cpu6809.into();
+        let cpu6800: Box<dyn AssemblerCpuTrait> = CpuKind::Cpu6800.into();
 
-        Self {
-            asm: res.try_into().unwrap_or_else(|_| panic!()),
-        }
+        assert_eq!(cpu6809.get_cpu_name(), "6809");
+        assert_eq!(cpu6800.get_cpu_name(), "6800");
     }
 }
-
-impl Assemblers {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn asm(&self, cpu: CpuKind) -> &dyn AssemblerCpuTrait {
-        self.asm.get(cpu as usize).unwrap().as_ref()
-    }
-    pub fn asm_mut(&mut self, cpu: CpuKind) -> &mut dyn AssemblerCpuTrait {
-        self.asm.get_mut(cpu as usize).unwrap().as_mut()
-    }
-}
-
-pub struct CpuAssmbler {
-    cpu: Option<CpuKind>,
-    assemblers: Assemblers,
-}
-
-impl Default for CpuAssmbler {
-    fn default() -> Self {
-        Self {
-            cpu: None,
-            assemblers: Assemblers::new(),
-        }
-    }
-}
-
-impl CpuAssmbler {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn asm(&self) -> &dyn AssemblerCpuTrait {
-        let cpu = self.cpu.unwrap();
-        let ret = self.assemblers.asm(cpu);
-        ret
-    }
-
-    pub fn asm_mut(&mut self) -> &mut dyn AssemblerCpuTrait {
-        let cpu = self.cpu.unwrap();
-        let ret = self.assemblers.asm_mut(cpu);
-        ret
-    }
-}
-

@@ -3,15 +3,17 @@
 use crate::cpukind::CpuKind;
 
 use super::{
-    from_item_kids_tspan, from_item_tspan, get_label_string, get_text, parse_expr,
-    AstNodeKind, CommandKind, FeResult, FrontEndError, Node, PResult, TSpan,
-    TokenKind, TokenKind::Comma,
+    err_nomatch, from_item_children_tspan, from_item_tspan, get_label_string, get_str, get_text,
+    parse_expr, AstNodeKind, CommandKind, FeResult, FrontEndError, LabelDefinition, Node, PResult,
+    TSpan, TokenKind, TokenKind::Comma,
 };
 
 use core::panic;
 use std::{path::PathBuf, str::FromStr};
 
-use unraveler::{alt, cut, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Parser};
+use unraveler::{
+    alt, cut, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Collection, Parser,
+};
 
 fn get_quoted_string(input: TSpan) -> PResult<String> {
     let (rest, matched) = TokenKind::QuotedString.parse(input)?;
@@ -46,13 +48,36 @@ impl GazmParser {
         I: Into<AstNodeKind>,
     {
         let (rest, (sp, matched)) = ms(preceded(command_kind, parse_expr))(input)?;
-        let node = from_item_kids_tspan(item, &[matched], sp);
+        let node = from_item_children_tspan(item, &[matched], sp);
 
         Ok((rest, node))
     }
     pub(crate) fn parse_scope(input: TSpan) -> PResult<Node> {
         let (rest, (sp, name)) = ms(preceded(CommandKind::Scope, get_label_string))(input)?;
         Ok((rest, from_item_tspan(AstNodeKind::Scope(name), sp)))
+    }
+    pub(crate) fn parse_section(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, name)) = ms(preceded(
+            CommandKind::Section,
+            alt((get_label_string, get_quoted_string)),
+        ))(input)?;
+
+        let mut curr = rest;
+        let mut children = Vec::new();
+
+        while let Ok((next, _)) = TokenKind::Comma.parse(curr) {
+            let (after_key, _) = opt(tuple((
+                alt((get_label_string, get_quoted_string)),
+                TokenKind::Equals,
+            )))(next)?;
+
+            let (next_expr, expr_node) = parse_expr(after_key)?;
+            children.push(expr_node);
+            curr = next_expr;
+        }
+
+        let node = from_item_children_tspan(AstNodeKind::Section(name), &children, sp);
+        Ok((curr, node))
     }
     pub(crate) fn parse_require(input: TSpan) -> PResult<Node> {
         command_with_file(input, CommandKind::Require)
@@ -92,7 +117,7 @@ impl GazmParser {
     }
 
     fn mk_fill(input: TSpan, cv: (Node, Node)) -> Node {
-        from_item_kids_tspan(AstNodeKind::Fill, &[cv.0, cv.1], input)
+        from_item_children_tspan(AstNodeKind::Fill, &[cv.0, cv.1], input)
     }
 
     pub(crate) fn parse_grabmem(input: TSpan) -> PResult<Node> {
@@ -100,7 +125,7 @@ impl GazmParser {
             CommandKind::GrabMem,
             sep_pair(parse_expr, Comma, parse_expr),
         ))(input)?;
-        let node = from_item_kids_tspan(AstNodeKind::GrabMem, &[src, size], sp);
+        let node = from_item_children_tspan(AstNodeKind::GrabMem, &[src, size], sp);
         Ok((rest, node))
     }
 
@@ -112,7 +137,8 @@ impl GazmParser {
             tuple((get_file_name, Comma, parse_expr, Comma, parse_expr)),
         ))(input)?;
 
-        let node = from_item_kids_tspan(AstNodeKind::WriteBin(file_name), &[source_addr, size], sp);
+        let node =
+            from_item_children_tspan(AstNodeKind::WriteBin(file_name), &[source_addr, size], sp);
         Ok((rest, node))
     }
 
@@ -126,7 +152,7 @@ impl GazmParser {
     pub(crate) fn parse_incbin(input: TSpan) -> PResult<Node> {
         let (rest, (sp, (file, extra_args))) =
             ms(preceded(CommandKind::IncBin, Self::incbin_args))(input)?;
-        let node = from_item_kids_tspan(AstNodeKind::IncBin(file), &extra_args, sp);
+        let node = from_item_children_tspan(AstNodeKind::IncBin(file), &extra_args, sp);
         Ok((rest, node))
     }
 
@@ -141,7 +167,7 @@ impl GazmParser {
         } else if num_of_args > 2 {
             panic!("Too many args for incbinref")
         } else {
-            let node = from_item_kids_tspan(AstNodeKind::IncBinRef(file), &extra_args, sp);
+            let node = from_item_children_tspan(AstNodeKind::IncBinRef(file), &extra_args, sp);
             Ok((rest, node))
         }
     }
@@ -149,13 +175,13 @@ impl GazmParser {
     pub(crate) fn parse_fcb(input: TSpan) -> PResult<Node> {
         let (rest, (sp, matched)) =
             ms(preceded(CommandKind::Fcb, cut(Self::parse_expr_list)))(input)?;
-        let node = from_item_kids_tspan(AstNodeKind::Fcb(matched.len()), &matched, sp);
+        let node = from_item_children_tspan(AstNodeKind::Fcb(matched.len()), &matched, sp);
         Ok((rest, node))
     }
 
     pub(crate) fn parse_fdb(input: TSpan) -> PResult<Node> {
         let (rest, (sp, matched)) = ms(preceded(CommandKind::Fdb, Self::parse_expr_list))(input)?;
-        let node = from_item_kids_tspan(AstNodeKind::Fdb(matched.len()), &matched, sp);
+        let node = from_item_children_tspan(AstNodeKind::Fdb(matched.len()), &matched, sp);
         Ok((rest, node))
     }
 
@@ -165,10 +191,174 @@ impl GazmParser {
         Ok((rest, node))
     }
 
+    fn parse_import_item(input: TSpan) -> PResult<Vec<Node>> {
+        use TokenKind::{CloseBrace, Comma, DoubleColon, FqnIdentifier, OpenBrace};
+
+        if input.is_empty() {
+            return err_nomatch(input);
+        }
+
+        // Case 1: Brace-enclosed list without prefix: `{ A, B, C }`
+        if let Ok((after_open, _)) = OpenBrace.parse(input) {
+            let mut curr = after_open;
+            let mut nodes = Vec::new();
+            while !curr.is_empty() {
+                if let Ok((after_close, _)) = CloseBrace.parse(curr) {
+                    return Ok((after_close, nodes));
+                }
+                let (next_curr, node) = Self::parse_label(curr)?;
+                nodes.push(node);
+                curr = next_curr;
+
+                if let Ok((after_comma, _)) = Comma.parse(curr) {
+                    curr = after_comma;
+                } else if let Ok((after_close, _)) = CloseBrace.parse(curr) {
+                    return Ok((after_close, nodes));
+                } else {
+                    break;
+                }
+            }
+            let (after_close, _) = CloseBrace.parse(curr)?;
+            return Ok((after_close, nodes));
+        }
+
+        // Case 2: Grouped with prefix or path: `::core::{A, B}` or `core::{A, B}` or `::core::sub::{A, B}`
+        // Or single `::core::GETOB` / `core::GETOB`
+        let mut curr = input;
+        let mut prefix = String::new();
+        let mut had_prefix = false;
+
+        if let Ok((after_dc, sp)) = DoubleColon.parse(curr) {
+            prefix.push_str(get_str(&sp));
+            curr = after_dc;
+            had_prefix = true;
+        }
+
+        // Consume path segments separated by DoubleColon
+        while let Some(first) = curr.first() {
+            if !matches!(
+                first.kind,
+                TokenKind::Identifier
+                    | TokenKind::Label
+                    | TokenKind::CpuOpcode(_)
+                    | TokenKind::Command(_)
+            ) {
+                break;
+            }
+            let seg_span = curr.take(1).unwrap();
+            let seg_text = get_str(&seg_span);
+            let after_seg = curr.drop(1).unwrap();
+
+            if let Ok((after_dc, dc_span)) = DoubleColon.parse(after_seg) {
+                prefix.push_str(seg_text);
+                prefix.push_str(get_str(&dc_span));
+                curr = after_dc;
+                had_prefix = true;
+            } else {
+                break;
+            }
+        }
+
+        // If we have a prefix (e.g. `::core::` or `core::`) and the next token is `{`
+        if had_prefix && !curr.is_empty() && curr.first().map(|t| t.kind) == Some(OpenBrace) {
+            let (mut inner_curr, _) = OpenBrace.parse(curr)?;
+            let mut nodes = Vec::new();
+
+            while !inner_curr.is_empty() {
+                if let Ok((after_close, _)) = CloseBrace.parse(inner_curr) {
+                    return Ok((after_close, nodes));
+                }
+                if let Some(tok) = inner_curr.first() {
+                    if tok.kind == CloseBrace {
+                        let (after_close, _) = CloseBrace.parse(inner_curr)?;
+                        return Ok((after_close, nodes));
+                    }
+                    let sym_span = inner_curr.take(1).unwrap();
+                    let sym_name = get_str(&sym_span);
+                    let full_name = format!("{prefix}{sym_name}");
+                    let node = from_item_tspan(
+                        AstNodeKind::Label(LabelDefinition::TextScoped(full_name)),
+                        sym_span,
+                    );
+                    nodes.push(node);
+                    inner_curr = inner_curr.drop(1).unwrap();
+
+                    if let Ok((after_comma, _)) = Comma.parse(inner_curr) {
+                        inner_curr = after_comma;
+                    } else if let Ok((after_close, _)) = CloseBrace.parse(inner_curr) {
+                        return Ok((after_close, nodes));
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            let (after_close, _) = CloseBrace.parse(inner_curr)?;
+            return Ok((after_close, nodes));
+        }
+
+        // Case 3: Standard single scoped label / FqnIdentifier / label
+        if let Ok((rest, sp)) = FqnIdentifier.parse(input) {
+            let node = from_item_tspan(
+                AstNodeKind::Label(LabelDefinition::TextScoped(get_text(sp))),
+                sp,
+            );
+            return Ok((rest, vec![node]));
+        }
+
+        // If prefix was consumed and we have a final segment without `{`
+        if had_prefix && !curr.is_empty() {
+            if let Some(tok) = curr.first() {
+                if matches!(
+                    tok.kind,
+                    TokenKind::Identifier
+                        | TokenKind::Label
+                        | TokenKind::CpuOpcode(_)
+                        | TokenKind::Command(_)
+                ) {
+                    let sym_span = curr.take(1).unwrap();
+                    let sym_name = get_str(&sym_span);
+                    let full_name = format!("{prefix}{sym_name}");
+                    let span = input
+                        .take(input.length() - curr.drop(1).unwrap().length())
+                        .unwrap_or(sym_span);
+                    let node = from_item_tspan(
+                        AstNodeKind::Label(LabelDefinition::TextScoped(full_name)),
+                        span,
+                    );
+                    return Ok((curr.drop(1).unwrap(), vec![node]));
+                }
+            }
+        }
+
+        let (rest, node) = Self::parse_label(input)?;
+        Ok((rest, vec![node]))
+    }
+
     pub(crate) fn parse_import(input: TSpan) -> PResult<Node> {
-        let (rest, (sp, matched)) =
-            ms(preceded(CommandKind::Import, Self::parse_scoped_label))(input)?;
-        let node = from_item_kids_tspan(AstNodeKind::Import, &[matched], sp);
+        let (rest, span_import) = TokenKind::Command(CommandKind::Import).parse(input)?;
+        let mut rest = rest;
+        let mut all_children = Vec::new();
+
+        loop {
+            let (next_rest, mut nodes) = Self::parse_import_item(rest)?;
+            all_children.append(&mut nodes);
+            rest = next_rest;
+
+            if let Ok((after_comma, _)) = TokenKind::Comma.parse(rest) {
+                if !after_comma.is_empty() {
+                    rest = after_comma;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        let full_span = input
+            .take(input.length() - rest.length())
+            .unwrap_or(span_import);
+        let node = from_item_children_tspan(AstNodeKind::Import, &all_children, full_span);
         Ok((rest, node))
     }
 
@@ -196,33 +386,29 @@ impl GazmParser {
     }
 
     pub fn parse_command(_input: TSpan) -> PResult<Node> {
-        todo!();
-        // let (rest, matched) = alt((
-        //     Self::parse_scope,
-        //     Self::parse_put,
-        //     Self::parse_writebin,
-        //     Self::parse_incbin,
-        //     Self::parse_incbin_ref,
-        //     // C::parse_commands,
-        //     Self::parse_various_fills,
-        //     Self::parse_fill,
-        //     Self::parse_fcb,
-        //     Self::parse_fdb,
-        //     Self::parse_fcc,
-        //     Self::parse_zmd,
-        //     Self::parse_rmb,
-        //     Self::parse_rmd,
-        //     Self::parse_org,
-        //     Self::parse_include,
-        //     Self::parse_exec,
-        //     Self::parse_require,
-        //     Self::parse_import,
-        //     Self::parse_grabmem,
-        // ))(input)?;
+        let (rest, matched) = alt((
+            Self::parse_scope,
+            Self::parse_put,
+            Self::parse_writebin,
+            Self::parse_incbin,
+            Self::parse_incbin_ref,
+            Self::parse_various_fills,
+            Self::parse_fill,
+            Self::parse_fcb,
+            Self::parse_fdb,
+            Self::parse_fcc,
+            Self::parse_zmd,
+            Self::parse_rmb,
+            Self::parse_rmd,
+            Self::parse_org,
+            Self::parse_include,
+            Self::parse_exec,
+            Self::parse_require,
+            Self::parse_import,
+            Self::parse_grabmem,
+        ))(_input)?;
 
-        // debug_mess!("Parse command: {:?}", matched.item);
-
-        // Ok((rest, matched))
+        Ok((rest, matched))
     }
 }
 

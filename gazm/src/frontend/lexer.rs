@@ -1,10 +1,9 @@
 #![deny(unused_imports)]
 
-use super::{basetoken::Token as BaseToken, ParseText};
+use super::{basetoken::Token as BaseToken, classify_identifier, ParseText};
 use logos::{Lexer, Logos};
-use std::collections::HashMap;
+use std::ops::Range;
 use strum_macros::EnumIter;
-use strum::IntoEnumIterator;
 
 use crate::cpukind::CpuKind;
 
@@ -16,6 +15,35 @@ pub enum NumberKind {
     Dec,
     Bin,
     Char,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LexErrorKind {
+    InvalidCharacter,
+    InvalidNumber,
+    InvalidString,
+    InvalidCharacterLiteral,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LexError {
+    pub span: Range<usize>,
+    pub kind: LexErrorKind,
+}
+
+impl Default for LexError {
+    fn default() -> Self {
+        Self {
+            span: 0..0,
+            kind: LexErrorKind::InvalidCharacter,
+        }
+    }
+}
+
+impl LexError {
+    fn at(span: Range<usize>, kind: LexErrorKind) -> Self {
+        Self { span, kind }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, EnumIter, Hash)]
@@ -46,59 +74,85 @@ pub enum CommandKind {
     Macro,
     Equ,
     Target,
-}
-
-lazy_static::lazy_static! {
-    pub static ref COMS : HashMap<String, CommandKind> = {
-
-    let hash: HashMap<String, CommandKind> = CommandKind::iter()
-        .map(|com| (format!("{:?}", com).to_lowercase(), com))
-        .collect();
-
-    hash
-    };
+    Section,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-lazy_static::lazy_static! {
-    static ref PRE_HEX : regex::Regex = regex::Regex::new(r"(0[xX]|\$)(.*)").unwrap();
-    static ref PRE_BIN : regex::Regex = regex::Regex::new(r"(0[bB]|%)(.*)").unwrap();
+fn parse_integer(txt: &str, radix: u8) -> Option<i64> {
+    let mut value = 0i64;
+    let mut found_digit = false;
+    let mut previous_was_separator = false;
+    for byte in txt.bytes() {
+        if byte == b'_' {
+            if !found_digit || previous_was_separator {
+                return None;
+            }
+            previous_was_separator = true;
+            continue;
+        }
+        let digit = match byte {
+            b'0'..=b'9' => byte - b'0',
+            b'a'..=b'f' => byte - b'a' + 10,
+            b'A'..=b'F' => byte - b'A' + 10,
+            _ => return None,
+        };
+        if digit >= radix {
+            return None;
+        }
+        value = value.checked_mul(i64::from(radix))?;
+        value = value.checked_add(i64::from(digit))?;
+        found_digit = true;
+        previous_was_separator = false;
+    }
+    (found_digit && !previous_was_separator).then_some(value)
 }
 
-fn get_num(txt: &str, re: &regex::Regex, radix: usize) -> Option<i64> {
-    re.captures(txt).map(|caps| {
-        let num_str = caps.get(2).unwrap().as_str().replace('_', "");
-        i64::from_str_radix(&num_str, radix as u32).unwrap()
-    })
+fn from_bin(lex: &mut Lexer<TokenKind>) -> Result<(i64, NumberKind), LexError> {
+    let text = lex.slice();
+    let digits = text
+        .strip_prefix('%')
+        .or_else(|| text.get(2..))
+        .ok_or_else(|| LexError::at(lex.span(), LexErrorKind::InvalidNumber))?;
+    parse_integer(digits, 2)
+        .map(|num| (num, NumberKind::Bin))
+        .ok_or_else(|| LexError::at(lex.span(), LexErrorKind::InvalidNumber))
 }
 
-fn from_bin(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
-    get_num(lex.slice(), &PRE_BIN, 2).map(|num| (num, NumberKind::Bin))
-}
-
-fn from_hex(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
-    get_num(lex.slice(), &PRE_HEX, 16).map(|num| (num, NumberKind::Hex))
+fn from_hex(lex: &mut Lexer<TokenKind>) -> Result<(i64, NumberKind), LexError> {
+    let text = lex.slice();
+    let digits = text
+        .strip_prefix('$')
+        .or_else(|| text.get(2..))
+        .ok_or_else(|| LexError::at(lex.span(), LexErrorKind::InvalidNumber))?;
+    parse_integer(digits, 16)
+        .map(|num| (num, NumberKind::Hex))
+        .ok_or_else(|| LexError::at(lex.span(), LexErrorKind::InvalidNumber))
 }
 
 fn from_char(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
     lex.slice()
-        .as_bytes()
-        .get(1)
-        .map(|c| (*c as i64, NumberKind::Char))
+        .chars()
+        .nth(1)
+        .map(|c| (c as i64, NumberKind::Char))
 }
 
-fn from_dec(lex: &mut Lexer<TokenKind>) -> Option<(i64, NumberKind)> {
-    let num: i64 = lex.slice().replace('_', "").parse().unwrap();
-    Some((num, NumberKind::Dec))
+fn from_dec(lex: &mut Lexer<TokenKind>) -> Result<(i64, NumberKind), LexError> {
+    parse_integer(lex.slice(), 10)
+        .map(|num| (num, NumberKind::Dec))
+        .ok_or_else(|| LexError::at(lex.span(), LexErrorKind::InvalidNumber))
 }
 
-#[derive(Default)]
-pub struct State {}
+fn lex_error(lex: &mut Lexer<TokenKind>) -> LexError {
+    let kind = match lex.slice().as_bytes().first() {
+        Some(b'"') => LexErrorKind::InvalidString,
+        Some(b'\'') => LexErrorKind::InvalidCharacterLiteral,
+        _ => LexErrorKind::InvalidCharacter,
+    };
+    LexError::at(lex.span(), kind)
+}
 
 #[derive(Logos, Copy, Clone, Debug, PartialEq, Eq)]
-#[logos(extras = State)]
+#[logos(error(LexError, callback = lex_error))]
 #[logos(skip r"[ \t\f\n]+")]
 #[logos(subpattern id_al = r"[a-zA-Z_.]")]
 #[logos(subpattern id_alnum = r"(?&id_al)|[0-9]")]
@@ -107,7 +161,9 @@ pub struct State {}
 #[logos(subpattern pre_bin = r"(0[bB]|%)")]
 pub enum TokenKind {
     Error,
-    OpCode(CpuKind),
+    // Assigned by the CPU-specific parser after the Logos pass. Keeping this
+    // distinct from Identifier makes the parser's classification explicit.
+    CpuOpcode(CpuKind),
     Command(CommandKind),
     Label,
 
@@ -121,9 +177,12 @@ pub enum TokenKind {
     #[regex("(?&id)")]
     Identifier,
 
-    #[regex(r"[0-9][0-9_]*", from_dec)]
-    #[regex(r"(?&pre_hex)[0-9a-fA-F][0-9a-fA-F_]*", from_hex)]
-    #[regex(r"(?&pre_bin)[0-1][0-1_]*", from_bin)]
+    // Consume identifier-like suffixes as part of a number so inputs such as
+    // `123abc` and `$12G` produce one useful invalid-number diagnostic rather
+    // than silently becoming two unrelated tokens.
+    #[regex(r"[0-9][0-9a-zA-Z_]*", from_dec)]
+    #[regex(r"(?&pre_hex)[0-9a-zA-Z_]*", from_hex, priority = 3)]
+    #[regex(r"(?&pre_bin)[0-9a-zA-Z_]*", from_bin, priority = 3)]
     #[regex(r"'.'", from_char)]
     Number((i64, NumberKind)),
 
@@ -156,10 +215,10 @@ pub enum TokenKind {
 
     // #[token("\\")]
     // BackSlash,
-    #[regex(r";;;.*\n")]
+    #[regex(r";;;.*?(\n|$)")]
     DocComment,
 
-    #[regex(r"(;|//).*\n")]
+    #[regex(r"(;|//).*?(\n|$)")]
     Comment,
 
     #[token("&")]
@@ -173,6 +232,9 @@ pub enum TokenKind {
 
     #[token(",")]
     Comma,
+
+    #[token("::")]
+    DoubleColon,
 
     #[token(":")]
     Colon,
@@ -203,51 +265,65 @@ pub enum TokenKind {
 
     #[token("@")]
     At,
-}
 
+    #[token("=")]
+    Equals,
+}
 
 pub fn map_token(
     kind: TokenKind,
-    pos: std::ops::Range<usize>,
+    _pos: std::ops::Range<usize>,
     source_file: &grl_sources::SourceFile,
-) -> (TokenKind, std::ops::Range<usize>)
-{
+) -> (TokenKind, std::ops::Range<usize>) {
     let kind = match kind {
         TokenKind::Identifier => {
-            let text = &source_file.get_text().source[pos.clone()].to_lowercase();
-
-            if let Some(c) = COMS.get(text) {
-                TokenKind::Command(*c)
-            } else {
-                todo!()
-                // C::lex_identifier(text.as_str())
-            }
+            let text = &source_file.get_text().source[_pos.clone()];
+            classify_identifier(None, text)
         }
-
         _ => kind,
     };
-    (kind, pos)
+    (kind, _pos)
 }
 
-pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token>
-{
+pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token<'_>> {
     use TokenKind::*;
     let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment;
     let tokens = to_tokens_filter(source_file, not_comment);
     tokens
 }
 
+/// Tokenize a source file while retaining lexer failures and their source
+/// ranges. Invalid lexemes are omitted from the parser stream; callers should
+/// report the returned errors to the user.
+pub fn to_tokens_no_comment_with_errors(
+    source_file: &grl_sources::SourceFile,
+) -> (Vec<Token<'_>>, Vec<LexError>) {
+    use TokenKind::*;
+    let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment && k != &Error;
+    let (ret, errors) = to_tokens_kinds(source_file);
+    let tokens = ret
+        .into_iter()
+        .filter(|(tk, _)| not_comment(tk))
+        .map(|(tk, r)| Token::new(tk, ParseText::new(source_file, r)))
+        .collect();
+    (tokens, errors)
+}
+
 fn to_tokens_kinds(
     source_file: &grl_sources::SourceFile,
-) -> Vec<(TokenKind, std::ops::Range<usize>)>
-{
-    TokenKind::lexer(&source_file.get_text().source)
+) -> (Vec<(TokenKind, std::ops::Range<usize>)>, Vec<LexError>) {
+    let mut errors = Vec::new();
+    let tokens = TokenKind::lexer(&source_file.get_text().source)
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
             Ok(kind) => map_token(kind, pos, source_file),
-            Err(_) => (TokenKind::Error, pos),
+            Err(error) => {
+                errors.push(error);
+                (TokenKind::Error, pos)
+            }
         })
-        .collect()
+        .collect();
+    (tokens, errors)
 }
 
 /// Converts a source file into a vector of tokens.
@@ -261,18 +337,17 @@ fn to_tokens_kinds(
 ///
 /// # Examples
 /// ```
-/// use grl_sources::SourceFile;
-/// use grl_tokens::{TokenKind, Token};
+/// use gazm::frontend::{create_source_file, to_tokens_filter, TokenKind};
 ///
-/// let source_file = SourceFile::from_str("Hello, world!");
+/// let source_file = create_source_file("Hello, world!");
 /// let tokens = to_tokens_filter(&source_file, |tk| *tk == TokenKind::Identifier);
-/// println!("{:?}", tokens); // Output: [Token { kind: Identifier, text: "Hello" }, Token { kind: Identifier, text: "world!" }]
+/// assert_eq!(tokens.len(), 2);
 /// ```
-pub fn to_tokens_filter< P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token>
+pub fn to_tokens_filter<P>(source_file: &grl_sources::SourceFile, predicate: P) -> Vec<Token<'_>>
 where
     P: Fn(&TokenKind) -> bool,
 {
-    let ret = to_tokens_kinds(source_file);
+    let (ret, _) = to_tokens_kinds(source_file);
 
     ret.into_iter()
         .filter(|(tk, _)| predicate(tk))
@@ -282,4 +357,94 @@ where
             t
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn final_line_comment_is_tokenized() {
+        let source = crate::frontend::create_source_file("; final comment");
+        let tokens = to_tokens_filter(&source, |_| true);
+        assert_eq!(
+            tokens.iter().map(|token| token.kind).collect::<Vec<_>>(),
+            vec![TokenKind::Comment]
+        );
+    }
+
+    #[test]
+    fn overflowing_number_becomes_error_token() {
+        let source = crate::frontend::create_source_file("999999999999999999999999999999");
+        let tokens = to_tokens_filter(&source, |_| true);
+        assert_eq!(
+            tokens.iter().map(|token| token.kind).collect::<Vec<_>>(),
+            vec![TokenKind::Error]
+        );
+    }
+
+    #[test]
+    fn numeric_separators_must_be_between_digits() {
+        for text in ["1_", "1__2", "$__ff", "%101_"] {
+            let source = crate::frontend::create_source_file(text);
+            let (_, errors) = to_tokens_no_comment_with_errors(&source);
+            assert_eq!(errors.len(), 1, "expected one lexer error for {text:?}");
+            assert_eq!(errors[0].kind, LexErrorKind::InvalidNumber);
+            assert_eq!(errors[0].span, 0..text.len());
+        }
+    }
+
+    #[test]
+    fn numeric_suffixes_are_not_silently_split_into_tokens() {
+        for text in ["123abc", "$12G", "%102", "0x12Q"] {
+            let source = crate::frontend::create_source_file(text);
+            let (_, errors) = to_tokens_no_comment_with_errors(&source);
+            assert_eq!(errors.len(), 1, "expected one lexer error for {text:?}");
+            assert_eq!(errors[0].kind, LexErrorKind::InvalidNumber);
+            assert_eq!(errors[0].span, 0..text.len());
+        }
+    }
+
+    #[test]
+    fn valid_numeric_separators_still_tokenize() {
+        for (text, expected) in [
+            ("1_000", NumberKind::Dec),
+            ("$ab_cd", NumberKind::Hex),
+            ("%1010_0011", NumberKind::Bin),
+        ] {
+            let source = crate::frontend::create_source_file(text);
+            let (tokens, errors) = to_tokens_no_comment_with_errors(&source);
+            assert!(errors.is_empty(), "unexpected lexer error for {text:?}");
+            assert!(matches!(tokens[0].kind, TokenKind::Number((_, kind)) if kind == expected));
+        }
+    }
+
+    #[test]
+    fn malformed_literals_have_specific_errors() {
+        for (text, expected) in [
+            ("\"unterminated", LexErrorKind::InvalidString),
+            ("'ab'", LexErrorKind::InvalidCharacterLiteral),
+        ] {
+            let source = crate::frontend::create_source_file(text);
+            let (_, errors) = to_tokens_no_comment_with_errors(&source);
+            assert_eq!(errors[0].kind, expected);
+        }
+    }
+
+    #[test]
+    fn square_brackets_tokenize_as_indexing_delimiters() {
+        let source_file = crate::frontend::create_source_file("ldx [CRPROC]");
+        let (tokens, errors) = to_tokens_no_comment_with_errors(&source_file);
+
+        assert!(errors.is_empty(), "unexpected lexer errors: {errors:?}");
+        assert_eq!(
+            tokens.iter().map(|token| token.kind).collect::<Vec<_>>(),
+            vec![
+                TokenKind::Identifier,
+                TokenKind::OpenSquareBracket,
+                TokenKind::Identifier,
+                TokenKind::CloseSquareBracket,
+            ]
+        );
+    }
 }

@@ -1,5 +1,4 @@
 use emu6809::isa::Dbase;
+use std::sync::LazyLock;
 
-lazy_static::lazy_static! {
-    pub static ref ISA_DBASE : Dbase = Dbase::new();
-}
+pub static ISA_DBASE: LazyLock<Dbase> = LazyLock::new(Dbase::new);

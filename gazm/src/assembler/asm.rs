@@ -1,11 +1,13 @@
 #![forbid(unused_imports)]
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     assembler::Sizer,
     error::{
-        to_user_error, ErrorCollector, ErrorCollectorTrait, GResult, GazmErrorKind,
-        NewErrorCollector, UserError,
+        to_user_error, Diagnostic, DiagnosticBag, ErrorCollectorTrait, GResult, GazmErrorKind,
     },
     frontend::{
         tokenize_async, tokenize_no_async, AstNodeKind, CpuSpecific, FrontEndError,
@@ -21,21 +23,16 @@ use crate::{
 };
 
 use grl_sources::{
-    fileloader::SourceFileLoader,
-    grl_utils::{fileutils, FResult, FileIo, PathSearcher},
-    AsmSource, BinToWrite, ItemType, Position, SourceDatabase, SourceErrorType, SourceFile,
-    SourceFiles, SourceInfo, SourceMapping,
+    fileloader::SourceFileLoader, AsmSource, BinToWrite, ItemType, Position, SourceDatabase,
+    SourceErrorType, SourceFile, SourceFiles, SourceInfo, SourceMapping,
 };
-
-use itertools::Itertools;
+use grl_utils::{FResult, FileIo, PathSearcher};
 
 use super::{
     binary::{AccessType, BinRef, Binary},
     fixerupper::FixerUpper,
-    AssemblerCpuTrait, BinaryError,
+    BinaryError,
 };
-
-pub struct Assemblers {}
 
 pub struct Assembler {
     pub token_store: TokenStore,
@@ -59,7 +56,7 @@ pub struct AsmOut {
     /// Symbol table
     pub symbols: SymbolTree,
     /// Errors collected so far
-    pub errors: ErrorCollector,
+    pub errors: DiagnosticBag,
     /// The output binary
     pub binary: Binary,
     /// Maps memory addressses to source code
@@ -111,14 +108,6 @@ impl LstFile {
 }
 
 impl Assembler {
-    pub fn cpu_asm(&self) -> &dyn AssemblerCpuTrait {
-        panic!()
-    }
-
-    pub fn cpu_asm_mut(&mut self) -> &mut dyn AssemblerCpuTrait {
-        panic!()
-    }
-
     pub fn compile_node(
         &mut self,
         node: AstNodeRef,
@@ -132,7 +121,7 @@ impl Assembler {
         }
     }
 
-    fn size_node(
+    pub(crate) fn size_node(
         &mut self,
         sizer: &mut Sizer,
         id: AstNodeId,
@@ -141,12 +130,13 @@ impl Assembler {
     ) -> GResult<()> {
         use CpuSpecific::*;
         match node_kind {
-            Cpu6800(node_kind) => self.size_node_6800(sizer,id,node_kind,current_scope_id),
-            Cpu6809(node_kind) => self.size_node_6809(sizer,id,node_kind,current_scope_id),
+            Cpu6800(node_kind) => self.size_node_6800(sizer, id, node_kind, current_scope_id),
+            Cpu6809(node_kind) => self.size_node_6809(sizer, id, node_kind, current_scope_id),
         }
     }
 
     pub fn get_untokenized_files(&self, files: &[(Position, PathBuf)]) -> Vec<(Position, PathBuf)> {
+        let mut seen = HashSet::new();
         files
             .iter()
             .cloned()
@@ -156,7 +146,7 @@ impl Assembler {
                     false => Some((pos, path)),
                 },
             )
-            .unique()
+            .filter(|path| seen.insert((*path).clone()))
             .collect()
     }
 
@@ -169,7 +159,34 @@ impl Assembler {
     }
 
     pub fn reset_all(&mut self) {
+        // Keep editor-provided source snapshots when rebuilding the context.
+        // The normal CLI starts with an empty database, while the LSP may have
+        // unsaved buffers that must be used instead of reading from disk.
+        let sources = std::mem::take(&mut self.source_file_loader.sources);
+        let tokens = std::mem::take(&mut self.token_store);
         let new_ctx = Assembler::try_from(self.opts.clone()).expect("can't reset all");
+        let mut new_ctx = new_ctx;
+        new_ctx.source_file_loader.sources = sources;
+        // Editor/check-mode assembly must keep compiling after the first
+        // reference-ROM mismatch so independent diagnostics (for example an
+        // immediate operand that does not fit) are still reported.
+        if !new_ctx.opts.error_mismatches {
+            new_ctx.asm_out.binary.collect_reference_mismatches();
+        }
+        // Reuse tokenized files whose source snapshot is unchanged.  This is
+        // particularly important for LSP rebuilds, where editing one file
+        // should not force every included file through the lexer again.
+        new_ctx.token_store = tokens;
+        new_ctx.token_store.tokens.retain(|path, tokenized| {
+            new_ctx
+                .source_file_loader
+                .sources
+                .get_source(path)
+                .map(|(_, source)| {
+                    source.get_entire_source() == tokenized.request.source_file.get_entire_source()
+                })
+                .unwrap_or(false)
+        });
         *self = new_ctx;
     }
 
@@ -260,12 +277,22 @@ impl Assembler {
         self.get_source_info(pos).is_ok()
     }
 
-    pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo, SourceErrorType> {
+    pub fn get_source_info(&self, pos: &Position) -> Result<SourceInfo<'_>, SourceErrorType> {
         self.get_source_file_loader().sources.get_source_info(pos)
     }
 
-    pub fn binary_error(&self, _node: AstNodeRef, _e: BinaryError) -> GazmErrorKind {
-        panic!()
+    /// Resolve source information where failure indicates an internal
+    /// compiler/source-map contract violation rather than bad assembly input.
+    pub fn get_source_info_internal(&self, pos: &Position) -> GResult<SourceInfo<'_>> {
+        self.get_source_info(pos).map_err(Into::into)
+    }
+
+    pub fn binary_error(&self, node: AstNodeRef, e: BinaryError) -> GazmErrorKind {
+        let message = e.to_string();
+        match self.get_source_info_internal(&node.value().pos) {
+            Ok(info) => crate::error::Diagnostic::from_text(message, &info, true).into(),
+            Err(error) => error,
+        }
     }
 
     pub fn binary_error_map<T>(
@@ -278,7 +305,6 @@ impl Assembler {
         }
 
         e.map_err(|e| self.binary_error(node, e))
-
     }
 
     pub fn write_word(&mut self, val: u16, node: AstNodeRef) -> GResult<()> {
@@ -317,7 +343,6 @@ impl From<&Assembler> for SourceDatabase {
         SourceDatabase::new(
             &c.asm_out.source_map,
             c.sources(),
-            &c.asm_out.symbols,
             &bins,
             c.asm_out.exec_addr,
         )
@@ -355,7 +380,14 @@ impl TryFrom<Opts> for AsmOut {
         let mut binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
 
         for br in &opts.bin_references {
-            let x = crate::utils::get_file_as_byte_vec(&br.file);
+            let reference_file = if br.file.is_absolute() {
+                br.file.clone()
+            } else if let Some(dir) = &opts.assemble_dir {
+                dir.join(&br.file)
+            } else {
+                br.file.clone()
+            };
+            let x = std::fs::read(&reference_file);
 
             match x {
                 Ok(x) => {
@@ -364,13 +396,16 @@ impl TryFrom<Opts> for AsmOut {
                 }
 
                 Err(_) => {
-                    status_err!("Cannot load binary ref file {}", br.file.to_string_lossy())
+                    status_err!(
+                        "Cannot load binary ref file {}",
+                        reference_file.to_string_lossy()
+                    )
                 }
             }
         }
 
         let mut ret = Self {
-            errors: ErrorCollector::new(opts.max_errors),
+            errors: DiagnosticBag::new(opts.max_errors),
             binary,
             ..Default::default()
         };
@@ -384,10 +419,13 @@ impl AsmOut {
     /// Add in default symbols from build
     pub fn add_default_symbols(&mut self, opts: &Opts) {
         let mut write = self.symbols.get_root_writer();
-        write.create_or_set_scope("gazm");
-        write
-            .create_and_set_symbol("mem_size", opts.mem_size as i64)
-            .expect("Create a symbole for memory size");
+        if let Err(error) = write.create_or_set_scope("gazm") {
+            status_err!("Cannot create default gazm scope: {error}");
+            return;
+        }
+        if let Err(error) = write.create_and_set_symbol("mem_size", opts.mem_size as i64) {
+            status_err!("Cannot create default mem_size symbol: {error}");
+        }
     }
 }
 
@@ -397,12 +435,25 @@ impl TryFrom<Opts> for Assembler {
 
     fn try_from(opts: Opts) -> Result<Self, String> {
         let asm_out = AsmOut::try_from(opts.clone())?;
+        let token_store = TokenStore::new();
+        let source_file_loader = SourceFileLoader::default();
+        let fixer_upper = FixerUpper::default();
+        let cwd = opts
+            .assemble_dir
+            .clone()
+            .unwrap_or(std::env::current_dir().map_err(|e| e.to_string())?);
 
         let mut ret = Self {
+            token_store,
+            source_file_loader,
+            cwd,
             asm_out,
             opts,
-            ..Default::default()
+            fixer_upper,
         };
+
+        let cwd = ret.cwd.clone();
+        ret.get_source_file_loader_mut().set_search_paths(&[cwd]);
 
         let file = ret.get_project_file();
 
@@ -418,6 +469,17 @@ impl Assembler {
     /// Create an Assembler
     pub fn new(opts: Opts) -> Self {
         Assembler::try_from(opts).expect("Can't create context")
+    }
+
+    /// Create an assembler target from a project-owned source snapshot.
+    ///
+    /// `SourceFiles` is cheap to clone because `SourceFile` shares its text
+    /// buffers copy-on-write. Each target still receives independent token,
+    /// AST, symbol, and output state.
+    pub fn new_with_sources(opts: Opts, sources: SourceFiles) -> Self {
+        let mut assembler = Self::new(opts);
+        assembler.source_file_loader.sources = sources;
+        assembler
     }
 
     /// Assemble for the first time
@@ -442,32 +504,59 @@ impl Assembler {
             status("Lexing async", |_| tokenize_async(self))
         }
         .map_err(|errors| {
-            let mut err_col = NewErrorCollector::new(1000);
+            let mut err_col = DiagnosticBag::new(1000);
 
             for fe_err in errors.to_vec() {
-                let ue = self.to_user_error(fe_err);
-                err_col.add(ue);
+                let diagnostic = self.to_diagnostic(fe_err);
+                err_col.push(diagnostic);
             }
 
-            GazmErrorKind::UserErrors(err_col)
+            GazmErrorKind::Diagnostics(err_col)
+        })
+        .inspect(|_| {
+            let files = self.source_file_loader.sources.id_to_source_file.len();
+            let lines: usize = self
+                .source_file_loader
+                .sources
+                .id_to_source_file
+                .values()
+                .map(|source| source.get_entire_source().lines().count())
+                .sum();
+            crate::messages::record_parse_stats(files, lines);
         })
     }
 
     fn assemble_project(&mut self) -> GResult<()> {
         self.tokenize_project()?;
         let file = self.get_project_file();
-        let tokes = self.get_tokens_from_full_path(&file).unwrap().clone();
+        // Keep the project root tokenization cached for subsequent builds.
+        // The semantic lowering currently needs an owned AST representation,
+        // so it clones the parser tree; retaining this cache avoids reparsing
+        // the root file on every LSP rebuild.
+        let tokes = self
+            .token_store
+            .tokens
+            .get(&file)
+            .expect("project file was tokenized")
+            .clone();
         self.assemble_tokens(&tokes.node)
     }
 
-    fn to_user_error(&self, err: FrontEndError) -> UserError {
+    fn to_diagnostic(&self, err: FrontEndError) -> Diagnostic {
         let source_info = self.get_source_info(&err.position).expect("Source info!");
-        to_user_error(err, source_info.source_file)
+        let user_error = to_user_error(err, source_info.source_file);
+        user_error.into()
     }
 
     pub fn set_pc_symbol(&mut self, val: usize) -> Result<(), SymbolError> {
         let id = self.get_pc_symbol_id();
         self.get_symbols_mut().set_value_for_id(id, val as i64)
+    }
+
+    pub fn set_pc_symbol_internal(&mut self, val: usize) -> GResult<()> {
+        self.set_pc_symbol(val).map_err(|error| {
+            crate::error::InternalCompilerError::symbol("setting PC", error).into()
+        })
     }
 
     pub fn get_pc_symbol_id(&mut self) -> SymbolScopeId {
@@ -513,6 +602,16 @@ impl Assembler {
         self.get_symbols_mut()
             .set_symbol_for_id(symbol_id, val as i64)
     }
+
+    pub fn set_symbol_value_internal(
+        &mut self,
+        symbol_id: SymbolScopeId,
+        val: usize,
+    ) -> GResult<()> {
+        self.set_symbol_value(symbol_id, val).map_err(|error| {
+            crate::error::InternalCompilerError::symbol("setting a resolved symbol", error).into()
+        })
+    }
 }
 
 // File fuunction
@@ -551,7 +650,8 @@ impl Assembler {
 
         let mut r = 0..data_len;
 
-        if let Some((offset, size)) = node.children().collect_tuple() {
+        let mut children = node.children();
+        if let (Some(offset), Some(size)) = (children.next(), children.next()) {
             let offset = asm.eval_node(offset, current_scope_id)?;
             let size = asm.eval_node(size, current_scope_id)?;
             let offset_usize = offset as usize;
@@ -581,6 +681,10 @@ impl Assembler {
         &mut self.asm_out.binary
     }
 
+    pub fn collect_reference_mismatches(&mut self) {
+        self.asm_out.binary.collect_reference_mismatches();
+    }
+
     pub fn add_bin_to_write<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -595,7 +699,12 @@ impl Assembler {
             .get_bytes(physical_address, count)?
             .to_vec();
 
-        let path = fileutils::abs_path_from_cwd(path);
+        let path = path.as_ref();
+        let path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.cwd.join(path)
+        };
         // Save a record of the file Written
         // this goes into the written sym file eventually
         let bin_to_write = BinToWrite::new(data, &path, range);
@@ -613,7 +722,7 @@ impl Assembler {
         id: AstNodeId,
         i: &AstNodeKind,
         scope_id: u64,
-    ) -> AstNodeKind {
+    ) -> std::sync::Arc<AstNodeKind> {
         self.fixer_upper.get_fixup_or_default(scope_id, id, i)
     }
 
@@ -635,8 +744,8 @@ impl Assembler {
         err: S,
         node: AstNodeRef,
         is_failure: bool,
-    ) -> UserError {
+    ) -> Diagnostic {
         let info = self.get_source_info(&node.value().pos).unwrap();
-        UserError::from_text(err, &info, is_failure)
+        Diagnostic::from_text(err, &info, is_failure)
     }
 }

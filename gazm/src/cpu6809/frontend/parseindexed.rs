@@ -1,13 +1,14 @@
 #![deny(unused_imports)]
-use unraveler::{alt, match_span as ms, pair, sep_pair, succeeded};
+use unraveler::{alt, map, match_span as ms, opt, pair, sep_pair, succeeded, tag_kinds};
 
 use crate::frontend::{
-    err_fatal, from_item_kid_tspan, from_item_tspan, parse_expr, parse_sq_bracketed, AstNodeKind,
-    CpuSpecific, Node, PResult, TSpan, TokenKind::Comma,
+    err_fatal, from_item_child_tspan, from_item_tspan, parse_expr, parse_sq_bracketed, AstNodeKind,
+    CpuSpecific, Node, PResult, TSpan,
+    TokenKind::{Comma, DoubleLessThan, GreaterThan, LessThan},
 };
 
 use super::{
-    get_index_reg, get_this_reg, indexed::get_indexed, IndexParseType, NodeKind6809,
+    get_index_reg, get_this_reg, indexed::get_indexed, IndexParseType, IndexWidth, NodeKind6809,
     NodeKind6809::OperandIndexed,
 };
 
@@ -16,10 +17,19 @@ use crate::help::ErrCode;
 /// Parses for simple offset indexed addressing
 /// ```    addr,<index reg>```
 fn parse_offset(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, (expr, reg))) = ms(sep_pair(parse_expr, Comma, get_index_reg))(input)?;
-    let offset = IndexParseType::ConstantOffset(reg);
+    let parse_width = opt(alt((
+        map(tag_kinds([DoubleLessThan]), |_| IndexWidth::Bits5),
+        map(tag_kinds([LessThan]), |_| IndexWidth::Byte),
+        map(tag_kinds([GreaterThan]), |_| IndexWidth::Word),
+    )));
+    let (rest, (sp, ((width, expr), reg))) = ms(sep_pair(
+        pair(parse_width, parse_expr),
+        Comma,
+        get_index_reg,
+    ))(input)?;
+    let offset = IndexParseType::ConstantOffset(reg, width.unwrap_or(IndexWidth::Auto));
     let item = NodeKind6809::operand_from_index_mode(offset, false);
-    Ok((rest, from_item_kid_tspan(item, expr, sp)))
+    Ok((rest, from_item_child_tspan(item, expr, sp)))
 }
 
 /// Parses for simple pc offset addressing
@@ -28,7 +38,7 @@ fn parse_pc_offset(input: TSpan) -> PResult<Node> {
     use emu6809::cpu::RegEnum::*;
     let (rest, (sp, expr)) = ms(succeeded(parse_expr, pair(Comma, get_this_reg(PC))))(input)?;
     let item = NodeKind6809::operand_from_index_mode(IndexParseType::PCOffset, false);
-    let matched = from_item_kid_tspan(item, expr, sp);
+    let matched = from_item_child_tspan(item, expr, sp);
     Ok((rest, matched))
 }
 
@@ -37,7 +47,7 @@ fn parse_pc_offset(input: TSpan) -> PResult<Node> {
 fn parse_extended_indirect(input: TSpan) -> PResult<Node> {
     let (rest, (sp, matched)) = ms(parse_sq_bracketed(parse_expr))(input)?;
     let item = NodeKind6809::operand_from_index_mode(IndexParseType::ExtendedIndirect, false);
-    let matched = from_item_kid_tspan(item, matched, sp);
+    let matched = from_item_child_tspan(item, matched, sp);
     Ok((rest, matched))
 }
 

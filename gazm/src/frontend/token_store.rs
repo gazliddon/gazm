@@ -11,14 +11,12 @@ use std::{
 use thin_vec::ThinVec;
 
 #[derive(Default, Clone, Debug)]
-pub struct TokenStore
-{
+pub struct TokenStore {
     pub tokens: HashMap<PathBuf, TokenizeResult>,
 }
 
 /// Cache containing tokenized versions of source files
-impl TokenStore
-{
+impl TokenStore {
     pub fn new() -> Self {
         Self {
             ..Default::default()
@@ -27,7 +25,7 @@ impl TokenStore
 
     /// Get any cached tokens for this file
     pub fn get_tokens<P: AsRef<Path>>(&self, file: P) -> Option<&TokenizeResult> {
-        self.tokens.get(&file.as_ref().to_path_buf())
+        self.tokens.get(file.as_ref())
     }
 
     /// Add tokens for this file
@@ -44,14 +42,13 @@ impl TokenStore
     /// Scrub this file's cache entry
     pub fn invalidate_tokens<P: AsRef<Path>>(&mut self, file: P) {
         if self.has_tokens(&file) {
-            let file = file.as_ref().to_path_buf();
-            self.tokens.remove(&file);
+            self.tokens.remove(file.as_ref());
         }
     }
 
     /// Get a list of files we're looking after tokens for
     /// as strings
-    pub fn get_files(&self) -> ThinVec<Cow<str>> {
+    pub fn get_files(&self) -> ThinVec<Cow<'_, str>> {
         self.tokens.keys().map(|k| k.to_string_lossy()).collect()
     }
 }

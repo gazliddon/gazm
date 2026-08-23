@@ -1,24 +1,23 @@
-
 use super::{BaseNode, CtxTrait};
-use grl_sources::grl_utils::Stack;
+use grl_utils::Stack;
 ////////////////////////////////////////////////////////////////////////////////
 
-pub trait HasKids {
-    fn has_kids(&self) -> bool {
-        self.num_of_kids() > 0
+pub trait HasChildren {
+    fn has_children(&self) -> bool {
+        self.num_of_children() > 0
     }
 
-    fn num_of_kids(&self) -> usize;
+    fn num_of_children(&self) -> usize;
 
     fn is_last(&self, n: usize) -> bool {
-        let nk = self.num_of_kids();
+        let nk = self.num_of_children();
         match nk {
             0 => false,
             _ => n == nk - 1,
         }
     }
 
-    fn get_kid(&self, n: usize) -> Option<&Self>;
+    fn get_child(&self, n: usize) -> Option<&Self>;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,15 +25,15 @@ pub trait HasKids {
 pub struct NodeInfo<'a, N> {
     pub node: &'a N,
     pub depth: usize,
-    pub kid_num: usize,
+    pub child_num: usize,
 }
 
 impl<'a, N> NodeInfo<'a, N> {
-    pub fn new(node: &'a N, depth: usize, kid_num: usize) -> Self {
+    pub fn new(node: &'a N, depth: usize, child_num: usize) -> Self {
         Self {
             node,
             depth,
-            kid_num,
+            child_num,
         }
     }
 }
@@ -42,9 +41,9 @@ impl<'a, N> NodeInfo<'a, N> {
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Clone, Debug)]
 pub enum IterState<'a, N: Clone> {
-    IterateKids {
+    IterateChildren {
         node: &'a N,
-        kid_num: usize,
+        child_num: usize,
         depth: usize,
     },
     Root(&'a N),
@@ -54,10 +53,10 @@ impl<'a, N: Clone> IterState<'a, N> {
     pub fn root(node: &'a N) -> Self {
         IterState::Root(node)
     }
-    pub fn iter_kids(node: &'a N, depth: usize, kid_num: usize) -> Self {
-        IterState::IterateKids {
+    pub fn iter_children(node: &'a N, depth: usize, child_num: usize) -> Self {
+        IterState::IterateChildren {
             node,
-            kid_num,
+            child_num,
             depth,
         }
     }
@@ -68,7 +67,7 @@ pub struct NodeIter<'a, N: Clone> {
     node_stack: Stack<IterState<'a, N>>,
 }
 
-impl<'a,N:Clone> NodeIter<'a,N> {
+impl<'a, N: Clone> NodeIter<'a, N> {
     pub fn new(n: &'a N) -> Self {
         let mut node_stack = Stack::new();
         let state = IterState::Root(n);
@@ -78,7 +77,7 @@ impl<'a,N:Clone> NodeIter<'a,N> {
 }
 
 pub trait IterTree<'a> {
-    type Node: Clone + HasKids;
+    type Node: Clone + HasChildren;
 
     fn pop_state(&mut self) -> Option<IterState<'a, Self::Node>> {
         self.stack_mut().pop()
@@ -105,33 +104,33 @@ pub trait IterTree<'a> {
         match state {
             Root(root) => {
                 let ret = self.handle_root(root);
-                if ret.node.has_kids() {
-                    self.set_state(IterState::iter_kids(root, 1, 0));
+                if ret.node.has_children() {
+                    self.set_state(IterState::iter_children(root, 1, 0));
                 } else {
                     self.pop_state();
                 };
                 Some(ret)
             }
 
-            IterateKids {
+            IterateChildren {
                 node: parent_node,
                 depth,
-                kid_num,
+                child_num,
             } => {
-                let kid_node = parent_node.get_kid(kid_num).expect("getting child");
-                let ret = NodeInfo::new(kid_node, depth, kid_num);
+                let child_node = parent_node.get_child(child_num).expect("getting child");
+                let ret = NodeInfo::new(child_node, depth, child_num);
 
-                if parent_node.is_last(kid_num) {
+                if parent_node.is_last(child_num) {
                     // If we're the last item pop our state
                     self.pop_state();
                 } else {
-                    // Otherwise replace this state with the next kid at same depth
-                    self.set_state(IterState::iter_kids(parent_node, depth, kid_num + 1))
+                    // Otherwise replace this state with the next child at same depth
+                    self.set_state(IterState::iter_children(parent_node, depth, child_num + 1))
                 }
 
-                // If this node has a  kid then iter through that node
-                if ret.node.has_kids() {
-                    self.push_state(IterState::iter_kids(ret.node, depth + 1, 0));
+                // If this node has a  child then iter through that node
+                if ret.node.has_children() {
+                    self.push_state(IterState::iter_children(ret.node, depth + 1, 0));
                 }
 
                 Some(ret)
@@ -160,12 +159,12 @@ impl<'a, I: Clone, C: CtxTrait> Iterator for NodeIter<'a, BaseNode<I, C>> {
     }
 }
 
-impl< I: Clone, C: CtxTrait> HasKids for BaseNode<I, C> {
-    fn num_of_kids(&self) -> usize {
+impl<I: Clone, C: CtxTrait> HasChildren for BaseNode<I, C> {
+    fn num_of_children(&self) -> usize {
         self.children.len()
     }
 
-    fn get_kid(&self, n: usize) -> Option<&Self> {
+    fn get_child(&self, n: usize) -> Option<&Self> {
         self.children.get(n)
     }
 }
