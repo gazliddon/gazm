@@ -90,6 +90,9 @@ jobs:
           if-no-files-found: error
 
       - name: Publish instructions for this target
+        # Windows runners default to PowerShell for `run:` steps; force bash
+        # so the heredoc works on all four platforms.
+        shell: bash
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
             RELEASE="${{ github.event.inputs.version }}"
