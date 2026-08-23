@@ -62,15 +62,19 @@ else
 fi
 
 # ---------- 2. decide whether to bump ----------
-# Only bump when gazm actually has something new: uncommitted changes or
-# unpushed commits. Running this twice in a row (e.g. after a prepare that
-# was already pushed) must NOT march the version forward.
+# Bump only when the gazm working tree has uncommitted changes. This makes
+# prepare idempotent: running it twice in a row (after a prepare was already
+# committed and pushed) does NOT march the version forward. Use --force to
+# bump anyway (e.g. after committing work manually without running prepare).
 cd "$GAZM_DIR"
 DIRTY="$(git status --porcelain | wc -l | tr -d ' ')"
-UNPUSHED="$(git log --oneline @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ' || echo 0)"
 BUMP_NEEDED=1
-if [ "$DIRTY" = "0" ] && [ "$UNPUSHED" = "0" ]; then
-  warn "gazm has no uncommitted or unpushed changes — skipping version bump."
+FORCE_BUMP="${FORCE_BUMP:-0}"
+if [ "$DIRTY" = "0" ] && [ "$FORCE_BUMP" = "0" ]; then
+  warn "gazm working tree is clean — skipping version bump."
+  warn "If the current version ($(grep -m1 '^version' "$GAZM_DIR/gazm/Cargo.toml" | sed -E 's/version = "([^"]+)"/\1/')) is ready, go straight to:"
+  echo "  scripts/release.sh <version> --publish"
+  echo "  (or re-run prepare with FORCE_BUMP=1 to bump despite a clean tree)"
   BUMP_NEEDED=0
 fi
 
