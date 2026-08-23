@@ -96,9 +96,10 @@ rm -rf .release-artifacts && mkdir -p .release-artifacts
 gh run download "$RUN_ID" --dir .release-artifacts
 find .release-artifacts -type f | sort | sed 's/^/  /'
 
-# Build notes: prefer the manifest written by the workflow (authoritative:
-# the exact crates/stargate revisions the build used), else fall back to
-# the local SHAs captured before tagging.
+# Build notes: prefer the full RELEASE_NOTES.md written by the workflow
+# (includes the source revisions AND the end-user verification steps),
+# falling back to a one-line summary with the local SHAs.
+NOTES_FILE="$(find .release-artifacts -name RELEASE_NOTES.md | head -1)"
 MANIFEST="$(find .release-artifacts -name build-manifest.txt | head -1)"
 if [ -n "$MANIFEST" ]; then
   GAZM_SHA="$(sed -n 's/^gazm=//p' "$MANIFEST")"
@@ -114,10 +115,14 @@ if [ "$PUBLISH" = "1" ]; then
   if [ "$PREVIEW" = "1" ]; then
     die "--publish with --preview: publish a real tag instead (drop --preview)"
   fi
-  NOTES="Built from gazm@${GAZM_SHA} with crates@${CRATES_SHA} (ROMs verified against stargate@${STARGATE_SHA})"
   say "Creating release v$VERSION"
-  echo "$NOTES"
-  gh release create "v$VERSION" --title "v$VERSION" --notes "$NOTES"
+  if [ -n "$NOTES_FILE" ]; then
+    gh release create "v$VERSION" --title "v$VERSION" --notes-file "$NOTES_FILE"
+  else
+    NOTES="Built from gazm@${GAZM_SHA} with crates@${CRATES_SHA} (ROMs verified against stargate@${STARGATE_SHA})"
+    echo "$NOTES"
+    gh release create "v$VERSION" --title "v$VERSION" --notes "$NOTES"
+  fi
   find .release-artifacts -type f -print0 | while IFS= read -r -d '' f; do
     gh release upload "v$VERSION" "$f"
   done
@@ -125,6 +130,10 @@ if [ "$PUBLISH" = "1" ]; then
 else
   say "Build complete — artifacts in .release-artifacts/"
   say "To publish manually:"
-  echo "  gh release create v$VERSION --notes \"$NOTES\""
+  if [ -n "$NOTES_FILE" ]; then
+    echo "  gh release create v$VERSION --title v$VERSION --notes-file '$NOTES_FILE'"
+  else
+    echo "  gh release create v$VERSION --notes \"Built from gazm@${GAZM_SHA} with crates@${CRATES_SHA} (ROMs verified against stargate@${STARGATE_SHA})\""
+  fi
   echo "  gh release upload v$VERSION .release-artifacts/*/*"
 fi

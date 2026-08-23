@@ -119,6 +119,75 @@ jobs:
           path: build-manifest.txt
           if-no-files-found: error
 
+      # The Linux job also writes the full release-notes markdown (same SHAs
+      # on every job) so scripts/release.sh --publish can use it verbatim as
+      # the GitHub release body.
+      - name: Write release notes
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            RELEASE="${{ github.event.inputs.version }}"
+          else
+            RELEASE="${GITHUB_REF_NAME}"
+          fi
+          {
+            echo "# gazm ${RELEASE}"
+            echo ""
+            echo "Assembler binaries for Linux, Windows, and macOS (Apple Silicon)."
+            echo ""
+            echo "## Source revisions"
+            echo ""
+            echo "- gazm@\`${{ github.sha }}\`"
+            echo "- crates@\`${{ steps.crates-sha.outputs.sha }}\`"
+            echo "- stargate@\`${{ steps.stargate-sha.outputs.sha }}\` (ROM fixture)"
+            echo ""
+            echo "## What to download"
+            echo ""
+            echo "- \`gazm-x86_64-unknown-linux-gnu\` — Linux (tar.gz + sha256)"
+            echo "- \`gazm-x86_64-pc-windows-msvc\` — Windows (zip + sha256)"
+            echo "- \`gazm-aarch64-apple-darwin\` — macOS Apple Silicon (tar.gz + sha256)"
+            echo ""
+            echo "Pick the archive for your platform, unpack it, and put the"
+            echo "\`gazm\` binary somewhere on your \`PATH\` (or note its full path)."
+            echo ""
+            echo "## How to verify this release"
+            echo ""
+            echo "Gazm's primary compatibility gate is assembling the Stargate"
+            echo "fixture and checking the generated ROMs byte-for-byte against the"
+            echo "originals (via the committed SHA-1 manifest). To reproduce it:"
+            echo ""
+            echo '```sh'
+            echo "# 1. Get the exact Stargate source this release was verified against"
+            echo "git clone https://github.com/gazliddon/stargate.git"
+            echo "cd stargate"
+            echo "git checkout ${{ steps.stargate-sha.outputs.sha }}"
+            echo ""
+            echo "# 2. Run the gazm binary you downloaded, from the stargate directory"
+            echo "#    (replace /path/to/gazm with your unpacked binary)"
+            echo "/path/to/gazm build"
+            echo ""
+            echo "# 3. Every ROM must match the committed checksums:"
+            echo "sha1sum -c roms.sha1"
+            echo '```'
+            echo ""
+            echo "All 13 files must report \`OK\`. If any reports \`FAILED\`, the"
+            echo "binary is not producing the expected ROM output — don't use it."
+            echo ""
+            echo "> The \`roms.sha1\` manifest lives in the stargate repo at the"
+            echo "> revision above, so \`git checkout\` gives you the exact expected"
+            echo "> hashes. \`crates@\` is listed for reproducibility of the build"
+            echo "> itself; end users only need the binary + stargate."
+          } > RELEASE_NOTES.md
+
+      - name: Upload release notes
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: RELEASE_NOTES.md
+          if-no-files-found: error
+
       - name: Publish instructions for this target
         # Windows runners default to PowerShell for `run:` steps; force bash
         # so the heredoc works on all four platforms.
