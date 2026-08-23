@@ -73,7 +73,7 @@ FORCE_BUMP="${FORCE_BUMP:-0}"
 if [ "$DIRTY" = "0" ] && [ "$FORCE_BUMP" = "0" ]; then
   warn "gazm working tree is clean — skipping version bump."
   warn "If the current version ($(grep -m1 '^version' "$GAZM_DIR/gazm/Cargo.toml" | sed -E 's/version = "([^"]+)"/\1/')) is ready, go straight to:"
-  echo "  scripts/release.sh <version> --publish"
+  echo "  scripts/release.sh --publish"
   echo "  (or re-run prepare with FORCE_BUMP=1 to bump despite a clean tree)"
   BUMP_NEEDED=0
 fi
@@ -147,4 +147,4 @@ for repo in "$GAZM_DIR" "$CRATES_DIR" "$STARGATE_DIR"; do
   fi
 done
 
-say "Next: scripts/release.sh $NEW_VERSION --publish (after CI goes green)"
+say "Next: scripts/release.sh --publish (after CI goes green)"

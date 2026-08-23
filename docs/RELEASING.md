@@ -4,20 +4,34 @@ How to cut a new gazm release and publish binaries for Windows, macOS, and
 Linux. The heavy lifting is automated by GitHub Actions; the only manual step
 you keep control of is actually publishing the GitHub release.
 
-## One command (recommended)
+## Two scripts, two jobs
 
-`scripts/release.sh` wraps the whole loop below — bump, commit, push, tag,
-wait for the build, download artifacts — and defaults to **not publishing**:
+Version *setting* and the release *build/publish* are separate:
+
+- **`scripts/prepare-release.sh`** — owns all version bumps. Runs local
+  sanity (tests + Stargate checksums), bumps `gazm/Cargo.toml`, keeps
+  stargate's `requires-gazm` in lockstep, commits, and asks about pushing.
+  Safe to re-run: it skips the bump when the gazm tree is clean.
+- **`scripts/release.sh`** — never touches the version; it **reads the
+  version from `gazm/Cargo.toml`**, tags it, builds, and (with `--publish`)
+  creates the GitHub release. Run this after prepare, once CI is green.
+
+## One command each
 
 ```sh
-scripts/release.sh 0.9.17                  # build only, artifacts in .release-artifacts/
-scripts/release.sh 0.9.17 --publish        # also create the release + upload binaries
-scripts/release.sh 0.9.17-preview --preview  # build via Actions tab trigger, no tag, no publish
+# 1. Prepare (local): sanity checks, bump, commit, push
+scripts/prepare-release.sh              # patch bump, e.g. 0.9.16 -> 0.9.17
+
+# 2. Release (GitHub): build-only preview first
+scripts/release.sh --preview            # dry-run build, no tag, no publish
+
+# 3. Release (GitHub): the real thing
+scripts/release.sh --publish            # tag v<version>, build, create release, upload
 ```
 
-It pre-flights everything: `gh` auth, clean gazm tree, and that `crates` and
-`stargate` are pushed (CI fetches them from GitHub at run time). The sections
-below describe what it does step by step.
+`release.sh` pre-flights everything: `gh` auth, clean gazm tree, and that
+`crates` and `stargate` are pushed (CI fetches them from GitHub at run time).
+The sections below describe what each does step by step.
 
 ## Prerequisites (one-time)
 
@@ -25,19 +39,25 @@ below describe what it does step by step.
 - Both repos are public, so Actions minutes are free and no extra secrets are
   needed: `gazliddon/gazm`, `gazliddon/crates`, `gazliddon/stargate`.
 
-## The release loop
+## The release loop (manual form)
+
+The scripts automate all of this; the manual form shows what they do:
 
 ```sh
 # 1. Bump the version (semver): 0.9.16 -> 0.9.17
+#    (scripts/prepare-release.sh does this + keeps stargate's requires-gazm in lockstep)
 cargo set-version 0.9.17 --manifest-path gazm/Cargo.toml
 
-# 2. Commit and push. CI (.github/workflows/ci.yml) runs the test suite and
+# 2. Keep stargate's requires-gazm in lockstep
+sed -i '' 's/^requires-gazm = ".*"/requires-gazm = "0.9.17"/' ../stargate/gazm.toml
+
+# 3. Commit and push. CI (.github/workflows/ci.yml) runs the test suite and
 #    the Stargate byte-identity check on master; wait for it to go green.
 git add gazm/Cargo.toml
 git commit -m "Bump version to 0.9.17"
 git push origin master
 
-# 3. Tag and push. This triggers .github/workflows/release.yml.
+# 4. Tag and push. This triggers .github/workflows/release.yml.
 git tag v0.9.17
 git push origin v0.9.17
 ```

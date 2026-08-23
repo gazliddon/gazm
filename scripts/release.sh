@@ -2,18 +2,21 @@
 #
 # One-command gazm release loop.
 #
+# The version is READ from gazm/Cargo.toml — it is set by
+# scripts/prepare-release.sh, which owns all version bumps (and keeps
+# stargate's requires-gazm in lockstep). This script never edits the
+# version; it tags the current one, builds, downloads, and optionally
+# publishes.
+#
 # Usage:
-#   scripts/release.sh 0.9.17                  bump, commit, push, tag, build (dry-run), download artifacts — NO publish
-#   scripts/release.sh 0.9.17 --publish        same, then create the GitHub release and upload the archives
-#   scripts/release.sh 0.9.17-preview --preview  build only via workflow_dispatch — no tag, no publish
+#   scripts/release.sh                    build (dry-run), download artifacts — NO publish, NO tag
+#   scripts/release.sh --publish          tag + build + create GitHub release + upload archives
+#   scripts/release.sh --preview          build only via workflow_dispatch — no tag, no publish
 #
 # Pre-flight: verifies crates/stargate are pushed (CI fetches them from GitHub),
 # the gazm tree is clean, and gh is authenticated.
 #
 set -euo pipefail
-
-VERSION="${1:-}"
-[ -n "$VERSION" ] || { echo "usage: $0 <version> [--publish] [--preview]" >&2; exit 1; }
 
 PUBLISH=0
 PREVIEW=0
@@ -45,6 +48,10 @@ git diff --quiet -- gazm/Cargo.toml || die "gazm/Cargo.toml has uncommitted chan
   [[ "$ans" =~ ^[Yy]$ ]] || die "aborted"
 }
 
+# Version comes from Cargo.toml (prepare-release.sh owns bumping).
+VERSION="$(grep -m1 '^version' "$GAZM_DIR/gazm/Cargo.toml" | sed -E 's/version = "([^"]+)"/\1/')"
+[ -n "$VERSION" ] || die "could not read version from gazm/Cargo.toml"
+
 # CI/release fetch crates and stargate from GitHub; make sure local == remote.
 for repo in "$CRATES_DIR" "$STARGATE_DIR"; do
   if [ -d "$repo/.git" ]; then
@@ -61,16 +68,12 @@ for repo in "$CRATES_DIR" "$STARGATE_DIR"; do
   fi
 done
 
-# ---------- bump ----------
+# ---------- tag (only for a real release; preview never tags) ----------
 if [ "$PREVIEW" = "1" ]; then
-  say "Preview build (workflow_dispatch) — no version bump, no tag"
+  say "Preview build (workflow_dispatch) — no tag, no publish (version $VERSION)"
+elif git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+  die "tag v$VERSION already exists — this version was already released. Bump via prepare-release.sh."
 else
-  say "Bumping gazm version to $VERSION"
-  perl -pi -e "s/^version = \".*\"/version = \"$VERSION\"/" gazm/Cargo.toml
-  git add gazm/Cargo.toml
-  git commit -q -m "Bump version to $VERSION"
-  say "Pushing master"
-  git push -q origin master
   say "Tagging v$VERSION"
   git tag "v$VERSION"
   git push -q origin "v$VERSION"
