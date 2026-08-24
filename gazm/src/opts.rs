@@ -44,13 +44,9 @@ pub struct Opts {
     pub project_file: PathBuf,
 
     pub assemble_dir: Option<PathBuf>,
-    /// Back-compat during migration to `metadata`: explicit output paths.
-    /// Once all projects are on `metadata`, these are removed.
-    pub source_mapping: Option<PathBuf>,
-    pub syms_file: Option<PathBuf>,
     /// Write the whole metadata bundle (.map + .sym, names derived from the
     /// target name) with a v4 `TargetInfo` header. Absent/false writes
-    /// nothing (unless back-compat explicit paths above are given).
+    /// nothing.
     pub metadata: bool,
     pub deps_file: Option<PathBuf>,
     pub ast_file: Option<PathBuf>,
@@ -114,7 +110,6 @@ impl Default for Opts {
         Self {
             cpu: Default::default(),
             assemble_dir: Default::default(),
-            source_mapping: Default::default(),
             ignore_relative_offset_errors: false,
             metadata: false,
             deps_file: Default::default(),
@@ -128,7 +123,6 @@ impl Default for Opts {
             lsp_config: Default::default(),
             target_name: Default::default(),
             no_async: false,
-            syms_file: Default::default(),
             verbose_errors: false,
             error_mismatches: false,
             do_includes: true,

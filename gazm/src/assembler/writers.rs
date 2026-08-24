@@ -178,95 +178,50 @@ impl Assembler {
     /// Writing is driven by the `metadata` switch (contract §5):
     /// `metadata = true` writes the whole bundle — `<target>.map` +
     /// `<target>.sym`, names derived from the target name — with a v4
-    /// `TargetInfo` header. Explicit `source-mapping`/`syms-file` paths
-    /// still override the derived names during the migration and, when
-    /// `metadata` is absent/false, keep writing without the header
-    /// (back-compat). No switch, no paths -> nothing.
+    /// `TargetInfo` header. Absent/false writes nothing.
     fn write_metadata_outputs(&self) -> GResult<()> {
-        let explicit_source = self
-            .opts
-            .source_mapping
-            .as_ref()
-            .map(|path| self.output_path(path))
-            .transpose()?;
-        let explicit_syms = self
-            .opts
-            .syms_file
-            .as_ref()
-            .map(|path| self.output_path(path))
-            .transpose()?;
-
-        let (source_path, symbols_path) = if self.opts.metadata {
-            let target = self.opts.target_name.clone().unwrap_or_else(|| {
-                self.opts
-                    .project_file
-                    .file_stem()
-                    .map(|s| s.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "gazm".to_string())
-            });
-            (
-                match explicit_source {
-                    Some(path) => Some(path),
-                    None => Some(self.output_path(format!("{target}.map"))?),
-                },
-                match explicit_syms {
-                    Some(path) => Some(path),
-                    None => Some(self.output_path(format!("{target}.sym"))?),
-                },
-            )
-        } else {
-            (explicit_source, explicit_syms)
-        };
-
-        if source_path.is_none() && symbols_path.is_none() {
+        if !self.opts.metadata {
             return Ok(());
         }
 
-        // The header is part of the metadata bundle: it is only written
-        // when the project opts in via `metadata = true`.
-        let target_info = if self.opts.metadata {
-            Some(TargetInfo {
-                target_name: self.opts.target_name.clone().unwrap_or_else(|| {
-                    self.opts
-                        .project_file
-                        .file_stem()
-                        .map(|s| s.to_string_lossy().into_owned())
-                        .unwrap_or_else(|| "gazm".to_string())
-                }),
-                cpu: self.opts.cpu,
-                mem_size: self.opts.mem_size,
-                exec_addr: self.asm_out.exec_addr,
-                bin_references: self.opts.bin_references.clone(),
-                checksums: self
-                    .opts
-                    .checksums
-                    .iter()
-                    .map(|(name, c)| RomChecksum {
-                        name: name.clone(),
-                        addr: c.addr,
-                        size: c.size,
-                        sha1: c.sha1.clone(),
-                    })
-                    .collect(),
-                sections: self
-                    .asm_out
-                    .sections
-                    .iter()
-                    .map(|s| Section {
-                        name: s.name.clone(),
-                        logical_range: s.logical_range.clone(),
-                        physical_range: s.physical_range.clone(),
-                        access: match s.access_type {
-                            crate::assembler::AccessType::ReadWrite => AccessType::ReadWrite,
-                            crate::assembler::AccessType::ReadOnly => AccessType::Read,
-                        },
-                    })
-                    .collect(),
-                tool_version: env!("CARGO_PKG_VERSION").to_string(),
-            })
-        } else {
-            None
-        };
+        let (target, source_path, symbols_path) = self.metadata_paths()?;
+        let source_path = Some(source_path);
+        let symbols_path = Some(symbols_path);
+
+        // The header is part of the metadata bundle.
+        let target_info = Some(TargetInfo {
+            target_name: target,
+            cpu: self.opts.cpu,
+            mem_size: self.opts.mem_size,
+            exec_addr: self.asm_out.exec_addr,
+            bin_references: self.opts.bin_references.clone(),
+            checksums: self
+                .opts
+                .checksums
+                .iter()
+                .map(|(name, c)| RomChecksum {
+                    name: name.clone(),
+                    addr: c.addr,
+                    size: c.size,
+                    sha1: c.sha1.clone(),
+                })
+                .collect(),
+            sections: self
+                .asm_out
+                .sections
+                .iter()
+                .map(|s| Section {
+                    name: s.name.clone(),
+                    logical_range: s.logical_range.clone(),
+                    physical_range: s.physical_range.clone(),
+                    access: match s.access_type {
+                        crate::assembler::AccessType::ReadWrite => AccessType::ReadWrite,
+                        crate::assembler::AccessType::ReadOnly => AccessType::Read,
+                    },
+                })
+                .collect(),
+            tool_version: env!("CARGO_PKG_VERSION").to_string(),
+        });
 
         let (source, symbols) = rayon::join(
             || {
@@ -353,10 +308,29 @@ impl Assembler {
         Ok(())
     }
 
+    /// Derived `<target>.map` / `<target>.sym` output paths (contract §5).
+    /// The target name is the configured `[[targets]] name`, falling back
+    /// to the project file stem. Shared by the metadata and deps writers so
+    /// the derivation lives in one place.
+    fn metadata_paths(&self) -> GResult<(String, std::path::PathBuf, std::path::PathBuf)> {
+        let target = self.opts.target_name.clone().unwrap_or_else(|| {
+            self.opts
+                .project_file
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "gazm".to_string())
+        });
+        Ok((
+            target.clone(),
+            self.output_path(format!("{target}.map"))?,
+            self.output_path(format!("{target}.sym"))?,
+        ))
+    }
+
     pub fn write_deps_file(&mut self) -> GResult<()> {
         if let Some(deps) = &self.opts.deps_file {
-            if let Some(sym_file) = &self.opts.source_mapping {
-                let sym_file = self.output_path(sym_file)?;
+            if self.opts.metadata {
+                let (_, _, sym_file) = self.metadata_paths()?;
                 let deps = self.output_path(deps)?;
                 let sf = self.get_source_file_loader();
                 let read = join_paths(sf.get_files_read().iter(), " \\\n");

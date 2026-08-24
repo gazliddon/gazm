@@ -95,8 +95,7 @@ returns `TargetInfo = None` for them. `encode_artifact` gains an optional
 
 ## 5. Config: one switch for "write metadata or nothing"
 
-Today `gazm.toml` has two separate, independent optional paths per target
-(`source-mapping`, `syms-file`). Replace both with **a single boolean**:
+One boolean per target:
 
 ```toml
 [[targets]]
@@ -105,12 +104,13 @@ metadata = true          # or omit/false -> write nothing
 ```
 
 - `metadata = true` writes the whole bundle: `<target>.map`, `<target>.sym`
-  (names derived from the target name; existing explicit paths keep
-  working for back-compat during migration, then are removed). The header
-  (v4) is only written when `metadata = true`; back-compat explicit-path
-  writes stay v3 until the project migrates.
-- `metadata = false`/absent writes nothing — no map, no syms, no header
-  (except the back-compat explicit paths above).
+  (names derived from the target name; the files land relative to the
+  build directory). The v4 `TargetInfo` header is part of the bundle.
+- `metadata = false`/absent writes nothing — no map, no syms, no header.
+- The migration is complete: the old per-target `source-mapping`/
+  `syms-file` explicit paths are **removed** (they were back-compat during
+  the migration and are gone as of the 0.10.x cleanup). Stargate and the
+  sound board both use `metadata = true`.
 - `--json-output`/`--pretty-json` remain orthogonal formatting toggles for
   the same bundle.
 - `as6809_sym` removed (it was unused).

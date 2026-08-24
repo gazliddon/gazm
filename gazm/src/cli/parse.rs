@@ -93,7 +93,6 @@ impl Opts {
             Some(("asm", m)) => {
                 let mut opts = Opts {
                     deps_file: m.get_one::<String>("deps").map(PathBuf::from),
-                    source_mapping: m.get_one::<String>("source-mapping").map(PathBuf::from),
                     ignore_relative_offset_errors: m.contains_id("ignore-relative-offset-errors"),
                     project_file: m.get_one::<String>("project-file").unwrap().into(),
                     ast_file: m.get_one::<String>("ast-file").map(PathBuf::from),
