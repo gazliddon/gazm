@@ -121,7 +121,7 @@ Priority order from `../crates/stargate-emu/docs/pickup.md`:
 - The spec's `<CR>` format-on-Enter mapping is shadowed by the plugin's
   `<CR>` indent mapping (both buffer-local insert mappings).
 
-## Control-flow: design question — compile-time functions (open)
+## Control-flow: design question — compile-time functions (mostly done)
 
 > How do we create functions? Are they macros? In the control structure
 > I'd like, for example, make a sin table: get a float sin and then emit
@@ -134,32 +134,33 @@ Priority order from `../crates/stargate-emu/docs/pickup.md`:
 Macros expand to code; a `fn` *executes at assembly time* and produces a
 value (a compile-time evaluable function, like Rust `const fn`).
 
-**What it implies (in order of size):**
-1. **Floats in the evaluator** — the lexer has no float literals today
-   and `gazmeval`'s `binary_operator()` table is integer-only. Needs
-   float literals + float arithmetic in the expression evaluator, and an
-   explicit float→int conversion for emission (e.g. `round()`, or an
-   explicit `to_int` — never silent truncation).
-2. **Builtin math functions** — `sin`, `cos`, etc. as evaluator
-   intrinsics. This alone satisfies the sin-table use case immediately:
-   `for i in 0..256 { fcb round(sin(i * 2 * 3.14159 / 256) * 127) }`.
-   The loop + per-iteration `fcb` emission already works, so this is a
-   small, well-scoped feature.
-3. **User-defined `fn`** — a named, parameterized control-flow block that
-   evaluates to a value. Bigger design (reuse of the sizer-time control
-   flow, return-value mechanics, recursion policy, call depth).
+**Status (v0.11.0):** items 1 and 2 are DONE and released. Item 3
+(user-defined `fn`) is still open — it's the natural next feature now
+that the value model is proven.
 
-**Recommended approach:** floats + builtins first (covers the motivating
-case), user-defined `fn` second once the value model is proven.
-Pragmatic workaround until then: precompute tables with an external tool
-and paste the bytes.
+1. **DONE — Floats in the evaluator.** Float literals (`3.14`) promote
+   arithmetic to f64 in the evaluator; explicit `round()` converts back
+   (never silent truncation); a float at an emission boundary is an
+   error. `BinaryOp` identity lives in the operator table; int and float
+   apply semantics live side by side in the evaluator.
+2. **DONE — Builtin compile-time functions.** `sin(x)`, `cos(x)`,
+   `round(x)` — and `sizeof(Struct)` for struct totals (the old
+   auto-created `Name::size` member is gone; sizes live in
+   `asm_out.struct_sizes`). `assert <cond> [, "msg"]` fails the build on
+   a false condition (non-fatal, multiple report together) and
+   `log <"text" | expr>` prints during assembly. The sin-table use case
+   works: `for i in 0..256 { fcb round(sin(i * 2 * 3.14159 / 256) * 127) }`.
+3. **OPEN — User-defined `fn`.** A named, parameterized control-flow
+   block that evaluates to a value. Bigger design (reuse of the
+   sizer-time control flow, return-value mechanics, recursion policy,
+   call depth).
 
-**When to look at it:** as the *next* feature branch, after the current
-one (control flow + structs + scoping navigator) has landed on master
-and the stargate/robotron pushes are done. Reasons: (a) floats+functions
-are a new expression-value model that would grow the branch and keep
-delaying the byte-identity milestone; (b) treesitter syntax is deferred
-until syntax is stable, and new syntax would churn the grammar again.
+**Notes from the build:** loop indices (repeat/for) are per-scope
+temporaries — reusing the same index name across loops in one scope
+creates-or-reuses instead of erroring. Labels get their PC values as the
+sizer walks in source order, so `assert` must come *after* what it
+checks (forward label refs in size-time conditions aren't resolvable).
+
 
 ## Environment notes
 
