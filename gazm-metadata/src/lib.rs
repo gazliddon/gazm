@@ -14,7 +14,7 @@ pub mod sourcemap;
 pub mod symbols;
 pub mod target;
 
-pub use envelope::{decode_artifact, Artifact, Magic};
+pub use envelope::{decode_artifact, Artifact, CpuKind, Magic};
 pub use sourcemap::{InstructionBoundary, SourceLocation, SourceMap};
 pub use symbols::Symbols;
 pub use target::Target;
