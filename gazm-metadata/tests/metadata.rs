@@ -86,14 +86,16 @@ fn truncated_payload_is_rejected() {
     assert!(decode_artifact(&bad, Magic::SourceMap).is_err());
 }
 
-/// Locate the real Stargate artifacts.  Set `STARGATE_ROM_DIR` to the
-/// `roms/` directory, or default to the developer's checkout.
-fn rom_dir() -> Option<std::path::PathBuf> {
-    std::env::var("STARGATE_ROM_DIR")
+/// Locate the real Stargate artifacts.  With `metadata = true` the
+/// derived names write to the build cwd (the game root), not to
+/// `roms/`.  Set `STARGATE_DIR` to the build cwd, or default to the
+/// developer's checkout.
+fn stargate_dir() -> Option<std::path::PathBuf> {
+    std::env::var("STARGATE_DIR")
         .map(std::path::PathBuf::from)
         .ok()
         .or_else(|| {
-            let p = std::path::PathBuf::from(env!("HOME")).join("development/stargate/roms");
+            let p = std::path::PathBuf::from(env!("HOME")).join("development/stargate");
             p.exists().then_some(p)
         })
 }
@@ -104,17 +106,28 @@ fn read_artifact(dir: &std::path::Path, name: &str) -> Vec<u8> {
 
 #[test]
 fn real_stargate_artifacts_load() {
-    let Some(dir) = rom_dir() else {
-        eprintln!("skipping: no STARGATE_ROM_DIR and no default checkout");
+    let Some(dir) = stargate_dir() else {
+        eprintln!("skipping: no STARGATE_DIR and no default checkout");
         return;
     };
     let map = read_artifact(&dir, "stargate.map");
     let sym = read_artifact(&dir, "stargate.sym");
     let target = Target::load(&map, &sym).expect("stargate target loads");
-    assert_eq!(target.info, None, "current files are v3 (no header)");
+
+    // v4 header: target identity, sections from the in-asm directives,
+    // and ROM checksums.
+    let info = target.info.as_ref().expect("v4 TargetInfo header present");
+    assert_eq!(info.target_name, "stargate");
+    assert_eq!(info.cpu, CpuKind::Cpu6809);
+    assert_eq!(info.mem_size, 94_208);
+    assert!(!info.sections.is_empty(), "sections from in-asm directives");
+    assert!(!info.checksums.is_empty(), "ROM checksums present");
+    // Stargate has no `exec_addr` directive, so the header (and the
+    // payload) carry None.
+    assert_eq!(info.exec_addr, None);
 
     // The ROM map should have many instruction boundaries.  Note: the
-    // v3 writer marks *every* compiled entry as OpCode (data directives
+    // writer marks *every* compiled entry as OpCode (data directives
     // included), so this is a hint set, not a pure instruction map.
     assert!(target.source_map.boundaries().len() > 10_000);
     // Boundaries are sorted.
@@ -127,21 +140,28 @@ fn real_stargate_artifacts_load() {
 
 #[test]
 fn real_sound_artifacts_load() {
-    let Some(dir) = rom_dir() else {
-        eprintln!("skipping: no STARGATE_ROM_DIR and no default checkout");
+    let Some(dir) = stargate_dir() else {
+        eprintln!("skipping: no STARGATE_DIR and no default checkout");
         return;
     };
     let map = read_artifact(&dir, "sound.map");
     let sym = read_artifact(&dir, "sound.sym");
     let target = Target::load(&map, &sym).expect("sound target loads");
+
+    let info = target.info.as_ref().expect("v4 TargetInfo header present");
+    assert_eq!(info.target_name, "sound");
+    assert_eq!(info.cpu, CpuKind::Cpu6800);
+    // The sound source uses no in-asm section directives, so zero
+    // sections is correct here.
+
     assert!(target.source_map.boundaries().len() > 500);
     assert!(target.symbols.all().len() > 100);
 }
 
 #[test]
 fn real_stargate_symbol_queries() {
-    let Some(dir) = rom_dir() else {
-        eprintln!("skipping: no STARGATE_ROM_DIR and no default checkout");
+    let Some(dir) = stargate_dir() else {
+        eprintln!("skipping: no STARGATE_DIR and no default checkout");
         return;
     };
     let map = read_artifact(&dir, "stargate.map");
