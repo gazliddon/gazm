@@ -85,6 +85,17 @@ impl SourceMap {
         &self.boundaries
     }
 
+    /// Every instruction-start address that belongs to a source line
+    /// (reverse lookup, used for source-level breakpoints).  A line can
+    /// map to several addresses (loops, multiple labels, banked code).
+    pub fn addresses_for(&self, file_id: u64, line: usize) -> Vec<usize> {
+        self.boundaries
+            .iter()
+            .filter(|b| b.file_id == file_id && b.line == line)
+            .map(|b| b.addr)
+            .collect()
+    }
+
     /// The instruction boundary whose start is at or before `addr`
     /// (binary search over the sorted index).
     pub fn boundary_at(&self, addr: usize) -> Option<&InstructionBoundary> {

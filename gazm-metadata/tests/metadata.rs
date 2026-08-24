@@ -136,6 +136,13 @@ fn real_stargate_artifacts_load() {
 
     // The symbol table should be populated (thousands of labels).
     assert!(target.symbols.all().len() > 1_000);
+
+    // Reverse lookup: a boundary's own (file, line) must resolve back
+    // to its address.
+    let bs = target.source_map.boundaries();
+    let probe = &bs[bs.len() / 2];
+    let addrs = target.source_map.addresses_for(probe.file_id, probe.line);
+    assert!(addrs.contains(&probe.addr), "line must resolve to its address");
 }
 
 #[test]
