@@ -659,7 +659,8 @@ impl<'a> AstCtx<'a> {
 
         if let AstNodeKind::PostFixExpr = item {
             let reader = self.ctx.asm_out.symbols.get_reader(current_scope_id);
-            eval(&reader, node).map_err(|e| self.convert_error(e.into()))
+            let struct_sizes = &self.ctx.asm_out.struct_sizes;
+            eval(&reader, struct_sizes, node).map_err(|e| self.convert_error(e.into()))
         } else {
             Err(err(&format!(
                 "Incorrect item type for evalulation : {item:?}"
@@ -746,7 +747,13 @@ impl<'a> AstCtx<'a> {
                         }
                     }
 
-                    self.create_and_set_symbol(current, "size", id, &struct_scopes)?;
+                    // No auto-created `Name::size` symbol: the total size
+                    // lives in the struct-size registry and is read by
+                    // `sizeof(Name)`.
+                    self.ctx
+                        .asm_out
+                        .struct_sizes
+                        .insert(struct_scope_id, current as usize);
                 }
             }
 
@@ -832,24 +839,11 @@ impl<'a> AstCtx<'a> {
         // crate's `get_sub_scope_id` treats the last segment as a symbol,
         // so a single-segment lookup would be a no-op — use the navigator's
         // child-scope lookup instead.
-        let mut current: Option<u64> = None;
-        if scoped.is_abs() {
-            current = find_child_scope(symbols, root, parts[0]);
+        let current = if scoped.is_abs() {
+            find_child_scope(symbols, root, parts[0])
         } else {
-            let mut scope = Some(current_scope_id);
-            while let Some(s) = scope {
-                if let Some(child) = find_child_scope(symbols, s, parts[0]) {
-                    current = Some(child);
-                    break;
-                }
-                scope = symbols
-                    .get_scope_info_from_id(s)
-                    .and_then(|info| info.parent_id);
-            }
-            if current.is_none() {
-                current = find_child_scope(symbols, root, parts[0]);
-            }
-        }
+            find_visible_scope(symbols, current_scope_id, parts[0])
+        };
 
         let Some(mut current) = current else {
             return Err(self.node_error(format!("Scope not found: {name}"), node_id, false));
@@ -992,6 +986,11 @@ impl<'a> AstCtx<'a> {
                         }
                     }
                 }
+
+                // The argument of `sizeof(Name)` is a struct name, not a
+                // symbol reference — leave it as text so the evaluator can
+                // resolve it to a scope.
+                Label(_) if is_sizeof_arg(self.get_tree(), *node_id) => {}
 
                 // Convert any label in tree to a label reference
                 Label(LabelDefinition::Text(name)) => {
@@ -1137,7 +1136,8 @@ impl<'a> AstCtx<'a> {
                         let label_id = *label_id;
                         let expr = self.get_tree().get(node_id).unwrap().first_child().unwrap();
                         let reader = self.ctx.get_symbols().get_reader(scopes.scope());
-                        let res = eval(&reader, expr);
+                        let struct_sizes = &self.ctx.asm_out.struct_sizes;
+                        let res = eval(&reader, struct_sizes, expr);
 
                         match res {
                             Ok(value) => {
@@ -1252,6 +1252,40 @@ fn find_child_scope(symbols: &SymbolTree, parent: u64, name: &str) -> Option<u64
     let mut nav = ScopeNav::new(symbols);
     nav.set_scope(parent);
     nav.find_child(name)
+}
+
+/// Find a scope named `name` visible from `start_scope`: chain-first (the
+/// scope and its ancestors, each searched for a child of that name),
+/// falling back to the top-level (root-child) scopes. Shared by scoped
+/// path resolution and `sizeof(Name)`.
+pub(crate) fn find_visible_scope(
+    symbols: &SymbolTree,
+    start_scope: u64,
+    name: &str,
+) -> Option<u64> {
+    let mut scope = Some(start_scope);
+    while let Some(s) = scope {
+        if let Some(child) = find_child_scope(symbols, s, name) {
+            return Some(child);
+        }
+        scope = symbols
+            .get_scope_info_from_id(s)
+            .and_then(|info| info.parent_id);
+    }
+    let root = symbols.get_root_scope_id();
+    find_child_scope(symbols, root, name)
+}
+
+/// True when this label node is the argument of a `sizeof(Name)` call:
+/// it names a struct, not a symbol, so label resolution must skip it
+/// (the evaluator resolves it to a scope instead).
+fn is_sizeof_arg(tree: &AstTree, node_id: AstNodeId) -> bool {
+    // The argument parses as an Expr (postfix by scope-label time), so
+    // the label sits under Call -> PostFixExpr -> Label.
+    tree.get(node_id)
+        .and_then(|n| n.parent())
+        .and_then(|p| p.parent())
+        .is_some_and(|gp| matches!(&gp.value().item, AstNodeKind::Call(name) if name == "sizeof"))
 }
 
 impl From<AstNodeRef<'_>> for Term {

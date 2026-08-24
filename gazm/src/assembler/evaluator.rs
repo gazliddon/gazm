@@ -77,7 +77,7 @@ impl Assembler {
         let info = self.get_source_info(&node.value().pos).unwrap();
         let reader = self.asm_out.symbols.get_reader(current_scope_id);
 
-        eval(&reader, node).map_err(|err| {
+        eval(&reader, &self.asm_out.struct_sizes, node).map_err(|err| {
             let e = match &err.source {
                 EvalErrorEnum::SymbolNotFoud(name) => {
                     let scope = self

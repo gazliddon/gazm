@@ -66,6 +66,10 @@ pub struct AsmOut {
     /// Final sections from the in-asm `section` directive, persisted into
     /// the v4 metadata header (contract §6).
     pub sections: Vec<crate::sections::SectionDescriptor>,
+    /// Total size in bytes of each struct, keyed by the struct's scope id.
+    /// `sizeof(Name)` reads this; the old auto-created `Name::size` symbol
+    /// is gone.
+    pub struct_sizes: std::collections::HashMap<u64, usize>,
     pub ast: Option<Ast>,
     /// Used for mapping labesl to source position
     pub lookup: Option<LabelUsageAndDefintions>,

@@ -1151,12 +1151,46 @@ CONT:       nop
 
             org $1000
             fdb proc::link, proc::addr
-            fcb proc::time, proc::cod, proc::size
+            fcb proc::time, proc::cod, sizeof(proc)
         "#;
-        // link=0 addr=2 time=4 cod=5 size=9
+        // link=0 addr=2 time=4 cod=5 sizeof=9
         assert_eq!(
             assemble_bytes("struct_scoped", src, 0x1000, 7),
             vec![0x00, 0x00, 0x00, 0x02, 4, 5, 9]
+        );
+    }
+
+    #[test]
+    fn sizeof_returns_struct_size_in_expressions() {
+        let src = r#"
+            struct proc {
+                link : word
+                addr : word
+                time : byte
+                cod : byte[4]
+            }
+
+            org $1000
+            fcb sizeof(proc)
+            fdb sizeof(proc) * 85
+        "#;
+        // sizeof = 9; table of 85 entries = 765
+        assert_eq!(
+            assemble_bytes("struct_sizeof", src, 0x1000, 3),
+            vec![9, 0x02, 0xFD] // 765 = 0x02FD
+        );
+    }
+
+    #[test]
+    fn sizeof_unknown_struct_is_an_error() {
+        let src = r#"
+            org $1000
+            fcb sizeof(nope)
+        "#;
+        let err = assemble_error("sizeof_unknown", src);
+        assert!(
+            err.contains("Unknown struct nope"),
+            "expected an unknown-struct error, got: {err}"
         );
     }
 

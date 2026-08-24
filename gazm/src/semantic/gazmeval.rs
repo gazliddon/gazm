@@ -34,6 +34,10 @@ pub enum EvalErrorEnum {
     UnknownFunction(String),
     #[error("Function {0} takes 1 argument")]
     WrongArity(String),
+    #[error("sizeof expects a struct name")]
+    ExpectedStructName,
+    #[error("Unknown struct {0}")]
+    UnknownStruct(String),
     #[error("Expression evaluates to a float; use round() to convert it to an integer")]
     FloatResult,
     #[error("Bitwise and shift operators require integer operands")]
@@ -83,7 +87,14 @@ impl GetPriority for AstNodeKind {
 ///  - PostFixExpr containing only labels and numbers
 ///  - UnaryTerm
 ///  - Must eval to a number
-fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind, EvalError> {
+///
+/// `struct_sizes` maps struct scope ids to their total byte size
+/// (`sizeof(Name)` reads it).
+fn eval_internal(
+    symbols: &SymbolTreeReader,
+    struct_sizes: &std::collections::HashMap<u64, usize>,
+    n: AstNodeRef,
+) -> Result<AstNodeKind, EvalError> {
     use AstNodeKind::*;
 
     let i = &n.value().item;
@@ -97,7 +108,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKin
     };
 
     let rez = match i {
-        PostFixExpr => eval_postfix(symbols, n)?,
+        PostFixExpr => eval_postfix(symbols, struct_sizes, n)?,
 
         Label(LabelDefinition::Scoped(id)) => {
             symbols
@@ -125,7 +136,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKin
             let mut c = n.children();
             let ops = c.next().unwrap();
             let num = c.next().unwrap();
-            let r = eval_internal(symbols, num)?;
+            let r = eval_internal(symbols, struct_sizes, num)?;
 
             match (&ops.value().item, r) {
                 (AstNodeKind::Sub, AstNodeKind::Num(num, p)) => AstNodeKind::Num(-num, p),
@@ -148,23 +159,62 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKin
             if args.next().is_some() {
                 return Err(EvalError::new(EvalErrorEnum::WrongArity(name.clone()), n));
             }
-            let value = eval_internal(symbols, arg)?;
             match name.as_str() {
-                "sin" => apply_math(value, f64::sin),
-                "cos" => apply_math(value, f64::cos),
-                "round" => match value {
-                    // round() of an integer is the integer itself.
-                    AstNodeKind::Num(x, _) => AstNodeKind::Num(x, ParsedFrom::Expression),
-                    AstNodeKind::Fnum(x, _) => {
-                        AstNodeKind::Num(x.round() as i64, ParsedFrom::Expression)
-                    }
-                    _ => unreachable!(),
-                },
+                // `sizeof(StructName)` — total struct size in bytes. The
+                // argument is a struct name, not a value: resolve it to a
+                // scope (chain-first, top-level fallback) and read the
+                // size from the registry. A lone name parses as an Expr
+                // (postfix by eval time) wrapping the label.
+                "sizeof" => {
+                    let struct_name = match &arg.value().item {
+                        Label(LabelDefinition::Text(name)) => name.clone(),
+                        PostFixExpr => {
+                            match arg.first_child().map(|c| c.value().item.clone()).as_ref() {
+                                Some(Label(LabelDefinition::Text(name))) => name.clone(),
+                                _ => {
+                                    return Err(EvalError::new(
+                                        EvalErrorEnum::ExpectedStructName,
+                                        n,
+                                    ))
+                                }
+                            }
+                        }
+                        _ => return Err(EvalError::new(EvalErrorEnum::ExpectedStructName, n)),
+                    };
+                    let tree = symbols.syms();
+                    let scope = crate::semantic::ast::find_visible_scope(
+                        tree,
+                        symbols.current_scope(),
+                        &struct_name,
+                    )
+                    .ok_or_else(|| {
+                        EvalError::new(EvalErrorEnum::UnknownStruct(struct_name.clone()), n)
+                    })?;
+                    let size = *struct_sizes.get(&scope).ok_or_else(|| {
+                        EvalError::new(EvalErrorEnum::UnknownStruct(struct_name.clone()), n)
+                    })?;
+                    AstNodeKind::Num(size as i64, ParsedFrom::Expression)
+                }
                 _ => {
-                    return Err(EvalError::new(
-                        EvalErrorEnum::UnknownFunction(name.clone()),
-                        n,
-                    ))
+                    let value = eval_internal(symbols, struct_sizes, arg)?;
+                    match name.as_str() {
+                        "sin" => apply_math(value, f64::sin),
+                        "cos" => apply_math(value, f64::cos),
+                        "round" => match value {
+                            // round() of an integer is the integer itself.
+                            AstNodeKind::Num(x, _) => AstNodeKind::Num(x, ParsedFrom::Expression),
+                            AstNodeKind::Fnum(x, _) => {
+                                AstNodeKind::Num(x.round() as i64, ParsedFrom::Expression)
+                            }
+                            _ => unreachable!(),
+                        },
+                        _ => {
+                            return Err(EvalError::new(
+                                EvalErrorEnum::UnknownFunction(name.clone()),
+                                n,
+                            ))
+                        }
+                    }
                 }
             }
         }
@@ -183,7 +233,11 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKin
 }
 
 /// Evaluates a postfix expression
-fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind, EvalError> {
+fn eval_postfix(
+    symbols: &SymbolTreeReader,
+    struct_sizes: &std::collections::HashMap<u64, usize>,
+    n: AstNodeRef,
+) -> Result<AstNodeKind, EvalError> {
     use AstNodeKind::*;
 
     let mut s: Stack<AstNodeKind> = Stack::with_capacity(1024);
@@ -196,7 +250,7 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind
             let item = if i.is_op() {
                 i.clone()
             } else {
-                eval_internal(symbols, c)?.clone()
+                eval_internal(symbols, struct_sizes, c)?.clone()
             };
 
             items.push((c, item));
@@ -234,8 +288,12 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind
     s.pop().ok_or(EvalError::new(EvalErrorEnum::CantPopTop, n))
 }
 
-pub fn eval(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError> {
-    let ret = eval_internal(symbols, n)?;
+pub fn eval(
+    symbols: &SymbolTreeReader,
+    struct_sizes: &std::collections::HashMap<u64, usize>,
+    n: AstNodeRef,
+) -> Result<i64, EvalError> {
+    let ret = eval_internal(symbols, struct_sizes, n)?;
     match ret {
         AstNodeKind::Num(n, _) => Ok(n),
         // A float reaching the boundary (fcb/fdb/equ/conditions...) is an
