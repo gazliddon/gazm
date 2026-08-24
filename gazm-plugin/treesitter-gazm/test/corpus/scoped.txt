@@ -1,0 +1,86 @@
+==================
+Scoped names in expressions
+==================
+PIA0: equ ROM_PIA + Pia::data_a
+fcb proc::time
+lda proc::cod,x
+fdb ptable::size
+
+---
+(source_file
+  (equate
+    (label)
+    (binary_expression
+      left: (label)
+      right: (scoped_label
+        (label)
+        (label))))
+  (fcb
+    (scoped_label
+      (label)
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (constant_offset
+        (scoped_label
+          (label)
+          (label))
+        (x))))
+  (fdb
+    (scoped_label
+      (label)
+      (label))))
+
+==================
+Scoped names in structs
+==================
+struct proc {
+    link : word
+    addr : word
+    time : byte
+}
+
+PTAB: RMB proc::size * 85
+
+---
+(source_file
+  (struct_def
+    (label)
+    (struct_elem
+      (label)
+      (elem_type))
+    (struct_elem
+      (label)
+      (elem_type))
+    (struct_elem
+      (label)
+      (elem_type)))
+  (label)
+  (rmb
+    (binary_expression
+      left: (scoped_label
+        (label)
+        (label))
+      right: (dec_num))))
+
+==================
+Direct-page indexed operand
+==================
+stx >.DYN_OPTR,u
+lda >FOO,x
+
+---
+(source_file
+  (opcode
+    (mnemonic)
+    (operand
+      (constant_offset
+        (label)
+        (u))))
+  (opcode
+    (mnemonic)
+    (operand
+      (constant_offset
+        (label)
+        (x)))))

@@ -14,8 +14,20 @@
 ; the keyword field instead.
 (repeat keyword: (label) @keyword.directive)
 
+; Control-flow keywords, same treatment as `repeat`.
+(if_statement keyword: (if_keyword) @keyword.directive)
+(else_clause keyword: (else_keyword) @keyword.directive)
+(while_statement keyword: (while_keyword) @keyword.directive)
+(for_statement keyword: (for_keyword) @keyword.directive)
+(break_statement keyword: (break_keyword) @keyword.directive)
+(continue_statement keyword: (continue_keyword) @keyword.directive)
+
 ;; Structs & Macros
 (elem_type) @type.builtin
+
+;; Compile-time function calls
+(call_expression function: (label) @function.call)
+(call_expression function: (scoped_label) @function.call)
 
 ;; Mnemonics & Opcodes
 (mnemonic) @function.builtin
@@ -23,19 +35,21 @@
 ;; Labels & Identifiers
 (local_label) @label
 (label) @label
+(scoped_label) @label
 
 ;; Scope & Namespaces
 (scope (label) @module)
 (scope (local_label) @module)
 (import_group scope: (label) @module)
 (import_group name: (label) @label)
+(import_group scope: (scoped_label) @module)
 
 ;; Punctuation
 ["{" "}" "[" "]"] @punctuation.bracket
 ["," "::" ":"] @punctuation.delimiter
 
 ;; Numbers
-[(dec_num) (hex_num) (bin_num)] @number
+[(dec_num) (hex_num) (bin_num) (float_num)] @number
 
 ;; Operators & Operands
 (operand (immediate) @operator)

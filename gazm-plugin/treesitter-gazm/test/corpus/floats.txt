@@ -1,0 +1,62 @@
+==================
+Float literals
+==================
+fcb round(3.14)
+fdb 1.5 + 2.5
+fcb 0.5
+
+---
+(source_file
+  (fcb
+    (call_expression
+      function: (label)
+      (float_num)))
+  (fdb
+    (binary_expression
+      left: (float_num)
+      right: (float_num)))
+  (fcb (float_num)))
+
+==================
+Compile-time function calls
+==================
+fcb round(sin(i * 2 * 3.14159 / 256) * 127)
+fdb cos(0.0)
+
+---
+(source_file
+  (fcb
+    (call_expression
+      function: (label)
+      (binary_expression
+        left: (call_expression
+          function: (label)
+          (binary_expression
+            left: (binary_expression
+              left: (binary_expression
+                left: (label)
+                right: (dec_num))
+              right: (float_num))
+            right: (dec_num)))
+        right: (dec_num))))
+  (fdb
+    (call_expression
+      function: (label)
+      (float_num))))
+
+==================
+Range operator is not a float
+==================
+for i in 0..256 {
+    fcb i
+}
+
+---
+(source_file
+  (for_statement
+    keyword: (for_keyword)
+    index: (label)
+    start: (dec_num)
+    end: (dec_num)
+    (block
+      (fcb (label)))))

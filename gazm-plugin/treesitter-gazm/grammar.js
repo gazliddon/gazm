@@ -55,6 +55,17 @@ module.exports = grammar({
 
     conflicts: $ => [
         [$.import_group, $.global_scoped_id],
+        // `repeat` matches its keyword as a plain identifier (bare
+        // keywords, no reserved tokens), so an `if`/`while` statement
+        // also fits repeat's (keyword, expression, block) shape. Declare
+        // the overlap; the keyword rules below keep the constructs
+        // distinct from each other.
+        [$.repeat, $.if_statement],
+        [$.repeat, $.while_statement],
+        // A scoped name starts with a plain label (`proc::time`), so a
+        // bare label could also begin a scoped_name. The parser resolves
+        // it: without a following `::` only the bare label completes.
+        [$._identifier, $.scoped_label],
     ],
 
     rules: {
@@ -66,6 +77,11 @@ module.exports = grammar({
                 $.macro_def,
                 $.struct_def,
                 $.repeat,
+                $.if_statement,
+                $.while_statement,
+                $.for_statement,
+                $.break_statement,
+                $.continue_statement,
                 $._line
             )),
 
@@ -162,20 +178,19 @@ module.exports = grammar({
 				$.importer,
         ),
 
-        struct_def: $ => seq("struct", $._identifier, '{', commaSep($.struct_elem), optional(','), '}'),
+        struct_def: $ => seq(
+            "struct", $._identifier, '{',
+            // Fields are line-based (`field : type` per line); commas are
+            // accepted for back-compat but not required.
+            repeat(seq($.struct_elem, optional(','))),
+            '}'),
         struct_elem: $ => seq($._identifier, ':', $.elem_type),
         elem_type: $ => seq(choice('byte', 'word', 'dword', 'qword'), optional($.array)),
         array: $ => seq('[', $._expression, ']'),
 
         macro_def: $ => seq("macro", $._identifier, $.macro_args, $.macro_body),
         macro_args: $ => seq('(', commaSep($._identifier), ')'),
-        macro_body: $ => seq('{', repeat(choice(
-            $.comment,
-            $.macro_def,
-            $.struct_def,
-            $.repeat,
-            $._line
-        )), '}'),
+        macro_body: $ => seq('{', repeat($._block_content), '}'),
 
         // `repeat <count> [, <index>] { body }` — assembled `count` times,
         // with the optional index bound to the 0-based iteration. A block
@@ -194,13 +209,70 @@ module.exports = grammar({
             $.repeat_body
         ),
 
-        repeat_body: $ => seq('{', repeat(choice(
+        repeat_body: $ => seq('{', repeat($._block_content), '}'),
+
+        // ----- Control flow ------------------------------------------------
+        //
+        // Bare keywords: matched by text in statement position only, so
+        // symbols with the same spelling keep working elsewhere (same rule
+        // as `repeat`). The keyword rules are named so queries can
+        // highlight them and so the constructs stay text-distinct from
+        // each other.
+
+        if_keyword: $ => asRegex('if'),
+        else_keyword: $ => asRegex('else'),
+        while_keyword: $ => asRegex('while'),
+        for_keyword: $ => asRegex('for'),
+        break_keyword: $ => asRegex('break'),
+        continue_keyword: $ => asRegex('continue'),
+
+        if_statement: $ => seq(
+            field('keyword', $.if_keyword),
+            field('condition', $._expression),
+            $.block,
+            optional($.else_clause),
+        ),
+
+        else_clause: $ => seq(
+            field('keyword', $.else_keyword),
+            choice($.if_statement, $.block),
+        ),
+
+        while_statement: $ => seq(
+            field('keyword', $.while_keyword),
+            field('condition', $._expression),
+            $.block,
+        ),
+
+        for_statement: $ => seq(
+            field('keyword', $.for_keyword),
+            field('index', $._identifier),
+            asRegex('in'),
+            field('start', $._expression),
+            '..',
+            field('end', $._expression),
+            $.block,
+        ),
+
+        break_statement: $ => seq(field('keyword', $.break_keyword)),
+        continue_statement: $ => seq(field('keyword', $.continue_keyword)),
+
+        block: $ => seq('{', repeat($._block_content), '}'),
+
+        // Anything a block body can contain (macro, repeat, and control
+        // flow bodies all share it).
+        _block_content: $ => choice(
             $.comment,
             $.macro_def,
             $.struct_def,
             $.repeat,
-            $._line
-        )), '}'),
+            $.if_statement,
+            $.while_statement,
+            $.for_statement,
+            $.break_statement,
+            $.continue_statement,
+            $._line,
+        ),
 
         doc_text : $ => /(\\(.|\r?\n)|[^\\\n])*/,
         doc: $ => seq(';;;', $.doc_text),
@@ -316,10 +388,19 @@ module.exports = grammar({
             $.char_literal,
             $.pc_expr,
             $.parenthesized_expression,
+            $.call_expression,
         ),
 
         parenthesized_expression: $ => seq(
             '(', $._expression, ')'
+        ),
+
+        // Compile-time function call: `sin(x)`, `round(v * 3.14)`.
+        call_expression: $ => seq(
+            field('function', $._identifier),
+            '(',
+            commaSep($._expression),
+            ')',
         ),
 
         _line_break: $ => /\n|\r\n/,
@@ -373,9 +454,11 @@ module.exports = grammar({
             $.dp,
         ),
 
-        constant_offset: $ => seq($._expression, ',', $._index_reg),
-        pc_offset: $ => seq($._expression, ',', 'pc'),
-        pc_offset_rel: $ => seq($._expression, ',', 'pcr'),
+        // `>` is the direct-page/16-bit marker; it can prefix an indexed
+        // offset too (`>.DYN_OPTR,u` in stargate).
+        constant_offset: $ => seq(optional('>'), $._expression, ',', $._index_reg),
+        pc_offset: $ => seq(optional('>'), $._expression, ',', 'pc'),
+        pc_offset_rel: $ => seq(optional('>'), $._expression, ',', 'pcr'),
         pre_dec: $ => seq(',', '-', $._index_reg),
         pre_dec_dec: $ => seq(',', '--', $._index_reg),
         post_inc: $ => seq(',', $._index_reg, '+'),
@@ -422,7 +505,16 @@ module.exports = grammar({
             $.mnemonic,
             $.operand),
 
-        _identifier: $ => choice($.local_label, $.label),
+        _identifier: $ => choice($.local_label, $.label, $.scoped_label),
+
+        // `Name::field` — scoped names (relative). The label regex itself
+        // is dot-free per segment; `::` separates scope segments.
+        // Absolute names (`::a::b`) are covered by global_scoped_id in
+        // import position.
+        scoped_label: $ => seq(
+            $.label,
+            repeat1(seq('::', $.label)),
+        ),
 
 		global_scoped_id: $ => repeat1(seq("::", $.label)),
 
@@ -439,8 +531,11 @@ module.exports = grammar({
         // numbers
         bin_num: $ => mkDigits(choice("%", "0b"), /[01]/),
         hex_num: $ => mkDigits(choice("$", "0x"), /[0-9a-fA-F]/),
+        // Float literal: digits, dot, digits. Needs digits after the dot,
+        // so the `..` range operator can never be confused with it.
+        float_num: $ => token(/[0-9]+[_0-9]*\.[0-9]+[_0-9]*/),
         dec_num: $ => token(/[0-9]+[_0-9]*/),
-        _number_literal: $ => choice($.hex_num, $.bin_num, $.dec_num),
+        _number_literal: $ => choice($.hex_num, $.bin_num, $.float_num, $.dec_num),
 
     },
 })

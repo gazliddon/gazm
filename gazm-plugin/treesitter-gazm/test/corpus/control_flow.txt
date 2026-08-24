@@ -1,0 +1,152 @@
+==================
+If / else if / else
+==================
+if x > 5 {
+    fcb 1
+} else if x > 2 {
+    fcb 2
+} else {
+    fcb 3
+}
+
+---
+(source_file
+  (if_statement
+    keyword: (if_keyword)
+    condition: (binary_expression
+      left: (label)
+      right: (dec_num))
+    (block
+      (fcb (dec_num)))
+    (else_clause
+      keyword: (else_keyword)
+      (if_statement
+        keyword: (if_keyword)
+        condition: (binary_expression
+          left: (label)
+          right: (dec_num))
+        (block
+          (fcb (dec_num)))
+        (else_clause
+          keyword: (else_keyword)
+          (block
+            (fcb (dec_num))))))))
+
+==================
+While loop
+==================
+while * < $8000 {
+    fcb 0
+}
+
+---
+(source_file
+  (while_statement
+    keyword: (while_keyword)
+    condition: (binary_expression
+      left: (pc_expr)
+      right: (hex_num))
+    (block
+      (fcb (dec_num)))))
+
+==================
+For loop with range
+==================
+for i in 0..256 {
+    fcb i
+}
+
+---
+(source_file
+  (for_statement
+    keyword: (for_keyword)
+    index: (label)
+    start: (dec_num)
+    end: (dec_num)
+    (block
+      (fcb (label)))))
+
+==================
+Break and continue
+==================
+for i in 0..16 {
+    if i == 8 {
+        break
+    }
+    continue
+}
+
+---
+(source_file
+  (for_statement
+    keyword: (for_keyword)
+    index: (label)
+    start: (dec_num)
+    end: (dec_num)
+    (block
+      (if_statement
+        keyword: (if_keyword)
+        condition: (binary_expression
+          left: (label)
+          right: (dec_num))
+        (block
+          (break_statement
+            keyword: (break_keyword))))
+      (continue_statement
+        keyword: (continue_keyword)))))
+
+==================
+Nested control flow
+==================
+repeat 4, i {
+    for j in 0..i {
+        if j & 1 {
+            fcb j
+        }
+    }
+}
+
+---
+(source_file
+  (repeat
+    keyword: (label)
+    count: (dec_num)
+    index: (label)
+    (repeat_body
+      (for_statement
+        keyword: (for_keyword)
+        index: (label)
+        start: (dec_num)
+        end: (label)
+        (block
+          (if_statement
+            keyword: (if_keyword)
+            condition: (binary_expression
+              left: (label)
+              right: (dec_num))
+            (block
+              (fcb (label)))))))))
+
+==================
+Control flow in a macro
+==================
+macro gen(n) {
+    for i in 0..n {
+        fdb i
+    }
+}
+
+---
+(source_file
+  (macro_def
+    (label)
+    (macro_args
+      (label))
+    (macro_body
+      (for_statement
+        keyword: (for_keyword)
+        index: (label)
+        start: (dec_num)
+        end: (label)
+        (block
+          (fdb (label)))))))

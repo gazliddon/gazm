@@ -34,3 +34,55 @@ struct gmap {
  (struct_def (label))
 
  )
+
+==================
+Line-based struct (no commas)
+==================
+struct proc {
+    link : word
+    addr : word
+    time : byte
+    data : byte[4]
+}
+
+---
+(source_file
+  (struct_def
+    (label)
+    (struct_elem
+      (label)
+      (elem_type))
+    (struct_elem
+      (label)
+      (elem_type))
+    (struct_elem
+      (label)
+      (elem_type))
+    (struct_elem
+      (label)
+      (elem_type
+        (array
+          (dec_num))))))
+
+==================
+Struct with mixed commas
+==================
+struct mixed {
+    a : byte,
+    b : word
+    c : dword,
+}
+
+---
+(source_file
+  (struct_def
+    (label)
+    (struct_elem
+      (label)
+      (elem_type))
+    (struct_elem
+      (label)
+      (elem_type))
+    (struct_elem
+      (label)
+      (elem_type))))
