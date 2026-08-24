@@ -157,6 +157,26 @@ mod test {
         // let _y = YamlConfig::new();
         // print!("{:#?}", _y);
     }
+
+    #[test]
+    fn metadata_switch_reaches_target_opts() {
+        let dir = std::env::temp_dir().join("gazm_cfg_meta_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let toml_path = dir.join("gazm.toml");
+        std::fs::write(
+            &toml_path,
+            "[[targets]]\nname = \"demo\"\ncpu = \"Cpu6809\"\nproject-file = \"demo.gazm\"\nmetadata = true\n",
+        )
+        .unwrap();
+
+        let cfg = TomlConfig::new_from_file(&toml_path).expect("config should parse");
+        assert!(
+            cfg.targets[0].metadata,
+            "`metadata = true` in a target must reach Opts.metadata (contract §5)"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
 
 /// True if `a` is an older version than `b` ("0.9.16" < "0.9.17").
