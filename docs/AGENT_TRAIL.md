@@ -121,6 +121,46 @@ Priority order from `../crates/stargate-emu/docs/pickup.md`:
 - The spec's `<CR>` format-on-Enter mapping is shadowed by the plugin's
   `<CR>` indent mapping (both buffer-local insert mappings).
 
+## Control-flow: design question — compile-time functions (open)
+
+> How do we create functions? Are they macros? In the control structure
+> I'd like, for example, make a sin table: get a float sin and then emit
+> it as bytes in a way I want — never floats on an 8-bit system. Fns
+> don't feel like macros, they just execute during compilation. So that
+> implies some kind of floating-point thing in the control code and a
+> sin function. What's the best way forward?
+
+**Conclusion already reached:** user-defined functions are NOT macros.
+Macros expand to code; a `fn` *executes at assembly time* and produces a
+value (a compile-time evaluable function, like Rust `const fn`).
+
+**What it implies (in order of size):**
+1. **Floats in the evaluator** — the lexer has no float literals today
+   and `gazmeval`'s `binary_operator()` table is integer-only. Needs
+   float literals + float arithmetic in the expression evaluator, and an
+   explicit float→int conversion for emission (e.g. `round()`, or an
+   explicit `to_int` — never silent truncation).
+2. **Builtin math functions** — `sin`, `cos`, etc. as evaluator
+   intrinsics. This alone satisfies the sin-table use case immediately:
+   `for i in 0..256 { fcb round(sin(i * 2 * 3.14159 / 256) * 127) }`.
+   The loop + per-iteration `fcb` emission already works, so this is a
+   small, well-scoped feature.
+3. **User-defined `fn`** — a named, parameterized control-flow block that
+   evaluates to a value. Bigger design (reuse of the sizer-time control
+   flow, return-value mechanics, recursion policy, call depth).
+
+**Recommended approach:** floats + builtins first (covers the motivating
+case), user-defined `fn` second once the value model is proven.
+Pragmatic workaround until then: precompute tables with an external tool
+and paste the bytes.
+
+**When to look at it:** as the *next* feature branch, after the current
+one (control flow + structs + scoping navigator) has landed on master
+and the stargate/robotron pushes are done. Reasons: (a) floats+functions
+are a new expression-value model that would grow the branch and keep
+delaying the byte-identity milestone; (b) treesitter syntax is deferred
+until syntax is stable, and new syntax would churn the grammar again.
+
 ## Environment notes
 
 - DSH sandbox: `workspace-write` allows writes under the session
@@ -129,3 +169,99 @@ Priority order from `../crates/stargate-emu/docs/pickup.md`:
 - `~/.config` is a symlink to `~/dotfiles/.config` — same files.
 - The `gazm` CLI has a `lsp` subcommand (`gazm lsp gazm.toml`); the LSP
   branch is still incomplete per `gazm-plugin/AGENTS.md`.
+
+### Verifying the stargate/robotron fixtures — sandbox write quirk
+
+`~/development/stargate` and `~/development/robotron` are **outside** the
+gazm workspace, so under the `workspace-write` sandbox the assembler
+cannot write their `roms/` outputs. The build prints
+`Misc: Unable to write binary file "<...>/roms/01"` and ends with
+`Error: "one or more targets failed"`.
+
+**Trap:** running `sha1sum -c roms.sha1` right after such a build still
+reports `OK` — against the **stale** ROMs left by a previous build. The
+new binary never wrote anything, so a green checksum there proves
+nothing. Do not "verify" with an in-place build under the sandbox.
+
+**Do this instead** — build in a temp copy:
+
+```sh
+# stargate (committed tree): clean checkout semantics
+rm -rf /tmp/sg && mkdir -p /tmp/sg
+cd ~/development/stargate && git ls-files -z | tar --null -T - -cf - | tar -xf - -C /tmp/sg
+cd /tmp/sg && ~/development/gazm/target/release/gazm build && sha1sum -c roms.sha1
+
+# robotron (compile-only check; has uncommitted renames, so tar of
+# git ls-files would drop them — use a plain copy instead)
+rm -rf /tmp/robo && mkdir -p /tmp/robo
+cp -R ~/development/robotron/. /tmp/robo/
+cd /tmp/robo && ~/development/gazm/target/release/gazm build
+```
+
+Notes:
+- `Cannot load binary ref file orig/roms/*` errors during the build are
+  expected (the original ROM images aren't committed); the byte-identity
+  gate is `sha1sum -c roms.sha1`, not the build's exit code.
+- Outside the sandbox (a normal shell), in-place builds write the ROMs
+  fine; this only bites when a DSH agent runs the build.
+
+
+## 2026-08-23 — Stargate emulator: nvram, 6821 IRQ model, 6809 core fixes (commit 7b2ee01)
+
+**What works now** (verified against MAME 0.289):
+- Empty-CMOS boot matches MAME exactly: validation fail -> re-init -> the
+  `$E6B5` error-ack poll (waiting for the Advance/IN2 bit 1 service switch).
+  This is CORRECT behaviour, not a bug. MAME with an empty nvram does the
+  same.
+- With a valid nvram the pass path runs the main loop and reaches the attract
+  drawing phase (`$2AC0` sprite plotter; ours at ~14.85M instr, MAME at
+  ~11.99M — residual gap is a small beam-phase cycle drift).
+- CMOS checksum: half-open `[CC36, CC9E)`, low nibbles, +`$37`, packed across
+  `CCA0`(hi)/`CCA1`(lo) as `(cmos[CCA0]<<4)|(cmos[CCA1]&0x0F)`; the `|0xF0`
+  write mask is what makes the `<<4` round-trip.
+
+**Fixes in this session:**
+- emu6809: postbyte 0x9F `[abs]` was 2 bytes/no indirection — now 4 bytes,
+  EA = pointer at operand. Undocumented 0x01 (NEG direct) added (Stargate
+  jumps into a JSR operand at $0120 and executes it as NEG). Cycle-count
+  corrections (16-bit stores, JMP/JSR ext, CMPX-family imm, direct-page mem
+  ops, ORCC/ANDCC, long branches, indexed EA adders).
+- stargate-emu bus: 6821 model (data A/ctl A/data B/ctl B at C80C..C80F,
+  CA1=scanline>=240, CB1=bit5, flags latch on active edge, level-based IRQ,
+  data reads clear flags). Machine: IRQ level-based (no stale latch re-fire).
+- IRQ vector is $FFF8/$FFF9 = $9C6B (the beam handler), not SWI.
+
+**How to verify:** `cargo run --release --example passpath <romdir> <nvram> 25000000`
+with a MAME-generated nvram (e.g. `/tmp/mnv_test/stargate/nvram`) — the game
+draws the attract. `advance` example presses the Advance switch for the
+empty-nvram fail path.
+
+**Next steps / open items:**
+- The remaining ~0.03% cycle drift shifts the IRQ handler's beam-derived
+  value (`$7E`, the `15E3 BLS` branch) and delays the attract entry; compare
+  per-instruction cycle totals against the m6809 core.
+- Palette: neither MAME (60 s) nor ours (40 M instr) has written C000-C00F —
+  the attract colour init happens later in both; the drawn frame is currently
+  all-black because the palette is 0.
+- The `examples/` dir (advance/passpath/chk/dump/trace/...) is temporary
+  debug scaffolding; `passpath.rs` is the useful verification harness.
+
+## 2026-08-23 (later) — Project moved: emulator now at ~/development/williams-emu
+
+The Williams emulator project moved OUT of ~/development/crates into its own
+repo: `~/development/williams-emu` (commits: crates `ecaac26`, williams-emu
+`f278af8`).
+
+Layout:
+- `williams-emu/` root = the machine crate (was stargate-emu): src, docs,
+  examples; binaries `williams-emu` (CLI) and `stargate-frame` (renderer).
+- `app/` = the interactive winit/OpenGL/ImGui frontend (was stargate-app);
+  its build.rs compiles the tree-sitter gazm parser from
+  `../../gazm/gazm-plugin/treesitter-gazm/src` (path unchanged).
+- `debugger/` = the ratatui terminal debugger (was stargate-debug).
+
+Dependencies stayed in ~/development/crates and are referenced by path:
+williams-emu -> `../crates/{emu6809,emucore}`; app -> `../../crates/{wms-sound,grl-sources}`.
+Running the app: `cargo run --release -p app -- ~/development/stargate/roms`
+(F3 = Advance service switch). Verification harness:
+`cargo run --release --example passpath -- <roms> <nvram> <count>`.

@@ -1,4 +1,4 @@
-# Comparing the WMS sound board with MAME
+# Comparing the WMS Sound Board with MAME
 
 MAME is the reference for the Stargate board. The installed `stargate` set is
 complete and uses the same sound ROM as `wms-sound`, so comparisons can focus on
@@ -25,8 +25,8 @@ mame stargate -autoboot_script tools/mame_wms_capture.lua \
 ```
 
 `-wavwrite` records the final mixer output. The Lua script currently provides a
-stable capture hook and identifies the sound CPU; sound commands should still
-be generated through the game input path so that the PIA handshake is genuine.
+stable capture hook and identifies the sound CPU; sound commands should still be
+generated through the game input path so that the PIA handshake is genuine.
 
 ## Generate and compare Gazm output
 
@@ -62,8 +62,8 @@ python3 tools/mame_events_to_replay.py \
   /tmp/mame-sound-events-trace.log /tmp/stargate-events.log
 ```
 
-The converter changes the main-CPU timestamps into sound-CPU cycles and adds
-the `$c0` bits applied by MAME's `snd_cmd_w` handler.
+The converter changes the main-CPU timestamps into sound-CPU cycles and adds the
+`$c0` bits applied by MAME's `snd_cmd_w` handler.
 
 To capture a portable debugger checkpoint at the first sound IRQ:
 
