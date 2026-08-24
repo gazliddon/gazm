@@ -180,6 +180,12 @@ fn from_dec(lex: &mut Lexer<TokenKind>) -> Result<(i64, NumberKind), LexError> {
         .ok_or_else(|| LexError::at(lex.span(), LexErrorKind::InvalidNumber))
 }
 
+fn from_float(lex: &mut Lexer<TokenKind>) -> Result<f64, LexError> {
+    lex.slice()
+        .parse::<f64>()
+        .map_err(|_| LexError::at(lex.span(), LexErrorKind::InvalidNumber))
+}
+
 fn lex_error(lex: &mut Lexer<TokenKind>) -> LexError {
     let kind = match lex.slice().as_bytes().first() {
         Some(b'"') => LexErrorKind::InvalidString,
@@ -189,7 +195,8 @@ fn lex_error(lex: &mut Lexer<TokenKind>) -> LexError {
     LexError::at(lex.span(), kind)
 }
 
-#[derive(Logos, Copy, Clone, Debug, PartialEq, Eq)]
+// `Float(f64)` makes TokenKind PartialEq-only (f64 is not Eq).
+#[derive(Logos, Copy, Clone, Debug, PartialEq)]
 #[logos(error(LexError, callback = lex_error))]
 #[logos(skip r"[ \t\f\n]+")]
 // Identifiers: a letter/underscore start, then word chars with single
@@ -234,6 +241,13 @@ pub enum TokenKind {
     #[regex(r"(?&pre_bin)[0-9a-zA-Z_]*", from_bin, priority = 3)]
     #[regex(r"'.'", from_char)]
     Number((i64, NumberKind)),
+
+    // Float literal. The `..` range operator can't be confused with it:
+    // a dot is only part of a float when digits follow it, and `0..256`
+    // has a dot followed by a dot. Floats exist at assembly time only;
+    // emitting one requires an explicit conversion like `round()`.
+    #[regex(r"[0-9]+\.[0-9]+", from_float, priority = 4)]
+    Float(f64),
 
     #[token("[")]
     OpenSquareBracket,
@@ -471,6 +485,33 @@ mod tests {
             assert!(errors.is_empty(), "unexpected lexer error for {text:?}");
             assert!(matches!(tokens[0].kind, TokenKind::Number((_, kind)) if kind == expected));
         }
+    }
+
+    #[test]
+    fn float_literals_tokenize_as_floats() {
+        for text in ["3.14", "0.5", "127.0"] {
+            let source = crate::frontend::create_source_file(text);
+            let (tokens, errors) = to_tokens_no_comment_with_errors(&source);
+            assert!(errors.is_empty(), "unexpected lexer error for {text:?}");
+            assert!(
+                matches!(tokens[0].kind, TokenKind::Float(..)),
+                "{text:?} -> {:?}",
+                tokens[0].kind
+            );
+        }
+    }
+
+    #[test]
+    fn range_operator_is_not_a_float() {
+        // `0..256` must stay Number(0), DoubleDot, Number(256) — the float
+        // rule requires digits after the dot.
+        let source = crate::frontend::create_source_file("0..256");
+        let (tokens, errors) = to_tokens_no_comment_with_errors(&source);
+        assert!(errors.is_empty(), "unexpected lexer error");
+        assert_eq!(tokens.len(), 3, "{tokens:?}");
+        assert!(matches!(tokens[0].kind, TokenKind::Number((0, _))));
+        assert!(matches!(tokens[1].kind, TokenKind::DoubleDot));
+        assert!(matches!(tokens[2].kind, TokenKind::Number((256, _))));
     }
 
     #[test]

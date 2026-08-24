@@ -1284,4 +1284,87 @@ CONT:       nop
             "expected a redefinition error, got: {err}"
         );
     }
+
+    #[test]
+    fn sin_table_emits_rounded_bytes() {
+        // The motivating use case for compile-time floats: generate a sin
+        // table at assembly time. Floats never reach the target — each
+        // entry is rounded to an integer byte.
+        let src = r#"
+            org $1000
+            for i in 0..4 {
+                fcb round(sin(i * 2 * 3.14159 / 4) * 127)
+            }
+        "#;
+        // sin(0)=0, sin(pi/2)=1, sin(pi)=0, sin(3pi/2)=-1 -> 0, 127, 0, -127
+        assert_eq!(
+            assemble_bytes("sin_table", src, 0x1000, 4),
+            vec![0x00, 0x7F, 0x00, 0x81]
+        );
+    }
+
+    #[test]
+    fn float_arithmetic_promotes_and_rounds() {
+        let src = r#"
+            org $1000
+            fcb round(1.5 + 1.5), round(10 / 4.0), round(-2.5)
+        "#;
+        // -2.5 rounds to -3, emitted as byte 0xFD
+        assert_eq!(
+            assemble_bytes("float_arith", src, 0x1000, 3),
+            vec![3, 3, 0xFD]
+        );
+    }
+
+    #[test]
+    fn float_comparison_in_condition() {
+        let src = r#"
+            org $1000
+            if 1.5 > 1.0 {
+                fcb 1
+            } else {
+                fcb 0
+            }
+        "#;
+        assert_eq!(assemble_bytes("float_cond", src, 0x1000, 1), vec![1]);
+    }
+
+    #[test]
+    fn float_result_without_conversion_is_an_error() {
+        let src = r#"
+            org $1000
+            fcb 1.5
+        "#;
+        let err = assemble_error("float_unconverted", src);
+        assert!(
+            err.contains("use round()"),
+            "expected a float-conversion error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn float_bitwise_is_an_error() {
+        let src = r#"
+            org $1000
+            fcb 1.5 & 2
+        "#;
+        let err = assemble_error("float_bitwise", src);
+        assert!(
+            err.contains("require integer operands"),
+            "expected a float bitwise error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn unknown_function_is_an_error() {
+        let src = r#"
+            org $1000
+            fcb foo(1)
+        "#;
+        let err = assemble_error("unknown_fn", src);
+        assert!(
+            err.contains("Unknown function foo"),
+            "expected an unknown-function error, got: {err}"
+        );
+    }
 }

@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 
-use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0};
+use unraveler::{alt, many0, match_span as ms, pair, sep_list, sep_list0, Parser};
 
 use super::{
     concat, from_item_children_tspan, from_item_tspan, parse_bracketed, AstNodeKind, GazmParser,
@@ -38,11 +38,23 @@ impl GazmParser {
         Ok((rest, Self::with_tspan(matched, sp)))
     }
 
+    /// A compile-time function call: a plain identifier followed by a
+    /// bracketed argument list, e.g. `sin(x)` / `round(v * 3.14)`.
+    fn parse_call(input: TSpan) -> PResult<Node> {
+        let (rest, sp) = TokenKind::Identifier.parse(input)?;
+        let name = super::get_text(sp).to_string();
+        let (rest, (csp, args)) = ms(parse_bracketed(Self::parse_expr_list0))(rest)?;
+        let node = from_item_children_tspan(AstNodeKind::Call(name), &args, csp);
+        Ok((rest, node))
+    }
+
     pub fn parse_non_unary_term(input: TSpan) -> PResult<Node> {
         let parse_pc = |i| Self::op_to_node(i, Star, AstNodeKind::Pc);
         alt((
             Self::parse_bracketed_expr,
             Self::parse_number,
+            Self::parse_float,
+            Self::parse_call,
             Self::parse_label,
             parse_pc,
         ))(input)

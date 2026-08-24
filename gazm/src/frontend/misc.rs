@@ -16,6 +16,12 @@ fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
     Ok((rest, (sp, matched.kind)))
 }
 
+fn match_float(input: TSpan) -> PResult<(TSpan, TokenKind)> {
+    use TokenKind::Float;
+    let (rest, (sp, matched)) = ms(match_item(|i: &Token| matches!(i.kind, Float(..))))(input)?;
+    Ok((rest, (sp, matched.kind)))
+}
+
 impl GazmParser {
     pub fn parse_number(input: TSpan) -> PResult<Node> {
         use TokenKind::Number;
@@ -24,6 +30,18 @@ impl GazmParser {
         match kind {
             Number((n, nk)) => {
                 let node = from_item_tspan(AstNodeKind::Num(n, nk.into()), sp);
+                Ok((rest, node))
+            }
+            _ => panic!(),
+        }
+    }
+
+    pub fn parse_float(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, kind)) = match_float(input)?;
+
+        match kind {
+            TokenKind::Float(f) => {
+                let node = from_item_tspan(AstNodeKind::Fnum(f, ParsedFrom::Decimal), sp);
                 Ok((rest, node))
             }
             _ => panic!(),

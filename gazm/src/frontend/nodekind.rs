@@ -172,6 +172,42 @@ pub enum AstNodeKind {
     LogicalAnd,
     LogicalOr,
     Block,
+
+    /// Floating-point literal. Floats are transient expression values
+    /// (the target is 8-bit): arithmetic on them happens at assembly
+    /// time, and an explicit conversion such as `round()` is required to
+    /// turn a float back into an emitted integer.
+    Fnum(f64, ParsedFrom),
+
+    /// Compile-time function call, e.g. `sin(x)`. The callee is a
+    /// builtin (currently `sin`, `cos`, `round`); children are the
+    /// argument expressions. Functions are not macros: they execute at
+    /// assembly time and produce a value.
+    Call(String),
+}
+
+/// Identity of a binary operator, so precedence lives in one table
+/// (`binary_operator`) while the integer and float semantics live in one
+/// place (the evaluator). Keep the variants in step with the table.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum BinaryOp {
+    Mul,
+    Div,
+    Add,
+    Sub,
+    ShiftL,
+    ShiftR,
+    BitAnd,
+    BitXor,
+    BitOr,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+    LogicalAnd,
+    LogicalOr,
 }
 
 impl AstNodeKind {
@@ -187,33 +223,35 @@ impl AstNodeKind {
         matches!(self, Self::Expr | Self::BracketedExpr)
     }
     pub fn is_number(&self) -> bool {
-        matches!(self, Self::Num(..))
+        matches!(self, Self::Num(..) | Self::Fnum(..))
     }
 
-    /// Binary operators: precedence and evaluation in one table, so the
-    /// precedence rules and the evaluator semantics can never drift apart.
-    /// A future operator is added here once; `GetPriority` and the postfix
-    /// evaluator both consume this.
-    pub fn binary_operator(&self) -> Option<(usize, fn(i64, i64) -> i64)> {
+    /// Binary operators: precedence and operator identity in one table,
+    /// so the precedence rules and the evaluator semantics can never
+    /// drift apart. A future operator is added here once; `GetPriority`
+    /// and the postfix evaluator both consume this. The integer and
+    /// float `apply` semantics live in the evaluator, keyed by
+    /// `BinaryOp`.
+    pub fn binary_operator(&self) -> Option<(usize, BinaryOp)> {
         use AstNodeKind::*;
         match self {
-            Mul => Some((12, |l, r| l * r)),
-            Div => Some((12, |l, r| l / r)),
-            Add => Some((11, |l, r| l + r)),
-            Sub => Some((11, |l, r| l - r)),
-            ShiftL => Some((10, |l, r| l << (r as u64))),
-            ShiftR => Some((10, |l, r| l >> (r as u64))),
-            BitAnd => Some((9, |l, r| l & r)),
-            BitXor => Some((8, |l, r| l ^ r)),
-            BitOr => Some((7, |l, r| l | r)),
-            Equal => Some((6, |l, r| (l == r) as i64)),
-            NotEqual => Some((6, |l, r| (l != r) as i64)),
-            LessThan => Some((5, |l, r| (l < r) as i64)),
-            LessThanEqual => Some((5, |l, r| (l <= r) as i64)),
-            GreaterThan => Some((5, |l, r| (l > r) as i64)),
-            GreaterThanEqual => Some((5, |l, r| (l >= r) as i64)),
-            LogicalAnd => Some((4, |l, r| (l != 0 && r != 0) as i64)),
-            LogicalOr => Some((3, |l, r| (l != 0 || r != 0) as i64)),
+            Mul => Some((12, BinaryOp::Mul)),
+            Div => Some((12, BinaryOp::Div)),
+            Add => Some((11, BinaryOp::Add)),
+            Sub => Some((11, BinaryOp::Sub)),
+            ShiftL => Some((10, BinaryOp::ShiftL)),
+            ShiftR => Some((10, BinaryOp::ShiftR)),
+            BitAnd => Some((9, BinaryOp::BitAnd)),
+            BitXor => Some((8, BinaryOp::BitXor)),
+            BitOr => Some((7, BinaryOp::BitOr)),
+            Equal => Some((6, BinaryOp::Equal)),
+            NotEqual => Some((6, BinaryOp::NotEqual)),
+            LessThan => Some((5, BinaryOp::LessThan)),
+            LessThanEqual => Some((5, BinaryOp::LessThanEqual)),
+            GreaterThan => Some((5, BinaryOp::GreaterThan)),
+            GreaterThanEqual => Some((5, BinaryOp::GreaterThanEqual)),
+            LogicalAnd => Some((4, BinaryOp::LogicalAnd)),
+            LogicalOr => Some((3, BinaryOp::LogicalOr)),
             _ => None,
         }
     }

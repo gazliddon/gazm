@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::{
     error::AstError,
-    frontend::{AstNodeKind, LabelDefinition, ParsedFrom},
+    frontend::{AstNodeKind, BinaryOp, LabelDefinition, ParsedFrom},
     gazmsymbols::{SymbolError, SymbolTreeReader},
     semantic::{AstNodeId, AstNodeRef},
 };
@@ -30,6 +30,14 @@ pub enum EvalErrorEnum {
     UnableToEvaluate,
     #[error("Can't pop top!")]
     CantPopTop,
+    #[error("Unknown function {0}")]
+    UnknownFunction(String),
+    #[error("Function {0} takes 1 argument")]
+    WrongArity(String),
+    #[error("Expression evaluates to a float; use round() to convert it to an integer")]
+    FloatResult,
+    #[error("Bitwise and shift operators require integer operands")]
+    FloatBitwiseOp,
 }
 
 #[derive(Error, Debug, Clone)]
@@ -119,17 +127,47 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKin
             let num = c.next().unwrap();
             let r = eval_internal(symbols, num)?;
 
-            let num = r.unrwap_number().unwrap();
-
-            let num = &match ops.value().item {
-                AstNodeKind::Sub => AstNodeKind::Num(-num, ParsedFrom::Expression),
+            match (&ops.value().item, r) {
+                (AstNodeKind::Sub, AstNodeKind::Num(num, p)) => AstNodeKind::Num(-num, p),
+                (AstNodeKind::Sub, AstNodeKind::Fnum(f, p)) => AstNodeKind::Fnum(-f, p),
                 _ => return Err(EvalError::new(EvalErrorEnum::UnhandledUnaryTerm, n)),
-            };
-
-            num.clone()
+            }
         }
 
         Num(_, _) => i.clone(),
+        Fnum(_, _) => i.clone(),
+
+        // Compile-time function call: builtins execute at assembly time
+        // and produce a value. Floats stay transient here; emitting them
+        // requires an explicit conversion such as round().
+        Call(name) => {
+            let mut args = n.children();
+            let arg = args
+                .next()
+                .ok_or_else(|| EvalError::new(EvalErrorEnum::WrongArity(name.clone()), n))?;
+            if args.next().is_some() {
+                return Err(EvalError::new(EvalErrorEnum::WrongArity(name.clone()), n));
+            }
+            let value = eval_internal(symbols, arg)?;
+            match name.as_str() {
+                "sin" => apply_math(value, f64::sin),
+                "cos" => apply_math(value, f64::cos),
+                "round" => match value {
+                    // round() of an integer is the integer itself.
+                    AstNodeKind::Num(x, _) => AstNodeKind::Num(x, ParsedFrom::Expression),
+                    AstNodeKind::Fnum(x, _) => {
+                        AstNodeKind::Num(x.round() as i64, ParsedFrom::Expression)
+                    }
+                    _ => unreachable!(),
+                },
+                _ => {
+                    return Err(EvalError::new(
+                        EvalErrorEnum::UnknownFunction(name.clone()),
+                        n,
+                    ))
+                }
+            }
+        }
 
         _ => {
             return Err(EvalError::new(EvalErrorEnum::UnableToEvaluate, n));
@@ -137,7 +175,7 @@ fn eval_internal(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKin
     };
 
     // If this isn't a number return an error
-    if let AstNodeKind::Num(_, _) = rez {
+    if rez.is_number() {
         Ok(rez)
     } else {
         Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n))
@@ -169,15 +207,25 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind
         if i.is_op() {
             let (rhs, lhs) = s.pop_pair().expect("Can't pop pair!");
 
-            let lhs = lhs.unrwap_number().unwrap();
-            let rhs = rhs.unrwap_number().unwrap();
-
-            let (_, apply) = i
+            let (_, op) = i
                 .binary_operator()
                 .ok_or_else(|| EvalError::new(EvalErrorEnum::UnexpectedOp, *cn))?;
-            let result = apply(lhs, rhs);
 
-            s.push(Num(result, ParsedFrom::Expression))
+            // Float promotion: if either operand is a float, both are
+            // widened to f64 and the float semantics apply. Comparisons
+            // and logicals always produce integer 0/1, so they can feed
+            // `if`/`while` conditions directly.
+            let result = match (&lhs, &rhs) {
+                (Num(a, _), Num(b, _)) => Num(apply_int(op, *a, *b), ParsedFrom::Expression),
+                _ => {
+                    let lf = number_to_f64(&lhs);
+                    let rf = number_to_f64(&rhs);
+                    apply_float(op, lf, rf)
+                        .map_err(|_| EvalError::new(EvalErrorEnum::FloatBitwiseOp, *cn))?
+                }
+            };
+
+            s.push(result)
         } else {
             s.push(i.clone());
         }
@@ -188,5 +236,76 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind
 
 pub fn eval(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<i64, EvalError> {
     let ret = eval_internal(symbols, n)?;
-    Ok(ret.unrwap_number().unwrap())
+    match ret {
+        AstNodeKind::Num(n, _) => Ok(n),
+        // A float reaching the boundary (fcb/fdb/equ/conditions...) is an
+        // error: emitting one requires an explicit conversion.
+        AstNodeKind::Fnum(..) => Err(EvalError::new(EvalErrorEnum::FloatResult, n)),
+        _ => Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n)),
+    }
+}
+
+/// Apply a builtin math function to a number (int or float); the result
+/// is always a float.
+fn apply_math(value: AstNodeKind, f: fn(f64) -> f64) -> AstNodeKind {
+    match value {
+        AstNodeKind::Num(x, _) => AstNodeKind::Fnum(f(x as f64), ParsedFrom::Expression),
+        AstNodeKind::Fnum(x, _) => AstNodeKind::Fnum(f(x), ParsedFrom::Expression),
+        _ => unreachable!(),
+    }
+}
+
+/// The integer semantics of a binary operator. Mirrors `apply_float`;
+/// both live here so operator behaviour stays in one place.
+fn apply_int(op: BinaryOp, l: i64, r: i64) -> i64 {
+    use BinaryOp::*;
+    match op {
+        Mul => l * r,
+        Div => l / r,
+        Add => l + r,
+        Sub => l - r,
+        ShiftL => l << (r as u64),
+        ShiftR => l >> (r as u64),
+        BitAnd => l & r,
+        BitXor => l ^ r,
+        BitOr => l | r,
+        Equal => (l == r) as i64,
+        NotEqual => (l != r) as i64,
+        LessThan => (l < r) as i64,
+        LessThanEqual => (l <= r) as i64,
+        GreaterThan => (l > r) as i64,
+        GreaterThanEqual => (l >= r) as i64,
+        LogicalAnd => (l != 0 && r != 0) as i64,
+        LogicalOr => (l != 0 || r != 0) as i64,
+    }
+}
+
+/// The float semantics of a binary operator. Comparisons and logicals
+/// yield integer 0/1 (usable in conditions); bitwise/shift operators
+/// have no float meaning and are rejected.
+fn apply_float(op: BinaryOp, l: f64, r: f64) -> Result<AstNodeKind, ()> {
+    use BinaryOp::*;
+    Ok(match op {
+        Mul => AstNodeKind::Fnum(l * r, ParsedFrom::Expression),
+        Div => AstNodeKind::Fnum(l / r, ParsedFrom::Expression),
+        Add => AstNodeKind::Fnum(l + r, ParsedFrom::Expression),
+        Sub => AstNodeKind::Fnum(l - r, ParsedFrom::Expression),
+        Equal => AstNodeKind::Num((l == r) as i64, ParsedFrom::Expression),
+        NotEqual => AstNodeKind::Num((l != r) as i64, ParsedFrom::Expression),
+        LessThan => AstNodeKind::Num((l < r) as i64, ParsedFrom::Expression),
+        LessThanEqual => AstNodeKind::Num((l <= r) as i64, ParsedFrom::Expression),
+        GreaterThan => AstNodeKind::Num((l > r) as i64, ParsedFrom::Expression),
+        GreaterThanEqual => AstNodeKind::Num((l >= r) as i64, ParsedFrom::Expression),
+        LogicalAnd => AstNodeKind::Num((l != 0.0 && r != 0.0) as i64, ParsedFrom::Expression),
+        LogicalOr => AstNodeKind::Num((l != 0.0 || r != 0.0) as i64, ParsedFrom::Expression),
+        ShiftL | ShiftR | BitAnd | BitXor | BitOr => return Err(()),
+    })
+}
+
+fn number_to_f64(n: &AstNodeKind) -> f64 {
+    match n {
+        AstNodeKind::Num(x, _) => *x as f64,
+        AstNodeKind::Fnum(x, _) => *x,
+        _ => unreachable!(),
+    }
 }
