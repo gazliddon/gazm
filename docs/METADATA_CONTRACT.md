@@ -67,14 +67,13 @@ Payloads:
 Consumers reject unknown magic, versions, flags, or payload lengths before
 bincode.
 
-## 4. Artifact envelope v4: `TargetInfo` header
+## 4. Artifact envelope: `TargetInfo` header (v4 bincode, v5 named map)
 
 Same envelope, plus an optional header block inserted between the fixed
 16 bytes and the payload. Bit 0 of the reserved `flags` u16 = header
-present. Files with the header are written as version **4**; headerless
-files stay version **3** so existing consumers see no change.
-
-Header payload (bincode 1.x, `serde`):
+present. Headerless files stay version **3** so existing consumers see
+no change. Header-bearing files are version **4** (frozen bincode layout)
+or **5** (rmp-serde named map — the current format).
 
 ```rust
 pub struct TargetInfo {
@@ -86,12 +85,25 @@ pub struct TargetInfo {
     pub checksums: Vec<RomChecksum>,        // { name, addr, size, sha1 }
     pub sections: Vec<Section>,             // named memory regions (see §6)
     pub tool_version: String,       // gazm version that wrote the file
+    pub struct_sizes: Vec<StructSize>,      // { name, size } per struct
 }
 ```
 
 Compatibility: v3 files (no header, flags = 0) must still load; the reader
-returns `TargetInfo = None` for them. `encode_artifact` gains an optional
-`TargetInfo` argument.
+returns `TargetInfo = None` for them. v4 files (gazm ≤ 0.11.0, bincode,
+positional, no `struct_sizes`) must still load — the reader keeps the
+frozen v4 layout as a compat struct and decodes those with empty
+`struct_sizes`.
+
+**Evolvability (v5):** the header is serialized with
+`rmp_serde::to_vec_named` — a *named map*, not positional bincode. New
+fields can be added freely: readers **default missing fields** (old file,
+new reader) and **ignore unknown fields** (new file, old reader), so
+neither direction breaks. Do not reorder or remove existing field names.
+(Payloads stay bincode — they are large and rarely change shape.)
+
+`struct_sizes` is a plain name→size list (`Proc -> 15`); the debugger can
+ignore it until it displays structs.
 
 ## 5. Config: one switch for "write metadata or nothing"
 

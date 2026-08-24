@@ -2,7 +2,8 @@
 
 use gazm_metadata::envelope::{
     decode_artifact, encode_artifact, AccessType, BinReference, CpuKind, Magic, RomChecksum,
-    Section, TargetInfo, ARTIFACT_VERSION, ARTIFACT_VERSION_WITH_HEADER, FLAG_HAS_TARGET_INFO,
+    Section, StructSize, TargetInfo, ARTIFACT_VERSION, ARTIFACT_VERSION_NAMED_HEADER,
+    ARTIFACT_VERSION_WITH_HEADER, FLAG_HAS_TARGET_INFO,
 };
 use gazm_metadata::target::Target;
 
@@ -29,6 +30,10 @@ fn sample_target_info() -> TargetInfo {
             access: AccessType::Read,
         }],
         tool_version: "0.9.17".into(),
+        struct_sizes: vec![StructSize {
+            name: "Proc".into(),
+            size: 15,
+        }],
     }
 }
 
@@ -58,7 +63,7 @@ fn v4_envelope_round_trips_with_header() {
     assert_eq!(&bytes[0..4], b"GZSY");
     assert_eq!(
         u16::from_le_bytes(bytes[4..6].try_into().unwrap()),
-        ARTIFACT_VERSION_WITH_HEADER
+        ARTIFACT_VERSION_NAMED_HEADER
     );
     assert_eq!(
         u16::from_le_bytes(bytes[6..8].try_into().unwrap()),
@@ -66,9 +71,112 @@ fn v4_envelope_round_trips_with_header() {
     );
 
     let artifact = decode_artifact(&bytes, Magic::Symbols).unwrap();
-    assert_eq!(artifact.version, ARTIFACT_VERSION_WITH_HEADER);
+    assert_eq!(artifact.version, ARTIFACT_VERSION_NAMED_HEADER);
     assert_eq!(artifact.target_info, Some(info));
     assert_eq!(artifact.payload, payload);
+}
+
+#[test]
+fn v5_header_ignores_unknown_fields() {
+    // The named-map header is forward-evolvable: a file written by a
+    // future gazm with extra header fields must still decode, with the
+    // known fields intact and unknown ones ignored.
+    let info = sample_target_info();
+    let payload = b"fake-bincode-payload";
+
+    // The future layout: current fields plus one appended field.
+    #[derive(serde::Serialize)]
+    struct FutureTargetInfo {
+        target_name: String,
+        cpu: CpuKind,
+        mem_size: usize,
+        exec_addr: Option<usize>,
+        bin_references: Vec<BinReference>,
+        checksums: Vec<RomChecksum>,
+        sections: Vec<Section>,
+        tool_version: String,
+        struct_sizes: Vec<StructSize>,
+        future_field: u32,
+    }
+    let future = FutureTargetInfo {
+        target_name: info.target_name.clone(),
+        cpu: info.cpu.clone(),
+        mem_size: info.mem_size,
+        exec_addr: info.exec_addr,
+        bin_references: info.bin_references.clone(),
+        checksums: info.checksums.clone(),
+        sections: info.sections.clone(),
+        tool_version: info.tool_version.clone(),
+        struct_sizes: info.struct_sizes.clone(),
+        future_field: 42,
+    };
+    let header = rmp_serde::to_vec_named(&future).unwrap();
+
+    let mut body = Vec::new();
+    body.extend_from_slice(&(header.len() as u64).to_le_bytes());
+    body.extend_from_slice(&header);
+    body.extend_from_slice(payload);
+
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(&Magic::SourceMap.as_bytes());
+    bytes.extend_from_slice(&ARTIFACT_VERSION_NAMED_HEADER.to_le_bytes());
+    bytes.extend_from_slice(&FLAG_HAS_TARGET_INFO.to_le_bytes());
+    bytes.extend_from_slice(&(body.len() as u64).to_le_bytes());
+    bytes.extend_from_slice(&body);
+
+    let artifact = decode_artifact(&bytes, Magic::SourceMap).unwrap();
+    assert_eq!(artifact.version, ARTIFACT_VERSION_NAMED_HEADER);
+    let decoded = artifact.target_info.expect("v5 header present");
+    assert_eq!(decoded, info, "extra field is ignored, known fields intact");
+    assert_eq!(artifact.payload, payload);
+}
+
+#[test]
+fn v4_header_without_struct_sizes_still_decodes() {
+    // A v4 file written before `struct_sizes` existed (contract §4
+    // append-only rule): the reader must decode it with empty sizes.
+    #[derive(serde::Serialize)]
+    struct OldTargetInfo {
+        target_name: String,
+        cpu: CpuKind,
+        mem_size: usize,
+        exec_addr: Option<usize>,
+        bin_references: Vec<BinReference>,
+        checksums: Vec<RomChecksum>,
+        sections: Vec<Section>,
+        tool_version: String,
+    }
+    let old = OldTargetInfo {
+        target_name: "demo".into(),
+        cpu: CpuKind::Cpu6809,
+        mem_size: 65536,
+        exec_addr: None,
+        bin_references: vec![],
+        checksums: vec![],
+        sections: vec![],
+        tool_version: "0.11.0".into(),
+    };
+    let header = bincode::serialize(&old).unwrap();
+    let mut body = Vec::new();
+    body.extend_from_slice(&(header.len() as u64).to_le_bytes());
+    body.extend_from_slice(&header);
+    body.extend_from_slice(b"payload");
+
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(&Magic::SourceMap.as_bytes());
+    bytes.extend_from_slice(&ARTIFACT_VERSION_WITH_HEADER.to_le_bytes());
+    bytes.extend_from_slice(&FLAG_HAS_TARGET_INFO.to_le_bytes());
+    bytes.extend_from_slice(&(body.len() as u64).to_le_bytes());
+    bytes.extend_from_slice(&body);
+
+    let artifact = decode_artifact(&bytes, Magic::SourceMap).unwrap();
+    let info = artifact.target_info.expect("v4 header present");
+    assert_eq!(info.target_name, "demo");
+    assert!(
+        info.struct_sizes.is_empty(),
+        "old files decode with empty struct_sizes, got {:?}",
+        info.struct_sizes
+    );
 }
 
 #[test]
@@ -91,13 +199,16 @@ fn truncated_payload_is_rejected() {
 /// `roms/`.  Set `STARGATE_DIR` to the build cwd, or default to the
 /// developer's checkout.
 fn stargate_dir() -> Option<std::path::PathBuf> {
-    std::env::var("STARGATE_DIR")
+    let dir = std::env::var("STARGATE_DIR")
         .map(std::path::PathBuf::from)
         .ok()
         .or_else(|| {
             let p = std::path::PathBuf::from(env!("HOME")).join("development/stargate");
             p.exists().then_some(p)
-        })
+        })?;
+    // Skip gracefully when the artifacts aren't actually there (the
+    // checkout only has them after an in-place build).
+    (dir.join("stargate.map").exists() && dir.join("stargate.sym").exists()).then_some(dir)
 }
 
 fn read_artifact(dir: &std::path::Path, name: &str) -> Vec<u8> {
@@ -125,6 +236,15 @@ fn real_stargate_artifacts_load() {
     // Stargate has no `exec_addr` directive, so the header (and the
     // payload) carry None.
     assert_eq!(info.exec_addr, None);
+    // Struct totals: Proc = link(2)+addr(2)+time(1)+type(1)+cod(1)+
+    // data(1)+d1..d7(7) = 15; Smap = 4 fields.
+    let sizes: std::collections::HashMap<_, _> = info
+        .struct_sizes
+        .iter()
+        .map(|s| (s.name.as_str(), s.size))
+        .collect();
+    assert_eq!(sizes.get("Proc"), Some(&15), "struct sizes: {:?}", sizes);
+    assert_eq!(sizes.get("Smap"), Some(&4), "struct sizes: {:?}", sizes);
 
     // The ROM map should have many instruction boundaries.  Note: the
     // writer marks *every* compiled entry as OpCode (data directives
@@ -142,7 +262,10 @@ fn real_stargate_artifacts_load() {
     let bs = target.source_map.boundaries();
     let probe = &bs[bs.len() / 2];
     let addrs = target.source_map.addresses_for(probe.file_id, probe.line);
-    assert!(addrs.contains(&probe.addr), "line must resolve to its address");
+    assert!(
+        addrs.contains(&probe.addr),
+        "line must resolve to its address"
+    );
 }
 
 #[test]

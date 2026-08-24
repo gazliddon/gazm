@@ -23,12 +23,16 @@ use std::{fs, path::Path};
 // header block (flag bit 0). Files without the header stay version 3 so
 // consumers that predate the header keep loading them (contract §3/§4).
 const ARTIFACT_VERSION: u16 = 3;
+/// v4: header present, bincode (positional). Frozen for old-file compat.
 const ARTIFACT_VERSION_WITH_HEADER: u16 = 4;
+/// v5: header present, rmp-serde named map (evolvable — contract §4).
+const ARTIFACT_VERSION_NAMED_HEADER: u16 = 5;
 const FLAG_HAS_TARGET_INFO: u16 = 0x0001;
 
 /// Per-build target identity embedded at v4. Field order and types must
 /// match `gazm-metadata`'s `TargetInfo` exactly — bincode 1.x is
-/// layout-sensitive and the reader deserializes this block.
+/// layout-sensitive and the reader deserializes this block. Append-only:
+/// new fields go at the end with `#[serde(default)]` (contract §4).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct TargetInfo {
     target_name: String,
@@ -39,6 +43,16 @@ struct TargetInfo {
     checksums: Vec<RomChecksum>,
     sections: Vec<Section>,
     tool_version: String,
+    #[serde(default)]
+    struct_sizes: Vec<StructSize>,
+}
+
+/// A struct's total size in bytes, e.g. `Proc -> 15`. Mirror of
+/// `gazm-metadata`'s `StructSize`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StructSize {
+    name: String,
+    size: usize,
 }
 
 /// Mirror of `gazm-metadata`'s `RomChecksum` (same field order).
@@ -77,13 +91,17 @@ fn encode_artifact<T: Serialize>(
     let payload = bincode::serialize(value).context("Unable to serialize binary artifact")?;
 
     // The header block is length-prefixed and inserted between the fixed
-    // envelope and the payload; version and flags advertise it (contract §4).
+    // envelope and the payload; version and flags advertise it (contract
+    // §4). Since v5 the header is a rmp-serde *named map*, so fields can
+    // be added freely: readers default missing fields and ignore unknown
+    // ones. v4 (bincode, positional) is frozen for old-file compat.
     let mut body = Vec::with_capacity(payload.len());
     let (version, flags) = if let Some(info) = target_info {
-        let header = bincode::serialize(info).context("Unable to serialize TargetInfo header")?;
+        let header =
+            rmp_serde::to_vec_named(info).context("Unable to serialize TargetInfo header")?;
         body.extend_from_slice(&(header.len() as u64).to_le_bytes());
         body.extend_from_slice(&header);
-        (ARTIFACT_VERSION_WITH_HEADER, FLAG_HAS_TARGET_INFO)
+        (ARTIFACT_VERSION_NAMED_HEADER, FLAG_HAS_TARGET_INFO)
     } else {
         (ARTIFACT_VERSION, 0)
     };
@@ -221,6 +239,18 @@ impl Assembler {
                 })
                 .collect(),
             tool_version: env!("CARGO_PKG_VERSION").to_string(),
+            struct_sizes: self
+                .asm_out
+                .struct_sizes
+                .iter()
+                .filter_map(|(scope_id, size)| {
+                    let name = self
+                        .get_symbols()
+                        .get_scope_info_from_id(*scope_id)
+                        .map(|info| info.name.clone());
+                    name.map(|name| StructSize { name, size: *size })
+                })
+                .collect(),
         });
 
         let (source, symbols) = rayon::join(
@@ -414,6 +444,10 @@ mod tests {
                 access: AccessType::Read,
             }],
             tool_version: "test".into(),
+            struct_sizes: vec![StructSize {
+                name: "Proc".into(),
+                size: 15,
+            }],
         }
     }
 
@@ -433,8 +467,9 @@ mod tests {
         assert_eq!(decoded, payload);
     }
 
-    /// With header: version 4, flag bit 0, and every `TargetInfo` field
-    /// decodes through the real reader with identical values.
+    /// With header: version 5 (named map), flag bit 0, and every
+    /// `TargetInfo` field decodes through the real reader with identical
+    /// values.
     #[test]
     fn artifact_with_header_round_trips_through_reader() {
         let info = sample_target_info();
@@ -442,7 +477,7 @@ mod tests {
         let bytes = encode_artifact(b"GZSY", Some(&info), &payload).unwrap();
 
         let art = decode_artifact(&bytes, Magic::Symbols).unwrap();
-        assert_eq!(art.version, ARTIFACT_VERSION_WITH_HEADER);
+        assert_eq!(art.version, ARTIFACT_VERSION_NAMED_HEADER);
         assert_eq!(art.flags, FLAG_HAS_TARGET_INFO);
 
         let got = art.target_info.expect("header present");

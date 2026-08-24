@@ -46,13 +46,17 @@ impl Magic {
 
 /// Current on-disk format version written by `gazm` (writers.rs).
 pub const ARTIFACT_VERSION: u16 = 3;
-/// Format version that adds the optional `TargetInfo` header.
+/// v4: header present, bincode (positional). Frozen for old-file compat.
 pub const ARTIFACT_VERSION_WITH_HEADER: u16 = 4;
+/// v5: header present, rmp-serde named map (evolvable — contract §4).
+pub const ARTIFACT_VERSION_NAMED_HEADER: u16 = 5;
 
 /// Flag bit 0: a `TargetInfo` header block follows the fixed envelope.
 pub const FLAG_HAS_TARGET_INFO: u16 = 0x0001;
 
-/// Per-build target identity embedded at v4 (contract §4).
+/// Per-build target identity embedded at v4/v5 (contract §4). Since v5 the
+/// header is a rmp-serde *named map*: readers default missing fields and
+/// ignore unknown ones, so new fields can be appended freely.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TargetInfo {
     pub target_name: String,
@@ -63,6 +67,55 @@ pub struct TargetInfo {
     pub checksums: Vec<RomChecksum>,
     pub sections: Vec<Section>,
     pub tool_version: String,
+    /// Total size in bytes per struct (`Proc -> 15`). Appended to the
+    /// v4 header (contract §4): old readers ignore it, old files decode
+    /// to an empty list.
+    #[serde(default)]
+    pub struct_sizes: Vec<StructSize>,
+}
+
+/// A struct's total size in bytes, e.g. `Proc -> 15`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct StructSize {
+    pub name: String,
+    pub size: usize,
+}
+
+/// The frozen v4 `TargetInfo` layout (bincode, positional, no
+/// `struct_sizes`). Files written by gazm ≤ 0.11.0 use it; the reader
+/// decodes those into the current `TargetInfo` with empty struct sizes.
+#[derive(Debug, Clone, Deserialize)]
+struct LegacyV4TargetInfo {
+    target_name: String,
+    cpu: CpuKind,
+    mem_size: usize,
+    exec_addr: Option<usize>,
+    bin_references: Vec<BinReference>,
+    checksums: Vec<RomChecksum>,
+    sections: Vec<Section>,
+    tool_version: String,
+}
+
+impl LegacyV4TargetInfo {
+    fn from_v4_bincode(bytes: &[u8]) -> Result<Self, ArtifactError> {
+        bincode::deserialize(bytes).map_err(|_| ArtifactError::BadHeader)
+    }
+}
+
+impl From<LegacyV4TargetInfo> for TargetInfo {
+    fn from(old: LegacyV4TargetInfo) -> Self {
+        TargetInfo {
+            target_name: old.target_name,
+            cpu: old.cpu,
+            mem_size: old.mem_size,
+            exec_addr: old.exec_addr,
+            bin_references: old.bin_references,
+            checksums: old.checksums,
+            sections: old.sections,
+            tool_version: old.tool_version,
+            struct_sizes: vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -205,8 +258,15 @@ pub fn decode_artifact(bytes: &[u8], expected: Magic) -> Result<Artifact<'_>, Ar
             return Err(ArtifactError::BadHeader);
         }
         let (header_bytes, rest) = payload.split_at(8 + header_len);
-        let info: TargetInfo =
-            bincode::deserialize(&header_bytes[8..]).map_err(|_| ArtifactError::BadHeader)?;
+        // v5+: named-map header — new fields default when absent, unknown
+        // fields are ignored, so the format evolves without breaking old
+        // files or old readers. v4 is the frozen positional layout.
+        let info = if version >= ARTIFACT_VERSION_NAMED_HEADER {
+            rmp_serde::from_slice::<TargetInfo>(&header_bytes[8..])
+                .map_err(|_| ArtifactError::BadHeader)?
+        } else {
+            LegacyV4TargetInfo::from_v4_bincode(&header_bytes[8..])?.into()
+        };
         payload = rest;
         Some(info)
     } else {
@@ -230,7 +290,7 @@ pub fn decode_artifact(bytes: &[u8], expected: Magic) -> Result<Artifact<'_>, Ar
 /// tested without depending on the `gazm` crate.
 pub fn encode_artifact(magic: Magic, target_info: Option<&TargetInfo>, payload: &[u8]) -> Vec<u8> {
     let version = if target_info.is_some() {
-        ARTIFACT_VERSION_WITH_HEADER
+        ARTIFACT_VERSION_NAMED_HEADER
     } else {
         ARTIFACT_VERSION
     };
@@ -241,7 +301,7 @@ pub fn encode_artifact(magic: Magic, target_info: Option<&TargetInfo>, payload: 
     };
     let mut body = Vec::new();
     if let Some(info) = target_info {
-        let header = bincode::serialize(info).expect("TargetInfo serializes");
+        let header = rmp_serde::to_vec_named(info).expect("TargetInfo serializes");
         body.extend_from_slice(&(header.len() as u64).to_le_bytes());
         body.extend_from_slice(&header);
     }
