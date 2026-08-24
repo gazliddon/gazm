@@ -2,7 +2,7 @@ use super::{
     err_kind_nomatch, from_item_children_tspan, get_identifier, get_label_string, keyword,
     parse_block, parse_expr, AstNodeKind, CommandKind, GazmParser, Node, PResult, TSpan, TokenKind,
 };
-use unraveler::{many0, match_span as ms, opt, preceded, tuple, Collection, Parser};
+use unraveler::{alt, many0, map, match_span as ms, opt, preceded, tuple, Collection, Parser};
 
 use crate::{cpukind::CpuKind, frontend::FrontEndErrorKind};
 
@@ -104,6 +104,72 @@ impl GazmParser {
         children.extend(body);
 
         let node = from_item_children_tspan(AstNodeKind::Repeat { index }, &children, sp);
+        Ok((rest, node))
+    }
+
+    /// `if <condition> { body } [else { body }]` — assembly-time
+    /// conditional. The condition is evaluated during sizing; non-zero
+    /// assembles the then-branch, zero the else-branch (if any).
+    ///
+    /// Children: condition expression, then-branch statements, and — when
+    /// an `else` is present — an `Else` node holding the else-branch
+    /// statements. `else if` chains parse as an `Else` node whose single
+    /// child is a nested `If` node.
+    pub fn parse_if(input: TSpan) -> PResult<Node> {
+        let result = ms(preceded(
+            keyword("if"),
+            tuple((
+                parse_expr,
+                parse_block(many0(Self::parse_next_source_chunk)),
+                opt(preceded(
+                    keyword("else"),
+                    alt((
+                        map(
+                            parse_block(many0(Self::parse_next_source_chunk)),
+                            |body: Vec<Vec<Node>>| body.into_iter().flatten().collect(),
+                        ),
+                        map(Self::parse_if, |n| vec![n]),
+                    )),
+                )),
+            )),
+        ))(input);
+
+        let (rest, (sp, (cond, then_body, else_part))) =
+            result.map_err(|_| err_kind_nomatch(input))?;
+
+        let then: Vec<Node> = then_body.into_iter().flatten().collect();
+        let mut children = Vec::with_capacity(1 + then.len() + 1);
+        children.push(cond);
+        children.extend(then);
+
+        if let Some(else_body) = else_part {
+            children.push(from_item_children_tspan(AstNodeKind::Else, &else_body, sp));
+        }
+
+        let node = from_item_children_tspan(AstNodeKind::If, &children, sp);
+        Ok((rest, node))
+    }
+
+    /// `while <condition> { body }` — assembly-time loop. The condition is
+    /// re-evaluated each iteration; the body assembles while it is
+    /// non-zero. Children: condition expression, then the body statements.
+    pub fn parse_while(input: TSpan) -> PResult<Node> {
+        let result = ms(preceded(
+            keyword("while"),
+            tuple((
+                parse_expr,
+                parse_block(many0(Self::parse_next_source_chunk)),
+            )),
+        ))(input);
+
+        let (rest, (sp, (cond, body))) = result.map_err(|_| err_kind_nomatch(input))?;
+
+        let body: Vec<Node> = body.into_iter().flatten().collect();
+        let mut children = Vec::with_capacity(1 + body.len());
+        children.push(cond);
+        children.extend(body);
+
+        let node = from_item_children_tspan(AstNodeKind::While, &children, sp);
         Ok((rest, node))
     }
 

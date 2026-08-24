@@ -1076,16 +1076,9 @@ impl GetPriority for Term {
 }
 
 pub fn to_priority(i: &AstNodeKind) -> Option<usize> {
-    use AstNodeKind::*;
-    match i {
-        Mul | Div => Some(12),
-        Add | Sub => Some(11),
-        ShiftL | ShiftR => Some(10),
-        BitAnd => Some(9),
-        BitXor => Some(8),
-        BitOr => Some(7),
-        _ => None,
-    }
+    // Single source of truth is `GetPriority for AstNodeKind` in gazmeval;
+    // keeping a second table here is how operator tables drift.
+    GetPriority::priority(i)
 }
 
 impl From<AstNodeRef<'_>> for Term {

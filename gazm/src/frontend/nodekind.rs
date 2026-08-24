@@ -64,6 +64,21 @@ pub enum AstNodeKind {
         index: Option<String>,
     },
 
+    /// `if <condition> { body } [else { body }]` — assembly-time
+    /// conditional. The condition expression is the first child; the taken
+    /// branch's statements are the remaining children, followed by an
+    /// `Else` node (if present) holding the untaken branch.
+    If,
+
+    /// Container for the untaken `else` branch of an `If` node; the
+    /// else-body statements are its children. Only ever a child of `If`.
+    Else,
+
+    /// `while <condition> { body }` — assembly-time loop. The condition
+    /// expression is the first child (re-evaluated each iteration); the
+    /// remaining children are the body.
+    While,
+
     StructDef(String),
     StructEntry(String),
 
@@ -125,6 +140,21 @@ pub enum AstNodeKind {
     ShiftR,
     ShiftL,
     UnaryGreaterThan,
+
+    /// Comparison operators: evaluate to 1 (true) or 0 (false), usable in
+    /// `if`/`while` conditions and any expression.
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+
+    /// Logical operators: true (1) when both operands are non-zero /
+    /// when either operand is non-zero. Both operands are always
+    /// evaluated — there is no short-circuiting.
+    LogicalAnd,
+    LogicalOr,
     Block,
 }
 
@@ -142,6 +172,34 @@ impl AstNodeKind {
     }
     pub fn is_number(&self) -> bool {
         matches!(self, Self::Num(..))
+    }
+
+    /// Binary operators: precedence and evaluation in one table, so the
+    /// precedence rules and the evaluator semantics can never drift apart.
+    /// A future operator is added here once; `GetPriority` and the postfix
+    /// evaluator both consume this.
+    pub fn binary_operator(&self) -> Option<(usize, fn(i64, i64) -> i64)> {
+        use AstNodeKind::*;
+        match self {
+            Mul => Some((12, |l, r| l * r)),
+            Div => Some((12, |l, r| l / r)),
+            Add => Some((11, |l, r| l + r)),
+            Sub => Some((11, |l, r| l - r)),
+            ShiftL => Some((10, |l, r| l << (r as u64))),
+            ShiftR => Some((10, |l, r| l >> (r as u64))),
+            BitAnd => Some((9, |l, r| l & r)),
+            BitXor => Some((8, |l, r| l ^ r)),
+            BitOr => Some((7, |l, r| l | r)),
+            Equal => Some((6, |l, r| (l == r) as i64)),
+            NotEqual => Some((6, |l, r| (l != r) as i64)),
+            LessThan => Some((5, |l, r| (l < r) as i64)),
+            LessThanEqual => Some((5, |l, r| (l <= r) as i64)),
+            GreaterThan => Some((5, |l, r| (l > r) as i64)),
+            GreaterThanEqual => Some((5, |l, r| (l >= r) as i64)),
+            LogicalAnd => Some((4, |l, r| (l != 0 && r != 0) as i64)),
+            LogicalOr => Some((3, |l, r| (l != 0 || r != 0) as i64)),
+            _ => None,
+        }
     }
 
     pub fn unrwap_number(&self) -> Option<i64> {

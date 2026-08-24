@@ -283,11 +283,29 @@ pub enum TokenKind {
     #[token("<<")]
     DoubleLessThan,
 
+    #[token(">=")]
+    GreaterThanEqual,
+
+    #[token("<=")]
+    LessThanEqual,
+
     #[token(">")]
     GreaterThan,
 
     #[token("<")]
     LessThan,
+
+    #[token("==")]
+    DoubleEquals,
+
+    #[token("!=")]
+    NotEquals,
+
+    #[token("&&")]
+    DoubleAmpersand,
+
+    #[token("||")]
+    DoubleBar,
 
     #[token("|")]
     Bar,

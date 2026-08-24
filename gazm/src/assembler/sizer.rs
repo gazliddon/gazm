@@ -2,6 +2,13 @@
 
 use super::{plan::PlanEntry, scopetracker::ScopeTracker, Assembler};
 
+/// Cap on `while` iterations so a condition that never becomes zero is a
+/// clean error instead of an assembly-time hang. Bounded by the 64K
+/// address space: a body that advances the PC cannot legitimately iterate
+/// more than 65536 times, and a non-terminating condition hits the cap
+/// before the PC-overflow assert.
+const MAX_WHILE_ITERATIONS: u64 = 65_536;
+
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
 use crate::{
@@ -240,6 +247,86 @@ impl<'a> Sizer<'a> {
                     }
                     if index_id.is_some() {
                         self.bindings.pop();
+                    }
+                }
+            }
+
+            If => {
+                // First child is the condition expression; the then-branch
+                // statements follow, optionally ending with an `Else` node
+                // whose children are the else-branch. Only the taken branch
+                // is walked, so the plan contains just those statements —
+                // the compiler never sees the construct or the other branch.
+                let mut children = node.children();
+                let cond_node = children
+                    .next()
+                    .ok_or_else(|| -> crate::error::GazmErrorKind {
+                        let diag =
+                            asm.make_user_error("if requires a condition expression", node, true);
+                        diag.into()
+                    })?;
+                let cond = asm.eval_node(cond_node, current_scope_id)?;
+
+                if cond != 0 {
+                    for c in children {
+                        if matches!(c.value().item, AstNodeKind::Else) {
+                            break;
+                        }
+                        self.size_node(asm, c.id())?;
+                    }
+                } else {
+                    for c in children {
+                        if matches!(c.value().item, AstNodeKind::Else) {
+                            for ec in c.children() {
+                                self.size_node(asm, ec.id())?;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            While => {
+                // First child is the condition; the rest is the body. The
+                // condition is re-evaluated each iteration and the body
+                // assembles while it is non-zero. Iterations are capped so
+                // a non-terminating condition is a clean error, not a hang.
+                let mut children = node.children();
+                let cond_node = children
+                    .next()
+                    .ok_or_else(|| -> crate::error::GazmErrorKind {
+                        let diag = asm.make_user_error(
+                            "while requires a condition expression",
+                            node,
+                            true,
+                        );
+                        diag.into()
+                    })?;
+                let body: Vec<_> = children.map(|n| n.id()).collect();
+
+                let mut iterations: u64 = 0;
+                loop {
+                    // `*` in the condition means the current assembly PC.
+                    asm.set_pc_symbol_internal(self.pc)?;
+                    let cond = asm.eval_node(cond_node, current_scope_id)?;
+                    if cond == 0 {
+                        break;
+                    }
+                    iterations += 1;
+                    if iterations > MAX_WHILE_ITERATIONS {
+                        return Err(asm
+                            .make_user_error(
+                                format!(
+                                    "while loop exceeded {MAX_WHILE_ITERATIONS} iterations \
+                                     (condition never became zero?)"
+                                ),
+                                node,
+                                true,
+                            )
+                            .into());
+                    }
+                    for c in &body {
+                        self.size_node(asm, *c)?;
                     }
                 }
             }
@@ -644,5 +731,143 @@ CONT:       nop
             assemble_bytes("command_words_symbols", src, 0x1000, 5),
             vec![0x12, 0x34, 0x56, 0x78, 0x02]
         );
+    }
+
+    #[test]
+    fn if_taken_assembles_then_branch() {
+        let src = r#"
+            org $1000
+            if 1 { fcb 1 } else { fcb 2 }
+        "#;
+        assert_eq!(assemble_bytes("if_taken", src, 0x1000, 1), vec![1]);
+    }
+
+    #[test]
+    fn if_not_taken_assembles_else_branch() {
+        let src = r#"
+            org $1000
+            if 0 { fcb 1 } else { fcb 2 }
+        "#;
+        assert_eq!(assemble_bytes("if_else", src, 0x1000, 1), vec![2]);
+    }
+
+    #[test]
+    fn if_without_else_skips_body() {
+        let src = r#"
+            org $1000
+            if 0 { fcb 1 }
+            fcb 9
+        "#;
+        assert_eq!(assemble_bytes("if_no_else", src, 0x1000, 1), vec![9]);
+    }
+
+    #[test]
+    fn else_if_chain_takes_last_matching() {
+        let src = r#"
+            org $1000
+            if 0 { fcb 1 } else if 0 { fcb 2 } else { fcb 3 }
+        "#;
+        assert_eq!(assemble_bytes("if_chain", src, 0x1000, 1), vec![3]);
+    }
+
+    #[test]
+    fn while_loop_terminates_on_pc_condition() {
+        // `*` is the current assembly PC; the loop writes 3 bytes then stops.
+        let src = r#"
+            org $1000
+            while * < $1003 {
+                fcb 0
+            }
+        "#;
+        assert_eq!(assemble_bytes("while_pc", src, 0x1000, 3), vec![0, 0, 0]);
+    }
+
+    #[test]
+    fn while_nonterminating_condition_is_an_error() {
+        let src = r#"
+            while 1 {
+                fcb 0
+            }
+        "#;
+        let path = std::env::temp_dir().join("gazm_while_infinite.gazm");
+        std::fs::write(&path, src).unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(std::env::temp_dir()),
+            ..Default::default()
+        };
+        let mut asm = Assembler::new(opts);
+        let res = asm.assemble();
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            res.is_err(),
+            "Expected while-loop cap error but assembly succeeded"
+        );
+    }
+
+    #[test]
+    fn if_inside_macro_uses_argument() {
+        let src = r#"
+            macro m(c) {
+                if c { fcb 1 } else { fcb 2 }
+            }
+
+            org $1000
+            m(0)
+        "#;
+        assert_eq!(assemble_bytes("if_macro", src, 0x1000, 1), vec![2]);
+    }
+
+    #[test]
+    fn if_keywords_are_not_reserved() {
+        // `if`/`else`/`while` stay usable as symbol names.
+        let src = r#"
+            IF: equ 1
+            ELSE: equ 2
+            WHILE: equ 3
+
+            org $1000
+            fcb IF + ELSE + WHILE
+        "#;
+        assert_eq!(
+            assemble_bytes("if_keywords_symbols", src, 0x1000, 1),
+            vec![6]
+        );
+    }
+
+    #[test]
+    fn comparison_operators_evaluate_to_zero_or_one() {
+        let src = r#"
+            org $1000
+            fcb 3 == 3, 3 != 3, 2 < 1, 2 <= 2, 5 > 4, 5 >= 6
+        "#;
+        assert_eq!(
+            assemble_bytes("comparison_ops", src, 0x1000, 6),
+            vec![1, 0, 0, 1, 1, 0]
+        );
+    }
+
+    #[test]
+    fn logical_operators_use_nonzero_truthiness() {
+        let src = r#"
+            org $1000
+            fcb 5 && 3, 0 && 3, 6 || 0, 0 || 0, 1 && 2 || 0
+        "#;
+        assert_eq!(
+            assemble_bytes("logical_ops", src, 0x1000, 5),
+            vec![1, 0, 1, 0, 1]
+        );
+    }
+
+    #[test]
+    fn logical_ops_bind_looser_than_comparisons() {
+        // `&&`/`||` must not need parens: `3 > 2 && 1 < 2` is
+        // `(3 > 2) && (1 < 2)`, not `3 > (2 && 1) < 2`.
+        let src = r#"
+            org $1000
+            if 3 > 2 && 1 < 2 { fcb 1 } else { fcb 2 }
+        "#;
+        assert_eq!(assemble_bytes("logical_condition", src, 0x1000, 1), vec![1]);
     }
 }

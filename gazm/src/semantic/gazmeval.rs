@@ -64,20 +64,7 @@ impl From<EvalError> for AstError {
 
 impl GetPriority for AstNodeKind {
     fn priority(&self) -> Option<usize> {
-        use AstNodeKind::*;
-        match self {
-            Div => Some(12),
-            Mul => Some(12),
-            Add => Some(11),
-            Sub => Some(11),
-            ShiftL => Some(10),
-            ShiftR => Some(10),
-            BitAnd => Some(9),
-            BitXor => Some(8),
-            BitOr => Some(7),
-
-            _ => None,
-        }
+        self.binary_operator().map(|(priority, _)| priority)
     }
 }
 
@@ -185,18 +172,10 @@ fn eval_postfix(symbols: &SymbolTreeReader, n: AstNodeRef) -> Result<AstNodeKind
             let lhs = lhs.unrwap_number().unwrap();
             let rhs = rhs.unrwap_number().unwrap();
 
-            let result = match i {
-                Mul => lhs * rhs,
-                Div => lhs / rhs,
-                Add => lhs + rhs,
-                Sub => lhs - rhs,
-                BitAnd => lhs & rhs,
-                BitXor => lhs ^ rhs,
-                BitOr => lhs | rhs,
-                ShiftL => lhs << (rhs as u64),
-                ShiftR => lhs >> (rhs as u64),
-                _ => return Err(EvalError::new(EvalErrorEnum::UnexpectedOp, *cn)),
-            };
+            let (_, apply) = i
+                .binary_operator()
+                .ok_or_else(|| EvalError::new(EvalErrorEnum::UnexpectedOp, *cn))?;
+            let result = apply(lhs, rhs);
 
             s.push(Num(result, ParsedFrom::Expression))
         } else {

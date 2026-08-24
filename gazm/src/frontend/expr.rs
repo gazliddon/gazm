@@ -66,6 +66,14 @@ impl GazmParser {
             |i| Self::op_to_node(i, Caret, AstNodeKind::BitXor),
             |i| Self::op_to_node(i, DoubleGreaterThan, AstNodeKind::ShiftR),
             |i| Self::op_to_node(i, DoubleLessThan, AstNodeKind::ShiftL),
+            |i| Self::op_to_node(i, DoubleEquals, AstNodeKind::Equal),
+            |i| Self::op_to_node(i, NotEquals, AstNodeKind::NotEqual),
+            |i| Self::op_to_node(i, LessThan, AstNodeKind::LessThan),
+            |i| Self::op_to_node(i, LessThanEqual, AstNodeKind::LessThanEqual),
+            |i| Self::op_to_node(i, GreaterThan, AstNodeKind::GreaterThan),
+            |i| Self::op_to_node(i, GreaterThanEqual, AstNodeKind::GreaterThanEqual),
+            |i| Self::op_to_node(i, DoubleAmpersand, AstNodeKind::LogicalAnd),
+            |i| Self::op_to_node(i, DoubleBar, AstNodeKind::LogicalOr),
         ))(input)
     }
 
