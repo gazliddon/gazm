@@ -226,3 +226,38 @@ is independent.
    switch (explicit paths kept for back-compat during migration).
 4. Expose `gazm-metadata` from this workspace; williams-emu path-depends
    on it and consumes it in the debugger.
+
+## 10. Roadmap: snapshot container (open)
+
+The single `<target>.meta` bundle is metadata only. A future direction is
+an **optional distributable snapshot**: the same bundle inside a **zip**
+container that also carries the source files read during the build, the
+project `gazm.toml`, and the ROM outputs — one file the debugger can
+open for source display, symbol lookup, *and* ROM loading.
+
+Proposed layout (when implemented):
+
+```
+<target>.meta  (a zip)
+├── metadata/map      GZMP envelope (source map, v5 header)
+├── metadata/sym      GZSY envelope (symbols, v5 header)
+├── source/**.gazm    the files read during the build
+├── gazm.toml
+└── roms/<outputs>    the binary outputs
+```
+
+Design notes:
+
+- The GZMP/GZSY envelopes stay exactly as specified in §3/§4 — the zip
+  container only frames them; `find_envelope` keeps working on the zip
+  entries. The envelope's magic/version/flags move up to the container.
+- Zip, not a custom archive: per-entry compression (source ~10:1, ROMs
+  2–3:1, metadata ~6:1 — a full stargate snapshot is ~3 MB raw, ~530 KB
+  gzipped), and every tool can open it.
+- Compression only pays off once source/ROMs are included; the current
+  metadata-only bundle stays raw bincode envelopes (local reads are
+  faster than decompress).
+- The debugger reads source/ROM entries on demand; metadata-only loads
+  (the `gazm-metadata` library) never open the container.
+
+   on it and consumes it in the debugger.
