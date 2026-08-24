@@ -9,6 +9,14 @@ use super::{plan::PlanEntry, scopetracker::ScopeTracker, Assembler};
 /// before the PC-overflow assert.
 const MAX_WHILE_ITERATIONS: u64 = 65_536;
 
+/// Loop-control signal raised by a `break`/`continue` statement and
+/// consumed by the innermost enclosing loop arm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LoopSignal {
+    Break,
+    Continue,
+}
+
 /// Take the AST and work out the sizes of everything
 /// Resolve labels where we can
 use crate::{
@@ -43,6 +51,10 @@ pub struct Sizer<'a> {
     /// width, ...) they record the replacement here and the shared
     /// `TargetSpecific` arm turns it into the plan entry kind.
     pending_cpu_fixup: Option<(AstNodeId, AstNodeKind)>,
+    /// `break`/`continue` raised by a body statement, pending consumption
+    /// by the innermost enclosing loop arm. Left set after the walk, the
+    /// statement was outside any loop and that is an error.
+    loop_signal: Option<(LoopSignal, AstNodeId)>,
 }
 
 /// Walk the tree, compute layout, and return the linear walk plan for the
@@ -70,6 +82,7 @@ impl<'a> Sizer<'a> {
             plan: Vec::new(),
             bindings: Vec::new(),
             pending_cpu_fixup: None,
+            loop_signal: None,
         };
 
         let id = ret.tree.as_ref().root().id();
@@ -94,6 +107,15 @@ impl<'a> Sizer<'a> {
             })
             .collect();
         asm.asm_out.sections = sections;
+
+        // A loop-control signal left over after the whole walk means a
+        // `break`/`continue` appeared outside any loop.
+        if let Some((_, signal_node)) = ret.loop_signal {
+            let node = ret.get_node(signal_node);
+            return Err(asm
+                .make_user_error("break/continue outside of a loop", node, true)
+                .into());
+        }
 
         Ok(ret)
     }
@@ -231,8 +253,9 @@ impl<'a> Sizer<'a> {
 
                 // Each body statement is recorded in the plan once per
                 // iteration, carrying the index binding so the compiler
-                // never has to re-derive the loop.
-                for iteration in 0..count {
+                // never has to re-derive the loop. `break` stops the whole
+                // loop; `continue` skips to the next iteration.
+                'iter: for iteration in 0..count {
                     if let Some(index_id) = index_id {
                         asm.get_symbols_mut()
                             .set_value_for_id(index_id, iteration)
@@ -244,6 +267,81 @@ impl<'a> Sizer<'a> {
                     }
                     for c in &body {
                         self.size_node(asm, *c)?;
+                        match self.loop_signal.take() {
+                            Some((LoopSignal::Break, _)) => {
+                                if index_id.is_some() {
+                                    self.bindings.pop();
+                                }
+                                break 'iter;
+                            }
+                            Some((LoopSignal::Continue, _)) => break,
+                            None => {}
+                        }
+                    }
+                    if index_id.is_some() {
+                        self.bindings.pop();
+                    }
+                }
+            }
+
+            Break => {
+                self.loop_signal = Some((LoopSignal::Break, id));
+            }
+
+            Continue => {
+                self.loop_signal = Some((LoopSignal::Continue, id));
+            }
+
+            For { index } => {
+                // Children: start expression, end expression, then body.
+                let mut children = node.children();
+                let start_node =
+                    children
+                        .next()
+                        .ok_or_else(|| -> crate::error::GazmErrorKind {
+                            let diag =
+                                asm.make_user_error("for requires a start expression", node, true);
+                            diag.into()
+                        })?;
+                let end_node = children
+                    .next()
+                    .ok_or_else(|| -> crate::error::GazmErrorKind {
+                        let diag =
+                            asm.make_user_error("for requires an end expression", node, true);
+                        diag.into()
+                    })?;
+                let start = asm.eval_node(start_node, current_scope_id)?;
+                let end = asm.eval_node(end_node, current_scope_id)?;
+                let body: Vec<_> = children.map(|n| n.id()).collect();
+
+                // Same index-symbol machinery as `repeat`: the scoping pass
+                // created the symbol, we just set its value per iteration.
+                let index_id = {
+                    let reader = asm.get_symbols().get_reader(current_scope_id);
+                    reader.get_symbol_info(index).ok().map(|si| si.symbol_id)
+                };
+
+                'iter: for value in start..end {
+                    if let Some(index_id) = index_id {
+                        asm.get_symbols_mut()
+                            .set_value_for_id(index_id, value)
+                            .map_err(|e| -> crate::error::GazmErrorKind {
+                                asm.make_user_error(format!("for: {e}"), node, true).into()
+                            })?;
+                        self.bindings.push((index_id, value));
+                    }
+                    for c in &body {
+                        self.size_node(asm, *c)?;
+                        match self.loop_signal.take() {
+                            Some((LoopSignal::Break, _)) => {
+                                if index_id.is_some() {
+                                    self.bindings.pop();
+                                }
+                                break 'iter;
+                            }
+                            Some((LoopSignal::Continue, _)) => break,
+                            None => {}
+                        }
                     }
                     if index_id.is_some() {
                         self.bindings.pop();
@@ -305,7 +403,9 @@ impl<'a> Sizer<'a> {
                 let body: Vec<_> = children.map(|n| n.id()).collect();
 
                 let mut iterations: u64 = 0;
-                loop {
+                // `break` exits the loop; `continue` re-evaluates the
+                // condition (the next iteration).
+                'looping: loop {
                     // `*` in the condition means the current assembly PC.
                     asm.set_pc_symbol_internal(self.pc)?;
                     let cond = asm.eval_node(cond_node, current_scope_id)?;
@@ -327,6 +427,11 @@ impl<'a> Sizer<'a> {
                     }
                     for c in &body {
                         self.size_node(asm, *c)?;
+                        match self.loop_signal.take() {
+                            Some((LoopSignal::Break, _)) => break 'looping,
+                            Some((LoopSignal::Continue, _)) => break,
+                            None => {}
+                        }
                     }
                 }
             }
@@ -869,5 +974,314 @@ CONT:       nop
             if 3 > 2 && 1 < 2 { fcb 1 } else { fcb 2 }
         "#;
         assert_eq!(assemble_bytes("logical_condition", src, 0x1000, 1), vec![1]);
+    }
+
+    #[test]
+    fn break_exits_repeat_early() {
+        let src = r#"
+            org $1000
+            repeat 10, i {
+                if i == 3 { break }
+                fcb i
+            }
+        "#;
+        assert_eq!(
+            assemble_bytes("break_repeat", src, 0x1000, 3),
+            vec![0, 1, 2]
+        );
+    }
+
+    #[test]
+    fn continue_skips_iteration() {
+        let src = r#"
+            org $1000
+            repeat 5, i {
+                if i == 2 { continue }
+                fcb i
+            }
+        "#;
+        assert_eq!(
+            assemble_bytes("continue_repeat", src, 0x1000, 4),
+            vec![0, 1, 3, 4]
+        );
+    }
+
+    #[test]
+    fn break_exits_while() {
+        let src = r#"
+            org $1000
+            while * < $1006 {
+                fcb 1
+                if * == $1002 { break }
+            }
+        "#;
+        assert_eq!(assemble_bytes("break_while", src, 0x1000, 2), vec![1, 1]);
+    }
+
+    #[test]
+    fn break_outside_loop_is_an_error() {
+        let src = r#"
+            org $1000
+            break
+        "#;
+        let path = std::env::temp_dir().join("gazm_break_outside.gazm");
+        std::fs::write(&path, src).unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(std::env::temp_dir()),
+            ..Default::default()
+        };
+        let mut asm = Assembler::new(opts);
+        let res = asm.assemble();
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            res.is_err(),
+            "Expected break-outside-loop error but assembly succeeded"
+        );
+    }
+
+    #[test]
+    fn for_loop_emits_range() {
+        let src = r#"
+            org $1000
+            for i in 0..4 { fcb i }
+        "#;
+        assert_eq!(
+            assemble_bytes("for_range", src, 0x1000, 4),
+            vec![0, 1, 2, 3]
+        );
+    }
+
+    #[test]
+    fn for_loop_with_expression_bounds() {
+        let src = r#"
+            org $1000
+            for i in 2..5 { fcb i*2 }
+        "#;
+        assert_eq!(assemble_bytes("for_expr", src, 0x1000, 3), vec![4, 6, 8]);
+    }
+
+    #[test]
+    fn for_loop_inside_macro() {
+        let src = r#"
+            macro table(n) {
+                for i in 0..n { fcb i }
+            }
+
+            org $1000
+            table(3)
+        "#;
+        assert_eq!(assemble_bytes("for_macro", src, 0x1000, 3), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn break_continue_keywords_are_not_reserved() {
+        let src = r#"
+            BREAK: equ 1
+            CONTINUE: equ 2
+
+            org $1000
+            fcb BREAK + CONTINUE
+        "#;
+        assert_eq!(
+            assemble_bytes("break_keywords_symbols", src, 0x1000, 1),
+            vec![3]
+        );
+    }
+
+    #[test]
+    fn dot_labels_still_lex() {
+        // Leading-dot labels (.COAST style) survive the dot-free identifier
+        // change; `..` is now the range operator.
+        let src = r#"
+            .IF: equ 5
+
+            org $1000
+            fcb .IF
+        "#;
+        assert_eq!(assemble_bytes("dot_labels", src, 0x1000, 1), vec![5]);
+    }
+
+    #[test]
+    fn struct_fields_resolve_scoped() {
+        let src = r#"
+            struct proc {
+                link : word
+                addr : word
+                time : byte
+                cod : byte[4]
+            }
+
+            org $1000
+            fdb proc::link, proc::addr
+            fcb proc::time, proc::cod, proc::size
+        "#;
+        // link=0 addr=2 time=4 cod=5 size=9
+        assert_eq!(
+            assemble_bytes("struct_scoped", src, 0x1000, 7),
+            vec![0x00, 0x00, 0x00, 0x02, 4, 5, 9]
+        );
+    }
+
+    #[test]
+    fn struct_accepts_comma_form_for_back_compat() {
+        let src = r#"
+            struct proc { link : word, addr : word, time : byte }
+
+            org $1000
+            fcb proc::link, proc::addr, proc::time
+        "#;
+        assert_eq!(
+            assemble_bytes("struct_comma", src, 0x1000, 3),
+            vec![0, 2, 4]
+        );
+    }
+
+    #[test]
+    fn struct_flat_names_are_gone() {
+        // The old `Name.field` form no longer resolves — fields are
+        // `Name::field` only.
+        let src = r#"
+            struct proc { link : word, addr : word }
+
+            org $1000
+            fcb proc.link
+        "#;
+        let path = std::env::temp_dir().join("gazm_struct_flat_gone.gazm");
+        std::fs::write(&path, src).unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(std::env::temp_dir()),
+            ..Default::default()
+        };
+        let mut asm = Assembler::new(opts);
+        let res = asm.assemble();
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            res.is_err(),
+            "Expected flat struct name to be unresolved but assembly succeeded"
+        );
+    }
+
+    /// Assemble `src` and return the formatted error message (the test
+    /// expects assembly to fail).
+    fn assemble_error(name: &str, src: &str) -> String {
+        let path = std::env::temp_dir().join(format!("gazm_{name}.gazm"));
+        std::fs::write(&path, src).unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(std::env::temp_dir()),
+            ..Default::default()
+        };
+        let mut asm = Assembler::new(opts);
+        let res = asm.assemble();
+        let _ = std::fs::remove_file(&path);
+        format!("{res:?}")
+    }
+
+    #[test]
+    fn top_level_scopes_are_open() {
+        // A symbol in another top-level scope resolves without `import`.
+        let src = r#"
+            scope core
+            SLEEP: equ $1000
+
+            scope main
+            org $1000
+            fdb SLEEP
+        "#;
+        assert_eq!(
+            assemble_bytes("open_scopes", src, 0x1000, 2),
+            vec![0x10, 0x00]
+        );
+    }
+
+    #[test]
+    fn ambiguous_top_level_symbol_is_an_error() {
+        let src = r#"
+            scope a
+            FOO: equ 1
+            scope b
+            FOO: equ 2
+
+            scope main
+            org $1000
+            fcb FOO
+        "#;
+        let err = assemble_error("ambiguous_symbol", src);
+        assert!(
+            err.contains("Ambiguous symbol FOO"),
+            "expected ambiguity error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn missing_symbol_hints_at_scope() {
+        let src = r#"
+            struct proc { time : byte }
+            org $1000
+            fcb proc
+        "#;
+        let err = assemble_error("scope_hint", src);
+        assert!(
+            err.contains("did you mean the scope `proc`"),
+            "expected scope hint, got: {err}"
+        );
+    }
+
+    #[test]
+    fn local_symbol_coexists_with_struct_scope() {
+        let src = r#"
+            struct proc { time : byte }
+            proc: equ 5
+
+            org $1000
+            fcb proc, proc::time
+        "#;
+        // bare `proc` is the symbol (5); `proc::time` is the struct field (0).
+        assert_eq!(
+            assemble_bytes("symbol_scope_coexist", src, 0x1000, 2),
+            vec![5, 0]
+        );
+    }
+
+    #[test]
+    fn scoped_access_from_within_top_level_scope() {
+        // `scope` directives create top-level (root-child) scopes. From
+        // inside one, a scoped path resolves chain-first, falling back to
+        // the open top-level scopes: the struct's `proc` is found there.
+        let src = r#"
+            struct proc { time : byte }
+
+            scope main
+            org $1000
+            fcb proc::time
+        "#;
+        assert_eq!(assemble_bytes("scope_open_scoped", src, 0x1000, 1), vec![0]);
+    }
+
+    #[test]
+    fn scope_directive_shares_name_with_struct_is_an_error() {
+        // `scope proc` and `struct proc` both create a top-level scope named
+        // `proc` (same parent), so they merge; the struct field and the
+        // label then collide in one scope.
+        let src = r#"
+            struct proc { time : byte }
+
+            scope main
+            scope proc
+            time: equ 7
+
+            org $1000
+            fcb proc::time
+        "#;
+        let err = assemble_error("scope_struct_name_clash", src);
+        assert!(
+            err.contains("AlreadyDefined"),
+            "expected a redefinition error, got: {err}"
+        );
     }
 }

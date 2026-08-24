@@ -192,9 +192,13 @@ fn lex_error(lex: &mut Lexer<TokenKind>) -> LexError {
 #[derive(Logos, Copy, Clone, Debug, PartialEq, Eq)]
 #[logos(error(LexError, callback = lex_error))]
 #[logos(skip r"[ \t\f\n]+")]
-#[logos(subpattern id_al = r"[a-zA-Z_.]")]
-#[logos(subpattern id_alnum = r"(?&id_al)|[0-9]")]
-#[logos(subpattern id = r"(?&id_al)+(?&id_alnum)*")]
+// Identifiers: a letter/underscore start, then word chars with single
+// dots allowed between them (`proc.data`). A run of dots can never be an
+// identifier, so `..` stays free as the range operator; labels starting
+// with a dot (.COAST, .OPTR, .IF) get their own rule below.
+#[logos(subpattern id_al = r"[a-zA-Z_]")]
+#[logos(subpattern id_body = r"[a-zA-Z0-9_]")]
+#[logos(subpattern id = r"(?&id_al)(?:(?&id_body)|\.(?&id_body))*")]
 #[logos(subpattern pre_hex = r"(0[xX]|\$)")]
 #[logos(subpattern pre_bin = r"(0[bB]|%)")]
 pub enum TokenKind {
@@ -212,8 +216,15 @@ pub enum TokenKind {
     #[regex(r"```[^`]*```", priority = 10)]
     BigDocText,
 
+    // Identifiers are dot-free so `..` can be a range operator; labels
+    // starting with a dot (.COAST, .OPTR, .IF) get their own rule.
     #[regex("(?&id)")]
+    #[regex(r"\.[a-zA-Z_][a-zA-Z0-9_]*")]
     Identifier,
+
+    // Range operator for `for i in 0..N`.
+    #[token("..")]
+    DoubleDot,
 
     // Consume identifier-like suffixes as part of a number so inputs such as
     // `123abc` and `$12G` produce one useful invalid-number diagnostic rather
@@ -262,7 +273,9 @@ pub enum TokenKind {
     #[token("&")]
     Ampersand,
 
-    #[regex(r"::(?&id)(::(?&id))+")]
+    // Scoped names: `::core::SLEEP` (imports, absolute) or
+    // `proc::time` (struct fields, relative) — one or more `::` segments.
+    #[regex(r"(?:::(?&id)|(?&id))(::(?&id))+")]
     FqnIdentifier,
 
     #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]

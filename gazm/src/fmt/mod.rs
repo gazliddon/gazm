@@ -303,8 +303,8 @@ mod tests {
     #[test]
     fn lowercases_registers_but_not_symbols_or_strings() {
         assert_eq!(
-            format_text("        STX proc.data,U ; PC stays prose\n"),
-            "                STX proc.data,u                   ; PC stays prose\n"
+            format_text("        STX proc::data,U ; PC stays prose\n"),
+            "                STX proc::data,u                  ; PC stays prose\n"
         );
         assert_eq!(
             format_text("        lda #PC + SYMBOL + \"PC\"\n"),
@@ -335,7 +335,7 @@ mod tests {
         let cases = [
             "start: lda #1\n    rts\n",
             "                FCB $5b^$5a,  'C'^$5a, $5C^$5a\n                FCB 'I'^$5a,  'A'^$5a, 'M'^$5a,'S'^$5a , ' '^$5a\n",
-            "        STX proc.data,U ; PC stays prose\n",
+            "        STX proc::data,U ; PC stays prose\n",
             "        lda #PC + SYMBOL + 'P'\n",
             "        pshs A,B,X,Y\n",
             "        tfr A,B\n",
@@ -363,8 +363,8 @@ mod tests {
 
     #[test]
     fn aligns_equates_in_column() {
-        let input = ".DYN_OPTR: EQU proc.data\n.VEL: EQU proc.data+2\n.SHOT: EQU proc.data+3\n";
-        let expected = ".DYN_OPTR:      EQU proc.data\n.VEL:           EQU proc.data+2\n.SHOT:          EQU proc.data+3\n";
+        let input = ".DYN_OPTR: EQU proc::data\n.VEL: EQU proc::data+2\n.SHOT: EQU proc::data+3\n";
+        let expected = ".DYN_OPTR:      EQU proc::data\n.VEL:           EQU proc::data+2\n.SHOT:          EQU proc::data+3\n";
         assert_eq!(format_text(input), expected);
     }
 

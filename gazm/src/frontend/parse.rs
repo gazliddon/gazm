@@ -77,6 +77,7 @@ impl GazmParser {
             map(Self::parse_repeat, as_vec),
             map(Self::parse_if, as_vec),
             map(Self::parse_while, as_vec),
+            map(Self::parse_for, as_vec),
             Self::parse_single_line,
         ))(input)
         .map_err(err_map)?;

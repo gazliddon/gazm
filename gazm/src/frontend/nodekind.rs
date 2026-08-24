@@ -79,6 +79,22 @@ pub enum AstNodeKind {
     /// remaining children are the body.
     While,
 
+    /// `break` — exit the innermost enclosing `repeat`/`while`/`for`
+    /// immediately. Only valid inside a loop.
+    Break,
+
+    /// `continue` — skip the rest of the current iteration of the
+    /// innermost enclosing loop and proceed to the next one. Only valid
+    /// inside a loop.
+    Continue,
+
+    /// `for <index> in <start>..<end> { body }` — assembly-time range
+    /// loop. The index is bound to each value in `start..end` (end
+    /// exclusive). Children: start expression, end expression, body.
+    For {
+        index: String,
+    },
+
     StructDef(String),
     StructEntry(String),
 

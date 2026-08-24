@@ -48,7 +48,9 @@ impl GazmParser {
         let (rest, (sp, (label, entries))) = ms(pair(
             preceded(Struct, alt((Label, Identifier))),
             parse_block(succeeded(
-                sep_list0(Self::parse_struct_entry, Comma),
+                // One entry per line (`name : type`), with commas accepted
+                // for back-compat with existing sources.
+                sep_list0(Self::parse_struct_entry, opt(Comma)),
                 opt(Comma),
             )),
         ))(input)?;

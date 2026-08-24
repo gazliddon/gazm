@@ -1,6 +1,7 @@
 use super::{
-    err_kind_nomatch, from_item_children_tspan, get_identifier, get_label_string, keyword,
-    parse_block, parse_expr, AstNodeKind, CommandKind, GazmParser, Node, PResult, TSpan, TokenKind,
+    err_kind_nomatch, from_item_children_tspan, from_item_tspan, get_identifier, get_label_string,
+    keyword, parse_block, parse_expr, AstNodeKind, CommandKind, GazmParser, Node, PResult, TSpan,
+    TokenKind,
 };
 use unraveler::{alt, many0, map, match_span as ms, opt, preceded, tuple, Collection, Parser};
 
@@ -173,8 +174,62 @@ impl GazmParser {
         Ok((rest, node))
     }
 
+    /// `for <index> in <start>..<end> { body }` — assembly-time range loop.
+    /// The index runs `start..end` (end exclusive), bound per iteration
+    /// like a `repeat` index. Children: start expression, end expression,
+    /// then the body statements.
+    pub fn parse_for(input: TSpan) -> PResult<Node> {
+        let result = ms(preceded(
+            keyword("for"),
+            tuple((
+                get_label_string,
+                keyword("in"),
+                parse_expr,
+                TokenKind::DoubleDot,
+                parse_expr,
+                parse_block(many0(Self::parse_next_source_chunk)),
+            )),
+        ))(input);
+
+        let (rest, (sp, (index, _, start, _, end, body))) =
+            result.map_err(|_| err_kind_nomatch(input))?;
+
+        let body: Vec<Node> = body.into_iter().flatten().collect();
+        let mut children = Vec::with_capacity(2 + body.len());
+        children.push(start);
+        children.push(end);
+        children.extend(body);
+
+        let node = from_item_children_tspan(AstNodeKind::For { index }, &children, sp);
+        Ok((rest, node))
+    }
+
+    /// Parse a bare `break`/`continue` statement, or `None` if the first
+    /// word is not one of them — or is a label of that name (`break:`,
+    /// `continue:`), which stays a label.
+    fn parse_loop_control(input: TSpan) -> PResult<Option<Node>> {
+        for (kw, kind) in [
+            ("break", AstNodeKind::Break),
+            ("continue", AstNodeKind::Continue),
+        ] {
+            if let Ok((rest, sp)) = keyword(kw)(input.clone()) {
+                if matches!(rest.first().map(|token| token.kind), Some(TokenKind::Colon)) {
+                    return Ok((input, None));
+                }
+                let node = from_item_tspan(kind, sp);
+                return Ok((rest, Some(node)));
+            }
+        }
+        Ok((input, None))
+    }
+
     pub fn parse_statement(input: TSpan) -> PResult<Node> {
         use TokenKind::*;
+
+        let (rest, loop_control) = Self::parse_loop_control(input)?;
+        if let Some(node) = loop_control {
+            return Ok((rest, node));
+        }
 
         if matches!(
             input.first().map(|token| token.kind),

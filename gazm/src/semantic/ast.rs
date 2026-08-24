@@ -12,10 +12,14 @@ use crate::{
     debug_mess,
     error::{AstError, Diagnostic, GResult, GazmErrorKind},
     frontend::{AstNodeKind, LabelDefinition, Node},
-    gazmsymbols::{ScopedName, SymbolError, SymbolScopeId, SymbolTreeReader, SymbolTreeWriter},
+    gazmsymbols::{
+        ScopedName, SymbolError, SymbolScopeId, SymbolTree, SymbolTreeReader, SymbolTreeWriter,
+    },
     interesting_mess,
     messages::*,
 };
+
+use grl_symbols::prelude::{ScopeNav, ScopeNavTrait};
 
 pub type AstTree<T = ItemWithPos> = ego_tree::Tree<T>;
 pub type AstNodeRef<'a, T = ItemWithPos> = ego_tree::NodeRef<'a, T>;
@@ -501,23 +505,24 @@ impl<'a> AstCtx<'a> {
                     .map(|p| self.create_symbol(p, caller_node_id, &ScopeTracker::new(scope_id)))
                     .collect();
 
-                // Repeat loop variables are created in the caller scope too,
-                // exactly like macro params, so body references resolve by
-                // name at eval time. The sizer/compiler then set the value
-                // per iteration.
+                // Loop variables (repeat index, for index) are created in
+                // the caller scope too, exactly like macro params, so body
+                // references resolve by name at eval time. The sizer then
+                // sets the value per iteration.
                 let macro_body = self
                     .get_tree()
                     .get(macro_id)
                     .expect("macro body node should exist");
-                let mut repeat_indexes: Vec<String> = vec![];
+                let mut loop_indexes: Vec<String> = vec![];
                 for node_id in get_ids_recursive(macro_body) {
-                    if let AstNodeKind::Repeat { index: Some(name) } =
-                        &self.get_tree().get(node_id).unwrap().value().item
-                    {
-                        repeat_indexes.push(name.clone());
+                    let item = &self.get_tree().get(node_id).unwrap().value().item;
+                    match item {
+                        AstNodeKind::Repeat { index: Some(name) }
+                        | AstNodeKind::For { index: name } => loop_indexes.push(name.clone()),
+                        _ => {}
                     }
                 }
-                for name in repeat_indexes {
+                for name in loop_indexes {
                     let _ = self.create_symbol(&name, caller_node_id, &ScopeTracker::new(scope_id));
                 }
 
@@ -694,6 +699,15 @@ impl<'a> AstCtx<'a> {
                     let mut current = 0;
                     interesting_mess!("Generating symbols for {name}");
 
+                    // Create a named scope for the struct so fields resolve
+                    // as `StructName::field` — the same scope machinery as
+                    // `scope` directives and `::` imports.
+                    let struct_scope_id = self
+                        .get_writer(&scopes)
+                        .create_or_set_scope(name.as_str())
+                        .map_err(|error| self.sym_to_user_error(error, id))?;
+                    let struct_scopes = ScopeTracker::new(struct_scope_id);
+
                     let children_ids = self.ast_tree.get_children_ids(id);
 
                     for c_id in children_ids {
@@ -710,10 +724,18 @@ impl<'a> AstCtx<'a> {
                                     0
                                 }
                             };
-                            let scoped_name = format!("{name}.{entry_name}");
-                            debug_mess!("About to create sym: {name} {entry_name}");
-                            match self.create_and_set_symbol(current, &scoped_name, c_id, &scopes) {
-                                Ok(_) => debug_mess!("Struct: Set {scoped_name} to {current}"),
+
+                            // Scoped form: `StructName::field` (the new
+                            // syntax). `size` is also a scoped member.
+                            match self.create_and_set_symbol(
+                                current,
+                                entry_name,
+                                c_id,
+                                &struct_scopes,
+                            ) {
+                                Ok(_) => {
+                                    debug_mess!("Struct: Set {name}::{entry_name} to {current}")
+                                }
                                 Err(diag) => {
                                     if self.ctx.asm_out.errors.push(diag) {
                                         return Ok(());
@@ -724,8 +746,7 @@ impl<'a> AstCtx<'a> {
                         }
                     }
 
-                    let scoped_name = format!("{name}.size");
-                    self.create_and_set_symbol(current, &scoped_name, id, &scopes)?;
+                    self.create_and_set_symbol(current, "size", id, &struct_scopes)?;
                 }
             }
 
@@ -767,32 +788,169 @@ impl<'a> AstCtx<'a> {
         self.ctx.asm_out.symbols.get_reader(scopes.scope())
     }
 
-    fn get_scoped_symbol_id(
-        &self,
-        scoped_name: &ScopedName,
-        node_id: AstNodeId,
-    ) -> Result<SymbolScopeId, Diagnostic> {
-        let symbol_id = self
-            .ctx
-            .get_symbols()
-            .get_symbol_info_from_scoped_name(scoped_name)
-            .map(|si| si.symbol_id)
-            .map_err(|e| self.sym_to_user_error(e, node_id))?;
-        Ok(symbol_id)
-    }
-
-    fn get_unscoped_symbol_id(
+    /// Resolve a textual label reference to a symbol id under the scoping
+    /// policy (open top-level scopes):
+    ///
+    /// - names containing `::` resolve as scope paths: anchored at root
+    ///   when they start with `::`, otherwise chain-first (a nearer scope
+    ///   shadows a top-level one), falling back to top-level scopes.
+    /// - bare names resolve as symbols: chain-first, falling back to the
+    ///   top-level (root-child) scopes. If several top-level scopes define
+    ///   the name that is an ambiguity error; if a top-level *scope*
+    ///   shares the name, the error hints at it.
+    ///
+    /// This is the single entry point for textual label lookups, so the
+    /// policy lives in one place.
+    fn resolve_label_text(
         &self,
         name: &str,
         scopes: &ScopeTracker,
         node_id: AstNodeId,
     ) -> Result<SymbolScopeId, Diagnostic> {
-        let id = self
-            .get_reader(scopes)
-            .get_symbol_info(name)
-            .map_err(|e| self.sym_to_user_error(e, node_id))?
-            .symbol_id;
-        Ok(id)
+        if name.contains("::") {
+            self.resolve_scoped_text(name, scopes.scope(), node_id)
+        } else {
+            self.resolve_symbol_text(name, scopes, node_id)
+        }
+    }
+
+    /// Resolve a `a::b` scoped name: scope path, chain-first.
+    fn resolve_scoped_text(
+        &self,
+        name: &str,
+        current_scope_id: u64,
+        node_id: AstNodeId,
+    ) -> Result<SymbolScopeId, Diagnostic> {
+        let scoped = ScopedName::new(name);
+        let parts: Vec<&str> = scoped.path().to_vec();
+        let symbol = scoped.symbol().to_string();
+        let symbols = self.ctx.get_symbols();
+        let root = symbols.get_root_scope_id();
+
+        // Locate the first path segment: anchored at root for absolute
+        // names, otherwise chain-first with a top-level fallback. Note the
+        // crate's `get_sub_scope_id` treats the last segment as a symbol,
+        // so a single-segment lookup would be a no-op — use the navigator's
+        // child-scope lookup instead.
+        let mut current: Option<u64> = None;
+        if scoped.is_abs() {
+            current = find_child_scope(symbols, root, parts[0]);
+        } else {
+            let mut scope = Some(current_scope_id);
+            while let Some(s) = scope {
+                if let Some(child) = find_child_scope(symbols, s, parts[0]) {
+                    current = Some(child);
+                    break;
+                }
+                scope = symbols
+                    .get_scope_info_from_id(s)
+                    .and_then(|info| info.parent_id);
+            }
+            if current.is_none() {
+                current = find_child_scope(symbols, root, parts[0]);
+            }
+        }
+
+        let Some(mut current) = current else {
+            return Err(self.node_error(format!("Scope not found: {name}"), node_id, false));
+        };
+
+        for part in &parts[1..] {
+            match find_child_scope(symbols, current, part) {
+                Some(next) => current = next,
+                None => {
+                    return Err(self.node_error(format!("Scope not found: {name}"), node_id, false))
+                }
+            }
+        }
+
+        symbols
+            .get_symbol_info(&symbol, current)
+            .map(|si| si.symbol_id)
+            .map_err(|_| self.node_error(format!("Symbol not found: {name}"), node_id, false))
+    }
+
+    /// Resolve a bare name as a symbol: chain first, then top-level.
+    fn resolve_symbol_text(
+        &self,
+        name: &str,
+        scopes: &ScopeTracker,
+        node_id: AstNodeId,
+    ) -> Result<SymbolScopeId, Diagnostic> {
+        // Chain first: current scope and its ancestors.
+        if let Ok(si) = self.get_reader(scopes).get_symbol_info(name) {
+            return Ok(si.symbol_id);
+        }
+
+        // Top-level fallback: symbols whose scope is a root child.
+        let symbols = self.ctx.get_symbols();
+        let root = symbols.get_root_scope_id();
+        let mut matches: Vec<(SymbolScopeId, String)> = Vec::new();
+        for (sid, info) in symbols.symbols() {
+            if info.name() != name {
+                continue;
+            }
+            if let Some(scope_info) = symbols.get_scope_info_from_id(sid.scope_id) {
+                if scope_info.parent_id == Some(root) {
+                    matches.push((*sid, scope_info.name.clone()));
+                }
+            }
+        }
+
+        match matches.len() {
+            0 => {
+                let msg = match self.scope_name_hint(name, scopes, root) {
+                    Some(scope) => format!(
+                        "Symbol not found: {name} — did you mean the scope `{scope}`? \
+                         Use `{scope}::...` to reference its members."
+                    ),
+                    None => format!("Symbol not found: {name}"),
+                };
+                Err(self.node_error(msg, node_id, false))
+            }
+            1 => Ok(matches[0].0),
+            _ => {
+                let list: Vec<_> = matches.iter().map(|(_, s)| format!("`{s}`")).collect();
+                Err(self.node_error(
+                    format!(
+                        "Ambiguous symbol {name}: defined in top-level scopes {}. \
+                         Use `scope::name` to disambiguate.",
+                        list.join(", ")
+                    ),
+                    node_id,
+                    false,
+                ))
+            }
+        }
+    }
+
+    /// If a scope of this name is visible (on the chain, or a top-level
+    /// scope), return it for a "did you mean a scope?" hint.
+    fn scope_name_hint(&self, name: &str, scopes: &ScopeTracker, root: u64) -> Option<String> {
+        let mut scope = Some(scopes.scope());
+        while let Some(s) = scope {
+            let info = self.ctx.get_symbols().get_scope_info_from_id(s)?;
+            if info.name == name {
+                return Some(info.name);
+            }
+            scope = info.parent_id;
+        }
+
+        // Top-level scopes, derived from the symbols they contain (a scope
+        // with no symbols can't be hinted, but structs and named scopes
+        // always have members).
+        let mut seen: std::collections::HashSet<u64> = std::collections::HashSet::new();
+        for sid in self.ctx.get_symbols().symbols().keys() {
+            if !seen.insert(sid.scope_id) {
+                continue;
+            }
+            if let Some(info) = self.ctx.get_symbols().get_scope_info_from_id(sid.scope_id) {
+                if info.parent_id == Some(root) && info.name == name {
+                    return Some(info.name);
+                }
+            }
+        }
+        None
     }
 
     fn scope_labels_node(
@@ -819,11 +977,11 @@ impl<'a> AstCtx<'a> {
             match &value.item {
                 ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
-                // A repeat loop variable is a local symbol, not an undefined
-                // label. Create it in the current scope so body references
-                // resolve to it; the sizer/compiler set its value per
+                // A loop variable (repeat/for index) is a local symbol, not
+                // an undefined label. Create it in the current scope so body
+                // references resolve to it; the sizer sets its value per
                 // iteration.
-                Repeat { index: Some(name) } => {
+                Repeat { index: Some(name) } | For { index: name } => {
                     if let Err(diag) = self.create_symbol(name, *node_id, &scopes) {
                         if self.ctx.asm_out.errors.push(diag) {
                             return Ok(());
@@ -833,7 +991,7 @@ impl<'a> AstCtx<'a> {
 
                 // Convert any label in tree to a label reference
                 Label(LabelDefinition::Text(name)) => {
-                    match self.get_unscoped_symbol_id(name, &scopes, *node_id) {
+                    match self.resolve_label_text(name, &scopes, *node_id) {
                         Ok(symbol_id) => {
                             self.ast_tree
                                 .alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
@@ -847,8 +1005,7 @@ impl<'a> AstCtx<'a> {
                 }
 
                 Label(LabelDefinition::TextScoped(name)) => {
-                    let scoped_name = ScopedName::new(name);
-                    match self.get_scoped_symbol_id(&scoped_name, *node_id) {
+                    match self.resolve_label_text(name, &scopes, *node_id) {
                         Ok(symbol_id) => {
                             self.ast_tree
                                 .alter_node(*node_id, |ipos| ipos.item = Label(symbol_id.into()));
@@ -887,8 +1044,10 @@ impl<'a> AstCtx<'a> {
                     let value = self.get_tree().get(node_id).unwrap().value().clone();
 
                     if let Label(LabelDefinition::TextScoped(name)) = &value.item {
-                        let scoped_name = ScopedName::new(name);
-                        match self.get_scoped_symbol_id(&scoped_name, node_id) {
+                        // Macro bodies are detached from the tree; resolve
+                        // from root (top-level scopes are the fallback).
+                        let root = self.ctx.get_symbols().get_root_scope_id();
+                        match self.resolve_scoped_text(name, root, node_id) {
                             Ok(symbol_id) => {
                                 self.ast_tree.alter_node(node_id, |ipos| {
                                     ipos.item = Label(symbol_id.into())
@@ -1079,6 +1238,16 @@ pub fn to_priority(i: &AstNodeKind) -> Option<usize> {
     // Single source of truth is `GetPriority for AstNodeKind` in gazmeval;
     // keeping a second table here is how operator tables drift.
     GetPriority::priority(i)
+}
+
+/// Find a child scope by name. The symbol crate's `get_sub_scope_id`
+/// treats the last path segment as a *symbol*, so it cannot address a bare
+/// scope name like `proc` — the crate's navigator `find_child` is the
+/// correct primitive for that.
+fn find_child_scope(symbols: &SymbolTree, parent: u64, name: &str) -> Option<u64> {
+    let mut nav = ScopeNav::new(symbols);
+    nav.set_scope(parent);
+    nav.find_child(name)
 }
 
 impl From<AstNodeRef<'_>> for Term {
