@@ -150,3 +150,27 @@ macro gen(n) {
         end: (label)
         (block
           (fdb (label)))))))
+
+==================
+Assert and log
+==================
+assert PTAB + 5 == TABEND, "table size"
+log "table laid out"
+log PTAB
+
+---
+(source_file
+  (assert_statement
+    keyword: (assert_keyword)
+    condition: (binary_expression
+      left: (binary_expression
+        left: (label)
+        right: (dec_num))
+      right: (label))
+    message: (string_literal))
+  (log_statement
+    keyword: (log_keyword)
+    message: (string_literal))
+  (log_statement
+    keyword: (log_keyword)
+    value: (label)))

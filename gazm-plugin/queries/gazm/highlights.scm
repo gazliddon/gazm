@@ -67,3 +67,7 @@
 ;; Errors
 (ERROR) @error
 
+
+; Compile-time checks and logging
+(assert_statement keyword: (assert_keyword) @keyword.directive)
+(log_statement keyword: (log_keyword) @keyword.directive)

@@ -977,14 +977,18 @@ impl<'a> AstCtx<'a> {
             match &value.item {
                 ScopeId(scope_id) => scopes.set_scope(*scope_id),
 
-                // A loop variable (repeat/for index) is a local symbol, not
-                // an undefined label. Create it in the current scope so body
-                // references resolve to it; the sizer sets its value per
-                // iteration.
+                // A loop variable (repeat/for index) is a per-scope
+                // temporary: several loops in one scope may reuse the same
+                // index name (`repeat 4, i` twice), so create-or-reuse
+                // rather than failing on a second definition. The sizer
+                // rebinds the symbol's value per iteration from the plan's
+                // bindings.
                 Repeat { index: Some(name) } | For { index: name } => {
                     if let Err(diag) = self.create_symbol(name, *node_id, &scopes) {
-                        if self.ctx.asm_out.errors.push(diag) {
-                            return Ok(());
+                        if self.get_reader(&scopes).get_symbol_info(name).is_err() {
+                            if self.ctx.asm_out.errors.push(diag) {
+                                return Ok(());
+                            }
                         }
                     }
                 }

@@ -15,7 +15,7 @@ use unraveler::{
     alt, cut, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Collection, Parser,
 };
 
-fn get_quoted_string(input: TSpan) -> PResult<String> {
+pub(crate) fn get_quoted_string(input: TSpan) -> PResult<String> {
     let (rest, matched) = TokenKind::QuotedString.parse(input)?;
     let txt = get_text(matched);
     let text = &txt[1..txt.len() - 1];

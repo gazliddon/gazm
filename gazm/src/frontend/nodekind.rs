@@ -184,6 +184,18 @@ pub enum AstNodeKind {
     /// argument expressions. Functions are not macros: they execute at
     /// assembly time and produce a value.
     Call(String),
+
+    /// `assert <condition> [, "message"]` — compile-time check. The
+    /// condition is evaluated during sizing; a zero (false) result fails
+    /// the assembly with the message, if any. Children: the condition
+    /// expression.
+    Assert(Option<String>),
+
+    /// `log <"text" | expr>` — print a message during assembly (sizing
+    /// time). With a string, the text is printed verbatim; with an
+    /// expression, its evaluated value is printed. No children when the
+    /// string form is used; one expression child otherwise.
+    Log(Option<String>),
 }
 
 /// Identity of a binary operator, so precedence lives in one table

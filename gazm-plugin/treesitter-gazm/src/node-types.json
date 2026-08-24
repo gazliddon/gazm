@@ -144,6 +144,90 @@
     }
   },
   {
+    "type": "assert_statement",
+    "named": true,
+    "fields": {
+      "condition": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "bin_num",
+            "named": true
+          },
+          {
+            "type": "binary_expression",
+            "named": true
+          },
+          {
+            "type": "call_expression",
+            "named": true
+          },
+          {
+            "type": "char_literal",
+            "named": true
+          },
+          {
+            "type": "dec_num",
+            "named": true
+          },
+          {
+            "type": "float_num",
+            "named": true
+          },
+          {
+            "type": "hex_num",
+            "named": true
+          },
+          {
+            "type": "label",
+            "named": true
+          },
+          {
+            "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "pc_expr",
+            "named": true
+          },
+          {
+            "type": "scoped_label",
+            "named": true
+          },
+          {
+            "type": "unary_expression",
+            "named": true
+          }
+        ]
+      },
+      "keyword": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "assert_keyword",
+            "named": true
+          }
+        ]
+      },
+      "message": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string_literal",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "binary_expression",
     "named": true,
     "fields": {
@@ -352,6 +436,10 @@
       "required": false,
       "types": [
         {
+          "type": "assert_statement",
+          "named": true
+        },
+        {
           "type": "break_statement",
           "named": true
         },
@@ -429,6 +517,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "log_statement",
           "named": true
         },
         {
@@ -2309,6 +2401,90 @@
     "fields": {}
   },
   {
+    "type": "log_statement",
+    "named": true,
+    "fields": {
+      "keyword": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "log_keyword",
+            "named": true
+          }
+        ]
+      },
+      "message": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string_literal",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "bin_num",
+            "named": true
+          },
+          {
+            "type": "binary_expression",
+            "named": true
+          },
+          {
+            "type": "call_expression",
+            "named": true
+          },
+          {
+            "type": "char_literal",
+            "named": true
+          },
+          {
+            "type": "dec_num",
+            "named": true
+          },
+          {
+            "type": "float_num",
+            "named": true
+          },
+          {
+            "type": "hex_num",
+            "named": true
+          },
+          {
+            "type": "label",
+            "named": true
+          },
+          {
+            "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "pc_expr",
+            "named": true
+          },
+          {
+            "type": "scoped_label",
+            "named": true
+          },
+          {
+            "type": "unary_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "long_doc",
     "named": true,
     "fields": {},
@@ -2418,6 +2594,10 @@
       "required": false,
       "types": [
         {
+          "type": "assert_statement",
+          "named": true
+        },
+        {
           "type": "break_statement",
           "named": true
         },
@@ -2495,6 +2675,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "log_statement",
           "named": true
         },
         {
@@ -3355,6 +3539,10 @@
       "required": false,
       "types": [
         {
+          "type": "assert_statement",
+          "named": true
+        },
+        {
           "type": "break_statement",
           "named": true
         },
@@ -3432,6 +3620,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "log_statement",
           "named": true
         },
         {
@@ -3761,6 +3953,10 @@
       "required": false,
       "types": [
         {
+          "type": "assert_statement",
+          "named": true
+        },
+        {
           "type": "break_statement",
           "named": true
         },
@@ -3838,6 +4034,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "log_statement",
           "named": true
         },
         {
@@ -4592,6 +4792,10 @@
     "named": true
   },
   {
+    "type": "assert_keyword",
+    "named": true
+  },
+  {
     "type": "b",
     "named": false
   },
@@ -4661,6 +4865,10 @@
   },
   {
     "type": "if_keyword",
+    "named": true
+  },
+  {
+    "type": "log_keyword",
     "named": true
   },
   {

@@ -53,6 +53,14 @@
           },
           {
             "type": "SYMBOL",
+            "name": "assert_statement"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "log_statement"
+          },
+          {
+            "type": "SYMBOL",
             "name": "_line"
           }
         ]
@@ -1339,6 +1347,94 @@
         }
       ]
     },
+    "assert_keyword": {
+      "type": "PATTERN",
+      "value": "assert|ASSERT"
+    },
+    "log_keyword": {
+      "type": "PATTERN",
+      "value": "log|LOG"
+    },
+    "assert_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "keyword",
+          "content": {
+            "type": "SYMBOL",
+            "name": "assert_keyword"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "condition",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_expression"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": ","
+                },
+                {
+                  "type": "FIELD",
+                  "name": "message",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "string_literal"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "log_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "keyword",
+          "content": {
+            "type": "SYMBOL",
+            "name": "log_keyword"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "message",
+              "content": {
+                "type": "SYMBOL",
+                "name": "string_literal"
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "value",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_expression"
+              }
+            }
+          ]
+        }
+      ]
+    },
     "block": {
       "type": "SEQ",
       "members": [
@@ -1397,6 +1493,14 @@
         {
           "type": "SYMBOL",
           "name": "continue_statement"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "assert_statement"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "log_statement"
         },
         {
           "type": "SYMBOL",

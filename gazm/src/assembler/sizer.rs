@@ -26,6 +26,7 @@ use crate::{
     gazmsymbols::SymbolScopeId,
     sections::SectionDescriptor,
     semantic::{Ast, AstNodeId, AstNodeRef},
+    status_mess,
 };
 
 // use crate::cpu6809::Compiler6809;
@@ -440,6 +441,41 @@ impl<'a> Sizer<'a> {
                 self.scopes.set_scope(*scope_id);
                 self.emit(id, i.clone());
             }
+
+            // `assert <condition> [, "message"]`: evaluate at sizing
+            // time; a false condition is a (non-fatal) error so several
+            // asserts report together. No plan entry — the compiler never
+            // sees it, exactly like if/while.
+            Assert(msg) => {
+                let cond_node =
+                    node.first_child()
+                        .ok_or_else(|| -> crate::error::GazmErrorKind {
+                            let diag =
+                                asm.make_user_error("assert requires a condition", node, true);
+                            diag.into()
+                        })?;
+                asm.set_pc_symbol_internal(self.pc)?;
+                let cond = asm.eval_node(cond_node, current_scope_id)?;
+                if cond == 0 {
+                    let text = msg.clone().map(|m| format!(": {m}")).unwrap_or_default();
+                    let diag = asm.make_user_error(format!("assertion failed{text}"), node, false);
+                    if asm.asm_out.errors.push(diag) {
+                        return Ok(());
+                    }
+                }
+            }
+
+            // `log <"text" | expr>`: print during sizing. String form
+            // prints verbatim; expression form prints the value.
+            Log(msg) => match (msg, node.first_child()) {
+                (Some(text), _) => status_mess!("{text}"),
+                (None, Some(expr)) => {
+                    asm.set_pc_symbol_internal(self.pc)?;
+                    let value = asm.eval_node(expr, current_scope_id)?;
+                    status_mess!("{value}");
+                }
+                (None, None) => {}
+            },
 
             GrabMem => {
                 let args = asm.eval_n_args(node, 2, current_scope_id)?;
@@ -1365,6 +1401,95 @@ CONT:       nop
         assert!(
             err.contains("Unknown function foo"),
             "expected an unknown-function error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn assert_passes_and_fails_with_message() {
+        let ok_src = r#"
+            org $1000
+            assert 1 == 1
+            fcb 7
+        "#;
+        assert_eq!(assemble_bytes("assert_ok", ok_src, 0x1000, 1), vec![7]);
+
+        let bad_src = r#"
+            org $1000
+            assert 1 == 2, "expected one"
+            fcb 7
+        "#;
+        let err = assemble_error("assert_fail", bad_src);
+        assert!(
+            err.contains("assertion failed: expected one"),
+            "expected the assert message in the error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn assert_checks_layout() {
+        // Labels get their PC values as the sizer walks in source order,
+        // so an assert checks what is already laid out — place it after
+        // the things it checks.
+        let src = r#"
+            org $1000
+            PTAB: rmb 5
+            TABEND:
+            assert TABEND - PTAB == 5
+            fcb 9
+        "#;
+        assert_eq!(assemble_bytes("assert_layout", src, 0x1005, 1), vec![9]);
+    }
+
+    #[test]
+    fn log_prints_text_and_values_during_sizing() {
+        let src = r#"
+            org $1000
+            log "process table ready"
+            log 12345
+            fcb 1
+        "#;
+        let path = std::env::temp_dir().join("gazm_log.gazm");
+        std::fs::write(&path, src).unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(std::env::temp_dir()),
+            verbose: crate::messages::Verbosity::Normal,
+            ..Default::default()
+        };
+        // The CLI normally initialises messaging; do it here so the log
+        // lines are routed into the capture.
+        crate::messages::init(&opts, None);
+        let mut asm = Assembler::new(opts);
+        let (res, out, _) = crate::messages::capture(|| asm.assemble());
+        let _ = std::fs::remove_file(&path);
+
+        assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
+        assert!(
+            out.contains("process table ready"),
+            "text log missing from output: {out}"
+        );
+        assert!(
+            out.contains("12345"),
+            "value log missing from output: {out}"
+        );
+    }
+
+    #[test]
+    fn repeat_index_name_can_be_reused_in_one_scope() {
+        let src = r#"
+            org $1000
+            repeat 2, li {
+                fcb li
+            }
+            repeat 2, li {
+                fcb li + 1
+            }
+        "#;
+        // 0,1 then 1,2
+        assert_eq!(
+            assemble_bytes("repeat_reuse", src, 0x1000, 4),
+            vec![0, 1, 1, 2]
         );
     }
 }

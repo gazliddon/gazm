@@ -577,6 +577,12 @@ impl Assembler {
 
         status("Compiling", |_| {
             let plan = super::sizer::size(self, &ast_tree)?;
+            // Non-fatal diagnostics raised during sizing (e.g. a failed
+            // `assert`) must still fail the build, like semantic-phase
+            // diagnostics do.
+            if self.asm_out.errors.has_errors() {
+                return Err(GazmErrorKind::Diagnostics(self.asm_out.errors.clone()));
+            }
             super::compile::compile(self, &ast_tree, &plan)?;
             Ok::<(), GazmErrorKind>(())
         })?;

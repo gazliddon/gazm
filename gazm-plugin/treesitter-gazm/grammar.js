@@ -82,6 +82,8 @@ module.exports = grammar({
                 $.for_statement,
                 $.break_statement,
                 $.continue_statement,
+                $.assert_statement,
+                $.log_statement,
                 $._line
             )),
 
@@ -257,6 +259,22 @@ module.exports = grammar({
         break_statement: $ => seq(field('keyword', $.break_keyword)),
         continue_statement: $ => seq(field('keyword', $.continue_keyword)),
 
+        assert_keyword: $ => asRegex('assert'),
+        log_keyword: $ => asRegex('log'),
+
+        // `assert <condition> [, "message"]` — compile-time check.
+        assert_statement: $ => seq(
+            field('keyword', $.assert_keyword),
+            field('condition', $._expression),
+            optional(seq(',', field('message', $.string_literal))),
+        ),
+
+        // `log <"text" | expr>` — print during assembly.
+        log_statement: $ => seq(
+            field('keyword', $.log_keyword),
+            choice(field('message', $.string_literal), field('value', $._expression)),
+        ),
+
         block: $ => seq('{', repeat($._block_content), '}'),
 
         // Anything a block body can contain (macro, repeat, and control
@@ -271,6 +289,8 @@ module.exports = grammar({
             $.for_statement,
             $.break_statement,
             $.continue_statement,
+            $.assert_statement,
+            $.log_statement,
             $._line,
         ),
 
