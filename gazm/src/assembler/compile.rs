@@ -65,6 +65,15 @@ impl<'a> Compiler<'a> {
         let mut pc = entry.pc;
         let mut do_source_mapping = true;
 
+        // Real instructions are OpCode; data directives, labels, comments
+        // and whole-file includes are Command. The metadata reader builds
+        // its instruction-boundary index from OpCode mappings only, so
+        // mis-tagging directives here would pollute it.
+        let item_type = match &entry.kind {
+            TargetSpecific(_) => ItemType::OpCode,
+            _ => ItemType::Command,
+        };
+
         match &entry.kind {
             MacroCallProcessed { .. } => {
                 // Re-evaluate the macro arguments now that the whole layout
@@ -211,7 +220,7 @@ impl<'a> Compiler<'a> {
         }
 
         if do_source_mapping {
-            self.add_source_mapping(asm, node_id, pc);
+            self.add_source_mapping(asm, node_id, pc, item_type);
         }
         Ok(())
     }
@@ -433,11 +442,8 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn add_source_mapping(&self, asm: &mut Assembler, id: AstNodeId, addr: usize) {
+    fn add_source_mapping(&self, asm: &mut Assembler, id: AstNodeId, addr: usize, kind: ItemType) {
         let node = self.get_node(id);
-        // TODO Fix this fucker!
-        let kind: ItemType = ItemType::OpCode;
-
         asm.add_source_mapping(&node.value().pos, addr, kind);
     }
 }

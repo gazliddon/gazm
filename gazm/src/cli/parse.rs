@@ -94,7 +94,6 @@ impl Opts {
                 let mut opts = Opts {
                     deps_file: m.get_one::<String>("deps").map(PathBuf::from),
                     source_mapping: m.get_one::<String>("source-mapping").map(PathBuf::from),
-                    as6809_sym: m.get_one::<String>("as6809-sym").map(PathBuf::from),
                     ignore_relative_offset_errors: m.contains_id("ignore-relative-offset-errors"),
                     project_file: m.get_one::<String>("project-file").unwrap().into(),
                     ast_file: m.get_one::<String>("ast-file").map(PathBuf::from),
@@ -305,13 +304,6 @@ pub fn parse_command_line() -> ArgMatches {
                         .long("star-comments")
                         .help("Lines that start with '*' parsed as comments")
                         .short('q'),
-                )
-                .arg(
-                    Arg::new("as6809-sym")
-                        .value_parser(PathBufValueParser::new())
-                        .long("as6809-sym")
-                        .help("Load in AS609 sym file to compare against")
-                        .num_args(1),
                 )
                 .arg(
                     Arg::new("deps")

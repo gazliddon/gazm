@@ -1,9 +1,9 @@
 use crate::{assembler::AssemblerCpuTrait, cpu6800::Asm6800, cpu6809::Asm6809};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use strum_macros::EnumString;
 
-#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Default, EnumString, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Serialize, Default, EnumString, Eq)]
 #[repr(usize)]
 pub enum CpuKind {
     #[default]

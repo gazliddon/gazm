@@ -48,6 +48,7 @@ chrome-trace = ["dep:tracing-chrome"]
 [dev-dependencies]
 pretty_assertions="1.4.0"
 criterion = "0.5.1"
+gazm-metadata = { path = "../gazm-metadata" }
 
 [[bench]]
 name = "pipeline"

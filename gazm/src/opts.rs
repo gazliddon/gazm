@@ -10,7 +10,7 @@ use crate::{
     messages::Verbosity,
     vars::{Vars, VarsErrorKind},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BuildType {
@@ -21,7 +21,7 @@ pub enum BuildType {
     Test,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BinReference {
     pub file: PathBuf,
     pub addr: usize,
@@ -44,9 +44,14 @@ pub struct Opts {
     pub project_file: PathBuf,
 
     pub assemble_dir: Option<PathBuf>,
+    /// Back-compat during migration to `metadata`: explicit output paths.
+    /// Once all projects are on `metadata`, these are removed.
     pub source_mapping: Option<PathBuf>,
     pub syms_file: Option<PathBuf>,
-    pub as6809_sym: Option<PathBuf>,
+    /// Write the whole metadata bundle (.map + .sym, names derived from the
+    /// target name) with a v4 `TargetInfo` header. Absent/false writes
+    /// nothing (unless back-compat explicit paths above are given).
+    pub metadata: bool,
     pub deps_file: Option<PathBuf>,
     pub ast_file: Option<PathBuf>,
     pub pretty_json: bool,
@@ -111,7 +116,7 @@ impl Default for Opts {
             assemble_dir: Default::default(),
             source_mapping: Default::default(),
             ignore_relative_offset_errors: false,
-            as6809_sym: Default::default(),
+            metadata: false,
             deps_file: Default::default(),
             project_file: Default::default(),
             ast_file: Default::default(),

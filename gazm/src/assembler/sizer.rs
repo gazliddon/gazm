@@ -9,6 +9,7 @@ use crate::{
     error::GResult,
     frontend::{AstNodeKind, AstNodeKindDiscriminants, LabelDefinition},
     gazmsymbols::SymbolScopeId,
+    sections::SectionDescriptor,
     semantic::{Ast, AstNodeId, AstNodeRef},
 };
 
@@ -67,6 +68,25 @@ impl<'a> Sizer<'a> {
         let id = ret.tree.as_ref().root().id();
         ret.size_node(asm, id)?;
         ret.check_section_bounds(asm)?;
+
+        // Persist the final sections for the v4 metadata header: the sizer
+        // tracks (start, end, max_size) per section; physical == logical
+        // here (put offsets are not modelled in the sizer) and access is
+        // ReadWrite unless a future CPU path says otherwise.
+        let sections: Vec<_> = ret
+            .sections
+            .iter()
+            .map(|(name, (start, end, _max))| {
+                let range = *start..*end;
+                SectionDescriptor::new(
+                    name,
+                    range.clone(),
+                    range,
+                    crate::assembler::AccessType::ReadWrite,
+                )
+            })
+            .collect();
+        asm.asm_out.sections = sections;
 
         Ok(ret)
     }

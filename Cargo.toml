@@ -1,5 +1,5 @@
 [workspace]
-members = ["gazm", "makehelp"]
+members = ["gazm", "gazm-metadata", "makehelp"]
 resolver = "2"
 
 [profile.release]

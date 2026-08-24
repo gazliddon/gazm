@@ -6,6 +6,7 @@ use crate::{
     error::GResult,
     info_mess, interesting_mess,
     messages::{info, status},
+    opts::BinReference,
     status_err,
 };
 
@@ -14,22 +15,87 @@ use grl_utils::{hash::get_hash, FileIo};
 
 use anyhow::Context as AnyContext;
 use rayon::prelude::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
 // Version 3 reflects the compact source-mapping indexes and single-separator
-// symbol syntax serialization.
+// symbol syntax serialization; version 4 adds the optional `TargetInfo`
+// header block (flag bit 0). Files without the header stay version 3 so
+// consumers that predate the header keep loading them (contract §3/§4).
 const ARTIFACT_VERSION: u16 = 3;
+const ARTIFACT_VERSION_WITH_HEADER: u16 = 4;
+const FLAG_HAS_TARGET_INFO: u16 = 0x0001;
 
-fn encode_artifact<T: Serialize>(magic: &[u8; 4], value: &T) -> GResult<Vec<u8>> {
+/// Per-build target identity embedded at v4. Field order and types must
+/// match `gazm-metadata`'s `TargetInfo` exactly — bincode 1.x is
+/// layout-sensitive and the reader deserializes this block.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct TargetInfo {
+    target_name: String,
+    cpu: crate::cpukind::CpuKind,
+    mem_size: usize,
+    exec_addr: Option<usize>,
+    bin_references: Vec<BinReference>,
+    checksums: Vec<RomChecksum>,
+    sections: Vec<Section>,
+    tool_version: String,
+}
+
+/// Mirror of `gazm-metadata`'s `RomChecksum` (same field order).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RomChecksum {
+    name: String,
+    addr: usize,
+    size: usize,
+    sha1: String,
+}
+
+/// Mirror of `gazm-metadata`'s `Section` (same field order). Note the
+/// `AccessType` variant order here matches the reader's
+/// (`Read, Write, ReadWrite`), which differs from the assembler's own
+/// `AccessType` — that is why this mirror exists.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Section {
+    name: String,
+    logical_range: std::ops::Range<usize>,
+    physical_range: std::ops::Range<usize>,
+    access: AccessType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+enum AccessType {
+    Read,
+    Write,
+    ReadWrite,
+}
+
+fn encode_artifact<T: Serialize>(
+    magic: &[u8; 4],
+    target_info: Option<&TargetInfo>,
+    value: &T,
+) -> GResult<Vec<u8>> {
     let payload = bincode::serialize(value).context("Unable to serialize binary artifact")?;
-    let payload_len = u64::try_from(payload.len()).context("Binary artifact is too large")?;
-    let mut output = Vec::with_capacity(16 + payload.len());
+
+    // The header block is length-prefixed and inserted between the fixed
+    // envelope and the payload; version and flags advertise it (contract §4).
+    let mut body = Vec::with_capacity(payload.len());
+    let (version, flags) = if let Some(info) = target_info {
+        let header = bincode::serialize(info).context("Unable to serialize TargetInfo header")?;
+        body.extend_from_slice(&(header.len() as u64).to_le_bytes());
+        body.extend_from_slice(&header);
+        (ARTIFACT_VERSION_WITH_HEADER, FLAG_HAS_TARGET_INFO)
+    } else {
+        (ARTIFACT_VERSION, 0)
+    };
+    body.extend_from_slice(&payload);
+
+    let payload_len = u64::try_from(body.len()).context("Binary artifact is too large")?;
+    let mut output = Vec::with_capacity(16 + body.len());
     output.extend_from_slice(magic);
-    output.extend_from_slice(&ARTIFACT_VERSION.to_le_bytes());
-    output.extend_from_slice(&0u16.to_le_bytes()); // reserved flags
+    output.extend_from_slice(&version.to_le_bytes());
+    output.extend_from_slice(&flags.to_le_bytes());
     output.extend_from_slice(&payload_len.to_le_bytes());
-    output.extend_from_slice(&payload);
+    output.extend_from_slice(&body);
     Ok(output)
 }
 
@@ -105,33 +171,102 @@ impl Assembler {
         Ok(())
     }
 
-    fn write_file<P: AsRef<Path>>(&mut self, p: P, txt: &str) -> GResult<String> {
-        let full_file_name = self.output_path(p)?;
-        if let Some(parent) = full_file_name.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Unable to create output directory {parent:?}"))?;
-        }
-        fs::write(&full_file_name, txt)
-            .with_context(|| format!("Unable to write {:?}", full_file_name))?;
-        Ok(full_file_name.to_string_lossy().into_owned())
-    }
-
     /// Serialize the independent metadata outputs together, then write them
-    /// in parallel. Binary artifacts carry a versioned header so consumers can
-    /// reject formats they do not understand.
+    /// in parallel. Binary artifacts carry a versioned envelope so consumers
+    /// can reject formats they do not understand.
+    ///
+    /// Writing is driven by the `metadata` switch (contract §5):
+    /// `metadata = true` writes the whole bundle — `<target>.map` +
+    /// `<target>.sym`, names derived from the target name — with a v4
+    /// `TargetInfo` header. Explicit `source-mapping`/`syms-file` paths
+    /// still override the derived names during the migration and, when
+    /// `metadata` is absent/false, keep writing without the header
+    /// (back-compat). No switch, no paths -> nothing.
     fn write_metadata_outputs(&self) -> GResult<()> {
-        let source_path = self
+        let explicit_source = self
             .opts
             .source_mapping
             .as_ref()
             .map(|path| self.output_path(path))
             .transpose()?;
-        let symbols_path = self
+        let explicit_syms = self
             .opts
             .syms_file
             .as_ref()
             .map(|path| self.output_path(path))
             .transpose()?;
+
+        let (source_path, symbols_path) = if self.opts.metadata {
+            let target = self.opts.target_name.clone().unwrap_or_else(|| {
+                self.opts
+                    .project_file
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "gazm".to_string())
+            });
+            (
+                match explicit_source {
+                    Some(path) => Some(path),
+                    None => Some(self.output_path(format!("{target}.map"))?),
+                },
+                match explicit_syms {
+                    Some(path) => Some(path),
+                    None => Some(self.output_path(format!("{target}.sym"))?),
+                },
+            )
+        } else {
+            (explicit_source, explicit_syms)
+        };
+
+        if source_path.is_none() && symbols_path.is_none() {
+            return Ok(());
+        }
+
+        // The header is part of the metadata bundle: it is only written
+        // when the project opts in via `metadata = true`.
+        let target_info = if self.opts.metadata {
+            Some(TargetInfo {
+                target_name: self.opts.target_name.clone().unwrap_or_else(|| {
+                    self.opts
+                        .project_file
+                        .file_stem()
+                        .map(|s| s.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| "gazm".to_string())
+                }),
+                cpu: self.opts.cpu,
+                mem_size: self.opts.mem_size,
+                exec_addr: self.asm_out.exec_addr,
+                bin_references: self.opts.bin_references.clone(),
+                checksums: self
+                    .opts
+                    .checksums
+                    .iter()
+                    .map(|(name, c)| RomChecksum {
+                        name: name.clone(),
+                        addr: c.addr,
+                        size: c.size,
+                        sha1: c.sha1.clone(),
+                    })
+                    .collect(),
+                sections: self
+                    .asm_out
+                    .sections
+                    .iter()
+                    .map(|s| Section {
+                        name: s.name.clone(),
+                        logical_range: s.logical_range.clone(),
+                        physical_range: s.physical_range.clone(),
+                        access: match s.access_type {
+                            crate::assembler::AccessType::ReadWrite => AccessType::ReadWrite,
+                            crate::assembler::AccessType::ReadOnly => AccessType::Read,
+                        },
+                    })
+                    .collect(),
+                tool_version: env!("CARGO_PKG_VERSION").to_string(),
+            })
+        } else {
+            None
+        };
 
         let (source, symbols) = rayon::join(
             || {
@@ -147,7 +282,7 @@ impl Assembler {
                         .context("Unable to serialize source mappings")?;
                         text.into_bytes()
                     } else {
-                        encode_artifact(b"GZMP", &database)?
+                        encode_artifact(b"GZMP", target_info.as_ref(), &database)?
                     };
                     Ok::<_, anyhow::Error>((path, data, "source mappings"))
                 })
@@ -163,7 +298,7 @@ impl Assembler {
                         .context("Unable to serialize symbols")?;
                         text.into_bytes()
                     } else {
-                        encode_artifact(b"GZSY", self.get_symbols())?
+                        encode_artifact(b"GZSY", target_info.as_ref(), self.get_symbols())?
                     };
                     Ok::<_, anyhow::Error>((path, data, "symbols"))
                 })
@@ -244,45 +379,6 @@ impl Assembler {
         Ok(())
     }
 
-    pub fn write_sym_file(&mut self) -> GResult<()> {
-        if let Some(syms_file) = &self.opts.syms_file {
-            let syms_file = self.output_path(syms_file)?;
-            let json_text = if self.opts.pretty_json {
-                serde_json::to_string_pretty(self.get_symbols())
-            } else {
-                serde_json::to_string(self.get_symbols())
-            }
-            .context("Unable to serialize symbols")?;
-            let file_name = self.write_file(syms_file, &json_text)?;
-            interesting_mess!("Writen symbols file: {}", file_name);
-        }
-
-        Ok(())
-    }
-
-    fn write_source_mapping(&mut self) -> GResult<()> {
-        if let Some(sym_file) = &self.opts.source_mapping {
-            let sym_file = self.output_path(sym_file)?;
-            if let Some(parent) = sym_file.parent() {
-                fs::create_dir_all(parent)
-                    .with_context(|| format!("Unable to create output directory {parent:?}"))?;
-            }
-            info_mess!("Writing source mappings {}", sym_file.to_string_lossy());
-            let sd: SourceDatabase = (&*self).into();
-            let mut sd = sd;
-            sd.file_name = sym_file.clone();
-            let json = if self.opts.pretty_json {
-                serde_json::to_string_pretty(&sd)
-            } else {
-                serde_json::to_string(&sd)
-            }
-            .context("Unable to serialize source mappings")?;
-            fs::write(&sym_file, json).with_context(|| format!("Unable to write {sym_file:?}"))?;
-        }
-
-        Ok(())
-    }
-
     fn checksum_report(&self) {
         if !self.opts.checksums.is_empty() {
             let mut errors = vec![];
@@ -310,5 +406,166 @@ impl Assembler {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::opts::Opts;
+
+    use gazm_metadata::envelope::{AccessType as ReaderAccess, CpuKind as ReaderCpu};
+    use gazm_metadata::{decode_artifact, Magic};
+
+    fn sample_target_info() -> TargetInfo {
+        TargetInfo {
+            target_name: "stargate".to_string(),
+            cpu: crate::cpukind::CpuKind::Cpu6809,
+            mem_size: 94208,
+            exec_addr: Some(0xE000),
+            bin_references: vec![BinReference {
+                file: "orig/roms/01".into(),
+                addr: 0x0000,
+            }],
+            checksums: vec![RomChecksum {
+                name: "rom_1".into(),
+                addr: 0x0000,
+                size: 0x1000,
+                sha1: "f003a5a9319c4eb8991fa2aae3f10c72d6b8e81a".into(),
+            }],
+            sections: vec![Section {
+                name: "lo_rom".into(),
+                logical_range: 0x0000..0x9000,
+                physical_range: 0x0000..0x9000,
+                access: AccessType::Read,
+            }],
+            tool_version: "test".into(),
+        }
+    }
+
+    /// No header: version 3, flags 0, `target_info = None` — the layout
+    /// v3 consumers already read.
+    #[test]
+    fn artifact_without_header_round_trips_as_v3() {
+        let payload: Vec<u32> = vec![1, 2, 3];
+        let bytes = encode_artifact(b"GZMP", None, &payload).unwrap();
+
+        let art = decode_artifact(&bytes, Magic::SourceMap).unwrap();
+        assert_eq!(art.version, ARTIFACT_VERSION);
+        assert_eq!(art.flags, 0);
+        assert!(art.target_info.is_none());
+
+        let decoded: Vec<u32> = bincode::deserialize(art.payload).unwrap();
+        assert_eq!(decoded, payload);
+    }
+
+    /// With header: version 4, flag bit 0, and every `TargetInfo` field
+    /// decodes through the real reader with identical values.
+    #[test]
+    fn artifact_with_header_round_trips_through_reader() {
+        let info = sample_target_info();
+        let payload: Vec<u32> = vec![7, 8];
+        let bytes = encode_artifact(b"GZSY", Some(&info), &payload).unwrap();
+
+        let art = decode_artifact(&bytes, Magic::Symbols).unwrap();
+        assert_eq!(art.version, ARTIFACT_VERSION_WITH_HEADER);
+        assert_eq!(art.flags, FLAG_HAS_TARGET_INFO);
+
+        let got = art.target_info.expect("header present");
+        assert_eq!(got.target_name, "stargate");
+        assert_eq!(got.cpu, ReaderCpu::Cpu6809);
+        assert_eq!(got.mem_size, 94208);
+        assert_eq!(got.exec_addr, Some(0xE000));
+        assert_eq!(got.bin_references.len(), 1);
+        assert_eq!(got.bin_references[0].file.to_string_lossy(), "orig/roms/01");
+        assert_eq!(got.bin_references[0].addr, 0x0000);
+        assert_eq!(got.checksums.len(), 1);
+        assert_eq!(got.checksums[0].name, "rom_1");
+        assert_eq!(
+            got.checksums[0].sha1,
+            "f003a5a9319c4eb8991fa2aae3f10c72d6b8e81a"
+        );
+        assert_eq!(got.sections.len(), 1);
+        assert_eq!(got.sections[0].name, "lo_rom");
+        assert_eq!(got.sections[0].logical_range, 0x0000..0x9000);
+        assert_eq!(got.sections[0].access, ReaderAccess::Read);
+        assert_eq!(got.tool_version, "test");
+
+        let decoded: Vec<u32> = bincode::deserialize(art.payload).unwrap();
+        assert_eq!(decoded, payload);
+    }
+
+    /// End to end: `metadata = true` writes `<target>.map` + `<target>.sym`
+    /// with the header, the in-asm sections are persisted, and the reader's
+    /// `Target::load` accepts the pair.
+    #[test]
+    fn metadata_bundle_written_by_assembler_loads_in_reader() {
+        let src = r#"
+            section rom_01, start = $1000, size = $1000
+            nop
+            section dp_ram, start = $9800, size = $100
+            rmb 2
+        "#;
+        let dir = std::env::temp_dir();
+        let path = dir.join("gazm_metadata_bundle_test.gazm");
+        std::fs::write(&path, src).unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(dir.clone()),
+            metadata: true,
+            target_name: Some("mytest".to_string()),
+            ..Default::default()
+        };
+        let mut asm = Assembler::new(opts);
+        let res = asm.assemble();
+        assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
+        asm.write_outputs().unwrap();
+
+        let map_bytes = std::fs::read(dir.join("mytest.map")).unwrap();
+        let sym_bytes = std::fs::read(dir.join("mytest.sym")).unwrap();
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(dir.join("mytest.map"));
+        let _ = std::fs::remove_file(dir.join("mytest.sym"));
+
+        let target = gazm_metadata::Target::load(&map_bytes, &sym_bytes).unwrap();
+        let info = target.info.expect("v4 header present");
+        assert_eq!(info.target_name, "mytest");
+        assert_eq!(info.cpu, ReaderCpu::Cpu6809);
+
+        let rom = info
+            .sections
+            .iter()
+            .find(|s| s.name == "rom_01")
+            .expect("rom_01 persisted");
+        assert_eq!(rom.logical_range.start, 0x1000);
+        assert!(rom.logical_range.end > 0x1000);
+        assert_eq!(rom.access, ReaderAccess::ReadWrite);
+
+        // The single `nop` must show up as an instruction boundary.
+        assert!(!target.source_map.boundaries().is_empty());
+    }
+
+    /// metadata absent + no explicit paths -> nothing written.
+    #[test]
+    fn metadata_absent_writes_nothing() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("gazm_metadata_absent_test.gazm");
+        std::fs::write(&path, "nop\n").unwrap();
+
+        let opts = Opts {
+            project_file: path.clone(),
+            assemble_dir: Some(dir.clone()),
+            target_name: Some("quiet".to_string()),
+            ..Default::default()
+        };
+        let mut asm = Assembler::new(opts);
+        let res = asm.assemble();
+        assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
+        asm.write_outputs().unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        assert!(!dir.join("quiet.map").exists());
+        assert!(!dir.join("quiet.sym").exists());
     }
 }

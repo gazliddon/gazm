@@ -63,6 +63,9 @@ pub struct AsmOut {
     pub exec_addr: Option<usize>,
     /// Binary chunks to write out
     pub bin_to_write_chunks: Vec<BinToWrite>,
+    /// Final sections from the in-asm `section` directive, persisted into
+    /// the v4 metadata header (contract §6).
+    pub sections: Vec<crate::sections::SectionDescriptor>,
     pub ast: Option<Ast>,
     /// Used for mapping labesl to source position
     pub lookup: Option<LabelUsageAndDefintions>,

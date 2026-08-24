@@ -31,3 +31,34 @@ Read `README.md` for user-facing usage and `docs/ARCHITECTURE.md` for the data f
 - User-facing diagnostics are part of the CLI contract. Prefer the existing error types and collectors over ad-hoc `unwrap`/`println!` paths.
 - Configuration is TOML and is resolved relative to the config file's directory. Keep examples valid TOML.
 - The LSP command and several future CPU backends are currently incomplete; document limitations instead of presenting them as working features.
+
+## Open work: metadata contract (read this before touching artifacts)
+
+`docs/METADATA_CONTRACT.md` is the contract for the `.map`/`.sym` artifacts
+and the planned `gazm-metadata` reader library. The williams-emu debugger
+is the consumer. If you touch `encode_artifact`, `ARTIFACT_VERSION`,
+`source-mapping`/`syms-file` options, or anything that changes the on-disk
+format, follow that contract and update it. In particular:
+
+- The `[sections]` TOML block in project configs is dead config — remove
+  it and `SectionToml`; real sections come from the in-source `section`
+  directive and should be persisted (see contract §6).
+- The per-target `source-mapping`/`syms-file` options are being replaced
+  by a single `metadata = true|false` switch (contract §5).
+- The envelope gains an optional `TargetInfo` header at v4 (contract §4);
+  v3 files must keep loading.
+
+## Work boundaries (active project)
+
+There are two agents working in this repo in parallel. Respect the split:
+
+- `gazm-metadata/` — the **reader library** for the `.map`/`.sym`
+  artifacts (owned by the williams-emu debugger agent). Do NOT edit it;
+  you may review and comment, but code changes there are theirs.
+- `gazm/src/**` + config — the **writer side** (owned by the gazm agent):
+  `TargetInfo` header at v4, the single `metadata` switch, in-asm section
+  persistence, removal of dead `[sections]`/`SectionToml`.
+- `docs/METADATA_CONTRACT.md` — shared format truth. Any format change
+  updates it first; both sides implement against it.
+- Only shared file either agent may edit: the workspace root `Cargo.toml`
+  (member list) — keep changes additive.
