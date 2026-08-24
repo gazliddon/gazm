@@ -1,9 +1,11 @@
 use super::{
     err_kind_nomatch, from_item_children_tspan, from_item_tspan, get_identifier, get_label_string,
     get_quoted_string, keyword, parse_block, parse_expr, AstNodeKind, CommandKind, GazmParser,
-    Node, PResult, TSpan, TokenKind,
+    MsgPart, Node, PResult, TSpan, TokenKind,
 };
-use unraveler::{alt, many0, map, match_span as ms, opt, preceded, tuple, Collection, Parser};
+use unraveler::{
+    alt, delimited_kind, many0, map, match_span as ms, opt, preceded, tuple, Collection, Parser,
+};
 
 use crate::{cpukind::CpuKind, frontend::FrontEndErrorKind};
 
@@ -204,41 +206,75 @@ impl GazmParser {
         Ok((rest, node))
     }
 
-    /// `assert <condition> [, "message"]` — compile-time check. The
+    /// Parse an interpolated message: a sequence of adjacent quoted
+    /// strings and `{expr}` value parts, e.g.
+    /// `log "table: " {sizeof(Proc)} " bytes"`. Returns the message parts
+    /// (with `Value(i)` indexing the returned expression nodes in order).
+    fn parse_msg_parts(input: TSpan) -> PResult<(Vec<MsgPart>, Vec<Node>)> {
+        let mut parts: Vec<MsgPart> = vec![];
+        let mut exprs: Vec<Node> = vec![];
+        let mut rest = input;
+        loop {
+            if let Ok((next, text)) = get_quoted_string(rest) {
+                parts.push(MsgPart::Text(text));
+                rest = next;
+            } else if let Ok((next, (_, expr))) = ms(delimited_kind(
+                TokenKind::OpenBrace,
+                parse_expr,
+                TokenKind::CloseBrace,
+            ))(rest)
+            {
+                parts.push(MsgPart::Value(exprs.len()));
+                exprs.push(expr);
+                rest = next;
+            } else {
+                break;
+            }
+        }
+        if parts.is_empty() {
+            return Err(crate::frontend::error::FrontEndError::error(
+                input,
+                FrontEndErrorKind::Unexpected,
+            ));
+        }
+        Ok((rest, (parts, exprs)))
+    }
+
+    /// `assert <condition> [, message]` — compile-time check. The
     /// condition is evaluated during sizing; a zero (false) result fails
     /// the assembly with the message, if any. Children: the condition
-    /// expression.
+    /// expression, then the message's value expressions.
     pub fn parse_assert(input: TSpan) -> PResult<Node> {
         let result = ms(preceded(
             keyword("assert"),
             tuple((
                 parse_expr,
-                opt(preceded(TokenKind::Comma, get_quoted_string)),
+                opt(preceded(TokenKind::Comma, |i| Self::parse_msg_parts(i))),
             )),
         ))(input);
 
         let (rest, (sp, (cond, msg))) = result.map_err(|_| err_kind_nomatch(input))?;
-        let node = from_item_children_tspan(AstNodeKind::Assert(msg), &[cond], sp);
+        let mut children = vec![cond];
+        let parts = match msg {
+            Some((parts, exprs)) => {
+                children.extend(exprs);
+                parts
+            }
+            None => vec![],
+        };
+        let node = from_item_children_tspan(AstNodeKind::Assert(parts), &children, sp);
         Ok((rest, node))
     }
 
-    /// `log <"text" | expr>` — print a message during assembly. A quoted
-    /// string is printed verbatim; an expression prints its evaluated
-    /// value. Useful for reporting what the assembler decided (table
-    /// sizes, resolved addresses) without leaving the source.
+    /// `log <message>` — print during assembly. A message is a sequence
+    /// of quoted strings and `{expr}` value parts, e.g.
+    /// `log "table: " {sizeof(Proc)} " bytes"`. Children: the value
+    /// expressions.
     pub fn parse_log(input: TSpan) -> PResult<Node> {
-        let result = ms(preceded(
-            keyword("log"),
-            alt((
-                map(get_quoted_string, |text| {
-                    (AstNodeKind::Log(Some(text)), vec![])
-                }),
-                map(parse_expr, |expr| (AstNodeKind::Log(None), vec![expr])),
-            )),
-        ))(input);
+        let result = ms(preceded(keyword("log"), |i| Self::parse_msg_parts(i)))(input);
 
-        let (rest, (sp, (kind, children))) = result.map_err(|_| err_kind_nomatch(input))?;
-        let node = from_item_children_tspan(kind, &children, sp);
+        let (rest, (sp, (parts, exprs))) = result.map_err(|_| err_kind_nomatch(input))?;
+        let node = from_item_children_tspan(AstNodeKind::Log(parts), &exprs, sp);
         Ok((rest, node))
     }
 

@@ -150,70 +150,130 @@ fn eval_internal(
 
         // Compile-time function call: builtins execute at assembly time
         // and produce a value. Floats stay transient here; emitting them
-        // requires an explicit conversion such as round().
+        // requires an explicit conversion such as round(). The builtin
+        // set is in one place, keyed by name, with per-builtin arity.
         Call(name) => {
-            let mut args = n.children();
-            let arg = args
-                .next()
-                .ok_or_else(|| EvalError::new(EvalErrorEnum::WrongArity(name.clone()), n))?;
-            if args.next().is_some() {
+            let args: Vec<AstNodeRef> = n.children().collect();
+            let (arity_min, arity_max) = match name.as_str() {
+                "min" | "max" | "atan2" | "pow" => (2, 2),
+                _ => (1, 1),
+            };
+            if args.len() < arity_min || args.len() > arity_max {
                 return Err(EvalError::new(EvalErrorEnum::WrongArity(name.clone()), n));
             }
-            match name.as_str() {
-                // `sizeof(StructName)` — total struct size in bytes. The
-                // argument is a struct name, not a value: resolve it to a
-                // scope (chain-first, top-level fallback) and read the
-                // size from the registry. A lone name parses as an Expr
-                // (postfix by eval time) wrapping the label.
-                "sizeof" => {
-                    let struct_name = match &arg.value().item {
-                        Label(LabelDefinition::Text(name)) => name.clone(),
-                        PostFixExpr => {
-                            match arg.first_child().map(|c| c.value().item.clone()).as_ref() {
-                                Some(Label(LabelDefinition::Text(name))) => name.clone(),
-                                _ => {
-                                    return Err(EvalError::new(
-                                        EvalErrorEnum::ExpectedStructName,
-                                        n,
-                                    ))
-                                }
+
+            // `sizeof(StructName)` — total struct size in bytes. The
+            // argument is a struct name, not a value: resolve it to a
+            // scope (chain-first, top-level fallback) and read the size
+            // from the registry. A lone name parses as an Expr (postfix
+            // by eval time) wrapping the label.
+            if name == "sizeof" {
+                let arg = args[0];
+                let struct_name = match &arg.value().item {
+                    Label(LabelDefinition::Text(name)) => name.clone(),
+                    PostFixExpr => {
+                        match arg.first_child().map(|c| c.value().item.clone()).as_ref() {
+                            Some(Label(LabelDefinition::Text(name))) => name.clone(),
+                            _ => return Err(EvalError::new(EvalErrorEnum::ExpectedStructName, n)),
+                        }
+                    }
+                    _ => return Err(EvalError::new(EvalErrorEnum::ExpectedStructName, n)),
+                };
+                let tree = symbols.syms();
+                let scope = crate::semantic::ast::find_visible_scope(
+                    tree,
+                    symbols.current_scope(),
+                    &struct_name,
+                )
+                .ok_or_else(|| {
+                    EvalError::new(EvalErrorEnum::UnknownStruct(struct_name.clone()), n)
+                })?;
+                let size = *struct_sizes.get(&scope).ok_or_else(|| {
+                    EvalError::new(EvalErrorEnum::UnknownStruct(struct_name.clone()), n)
+                })?;
+                AstNodeKind::Num(size as i64, ParsedFrom::Expression)
+            } else {
+                // 1-arg and 2-arg math/bit builtins.
+                let a = eval_internal(symbols, struct_sizes, args[0])?;
+                match name.as_str() {
+                    "sin" => apply_math(a, f64::sin),
+                    "cos" => apply_math(a, f64::cos),
+                    "sqrt" => apply_math(a, f64::sqrt),
+                    "abs" => match a {
+                        AstNodeKind::Num(x, _) => AstNodeKind::Num(x.abs(), ParsedFrom::Expression),
+                        AstNodeKind::Fnum(x, _) => {
+                            AstNodeKind::Fnum(x.abs(), ParsedFrom::Expression)
+                        }
+                        _ => unreachable!(),
+                    },
+                    // Integer-valued conversions (like round): float
+                    // floors/ceils become integers, ints pass through.
+                    "floor" => match a {
+                        AstNodeKind::Num(x, _) => AstNodeKind::Num(x, ParsedFrom::Expression),
+                        AstNodeKind::Fnum(x, _) => {
+                            AstNodeKind::Num(x.floor() as i64, ParsedFrom::Expression)
+                        }
+                        _ => unreachable!(),
+                    },
+                    "ceil" => match a {
+                        AstNodeKind::Num(x, _) => AstNodeKind::Num(x, ParsedFrom::Expression),
+                        AstNodeKind::Fnum(x, _) => {
+                            AstNodeKind::Num(x.ceil() as i64, ParsedFrom::Expression)
+                        }
+                        _ => unreachable!(),
+                    },
+                    "round" => match a {
+                        // round() of an integer is the integer itself.
+                        AstNodeKind::Num(x, _) => AstNodeKind::Num(x, ParsedFrom::Expression),
+                        AstNodeKind::Fnum(x, _) => {
+                            AstNodeKind::Num(x.round() as i64, ParsedFrom::Expression)
+                        }
+                        _ => unreachable!(),
+                    },
+                    // Byte splitting: integers only.
+                    "hi" => match a {
+                        AstNodeKind::Num(x, _) => {
+                            AstNodeKind::Num((x >> 8) & 0xFF, ParsedFrom::Expression)
+                        }
+                        _ => return Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n)),
+                    },
+                    "lo" => match a {
+                        AstNodeKind::Num(x, _) => {
+                            AstNodeKind::Num(x & 0xFF, ParsedFrom::Expression)
+                        }
+                        _ => return Err(EvalError::new(EvalErrorEnum::ExpectedANumber, n)),
+                    },
+                    // 2-arg: min/max keep ints ints (promoting when a
+                    // float is involved); atan2/pow are float math.
+                    "min" | "max" => {
+                        let b = eval_internal(symbols, struct_sizes, args[1])?;
+                        match (&a, &b) {
+                            (AstNodeKind::Num(x, _), AstNodeKind::Num(y, _)) => {
+                                let v = if name == "min" { x.min(y) } else { x.max(y) };
+                                AstNodeKind::Num(*v, ParsedFrom::Expression)
+                            }
+                            _ => {
+                                let (x, y) = (number_to_f64(&a), number_to_f64(&b));
+                                let v = if name == "min" { x.min(y) } else { x.max(y) };
+                                AstNodeKind::Fnum(v, ParsedFrom::Expression)
                             }
                         }
-                        _ => return Err(EvalError::new(EvalErrorEnum::ExpectedStructName, n)),
-                    };
-                    let tree = symbols.syms();
-                    let scope = crate::semantic::ast::find_visible_scope(
-                        tree,
-                        symbols.current_scope(),
-                        &struct_name,
-                    )
-                    .ok_or_else(|| {
-                        EvalError::new(EvalErrorEnum::UnknownStruct(struct_name.clone()), n)
-                    })?;
-                    let size = *struct_sizes.get(&scope).ok_or_else(|| {
-                        EvalError::new(EvalErrorEnum::UnknownStruct(struct_name.clone()), n)
-                    })?;
-                    AstNodeKind::Num(size as i64, ParsedFrom::Expression)
-                }
-                _ => {
-                    let value = eval_internal(symbols, struct_sizes, arg)?;
-                    match name.as_str() {
-                        "sin" => apply_math(value, f64::sin),
-                        "cos" => apply_math(value, f64::cos),
-                        "round" => match value {
-                            // round() of an integer is the integer itself.
-                            AstNodeKind::Num(x, _) => AstNodeKind::Num(x, ParsedFrom::Expression),
-                            AstNodeKind::Fnum(x, _) => {
-                                AstNodeKind::Num(x.round() as i64, ParsedFrom::Expression)
-                            }
-                            _ => unreachable!(),
-                        },
-                        _ => {
-                            return Err(EvalError::new(
-                                EvalErrorEnum::UnknownFunction(name.clone()),
-                                n,
-                            ))
-                        }
+                    }
+                    "atan2" => {
+                        let b = eval_internal(symbols, struct_sizes, args[1])?;
+                        let (y, x) = (number_to_f64(&a), number_to_f64(&b));
+                        AstNodeKind::Fnum(y.atan2(x), ParsedFrom::Expression)
+                    }
+                    "pow" => {
+                        let b = eval_internal(symbols, struct_sizes, args[1])?;
+                        let (x, y) = (number_to_f64(&a), number_to_f64(&b));
+                        AstNodeKind::Fnum(x.powf(y), ParsedFrom::Expression)
+                    }
+                    _ => {
+                        return Err(EvalError::new(
+                            EvalErrorEnum::UnknownFunction(name.clone()),
+                            n,
+                        ))
                     }
                 }
             }

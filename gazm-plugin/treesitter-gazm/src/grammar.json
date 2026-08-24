@@ -1388,8 +1388,11 @@
                   "type": "FIELD",
                   "name": "message",
                   "content": {
-                    "type": "SYMBOL",
-                    "name": "string_literal"
+                    "type": "REPEAT1",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_msg_part"
+                    }
                   }
                 }
               ]
@@ -1413,23 +1416,39 @@
           }
         },
         {
-          "type": "CHOICE",
+          "type": "FIELD",
+          "name": "message",
+          "content": {
+            "type": "REPEAT1",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_msg_part"
+            }
+          }
+        }
+      ]
+    },
+    "_msg_part": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "string_literal"
+        },
+        {
+          "type": "SEQ",
           "members": [
             {
-              "type": "FIELD",
-              "name": "message",
-              "content": {
-                "type": "SYMBOL",
-                "name": "string_literal"
-              }
+              "type": "STRING",
+              "value": "{"
             },
             {
-              "type": "FIELD",
-              "name": "value",
-              "content": {
-                "type": "SYMBOL",
-                "name": "_expression"
-              }
+              "type": "SYMBOL",
+              "name": "_expression"
+            },
+            {
+              "type": "STRING",
+              "value": "}"
             }
           ]
         }

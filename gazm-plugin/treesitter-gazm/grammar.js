@@ -262,17 +262,23 @@ module.exports = grammar({
         assert_keyword: $ => asRegex('assert'),
         log_keyword: $ => asRegex('log'),
 
-        // `assert <condition> [, "message"]` — compile-time check.
+        // `assert <condition> [, message]` — compile-time check.
         assert_statement: $ => seq(
             field('keyword', $.assert_keyword),
             field('condition', $._expression),
-            optional(seq(',', field('message', $.string_literal))),
+            optional(seq(',', field('message', repeat1($._msg_part)))),
         ),
 
-        // `log <"text" | expr>` — print during assembly.
+        // `log <message>` — print during assembly.
         log_statement: $ => seq(
             field('keyword', $.log_keyword),
-            choice(field('message', $.string_literal), field('value', $._expression)),
+            field('message', repeat1($._msg_part)),
+        ),
+
+        // One interpolated message part: literal text or a `{expr}` value.
+        _msg_part: $ => choice(
+            $.string_literal,
+            seq('{', $._expression, '}'),
         ),
 
         block: $ => seq('{', repeat($._block_content), '}'),

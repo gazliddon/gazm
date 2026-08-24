@@ -22,7 +22,7 @@ enum LoopSignal {
 use crate::{
     debug_mess,
     error::GResult,
-    frontend::{AstNodeKind, AstNodeKindDiscriminants, LabelDefinition},
+    frontend::{AstNodeKind, AstNodeKindDiscriminants, LabelDefinition, MsgPart},
     gazmsymbols::SymbolScopeId,
     sections::SectionDescriptor,
     semantic::{Ast, AstNodeId, AstNodeRef},
@@ -192,6 +192,38 @@ impl<'a> Sizer<'a> {
     pub fn set_pc(&mut self, val: usize) {
         self.pc = val;
         assert!(self.pc < 65536);
+    }
+
+    /// Build an interpolated `log`/`assert` message by walking the parts
+    /// and evaluating the `Value(i)` expression children. `value_base` is
+    /// the child index of the first value expression (1 for `assert`,
+    /// whose child 0 is the condition; 0 for `log`). Values are formatted
+    /// as decimal.
+    fn format_msg(
+        &mut self,
+        asm: &mut Assembler,
+        parts: &[MsgPart],
+        node: AstNodeRef,
+        current_scope_id: u64,
+        value_base: usize,
+    ) -> GResult<String> {
+        let mut text = String::new();
+        for part in parts {
+            match part {
+                MsgPart::Text(t) => text.push_str(t),
+                MsgPart::Value(i) => {
+                    let child = node.children().nth(value_base + *i).ok_or_else(
+                        || -> crate::error::GazmErrorKind {
+                            let diag = asm.make_user_error("message value missing", node, true);
+                            diag.into()
+                        },
+                    )?;
+                    let value = asm.eval_node(child, current_scope_id)?;
+                    text.push_str(&value.to_string());
+                }
+            }
+        }
+        Ok(text)
     }
 
     fn size_node(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
@@ -442,10 +474,11 @@ impl<'a> Sizer<'a> {
                 self.emit(id, i.clone());
             }
 
-            // `assert <condition> [, "message"]`: evaluate at sizing
-            // time; a false condition is a (non-fatal) error so several
-            // asserts report together. No plan entry — the compiler never
-            // sees it, exactly like if/while.
+            // `assert <condition> [, message]`: evaluate at sizing time; a
+            // false condition is a (non-fatal) error so several asserts
+            // report together. No plan entry — the compiler never sees it,
+            // exactly like if/while. Child 0 is the condition; the message
+            // value expressions follow (MsgPart::Value indexes them from 1).
             Assert(msg) => {
                 let cond_node =
                     node.first_child()
@@ -457,7 +490,12 @@ impl<'a> Sizer<'a> {
                 asm.set_pc_symbol_internal(self.pc)?;
                 let cond = asm.eval_node(cond_node, current_scope_id)?;
                 if cond == 0 {
-                    let text = msg.clone().map(|m| format!(": {m}")).unwrap_or_default();
+                    let text = self.format_msg(asm, msg, node, current_scope_id, 1)?;
+                    let text = if text.is_empty() {
+                        String::new()
+                    } else {
+                        format!(": {text}")
+                    };
                     let diag = asm.make_user_error(format!("assertion failed{text}"), node, false);
                     if asm.asm_out.errors.push(diag) {
                         return Ok(());
@@ -465,17 +503,16 @@ impl<'a> Sizer<'a> {
                 }
             }
 
-            // `log <"text" | expr>`: print during sizing. String form
-            // prints verbatim; expression form prints the value.
-            Log(msg) => match (msg, node.first_child()) {
-                (Some(text), _) => status_mess!("{text}"),
-                (None, Some(expr)) => {
-                    asm.set_pc_symbol_internal(self.pc)?;
-                    let value = asm.eval_node(expr, current_scope_id)?;
-                    status_mess!("{value}");
+            // `log <message>`: print during sizing. The message is a
+            // sequence of text and `{expr}` parts (children are the value
+            // expressions, MsgPart::Value indexes them from 0).
+            Log(msg) => {
+                asm.set_pc_symbol_internal(self.pc)?;
+                let text = self.format_msg(asm, msg, node, current_scope_id, 0)?;
+                if !text.is_empty() {
+                    status_mess!("{text}");
                 }
-                (None, None) => {}
-            },
+            }
 
             GrabMem => {
                 let args = asm.eval_n_args(node, 2, current_scope_id)?;
@@ -1479,7 +1516,8 @@ CONT:       nop
         let src = r#"
             org $1000
             log "process table ready"
-            log 12345
+            log {12345}
+            log "table: " {6 * 7} " bytes"
             fcb 1
         "#;
         let path = std::env::temp_dir().join("gazm_log.gazm");
@@ -1506,6 +1544,37 @@ CONT:       nop
         assert!(
             out.contains("12345"),
             "value log missing from output: {out}"
+        );
+        assert!(
+            out.contains("table: 42 bytes"),
+            "interpolated log missing from output: {out}"
+        );
+    }
+
+    #[test]
+    fn assert_message_interpolates_values() {
+        let src = r#"
+            org $1000
+            assert 1 == 2, "got " {1 + 1} ", expected " {2}
+            fcb 7
+        "#;
+        let err = assemble_error("assert_interp", src);
+        assert!(
+            err.contains("assertion failed: got 2, expected 2"),
+            "expected interpolated assert message, got: {err}"
+        );
+    }
+
+    #[test]
+    fn math_builtins() {
+        let src = r#"
+            org $1000
+            fcb abs(-3), min(2, 9), max(2, 9), hi($1234), lo($1234)
+            fcb round(sqrt(16.0)), round(floor(3.9)), round(ceil(3.1))
+        "#;
+        assert_eq!(
+            assemble_bytes("math_builtins", src, 0x1000, 8),
+            vec![3, 2, 9, 0x12, 0x34, 4, 3, 4]
         );
     }
 

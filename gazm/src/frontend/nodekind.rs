@@ -185,17 +185,29 @@ pub enum AstNodeKind {
     /// assembly time and produce a value.
     Call(String),
 
-    /// `assert <condition> [, "message"]` — compile-time check. The
+    /// `assert <condition> [, message]` — compile-time check. The
     /// condition is evaluated during sizing; a zero (false) result fails
     /// the assembly with the message, if any. Children: the condition
-    /// expression.
-    Assert(Option<String>),
+    /// expression, then the message's value expressions (see `MsgPart`).
+    Assert(Vec<MsgPart>),
 
-    /// `log <"text" | expr>` — print a message during assembly (sizing
-    /// time). With a string, the text is printed verbatim; with an
-    /// expression, its evaluated value is printed. No children when the
-    /// string form is used; one expression child otherwise.
-    Log(Option<String>),
+    /// `log <message>` — print a message during assembly (sizing time).
+    /// Children: the message's value expressions (see `MsgPart`).
+    Log(Vec<MsgPart>),
+}
+
+/// One part of an interpolated `log`/`assert` message. A message is a
+/// sequence of literal text and `{expr}` value parts, e.g.
+/// `log "table: " {sizeof(Proc)} " bytes"`. `Value(i)` is the *i*-th
+/// expression child of the node: for `Assert` the condition is child 0
+/// and values start at child 1; for `Log` values start at child 0.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MsgPart {
+    /// Literal text, printed verbatim.
+    Text(String),
+    /// An expression child whose evaluated value is formatted into the
+    /// message.
+    Value(usize),
 }
 
 /// Identity of a binary operator, so precedence lives in one table

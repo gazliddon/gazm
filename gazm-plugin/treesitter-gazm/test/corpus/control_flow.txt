@@ -154,9 +154,9 @@ macro gen(n) {
 ==================
 Assert and log
 ==================
-assert PTAB + 5 == TABEND, "table size"
+assert PTAB + 5 == TABEND, "table: " {PTAB} " bytes"
 log "table laid out"
-log PTAB
+log {PTAB}
 
 ---
 (source_file
@@ -167,10 +167,12 @@ log PTAB
         left: (label)
         right: (dec_num))
       right: (label))
+    message: (string_literal)
+    message: (label)
     message: (string_literal))
   (log_statement
     keyword: (log_keyword)
     message: (string_literal))
   (log_statement
     keyword: (log_keyword)
-    value: (label)))
+    message: (label)))
