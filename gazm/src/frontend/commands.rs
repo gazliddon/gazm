@@ -4,8 +4,8 @@ use crate::cpukind::CpuKind;
 
 use super::{
     err_nomatch, from_item_children_tspan, from_item_tspan, get_label_string, get_str, get_text,
-    parse_expr, AstNodeKind, CommandKind, FeResult, FrontEndError, LabelDefinition, Node, PResult,
-    TSpan, TokenKind, TokenKind::Comma,
+    keyword, parse_expr, AstNodeKind, CommandKind, FeResult, FrontEndError, LabelDefinition, Node,
+    PResult, TSpan, TokenKind, TokenKind::Comma,
 };
 
 use core::panic;
@@ -238,10 +238,7 @@ impl GazmParser {
         while let Some(first) = curr.first() {
             if !matches!(
                 first.kind,
-                TokenKind::Identifier
-                    | TokenKind::Label
-                    | TokenKind::CpuOpcode(_)
-                    | TokenKind::Command(_)
+                TokenKind::Identifier | TokenKind::Label | TokenKind::CpuOpcode(_)
             ) {
                 break;
             }
@@ -312,10 +309,7 @@ impl GazmParser {
             if let Some(tok) = curr.first() {
                 if matches!(
                     tok.kind,
-                    TokenKind::Identifier
-                        | TokenKind::Label
-                        | TokenKind::CpuOpcode(_)
-                        | TokenKind::Command(_)
+                    TokenKind::Identifier | TokenKind::Label | TokenKind::CpuOpcode(_)
                 ) {
                     let sym_span = curr.take(1).unwrap();
                     let sym_name = get_str(&sym_span);
@@ -337,7 +331,7 @@ impl GazmParser {
     }
 
     pub(crate) fn parse_import(input: TSpan) -> PResult<Node> {
-        let (rest, span_import) = TokenKind::Command(CommandKind::Import).parse(input)?;
+        let (rest, span_import) = keyword("import")(input)?;
         let mut rest = rest;
         let mut all_children = Vec::new();
 

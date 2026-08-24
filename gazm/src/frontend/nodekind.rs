@@ -2,6 +2,7 @@
 use crate::{cpukind::CpuKind, frontend::LabelDefinition};
 use grl_sources::Position;
 use std::path::PathBuf;
+use strum_macros::{EnumDiscriminants, EnumIter};
 use thin_vec::ThinVec;
 
 use crate::{
@@ -30,7 +31,8 @@ pub enum ParsedFrom {
 }
 
 ///Ast Node Items
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, EnumDiscriminants)]
+#[strum_discriminants(name(AstNodeKindDiscriminants), derive(EnumIter, Hash))]
 pub enum AstNodeKind {
     Cpu(CpuKind),
     TargetSpecific(CpuSpecific),
@@ -53,6 +55,14 @@ pub enum AstNodeKind {
     },
 
     MacroDef(String, ThinVec<String>),
+
+    /// `repeat <count> [, <index>] { body }` — the body children are
+    /// assembled `count` times. The count expression is the first child;
+    /// the remaining children are the body. The optional `<index>` names a
+    /// loop variable bound to the current iteration (0-based) inside the body.
+    Repeat {
+        index: Option<String>,
+    },
 
     StructDef(String),
     StructEntry(String),

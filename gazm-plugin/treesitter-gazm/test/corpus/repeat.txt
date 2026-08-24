@@ -1,0 +1,99 @@
+
+==================
+Repeat with index
+==================
+repeat 4, i {
+    fdb i*2
+}
+
+---
+(source_file
+  (repeat
+    keyword: (label)
+    count: (dec_num)
+    index: (label)
+    (repeat_body
+      (fdb
+        (binary_expression
+          left: (label)
+          right: (dec_num))))))
+
+==================
+Repeat without index
+==================
+repeat 3 {
+    fcb 7
+}
+
+---
+(source_file
+  (repeat
+    keyword: (label)
+    count: (dec_num)
+    (repeat_body
+      (fcb (dec_num)))))
+
+==================
+Repeat in a macro
+==================
+macro gen(base, n) {
+    repeat n, i {
+        fdb base + i
+    }
+}
+
+---
+(source_file
+  (macro_def
+    (label)
+    (macro_args
+      (label)
+      (label))
+    (macro_body
+      (repeat
+        keyword: (label)
+        count: (label)
+        index: (label)
+        (repeat_body
+          (fdb
+            (binary_expression
+              left: (label)
+              right: (label))))))))
+
+==================
+Nested repeat
+==================
+repeat 2 {
+    repeat 2, i {
+        fdb i
+    }
+}
+
+---
+(source_file
+  (repeat
+    keyword: (label)
+    count: (dec_num)
+    (repeat_body
+      (repeat
+        keyword: (label)
+        count: (dec_num)
+        index: (label)
+        (repeat_body
+          (fdb (label)))))))
+
+==================
+Repeat keyword is not reserved
+==================
+REPEAT: equ $C0
+FCB REPEAT+6
+
+---
+(source_file
+  (equate
+    (label)
+    (hex_num))
+  (fcb
+    (binary_expression
+      left: (label)
+      right: (dec_num))))

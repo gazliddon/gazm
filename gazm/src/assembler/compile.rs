@@ -1,9 +1,9 @@
 #![forbid(unused_imports)]
 use std::path::Path;
 
-use super::{binary::BinaryError, scopetracker::ScopeTracker, Assembler};
+use super::{binary::BinaryError, plan::PlanEntry, Assembler};
 
-use crate::frontend::AstNodeKind;
+use crate::frontend::{AstNodeKind, AstNodeKindDiscriminants};
 use crate::{
     debug_mess,
     error::{Diagnostic, GResult, GazmErrorKind},
@@ -15,40 +15,205 @@ use grl_sources::ItemType;
 
 pub struct Compiler<'a> {
     tree: &'a Ast,
-    pub scopes: ScopeTracker,
 }
 
-pub fn compile(asm: &mut Assembler, tree: &Ast) -> GResult<()> {
-    let root_id = asm.get_symbols().get_root_scope_id();
-    let mut compiler = Compiler::new(tree, root_id)?;
-    compiler.compile_root(asm)?;
+/// Replay the walk plan produced by the sizer: emit the bytes for each
+/// statement in order. The plan already carries the resolved scope, the
+/// final node kind (fixups applied at plan-build time) and the computed PC,
+/// so this pass holds no layout state of its own — it just checks the binary
+/// write address matches the planned PC, applies any loop-index bindings, and
+/// emits.
+pub fn compile(asm: &mut Assembler, tree: &Ast, plan: &[PlanEntry]) -> GResult<()> {
+    let mut compiler = Compiler { tree };
+    for entry in plan {
+        compiler.compile_entry(asm, entry)?;
+    }
     Ok(())
 }
 
 impl<'a> Compiler<'a> {
-    pub fn new(tree: &'a Ast, current_scope_id: u64) -> GResult<Self> {
-        Ok(Self {
-            tree,
-            scopes: ScopeTracker::new(current_scope_id),
-        })
-    }
+    fn compile_entry(&mut self, asm: &mut Assembler, entry: &PlanEntry) -> GResult<()> {
+        use AstNodeKind::*;
 
-    pub fn compile_root(&mut self, asm: &mut Assembler) -> GResult<()> {
-        let scope_id = asm.get_symbols().get_root_scope_id();
-        self.scopes.set_scope(scope_id);
-        asm.set_pc_symbol_internal(0)?;
-        self.compile_node_error(asm, self.tree.as_ref().root().id())
-    }
+        let node_id = entry.node_id;
+        let current_scope_id = entry.scope_id;
 
-    fn get_node_id_item(
-        &self,
-        asm: &Assembler,
-        id: AstNodeId,
-    ) -> (AstNodeId, std::sync::Arc<AstNodeKind>) {
-        let node = self.tree.as_ref().get(id).unwrap();
-        let this_i = &node.value().item;
-        let i = asm.get_fixup_or_default(id, this_i, self.scopes.scope());
-        (node.id(), i)
+        // Internal invariant: the layout the sizer computed must agree with
+        // the binary's write address. Any drift here means sizing and
+        // emission disagreed, which would otherwise silently corrupt output.
+        assert_eq!(
+            asm.get_binary().get_write_address(),
+            entry.pc,
+            "layout drift: plan expects PC ${:04X} but the binary write address is ${:04X}",
+            entry.pc,
+            asm.get_binary().get_write_address()
+        );
+
+        asm.set_pc_symbol_internal(entry.pc)?;
+
+        // Loop index bindings from enclosing `repeat`s (usually empty).
+        for (symbol_id, value) in &entry.bindings {
+            asm.get_symbols_mut()
+                .set_value_for_id(*symbol_id, *value)
+                .map_err(|e| -> crate::error::GazmErrorKind {
+                    let node = self.get_node(node_id);
+                    asm.make_user_error(format!("repeat: {e}"), node, true)
+                        .into()
+                })?;
+        }
+
+        let mut pc = entry.pc;
+        let mut do_source_mapping = true;
+
+        match &entry.kind {
+            MacroCallProcessed { .. } => {
+                // Re-evaluate the macro arguments now that the whole layout
+                // is known; parameters whose arguments reference forward
+                // labels could not be evaluated at size time. The body
+                // statements are separate plan entries that follow.
+                do_source_mapping = false;
+                let node = self.get_node(node_id);
+                let ret = asm.eval_macro_args(current_scope_id, node);
+
+                if !ret {
+                    let pos = &node.value().pos;
+                    let si = asm.get_source_info(pos).unwrap();
+                    return Err(Diagnostic::from_text(
+                        "Couldn't evaluate all macro args",
+                        &si,
+                        true,
+                    )
+                    .into());
+                }
+            }
+
+            ScopeId(..) => (),
+
+            GrabMem => self.grab_mem(asm, node_id, current_scope_id)?,
+
+            WriteBin(file_name) => {
+                self.add_binary_to_write(asm, node_id, file_name, current_scope_id)?;
+            }
+
+            IncBinRef(file_name) => {
+                self.inc_bin_ref(asm, file_name, node_id, current_scope_id)?;
+            }
+
+            IncBinResolved { file, r } => {
+                self.incbin_resolved(asm, node_id, file, r)?;
+            }
+
+            Skip(skip) => {
+                asm.get_binary_mut().skip(*skip);
+            }
+
+            SetPc(new_pc) => {
+                asm.get_binary_mut().set_write_address(*new_pc, 0);
+
+                pc = *new_pc;
+                debug_mess!("Set PC to {:02X}", pc);
+            }
+
+            SetPutOffset(offset) => {
+                debug_mess!("Set put offset to {}", offset);
+                asm.get_binary_mut().set_write_offset(*offset);
+            }
+
+            TokenizedFile(..) | Block => (),
+
+            Fdb(..) => {
+                let node = self.get_node(node_id);
+
+                for n in node.children() {
+                    let x = asm.eval_node(n, current_scope_id)?;
+                    let e = asm.get_binary_mut().write_word_check_size(x);
+                    self.binary_error_map(asm, node_id, e)?;
+                }
+
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
+            Fcb(..) => {
+                let node = self.get_node(node_id);
+                for n in node.children() {
+                    let x = asm.eval_node(n, current_scope_id)?;
+                    let e = asm.get_binary_mut().write_byte_check_size(x);
+                    self.binary_error_map(asm, node_id, e)?;
+                }
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
+            Fcc(text) => {
+                for c in text.as_bytes() {
+                    let e = asm.get_binary_mut().write_byte(*c);
+                    self.binary_error_map(asm, node_id, e)?;
+                }
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
+            Zmb => {
+                let node = self.get_node(node_id);
+                let (bytes, _) = asm.eval_first_arg(node, current_scope_id)?;
+                for _ in 0..bytes {
+                    let e = asm.get_binary_mut().write_byte(0);
+                    self.binary_error_map(asm, node_id, e)?;
+                }
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
+            Zmd => {
+                let node = self.get_node(node_id);
+                let (words, _) = asm.eval_first_arg(node, current_scope_id)?;
+                for _ in 0..words {
+                    let e = asm.get_binary_mut().write_word(0);
+                    self.binary_error_map(asm, node_id, e)?;
+                }
+
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
+            Fill => {
+                let node = self.get_node(node_id);
+                let (size, byte) = asm.eval_two_args(node, current_scope_id)?;
+
+                for _ in 0..size {
+                    let e = asm.get_binary_mut().write_ubyte_check_size(byte);
+                    self.binary_error_map(asm, node_id, e)?;
+                }
+
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
+            Exec => {
+                let node = self.get_node(node_id);
+                let (exec_addr, _) = asm.eval_first_arg(node, current_scope_id)?;
+                asm.asm_out.exec_addr = Some(exec_addr as usize);
+            }
+
+            TargetSpecific(node_kind) => {
+                let node = self.get_node(node_id);
+
+                asm.compile_node(node, node_kind.clone(), current_scope_id)?;
+            }
+
+            AssignmentFromPc(..) | Assignment(..) | Comment(..) | StructDef(..) | MacroDef(..)
+            | MacroCall(..) | Import => (),
+
+            _ => {
+                panic!("Can't compile {:?}", entry.kind);
+            }
+        }
+
+        if do_source_mapping {
+            self.add_source_mapping(asm, node_id, pc);
+        }
+        Ok(())
     }
 
     pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<'_> {
@@ -119,9 +284,9 @@ impl<'a> Compiler<'a> {
     }
 
     /// Grab memory and copy it the PC
-    fn grab_mem(&self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
+    fn grab_mem(&self, asm: &mut Assembler, id: AstNodeId, current_scope_id: u64) -> GResult<()> {
         let node = self.get_node(id);
-        let args = asm.eval_n_args(node, 2, self.scopes.scope())?;
+        let args = asm.eval_n_args(node, 2, current_scope_id)?;
         let source = args[0];
         let size = args[1];
 
@@ -143,8 +308,8 @@ impl<'a> Compiler<'a> {
         asm: &mut Assembler,
         id: AstNodeId,
         path: P,
+        current_scope_id: u64,
     ) -> GResult<()> {
-        let current_scope_id = self.scopes.scope();
         let node = self.get_node(id);
         let (physical_address, count) = asm.eval_two_args(node, current_scope_id)?;
 
@@ -268,15 +433,6 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn compile_children(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        let node = self.get_node(id);
-        let children: Vec<_> = node.children().map(|n| n.id()).collect();
-        for c in children {
-            self.compile_node_error(asm, c)?;
-        }
-        Ok(())
-    }
-
     fn add_source_mapping(&self, asm: &mut Assembler, id: AstNodeId, addr: usize) {
         let node = self.get_node(id);
         // TODO Fix this fucker!
@@ -284,184 +440,45 @@ impl<'a> Compiler<'a> {
 
         asm.add_source_mapping(&node.value().pos, addr, kind);
     }
+}
 
-    fn compile_node_error(&mut self, asm: &mut Assembler, id: AstNodeId) -> GResult<()> {
-        use AstNodeKind::*;
-
-        let (node_id, i) = self.get_node_id_item(asm, id);
-
-        let mut pc = asm.get_binary().get_write_address();
-
-        let mut do_source_mapping = true;
-        let current_scope_id = self.scopes.scope();
-
-        asm.set_pc_symbol_internal(pc)?;
-
-        match i.as_ref() {
-            ScopeId(scope_id) => self.scopes.set_scope(*scope_id),
-
-            GrabMem => self.grab_mem(asm, id)?,
-
-            WriteBin(file_name) => self.add_binary_to_write(asm, id, file_name)?,
-
-            IncBinRef(file_name) => {
-                self.inc_bin_ref(asm, file_name, id, current_scope_id)?;
-            }
-
-            IncBinResolved { file, r } => {
-                self.incbin_resolved(asm, id, file, r)?;
-            }
-
-            Skip(skip) => {
-                asm.get_binary_mut().skip(*skip);
-            }
-
-            SetPc(new_pc) => {
-                asm.get_binary_mut().set_write_address(*new_pc, 0);
-
-                pc = *new_pc;
-                debug_mess!("Set PC to {:02X}", pc);
-            }
-
-            SetPutOffset(offset) => {
-                debug_mess!("Set put offset to {}", offset);
-                asm.get_binary_mut().set_write_offset(*offset);
-            }
-
-            MacroCallProcessed {
-                scope_id, macro_id, ..
-            } => {
-                let node = self.get_node(node_id);
-                do_source_mapping = false;
-                let ret = asm.eval_macro_args(*scope_id, node);
-
-                if !ret {
-                    let pos = &node.value().pos;
-                    let si = asm.get_source_info(pos).unwrap();
-                    return Err(Diagnostic::from_text(
-                        "Couldn't evaluate all macro args",
-                        &si,
-                        true,
-                    )
-                    .into());
-                }
-
-                self.scopes.push(*scope_id);
-
-                {
-                    let m_node = self.get_node(*macro_id);
-                    let children: Vec<_> = m_node.children().map(|n| n.id()).collect();
-
-                    for c_node in children {
-                        self.compile_node_error(asm, c_node)?;
-                    }
-                }
-
-                self.scopes.pop();
-            }
-
-            TokenizedFile(..) => {
-                self.compile_children(asm, id)?;
-            }
-
-            Block => {
-                self.compile_children(asm, id)?;
-            }
-
-            Fdb(..) => {
-                let node = self.get_node(node_id);
-
-                for n in node.children() {
-                    let x = asm.eval_node(n, current_scope_id)?;
-                    let e = asm.get_binary_mut().write_word_check_size(x);
-                    self.binary_error_map(asm, id, e)?;
-                }
-
-                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-                self.add_mapping(asm, phys_range, range, id, ItemType::Command);
-            }
-
-            Fcb(..) => {
-                let node = self.get_node(node_id);
-                for n in node.children() {
-                    let x = asm.eval_node(n, current_scope_id)?;
-                    let e = asm.get_binary_mut().write_byte_check_size(x);
-                    self.binary_error_map(asm, id, e)?;
-                }
-                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-                self.add_mapping(asm, phys_range, range, id, ItemType::Command);
-            }
-
-            Fcc(text) => {
-                for c in text.as_bytes() {
-                    let e = asm.get_binary_mut().write_byte(*c);
-                    self.binary_error_map(asm, id, e)?;
-                }
-                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-                self.add_mapping(asm, phys_range, range, id, ItemType::Command);
-            }
-
-            Zmb => {
-                let node = self.get_node(node_id);
-                let (bytes, _) = asm.eval_first_arg(node, current_scope_id)?;
-                for _ in 0..bytes {
-                    let e = asm.get_binary_mut().write_byte(0);
-                    self.binary_error_map(asm, id, e)?;
-                }
-                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-                self.add_mapping(asm, phys_range, range, id, ItemType::Command);
-            }
-
-            Zmd => {
-                let node = self.get_node(node_id);
-                let (words, _) = asm.eval_first_arg(node, current_scope_id)?;
-                for _ in 0..words {
-                    let e = asm.get_binary_mut().write_word(0);
-                    self.binary_error_map(asm, id, e)?;
-                }
-
-                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-                self.add_mapping(asm, phys_range, range, id, ItemType::Command);
-            }
-
-            Fill => {
-                let node = self.get_node(node_id);
-                let (size, byte) = asm.eval_two_args(node, current_scope_id)?;
-
-                for _ in 0..size {
-                    let e = asm.get_binary_mut().write_ubyte_check_size(byte);
-                    self.binary_error_map(asm, id, e)?;
-                }
-
-                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-                self.add_mapping(asm, phys_range, range, id, ItemType::Command);
-            }
-
-            Exec => {
-                let node = self.get_node(node_id);
-                let (exec_addr, _) = asm.eval_first_arg(node, current_scope_id)?;
-                asm.asm_out.exec_addr = Some(exec_addr as usize);
-            }
-
-            IncBin(..) | Org | Section(..) | SetSection(..) | AssignmentFromPc(..)
-            | Assignment(..) | Comment(..) | Rmb | StructDef(..) | MacroDef(..) | MacroCall(..)
-            | Import => (),
-
-            TargetSpecific(node_kind) => {
-                let node = self.get_node(id);
-
-                asm.compile_node(node, node_kind.clone(), current_scope_id)?;
-            }
-
-            _ => {
-                panic!("Can't compile {i:?}");
-            }
-        }
-
-        if do_source_mapping {
-            self.add_source_mapping(asm, node_id, pc);
-        }
-
-        Ok(())
-    }
+/// True if `compile_entry` has an arm for this node kind (including its
+/// explicit no-op arm); false if it hits the `panic!("Can't compile")`
+/// catch-all.
+///
+/// Mirrors the `match` in `Compiler::compile_entry` — keep the two in sync.
+/// The coverage test in `mod.rs` asserts this set equals the set of kinds the
+/// sizer can put in the plan, so a kind added to one pass but not the other
+/// fails loudly instead of emitting wrong bytes.
+pub(crate) fn compiler_handles(kind: &AstNodeKindDiscriminants) -> bool {
+    use AstNodeKindDiscriminants::*;
+    matches!(
+        kind,
+        MacroCallProcessed
+            | ScopeId
+            | GrabMem
+            | WriteBin
+            | IncBinRef
+            | IncBinResolved
+            | Skip
+            | SetPc
+            | SetPutOffset
+            | TokenizedFile
+            | Block
+            | Fdb
+            | Fcb
+            | Fcc
+            | Zmb
+            | Zmd
+            | Fill
+            | Exec
+            | TargetSpecific
+            | AssignmentFromPc
+            | Assignment
+            | Comment
+            | StructDef
+            | MacroDef
+            | MacroCall
+            | Import
+    )
 }

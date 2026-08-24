@@ -67,7 +67,7 @@ fn size_node_internal(
                             size = new_ins.size;
                             let new_item = OpCode(new_ins.id());
 
-                            asm.add_fixup(id, new_item, current_scope_id);
+                            sizer.set_node_fixup(id, new_item);
                         }
                     }
                 }

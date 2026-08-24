@@ -10,8 +10,8 @@ use crate::{
         to_user_error, Diagnostic, DiagnosticBag, ErrorCollectorTrait, GResult, GazmErrorKind,
     },
     frontend::{
-        tokenize_async, tokenize_no_async, AstNodeKind, CpuSpecific, FrontEndError,
-        FrontEndErrorKind, Node, TokenStore, TokenizeResult,
+        tokenize_async, tokenize_no_async, CpuSpecific, FrontEndError, FrontEndErrorKind, Node,
+        TokenStore, TokenizeResult,
     },
     gazmsymbols::SymbolTree,
     lookup::LabelUsageAndDefintions,
@@ -30,7 +30,6 @@ use grl_utils::{FResult, FileIo, PathSearcher};
 
 use super::{
     binary::{AccessType, BinRef, Binary},
-    fixerupper::FixerUpper,
     BinaryError,
 };
 
@@ -41,7 +40,6 @@ pub struct Assembler {
     pub opts: Opts,
 
     pub asm_out: AsmOut,
-    pub fixer_upper: FixerUpper,
 }
 
 /// Collects the output of a project being assembled
@@ -358,7 +356,6 @@ impl Default for Assembler {
             opts: Default::default(),
             token_store: TokenStore::new(),
             asm_out: Default::default(),
-            fixer_upper: Default::default(),
         }
     }
 }
@@ -437,7 +434,6 @@ impl TryFrom<Opts> for Assembler {
         let asm_out = AsmOut::try_from(opts.clone())?;
         let token_store = TokenStore::new();
         let source_file_loader = SourceFileLoader::default();
-        let fixer_upper = FixerUpper::default();
         let cwd = opts
             .assemble_dir
             .clone()
@@ -449,7 +445,6 @@ impl TryFrom<Opts> for Assembler {
             cwd,
             asm_out,
             opts,
-            fixer_upper,
         };
 
         let cwd = ret.cwd.clone();
@@ -578,8 +573,8 @@ impl Assembler {
         let AstCtx { docs, ast_tree, .. } = AstCtx::from_nodes(self, tokens)?;
 
         status("Compiling", |_| {
-            super::sizer::size(self, &ast_tree)?;
-            super::compile::compile(self, &ast_tree)?;
+            let plan = super::sizer::size(self, &ast_tree)?;
+            super::compile::compile(self, &ast_tree, &plan)?;
             Ok::<(), GazmErrorKind>(())
         })?;
 
@@ -717,24 +712,6 @@ impl Assembler {
 
 // Fixup
 impl Assembler {
-    pub fn get_fixup_or_default(
-        &self,
-        id: AstNodeId,
-        i: &AstNodeKind,
-        scope_id: u64,
-    ) -> std::sync::Arc<AstNodeKind> {
-        self.fixer_upper.get_fixup_or_default(scope_id, id, i)
-    }
-
-    pub fn add_fixup<I: Into<AstNodeKind>>(
-        &mut self,
-        id: AstNodeId,
-        v: I,
-        scope_id: u64,
-    ) -> (u64, AstNodeId) {
-        self.fixer_upper.add_fixup(scope_id, id, v.into());
-        (scope_id, id)
-    }
     pub fn add_source_mapping(&mut self, pos: &Position, pc: usize, kind: ItemType) {
         self.asm_out.add_source_mapping(*pos, pc, kind)
     }

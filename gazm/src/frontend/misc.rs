@@ -5,9 +5,9 @@ use unraveler::{
 };
 
 use super::{
-    from_item_child_tspan, from_item_children_tspan, from_item_tspan, get_text, parse_expr,
-    AstNodeKind, CommandKind, FrontEndError, GazmParser, LabelDefinition, Node, NumberKind,
-    PResult, ParsedFrom, TSpan, Token, TokenKind,
+    from_item_child_tspan, from_item_children_tspan, from_item_tspan, get_text, keyword,
+    parse_expr, AstNodeKind, CommandKind, FrontEndError, GazmParser, LabelDefinition, Node,
+    NumberKind, PResult, ParsedFrom, TSpan, Token, TokenKind,
 };
 
 fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
@@ -108,7 +108,10 @@ impl GazmParser {
 
 impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
     fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), FrontEndError> {
-        TokenKind::Command(*self).parse(i)
+        // Match the command's keyword by text, not as a reserved token:
+        // a word is a command only where a parser chooses to match it, so
+        // user identifiers with the same spelling keep working elsewhere.
+        keyword(self.keyword_name())(i)
     }
 }
 
@@ -152,11 +155,10 @@ impl GazmParser {
     }
 
     pub fn parse_equate(input: TSpan) -> PResult<Node> {
-        let command = TokenKind::Command(CommandKind::Equ);
         let (rest, (sp, (assignment, _, _, expr))) = ms(tuple((
             alt((Self::parse_local_assignment, Self::parse_assignment)),
             kind(TokenKind::Colon),
-            kind(command),
+            keyword("equ"),
             cut(parse_expr),
         )))(input)?;
 

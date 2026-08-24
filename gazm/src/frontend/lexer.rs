@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 
-use super::{basetoken::Token as BaseToken, classify_identifier, ParseText};
+use super::{basetoken::Token as BaseToken, ParseText};
 use logos::{Lexer, Logos};
 use std::ops::Range;
 use strum_macros::EnumIter;
@@ -75,6 +75,44 @@ pub enum CommandKind {
     Equ,
     Target,
     Section,
+}
+
+impl CommandKind {
+    /// The lowercase keyword spelling for this command. This is the single
+    /// source for command names: it builds the parse-time lookup table and
+    /// is used to match commands by text (never as reserved tokens).
+    pub fn keyword_name(self) -> &'static str {
+        use CommandKind::*;
+        match self {
+            Scope => "scope",
+            GrabMem => "grabmem",
+            Put => "put",
+            IncBin => "incbin",
+            IncBinRef => "incbinref",
+            WriteBin => "writebin",
+            SetDp => "setdp",
+            Bsz => "bsz",
+            Fill => "fill",
+            Fdb => "fdb",
+            Fcc => "fcc",
+            Fcb => "fcb",
+            Zmb => "zmb",
+            Zmd => "zmd",
+            Rmb => "rmb",
+            Rmd => "rmd",
+            Rzb => "rzb",
+            Org => "org",
+            Include => "include",
+            Exec => "exec",
+            Require => "require",
+            Import => "import",
+            Struct => "struct",
+            Macro => "macro",
+            Equ => "equ",
+            Target => "target",
+            Section => "section",
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -270,21 +308,6 @@ pub enum TokenKind {
     Equals,
 }
 
-pub fn map_token(
-    kind: TokenKind,
-    _pos: std::ops::Range<usize>,
-    source_file: &grl_sources::SourceFile,
-) -> (TokenKind, std::ops::Range<usize>) {
-    let kind = match kind {
-        TokenKind::Identifier => {
-            let text = &source_file.get_text().source[_pos.clone()];
-            classify_identifier(None, text)
-        }
-        _ => kind,
-    };
-    (kind, _pos)
-}
-
 pub fn to_tokens_no_comment(source_file: &grl_sources::SourceFile) -> Vec<Token<'_>> {
     use TokenKind::*;
     let not_comment = |k: &TokenKind| k != &DocComment && k != &Comment;
@@ -316,7 +339,7 @@ fn to_tokens_kinds(
     let tokens = TokenKind::lexer(&source_file.get_text().source)
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
-            Ok(kind) => map_token(kind, pos, source_file),
+            Ok(kind) => (kind, pos),
             Err(error) => {
                 errors.push(error);
                 (TokenKind::Error, pos)

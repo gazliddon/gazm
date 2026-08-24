@@ -1,5 +1,8 @@
-use super::{get_identifier, CommandKind, GazmParser, Node, PResult, TSpan, TokenKind};
-use unraveler::{Collection, Parser};
+use super::{
+    err_kind_nomatch, from_item_children_tspan, get_identifier, get_label_string, keyword,
+    parse_block, parse_expr, AstNodeKind, CommandKind, GazmParser, Node, PResult, TSpan, TokenKind,
+};
+use unraveler::{many0, match_span as ms, opt, preceded, tuple, Collection, Parser};
 
 use crate::{cpukind::CpuKind, frontend::FrontEndErrorKind};
 
@@ -65,6 +68,45 @@ impl GazmParser {
         }
     }
 
+    /// `repeat <count> [, <index>] { body }`
+    ///
+    /// Count is an expression evaluated at assembly time; body children are
+    /// assembled that many times. The optional `<index>` binds a loop
+    /// variable (0-based) usable inside the body.
+    ///
+    /// New control-flow keywords (if/while/for/...) should follow this
+    /// pattern: match by text via [`keyword`] from the statement-level
+    /// alternatives in `parse_next_source_chunk`. Keywords are never
+    /// reserved tokens, so they cannot collide with existing symbol names.
+    pub fn parse_repeat(input: TSpan) -> PResult<Node> {
+        // A line that starts with `repeat` but is not a valid repeat
+        // construct (e.g. `REPEAT equ $C0`, `repeat:` as a label) must fall
+        // through to the normal statement parser. The alternative machinery
+        // aborts on fatal errors, so any failure here becomes a clean
+        // NoMatch. This parser is only reached from the statement-level
+        // alternatives, so that is always the right thing to do.
+        let result = ms(preceded(
+            keyword("repeat"),
+            tuple((
+                parse_expr,
+                opt(preceded(TokenKind::Comma, get_label_string)),
+                parse_block(many0(Self::parse_next_source_chunk)),
+            )),
+        ))(input);
+
+        let (rest, (sp, (count, index, body))) = result.map_err(|_| err_kind_nomatch(input))?;
+
+        let body: Vec<Node> = body.into_iter().flatten().collect();
+
+        // First child is the count expression; the rest is the loop body.
+        let mut children = Vec::with_capacity(1 + body.len());
+        children.push(count);
+        children.extend(body);
+
+        let node = from_item_children_tspan(AstNodeKind::Repeat { index }, &children, sp);
+        Ok((rest, node))
+    }
+
     pub fn parse_statement(input: TSpan) -> PResult<Node> {
         use TokenKind::*;
 
@@ -74,10 +116,7 @@ impl GazmParser {
         ) {
             let (rest, _) = Self::parse_local_label(input)?;
             let (rest, _) = Self::consume_label_colon(rest)?;
-            if matches!(
-                rest.first().map(|token| token.kind),
-                Some(Command(CommandKind::Equ))
-            ) {
+            if keyword("equ")(rest.clone()).is_ok() {
                 return Self::parse_equate(input);
             }
             return Self::parse_local_label(input).and_then(|(rest, node)| {
@@ -88,27 +127,43 @@ impl GazmParser {
 
         let (rest, x) = get_identifier(input)?;
 
+        match x {
+            // A command word is only a command when it is not immediately
+            // followed by a label colon: `FDB: equ 1` defines a label named
+            // FDB. Same for plain labels.
+            Command(_) if matches!(rest.first().map(|token| token.kind), Some(Colon)) => {
+                Self::parse_label_statement(input, rest)
+            }
+            Command(cmd_kind) => Self::parse_command_args(cmd_kind, input),
+            CpuOpcode(cpu_kind) => Self::parse_assembly(cpu_kind, input),
+            Label => Self::parse_label_statement(input, rest),
+            _ => Err(crate::frontend::error::FrontEndError::error(
+                input,
+                crate::frontend::FrontEndErrorKind::Unexpected,
+            )),
+        }
+    }
+
+    /// Finish a statement that starts with a label definition: route to
+    /// `parse_equate` when the label is followed by `equ`, to
+    /// `parse_macro_call` when followed by an argument list, or produce a
+    /// plain PC equate (label = current PC) otherwise.
+    fn parse_label_statement<'a>(input: TSpan<'a>, rest: TSpan<'a>) -> PResult<'a, Node> {
+        use TokenKind::*;
+
         let rest_after_label = if matches!(rest.first().map(|token| token.kind), Some(Colon)) {
             rest.drop(1).unwrap_or(rest)
         } else {
             rest
         };
 
-        match x {
-            Command(cmd_kind) => Self::parse_command_args(cmd_kind, input),
-            CpuOpcode(cpu_kind) => Self::parse_assembly(cpu_kind, input),
-            Label => match rest_after_label.first().map(|token| token.kind) {
-                Some(Command(CommandKind::Equ)) => Self::parse_equate(input),
-                Some(OpenBracket) => Self::parse_macro_call(input),
-                _ => Self::parse_label(input).and_then(|(rest, node)| {
-                    let (rest, _) = Self::consume_label_colon(rest)?;
-                    Ok((rest, Self::mk_pc_equate(&node)))
-                }),
-            },
-            _ => Err(crate::frontend::error::FrontEndError::error(
-                input,
-                crate::frontend::FrontEndErrorKind::Unexpected,
-            )),
+        match rest_after_label.first().map(|token| token.kind) {
+            Some(OpenBracket) => Self::parse_macro_call(input),
+            _ if keyword("equ")(rest_after_label.clone()).is_ok() => Self::parse_equate(input),
+            _ => Self::parse_label(input).and_then(|(rest, node)| {
+                let (rest, _) = Self::consume_label_colon(rest)?;
+                Ok((rest, Self::mk_pc_equate(&node)))
+            }),
         }
     }
 }

@@ -15,7 +15,7 @@ use super::{CommandKind, PResult, TSpan, TokenKind};
 /// Target-independent assembler commands, indexed by their lowercase name.
 pub static COMS: LazyLock<HashMap<String, CommandKind>> = LazyLock::new(|| {
     CommandKind::iter()
-        .map(|command| (format!("{command:?}").to_ascii_lowercase(), command))
+        .map(|command| (command.keyword_name().to_string(), command))
         .collect()
 });
 
@@ -31,6 +31,25 @@ pub fn ascii_lowercase(text: &str) -> Cow<'_, str> {
 pub fn command_kind(text: &str) -> Option<&'static CommandKind> {
     let lowered = ascii_lowercase(text);
     COMS.get(lowered.as_ref())
+}
+
+/// Match a single identifier token whose text equals `kw` (case-insensitive)
+/// and return the consumed span.
+///
+/// Keywords are only special where a parser chooses to match them — at
+/// statement level, or after a label colon for `equ` — never in the token
+/// stream itself. So user symbols with the same spelling (`REPEAT`,
+/// `LOOP`, ...) keep working everywhere else, and new keywords can never
+/// collide with existing code.
+pub fn keyword(kw: &str) -> impl FnMut(TSpan) -> PResult<TSpan> + '_ {
+    move |input| {
+        let (rest, matched) = kind(TokenKind::Identifier)(input)?;
+        if ascii_lowercase(get_str(&matched)) == kw {
+            Ok((rest, matched))
+        } else {
+            err_nomatch(input)
+        }
+    }
 }
 
 /// Returns either
@@ -72,16 +91,6 @@ pub fn get_identifier(input: TSpan) -> PResult<TokenKind> {
     use TokenKind::{Command, Identifier, Label};
 
     let c = input.extra().cpu_kind;
-
-    if let Some(first) = input.first() {
-        if let TokenKind::Command(command) = first.kind {
-            let rest = match input.drop(1) {
-                Ok(rest) => rest,
-                Err(_) => return err_nomatch(input),
-            };
-            return Ok((rest, TokenKind::Command(command)));
-        }
-    }
 
     let (rest, matched) = kind(Identifier)(input)?;
 

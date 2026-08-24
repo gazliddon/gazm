@@ -100,7 +100,7 @@ fn size_indexed(
 
                 let new_item = OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
 
-                asm.add_fixup(id, new_item, current_scope_id);
+                sizer.set_node_fixup(id, new_item);
             }
 
             PCOffset => {
@@ -118,7 +118,7 @@ fn size_indexed(
                 };
 
                 let new_item = OpCode(ins, AddrModeParseType::Indexed(new_amode, indirect));
-                asm.add_fixup(id, new_item, current_scope_id);
+                sizer.set_node_fixup(id, new_item);
             }
 
             ExtendedIndirect => {
@@ -175,7 +175,7 @@ pub fn size_node_internal(
                                 // Here we go!
                                 size = new_ins.size;
                                 let new_item = OpCode(new_ins.id(), AddrModeParseType::Direct);
-                                asm.add_fixup(id, new_item, current_scope_id);
+                                sizer.set_node_fixup(id, new_item);
                             }
                         }
                     }

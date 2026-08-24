@@ -9,6 +9,11 @@
 [(incbin) (org) (section) (scope) (fdb) (fcb) (fill) (rmb) (fcc) (include)
  (writebin) (setdp) (bsz) (zmb) (zmd) (exec_addr)] @keyword.directive
 
+; `repeat` is not a reserved token (REPEAT stays a usable symbol), so it is
+; matched as a plain identifier in statement position and highlighted via
+; the keyword field instead.
+(repeat keyword: (label) @keyword.directive)
+
 ;; Structs & Macros
 (elem_type) @type.builtin
 

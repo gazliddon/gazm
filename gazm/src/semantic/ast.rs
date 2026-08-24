@@ -501,6 +501,26 @@ impl<'a> AstCtx<'a> {
                     .map(|p| self.create_symbol(p, caller_node_id, &ScopeTracker::new(scope_id)))
                     .collect();
 
+                // Repeat loop variables are created in the caller scope too,
+                // exactly like macro params, so body references resolve by
+                // name at eval time. The sizer/compiler then set the value
+                // per iteration.
+                let macro_body = self
+                    .get_tree()
+                    .get(macro_id)
+                    .expect("macro body node should exist");
+                let mut repeat_indexes: Vec<String> = vec![];
+                for node_id in get_ids_recursive(macro_body) {
+                    if let AstNodeKind::Repeat { index: Some(name) } =
+                        &self.get_tree().get(node_id).unwrap().value().item
+                    {
+                        repeat_indexes.push(name.clone());
+                    }
+                }
+                for name in repeat_indexes {
+                    let _ = self.create_symbol(&name, caller_node_id, &ScopeTracker::new(scope_id));
+                }
+
                 let item = MacroCallProcessed {
                     macro_id,
                     scope_id,
@@ -798,6 +818,18 @@ impl<'a> AstCtx<'a> {
 
             match &value.item {
                 ScopeId(scope_id) => scopes.set_scope(*scope_id),
+
+                // A repeat loop variable is a local symbol, not an undefined
+                // label. Create it in the current scope so body references
+                // resolve to it; the sizer/compiler set its value per
+                // iteration.
+                Repeat { index: Some(name) } => {
+                    if let Err(diag) = self.create_symbol(name, *node_id, &scopes) {
+                        if self.ctx.asm_out.errors.push(diag) {
+                            return Ok(());
+                        }
+                    }
+                }
 
                 // Convert any label in tree to a label reference
                 Label(LabelDefinition::Text(name)) => {

@@ -65,6 +65,7 @@ module.exports = grammar({
                 $.comment,
                 $.macro_def,
                 $.struct_def,
+                $.repeat,
                 $._line
             )),
 
@@ -172,6 +173,32 @@ module.exports = grammar({
             $.comment,
             $.macro_def,
             $.struct_def,
+            $.repeat,
+            $._line
+        )), '}'),
+
+        // `repeat <count> [, <index>] { body }` — assembled `count` times,
+        // with the optional index bound to the 0-based iteration. A block
+        // construct like macro/struct, so it can nest and appear inside
+        // macro bodies.
+        //
+        // The keyword is matched as a plain identifier, not a reserved
+        // token: in the language `repeat` is only special in statement
+        // position, and robotron uses REPEAT as a data symbol (`REPEAT:`
+        // labels, `FCB REPEAT+6`). Reserving it here would break those.
+        // The `keyword` field exists so queries can still highlight it.
+        repeat: $ => seq(
+            field('keyword', $._identifier),
+            field('count', $._expression),
+            optional(seq(',', field('index', $._identifier))),
+            $.repeat_body
+        ),
+
+        repeat_body: $ => seq('{', repeat(choice(
+            $.comment,
+            $.macro_def,
+            $.struct_def,
+            $.repeat,
             $._line
         )), '}'),
 

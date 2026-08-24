@@ -1675,6 +1675,10 @@
           "named": true
         },
         {
+          "type": "repeat",
+          "named": true
+        },
+        {
           "type": "rmb",
           "named": true
         },
@@ -2318,6 +2322,227 @@
     }
   },
   {
+    "type": "repeat",
+    "named": true,
+    "fields": {
+      "count": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "bin_num",
+            "named": true
+          },
+          {
+            "type": "binary_expression",
+            "named": true
+          },
+          {
+            "type": "char_literal",
+            "named": true
+          },
+          {
+            "type": "dec_num",
+            "named": true
+          },
+          {
+            "type": "hex_num",
+            "named": true
+          },
+          {
+            "type": "label",
+            "named": true
+          },
+          {
+            "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "pc_expr",
+            "named": true
+          },
+          {
+            "type": "unary_expression",
+            "named": true
+          }
+        ]
+      },
+      "index": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "label",
+            "named": true
+          },
+          {
+            "type": "local_label",
+            "named": true
+          }
+        ]
+      },
+      "keyword": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "label",
+            "named": true
+          },
+          {
+            "type": "local_label",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "repeat_body",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "repeat_body",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "bsz",
+          "named": true
+        },
+        {
+          "type": "comment",
+          "named": true
+        },
+        {
+          "type": "doc",
+          "named": true
+        },
+        {
+          "type": "equate",
+          "named": true
+        },
+        {
+          "type": "exec_addr",
+          "named": true
+        },
+        {
+          "type": "fcb",
+          "named": true
+        },
+        {
+          "type": "fcc",
+          "named": true
+        },
+        {
+          "type": "fdb",
+          "named": true
+        },
+        {
+          "type": "fill",
+          "named": true
+        },
+        {
+          "type": "grabmem",
+          "named": true
+        },
+        {
+          "type": "importer",
+          "named": true
+        },
+        {
+          "type": "incbin",
+          "named": true
+        },
+        {
+          "type": "incbinref",
+          "named": true
+        },
+        {
+          "type": "include",
+          "named": true
+        },
+        {
+          "type": "label",
+          "named": true
+        },
+        {
+          "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "macro",
+          "named": true
+        },
+        {
+          "type": "macro_def",
+          "named": true
+        },
+        {
+          "type": "opcode",
+          "named": true
+        },
+        {
+          "type": "org",
+          "named": true
+        },
+        {
+          "type": "put",
+          "named": true
+        },
+        {
+          "type": "repeat",
+          "named": true
+        },
+        {
+          "type": "rmb",
+          "named": true
+        },
+        {
+          "type": "scope",
+          "named": true
+        },
+        {
+          "type": "section",
+          "named": true
+        },
+        {
+          "type": "setdp",
+          "named": true
+        },
+        {
+          "type": "struct_def",
+          "named": true
+        },
+        {
+          "type": "writebin",
+          "named": true
+        },
+        {
+          "type": "zmb",
+          "named": true
+        },
+        {
+          "type": "zmd",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "rmb",
     "named": true,
     "fields": {},
@@ -2607,6 +2832,10 @@
         },
         {
           "type": "put",
+          "named": true
+        },
+        {
+          "type": "repeat",
           "named": true
         },
         {
@@ -3162,11 +3391,11 @@
   },
   {
     "type": "a",
-    "named": true
+    "named": false
   },
   {
     "type": "a",
-    "named": false
+    "named": true
   },
   {
     "type": "b",
@@ -3226,19 +3455,19 @@
   },
   {
     "type": "pc",
-    "named": false
+    "named": true
   },
   {
     "type": "pc",
-    "named": true
-  },
-  {
-    "type": "pcr",
-    "named": true
+    "named": false
   },
   {
     "type": "pcr",
     "named": false
+  },
+  {
+    "type": "pcr",
+    "named": true
   },
   {
     "type": "qword",
