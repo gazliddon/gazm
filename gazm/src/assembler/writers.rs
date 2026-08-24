@@ -194,17 +194,16 @@ impl Assembler {
     /// can reject formats they do not understand.
     ///
     /// Writing is driven by the `metadata` switch (contract §5):
-    /// `metadata = true` writes the whole bundle — `<target>.map` +
-    /// `<target>.sym`, names derived from the target name — with a v4
-    /// `TargetInfo` header. Absent/false writes nothing.
+    /// `metadata = true` writes one file per target — `<target>.meta` —
+    /// holding the source-map and symbols v5 envelopes concatenated back
+    /// to back, each carrying the `TargetInfo` header. The old two-file
+    /// `.map`/`.sym` layout is deprecated. Absent/false writes nothing.
     fn write_metadata_outputs(&self) -> GResult<()> {
         if !self.opts.metadata {
             return Ok(());
         }
 
-        let (target, source_path, symbols_path) = self.metadata_paths()?;
-        let source_path = Some(source_path);
-        let symbols_path = Some(symbols_path);
+        let (target, bundle_path) = self.metadata_paths()?;
 
         // The header is part of the metadata bundle.
         let target_info = Some(TargetInfo {
@@ -253,66 +252,30 @@ impl Assembler {
                 .collect(),
         });
 
+        // Both envelopes are built in parallel, then concatenated into
+        // the single bundle file.
         let (source, symbols) = rayon::join(
             || {
-                source_path.map(|path| {
-                    let mut database: SourceDatabase = self.into();
-                    database.file_name = path.clone();
-                    let data = if self.opts.json_output {
-                        let text = if self.opts.pretty_json {
-                            serde_json::to_string_pretty(&database)
-                        } else {
-                            serde_json::to_string(&database)
-                        }
-                        .context("Unable to serialize source mappings")?;
-                        text.into_bytes()
-                    } else {
-                        encode_artifact(b"GZMP", target_info.as_ref(), &database)?
-                    };
-                    Ok::<_, anyhow::Error>((path, data, "source mappings"))
-                })
+                let mut database: SourceDatabase = self.into();
+                database.file_name = bundle_path.clone();
+                encode_artifact(b"GZMP", target_info.as_ref(), &database)
             },
-            || {
-                symbols_path.map(|path| {
-                    let data = if self.opts.json_output {
-                        let text = if self.opts.pretty_json {
-                            serde_json::to_string_pretty(self.get_symbols())
-                        } else {
-                            serde_json::to_string(self.get_symbols())
-                        }
-                        .context("Unable to serialize symbols")?;
-                        text.into_bytes()
-                    } else {
-                        encode_artifact(b"GZSY", target_info.as_ref(), self.get_symbols())?
-                    };
-                    Ok::<_, anyhow::Error>((path, data, "symbols"))
-                })
-            },
+            || encode_artifact(b"GZSY", target_info.as_ref(), self.get_symbols()),
         );
+        let source = source?;
+        let symbols = symbols?;
 
-        let mut outputs = Vec::with_capacity(2);
-        if let Some(output) = source {
-            outputs.push(output?);
-        }
-        if let Some(output) = symbols {
-            outputs.push(output?);
-        }
+        let mut data = Vec::with_capacity(source.len() + symbols.len());
+        data.extend_from_slice(&source);
+        data.extend_from_slice(&symbols);
 
-        let results = outputs
-            .par_iter()
-            .map(|(path, data, _)| {
-                if let Some(parent) = path.parent() {
-                    fs::create_dir_all(parent)
-                        .with_context(|| format!("Unable to create output directory {parent:?}"))?;
-                }
-                fs::write(path, data).with_context(|| format!("Unable to write {path:?}"))
-            })
-            .collect::<Vec<_>>();
-
-        for ((path, _, kind), result) in outputs.iter().zip(results) {
-            result?;
-            interesting_mess!("Written {kind}: {}", path.to_string_lossy());
+        if let Some(parent) = bundle_path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("Unable to create output directory {parent:?}"))?;
         }
+        fs::write(&bundle_path, &data)
+            .with_context(|| format!("Unable to write {bundle_path:?}"))?;
+        interesting_mess!("Written metadata bundle: {}", bundle_path.to_string_lossy());
         Ok(())
     }
 
@@ -342,7 +305,7 @@ impl Assembler {
     /// The target name is the configured `[[targets]] name`, falling back
     /// to the project file stem. Shared by the metadata and deps writers so
     /// the derivation lives in one place.
-    fn metadata_paths(&self) -> GResult<(String, std::path::PathBuf, std::path::PathBuf)> {
+    fn metadata_paths(&self) -> GResult<(String, std::path::PathBuf)> {
         let target = self.opts.target_name.clone().unwrap_or_else(|| {
             self.opts
                 .project_file
@@ -350,23 +313,19 @@ impl Assembler {
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "gazm".to_string())
         });
-        Ok((
-            target.clone(),
-            self.output_path(format!("{target}.map"))?,
-            self.output_path(format!("{target}.sym"))?,
-        ))
+        Ok((target.clone(), self.output_path(format!("{target}.meta"))?))
     }
 
     pub fn write_deps_file(&mut self) -> GResult<()> {
         if let Some(deps) = &self.opts.deps_file {
             if self.opts.metadata {
-                let (_, _, sym_file) = self.metadata_paths()?;
+                let (_, bundle_file) = self.metadata_paths()?;
                 let deps = self.output_path(deps)?;
                 let sf = self.get_source_file_loader();
                 let read = join_paths(sf.get_files_read().iter(), " \\\n");
                 let written = join_paths(sf.get_files_written().iter(), " \\\n");
-                let deps_line_2 = format!("{written} : {:?}", sym_file);
-                let deps_line = format!("{deps_line_2}\n{:?} : {read}", sym_file);
+                let deps_line_2 = format!("{written} : {:?}", bundle_file);
+                let deps_line = format!("{deps_line_2}\n{:?} : {read}", bundle_file);
 
                 interesting_mess!("Writing deps file: {deps:?}");
 
@@ -531,14 +490,12 @@ mod tests {
         assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
         asm.write_outputs().unwrap();
 
-        let map_bytes = std::fs::read(dir.join("mytest.map")).unwrap();
-        let sym_bytes = std::fs::read(dir.join("mytest.sym")).unwrap();
+        let bundle = dir.join("mytest.meta");
+        let target = gazm_metadata::Target::load_file(&bundle).unwrap();
         let _ = std::fs::remove_file(&path);
-        let _ = std::fs::remove_file(dir.join("mytest.map"));
-        let _ = std::fs::remove_file(dir.join("mytest.sym"));
+        let _ = std::fs::remove_file(&bundle);
 
-        let target = gazm_metadata::Target::load(&map_bytes, &sym_bytes).unwrap();
-        let info = target.info.expect("v4 header present");
+        let info = target.info.expect("v5 header present");
         assert_eq!(info.target_name, "mytest");
         assert_eq!(info.cpu, ReaderCpu::Cpu6809);
 

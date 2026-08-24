@@ -1,6 +1,6 @@
 //! Per-target bundle: a `.map` + `.sym` pair for one CPU.
 
-use crate::envelope::{decode_artifact, Artifact, ArtifactError, Magic, TargetInfo};
+use crate::envelope::{decode_artifact, find_envelope, Artifact, ArtifactError, Magic, TargetInfo};
 use crate::sourcemap::{SourceMap, SourceMapError};
 use crate::symbols::{Symbols, SymbolsError};
 
@@ -14,6 +14,10 @@ pub enum TargetError {
         map: Option<String>,
         sym: Option<String>,
     },
+    /// A required envelope was not found in the bundle (or a found one
+    /// was malformed).
+    MissingEnvelope(&'static str),
+    Io(std::io::Error),
 }
 
 impl std::fmt::Display for TargetError {
@@ -27,6 +31,8 @@ impl std::fmt::Display for TargetError {
                 "map and sym describe different targets (map: {:?}, sym: {:?})",
                 map, sym
             ),
+            TargetError::MissingEnvelope(what) => write!(f, "missing {what} envelope in bundle"),
+            TargetError::Io(e) => write!(f, "io error: {e}"),
         }
     }
 }
@@ -82,6 +88,21 @@ impl Target {
 
     /// Convenience: read both files from disk.
     pub fn load(map_bytes: &[u8], sym_bytes: &[u8]) -> Result<Self, TargetError> {
+        let map = decode_artifact(map_bytes, Magic::SourceMap)?;
+        let sym = decode_artifact(sym_bytes, Magic::Symbols)?;
+        Self::from_artifacts(&map, &sym)
+    }
+
+    /// Load a target from the single v5 bundle file (`<target>.meta`):
+    /// the source-map and symbols envelopes concatenated back to back.
+    /// The two-file `.map`/`.sym` layout is deprecated — this is the
+    /// format the writer produces from now on.
+    pub fn load_file(path: &std::path::Path) -> Result<Self, TargetError> {
+        let bytes = std::fs::read(path).map_err(TargetError::Io)?;
+        let map_bytes = find_envelope(&bytes, Magic::SourceMap)
+            .ok_or(TargetError::MissingEnvelope("source-map"))?;
+        let sym_bytes =
+            find_envelope(&bytes, Magic::Symbols).ok_or(TargetError::MissingEnvelope("symbols"))?;
         let map = decode_artifact(map_bytes, Magic::SourceMap)?;
         let sym = decode_artifact(sym_bytes, Magic::Symbols)?;
         Self::from_artifacts(&map, &sym)

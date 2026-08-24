@@ -1,8 +1,8 @@
 //! Envelope round-trip and real-artifact tests.
 
 use gazm_metadata::envelope::{
-    decode_artifact, encode_artifact, AccessType, BinReference, CpuKind, Magic, RomChecksum,
-    Section, StructSize, TargetInfo, ARTIFACT_VERSION, ARTIFACT_VERSION_NAMED_HEADER,
+    decode_artifact, encode_artifact, find_envelope, AccessType, BinReference, CpuKind, Magic,
+    RomChecksum, Section, StructSize, TargetInfo, ARTIFACT_VERSION, ARTIFACT_VERSION_NAMED_HEADER,
     ARTIFACT_VERSION_WITH_HEADER, FLAG_HAS_TARGET_INFO,
 };
 use gazm_metadata::target::Target;
@@ -74,6 +74,47 @@ fn v4_envelope_round_trips_with_header() {
     assert_eq!(artifact.version, ARTIFACT_VERSION_NAMED_HEADER);
     assert_eq!(artifact.target_info, Some(info));
     assert_eq!(artifact.payload, payload);
+}
+
+#[test]
+fn single_file_bundle_finds_both_envelopes() {
+    // The writer produces ONE file per target: the source-map and
+    // symbols envelopes concatenated back to back. `find_envelope` must
+    // locate each by magic and `decode_artifact` must parse it.
+    let info = sample_target_info();
+    let map_envelope = encode_artifact(Magic::SourceMap, Some(&info), b"map-payload");
+    let sym_envelope = encode_artifact(Magic::Symbols, Some(&info), b"sym-payload");
+    let bundle = [map_envelope.clone(), sym_envelope.clone()].concat();
+
+    let map_slice = find_envelope(&bundle, Magic::SourceMap).expect("map envelope");
+    let sym_slice = find_envelope(&bundle, Magic::Symbols).expect("sym envelope");
+    assert_eq!(map_slice, map_envelope.as_slice());
+    assert_eq!(sym_slice, sym_envelope.as_slice());
+
+    let map = decode_artifact(map_slice, Magic::SourceMap).unwrap();
+    let sym = decode_artifact(sym_slice, Magic::Symbols).unwrap();
+    assert_eq!(map.target_info.as_ref().unwrap(), &info);
+    assert_eq!(sym.target_info.as_ref().unwrap(), &info);
+}
+
+#[test]
+fn missing_envelope_is_a_clean_error() {
+    let info = sample_target_info();
+    let map_only = encode_artifact(Magic::SourceMap, Some(&info), b"map-payload");
+
+    let dir = std::env::temp_dir();
+    let path = dir.join("gazm_bundle_missing_sym.meta");
+    std::fs::write(&path, &map_only).unwrap();
+
+    let err = match Target::load_file(&path) {
+        Ok(_) => panic!("expected a missing-envelope error"),
+        Err(e) => e,
+    };
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        err.to_string().contains("symbols envelope"),
+        "expected a missing-envelope error, got: {err}"
+    );
 }
 
 #[test]
@@ -195,9 +236,9 @@ fn truncated_payload_is_rejected() {
 }
 
 /// Locate the real Stargate artifacts.  With `metadata = true` the
-/// derived names write to the build cwd (the game root), not to
-/// `roms/`.  Set `STARGATE_DIR` to the build cwd, or default to the
-/// developer's checkout.
+/// bundle (`<target>.meta`) writes to the build cwd (the game root),
+/// not to `roms/`.  Set `STARGATE_DIR` to the build cwd, or default to
+/// the developer's checkout.
 fn stargate_dir() -> Option<std::path::PathBuf> {
     let dir = std::env::var("STARGATE_DIR")
         .map(std::path::PathBuf::from)
@@ -208,11 +249,7 @@ fn stargate_dir() -> Option<std::path::PathBuf> {
         })?;
     // Skip gracefully when the artifacts aren't actually there (the
     // checkout only has them after an in-place build).
-    (dir.join("stargate.map").exists() && dir.join("stargate.sym").exists()).then_some(dir)
-}
-
-fn read_artifact(dir: &std::path::Path, name: &str) -> Vec<u8> {
-    std::fs::read(dir.join(name)).expect("artifact file")
+    (dir.join("stargate.meta").exists() && dir.join("sound.meta").exists()).then_some(dir)
 }
 
 #[test]
@@ -221,13 +258,11 @@ fn real_stargate_artifacts_load() {
         eprintln!("skipping: no STARGATE_DIR and no default checkout");
         return;
     };
-    let map = read_artifact(&dir, "stargate.map");
-    let sym = read_artifact(&dir, "stargate.sym");
-    let target = Target::load(&map, &sym).expect("stargate target loads");
+    let target = Target::load_file(&dir.join("stargate.meta")).expect("stargate target loads");
 
-    // v4 header: target identity, sections from the in-asm directives,
+    // v5 header: target identity, sections from the in-asm directives,
     // and ROM checksums.
-    let info = target.info.as_ref().expect("v4 TargetInfo header present");
+    let info = target.info.as_ref().expect("v5 TargetInfo header present");
     assert_eq!(info.target_name, "stargate");
     assert_eq!(info.cpu, CpuKind::Cpu6809);
     assert_eq!(info.mem_size, 94_208);
@@ -274,11 +309,9 @@ fn real_sound_artifacts_load() {
         eprintln!("skipping: no STARGATE_DIR and no default checkout");
         return;
     };
-    let map = read_artifact(&dir, "sound.map");
-    let sym = read_artifact(&dir, "sound.sym");
-    let target = Target::load(&map, &sym).expect("sound target loads");
+    let target = Target::load_file(&dir.join("sound.meta")).expect("sound target loads");
 
-    let info = target.info.as_ref().expect("v4 TargetInfo header present");
+    let info = target.info.as_ref().expect("v5 TargetInfo header present");
     assert_eq!(info.target_name, "sound");
     assert_eq!(info.cpu, CpuKind::Cpu6800);
     // The sound source uses no in-asm section directives, so zero
@@ -294,9 +327,7 @@ fn real_stargate_symbol_queries() {
         eprintln!("skipping: no STARGATE_DIR and no default checkout");
         return;
     };
-    let map = read_artifact(&dir, "stargate.map");
-    let sym = read_artifact(&dir, "stargate.sym");
-    let target = Target::load(&map, &sym).expect("stargate target loads");
+    let target = Target::load_file(&dir.join("stargate.meta")).expect("stargate target loads");
 
     // A known label: the IRQ vector handler is at $9C6B; look it up by
     // name and by address, and check nearest-symbol queries work.

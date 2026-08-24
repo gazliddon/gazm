@@ -50,8 +50,6 @@ pub struct Opts {
     pub metadata: bool,
     pub deps_file: Option<PathBuf>,
     pub ast_file: Option<PathBuf>,
-    pub pretty_json: bool,
-    pub json_output: bool,
 
     pub ignore_relative_offset_errors: bool,
     pub mem_size: usize,
@@ -115,8 +113,6 @@ impl Default for Opts {
             deps_file: Default::default(),
             project_file: Default::default(),
             ast_file: Default::default(),
-            pretty_json: false,
-            json_output: false,
             vars: Default::default(),
             checksums: Default::default(),
             bin_references: Default::default(),

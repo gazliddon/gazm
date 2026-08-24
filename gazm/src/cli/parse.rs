@@ -42,8 +42,6 @@ fn load_opts_with_build_type(m: &ArgMatches, build_type: BuildType) -> ConfigErr
     };
     for target in &mut opts {
         target.build_type = build_type.clone();
-        target.pretty_json = m.get_flag("pretty-json");
-        target.json_output = m.get_flag("json-output");
         target.update_vars();
     }
     Ok(opts)
@@ -96,8 +94,6 @@ impl Opts {
                     ignore_relative_offset_errors: m.contains_id("ignore-relative-offset-errors"),
                     project_file: m.get_one::<String>("project-file").unwrap().into(),
                     ast_file: m.get_one::<String>("ast-file").map(PathBuf::from),
-                    pretty_json: m.get_flag("pretty-json"),
-                    json_output: m.get_flag("json-output"),
                     assemble_dir: Some(std::env::current_dir().unwrap()),
                     ..Default::default()
                 };
@@ -207,20 +203,6 @@ pub fn parse_command_line() -> ArgMatches {
                 .global(true)
                 .value_parser(PathBufValueParser::new())
                 .help("Append per-target timing records as JSONL"),
-        )
-        .arg(
-            Arg::new("pretty-json")
-                .long("pretty-json")
-                .global(true)
-                .action(ArgAction::SetTrue)
-                .help("Format JSON outputs with indentation"),
-        )
-        .arg(
-            Arg::new("json-output")
-                .long("json-output")
-                .global(true)
-                .action(ArgAction::SetTrue)
-                .help("Write symbol and source-map outputs as JSON instead of bincode"),
         )
         .subcommand_required(true)
         .subcommand(

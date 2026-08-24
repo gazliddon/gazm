@@ -69,11 +69,18 @@ bincode.
 
 ## 4. Artifact envelope: `TargetInfo` header (v4 bincode, v5 named map)
 
-Same envelope, plus an optional header block inserted between the fixed
-16 bytes and the payload. Bit 0 of the reserved `flags` u16 = header
-present. Headerless files stay version **3** so existing consumers see
-no change. Header-bearing files are version **4** (frozen bincode layout)
-or **5** (rmp-serde named map — the current format).
+One file per target: `<target>.meta`. It is the source-map envelope
+(`GZMP`) and the symbols envelope (`GZSY`) **concatenated back to back**;
+each envelope is the same fixed 16-byte header + optional `TargetInfo`
+block + payload described below. The reader locates each envelope by
+magic (`find_envelope`) and validates the declared length. The old
+two-file `<target>.map` + `<target>.sym` layout is **deprecated** (the
+reader still exposes `Target::load(map_bytes, sym_bytes)` for old files).
+
+Bit 0 of the reserved `flags` u16 = header present. Headerless files stay
+version **3** so existing consumers see no change. Header-bearing files
+are version **4** (frozen bincode layout) or **5** (rmp-serde named map —
+the current format).
 
 ```rust
 pub struct TargetInfo {
@@ -115,16 +122,14 @@ name = "stargate"
 metadata = true          # or omit/false -> write nothing
 ```
 
-- `metadata = true` writes the whole bundle: `<target>.map`, `<target>.sym`
-  (names derived from the target name; the files land relative to the
-  build directory). The v4 `TargetInfo` header is part of the bundle.
-- `metadata = false`/absent writes nothing — no map, no syms, no header.
+- `metadata = true` writes the whole bundle: one file `<target>.meta`
+  (source-map + symbols envelopes concatenated, v5 headers) relative to
+  the build directory.
+- `metadata = false`/absent writes nothing — no file, no header.
 - The migration is complete: the old per-target `source-mapping`/
-  `syms-file` explicit paths are **removed** (they were back-compat during
-  the migration and are gone as of the 0.10.x cleanup). Stargate and the
-  sound board both use `metadata = true`.
-- `--json-output`/`--pretty-json` remain orthogonal formatting toggles for
-  the same bundle.
+  `syms-file` explicit paths are **removed**, and the two-file
+  `.map`/`.sym` layout is deprecated in favour of the single `.meta`
+  bundle.
 - `as6809_sym` removed (it was unused).
 
 ## 6. Sections: from the assembler, not the config

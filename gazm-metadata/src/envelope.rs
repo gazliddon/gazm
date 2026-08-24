@@ -167,6 +167,23 @@ pub struct Artifact<'a> {
     pub payload: &'a [u8],
 }
 
+/// Locate a complete envelope with the given magic inside a byte buffer.
+/// The single-file bundle (`<target>.meta`) concatenates the source-map
+/// and symbols envelopes back to back; this finds each by magic and
+/// checks the declared payload length fits in the buffer. Returns the
+/// envelope slice, ready for `decode_artifact`.
+pub fn find_envelope(bytes: &[u8], magic: Magic) -> Option<&[u8]> {
+    let m = magic.as_bytes();
+    (0..=bytes.len().saturating_sub(16)).find_map(|i| {
+        if &bytes[i..i + 4] != m {
+            return None;
+        }
+        let len = u64::from_le_bytes(bytes[i + 8..i + 16].try_into().unwrap()) as usize;
+        let end = 16usize.checked_add(len)?;
+        (i + end <= bytes.len()).then(|| &bytes[i..i + end])
+    })
+}
+
 /// Errors from `decode_artifact`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArtifactError {
