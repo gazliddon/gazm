@@ -83,7 +83,7 @@ impl Assembler {
         use NodeKind6800::*;
 
         match node_kind {
-            OpCode(ins) => {
+            OpCode(ins, _amode) => {
                 let ins = DBASE.get_instruction_info_from_opcode(ins.0).unwrap();
                 self.compile_opcode_6800(node, ins, current_scope_id)?;
             }

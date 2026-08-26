@@ -7,7 +7,9 @@ use crate::frontend::{AstNodeKind, CpuSpecific, GazmParser, Node};
 pub enum AddrModeParseType {
     Indexed,
     Direct,
-    Extended,
+    /// `Extended(true)` was forced with `>` and must not collapse to
+    /// direct-page in the sizer.
+    Extended(bool),
     Relative,
     Inherent,
     Immediate,
@@ -17,13 +19,15 @@ pub enum AddrModeParseType {
 pub enum NodeKind6800 {
     #[default]
     Illegal,
-    OpCode(OpcodeId),
+    /// The resolved addressing mode is carried so the sizer knows whether
+    /// extended was forced with `>` (and must not collapse to direct).
+    OpCode(OpcodeId, AddrModeParseType),
     Operand(AddrModeParseType),
 }
 
 impl NodeKind6800 {
-    pub fn opcode<I: Into<OpcodeId>>(opcode_id: I) -> Self {
-        NodeKind6800::OpCode(opcode_id.into())
+    pub fn opcode<I: Into<OpcodeId>>(opcode_id: I, amode: AddrModeParseType) -> Self {
+        NodeKind6800::OpCode(opcode_id.into(), amode)
     }
 }
 

@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use crate::{
     frontend::{err_error, error, get_label_string, PResult, TSpan},
-    help::ErrCode::ExpectedRegister6809,
+    help::ErrCode::ExpectedRegister6800,
 };
 
 use unraveler::match_span as ms;
@@ -14,7 +14,7 @@ pub fn parse_this_reg_local(input: TSpan, r: RegEnum) -> PResult<RegEnum> {
     let (rest, (sp, matched)) = ms(get_register)(input)?;
 
     if matched != r {
-        err_error(sp, ErrCode::ExpectedRegister6809)
+        err_error(sp, ErrCode::ExpectedRegister6800)
     } else {
         Ok((rest, matched))
     }
@@ -31,5 +31,5 @@ pub fn get_register(input: TSpan) -> PResult<RegEnum> {
     text.as_str()
         .parse::<RegEnum>()
         .map(|reg| (rest, reg))
-        .map_err(|_| error(sp, ExpectedRegister6809))
+        .map_err(|_| error(sp, ExpectedRegister6800))
 }

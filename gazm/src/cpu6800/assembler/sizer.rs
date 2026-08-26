@@ -8,7 +8,7 @@ use crate::{
     semantic::AstNodeId,
 };
 
-use crate::cpu6800::frontend::NodeKind6800;
+use crate::cpu6800::frontend::{AddrModeParseType, NodeKind6800};
 
 impl Assembler {
     pub fn size_node_6800(
@@ -36,7 +36,7 @@ fn size_node_internal(
     match &node_kind {
         Illegal => todo!(),
 
-        OpCode(ins) => {
+        OpCode(ins, amode) => {
             let opcode_id = *ins;
             let ins_info = ISA_DBASE
                 .get_instruction_info_from_opcode(opcode_id.0)
@@ -45,7 +45,9 @@ fn size_node_internal(
             // get the size of this instruction
             let mut size = ins.size;
 
-            if ins_info.addr_mode == AddrModeEnum::Extended {
+            let forced_extended = *amode == AddrModeParseType::Extended(true);
+
+            if ins_info.addr_mode == AddrModeEnum::Extended && !forced_extended {
                 // Is this extend addressing and we support direct?
                 // If see evaluate the operand and see if the result is
                 // in the first page
@@ -65,7 +67,7 @@ fn size_node_internal(
                             }
 
                             size = new_ins.size;
-                            let new_item = OpCode(new_ins.id());
+                            let new_item = OpCode(new_ins.id(), AddrModeParseType::Direct);
 
                             sizer.set_node_fixup(id, new_item);
                         }

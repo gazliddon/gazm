@@ -63,14 +63,14 @@ fn parse_force_extended(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     use TokenKind::GreaterThan;
     let (rest, (sp, matched)) = ms(preceded(GreaterThan, parse_expr))(input)?;
-    let node = from_item_tspan(Extended, sp).with_child(matched);
+    let node = from_item_tspan(Extended(true), sp).with_child(matched);
     Ok((rest, node))
 }
 
 fn parse_extended(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
     let (rest, (sp, matched)) = ms(parse_expr)(input)?;
-    let node = from_item_tspan(Extended, sp).with_child(matched);
+    let node = from_item_tspan(Extended(false), sp).with_child(matched);
     Ok((rest, node))
 }
 
@@ -98,7 +98,7 @@ fn get_instruction(amode: AddrModeParseType, info: &Instruction) -> Option<&Opco
     match amode {
         PT::Indexed => get(Indexed),
         PT::Direct => get(Direct),
-        PT::Extended => get(Extended),
+        PT::Extended(_) => get(Extended),
         PT::Relative => get(Relative),
         PT::Inherent => get(Inherent),
         PT::Immediate => get(Immediate8).or_else(|| get(Immediate16)),
@@ -112,7 +112,7 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     let (rest, (sp, info)) = get_opcode(input)?;
     if rest.is_empty() {
         if let Some(ins) = info.get_opcode_data(AddrModeEnum::Inherent) {
-            let oc = OpCode(ins.id());
+            let oc = OpCode(ins.id(), AddrModeParseType::Inherent);
             return Ok((rest, from_item_tspan(oc, sp)));
         }
         return err_fatal(sp, OnlySupports(AddrModeParseType::Inherent));
@@ -125,14 +125,14 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     let (rest, arg) = parse_opcode_arg(rest)?;
     if let AstNodeKind::TargetSpecific(Cpu(Operand(parsed_addressing_mode))) = arg.item {
         if info.supports(AddrModeEnum::Relative)
-            && parsed_addressing_mode == AddrModeParseType::Extended
+            && matches!(parsed_addressing_mode, AddrModeParseType::Extended(_))
         {
             let instruction = get_instruction(AddrModeParseType::Relative, info).unwrap();
-            let item = NodeKind6800::opcode(instruction.id());
+            let item = NodeKind6800::opcode(instruction.id(), AddrModeParseType::Relative);
             let node = from_item_tspan(item, sp).take_others_children(arg);
             Ok((rest, node))
         } else if let Some(instruction) = get_instruction(parsed_addressing_mode, info) {
-            let item = NodeKind6800::opcode(instruction.id());
+            let item = NodeKind6800::opcode(instruction.id(), parsed_addressing_mode);
             let node = from_item_tspan(item, sp).take_others_children(arg);
             Ok((rest, node))
         } else {
