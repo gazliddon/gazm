@@ -23,6 +23,7 @@ pub fn compile_indexed(
     current_scope_id: u64,
 ) -> GResult<()> {
     use IndexParseType::*;
+    eprintln!("DEBUG compile_indexed: imode={imode:?} indirect={indirect}");
     let idx_byte = imode.get_index_byte(indirect);
 
     asm.write_byte(idx_byte, node)?;

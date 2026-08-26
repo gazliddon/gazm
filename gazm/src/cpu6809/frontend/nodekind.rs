@@ -35,162 +35,86 @@ pub enum IndexWidth {
     Word,
 }
 
-impl IndexParseType {
-    pub fn allowed_indirect(&self) -> bool {
-        use IndexParseType::*;
-        match self {
-            PostInc(..) => false, // ,R+                    2 0 |
-            PreDec(..) => false,  // ,-R                    2 0 |
-            _ => true,
-        }
-    }
-
-    pub fn has_operand(&self) -> bool {
-        use IndexParseType::*;
-
-        match self {
-            ConstantOffset(..) => true, // arg,R
-            PostInc(..) => false,       // ,R+                    2 0 |
-            PostIncInc(..) => false,    // ,R++                   3 0 |
-            PreDec(..) => false,        // ,-R                    2 0 |
-            PreDecDec(..) => false,     // ,--R                   3 0 |
-            Zero(..) => false,          // ,R                     0 0 |
-            AddB(..) => false,          // (+/- B),R              1 0 |
-            AddA(..) => false,          // (+/- A),R              1 0 |
-            AddD(..) => false,          // (+/- D),R              4 0 |
-            PCOffset => true,           // (+/- 7 bit offset),PC  1 1 |
-            ExtendedIndirect => true,   // [expr]
-            Constant5BitOffset(..) => true,
-            ConstantByteOffset(..) => true,
-            ConstantWordOffset(..) => true,
-            PcOffsetWord(..) => true,
-            PcOffsetByte(..) => true,
-        }
-    }
-}
-
-fn rbits(r: RegEnum) -> u8 {
-    let rnum = {
-        match r {
-            RegEnum::X => 0,
-            RegEnum::Y => 1,
-            RegEnum::U => 2,
-            RegEnum::S => 3,
-            _ => panic!("internal error"),
-        }
-    };
-
-    rnum << 5
-}
-
-fn add_reg(bits: u8, r: RegEnum) -> u8 {
-    (bits & !(3 << 5)) | rbits(r)
-}
-
-fn add_ind(bits: u8, ind: bool) -> u8 {
-    let ind_bit = IndexedFlags::IND.bits();
-    let ind_val = if ind { ind_bit } else { 0u8 };
-
-    (bits & !ind_bit) | ind_val
-}
-
+/// The indexed postbyte: a base value per form with the register
+/// (bits 6-5) and indirect (bit 4) fields ORed in. Every base starts
+/// with those fields clear, so no masking is needed.
 impl IndexParseType {
     pub fn get_index_byte(&self, indirect: bool) -> u8 {
         use IndexParseType::*;
 
+        let ind = if indirect {
+            IndexedFlags::IND.bits()
+        } else {
+            0
+        };
+        let reg = |r: RegEnum| rbits(r) | ind;
+
         match *self {
-            PostInc(r) => {
-                let mut bits = 0b1000_0000;
-                bits = add_reg(bits, r);
-                bits
-            }
-
-            PostIncInc(r) => {
-                let mut bits = 0b1000_0001;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            PreDec(r) => {
-                let mut bits = 0b1000_0010;
-                bits = add_reg(bits, r);
-                bits
-            }
-
-            PreDecDec(r) => {
-                let mut bits = 0b1000_0011;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            Zero(r) => {
-                let mut bits = 0b1000_0100;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            AddA(r) => {
-                let mut bits = 0b1000_0110;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            AddB(r) => {
-                let mut bits = 0b1000_0101;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            AddD(r) => {
-                let mut bits = 0b1000_1011;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            PcOffsetByte(_) => {
-                let mut bits = 0b1000_1100;
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            PcOffsetWord(_) => {
-                let mut bits = 0b1000_1101;
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
+            PostInc(r) => 0b1000_0000 | rbits(r),
+            PostIncInc(r) => 0b1000_0001 | reg(r),
+            PreDec(r) => 0b1000_0010 | rbits(r),
+            PreDecDec(r) => 0b1000_0011 | reg(r),
+            Zero(r) => 0b1000_0100 | reg(r),
+            AddA(r) => 0b1000_0110 | reg(r),
+            AddB(r) => 0b1000_0101 | reg(r),
+            AddD(r) => 0b1000_1011 | reg(r),
+            PcOffsetByte(_) => 0b1000_1100 | ind,
+            PcOffsetWord(_) => 0b1000_1101 | ind,
             ExtendedIndirect => 0b1001_1111,
-
-            Constant5BitOffset(r, off) => {
-                let mut bits = 0b0000_0000;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits |= off as u8 & 0x1f;
-                bits
-            }
-
-            ConstantByteOffset(r, _) => {
-                let mut bits = 0b1000_1000;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
-            ConstantWordOffset(r, _) => {
-                let mut bits = 0b1000_1001;
-                bits = add_reg(bits, r);
-                bits = add_ind(bits, indirect);
-                bits
-            }
-
+            Constant5BitOffset(r, off) => reg(r) | (off as u8 & 0x1f),
+            ConstantByteOffset(r, _) => 0b1000_1000 | reg(r),
+            ConstantWordOffset(r, _) => 0b1000_1001 | reg(r),
             PCOffset | ConstantOffset(..) => panic!("Internal error"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use IndexParseType::*;
+
+    /// The postbyte table: base per form, register bits 6-5, indirect
+    /// bit 4. A regression test — the register shift was once dropped
+    /// and every indexed form encoded with the X register.
+    #[test]
+    fn indexed_postbytes() {
+        use RegEnum::*;
+        let cases = [
+            (PostInc(X), false, 0x80),
+            (PostIncInc(Y), true, 0x81 | 0x20 | 0x10),
+            (PreDec(U), false, 0x82 | 0x40),
+            (PreDecDec(S), true, 0x83 | 0x60 | 0x10),
+            (Zero(X), false, 0x84),
+            (Zero(Y), true, 0x84 | 0x20 | 0x10),
+            (AddA(S), true, 0x86 | 0x60 | 0x10),
+            (AddB(Y), false, 0x85 | 0x20),
+            (AddD(U), false, 0x8b | 0x40),
+            (PcOffsetByte(0), true, 0x8c | 0x10),
+            (PcOffsetWord(0), false, 0x8d),
+            (ExtendedIndirect, false, 0x9f),
+            (Constant5BitOffset(Y, -3), false, 0x20 | 0x1d),
+            (ConstantByteOffset(Y, 8), true, 0x88 | 0x20 | 0x10),
+            (ConstantWordOffset(Y, 300), true, 0x89 | 0x20 | 0x10),
+        ];
+        for (mode, indirect, expected) in cases {
+            assert_eq!(
+                mode.get_index_byte(indirect),
+                expected,
+                "{mode:?} indirect={indirect}"
+            );
+        }
+    }
+}
+
+/// Register bits for the indexed postbyte (bits 6-5: X=0, Y=1, U=2, S=3).
+fn rbits(r: RegEnum) -> u8 {
+    match r {
+        RegEnum::X => 0,
+        RegEnum::Y => 1 << 5,
+        RegEnum::U => 2 << 5,
+        RegEnum::S => 3 << 5,
+        _ => panic!("internal error"),
     }
 }
 
@@ -209,23 +133,6 @@ pub enum AddrModeParseType {
 impl From<AddrModeParseType> for NodeKind {
     fn from(value: AddrModeParseType) -> Self {
         NodeKind::TargetSpecific(NodeKind6809::Operand(value).into())
-    }
-}
-
-impl AddrModeParseType {
-    pub fn has_operand(&self) -> bool {
-        use AddrModeParseType::*;
-
-        match self {
-            Direct => true,
-            Extended(..) => true,
-            Relative => true,
-            Inherent => false,
-            Immediate => true,
-            RegisterSet => true,
-            RegisterPair(..) => false,
-            Indexed(x, _) => x.has_operand(),
-        }
     }
 }
 

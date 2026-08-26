@@ -26,44 +26,28 @@ pub fn reg_pair_to_flags(source: RegEnum, dest: RegEnum) -> u8 {
     (a << 4) | b
 }
 
+/// The PSHS/PULS register list byte. `D` aliases the `A` and `B` flag
+/// bits, and `U`/`S` share one bit — CPU facts, encoded as a table.
 pub fn registers_to_flags(regs: &HashSet<RegEnum>) -> u8 {
     use RegEnum::*;
     let mut registers = 0;
-
-    if regs.contains(&CC) {
-        registers |= 0x01;
+    for (reg, bit) in [
+        (CC, 0x01),
+        (A, 0x02),
+        (B, 0x04),
+        (DP, 0x08),
+        (X, 0x10),
+        (Y, 0x20),
+        (U, 0x40),
+        (S, 0x40),
+        (PC, 0x80),
+    ] {
+        if regs.contains(&reg) {
+            registers |= bit;
+        }
     }
-
-    if regs.contains(&A) {
-        registers |= 0x02;
-    }
-    if regs.contains(&B) {
-        registers |= 0x04;
-    }
-
-    if regs.contains(&DP) {
-        registers |= 0x08;
-    }
-
-    if regs.contains(&X) {
-        registers |= 0x10;
-    }
-
-    if regs.contains(&Y) {
-        registers |= 0x20;
-    }
-
     if regs.contains(&D) {
-        registers |= 0x02;
-        registers |= 0x04;
-    }
-
-    if regs.contains(&U) || regs.contains(&S) {
-        registers |= 0x40;
-    }
-
-    if regs.contains(&PC) {
-        registers |= 0x80;
+        registers |= 0x02 | 0x04;
     }
     registers
 }

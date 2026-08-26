@@ -51,38 +51,29 @@ fn parse_extended_indirect(input: TSpan) -> PResult<Node> {
     Ok((rest, matched))
 }
 
-/// Pares for addr mode without an offset
-///     ,y
-///     ,-u
-fn parse_index_only(input: TSpan) -> PResult<Node> {
-    let (rest, (sp, matched)) = ms(get_indexed)(input)?;
-    let matched = from_item_tspan(OperandIndexed(matched, false), sp);
-    Ok((rest, matched))
-}
-
-fn parse_no_arg_indexed_allowed_indirect(input: TSpan) -> PResult<Node> {
+/// Parses for an index register form without an offset: `,y`, `,-u`,
+/// `,y+`... In an indirect (bracketed) context the single auto
+/// inc/dec forms are illegal (`[,y+]`), so `indirect` rejects them.
+fn parse_index_only(input: TSpan, indirect: bool) -> PResult<Node> {
     use ErrCode::*;
 
     let (rest, (sp, matched)) = ms(get_indexed)(input)?;
-
-    match matched {
-        IndexParseType::PostInc(_) => err_fatal(sp, IndexModeNotValidIndirect6809),
-        IndexParseType::PreDec(_) => err_fatal(sp, IndexModeNotValidIndirect6809),
-        _ => {
-            let matched = from_item_tspan(OperandIndexed(matched, false), sp);
-            Ok((rest, matched))
-        }
+    if indirect
+        && matches!(
+            matched,
+            IndexParseType::PostInc(_) | IndexParseType::PreDec(_)
+        )
+    {
+        return err_fatal(sp, IndexModeNotValidIndirect6809);
     }
+    let matched = from_item_tspan(OperandIndexed(matched, false), sp);
+    Ok((rest, matched))
 }
 
 fn parse_indexed_indirect(input: TSpan) -> PResult<Node> {
     use AstNodeKind::TargetSpecific;
     use CpuSpecific::Cpu6809;
-    let indexed_indirect = alt((
-        parse_no_arg_indexed_allowed_indirect,
-        parse_pc_offset,
-        parse_offset,
-    ));
+    let indexed_indirect = alt((|i| parse_index_only(i, true), parse_pc_offset, parse_offset));
     let (rest, mut matched) = parse_sq_bracketed(indexed_indirect)(input)?;
 
     if let TargetSpecific(Cpu6809(OperandIndexed(amode, _))) = matched.item {
@@ -95,7 +86,11 @@ fn parse_indexed_indirect(input: TSpan) -> PResult<Node> {
 }
 
 fn parse_indexed_direct(input: TSpan) -> PResult<Node> {
-    alt((parse_index_only, parse_pc_offset, parse_offset))(input)
+    alt((
+        |i| parse_index_only(i, false),
+        parse_pc_offset,
+        parse_offset,
+    ))(input)
 }
 
 pub fn parse_indexed(input: TSpan) -> PResult<Node> {

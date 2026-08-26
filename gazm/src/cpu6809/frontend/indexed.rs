@@ -63,18 +63,6 @@ fn get_pc_offset(input: TSpan) -> PResult<IndexParseType> {
     map(get_this_reg(RegEnum::PC), |_| IndexParseType::PCOffset)(input)
 }
 
-fn check_for_illegal_indirect<'a>(
-    res: (TSpan<'a>, (TSpan<'a>, IndexParseType)),
-) -> PResult<'a, IndexParseType> {
-    let (rest, (sp, matched)) = res;
-
-    if matched.allowed_indirect() {
-        Ok((rest, matched))
-    } else {
-        err_fatal(sp, IndexModeNotValidIndirect6809)
-    }
-}
-
 /// Get indexed arg direct (not wrapped in square brackets)
 fn get_indexed_direct(input: TSpan) -> PResult<IndexParseType> {
     preceded(
