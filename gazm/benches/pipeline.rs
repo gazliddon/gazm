@@ -7,11 +7,12 @@ use gazm::{
 };
 
 fn check_fixture(c: &mut Criterion) {
-    let mut opts = Opts::default();
-    opts.project_file =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets/test_src/newfe.gazm");
-    opts.build_type = BuildType::Check;
-    opts.no_async = true;
+    let opts = Opts {
+        project_file: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets/test_src/newfe.gazm"),
+        build_type: BuildType::Check,
+        no_async: true,
+        ..Default::default()
+    };
 
     c.bench_function("assemble_newfe", |b| {
         b.iter(|| {

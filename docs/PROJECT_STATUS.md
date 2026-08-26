@@ -74,10 +74,17 @@ From `development/gazm`:
 ```sh
 cargo check --workspace
 cargo test -p gazm
+cargo clippy -p gazm --all-targets
 cargo build -p gazm
 make -C ../stargate clean
 make -C ../stargate ASM="$PWD/target/debug/gazm build"
 ```
+
+`cargo clippy` must pass clean: the crate denies warnings (`#![deny(warnings)]`
+in `lib.rs`/`main.rs`), with `clippy::result_large_err` deliberately allowed —
+`GResult<T>` returns the rich `GazmErrorKind` by value (largest variant well
+over clippy's 128-byte threshold) because it carries user-facing diagnostic
+payloads. Prefer boxing the kind only if that becomes a measured hot path.
 
 The final Stargate command must leave all generated ROMs byte-identical to
 `../stargate/orig/roms`.

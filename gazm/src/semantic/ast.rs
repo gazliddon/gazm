@@ -979,10 +979,10 @@ impl<'a> AstCtx<'a> {
                 // bindings.
                 Repeat { index: Some(name) } | For { index: name } => {
                     if let Err(diag) = self.create_symbol(name, *node_id, &scopes) {
-                        if self.get_reader(&scopes).get_symbol_info(name).is_err() {
-                            if self.ctx.asm_out.errors.push(diag) {
-                                return Ok(());
-                            }
+                        if self.get_reader(&scopes).get_symbol_info(name).is_err()
+                            && self.ctx.asm_out.errors.push(diag)
+                        {
+                            return Ok(());
                         }
                     }
                 }

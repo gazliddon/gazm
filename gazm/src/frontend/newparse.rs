@@ -285,7 +285,7 @@ impl GazmParser {
             ("break", AstNodeKind::Break),
             ("continue", AstNodeKind::Continue),
         ] {
-            if let Ok((rest, sp)) = keyword(kw)(input.clone()) {
+            if let Ok((rest, sp)) = keyword(kw)(input) {
                 if matches!(rest.first().map(|token| token.kind), Some(TokenKind::Colon)) {
                     return Ok((input, None));
                 }
@@ -310,7 +310,7 @@ impl GazmParser {
         ) {
             let (rest, _) = Self::parse_local_label(input)?;
             let (rest, _) = Self::consume_label_colon(rest)?;
-            if keyword("equ")(rest.clone()).is_ok() {
+            if keyword("equ")(rest).is_ok() {
                 return Self::parse_equate(input);
             }
             return Self::parse_local_label(input).and_then(|(rest, node)| {
@@ -353,7 +353,7 @@ impl GazmParser {
 
         match rest_after_label.first().map(|token| token.kind) {
             Some(OpenBracket) => Self::parse_macro_call(input),
-            _ if keyword("equ")(rest_after_label.clone()).is_ok() => Self::parse_equate(input),
+            _ if keyword("equ")(rest_after_label).is_ok() => Self::parse_equate(input),
             _ => Self::parse_label(input).and_then(|(rest, node)| {
                 let (rest, _) = Self::consume_label_colon(rest)?;
                 Ok((rest, Self::mk_pc_equate(&node)))

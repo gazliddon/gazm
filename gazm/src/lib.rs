@@ -4,6 +4,10 @@
 // crate until those paths are either removed or brought back into use.
 #![allow(unused_imports)]
 #![allow(dead_code)]
+// `GResult<T>` returns `GazmErrorKind` by value; the enum is deliberately
+// large because it carries rich user-facing diagnostic payloads, so
+// clippy's `result_large_err` (fires above 128 bytes) doesn't apply here.
+#![allow(clippy::result_large_err)]
 pub mod assembler;
 pub mod cli;
 pub mod cpu6800;

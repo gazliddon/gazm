@@ -1,3 +1,5 @@
+// The rich diagnostic error kind is large by design; see lib.rs.
+#![allow(clippy::result_large_err)]
 use gazm::{
     assembler::Assembler,
     cli::{parse_command_line, styling::get_banner},
@@ -293,10 +295,11 @@ mod test {
     use super::*;
 
     fn make_opts(file_name: &str) -> Opts {
-        let mut ret = Opts::default();
-        ret.project_file = PathBuf::from(file_name);
-        ret.build_type = BuildType::Check;
-        ret
+        Opts {
+            project_file: PathBuf::from(file_name),
+            build_type: BuildType::Check,
+            ..Default::default()
+        }
     }
 
     // TODO Reinstate this test and make circular includes error

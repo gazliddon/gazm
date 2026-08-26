@@ -175,7 +175,7 @@ pub struct Artifact<'a> {
 pub fn find_envelope(bytes: &[u8], magic: Magic) -> Option<&[u8]> {
     let m = magic.as_bytes();
     (0..=bytes.len().saturating_sub(16)).find_map(|i| {
-        if &bytes[i..i + 4] != m {
+        if bytes[i..i + 4] != m {
             return None;
         }
         let len = u64::from_le_bytes(bytes[i + 8..i + 16].try_into().unwrap()) as usize;
