@@ -78,16 +78,7 @@ pub fn keyword(kw: &str) -> impl FnMut(TSpan) -> PResult<TSpan> + '_ {
 /// TokenKind::Label
 /// TokenKind::Command
 pub fn lex_identifier(c: CpuKind, text: &str) -> TokenKind {
-    use CpuKind::*;
-    use TokenKind::Label;
-    match c {
-        Cpu6809 => lex6809(text),
-        Cpu6800 => lex6800(text),
-        CpuZ80 => crate::cpu_z80::frontend::lex_identifier(text),
-        // Unimplemented backends: no opcodes are recognized yet, so any
-        // word that is not a directive classifies as a label.
-        _ => Label,
-    }
+    cpu_dispatch!(lex, c, text)
 }
 
 /// Classify an identifier after the raw Logos pass. Directives come from

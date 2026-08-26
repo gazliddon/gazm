@@ -1,4 +1,3 @@
-use crate::{assembler::AssemblerCpuTrait, cpu6800::Asm6800, cpu6809::Asm6809};
 use serde::{Deserialize, Serialize};
 
 use strum_macros::EnumString;
@@ -35,31 +34,27 @@ impl CpuKind {
     }
 }
 
-impl From<CpuKind> for Box<dyn AssemblerCpuTrait> {
-    fn from(cpu: CpuKind) -> Box<dyn AssemblerCpuTrait> {
-        match cpu {
-            CpuKind::Cpu6809 => Box::new(Asm6809::new()),
-            CpuKind::Cpu6800 => Box::new(Asm6800::new()),
-            CpuKind::CpuZ80 => Box::new(crate::cpu_z80::AsmZ80::new()),
-            CpuKind::Cpu6502 => todo!(),
-            CpuKind::Cpu65c02 => todo!(),
-            CpuKind::Cpu68000 => todo!(),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{CpuKind, Endianness};
-    use crate::assembler::AssemblerCpuTrait;
+    use crate::frontend::{lex_identifier, TokenKind};
 
     #[test]
-    fn cpu_kind_selects_matching_backend() {
-        let cpu6809: Box<dyn AssemblerCpuTrait> = CpuKind::Cpu6809.into();
-        let cpu6800: Box<dyn AssemblerCpuTrait> = CpuKind::Cpu6800.into();
-
-        assert_eq!(cpu6809.get_cpu_name(), "6809");
-        assert_eq!(cpu6800.get_cpu_name(), "6800");
+    fn backend_registry_lexes_mnemonics() {
+        // Each registered backend classifies its own mnemonics as opcodes
+        // and everything else as a label.
+        for (cpu, mnemonic) in [
+            (CpuKind::Cpu6809, "LDX"),
+            (CpuKind::Cpu6800, "LDAA"),
+            (CpuKind::CpuZ80, "ldir"),
+        ] {
+            assert_eq!(
+                lex_identifier(cpu, mnemonic),
+                TokenKind::CpuOpcode(cpu),
+                "{cpu:?} should recognise {mnemonic}"
+            );
+        }
+        assert_eq!(lex_identifier(CpuKind::Cpu6809, "FOOBAR"), TokenKind::Label);
     }
 
     #[test]

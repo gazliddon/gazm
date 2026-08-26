@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 use crate::frontend::{
     err_kind_nomatch, fatal, parse_inherent, parse_opcode_operand, parse_prefixed_operand,
-    AstNodeKind, CpuSpecific, FrontEndError, Node, PResult, TSpan, TokenKind,
+    AstNodeKind, CpuAssemblyErrorKind, CpuSpecific, FrontEndError, Node, PResult, TSpan, TokenKind,
 };
 
 use crate::cpu6809::assembler::ISA_DBASE;
@@ -10,7 +10,6 @@ use crate::cpukind::CpuKind;
 use super::{
     parse_indexed, parse_opcode_reg_pair, parse_reg_set_operand, AddrModeParseType,
     AddrModeParseType::Inherent as ParseInherent,
-    Cpu6809AssemblyErrorKind,
     NodeKind6809::{OpCode, Operand, OperandIndexed},
 };
 
@@ -81,14 +80,14 @@ fn parse_opcode_with_arg_parts<'a>(
             AstNodeKind::TargetSpecific(CpuSpecific::Cpu6809(OperandIndexed(amode, indirect))) => {
                 AddrModeParseType::Indexed(*amode, *indirect)
             }
-            _ => return Err(fatal(sp, Cpu6809AssemblyErrorKind::AddrModeUnsupported)),
+            _ => return Err(fatal(sp, CpuAssemblyErrorKind::AddrModeUnsupported)),
         };
 
         match get_instruction(amode, info) {
             Some(instruction) => Ok((amode, instruction.id())),
             None => Err(fatal(
                 sp,
-                Cpu6809AssemblyErrorKind::ThisAddrModeUnsupported(amode),
+                CpuAssemblyErrorKind::ThisAddrModeUnsupported(format!("{amode:?}")),
             )),
         }
     };
@@ -108,7 +107,7 @@ fn parse_opcode_no_arg_parts<'a>(
         sp,
         || ins.get_instruction_id(AddrModeEnum::Inherent),
         |ins| OpCode(ins, ParseInherent).into(),
-        Cpu6809AssemblyErrorKind::OnlySupports(AddrModeParseType::Inherent),
+        CpuAssemblyErrorKind::OnlySupports,
     )
 }
 

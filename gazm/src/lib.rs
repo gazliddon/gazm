@@ -8,6 +8,9 @@
 // large because it carries rich user-facing diagnostic payloads, so
 // clippy's `result_large_err` (fires above 128 bytes) doesn't apply here.
 #![allow(clippy::result_large_err)]
+#[macro_use]
+mod cpu_backend;
+
 pub mod assembler;
 pub mod cli;
 pub mod cpu6800;

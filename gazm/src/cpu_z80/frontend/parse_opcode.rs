@@ -9,7 +9,7 @@ use crate::frontend::{
 use emuz80::isa::{Instruction, InstructionInfo};
 use unraveler::{alt, kind, match_item, match_span as ms, Collection};
 
-use super::{NodeKindZ80::OpCode, OperandParseType, Pair, Reg8, Z80AssemblyErrorKind};
+use super::{NodeKindZ80::OpCode, OperandParseType, Pair, Reg8};
 
 /// One bound operand: a register/pair/bit/vector value or an expression
 /// child (n/nn/d/e, or the displacement inside `(IX+d)`).
@@ -241,7 +241,10 @@ fn get_opcode(input: TSpan<'_>) -> PResult<'_, (TSpan<'_>, &'static InstructionI
     let info = ISA_DBASE
         .get_info(&text.to_ascii_uppercase())
         .ok_or_else(|| {
-            crate::frontend::FrontEndError::error(input, Z80AssemblyErrorKind::UnknownOpcode)
+            crate::frontend::FrontEndError::error(
+                input,
+                crate::frontend::CpuAssemblyErrorKind::UnknownOpcode("Z80"),
+            )
         })?;
     Ok((rest, (sp, info)))
 }
@@ -251,7 +254,10 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     if rest.is_empty() {
         // Inherent forms (NOP, LDIR, RET, ...).
         let row = info.get("").and_then(|rows| rows.first()).ok_or_else(|| {
-            crate::frontend::FrontEndError::error(sp, Z80AssemblyErrorKind::MissingOperand)
+            crate::frontend::FrontEndError::error(
+                sp,
+                crate::frontend::CpuAssemblyErrorKind::MissingOperand,
+            )
         })?;
         let item = OpCode(row.id(), OperandParseType::None);
         let node = from_item_tspan(item, sp);
@@ -309,7 +315,7 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
         return Ok((cur, node));
     }
 
-    err_fatal(sp, Z80AssemblyErrorKind::OperandsDontMatch)
+    err_fatal(sp, crate::frontend::CpuAssemblyErrorKind::OperandsDontMatch)
 }
 
 pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {

@@ -1,8 +1,8 @@
 pub mod assembler;
-mod assemblerz80;
 pub mod frontend;
 
-pub use assemblerz80::*;
+/// The shared AST node kind, aliased for the backend's `From` impls.
+pub type NodeKind = crate::frontend::AstNodeKind;
 
 #[cfg(test)]
 mod tests {

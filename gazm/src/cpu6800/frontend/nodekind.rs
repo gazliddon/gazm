@@ -1,6 +1,5 @@
 use emu6800::cpu_core::{AddrModeEnum, OpcodeId, RegEnum, DBASE};
 
-use crate::cpu6800::Asm6800;
 use crate::frontend::{AstNodeKind, CpuSpecific, GazmParser, Node};
 
 #[derive(PartialEq, Debug, Clone, Copy)]

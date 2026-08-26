@@ -1,7 +1,4 @@
-use crate::{
-    assembler::AssemblerCpuTrait,
-    error::{ErrorCollectorTrait, NewErrorCollector},
-};
+use crate::error::{ErrorCollectorTrait, NewErrorCollector};
 
 // #![deny(unused_imports)]
 use super::{

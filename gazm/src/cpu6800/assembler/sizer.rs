@@ -10,25 +10,14 @@ use crate::{
 
 use crate::cpu6800::frontend::{AddrModeParseType, NodeKind6800};
 
-impl Assembler {
-    pub fn size_node_6800(
-        &mut self,
-        sizer: &mut Sizer,
-        id: AstNodeId,
-        node_kind: NodeKind6800,
-        current_scope_id: u64,
-    ) -> GResult<()> {
-        size_node_internal(sizer, self, id, node_kind, current_scope_id)
-    }
-}
-
-fn size_node_internal(
+/// Size a 6800 node (registry entry: `crate::cpu6800::assembler::size_node_internal`).
+pub fn size_node_internal(
     sizer: &mut Sizer,
     asm: &mut Assembler,
     id: AstNodeId,
     node_kind: NodeKind6800,
-    current_scope_id: u64,
 ) -> GResult<()> {
+    let current_scope_id = sizer.scopes.scope();
     use NodeKind6800::*;
 
     match &node_kind {

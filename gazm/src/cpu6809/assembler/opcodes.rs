@@ -65,7 +65,15 @@ pub fn compile_node(
             compile_opcode(asm, node, ISA_DBASE.get_by_id(ins), amode, current_scope_id)?;
         }
 
-        SetDp => eprintln!("Warning! SetDP node not compiled!"),
+        SetDp => {
+            let (dp, _) = asm.eval_first_arg(node, current_scope_id)?;
+            if !(0..=0xff).contains(&dp) {
+                return Err(asm
+                    .make_user_error("SETDP value must be between 0 and 255", node, true)
+                    .into());
+            }
+            asm.asm_out.set_dp(dp as u8);
+        }
 
         Illegal => todo!(),
         Operand(_) => todo!(),

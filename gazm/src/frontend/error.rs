@@ -19,11 +19,7 @@ pub enum FrontEndErrorKind {
     #[error("{0}")]
     HelpText(ErrCode),
     #[error(transparent)]
-    AsmErrorKind(#[from] Cpu6809AssemblyErrorKind),
-    #[error(transparent)]
-    AsmErrorKind6800(#[from] crate::cpu6800::frontend::AssemblyErrorKind6800),
-    #[error(transparent)]
-    AsmErrorKindZ80(#[from] crate::cpu_z80::frontend::Z80AssemblyErrorKind),
+    CpuAssembly(#[from] CpuAssemblyErrorKind),
     #[error(transparent)]
     SourceError(#[from] SourceErrorType),
     #[error(transparent)]
@@ -61,6 +57,24 @@ pub enum FrontEndErrorKind {
 }
 
 pub type FeResult<T> = Result<T, FrontEndError>;
+
+/// CPU-backend assembly errors, shared by all backends. Addressing-mode
+/// payloads are stringified because each backend's mode type differs.
+#[derive(Debug, Error, Clone, PartialEq)]
+pub enum CpuAssemblyErrorKind {
+    #[error("This {0} is not supported for this opcode")]
+    ThisAddrModeUnsupported(String),
+    #[error("Addressing mode is not supported for this opcode")]
+    AddrModeUnsupported,
+    #[error("This instruction only supports inherent mode addressing")]
+    OnlySupports,
+    #[error("Unknown {0} opcode")]
+    UnknownOpcode(&'static str),
+    #[error("This opcode needs an operand")]
+    MissingOperand,
+    #[error("Operands do not match any form of this opcode")]
+    OperandsDontMatch,
+}
 
 #[derive(Clone, Debug, Error)]
 pub struct FrontEndError {
@@ -226,4 +240,3 @@ impl<'a> ParseError<TSpan<'a>> for FrontEndError {
 }
 
 // TODO: Remove6809
-use crate::cpu6809::frontend::Cpu6809AssemblyErrorKind;

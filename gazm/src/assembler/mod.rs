@@ -10,7 +10,6 @@ mod plan;
 mod scopes;
 mod scopetracker;
 mod sizer;
-mod traits;
 mod writers;
 
 pub use asm::*;
@@ -24,7 +23,6 @@ pub use plan::*;
 pub use scopes::*;
 pub use scopetracker::*;
 pub use sizer::*;
-pub use traits::*;
 pub use writers::*;
 
 #[cfg(test)]

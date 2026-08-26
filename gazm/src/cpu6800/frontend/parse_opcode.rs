@@ -1,13 +1,12 @@
 use crate::frontend::{
     err_fatal, err_kind_nomatch, fatal, from_item_tspan, get_text, parse_expr, parse_inherent,
-    parse_opcode_operand, parse_prefixed_operand, AstNodeKind, CpuSpecific, FrontEndError,
-    FrontEndErrorKind, Node, PResult, ParsedFrom, TSpan, TokenKind,
+    parse_opcode_operand, parse_prefixed_operand, AstNodeKind, CpuAssemblyErrorKind, CpuSpecific,
+    FrontEndError, FrontEndErrorKind, Node, PResult, ParsedFrom, TSpan, TokenKind,
 };
 
 use crate::cpukind::CpuKind::Cpu6800 as Cpu;
 
 use crate::cpu6800::frontend::{
-    error::AssemblyErrorKind6800::OnlySupports,
     get_this_reg, AddrModeParseType,
     NodeKind6800::{self, OpCode, Operand},
 };
@@ -102,7 +101,7 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
             sp,
             || info.get_opcode_data(AddrModeEnum::Inherent).map(|i| i.id()),
             |id| OpCode(id, AddrModeParseType::Inherent).into(),
-            OnlySupports(AddrModeParseType::Inherent),
+            CpuAssemblyErrorKind::OnlySupports,
         );
     }
 
