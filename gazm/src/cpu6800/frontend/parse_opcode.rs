@@ -1,23 +1,20 @@
 use crate::frontend::{
-    err_fatal, err_kind_nomatch, err_nomatch, from_item_tspan, get_text, is_parsing_macro_def,
-    parse_expr, AstNodeKind, FrontEndError, FrontEndErrorKind, Node, PResult, TSpan, TokenKind,
+    err_fatal, err_kind_nomatch, fatal, from_item_tspan, get_text, parse_expr, parse_inherent,
+    parse_opcode_operand, parse_prefixed_operand, AstNodeKind, CpuSpecific, FrontEndError,
+    FrontEndErrorKind, Node, PResult, ParsedFrom, TSpan, TokenKind,
 };
 
 use crate::cpukind::CpuKind::Cpu6800 as Cpu;
 
-use crate::cpu6800::{
-    frontend::{
-        error::AssemblyErrorKind6800::OnlySupports,
-        get_this_reg, AddrModeParseType,
-        NodeKind6800::{self, OpCode, Operand},
-    },
-    Asm6800,
+use crate::cpu6800::frontend::{
+    error::AssemblyErrorKind6800::OnlySupports,
+    get_this_reg, AddrModeParseType,
+    NodeKind6800::{self, OpCode, Operand},
 };
 
-use emu6800::cpu_core::{AddrModeEnum, Instruction, InstructionInfo, OpcodeData, RegEnum, DBASE};
+use emu6800::cpu_core::{AddrModeEnum, Instruction, OpcodeData, OpcodeId, RegEnum, DBASE};
 
-use serde_json::value::Index;
-use unraveler::{alt, match_span as ms, opt, preceded, sep_pair, tag, Collection};
+use unraveler::{alt, match_span as ms, opt, sep_pair, Collection};
 
 fn get_opcode(input: TSpan<'_>) -> PResult<'_, (TSpan<'_>, &Instruction)> {
     let (rest, (sp, matched)) = ms(alt((TokenKind::CpuOpcode(Cpu), TokenKind::Identifier)))(input)?;
@@ -45,33 +42,22 @@ fn parse_indexed(input: TSpan) -> PResult<Node> {
 
 fn parse_immediate(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
-    use TokenKind::Hash;
-    let (rest, (sp, matched)) = ms(preceded(Hash, parse_expr))(input)?;
-    let node = from_item_tspan(Immediate, sp).with_child(matched);
-    Ok((rest, node))
+    parse_prefixed_operand(input, Some(TokenKind::Hash), Immediate)
 }
 
 fn parse_force_direct(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
-    use TokenKind::LessThan;
-    let (rest, (sp, matched)) = ms(preceded(LessThan, parse_expr))(input)?;
-    let node = from_item_tspan(Direct, sp).with_child(matched);
-    Ok((rest, node))
+    parse_prefixed_operand(input, Some(TokenKind::LessThan), Direct)
 }
 
 fn parse_force_extended(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
-    use TokenKind::GreaterThan;
-    let (rest, (sp, matched)) = ms(preceded(GreaterThan, parse_expr))(input)?;
-    let node = from_item_tspan(Extended(true), sp).with_child(matched);
-    Ok((rest, node))
+    parse_prefixed_operand(input, Some(TokenKind::GreaterThan), Extended(true))
 }
 
 fn parse_extended(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
-    let (rest, (sp, matched)) = ms(parse_expr)(input)?;
-    let node = from_item_tspan(Extended(false), sp).with_child(matched);
-    Ok((rest, node))
+    parse_prefixed_operand(input, None, Extended(false))
 }
 
 fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
@@ -111,36 +97,40 @@ pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     // files and also made the no-argument path depend on parser backtracking.
     let (rest, (sp, info)) = get_opcode(input)?;
     if rest.is_empty() {
-        if let Some(ins) = info.get_opcode_data(AddrModeEnum::Inherent) {
-            let oc = OpCode(ins.id(), AddrModeParseType::Inherent);
-            return Ok((rest, from_item_tspan(oc, sp)));
-        }
-        return err_fatal(sp, OnlySupports(AddrModeParseType::Inherent));
+        return parse_inherent(
+            rest,
+            sp,
+            || info.get_opcode_data(AddrModeEnum::Inherent).map(|i| i.id()),
+            |id| OpCode(id, AddrModeParseType::Inherent).into(),
+            OnlySupports(AddrModeParseType::Inherent),
+        );
     }
 
-    use crate::frontend::CpuSpecific;
-    use CpuSpecific::Cpu6800 as Cpu;
-    use NodeKind6800::{OpCode, Operand};
-
-    let (rest, arg) = parse_opcode_arg(rest)?;
-    if let AstNodeKind::TargetSpecific(Cpu(Operand(parsed_addressing_mode))) = arg.item {
-        if info.supports(AddrModeEnum::Relative)
-            && matches!(parsed_addressing_mode, AddrModeParseType::Extended(_))
-        {
-            let instruction = get_instruction(AddrModeParseType::Relative, info).unwrap();
-            let item = NodeKind6800::opcode(instruction.id(), AddrModeParseType::Relative);
-            let node = from_item_tspan(item, sp).take_others_children(arg);
-            Ok((rest, node))
-        } else if let Some(instruction) = get_instruction(parsed_addressing_mode, info) {
-            let item = NodeKind6800::opcode(instruction.id(), parsed_addressing_mode);
-            let node = from_item_tspan(item, sp).take_others_children(arg);
-            Ok((rest, node))
-        } else {
-            err_fatal(sp, FrontEndErrorKind::Unexpected)
-        }
-    } else {
-        panic!()
-    }
+    parse_opcode_operand(
+        rest,
+        sp,
+        parse_opcode_arg,
+        |arg| -> Result<(AddrModeParseType, OpcodeId), FrontEndError> {
+            if let AstNodeKind::TargetSpecific(CpuSpecific::Cpu6800(Operand(
+                parsed_addressing_mode,
+            ))) = &arg.item
+            {
+                if info.supports(AddrModeEnum::Relative)
+                    && matches!(parsed_addressing_mode, AddrModeParseType::Extended(_))
+                {
+                    let instruction = get_instruction(AddrModeParseType::Relative, info).unwrap();
+                    Ok((AddrModeParseType::Relative, instruction.id()))
+                } else if let Some(instruction) = get_instruction(*parsed_addressing_mode, info) {
+                    Ok((*parsed_addressing_mode, instruction.id()))
+                } else {
+                    Err(fatal(sp, FrontEndErrorKind::Unexpected))
+                }
+            } else {
+                panic!()
+            }
+        },
+        |amode, id| NodeKind6800::opcode(id, amode).into(),
+    )
 }
 
 pub fn parse_multi_opcode_vec(input: TSpan) -> PResult<Vec<Node>> {

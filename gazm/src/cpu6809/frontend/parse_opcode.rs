@@ -1,8 +1,7 @@
 #![deny(unused_imports)]
-use crate::cpu6809::frontend::NodeKind6809;
 use crate::frontend::{
-    err_fatal, from_item_tspan, parse_expr, AstNodeKind, CpuSpecific, Node, PResult, TSpan,
-    TokenKind,
+    fatal, parse_inherent, parse_opcode_operand, parse_prefixed_operand, AstNodeKind, CpuSpecific,
+    FrontEndError, Node, PResult, TSpan, TokenKind,
 };
 
 use crate::cpu6809::assembler::ISA_DBASE;
@@ -16,41 +15,30 @@ use super::{
 };
 
 use emu6809::isa::{AddrModeEnum, Instruction, InstructionId, InstructionInfo};
-use unraveler::{alt, match_span as ms, preceded, Collection};
+use unraveler::{alt, match_span as ms, Collection};
 
 pub fn get_opcode_info(id: InstructionId) -> Option<&'static InstructionInfo> {
     ISA_DBASE.get_info_by_id(id)
 }
 
-fn parse_immediate(_input: TSpan) -> PResult<Node> {
+fn parse_immediate(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
-    use TokenKind::Hash;
-    let (rest, (sp, matched)) = ms(preceded(Hash, parse_expr))(_input)?;
-    let node = from_item_tspan(Immediate, sp).with_child(matched);
-    Ok((rest, node))
+    parse_prefixed_operand(input, Some(TokenKind::Hash), Immediate)
 }
 
-fn parse_force_dp(_input: TSpan) -> PResult<Node> {
+fn parse_force_dp(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
-    use TokenKind::LessThan;
-    let (rest, (sp, matched)) = ms(preceded(LessThan, parse_expr))(_input)?;
-    let node = from_item_tspan(Direct, sp).with_child(matched);
-    Ok((rest, node))
+    parse_prefixed_operand(input, Some(TokenKind::LessThan), Direct)
 }
 
-fn parse_force_extended(_input: TSpan) -> PResult<Node> {
+fn parse_force_extended(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
-    use TokenKind::GreaterThan;
-    let (rest, (sp, matched)) = ms(preceded(GreaterThan, parse_expr))(_input)?;
-    let node = from_item_tspan(Extended(true), sp).with_child(matched);
-    Ok((rest, node))
+    parse_prefixed_operand(input, Some(TokenKind::GreaterThan), Extended(true))
 }
 
-fn parse_extended(_input: TSpan) -> PResult<Node> {
+fn parse_extended(input: TSpan) -> PResult<Node> {
     use AddrModeParseType::*;
-    let (rest, (sp, matched)) = ms(parse_expr)(_input)?;
-    let node = from_item_tspan(Extended(false), sp).with_child(matched);
-    Ok((rest, node))
+    parse_prefixed_operand(input, None, Extended(false))
 }
 
 fn parse_opcode_arg(input: TSpan) -> PResult<Node> {
@@ -77,29 +65,37 @@ fn parse_opcode_with_arg_parts<'a>(
     sp: TSpan<'a>,
     info: &'a InstructionInfo,
 ) -> PResult<'a, Node> {
-    let (rest, arg) = if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
-        parse_reg_set_operand(rest)
-    } else if info.supports_addr_mode(AddrModeEnum::RegisterPair) {
-        parse_opcode_reg_pair(rest)
-    } else {
-        parse_opcode_arg(rest)
-    }?;
-
-    let amode = match arg.item {
-        AstNodeKind::TargetSpecific(CpuSpecific::Cpu6809(Operand(amode))) => amode,
-        AstNodeKind::TargetSpecific(CpuSpecific::Cpu6809(OperandIndexed(amode, indirect))) => {
-            AddrModeParseType::Indexed(amode, indirect)
+    let parse_arg = |rest| {
+        if info.supports_addr_mode(AddrModeEnum::RegisterSet) {
+            parse_reg_set_operand(rest)
+        } else if info.supports_addr_mode(AddrModeEnum::RegisterPair) {
+            parse_opcode_reg_pair(rest)
+        } else {
+            parse_opcode_arg(rest)
         }
-        _ => return err_fatal(sp, Cpu6809AssemblyErrorKind::AddrModeUnsupported),
     };
 
-    if let Some(instruction) = get_instruction(amode, info) {
-        let item = OpCode(instruction.id(), amode);
-        let node = from_item_tspan(item, sp).take_others_children(arg);
-        Ok((rest, node))
-    } else {
-        err_fatal(sp, Cpu6809AssemblyErrorKind::ThisAddrModeUnsupported(amode))
-    }
+    let resolve = |arg: &Node| -> Result<(AddrModeParseType, InstructionId), FrontEndError> {
+        let amode = match &arg.item {
+            AstNodeKind::TargetSpecific(CpuSpecific::Cpu6809(Operand(amode))) => *amode,
+            AstNodeKind::TargetSpecific(CpuSpecific::Cpu6809(OperandIndexed(amode, indirect))) => {
+                AddrModeParseType::Indexed(*amode, *indirect)
+            }
+            _ => return Err(fatal(sp, Cpu6809AssemblyErrorKind::AddrModeUnsupported)),
+        };
+
+        match get_instruction(amode, info) {
+            Some(instruction) => Ok((amode, instruction.id())),
+            None => Err(fatal(
+                sp,
+                Cpu6809AssemblyErrorKind::ThisAddrModeUnsupported(amode),
+            )),
+        }
+    };
+
+    parse_opcode_operand(rest, sp, parse_arg, resolve, |amode, ins| {
+        OpCode(ins, amode).into()
+    })
 }
 
 fn parse_opcode_no_arg_parts<'a>(
@@ -107,16 +103,15 @@ fn parse_opcode_no_arg_parts<'a>(
     sp: TSpan<'a>,
     ins: &'a InstructionInfo,
 ) -> PResult<'a, Node> {
-    use Cpu6809AssemblyErrorKind::OnlySupports;
-
-    if let Some(ins) = ins.get_instruction_id(AddrModeEnum::Inherent) {
-        let oc = NodeKind6809::OpCode(ins, ParseInherent);
-        let node = from_item_tspan(oc, sp);
-        Ok((rest, node))
-    } else {
-        err_fatal(sp, OnlySupports(AddrModeParseType::Inherent))
-    }
+    parse_inherent(
+        rest,
+        sp,
+        || ins.get_instruction_id(AddrModeEnum::Inherent),
+        |ins| OpCode(ins, ParseInherent).into(),
+        Cpu6809AssemblyErrorKind::OnlySupports(AddrModeParseType::Inherent),
+    )
 }
+
 pub fn parse_opcode(input: TSpan) -> PResult<Node> {
     let (rest, (sp, info)) = get_opcode(input)?;
     if rest.is_empty() {
