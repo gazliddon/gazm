@@ -368,9 +368,6 @@ impl GazmParser {
         Self::simple_command(CommandKind::Rmb, AstNodeKind::Rmb)(_input)
     }
 
-    pub(crate) fn parse_rmd(_input: TSpan) -> PResult<Node> {
-        Self::simple_command(CommandKind::Rmd, AstNodeKind::Rmd)(_input)
-    }
     pub(crate) fn parse_zmd(_input: TSpan) -> PResult<Node> {
         Self::simple_command(CommandKind::Zmd, AstNodeKind::Zmd)(_input)
     }
@@ -393,7 +390,6 @@ impl GazmParser {
             Self::parse_fcc,
             Self::parse_zmd,
             Self::parse_rmb,
-            Self::parse_rmd,
             Self::parse_org,
             Self::parse_include,
             Self::parse_exec,

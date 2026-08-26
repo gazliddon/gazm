@@ -55,7 +55,6 @@ impl GazmParser {
             Fcc => Self::parse_fcc(args),
             Zmd => Self::parse_zmd(args),
             Rmb => Self::parse_rmb(args),
-            Rmd => Self::parse_rmd(args),
             Org => Self::parse_org(args),
             Include => Self::parse_include(args),
             Exec => Self::parse_exec(args),

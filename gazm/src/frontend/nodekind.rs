@@ -141,7 +141,6 @@ pub enum AstNodeKind {
     Fcb(usize),
     Fcc(String),
     Rmb,
-    Rmd,
     Fill,
     Zmb,
     Zmd,
