@@ -3,73 +3,41 @@ use crate::{cpu6800::frontend::NodeKind6800, semantic::AstNodeRef};
 use emu6800::cpu_core::{AddrModeEnum, InstructionInfo, DBASE};
 
 use crate::{
-    assembler::{Assembler, BinaryError},
-    error::{GResult, GazmErrorKind},
+    assembler::{write_eval_byte, write_eval_word, write_opcode, write_relative_byte, Assembler},
+    error::GResult,
 };
+
 impl Assembler {
-    pub fn compile_operand_6800(
-        &mut self,
-        node: AstNodeRef,
-        ins: InstructionInfo,
-        pc: i64,
-        current_scope_id: u64,
-    ) -> GResult<()> {
-        match ins.addr_mode {
-            AddrModeEnum::Indexed | AddrModeEnum::Direct | AddrModeEnum::Immediate8 => {
-                let (arg, _id) = self.eval_first_arg(node, current_scope_id)?;
-                self.get_binary_mut().write_byte_check_size(arg)?;
-            }
-
-            AddrModeEnum::Extended => {
-                let (arg, _id) = self.eval_first_arg(node, current_scope_id)?;
-                self.get_binary_mut().write_word_check_size(arg)?;
-            }
-
-            AddrModeEnum::Immediate16 => {
-                let (arg, _id) = self.eval_first_arg(node, current_scope_id)?;
-                self.get_binary_mut().write_word_check_size(arg)?;
-            }
-
-            AddrModeEnum::Inherent => (),
-
-            AddrModeEnum::Relative => {
-                let size = ins.opcode_data.size as i64;
-                let (arg, _arg_id) = self.eval_first_arg(node, current_scope_id)?;
-
-                let val = arg - (pc + size);
-                let binary = &mut self.asm_out.binary;
-                binary.write_ibyte_check_size(val)?;
-            }
-
-            AddrModeEnum::Illegal => todo!(),
-        };
-
-        Ok(())
-    }
-
-    /// Compile an opcode
+    /// Compile a 6800 opcode: the opcode byte plus the operand bytes via
+    /// the shared writers, keyed by the row's addressing mode. Reference
+    /// mismatches fail the build like every other backend (the old
+    /// "Waring!" swallow silently emitted divergent bytes).
     pub fn compile_opcode_6800(
         &mut self,
         node: AstNodeRef,
         ins: InstructionInfo,
         current_scope_id: u64,
     ) -> GResult<()> {
-        let pc = self.get_binary().get_write_address() as i64;
-        self.get_binary_mut()
-            .write_byte(ins.opcode_data.opcode as u8)?;
+        let pc = self.get_binary().get_write_address();
+        write_opcode(self, node, ins.opcode_data.opcode)?;
 
-        let ret = self.compile_operand_6800(node, ins, pc, current_scope_id);
+        match ins.addr_mode {
+            AddrModeEnum::Indexed | AddrModeEnum::Direct | AddrModeEnum::Immediate8 => {
+                write_eval_byte(self, node, current_scope_id)
+            }
 
-        match ret {
-            Ok(()) => Ok(()),
-            Err(GazmErrorKind::BinaryError(BinaryError::DoesNotMatchReference(..))) => {
-                eprintln!("Waring!");
-                Ok(())
+            AddrModeEnum::Extended | AddrModeEnum::Immediate16 => {
+                write_eval_word(self, node, current_scope_id)
             }
-            Err(_) => {
-                println!("ret {ret:?}");
-                ret
+
+            AddrModeEnum::Inherent => Ok(()),
+
+            AddrModeEnum::Relative => {
+                let (arg, _) = self.eval_first_arg(node, current_scope_id)?;
+                write_relative_byte(self, node, arg, pc, ins.opcode_data.size)
             }
+
+            AddrModeEnum::Illegal => todo!(),
         }
     }
 

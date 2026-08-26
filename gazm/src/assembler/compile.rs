@@ -266,27 +266,6 @@ impl<'a> Compiler<'a> {
         e.map_err(|e| self.binary_error(asm, id, e))
     }
 
-    pub fn relative_error(
-        &self,
-        asm: &Assembler,
-        id: AstNodeId,
-        val: i64,
-        bits: usize,
-    ) -> GazmErrorKind {
-        let n = self.get_node(id);
-        let p = 1 << (bits - 1);
-
-        let message = if val < 0 {
-            format!("Branch out of range by {} bytes ({val})", (p + val).abs())
-        } else {
-            format!("Branch out of range by {} bytes ({val})", val - (p - 1))
-        };
-
-        let info = &asm.get_source_info(&n.value().pos).unwrap();
-        let msg = message;
-        Diagnostic::from_text(msg, info, true).into()
-    }
-
     /// Adds a mapping of this source file fragment to a physicl and logical range of memory
     /// ( physical range, logical_range )
     pub fn add_mapping(
