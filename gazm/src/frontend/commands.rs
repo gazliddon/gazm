@@ -193,6 +193,20 @@ impl GazmParser {
         Ok((rest, node))
     }
 
+    pub(crate) fn parse_emit_longs(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, matched)) =
+            ms(preceded(CommandKind::EmitLongs, Self::parse_expr_list))(input)?;
+        let node = from_item_children_tspan(AstNodeKind::EmitLongs(matched.len()), &matched, sp);
+        Ok((rest, node))
+    }
+
+    pub(crate) fn parse_emit_quads(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, matched)) =
+            ms(preceded(CommandKind::EmitQuads, Self::parse_expr_list))(input)?;
+        let node = from_item_children_tspan(AstNodeKind::EmitQuads(matched.len()), &matched, sp);
+        Ok((rest, node))
+    }
+
     fn parse_import_item(input: TSpan) -> PResult<Vec<Node>> {
         use TokenKind::{CloseBrace, Comma, DoubleColon, FqnIdentifier, OpenBrace};
 
@@ -370,6 +384,14 @@ impl GazmParser {
         Self::simple_command(CommandKind::ReserveBytes, AstNodeKind::ReserveBytes)(_input)
     }
 
+    pub(crate) fn parse_reserve_words(_input: TSpan) -> PResult<Node> {
+        Self::simple_command(CommandKind::ReserveWords, AstNodeKind::ReserveWords)(_input)
+    }
+
+    pub(crate) fn parse_reserve_longs(_input: TSpan) -> PResult<Node> {
+        Self::simple_command(CommandKind::ReserveLongs, AstNodeKind::ReserveLongs)(_input)
+    }
+
     pub(crate) fn parse_zero_words(_input: TSpan) -> PResult<Node> {
         Self::simple_command(CommandKind::ZeroWords, AstNodeKind::ZeroWords)(_input)
     }
@@ -380,24 +402,29 @@ impl GazmParser {
 
     pub fn parse_command(_input: TSpan) -> PResult<Node> {
         let (rest, matched) = alt((
-            Self::parse_scope,
-            Self::parse_put,
-            Self::parse_writebin,
-            Self::parse_incbin,
-            Self::parse_incbin_ref,
-            Self::parse_zero_fills,
-            Self::parse_fill,
-            Self::parse_emit_bytes,
-            Self::parse_emit_words,
-            Self::parse_emit_string,
-            Self::parse_zero_words,
-            Self::parse_reserve_bytes,
-            Self::parse_org,
-            Self::parse_include,
-            Self::parse_exec,
-            Self::parse_require,
-            Self::parse_import,
-            Self::parse_grabmem,
+            alt((
+                Self::parse_scope,
+                Self::parse_put,
+                Self::parse_writebin,
+                Self::parse_incbin,
+                Self::parse_incbin_ref,
+                Self::parse_zero_fills,
+                Self::parse_fill,
+                Self::parse_emit_bytes,
+                Self::parse_emit_words,
+                Self::parse_emit_longs,
+                Self::parse_emit_quads,
+                Self::parse_emit_string,
+                Self::parse_zero_words,
+                Self::parse_reserve_bytes,
+                Self::parse_reserve_words,
+                Self::parse_reserve_longs,
+                Self::parse_org,
+                Self::parse_include,
+                Self::parse_exec,
+                Self::parse_require,
+            )),
+            alt((Self::parse_import, Self::parse_grabmem)),
         ))(_input)?;
 
         Ok((rest, matched))

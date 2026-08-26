@@ -138,8 +138,12 @@ pub enum AstNodeKind {
     Put,
     EmitWords(usize),
     EmitBytes(usize),
+    EmitLongs(usize),
+    EmitQuads(usize),
     EmitString(String),
     ReserveBytes,
+    ReserveWords,
+    ReserveLongs,
     Fill,
     ZeroWords,
 

@@ -163,6 +163,28 @@ impl<'a> Compiler<'a> {
                 self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
             }
 
+            EmitLongs(..) => {
+                let node = self.get_node(node_id);
+                for n in node.children() {
+                    let x = asm.eval_node(n, current_scope_id)?;
+                    let e = asm.get_binary_mut().write_long_check_size(x);
+                    self.binary_error_map(asm, node_id, e)?;
+                }
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
+            EmitQuads(..) => {
+                let node = self.get_node(node_id);
+                for n in node.children() {
+                    let x = asm.eval_node(n, current_scope_id)?;
+                    let e = asm.get_binary_mut().write_quad_check_size(x);
+                    self.binary_error_map(asm, node_id, e)?;
+                }
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
             ZeroWords => {
                 let node = self.get_node(node_id);
                 let (words, _) = asm.eval_first_arg(node, current_scope_id)?;
@@ -462,6 +484,8 @@ pub(crate) fn compiler_handles(kind: &AstNodeKindDiscriminants) -> bool {
             | Block
             | EmitWords
             | EmitBytes
+            | EmitLongs
+            | EmitQuads
             | EmitString
             | ZeroWords
             | Fill

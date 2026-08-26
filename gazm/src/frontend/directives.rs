@@ -112,6 +112,35 @@ pub const DIRECTIVES_6502: &[(&str, CommandKind)] = &[
     (".res", CommandKind::ReserveBytes),
 ];
 
+/// The 68000 vocabulary: `dc.b/w/l` emit and `ds.b/w/l` reserve at byte,
+/// word, and long widths. The 6800/9 spellings (`fcb`, `fdb`, `rmb`) are
+/// intentionally absent.
+pub const DIRECTIVES_68000: &[(&str, CommandKind)] = &[
+    ("scope", CommandKind::Scope),
+    ("grabmem", CommandKind::GrabMem),
+    ("put", CommandKind::Put),
+    ("incbin", CommandKind::IncBin),
+    ("incbinref", CommandKind::IncBinRef),
+    ("writebin", CommandKind::WriteBin),
+    ("fill", CommandKind::Fill),
+    ("org", CommandKind::Org),
+    ("include", CommandKind::Include),
+    ("exec", CommandKind::Exec),
+    ("require", CommandKind::Require),
+    ("import", CommandKind::Import),
+    ("struct", CommandKind::Struct),
+    ("macro", CommandKind::Macro),
+    ("equ", CommandKind::Equ),
+    ("target", CommandKind::Target),
+    ("section", CommandKind::Section),
+    ("dc.b", CommandKind::EmitBytes),
+    ("dc.w", CommandKind::EmitWords),
+    ("dc.l", CommandKind::EmitLongs),
+    ("ds.b", CommandKind::ReserveBytes),
+    ("ds.w", CommandKind::ReserveWords),
+    ("ds.l", CommandKind::ReserveLongs),
+];
+
 /// The full directive vocabulary for a CPU: canonical names plus aliases.
 /// Unimplemented CPUs inherit the shared table as a placeholder.
 pub fn directives_for(cpu: CpuKind) -> &'static [(&'static str, CommandKind)] {
@@ -120,6 +149,7 @@ pub fn directives_for(cpu: CpuKind) -> &'static [(&'static str, CommandKind)] {
         CpuKind::Cpu6800 => BASE_DIRECTIVES,
         CpuKind::Cpu6502 | CpuKind::Cpu65c02 => DIRECTIVES_6502,
         CpuKind::CpuZ80 => BASE_DIRECTIVES,
+        CpuKind::Cpu68000 => DIRECTIVES_68000,
     }
 }
 
@@ -186,5 +216,29 @@ mod tests {
             classify_identifier(Some(CpuKind::Cpu6502), "org"),
             TokenKind::Command(CommandKind::Org)
         );
+    }
+
+    #[test]
+    fn m68k_directives_classify() {
+        for (name, kind) in [
+            ("dc.b", CommandKind::EmitBytes),
+            ("dc.w", CommandKind::EmitWords),
+            ("dc.l", CommandKind::EmitLongs),
+            ("ds.b", CommandKind::ReserveBytes),
+            ("ds.w", CommandKind::ReserveWords),
+            ("ds.l", CommandKind::ReserveLongs),
+        ] {
+            assert_eq!(
+                classify_identifier(Some(CpuKind::Cpu68000), name),
+                TokenKind::Command(kind),
+                "{name} should classify on 68000"
+            );
+            // The same words are plain labels on the 6809.
+            assert_eq!(
+                classify_identifier(Some(CpuKind::Cpu6809), name),
+                TokenKind::Label,
+                "{name} should not classify on 6809"
+            );
+        }
     }
 }

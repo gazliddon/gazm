@@ -12,6 +12,7 @@ pub enum CpuKind {
     Cpu6502,
     Cpu65c02,
     CpuZ80,
+    Cpu68000,
 }
 
 impl From<CpuKind> for Box<dyn AssemblerCpuTrait> {
@@ -22,6 +23,7 @@ impl From<CpuKind> for Box<dyn AssemblerCpuTrait> {
             CpuKind::Cpu6502 => todo!(),
             CpuKind::Cpu65c02 => todo!(),
             CpuKind::CpuZ80 => todo!(),
+            CpuKind::Cpu68000 => todo!(),
         }
     }
 }

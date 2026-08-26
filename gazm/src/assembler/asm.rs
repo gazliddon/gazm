@@ -335,6 +335,18 @@ impl Assembler {
         self.binary_error_map(node, ret)?;
         Ok(())
     }
+
+    pub fn write_long_check_size(&mut self, val: i64, node: AstNodeRef) -> GResult<()> {
+        let ret = self.get_binary_mut().write_long_check_size(val);
+        self.binary_error_map(node, ret)?;
+        Ok(())
+    }
+
+    pub fn write_quad_check_size(&mut self, val: i64, node: AstNodeRef) -> GResult<()> {
+        let ret = self.get_binary_mut().write_quad_check_size(val);
+        self.binary_error_map(node, ret)?;
+        Ok(())
+    }
 }
 
 impl From<&Assembler> for SourceDatabase {

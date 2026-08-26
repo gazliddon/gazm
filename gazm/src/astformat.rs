@@ -123,7 +123,7 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
 
             ShiftL => "<<".into(),
             EmitString(text) => format!("{text:?}"),
-            EmitWords(_) | EmitBytes(_) => {
+            EmitWords(_) | EmitBytes(_) | EmitLongs(_) | EmitQuads(_) => {
                 format!("fcb {}", join_children(","))
             }
 

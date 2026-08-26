@@ -389,6 +389,65 @@ impl Binary {
         self.write_word_check(val, r, "u16")
     }
 
+    fn write_long_check(
+        &mut self,
+        val: i64,
+        r: std::ops::Range<i64>,
+        dest_type: &str,
+    ) -> Result<WriteStatus, BinaryError> {
+        if r.contains(&val) {
+            self.write_long(val as u32)
+        } else {
+            Err(BinaryError::DoesNotFit {
+                dest_type: dest_type.to_string(),
+                val,
+            })
+        }
+    }
+
+    pub fn write_ilong_check_size(&mut self, val: i64) -> Result<WriteStatus, BinaryError> {
+        let x = 1i64 << 31;
+        let r = -x..x;
+        self.write_long_check(val, r, "i32")
+    }
+    pub fn write_long_check_size(&mut self, val: i64) -> Result<WriteStatus, BinaryError> {
+        let bits = 32;
+        let end = 1i64 << bits;
+        let start = -(1i64 << (bits - 1));
+        self.write_long_check(val, start..end, "i32 or u32")
+    }
+    pub fn write_ulong_check_size(&mut self, val: i64) -> Result<WriteStatus, BinaryError> {
+        let x = 1i64 << 32;
+        let r = 0..x;
+        self.write_long_check(val, r, "u32")
+    }
+
+    fn write_quad_check(
+        &mut self,
+        val: i64,
+        r: std::ops::RangeInclusive<i64>,
+        dest_type: &str,
+    ) -> Result<WriteStatus, BinaryError> {
+        if r.contains(&val) {
+            self.write_quad(val as u64)
+        } else {
+            Err(BinaryError::DoesNotFit {
+                dest_type: dest_type.to_string(),
+                val,
+            })
+        }
+    }
+
+    pub fn write_iquad_check_size(&mut self, val: i64) -> Result<WriteStatus, BinaryError> {
+        self.write_quad_check(val, i64::MIN..=i64::MAX, "i64")
+    }
+    pub fn write_quad_check_size(&mut self, val: i64) -> Result<WriteStatus, BinaryError> {
+        self.write_quad_check(val, i64::MIN..=i64::MAX, "i64 or u64")
+    }
+    pub fn write_uquad_check_size(&mut self, val: i64) -> Result<WriteStatus, BinaryError> {
+        self.write_quad_check(val, i64::MIN..=i64::MAX, "u64")
+    }
+
     pub fn get_write_location(&self) -> MemoryLocation {
         MemoryLocation {
             logical: self.get_write_address(),
@@ -519,5 +578,66 @@ impl Binary {
         let p2 = self.write_byte_internal(lo)?;
         self.check_byte(p1, hi)?;
         self.check_byte(p2, lo)
+    }
+
+    pub fn write_long(&mut self, val: u32) -> Result<WriteStatus, BinaryError> {
+        // Big endian, matching `write_word` (see its TODO).
+        let bytes = val.to_be_bytes();
+        let mut status = WriteStatus::Checked;
+        for b in bytes {
+            let p = self.write_byte_internal(b)?;
+            status = self.check_byte(p, b)?;
+        }
+        Ok(status)
+    }
+
+    pub fn write_quad(&mut self, val: u64) -> Result<WriteStatus, BinaryError> {
+        // Big endian, matching `write_word` (see its TODO).
+        let bytes = val.to_be_bytes();
+        let mut status = WriteStatus::Checked;
+        for b in bytes {
+            let p = self.write_byte_internal(b)?;
+            status = self.check_byte(p, b)?;
+        }
+        Ok(status)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn long_and_quad_are_big_endian() {
+        let mut b = Binary::default();
+        b.write_long_check_size(0x12345678).unwrap();
+        b.write_quad_check_size(0x0123456789abcdef).unwrap();
+        assert_eq!(&b.data[..4], &[0x12, 0x34, 0x56, 0x78]);
+        assert_eq!(
+            &b.data[4..12],
+            &[0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]
+        );
+    }
+
+    #[test]
+    fn long_range_checks() {
+        let mut b = Binary::default();
+        assert!(b.write_long_check_size(0x1_0000_0000).is_err());
+        let mut b = Binary::default();
+        assert!(b.write_ulong_check_size(-1).is_err());
+        let mut b = Binary::default();
+        assert!(b.write_ulong_check_size(0x1_0000_0000).is_err());
+        let mut b = Binary::default();
+        assert!(b.write_ilong_check_size(-0x8000_0001).is_err());
+        let mut b = Binary::default();
+        b.write_ulong_check_size(0xffff_ffff).unwrap();
+        b.write_ilong_check_size(-1).unwrap();
+    }
+
+    #[test]
+    fn quad_accepts_full_i64_range() {
+        let mut b = Binary::default();
+        b.write_quad_check_size(i64::MIN).unwrap();
+        b.write_quad_check_size(i64::MAX).unwrap();
     }
 }

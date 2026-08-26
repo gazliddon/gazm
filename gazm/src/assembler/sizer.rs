@@ -570,18 +570,9 @@ impl<'a> Sizer<'a> {
                 self.emit(id, AstNodeKind::SetPutOffset(offset));
             }
 
-            ReserveBytes => {
-                let (bytes, _) = asm.eval_first_arg(node, current_scope_id)?;
-
-                if bytes < 0 {
-                    return Err(asm
-                        .make_user_error("Argument for RMB must be positive", node, true)
-                        .into());
-                };
-
-                self.emit(id, AstNodeKind::Skip(bytes as usize));
-                self.advance_pc(bytes as usize);
-            }
+            ReserveBytes => self.reserve(asm, node, current_scope_id, id, 1, "RMB")?,
+            ReserveWords => self.reserve(asm, node, current_scope_id, id, 2, "DS.W")?,
+            ReserveLongs => self.reserve(asm, node, current_scope_id, id, 4, "DS.L")?,
 
             TargetSpecific(node_kind) => {
                 // Capture the PC before sizing: the CPU-specific sizer
@@ -643,6 +634,16 @@ impl<'a> Sizer<'a> {
                 self.advance_pc(text.len());
             }
 
+            EmitLongs(num_of_longs) => {
+                self.emit(id, i.clone());
+                self.advance_pc(*num_of_longs * 4);
+            }
+
+            EmitQuads(num_of_quads) => {
+                self.emit(id, i.clone());
+                self.advance_pc(*num_of_quads * 8);
+            }
+
             ZeroWords => {
                 let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
                 assert!(v >= 0);
@@ -688,6 +689,34 @@ impl<'a> Sizer<'a> {
     pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<'a> {
         self.tree.as_ref().get(id).expect("Can't fetch node")
     }
+
+    /// Reserve `count * width` uninitialized bytes: emit a plan `Skip`.
+    fn reserve(
+        &mut self,
+        asm: &mut Assembler,
+        node: AstNodeRef<'a>,
+        current_scope_id: u64,
+        id: AstNodeId,
+        width: usize,
+        directive: &str,
+    ) -> GResult<()> {
+        let (units, _) = asm.eval_first_arg(node, current_scope_id)?;
+        let bytes = units * width as i64;
+
+        if bytes < 0 {
+            return Err(asm
+                .make_user_error(
+                    format!("Argument for {directive} must be positive"),
+                    node,
+                    true,
+                )
+                .into());
+        };
+
+        self.emit(id, AstNodeKind::Skip(bytes as usize));
+        self.advance_pc(bytes as usize);
+        Ok(())
+    }
 }
 
 /// True if `size_node` records a [`PlanEntry`] for this node kind — i.e. the
@@ -720,6 +749,8 @@ pub(crate) fn sizer_emits(kind: &AstNodeKindDiscriminants) -> bool {
             | Block
             | EmitWords
             | EmitBytes
+            | EmitLongs
+            | EmitQuads
             | EmitString
             | ZeroWords
             | Fill
