@@ -12,6 +12,7 @@ pub mod assembler;
 pub mod cli;
 pub mod cpu6800;
 pub mod cpu6809;
+pub mod cpu_z80;
 pub mod cpukind;
 pub mod error;
 pub mod fmt;

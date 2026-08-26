@@ -40,9 +40,9 @@ impl From<CpuKind> for Box<dyn AssemblerCpuTrait> {
         match cpu {
             CpuKind::Cpu6809 => Box::new(Asm6809::new()),
             CpuKind::Cpu6800 => Box::new(Asm6800::new()),
+            CpuKind::CpuZ80 => Box::new(crate::cpu_z80::AsmZ80::new()),
             CpuKind::Cpu6502 => todo!(),
             CpuKind::Cpu65c02 => todo!(),
-            CpuKind::CpuZ80 => todo!(),
             CpuKind::Cpu68000 => todo!(),
         }
     }

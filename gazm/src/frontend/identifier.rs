@@ -83,6 +83,7 @@ pub fn lex_identifier(c: CpuKind, text: &str) -> TokenKind {
     match c {
         Cpu6809 => lex6809(text),
         Cpu6800 => lex6800(text),
+        CpuZ80 => crate::cpu_z80::frontend::lex_identifier(text),
         // Unimplemented backends: no opcodes are recognized yet, so any
         // word that is not a directive classifies as a label.
         _ => Label,

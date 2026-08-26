@@ -19,6 +19,7 @@ impl GazmParser {
         let (rest, nodes) = match cpu_kind {
             CpuKind::Cpu6809 => crate::cpu6809::frontend::parse_multi_opcode_vec(input),
             CpuKind::Cpu6800 => crate::cpu6800::frontend::parse_multi_opcode_vec(input),
+            CpuKind::CpuZ80 => crate::cpu_z80::frontend::parse_multi_opcode_vec(input),
             _ => {
                 return Err(crate::frontend::error::FrontEndError::error(
                     input,

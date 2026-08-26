@@ -6,14 +6,16 @@ use strum_macros::{EnumDiscriminants, EnumIter};
 use thin_vec::ThinVec;
 
 use crate::{
-    cpu6800::frontend::NodeKind6800, cpu6809::frontend::NodeKind6809, error::ParseError,
-    gazmsymbols::SymbolScopeId, semantic::AstNodeId,
+    cpu6800::frontend::NodeKind6800, cpu6809::frontend::NodeKind6809,
+    cpu_z80::frontend::NodeKindZ80, error::ParseError, gazmsymbols::SymbolScopeId,
+    semantic::AstNodeId,
 };
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CpuSpecific {
     Cpu6809(NodeKind6809),
     Cpu6800(NodeKind6800),
+    CpuZ80(NodeKindZ80),
 }
 
 use super::{BaseNode, CtxTrait};

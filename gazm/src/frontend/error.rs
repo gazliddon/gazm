@@ -23,6 +23,8 @@ pub enum FrontEndErrorKind {
     #[error(transparent)]
     AsmErrorKind6800(#[from] crate::cpu6800::frontend::AssemblyErrorKind6800),
     #[error(transparent)]
+    AsmErrorKindZ80(#[from] crate::cpu_z80::frontend::Z80AssemblyErrorKind),
+    #[error(transparent)]
     SourceError(#[from] SourceErrorType),
     #[error(transparent)]
     FileError(#[from] FileError),

@@ -123,6 +123,9 @@ impl Assembler {
         match node_kind {
             Cpu6800(node_kind) => self.compile_node_6800(node_kind, node, current_scope_id),
             Cpu6809(node_kind) => self.compile_node_6809(node_kind, node, current_scope_id),
+            CpuZ80(node_kind) => {
+                crate::cpu_z80::assembler::compile_node(self, node, node_kind, current_scope_id)
+            }
         }
     }
 
@@ -137,6 +140,9 @@ impl Assembler {
         match node_kind {
             Cpu6800(node_kind) => self.size_node_6800(sizer, id, node_kind, current_scope_id),
             Cpu6809(node_kind) => self.size_node_6809(sizer, id, node_kind, current_scope_id),
+            CpuZ80(node_kind) => {
+                crate::cpu_z80::assembler::size_node_internal(sizer, self, id, node_kind)
+            }
         }
     }
 

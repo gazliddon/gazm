@@ -223,6 +223,9 @@ pub enum TokenKind {
     #[token("}")]
     CloseBrace,
 
+    #[token("'")]
+    Apostrophe,
+
     #[token("(")]
     OpenBracket,
 
@@ -478,14 +481,26 @@ mod tests {
 
     #[test]
     fn malformed_literals_have_specific_errors() {
-        for (text, expected) in [
-            ("\"unterminated", LexErrorKind::InvalidString),
-            ("'ab'", LexErrorKind::InvalidCharacterLiteral),
-        ] {
-            let source = crate::frontend::create_source_file(text);
-            let (_, errors) = to_tokens_no_comment_with_errors(&source);
-            assert_eq!(errors[0].kind, expected);
-        }
+        let source = crate::frontend::create_source_file("\"unterminated");
+        let (_, errors) = to_tokens_no_comment_with_errors(&source);
+        assert_eq!(errors[0].kind, LexErrorKind::InvalidString);
+    }
+
+    #[test]
+    fn apostrophe_is_a_token_not_a_char_literal_error() {
+        // The Z80 backend needs `'` (EX AF,AF'); a run like `'ab'` is now
+        // three valid tokens rather than a malformed character literal.
+        let source = crate::frontend::create_source_file("'ab'");
+        let (tokens, errors) = to_tokens_no_comment_with_errors(&source);
+        assert!(errors.is_empty(), "unexpected lexer errors: {errors:?}");
+        assert_eq!(
+            tokens.iter().map(|token| token.kind).collect::<Vec<_>>(),
+            vec![
+                TokenKind::Apostrophe,
+                TokenKind::Identifier,
+                TokenKind::Apostrophe,
+            ]
+        );
     }
 
     #[test]

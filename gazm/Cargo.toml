@@ -28,6 +28,7 @@ logos="0.16.1"
 
 emu6809 = {path="../../crates/emu6809"}
 emu6800 = {path="../../crates/emu6800"}
+emuz80 = {path="../../crates/emuz80"}
 grl-sources = {path = "../../crates/grl-sources", features = ["serde"]}
 grl-utils = {path = "../../crates/grl-utils"}
 grl-symbols = {path = "../../crates/grl-symbols", features = ["serde"]}
