@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use strum_macros::EnumString;
 
-#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Serialize, Default, EnumString, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Serialize, Default, EnumString, Eq, Hash)]
 #[repr(usize)]
 pub enum CpuKind {
     #[default]

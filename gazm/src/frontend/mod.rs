@@ -1,5 +1,6 @@
 mod basetoken;
 mod commands;
+mod directives;
 mod error;
 mod expr;
 mod gazmunraveller;

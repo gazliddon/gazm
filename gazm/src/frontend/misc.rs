@@ -5,9 +5,10 @@ use unraveler::{
 };
 
 use super::{
-    from_item_child_tspan, from_item_children_tspan, from_item_tspan, get_text, keyword,
-    parse_expr, AstNodeKind, CommandKind, FrontEndError, GazmParser, LabelDefinition, Node,
-    NumberKind, PResult, ParsedFrom, TSpan, Token, TokenKind,
+    ascii_lowercase, command_kind, err_nomatch, from_item_child_tspan, from_item_children_tspan,
+    from_item_tspan, get_str, get_text, keyword, parse_expr, AstNodeKind, CommandKind,
+    FrontEndError, GazmParser, LabelDefinition, Node, NumberKind, PResult, ParsedFrom, TSpan,
+    Token, TokenKind,
 };
 
 fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
@@ -126,10 +127,18 @@ impl GazmParser {
 
 impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
     fn parse(&mut self, i: TSpan<'a>) -> Result<(TSpan<'a>, TSpan<'a>), FrontEndError> {
-        // Match the command's keyword by text, not as a reserved token:
-        // a word is a command only where a parser chooses to match it, so
-        // user identifiers with the same spelling keep working elsewhere.
-        keyword(self.keyword_name())(i)
+        // Match the command's keyword by text through the current CPU's
+        // directive table, not as a reserved token: a word is a command only
+        // where a parser chooses to match it, so user identifiers with the
+        // same spelling keep working elsewhere. Aliases (`db` on the 6502)
+        // classify to the same kind as the canonical spelling and match here.
+        let (rest, matched) = kind(TokenKind::Identifier)(i)?;
+        let text = ascii_lowercase(get_str(&matched));
+        if command_kind(i.extra().cpu_kind.unwrap_or_default(), text.as_ref()) == Some(*self) {
+            Ok((rest, matched))
+        } else {
+            err_nomatch(i)
+        }
     }
 }
 

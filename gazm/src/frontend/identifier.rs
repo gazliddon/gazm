@@ -1,27 +1,40 @@
 use std::{borrow::Cow, collections::HashMap, sync::LazyLock};
 
-use strum::IntoEnumIterator;
 use unraveler::{kind, Collection};
 
 use crate::{
     cpu6800::frontend::lex_identifier as lex6800,
     cpu6809::frontend::lex_identifier as lex6809,
     cpukind::CpuKind,
-    frontend::{err_nomatch, get_str, get_text},
+    frontend::{directives::directives_for, err_nomatch, get_str, get_text},
 };
 
 use super::{CommandKind, PResult, TSpan, TokenKind};
 
-/// Target-independent assembler commands, indexed by their lowercase name.
-pub static COMS: LazyLock<HashMap<String, CommandKind>> = LazyLock::new(|| {
-    let mut m: HashMap<String, CommandKind> = CommandKind::iter()
-        .map(|command| (command.keyword_name().to_string(), command))
-        .collect();
-    // `bsz`/`rzb` share the zero-fill function with `zmb` (CommandKind::ZeroFill).
-    m.insert("bsz".into(), CommandKind::ZeroFill);
-    m.insert("rzb".into(), CommandKind::ZeroFill);
-    m
-});
+/// Per-CPU assembler directive vocabularies, indexed by
+/// `(cpu, lowercase name)`. Built once from [`directives_for`]: each CPU's
+/// table maps its directive spellings (`db`, `.byte`, ...) to the shared
+/// semantic [`CommandKind`]s.
+pub static DIRECTIVES: LazyLock<HashMap<CpuKind, HashMap<String, CommandKind>>> =
+    LazyLock::new(|| {
+        let mut by_cpu: HashMap<CpuKind, HashMap<String, CommandKind>> = HashMap::new();
+        for cpu in [
+            CpuKind::Cpu6809,
+            CpuKind::Cpu6800,
+            CpuKind::Cpu6502,
+            CpuKind::Cpu65c02,
+            CpuKind::CpuZ80,
+        ] {
+            by_cpu.insert(
+                cpu,
+                directives_for(cpu)
+                    .iter()
+                    .map(|(name, kind)| (name.to_string(), *kind))
+                    .collect(),
+            );
+        }
+        by_cpu
+    });
 
 /// Lowercase ASCII text without allocating when it is already lowercase.
 pub fn ascii_lowercase(text: &str) -> Cow<'_, str> {
@@ -32,9 +45,12 @@ pub fn ascii_lowercase(text: &str) -> Cow<'_, str> {
     }
 }
 
-pub fn command_kind(text: &str) -> Option<&'static CommandKind> {
+pub fn command_kind(cpu: CpuKind, text: &str) -> Option<CommandKind> {
     let lowered = ascii_lowercase(text);
-    COMS.get(lowered.as_ref())
+    DIRECTIVES
+        .get(&cpu)
+        .and_then(|table| table.get(lowered.as_ref()))
+        .copied()
 }
 
 /// Match a single identifier token whose text equals `kw` (case-insensitive)
@@ -62,19 +78,22 @@ pub fn keyword(kw: &str) -> impl FnMut(TSpan) -> PResult<TSpan> + '_ {
 /// TokenKind::Command
 pub fn lex_identifier(c: CpuKind, text: &str) -> TokenKind {
     use CpuKind::*;
-    use TokenKind::{Command, Label};
+    use TokenKind::Label;
     match c {
         Cpu6809 => lex6809(text),
         Cpu6800 => lex6800(text),
-        _ => panic!(),
+        // Unimplemented backends: no opcodes are recognized yet, so any
+        // word that is not a directive classifies as a label.
+        _ => Label,
     }
 }
 
-/// Classify an identifier after the raw Logos pass. Commands are target
-/// independent; opcode lookup is delegated to the selected CPU backend.
+/// Classify an identifier after the raw Logos pass. Directives come from
+/// the selected CPU's vocabulary table; opcode lookup is delegated to the
+/// selected CPU backend.
 pub fn classify_identifier(cpu: Option<CpuKind>, text: &str) -> TokenKind {
-    if let Some(command) = command_kind(text) {
-        return TokenKind::Command(*command);
+    if let Some(command) = command_kind(cpu.unwrap_or_default(), text) {
+        return TokenKind::Command(command);
     }
 
     match cpu {

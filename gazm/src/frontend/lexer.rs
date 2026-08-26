@@ -3,7 +3,6 @@
 use super::{basetoken::Token as BaseToken, ParseText};
 use logos::{Lexer, Logos};
 use std::ops::Range;
-use strum_macros::EnumIter;
 
 use crate::cpukind::CpuKind;
 
@@ -46,7 +45,7 @@ impl LexError {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, EnumIter, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum CommandKind {
     Scope,
     GrabMem,
@@ -72,44 +71,6 @@ pub enum CommandKind {
     Equ,
     Target,
     Section,
-}
-
-impl CommandKind {
-    /// The lowercase keyword spelling for this command. This is the single
-    /// source for command names: it builds the parse-time lookup table and
-    /// is used to match commands by text (never as reserved tokens).
-    pub fn keyword_name(self) -> &'static str {
-        use CommandKind::*;
-        match self {
-            Scope => "scope",
-            GrabMem => "grabmem",
-            Put => "put",
-            IncBin => "incbin",
-            IncBinRef => "incbinref",
-            WriteBin => "writebin",
-            SetDp => "setdp",
-            // bsz/rzb/zmb are all zero-fill spellings; the extra names are
-            // registered as aliases alongside `keyword_name` in the command
-            // table (frontend/identifier.rs).
-            ZeroFill => "zmb",
-            Fill => "fill",
-            EmitWords => "fdb",
-            EmitString => "fcc",
-            EmitBytes => "fcb",
-            ZeroWords => "zmd",
-            ReserveBytes => "rmb",
-            Org => "org",
-            Include => "include",
-            Exec => "exec",
-            Require => "require",
-            Import => "import",
-            Struct => "struct",
-            Macro => "macro",
-            Equ => "equ",
-            Target => "target",
-            Section => "section",
-        }
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
