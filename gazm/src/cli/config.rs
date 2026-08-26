@@ -159,6 +159,24 @@ mod test {
     }
 
     #[test]
+    fn cpu_key_reaches_target_opts() {
+        use crate::cpukind::CpuKind;
+        let dir = std::env::temp_dir().join("gazm_cfg_cpu_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let toml_path = dir.join("gazm.toml");
+        std::fs::write(
+            &toml_path,
+            "[[targets]]\nname = \"demo\"\ncpu = \"Cpu6800\"\nproject-file = \"demo.gazm\"\n",
+        )
+        .unwrap();
+
+        let cfg = TomlConfig::new_from_file(&toml_path).expect("config should parse");
+        assert_eq!(cfg.targets[0].cpu, CpuKind::Cpu6800);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn metadata_switch_reaches_target_opts() {
         let dir = std::env::temp_dir().join("gazm_cfg_meta_test");
         std::fs::create_dir_all(&dir).unwrap();

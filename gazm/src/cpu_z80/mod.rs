@@ -44,7 +44,17 @@ mod tests {
             ("ld (254),a", &[0x32, 0xfe, 0x00]),
             ("ld a,(254)", &[0x3a, 0xfe, 0x00]),
             ("ld a,(bc)", &[0x0a]),
-            ("ld (de),a", &[0x12]),
+            // Case-insensitive: mnemonics, registers and parenthesised
+            // registers match the templates in any case.
+            ("LD A,(BC)", &[0x0a]),
+            ("ld a,(HL)", &[0x7e]),
+            ("ld a,(Hl)", &[0x7e]),
+            ("LD (DE),A", &[0x12]),
+            ("ld (DE),a", &[0x12]),
+            ("LD A,5", &[0x3e, 0x05]),
+            ("ld (IX+2),3", &[0xdd, 0x36, 0x02, 0x03]),
+            ("LD IXH,5", &[0xdd, 0x26, 0x05]),
+            ("LDIR", &[0xed, 0xb0]),
             ("ld a,(ix-1)", &[0xdd, 0x7e, 0xff]),
             ("ld (ix+2),3", &[0xdd, 0x36, 0x02, 0x03]),
             ("ld ixh,5", &[0xdd, 0x26, 0x05]),
