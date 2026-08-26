@@ -63,9 +63,6 @@ pub struct Opts {
     pub error_mismatches: bool,
 
     #[serde(skip)]
-    pub do_includes: bool,
-
-    #[serde(skip)]
     pub checksums: HashMap<String, CheckSum>,
 
     #[serde(skip)]
@@ -121,7 +118,6 @@ impl Default for Opts {
             no_async: false,
             verbose_errors: false,
             error_mismatches: false,
-            do_includes: true,
             build_type: BuildType::Build,
             format_project: false,
             verbose: Verbosity::Silent,

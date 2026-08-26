@@ -100,7 +100,6 @@ pub enum AstNodeKind {
 
     SetPc(usize),
     SetPutOffset(isize),
-    SetSection(String),
     Section(String),
 
     Scope(String),
@@ -276,14 +275,6 @@ impl AstNodeKind {
             LogicalAnd => Some((4, BinaryOp::LogicalAnd)),
             LogicalOr => Some((3, BinaryOp::LogicalOr)),
             _ => None,
-        }
-    }
-
-    pub fn unrwap_number(&self) -> Option<i64> {
-        if let AstNodeKind::Num(n, _) = self {
-            Some(*n)
-        } else {
-            None
         }
     }
 
