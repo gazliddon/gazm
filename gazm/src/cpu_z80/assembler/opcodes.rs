@@ -97,7 +97,7 @@ fn write_operand(
     let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
 
     match ins.addr_mode {
-        Immediate8 | Port => asm.write_byte_check_size(arg, node)?,
+        Immediate8 | Port | Indirect => asm.write_byte_check_size(arg, node)?,
         Immediate16 | AbsoluteIndirect | AbsoluteIndirect16 | ConditionImmediate => {
             asm.write_word_check_size(arg, node)?
         }

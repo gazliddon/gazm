@@ -12,7 +12,8 @@ use core::panic;
 use std::{path::PathBuf, str::FromStr};
 
 use unraveler::{
-    alt, cut, many0, match_span as ms, opt, pair, preceded, sep_pair, tuple, Collection, Parser,
+    alt, cut, many0, match_span as ms, opt, pair, preceded, sep_list, sep_pair, tuple, Collection,
+    Parser,
 };
 
 pub(crate) fn get_quoted_string(input: TSpan) -> PResult<String> {
@@ -190,6 +191,36 @@ impl GazmParser {
         let (rest, (sp, matched)) =
             ms(preceded(CommandKind::EmitString, get_quoted_string))(input)?;
         let node = from_item_tspan(AstNodeKind::EmitString(matched), sp);
+        Ok((rest, node))
+    }
+
+    /// DEFM — emit a comma-separated list of quoted strings and byte
+    /// values; strings expand to their character bytes. Produces an
+    /// `EmitBytes` node whose children are the byte expressions.
+    fn parse_defm_operand(input: TSpan) -> PResult<Vec<Node>> {
+        if let Ok((rest, text)) = get_quoted_string(input) {
+            let nodes = text
+                .chars()
+                .map(|c| {
+                    from_item_tspan(
+                        AstNodeKind::Num(c as i64, crate::frontend::ParsedFrom::Character),
+                        input,
+                    )
+                })
+                .collect();
+            return Ok((rest, nodes));
+        }
+        let (rest, node) = parse_expr(input)?;
+        Ok((rest, vec![node]))
+    }
+
+    pub(crate) fn parse_emit_message(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, operands)) = ms(preceded(
+            CommandKind::EmitMessage,
+            sep_list(Self::parse_defm_operand, Comma),
+        ))(input)?;
+        let children: Vec<Node> = operands.into_iter().flatten().collect();
+        let node = from_item_children_tspan(AstNodeKind::EmitBytes(children.len()), &children, sp);
         Ok((rest, node))
     }
 

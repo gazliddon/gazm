@@ -117,4 +117,15 @@ mod tests {
             vec![1, 2, 3, 0xd2, 0x04, 0, 0, 4, b'h', b'i']
         );
     }
+
+    #[test]
+    fn defm_accepts_mixed_strings_and_values() {
+        // SkoolKit-style DEFM: numbers and strings interleaved; strings
+        // expand to their character bytes.
+        let src = "org 0\n  defm 9,\"DEC\",9,\"E\"";
+        assert_eq!(
+            assemble_bytes("z80_defm_mixed", src, 0, 6),
+            vec![9, b'D', b'E', b'C', 9, b'E']
+        );
+    }
 }

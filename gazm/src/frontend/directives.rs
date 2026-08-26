@@ -164,7 +164,7 @@ pub const DIRECTIVES_Z80: &[(&str, CommandKind)] = &[
     ("defb", CommandKind::EmitBytes),
     ("defw", CommandKind::EmitWords),
     ("defs", CommandKind::ReserveBytes),
-    ("defm", CommandKind::EmitString),
+    ("defm", CommandKind::EmitMessage),
     ("db", CommandKind::EmitBytes),
     ("dw", CommandKind::EmitWords),
     ("ds", CommandKind::ReserveBytes),

@@ -56,6 +56,7 @@ impl GazmParser {
             EmitLongs => Self::parse_emit_longs(args),
             EmitQuads => Self::parse_emit_quads(args),
             EmitString => Self::parse_emit_string(args),
+            EmitMessage => Self::parse_emit_message(args),
             ZeroWords => Self::parse_zero_words(args),
             ReserveBytes => Self::parse_reserve_bytes(args),
             ReserveWords => Self::parse_reserve_words(args),

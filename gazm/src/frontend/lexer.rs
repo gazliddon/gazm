@@ -58,6 +58,7 @@ pub enum CommandKind {
     Fill,
     EmitWords,
     EmitString,
+    EmitMessage,
     EmitBytes,
     EmitLongs,
     EmitQuads,
