@@ -19,7 +19,7 @@ use emu6809::isa::{AddrModeEnum, Instruction, InstructionId, InstructionInfo};
 use unraveler::{alt, match_span as ms, preceded, Collection};
 
 pub fn get_opcode_info(id: InstructionId) -> Option<&'static InstructionInfo> {
-    ISA_DBASE.get_opcode_info_from_opcode(id.0)
+    ISA_DBASE.get_info_by_id(id)
 }
 
 fn parse_immediate(_input: TSpan) -> PResult<Node> {
