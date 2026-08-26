@@ -130,7 +130,7 @@ impl<'a> Compiler<'a> {
 
             TokenizedFile(..) | Block => (),
 
-            Fdb(..) => {
+            EmitWords(..) => {
                 let node = self.get_node(node_id);
 
                 for n in node.children() {
@@ -143,7 +143,7 @@ impl<'a> Compiler<'a> {
                 self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
             }
 
-            Fcb(..) => {
+            EmitBytes(..) => {
                 let node = self.get_node(node_id);
                 for n in node.children() {
                     let x = asm.eval_node(n, current_scope_id)?;
@@ -154,7 +154,7 @@ impl<'a> Compiler<'a> {
                 self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
             }
 
-            Fcc(text) => {
+            EmitString(text) => {
                 for c in text.as_bytes() {
                     let e = asm.get_binary_mut().write_byte(*c);
                     self.binary_error_map(asm, node_id, e)?;
@@ -163,18 +163,7 @@ impl<'a> Compiler<'a> {
                 self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
             }
 
-            Zmb => {
-                let node = self.get_node(node_id);
-                let (bytes, _) = asm.eval_first_arg(node, current_scope_id)?;
-                for _ in 0..bytes {
-                    let e = asm.get_binary_mut().write_byte(0);
-                    self.binary_error_map(asm, node_id, e)?;
-                }
-                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
-            }
-
-            Zmd => {
+            ZeroWords => {
                 let node = self.get_node(node_id);
                 let (words, _) = asm.eval_first_arg(node, current_scope_id)?;
                 for _ in 0..words {
@@ -471,11 +460,10 @@ pub(crate) fn compiler_handles(kind: &AstNodeKindDiscriminants) -> bool {
             | SetPutOffset
             | TokenizedFile
             | Block
-            | Fdb
-            | Fcb
-            | Fcc
-            | Zmb
-            | Zmd
+            | EmitWords
+            | EmitBytes
+            | EmitString
+            | ZeroWords
             | Fill
             | Exec
             | TargetSpecific

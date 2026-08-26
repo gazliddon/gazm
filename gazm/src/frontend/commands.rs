@@ -104,11 +104,11 @@ impl GazmParser {
         Ok((rest, Self::mk_fill(sp, (value, count))))
     }
 
-    /// BSZ | ZMB | RZB count <value>
-    pub(crate) fn parse_various_fills(input: TSpan) -> PResult<Node> {
+    /// ZMB | BSZ | RZB count <value> — the zero-fill spellings.
+    pub(crate) fn parse_zero_fills(input: TSpan) -> PResult<Node> {
         use CommandKind::*;
         let (rest, (sp, (a1, a2))) = ms(preceded(
-            alt((Bsz, Zmb, Rzb)),
+            ZeroFill,
             pair(parse_expr, opt(preceded(Comma, parse_expr))),
         ))(input)?;
 
@@ -172,22 +172,24 @@ impl GazmParser {
         }
     }
 
-    pub(crate) fn parse_fcb(input: TSpan) -> PResult<Node> {
+    pub(crate) fn parse_emit_bytes(input: TSpan) -> PResult<Node> {
         let (rest, (sp, matched)) =
-            ms(preceded(CommandKind::Fcb, cut(Self::parse_expr_list)))(input)?;
-        let node = from_item_children_tspan(AstNodeKind::Fcb(matched.len()), &matched, sp);
+            ms(preceded(CommandKind::EmitBytes, cut(Self::parse_expr_list)))(input)?;
+        let node = from_item_children_tspan(AstNodeKind::EmitBytes(matched.len()), &matched, sp);
         Ok((rest, node))
     }
 
-    pub(crate) fn parse_fdb(input: TSpan) -> PResult<Node> {
-        let (rest, (sp, matched)) = ms(preceded(CommandKind::Fdb, Self::parse_expr_list))(input)?;
-        let node = from_item_children_tspan(AstNodeKind::Fdb(matched.len()), &matched, sp);
+    pub(crate) fn parse_emit_words(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, matched)) =
+            ms(preceded(CommandKind::EmitWords, Self::parse_expr_list))(input)?;
+        let node = from_item_children_tspan(AstNodeKind::EmitWords(matched.len()), &matched, sp);
         Ok((rest, node))
     }
 
-    pub(crate) fn parse_fcc(input: TSpan) -> PResult<Node> {
-        let (rest, (sp, matched)) = ms(preceded(CommandKind::Fcc, get_quoted_string))(input)?;
-        let node = from_item_tspan(AstNodeKind::Fcc(matched), sp);
+    pub(crate) fn parse_emit_string(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, matched)) =
+            ms(preceded(CommandKind::EmitString, get_quoted_string))(input)?;
+        let node = from_item_tspan(AstNodeKind::EmitString(matched), sp);
         Ok((rest, node))
     }
 
@@ -364,12 +366,12 @@ impl GazmParser {
         Self::simple_command(CommandKind::Put, AstNodeKind::Put)(_input)
     }
 
-    pub(crate) fn parse_rmb(_input: TSpan) -> PResult<Node> {
-        Self::simple_command(CommandKind::Rmb, AstNodeKind::Rmb)(_input)
+    pub(crate) fn parse_reserve_bytes(_input: TSpan) -> PResult<Node> {
+        Self::simple_command(CommandKind::ReserveBytes, AstNodeKind::ReserveBytes)(_input)
     }
 
-    pub(crate) fn parse_zmd(_input: TSpan) -> PResult<Node> {
-        Self::simple_command(CommandKind::Zmd, AstNodeKind::Zmd)(_input)
+    pub(crate) fn parse_zero_words(_input: TSpan) -> PResult<Node> {
+        Self::simple_command(CommandKind::ZeroWords, AstNodeKind::ZeroWords)(_input)
     }
 
     pub(crate) fn parse_exec(_input: TSpan) -> PResult<Node> {
@@ -383,13 +385,13 @@ impl GazmParser {
             Self::parse_writebin,
             Self::parse_incbin,
             Self::parse_incbin_ref,
-            Self::parse_various_fills,
+            Self::parse_zero_fills,
             Self::parse_fill,
-            Self::parse_fcb,
-            Self::parse_fdb,
-            Self::parse_fcc,
-            Self::parse_zmd,
-            Self::parse_rmb,
+            Self::parse_emit_bytes,
+            Self::parse_emit_words,
+            Self::parse_emit_string,
+            Self::parse_zero_words,
+            Self::parse_reserve_bytes,
             Self::parse_org,
             Self::parse_include,
             Self::parse_exec,

@@ -122,8 +122,8 @@ impl<'a> std::fmt::Display for DisplayWrapper<'a> {
             ShiftR => ">>".into(),
 
             ShiftL => "<<".into(),
-            Fcc(text) => format!("{text:?}"),
-            Fdb(_) | Fcb(_) => {
+            EmitString(text) => format!("{text:?}"),
+            EmitWords(_) | EmitBytes(_) => {
                 format!("fcb {}", join_children(","))
             }
 

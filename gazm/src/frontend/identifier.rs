@@ -14,9 +14,13 @@ use super::{CommandKind, PResult, TSpan, TokenKind};
 
 /// Target-independent assembler commands, indexed by their lowercase name.
 pub static COMS: LazyLock<HashMap<String, CommandKind>> = LazyLock::new(|| {
-    CommandKind::iter()
+    let mut m: HashMap<String, CommandKind> = CommandKind::iter()
         .map(|command| (command.keyword_name().to_string(), command))
-        .collect()
+        .collect();
+    // `bsz`/`rzb` share the zero-fill function with `zmb` (CommandKind::ZeroFill).
+    m.insert("bsz".into(), CommandKind::ZeroFill);
+    m.insert("rzb".into(), CommandKind::ZeroFill);
+    m
 });
 
 /// Lowercase ASCII text without allocating when it is already lowercase.

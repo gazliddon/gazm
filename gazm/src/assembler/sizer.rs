@@ -570,7 +570,7 @@ impl<'a> Sizer<'a> {
                 self.emit(id, AstNodeKind::SetPutOffset(offset));
             }
 
-            Rmb => {
+            ReserveBytes => {
                 let (bytes, _) = asm.eval_first_arg(node, current_scope_id)?;
 
                 if bytes < 0 {
@@ -628,29 +628,22 @@ impl<'a> Sizer<'a> {
                 }
             }
 
-            Fdb(num_of_words) => {
+            EmitWords(num_of_words) => {
                 self.emit(id, i.clone());
                 self.advance_pc(*num_of_words * 2);
             }
 
-            Fcb(num_of_bytes) => {
+            EmitBytes(num_of_bytes) => {
                 self.emit(id, i.clone());
                 self.advance_pc(*num_of_bytes);
             }
 
-            Fcc(text) => {
+            EmitString(text) => {
                 self.emit(id, i.clone());
                 self.advance_pc(text.len());
             }
 
-            Zmb => {
-                let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
-                assert!(v >= 0);
-                self.emit(id, i.clone());
-                self.advance_pc(v as usize)
-            }
-
-            Zmd => {
+            ZeroWords => {
                 let (v, _) = asm.eval_first_arg(node, current_scope_id)?;
                 assert!(v >= 0);
                 self.emit(id, i.clone());
@@ -699,7 +692,7 @@ impl<'a> Sizer<'a> {
 
 /// True if `size_node` records a [`PlanEntry`] for this node kind — i.e. the
 /// kind can appear in the walk plan. Kinds that are replaced by fixups at
-/// plan-build time (`Org` -> `SetPc`, `Rmb` -> `Skip`, ...) and walk
+/// plan-build time (`Org` -> `SetPc`, `ReserveBytes` -> `Skip`, ...) and walk
 /// scaffolding (`MacroCallProcessed`, `Repeat`) are *not* plan kinds.
 ///
 /// Mirrors the `match` in `Sizer::size_node` — keep the two in sync. The
@@ -725,11 +718,10 @@ pub(crate) fn sizer_emits(kind: &AstNodeKindDiscriminants) -> bool {
             | AssignmentFromPc
             | TokenizedFile
             | Block
-            | Fdb
-            | Fcb
-            | Fcc
-            | Zmb
-            | Zmd
+            | EmitWords
+            | EmitBytes
+            | EmitString
+            | ZeroWords
             | Fill
             | IncBinResolved
             | WriteBin
