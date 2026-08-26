@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
 
+use crate::cpukind::Endianness;
 use crate::error::GResult;
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -52,6 +53,7 @@ pub struct Binary {
     unchecked_writes: Vec<MemoryLocation>,
     mismatches: Vec<ReferenceMismatch>,
     fail_on_reference_mismatch: bool,
+    endian: Endianness,
 }
 
 impl Default for Binary {
@@ -267,7 +269,15 @@ impl Binary {
             unchecked_writes: vec![],
             mismatches: Default::default(),
             fail_on_reference_mismatch: true,
+            endian: Endianness::Big,
         }
+    }
+
+    /// Set the byte order for multi-byte writes. The target CPU's
+    /// endianness is applied when the output is created
+    /// (`AsmOut::try_from`); the default is big-endian.
+    pub fn set_endianness(&mut self, endian: Endianness) {
+        self.endian = endian;
     }
 
     pub fn bump_write_address(&mut self, n: usize) {
@@ -570,19 +580,23 @@ impl Binary {
     }
 
     pub fn write_word(&mut self, val: u16) -> Result<WriteStatus, BinaryError> {
-        // TODO needs to write in correct order for dest processor
-        // rather than hard coded to big endian
-        let hi = (val >> 8) as u8;
-        let lo = (val & 0xff) as u8;
-        let p1 = self.write_byte_internal(hi)?;
-        let p2 = self.write_byte_internal(lo)?;
-        self.check_byte(p1, hi)?;
-        self.check_byte(p2, lo)
+        let bytes = match self.endian {
+            Endianness::Big => val.to_be_bytes(),
+            Endianness::Little => val.to_le_bytes(),
+        };
+        let mut status = WriteStatus::Checked;
+        for b in bytes {
+            let p = self.write_byte_internal(b)?;
+            status = self.check_byte(p, b)?;
+        }
+        Ok(status)
     }
 
     pub fn write_long(&mut self, val: u32) -> Result<WriteStatus, BinaryError> {
-        // Big endian, matching `write_word` (see its TODO).
-        let bytes = val.to_be_bytes();
+        let bytes = match self.endian {
+            Endianness::Big => val.to_be_bytes(),
+            Endianness::Little => val.to_le_bytes(),
+        };
         let mut status = WriteStatus::Checked;
         for b in bytes {
             let p = self.write_byte_internal(b)?;
@@ -592,8 +606,10 @@ impl Binary {
     }
 
     pub fn write_quad(&mut self, val: u64) -> Result<WriteStatus, BinaryError> {
-        // Big endian, matching `write_word` (see its TODO).
-        let bytes = val.to_be_bytes();
+        let bytes = match self.endian {
+            Endianness::Big => val.to_be_bytes(),
+            Endianness::Little => val.to_le_bytes(),
+        };
         let mut status = WriteStatus::Checked;
         for b in bytes {
             let p = self.write_byte_internal(b)?;
@@ -639,5 +655,27 @@ mod tests {
         let mut b = Binary::default();
         b.write_quad_check_size(i64::MIN).unwrap();
         b.write_quad_check_size(i64::MAX).unwrap();
+    }
+
+    #[test]
+    fn little_endian_writes_are_reversed() {
+        let mut b = Binary::default();
+        b.set_endianness(Endianness::Little);
+        b.write_word_check_size(0x1234).unwrap();
+        b.write_long_check_size(0x12345678).unwrap();
+        b.write_quad_check_size(0x0123456789abcdef).unwrap();
+        assert_eq!(&b.data[..2], &[0x34, 0x12]);
+        assert_eq!(&b.data[2..6], &[0x78, 0x56, 0x34, 0x12]);
+        assert_eq!(
+            &b.data[6..14],
+            &[0xef, 0xcd, 0xab, 0x89, 0x67, 0x45, 0x23, 0x01]
+        );
+    }
+
+    #[test]
+    fn default_is_big_endian() {
+        let mut b = Binary::default();
+        b.write_word_check_size(0x1234).unwrap();
+        assert_eq!(&b.data[..2], &[0x12, 0x34]);
     }
 }

@@ -394,6 +394,7 @@ impl TryFrom<Opts> for AsmOut {
 
     fn try_from(opts: Opts) -> Result<AsmOut, String> {
         let mut binary = Binary::new(opts.mem_size, AccessType::ReadWrite);
+        binary.set_endianness(opts.cpu.endianness());
 
         for br in &opts.bin_references {
             let reference_file = if br.file.is_absolute() {

@@ -9,7 +9,7 @@
 
 ### Todo
 * Make tokenize CPU agnostic
-* Endian agnosticism in Binary struct (can I use a memblock?)
+* ~~Endian agnosticism in Binary struct~~ (done: multi-byte writes follow the target CPU's byte order via `CpuKind::endianness()`)
 * Add 6502
 * Find a way to separate and persist CPU specific data in the Assembler class
     * Specifically for SetDp - Dp storage on 6809
