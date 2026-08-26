@@ -1,5 +1,5 @@
 use emu6800::cpu::ISA_DBASE;
-use emu6800::cpu_core::{AddrModeEnum, DBASE};
+use emu6800::cpu_core::{AddrModeEnum, OpcodeId, DBASE};
 
 use crate::debug_mess;
 use crate::{
@@ -29,8 +29,6 @@ fn size_node_internal(
     node_kind: NodeKind6800,
     current_scope_id: u64,
 ) -> GResult<()> {
-    let node = sizer.get_node(id);
-
     use NodeKind6800::*;
 
     match &node_kind {
@@ -53,25 +51,35 @@ fn size_node_internal(
                 // in the first page
                 // If it is we can do direct addressing
 
-                let new_ins = DBASE
-                    .get_instruction_info_from_opcode(opcode_id.0)
-                    .and_then(|i_type| i_type.instruction.get_opcode_data(AddrModeEnum::Direct));
+                let node = sizer.get_node(id);
+                let value = asm
+                    .eval_first_arg(node, current_scope_id)
+                    .ok()
+                    .map(|(v, _)| v);
 
-                if let Some(new_ins) = new_ins {
-                    if let Ok((value, _)) = asm.eval_first_arg(node, current_scope_id) {
-                        if ((value as u64) >> 8) & 0xff == 0 {
-                            let src = asm.get_source_info(&node.value().pos);
+                if let Some(new_size) = crate::assembler::try_direct_page(
+                    Some(0),
+                    value,
+                    || {
+                        DBASE
+                            .get_instruction_info_from_opcode(opcode_id.0)
+                            .and_then(|i_type| {
+                                i_type.instruction.get_opcode_data(AddrModeEnum::Direct)
+                            })
+                            .map(|i| (i.size, i.id().0))
+                    },
+                    |new_id| {
+                        let new_item = OpCode(OpcodeId(new_id), AddrModeParseType::Direct);
+                        sizer.set_node_fixup(id, new_item);
+                    },
+                ) {
+                    let src = asm.get_source_info(&node.value().pos);
 
-                            if let Ok(src) = src {
-                                debug_mess!("Xformed from Extended to Direct :  {}", src.line_str);
-                            }
-
-                            size = new_ins.size;
-                            let new_item = OpCode(new_ins.id(), AddrModeParseType::Direct);
-
-                            sizer.set_node_fixup(id, new_item);
-                        }
+                    if let Ok(src) = src {
+                        debug_mess!("Xformed from Extended to Direct :  {}", src.line_str);
                     }
+
+                    size = new_size;
                 }
             }
 
