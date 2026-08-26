@@ -1329,7 +1329,7 @@ start:
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         match res {
@@ -1367,7 +1367,7 @@ start:
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         match res {
@@ -1415,7 +1415,7 @@ start:
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         assert!(res.is_ok(), "Assembly failed: {res:?}");

@@ -318,7 +318,17 @@ where
     let mut errors: NewErrorCollector<FrontEndError> = NewErrorCollector::new(ctx.opts.max_errors);
 
     // seed the files to process vec with the project file
-    let mut files_to_tokenize = vec![(Position::default(), ctx.get_project_file(), None)];
+    let project_file = match ctx.get_project_file() {
+        Ok(file) => file,
+        Err(e) => {
+            errors.add(FrontEndError::error_pos(
+                Position::default(),
+                FrontEndErrorKind::from(e),
+            ));
+            return errors.to_result();
+        }
+    };
+    let mut files_to_tokenize = vec![(Position::default(), project_file, None)];
 
     // while we have files to tokenize, tokenize those files
     // and add any includes found in a source file to the list of

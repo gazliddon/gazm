@@ -792,7 +792,7 @@ CONT:       nop
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
@@ -828,7 +828,7 @@ CONT:       nop
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         assert!(
@@ -849,7 +849,7 @@ CONT:       nop
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
@@ -998,7 +998,7 @@ CONT:       nop
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         assert!(
@@ -1128,7 +1128,7 @@ CONT:       nop
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         assert!(
@@ -1286,7 +1286,7 @@ CONT:       nop
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         assert!(
@@ -1306,7 +1306,7 @@ CONT:       nop
             assemble_dir: Some(std::env::temp_dir()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         let _ = std::fs::remove_file(&path);
         format!("{res:?}")
@@ -1555,7 +1555,7 @@ CONT:       nop
         // The CLI normally initialises messaging; do it here so the log
         // lines are routed into the capture.
         crate::messages::init(&opts, None);
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let (res, out, _) = crate::messages::capture(|| asm.assemble());
         let _ = std::fs::remove_file(&path);
 

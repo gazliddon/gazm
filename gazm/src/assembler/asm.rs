@@ -161,8 +161,8 @@ impl Assembler {
             .collect()
     }
 
-    pub fn get_project_file(&self) -> PathBuf {
-        self.get_full_path(&self.opts.project_file).unwrap()
+    pub fn get_project_file(&self) -> FResult<PathBuf> {
+        self.get_full_path(&self.opts.project_file)
     }
 
     pub fn reset_output(&mut self) {
@@ -476,7 +476,7 @@ impl TryFrom<Opts> for Assembler {
         let cwd = ret.cwd.clone();
         ret.get_source_file_loader_mut().set_search_paths(&[cwd]);
 
-        let file = ret.get_project_file();
+        let file = ret.get_project_file().map_err(|e| e.to_string())?;
 
         if let Some(dir) = file.parent() {
             ret.get_source_file_loader_mut().add_search_path(dir);
@@ -488,8 +488,8 @@ impl TryFrom<Opts> for Assembler {
 
 impl Assembler {
     /// Create an Assembler
-    pub fn new(opts: Opts) -> Self {
-        Assembler::try_from(opts).expect("Can't create context")
+    pub fn new(opts: Opts) -> Result<Self, String> {
+        Assembler::try_from(opts)
     }
 
     /// Create an assembler target from a project-owned source snapshot.
@@ -497,10 +497,10 @@ impl Assembler {
     /// `SourceFiles` is cheap to clone because `SourceFile` shares its text
     /// buffers copy-on-write. Each target still receives independent token,
     /// AST, symbol, and output state.
-    pub fn new_with_sources(opts: Opts, sources: SourceFiles) -> Self {
-        let mut assembler = Self::new(opts);
+    pub fn new_with_sources(opts: Opts, sources: SourceFiles) -> Result<Self, String> {
+        let mut assembler = Self::new(opts)?;
         assembler.source_file_loader.sources = sources;
-        assembler
+        Ok(assembler)
     }
 
     /// Assemble for the first time
@@ -549,7 +549,7 @@ impl Assembler {
 
     fn assemble_project(&mut self) -> GResult<()> {
         self.tokenize_project()?;
-        let file = self.get_project_file();
+        let file = self.get_project_file()?;
         // Keep the project root tokenization cached for subsequent builds.
         // The semantic lowering currently needs an owned AST representation,
         // so it clones the parser tree; retaining this cache avoids reparsing
@@ -564,9 +564,12 @@ impl Assembler {
     }
 
     fn to_diagnostic(&self, err: FrontEndError) -> Diagnostic {
-        let source_info = self.get_source_info(&err.position).expect("Source info!");
-        let user_error = to_user_error(err, source_info.source_file);
-        user_error.into()
+        match self.get_source_info(&err.position) {
+            Ok(source_info) => to_user_error(err, source_info.source_file).into(),
+            // Loading/config errors carry a synthetic position with no
+            // backing file; report the message alone rather than panicking.
+            Err(_) => Diagnostic::error(err.kind.to_string(), err.position, PathBuf::new()),
+        }
     }
 
     pub fn set_pc_symbol(&mut self, val: usize) -> Result<(), SymbolError> {

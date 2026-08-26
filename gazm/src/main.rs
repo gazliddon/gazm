@@ -129,7 +129,7 @@ fn append_timing_history(
 }
 
 fn do_build(opts: &Opts, show_banner: bool) -> Result<(), GazmErrorKind> {
-    let mut asm = Assembler::new(opts.clone());
+    let mut asm = Assembler::new(opts.clone()).map_err(GazmErrorKind::Misc)?;
 
     match opts.build_type {
         BuildType::Test => {
@@ -306,7 +306,7 @@ mod test {
     // #[test]
     fn test_circ() {
         let opts = make_opts("assets/test_src/circular_inc.gazm");
-        let mut asm = Assembler::new(opts.clone());
+        let mut asm = Assembler::new(opts.clone()).unwrap();
         let res = asm.assemble();
         assert!(res.is_ok());
     }

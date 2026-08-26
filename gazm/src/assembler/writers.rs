@@ -485,7 +485,7 @@ mod tests {
             target_name: Some("mytest".to_string()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
         asm.write_outputs().unwrap();
@@ -525,7 +525,7 @@ mod tests {
             target_name: Some("quiet".to_string()),
             ..Default::default()
         };
-        let mut asm = Assembler::new(opts);
+        let mut asm = Assembler::new(opts).unwrap();
         let res = asm.assemble();
         assert!(res.is_ok(), "Assembly failed: {:?}", res.err());
         asm.write_outputs().unwrap();

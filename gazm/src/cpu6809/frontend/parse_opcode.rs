@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 use crate::frontend::{
-    fatal, parse_inherent, parse_opcode_operand, parse_prefixed_operand, AstNodeKind, CpuSpecific,
-    FrontEndError, Node, PResult, TSpan, TokenKind,
+    err_kind_nomatch, fatal, parse_inherent, parse_opcode_operand, parse_prefixed_operand,
+    AstNodeKind, CpuSpecific, FrontEndError, Node, PResult, TSpan, TokenKind,
 };
 
 use crate::cpu6809::assembler::ISA_DBASE;
@@ -130,7 +130,9 @@ fn get_opcode(input: TSpan<'_>) -> PResult<'_, (TSpan<'_>, &InstructionInfo)> {
     use TokenKind::{CpuOpcode, Identifier};
     let (rest, (sp, matched)) = ms(alt((CpuOpcode(CpuKind::Cpu6809), Identifier)))(input)?;
     let text = crate::frontend::get_text(matched);
-    let info = ISA_DBASE.get_opcode(text.as_str()).unwrap();
+    let info = ISA_DBASE
+        .get_opcode(text.as_str())
+        .ok_or(err_kind_nomatch(sp))?;
     Ok((rest, (sp, info)))
 }
 

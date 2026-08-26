@@ -16,12 +16,12 @@ fn check_fixture(c: &mut Criterion) {
 
     c.bench_function("assemble_newfe", |b| {
         b.iter(|| {
-            let mut assembler = Assembler::new(opts.clone());
+            let mut assembler = Assembler::new(opts.clone()).unwrap();
             black_box(assembler.assemble().is_ok());
         });
     });
 
-    let mut cached = Assembler::new(opts);
+    let mut cached = Assembler::new(opts).unwrap();
     let _ = cached.assemble();
     c.bench_function("reassemble_newfe_cached", |b| {
         b.iter(|| black_box(cached.reassemble().is_ok()));

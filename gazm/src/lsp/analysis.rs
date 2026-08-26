@@ -65,7 +65,11 @@ impl ProjectAnalysis {
         // Rebuild from a fresh assembler when the set of open documents changes.
         // Reusing the previous source table can leave stale FileId entries behind
         // when Neovim opens the definition buffer after a goto-definition request.
-        let mut assembler = Assembler::new_with_sources(analysis_opts.clone(), sources.clone());
+        let Ok(mut assembler) = Assembler::new_with_sources(analysis_opts.clone(), sources.clone())
+        else {
+            // Bad project config: keep the previous analysis state.
+            return (result, _previous);
+        };
         assembler.opts = analysis_opts;
         assembler.source_file_loader.sources = sources;
         assembler.collect_reference_mismatches();
