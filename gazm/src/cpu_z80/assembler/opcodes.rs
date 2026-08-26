@@ -1,7 +1,7 @@
 use crate::cpu_z80::assembler::ISA_DBASE;
 use crate::cpu_z80::frontend::{field_value, NodeKindZ80, OperandParseType};
 use crate::{
-    assembler::{Assembler, BinaryError},
+    assembler::{write_relative_byte, write_signed_byte, Assembler},
     error::GResult,
     semantic::AstNodeRef,
 };
@@ -102,7 +102,7 @@ fn write_operand(
             asm.write_word_check_size(arg, node)?
         }
         Indexed | BitIndexed => write_signed_byte(asm, node, arg)?,
-        Relative | ConditionRelative => write_relative(asm, node, ins, pc, arg)?,
+        Relative | ConditionRelative => write_relative_byte(asm, node, arg, pc, ins.size)?,
         _ => {
             return Err(asm
                 .make_user_error("internal: unexpected operand mode", node, true)
@@ -110,41 +110,4 @@ fn write_operand(
         }
     }
     Ok(())
-}
-
-fn write_signed_byte(asm: &mut Assembler, node: AstNodeRef, val: i64) -> GResult<()> {
-    let res = asm.get_binary_mut().write_ibyte_check_size(val);
-    asm.binary_error_map(node, res)?;
-    Ok(())
-}
-
-/// JR/DJNZ style displacement: target - (address after the instruction).
-fn write_relative(
-    asm: &mut Assembler,
-    node: AstNodeRef,
-    ins: &Instruction,
-    pc: usize,
-    target: i64,
-) -> GResult<()> {
-    let val = target - (pc as i64 + ins.size as i64);
-
-    match asm.get_binary_mut().write_ibyte_check_size(val) {
-        Ok(_) => Ok(()),
-        Err(BinaryError::DoesNotFit { .. }) => {
-            if asm.opts.ignore_relative_offset_errors {
-                let res = asm.get_binary_mut().write_ibyte_check_size(0);
-                asm.binary_error_map(node, res)?;
-                Ok(())
-            } else {
-                Err(asm
-                    .make_user_error(
-                        format!("Relative jump out of range ({val} bytes)"),
-                        node,
-                        true,
-                    )
-                    .into())
-            }
-        }
-        Err(e) => asm.binary_error_map(node, Err(e)),
-    }
 }

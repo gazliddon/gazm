@@ -1,6 +1,12 @@
-use crate::{assembler::BinaryError::*, error::GResult, semantic::AstNodeRef};
+use crate::{
+    assembler::{
+        write_eval_byte, write_eval_word, write_opcode, write_relative_byte, write_relative_word,
+        write_signed_byte, Assembler,
+    },
+    error::GResult,
+    semantic::AstNodeRef,
+};
 
-use crate::assembler::Assembler;
 use crate::cpu6809::{
     frontend::{AddrModeParseType, IndexParseType, NodeKind6809},
     regutils::{reg_pair_to_flags, registers_to_flags},
@@ -39,8 +45,7 @@ pub fn compile_indexed(
         }
 
         ConstantByteOffset(_, val) | PcOffsetByte(val) => {
-            let res = asm.get_binary_mut().write_ibyte_check_size(val as i64);
-            asm.binary_error_map(node, res)?;
+            write_signed_byte(asm, node, val as i64)?;
         }
         _ => (),
     }
@@ -70,7 +75,9 @@ pub fn compile_node(
     Ok(())
 }
 
-/// Compile an opcode
+/// Compile an opcode: the opcode value comes from the instruction row and
+/// the operand bytes come from the shared writers, keyed by the row's
+/// addressing mode. Only the modes with CPU-specific encoding stay here.
 pub fn compile_opcode(
     asm: &mut Assembler,
     node: AstNodeRef,
@@ -81,83 +88,40 @@ pub fn compile_opcode(
     use isa::AddrModeEnum;
 
     let pc = asm.get_binary().get_write_address();
-    let ins_amode = ins.addr_mode;
 
-    if ins.opcode > 0xff {
-        asm.write_word(ins.opcode as u16, node)
-    } else {
-        asm.write_byte(ins.opcode as u8, node)
-    }?;
+    write_opcode(asm, node, ins.opcode)?;
 
-    match ins_amode {
+    match ins.addr_mode {
         AddrModeEnum::Indexed => {
             if let AddrModeParseType::Indexed(imode, indirect) = amode {
                 compile_indexed(asm, node, imode, indirect, current_scope_id)?;
             }
+            Ok(())
         }
 
-        AddrModeEnum::Immediate8 => {
-            let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
-            asm.write_byte_check_size(arg, node)?
-        }
+        AddrModeEnum::Immediate8 => write_eval_byte(asm, node, current_scope_id),
 
         AddrModeEnum::Direct => {
             let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
-            asm.write_byte_check_size(arg & 0xff, node)?
+            asm.write_byte_check_size(arg & 0xff, node)?;
+            Ok(())
         }
 
         AddrModeEnum::Extended | AddrModeEnum::Immediate16 => {
-            let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
-            asm.write_word_check_size(arg, node)?;
+            write_eval_word(asm, node, current_scope_id)
         }
 
         AddrModeEnum::Relative => {
-            let (arg, arg_n) = asm.eval_first_arg_n(node, current_scope_id)?;
-            let val = arg - (pc as i64 + ins.size as i64);
-            // offset is from PC after Instruction and operand has been fetched
-            let res = asm
-                .asm_out
-                .binary
-                .write_ibyte_check_size(val)
-                .map_err(|x| match x {
-                    DoesNotFit { .. } => {
-                        panic!()
-                    }
-                    DoesNotMatchReference { .. } => asm.binary_error(node, x),
-                    _ => asm.make_user_error(format!("{x:?}"), arg_n, false).into(),
-                });
-
-            match &res {
-                Ok(_) => (),
-                Err(_) => {
-                    if asm.opts.ignore_relative_offset_errors {
-                        // messages::warning("Skipping writing relative offset");
-                        let res = asm.get_binary_mut().write_ibyte_check_size(0);
-                        asm.binary_error_map(node, res)?;
-                    } else {
-                        res?;
-                    }
-                }
-            }
+            let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
+            write_relative_byte(asm, node, arg, pc, ins.size)
         }
 
         AddrModeEnum::Relative16 => {
-            let (arg, arg_n) = asm.eval_first_arg_n(node, current_scope_id)?;
-
-            let val = (arg - (pc as i64 + ins.size as i64)) & 0xffff;
-            // offset is from PC after Instruction and operand has been fetched
-            let res = asm.get_binary_mut().write_word_check_size(val);
-
-            res.map_err(|x| match x {
-                DoesNotFit { .. } => {
-                    panic!()
-                }
-                DoesNotMatchReference { .. } => asm.binary_error(node, x),
-                _ => asm.make_user_error(format!("{x:?}"), arg_n, true).into(),
-            })?;
+            let (arg, _) = asm.eval_first_arg(node, current_scope_id)?;
+            write_relative_word(asm, node, arg, pc, ins.size)
         }
 
-        AddrModeEnum::Inherent => {}
+        AddrModeEnum::Inherent => Ok(()),
 
         AddrModeEnum::RegisterPair => {
             if let AddrModeParseType::RegisterPair(a, b) = amode {
@@ -166,6 +130,7 @@ pub fn compile_opcode(
             } else {
                 panic!("Whut!")
             }
+            Ok(())
         }
 
         AddrModeEnum::RegisterSet => {
@@ -179,11 +144,7 @@ pub fn compile_opcode(
             } else {
                 panic!()
             }
+            Ok(())
         }
-    };
-
-    // Add memory to source code mapping for this opcode
-    // let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
-    // compiler.add_mapping(asm, phys_range, range, node.id(), ItemType::OpCode);
-    Ok(())
+    }
 }

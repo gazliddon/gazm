@@ -162,22 +162,26 @@ pub fn size_node_internal(
                     // !!!! and it wasn't forced (need someway to propogate this from parse)
 
                     let mut size = instruction.size;
+                    let node = sizer.get_node(id);
+                    let value = asm
+                        .eval_first_arg(node, current_scope_id)
+                        .ok()
+                        .map(|(v, _)| v);
 
-                    let dp_info = get_opcode_info(*ins)
-                        .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
-                        .zip(asm.asm_out.direct_page);
-
-                    if let Some((new_ins, dp)) = dp_info {
-                        if let Ok((value, _)) = asm.eval_first_arg(node, current_scope_id) {
-                            let top_byte = ((value >> 8) & 0xff) as u8;
-
-                            if top_byte == dp {
-                                // Here we go!
-                                size = new_ins.size;
-                                let new_item = OpCode(new_ins.id(), AddrModeParseType::Direct);
-                                sizer.set_node_fixup(id, new_item);
-                            }
-                        }
+                    if let Some(new_size) = crate::assembler::try_direct_page(
+                        asm.asm_out.direct_page,
+                        value,
+                        || {
+                            get_opcode_info(*ins)
+                                .and_then(|i_type| i_type.get_instruction(&AddrModeEnum::Direct))
+                                .map(|i| (i.size, i.id().0))
+                        },
+                        |new_id| {
+                            let new_item = OpCode(InstructionId(new_id), AddrModeParseType::Direct);
+                            sizer.set_node_fixup(id, new_item);
+                        },
+                    ) {
+                        size = new_size;
                     }
                     sizer.advance_pc(size);
                 }
