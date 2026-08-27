@@ -56,6 +56,10 @@ pub struct Sizer<'a> {
     /// by the innermost enclosing loop arm. Left set after the walk, the
     /// statement was outside any loop and that is an error.
     loop_signal: Option<(LoopSignal, AstNodeId)>,
+    /// The most recently defined PC-equate label `(symbol_id, source line)`,
+    /// used by MadMac's auto-even: rmac bumps the current line's label value
+    /// when a non-byte dc/ds/dcb directive pads an odd PC.
+    last_label: Option<(SymbolScopeId, usize)>,
 }
 
 /// Walk the tree, compute layout, and return the linear walk plan for the
@@ -84,6 +88,7 @@ impl<'a> Sizer<'a> {
             bindings: Vec::new(),
             pending_cpu_fixup: None,
             loop_signal: None,
+            last_label: None,
         };
 
         let id = ret.tree.as_ref().root().id();
@@ -176,7 +181,10 @@ impl<'a> Sizer<'a> {
     }
 
     pub fn advance_pc(&mut self, val: usize) {
-        assert!(self.pc + val <= 65536);
+        // The 68000 backend addresses a 24-bit (Jaguar) space; keep the
+        // bound generous. The binary's own size limit still applies at
+        // write time.
+        assert!(self.pc + val <= 0x1_0000_0000);
         self.pc += val;
         if let Some(cur_name) = &self.current_section {
             if let Some(state) = self.sections.get_mut(cur_name) {
@@ -191,7 +199,7 @@ impl<'a> Sizer<'a> {
 
     pub fn set_pc(&mut self, val: usize) {
         self.pc = val;
-        assert!(self.pc < 65536);
+        assert!(self.pc < 0x1_0000_0000);
     }
 
     /// Build an interpolated `log`/`assert` message by walking the parts
@@ -527,6 +535,16 @@ impl<'a> Sizer<'a> {
                 self.set_pc(pc);
             }
 
+            Align(align) => {
+                let skip = (align - (self.pc % align)) % align;
+                self.emit(id, AstNodeKind::Skip(skip));
+                self.advance_pc(skip);
+            }
+
+            // `.extern name` — a declaration; nothing to do in a
+            // single-file assembly.
+            Extern(_) => {}
+
             Section(name) => {
                 let children: Vec<_> = node.children().collect();
                 if let Some(cur) = &self.current_section {
@@ -553,9 +571,11 @@ impl<'a> Sizer<'a> {
                     self.emit(id, AstNodeKind::SetPc(pc));
                     self.set_pc(pc);
                 } else {
-                    return Err(asm
-                        .make_user_error(format!("Unknown section '{name}'"), node, true)
-                        .into());
+                    // A bare section switch to an undeclared section
+                    // (MadMac `.text` at the top of a file) starts it at
+                    // the current PC.
+                    self.sections.insert(name.clone(), (self.pc, self.pc, None));
+                    self.current_section = Some(name.clone());
                 }
             }
 
@@ -571,8 +591,14 @@ impl<'a> Sizer<'a> {
             }
 
             ReserveBytes => self.reserve(asm, node, current_scope_id, id, 1, "RMB")?,
-            ReserveWords => self.reserve(asm, node, current_scope_id, id, 2, "DS.W")?,
-            ReserveLongs => self.reserve(asm, node, current_scope_id, id, 4, "DS.L")?,
+            ReserveWords => {
+                self.auto_even(asm, id);
+                self.reserve(asm, node, current_scope_id, id, 2, "DS.W")?
+            }
+            ReserveLongs => {
+                self.auto_even(asm, id);
+                self.reserve(asm, node, current_scope_id, id, 4, "DS.L")?
+            }
 
             TargetSpecific(node_kind) => {
                 // Capture the PC before sizing: the CPU-specific sizer
@@ -603,6 +629,7 @@ impl<'a> Sizer<'a> {
 
                 asm.set_symbol_value_internal(*symbol_id, pcv as usize)?;
                 self.emit(id, i.clone());
+                self.last_label = Some((*symbol_id, node.value().pos.line()));
             }
 
             TokenizedFile(..) => {
@@ -620,6 +647,7 @@ impl<'a> Sizer<'a> {
             }
 
             EmitWords(num_of_words) => {
+                self.auto_even(asm, id);
                 self.emit(id, i.clone());
                 self.advance_pc(*num_of_words * 2);
             }
@@ -635,11 +663,13 @@ impl<'a> Sizer<'a> {
             }
 
             EmitLongs(num_of_longs) => {
+                self.auto_even(asm, id);
                 self.emit(id, i.clone());
                 self.advance_pc(*num_of_longs * 4);
             }
 
             EmitQuads(num_of_quads) => {
+                self.auto_even(asm, id);
                 self.emit(id, i.clone());
                 self.advance_pc(*num_of_quads * 8);
             }
@@ -656,6 +686,16 @@ impl<'a> Sizer<'a> {
                 assert!(size >= 0);
                 self.emit(id, i.clone());
                 self.advance_pc(size as usize);
+            }
+
+            DcbFill(size) => {
+                if *size != 1 {
+                    self.auto_even(asm, id);
+                }
+                let (count, _val) = asm.eval_two_args(node, current_scope_id)?;
+                assert!(count >= 0);
+                self.emit(id, i.clone());
+                self.advance_pc((count * (*size as i64)) as usize);
             }
 
             IncBin(file_name) => {
@@ -688,6 +728,32 @@ impl<'a> Sizer<'a> {
 
     pub fn get_node(&self, id: AstNodeId) -> AstNodeRef<'a> {
         self.tree.as_ref().get(id).expect("Can't fetch node")
+    }
+
+    /// MadMac (rmac `d_dc`/`d_ds`/`d_dcb`) auto-evens non-byte
+    /// `dc`/`ds`/`dcb` directives: when the current PC is odd, a single
+    /// 0x00 pad byte is emitted first. rmac also bumps the value of a
+    /// label defined on the same line (`auto_even()` adjusts
+    /// `lab_sym->svalue`), so the label lands on the padded address.
+    fn auto_even(&mut self, asm: &mut Assembler, id: AstNodeId) {
+        // MadMac-compatible mode only: gazm's other syntaxes don't pad.
+        if !asm.opts.madmac_compat {
+            return;
+        }
+        if (self.pc & 1) == 1 {
+            self.emit(id, AstNodeKind::Skip(1));
+            self.advance_pc(1);
+            if let Some((symbol_id, line)) = self.last_label {
+                if self.get_node(id).value().pos.line() == line {
+                    let sym = asm
+                        .get_symbols()
+                        .get_symbol_info_from_id(symbol_id)
+                        .unwrap();
+                    let bumped = (sym.value.unwrap_or(0) as i64 + 1) as usize;
+                    let _ = asm.set_symbol_value_internal(symbol_id, bumped);
+                }
+            }
+        }
     }
 
     /// Reserve `count * width` uninitialized bytes: emit a plan `Skip`.
@@ -754,6 +820,9 @@ pub(crate) fn sizer_emits(kind: &AstNodeKindDiscriminants) -> bool {
             | EmitString
             | ZeroWords
             | Fill
+            | DcbFill
+            | Extern
+            | Align
             | IncBinResolved
             | WriteBin
             | IncBinRef

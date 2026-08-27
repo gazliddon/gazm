@@ -24,7 +24,8 @@ pub(crate) fn get_quoted_string(input: TSpan) -> PResult<String> {
 }
 
 fn get_file_name(input: TSpan) -> PResult<PathBuf> {
-    let (rest, matched) = TokenKind::QuotedString.parse(input)?;
+    let (rest, matched) =
+        alt((TokenKind::QuotedString, TokenKind::SingleQuotedString)).parse(input)?;
     let txt = get_text(matched);
     let text = &txt[1..txt.len() - 1];
     let p = expand_path(matched, text.into())?;
@@ -80,6 +81,48 @@ impl GazmParser {
         let node = from_item_children_tspan(AstNodeKind::Section(name), &children, sp);
         Ok((curr, node))
     }
+
+    /// `.text` / `.data` / `.bss` — MadMac section switches; the section
+    /// name is implied by the command.
+    pub(crate) fn parse_section_kind(k: CommandKind, input: TSpan) -> PResult<Node> {
+        use CommandKind::*;
+        let name = match k {
+            Text => "text",
+            Data => "data",
+            Bss => "bss",
+            _ => unreachable!(),
+        };
+        let (rest, (sp, _)) = ms(k)(input)?;
+        Ok((
+            rest,
+            from_item_tspan(AstNodeKind::Section(name.to_string()), sp),
+        ))
+    }
+
+    /// `.extern name` — declare a symbol defined elsewhere; the name must
+    /// still resolve in a single-file assembly.
+    pub(crate) fn parse_extern(input: TSpan) -> PResult<Node> {
+        let (rest, (sp, name)) = ms(preceded(
+            CommandKind::Extern,
+            alt((get_label_string, get_quoted_string)),
+        ))(input)?;
+        Ok((rest, from_item_tspan(AstNodeKind::Extern(name), sp)))
+    }
+
+    /// `.phrase` / `.dphrase` / `.qphrase` / `.even` — align the location
+    /// counter to 8/16/32/2 bytes.
+    pub(crate) fn parse_align(k: CommandKind, input: TSpan) -> PResult<Node> {
+        use CommandKind::*;
+        let align = match k {
+            Phrase => 8,
+            DPhrase => 16,
+            QPhrase => 32,
+            Even => 2,
+            _ => unreachable!(),
+        };
+        let (rest, (sp, _)) = ms(k)(input)?;
+        Ok((rest, from_item_tspan(AstNodeKind::Align(align), sp)))
+    }
     pub(crate) fn parse_require(input: TSpan) -> PResult<Node> {
         command_with_file(input, CommandKind::Require)
             .map(|(rest, (sp, file))| (rest, from_item_tspan(AstNodeKind::Require(file), sp)))
@@ -103,6 +146,22 @@ impl GazmParser {
         let (rest, (sp, (value, count))) =
             ms(preceded(Fill, sep_pair(parse_expr, Comma, parse_expr)))(input)?;
         Ok((rest, Self::mk_fill(sp, (value, count))))
+    }
+
+    /// DCB.<size> count,value — fill `count` copies of `value` (MadMac).
+    pub(crate) fn parse_dcb(k: CommandKind, input: TSpan) -> PResult<Node> {
+        use CommandKind::*;
+        let size = match k {
+            DcbB => 1,
+            DcbW => 2,
+            DcbL => 4,
+            _ => unreachable!(),
+        };
+        let (rest, (sp, (count, value))) =
+            ms(preceded(k, sep_pair(parse_expr, Comma, parse_expr)))(input)?;
+        // DcbFill node children: [count, value].
+        let node = from_item_children_tspan(AstNodeKind::DcbFill(size), &[count, value], sp);
+        Ok((rest, node))
     }
 
     /// ZMB | BSZ | RZB count <value> — the zero-fill spellings.
@@ -174,9 +233,15 @@ impl GazmParser {
     }
 
     pub(crate) fn parse_emit_bytes(input: TSpan) -> PResult<Node> {
-        let (rest, (sp, matched)) =
-            ms(preceded(CommandKind::EmitBytes, cut(Self::parse_expr_list)))(input)?;
-        let node = from_item_children_tspan(AstNodeKind::EmitBytes(matched.len()), &matched, sp);
+        // Each element may be an expression or a `"..."` / `'...'` string
+        // literal, which MadMac expands to one byte per character
+        // (`dc.b "demo fire to play",0`, `dc.b '[x=',0,'y='`).
+        let (rest, (sp, operands)) = ms(preceded(
+            CommandKind::EmitBytes,
+            cut(sep_list(Self::parse_defm_operand, Comma)),
+        ))(input)?;
+        let children: Vec<Node> = operands.into_iter().flatten().collect();
+        let node = from_item_children_tspan(AstNodeKind::EmitBytes(children.len()), &children, sp);
         Ok((rest, node))
     }
 
@@ -194,17 +259,25 @@ impl GazmParser {
         Ok((rest, node))
     }
 
-    /// DEFM — emit a comma-separated list of quoted strings and byte
+    /// DEFM / dc.b — emit a comma-separated list of quoted strings and byte
     /// values; strings expand to their character bytes. Produces an
     /// `EmitBytes` node whose children are the byte expressions.
     fn parse_defm_operand(input: TSpan) -> PResult<Vec<Node>> {
-        if let Ok((rest, text)) = get_quoted_string(input) {
+        use TokenKind::{QuotedString, SingleQuotedString};
+        let str_tok = match input.first().map(|t| t.kind) {
+            Some(k @ QuotedString) | Some(k @ SingleQuotedString) => Some(k),
+            _ => None,
+        };
+        if let Some(tok) = str_tok {
+            let (rest, (sp, _)) = ms::<_, TSpan<'_>, _, FrontEndError>(tok)(input)?;
+            let txt = get_text(sp);
+            let text = &txt[1..txt.len() - 1];
             let nodes = text
                 .chars()
                 .map(|c| {
                     from_item_tspan(
                         AstNodeKind::Num(c as i64, crate::frontend::ParsedFrom::Character),
-                        input,
+                        sp,
                     )
                 })
                 .collect();

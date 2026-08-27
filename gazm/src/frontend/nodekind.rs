@@ -16,6 +16,7 @@ pub enum CpuSpecific {
     Cpu6809(NodeKind6809),
     Cpu6800(NodeKind6800),
     CpuZ80(NodeKindZ80),
+    Cpu68000(crate::cpu68000::frontend::NodeKind68000),
 }
 
 use super::{BaseNode, CtxTrait};
@@ -147,7 +148,18 @@ pub enum AstNodeKind {
     ReserveWords,
     ReserveLongs,
     Fill,
+    /// `dcb.<size> count,value` (MadMac): the Fill node's children are
+    /// [count, value]; the size (1/2/4) is carried here.
+    DcbFill(usize),
     ZeroWords,
+
+    /// `.extern name` — MadMac external declaration; a no-op for a
+    /// single-file assembly (the name must still resolve).
+    Extern(String),
+
+    /// `.phrase`/`.dphrase`/`.qphrase`/`.even` — align the location
+    /// counter to 8/16/32/2 bytes (MadMac).
+    Align(usize),
 
     Mul,
     Div,

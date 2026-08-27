@@ -128,6 +128,10 @@ impl<'a> Compiler<'a> {
                 asm.get_binary_mut().set_write_offset(*offset);
             }
 
+            // `.extern`/`.phrase`/`.even` — handled at size time (the
+            // align became a Skip in the plan).
+            Extern(_) | Align(_) => (),
+
             TokenizedFile(..) | Block => (),
 
             EmitWords(..) => {
@@ -206,6 +210,21 @@ impl<'a> Compiler<'a> {
                     self.binary_error_map(asm, node_id, e)?;
                 }
 
+                let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
+                self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
+            }
+
+            DcbFill(size) => {
+                let node = self.get_node(node_id);
+                let (count, value) = asm.eval_two_args(node, current_scope_id)?;
+                for _ in 0..count {
+                    let e = match size {
+                        1 => asm.get_binary_mut().write_ubyte_check_size(value),
+                        2 => asm.get_binary_mut().write_word_check_size(value),
+                        _ => asm.get_binary_mut().write_long_check_size(value),
+                    };
+                    self.binary_error_map(asm, node_id, e)?;
+                }
                 let (phys_range, range) = asm.get_binary().range_to_write_address(pc);
                 self.add_mapping(asm, phys_range, range, node_id, ItemType::Command);
             }
@@ -459,6 +478,8 @@ pub(crate) fn compiler_handles(kind: &AstNodeKindDiscriminants) -> bool {
             | Skip
             | SetPc
             | SetPutOffset
+            | Extern
+            | Align
             | TokenizedFile
             | Block
             | EmitWords
@@ -468,6 +489,7 @@ pub(crate) fn compiler_handles(kind: &AstNodeKindDiscriminants) -> bool {
             | EmitString
             | ZeroWords
             | Fill
+            | DcbFill
             | Exec
             | TargetSpecific
             | AssignmentFromPc

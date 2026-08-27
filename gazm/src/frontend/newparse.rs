@@ -10,8 +10,9 @@ use unraveler::{
 use crate::{cpukind::CpuKind, frontend::FrontEndErrorKind};
 
 impl GazmParser {
+    /// Consume the label terminator: MadMac `name::` (global) or `name:`.
     fn consume_label_colon(input: TSpan) -> PResult<TSpan> {
-        TokenKind::Colon.parse(input)
+        alt((TokenKind::DoubleColon, TokenKind::Colon)).parse(input)
     }
 
     // Parse a single assembly statement
@@ -41,6 +42,10 @@ impl GazmParser {
             IncBinRef => Self::parse_incbin_ref(args),
             ZeroFill => Self::parse_zero_fills(args),
             Fill => Self::parse_fill(args),
+            // `dcb.<size> count,value` — the Fill node's children are
+            // [count, value] in MadMac order; the count is scaled to
+            // bytes by the size.
+            DcbB | DcbW | DcbL => Self::parse_dcb(k, args),
             EmitBytes => Self::parse_emit_bytes(args),
             EmitWords => Self::parse_emit_words(args),
             EmitLongs => Self::parse_emit_longs(args),
@@ -58,6 +63,9 @@ impl GazmParser {
             Import => Self::parse_import(args),
             GrabMem => Self::parse_grabmem(args),
             Section => Self::parse_section(args),
+            Text | Data | Bss => Self::parse_section_kind(k, args),
+            Extern => Self::parse_extern(args),
+            Phrase | DPhrase | QPhrase | Even => Self::parse_align(k, args),
             SetDp => crate::cpu6809::frontend::parse_set_dp(args),
             Target | Macro | Struct | Equ => Err(crate::frontend::error::FrontEndError::error(
                 args,
@@ -341,7 +349,11 @@ impl GazmParser {
     fn parse_label_statement<'a>(input: TSpan<'a>, rest: TSpan<'a>) -> PResult<'a, Node> {
         use TokenKind::*;
 
-        let rest_after_label = if matches!(rest.first().map(|token| token.kind), Some(Colon)) {
+        // MadMac global labels use `name::`; plain labels use `name:`.
+        let rest_after_label = if matches!(
+            rest.first().map(|token| token.kind),
+            Some(Colon | DoubleColon)
+        ) {
             rest.drop(1).unwrap_or(rest)
         } else {
             rest

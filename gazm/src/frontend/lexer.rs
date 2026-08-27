@@ -76,6 +76,23 @@ pub enum CommandKind {
     Equ,
     Target,
     Section,
+    /// `.extern name` — declare a symbol defined elsewhere (MadMac).
+    Extern,
+    /// `.phrase` / `.dphrase` / `.qphrase` / `.even` — align the
+    /// location counter (8/16/32/2 bytes; MadMac).
+    Phrase,
+    DPhrase,
+    QPhrase,
+    Even,
+    /// `.text` / `.data` / `.bss` — section switches (MadMac).
+    Text,
+    Data,
+    Bss,
+    /// `dcb.b` / `dcb.w` / `dcb.l` — fill count copies of a value
+    /// (MadMac; count comes first).
+    DcbB,
+    DcbW,
+    DcbL,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -161,14 +178,16 @@ fn lex_error(lex: &mut Lexer<TokenKind>) -> LexError {
 // `Float(f64)` makes TokenKind PartialEq-only (f64 is not Eq).
 #[derive(Logos, Copy, Clone, Debug, PartialEq)]
 #[logos(error(LexError, callback = lex_error))]
-#[logos(skip r"[ \t\f\n]+")]
-// Identifiers: a letter/underscore start, then word chars with single
-// dots allowed between them (`proc.data`). A run of dots can never be an
-// identifier, so `..` stays free as the range operator; labels starting
-// with a dot (.COAST, .OPTR, .IF) get their own rule below.
+#[logos(skip r"[ \t\f\r\n]+")]
+// Identifiers: a letter/underscore start, then word chars — no dots.
+// A run of dots can never be an identifier, so `..` stays free as the
+// range operator; labels starting with a dot (.COAST, .OPTR, .IF) get
+// their own rule below, and a trailing `.w`/`.l` (e.g. `$f14000.l`,
+// `d0.w`) lexes as one of those dot-labels, which the 68000 backend
+// matches as a size suffix.
 #[logos(subpattern id_al = r"[a-zA-Z_]")]
 #[logos(subpattern id_body = r"[a-zA-Z0-9_]")]
-#[logos(subpattern id = r"(?&id_al)(?:(?&id_body)|\.(?&id_body))*")]
+#[logos(subpattern id = r"(?&id_al)(?&id_body)*")]
 #[logos(subpattern pre_hex = r"(0[xX]|\$)")]
 #[logos(subpattern pre_bin = r"(0[bB]|%)")]
 pub enum TokenKind {
@@ -261,6 +280,10 @@ pub enum TokenKind {
     #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]
     QuotedString,
 
+    /// MadMac single-quoted filenames: `include 'jaguar.inc'`.
+    #[regex(r"'[^']*'")]
+    SingleQuotedString,
+
     #[token(",")]
     Comma,
 
@@ -343,11 +366,60 @@ pub fn to_tokens_no_comment_with_errors(
     (tokens, errors)
 }
 
+/// MadMac treats a line whose first character is `*` as a comment
+/// (`*------- fixed data`). Logos cannot express the line-start anchor, so
+/// blank such lines out before lexing: byte offsets stay identical, the
+/// parser simply sees no tokens on those lines, and no lexer errors leak
+/// from inside the comment text.
+fn mask_madmac_comment_lines(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = String::with_capacity(bytes.len());
+    let mut at_line_start = true;
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if at_line_start && b == b'*' {
+            while i < bytes.len() && bytes[i] != b'\n' {
+                out.push(' ');
+                i += 1;
+            }
+        } else {
+            // Copy one full UTF-8 char so the output stays valid UTF-8.
+            let ch_len = utf8_char_len(b);
+            out.push_str(&text[i..i + ch_len]);
+            i += ch_len;
+            at_line_start = b == b'\n';
+            continue;
+        }
+        at_line_start = i < bytes.len() && bytes[i] == b'\n';
+        if i < bytes.len() && bytes[i] == b'\n' {
+            out.push('\n');
+            i += 1;
+        }
+    }
+    out
+}
+
+fn utf8_char_len(b: u8) -> usize {
+    if b < 0x80 {
+        1
+    } else if b >> 5 == 0b110 {
+        2
+    } else if b >> 4 == 0b1110 {
+        3
+    } else if b >> 3 == 0b11110 {
+        4
+    } else {
+        1
+    }
+}
+
 fn to_tokens_kinds(
     source_file: &grl_sources::SourceFile,
 ) -> (Vec<(TokenKind, std::ops::Range<usize>)>, Vec<LexError>) {
     let mut errors = Vec::new();
-    let tokens = TokenKind::lexer(&source_file.get_text().source)
+    let masked = mask_madmac_comment_lines(&source_file.get_text().source);
+    let tokens = TokenKind::lexer(&masked)
         .spanned()
         .map(|(tok_res, pos)| match tok_res {
             Ok(kind) => (kind, pos),
@@ -489,18 +561,24 @@ mod tests {
 
     #[test]
     fn apostrophe_is_a_token_not_a_char_literal_error() {
-        // The Z80 backend needs `'` (EX AF,AF'); a run like `'ab'` is now
-        // three valid tokens rather than a malformed character literal.
+        // MadMac single-quoted strings: a balanced `'ab'` run is one
+        // SingleQuotedString token (dc.b 'text'). The Z80 backend's
+        // `EX AF,AF'` is unaffected — an unmatched trailing `'` still
+        // lexes as a bare Apostrophe token.
         let source = crate::frontend::create_source_file("'ab'");
         let (tokens, errors) = to_tokens_no_comment_with_errors(&source);
         assert!(errors.is_empty(), "unexpected lexer errors: {errors:?}");
         assert_eq!(
             tokens.iter().map(|token| token.kind).collect::<Vec<_>>(),
-            vec![
-                TokenKind::Apostrophe,
-                TokenKind::Identifier,
-                TokenKind::Apostrophe,
-            ]
+            vec![TokenKind::SingleQuotedString]
+        );
+
+        let source = crate::frontend::create_source_file("AF'");
+        let (tokens, errors) = to_tokens_no_comment_with_errors(&source);
+        assert!(errors.is_empty(), "unexpected lexer errors: {errors:?}");
+        assert_eq!(
+            tokens.iter().map(|token| token.kind).collect::<Vec<_>>(),
+            vec![TokenKind::Identifier, TokenKind::Apostrophe,]
         );
     }
 

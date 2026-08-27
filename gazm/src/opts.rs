@@ -52,6 +52,12 @@ pub struct Opts {
     pub ast_file: Option<PathBuf>,
 
     pub ignore_relative_offset_errors: bool,
+    /// 68000 backend: reproduce MadMac's code-gen restrictions (8-bit
+    /// branches error instead of auto-extending, `.w` absolutes must fit
+    /// signed 16 bits, zero-displacement branches are illegal). Clear to
+    /// get the future saner behaviour (auto-extend branches, unsigned
+    /// ranges). Only the cpu68000 backend reads this.
+    pub madmac_compat: bool,
     pub mem_size: usize,
     pub max_errors: usize,
     pub no_async: bool,
@@ -106,6 +112,7 @@ impl Default for Opts {
             cpu: Default::default(),
             assemble_dir: Default::default(),
             ignore_relative_offset_errors: false,
+            madmac_compat: false,
             metadata: false,
             deps_file: Default::default(),
             project_file: Default::default(),

@@ -1,14 +1,13 @@
 #![deny(unused_imports)]
 use unraveler::{
-    alt, cut, delimited_kind, kind, map, match_item, match_span as ms, preceded, sep_list, tuple,
-    Parser,
+    alt, cut, delimited_kind, kind, map, match_item, match_span as ms, opt, preceded, sep_list,
+    tuple, Parser,
 };
 
 use super::{
-    ascii_lowercase, command_kind, err_nomatch, from_item_child_tspan, from_item_children_tspan,
-    from_item_tspan, get_str, get_text, keyword, parse_expr, AstNodeKind, CommandKind,
-    FrontEndError, GazmParser, LabelDefinition, Node, NumberKind, PResult, ParsedFrom, TSpan,
-    Token, TokenKind,
+    command_kind, err_nomatch, from_item_child_tspan, from_item_children_tspan, from_item_tspan,
+    get_text, keyword, parse_expr, AstNodeKind, CommandKind, FrontEndError, GazmParser,
+    LabelDefinition, Node, NumberKind, PResult, ParsedFrom, TSpan, Token, TokenKind,
 };
 
 fn match_number(input: TSpan) -> PResult<(TSpan, TokenKind)> {
@@ -132,8 +131,7 @@ impl<'a> Parser<TSpan<'a>, TSpan<'a>, FrontEndError> for CommandKind {
         // where a parser chooses to match it, so user identifiers with the
         // same spelling keep working elsewhere. Aliases (`db` on the 6502)
         // classify to the same kind as the canonical spelling and match here.
-        let (rest, matched) = kind(TokenKind::Identifier)(i)?;
-        let text = ascii_lowercase(get_str(&matched));
+        let (rest, (matched, text)) = super::ident_and_suffix(i)?;
         if command_kind(i.extra().cpu_kind.unwrap_or_default(), text.as_ref()) == Some(*self) {
             Ok((rest, matched))
         } else {
@@ -184,7 +182,9 @@ impl GazmParser {
     pub fn parse_equate(input: TSpan) -> PResult<Node> {
         let (rest, (sp, (assignment, _, _, expr))) = ms(tuple((
             alt((Self::parse_local_assignment, Self::parse_assignment)),
-            kind(TokenKind::Colon),
+            // MadMac spellings: `G_END EQU $4040` (no colon) and the
+            // gazm-style `G_END: EQU $4040`.
+            opt(kind(TokenKind::Colon)),
             keyword("equ"),
             cut(parse_expr),
         )))(input)?;

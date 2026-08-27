@@ -81,6 +81,24 @@ pub fn lex_identifier(c: CpuKind, text: &str) -> TokenKind {
     cpu_dispatch!(lex, c, text)
 }
 
+/// Match an identifier, joining a trailing `.b`/`.w`/`.l` suffix token
+/// (MadMac `dc.w`, `move.l`) so classification and command matching see
+/// the full word. Returns (rest, span-of-the-word, lowercased text).
+pub fn ident_and_suffix(input: TSpan) -> PResult<(TSpan, String)> {
+    use unraveler::match_span as ms;
+    let (rest, matched) = kind(TokenKind::Identifier)(input)?;
+    let mut text = ascii_lowercase(get_str(&matched)).into_owned();
+    let mut rest = rest;
+    if let Ok((rest2, (_, txt))) = ms(super::get_label_string)(rest) {
+        let t = txt.to_ascii_lowercase();
+        if matches!(t.as_str(), ".b" | ".w" | ".l") {
+            text.push_str(&t);
+            rest = rest2;
+        }
+    }
+    Ok((rest, (matched, text)))
+}
+
 /// Classify an identifier after the raw Logos pass. Directives come from
 /// the selected CPU's vocabulary table; opcode lookup is delegated to the
 /// selected CPU backend.
@@ -108,9 +126,7 @@ pub fn get_identifier(input: TSpan) -> PResult<TokenKind> {
 
     let c = input.extra().cpu_kind;
 
-    let (rest, matched) = kind(Identifier)(input)?;
-
-    let text = ascii_lowercase(get_str(&matched));
+    let (rest, (_matched, text)) = ident_and_suffix(input)?;
     let kind = classify_identifier(c, text.as_ref());
 
     match kind {
