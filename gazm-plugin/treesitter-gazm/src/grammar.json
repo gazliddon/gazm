@@ -179,15 +179,33 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "PATTERN",
-          "value": "incbin|INCBIN"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "PATTERN",
+              "value": "incbin|INCBIN"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".incbin|.INCBIN"
+            }
+          ]
         },
         {
           "type": "FIELD",
           "name": "file",
           "content": {
-            "type": "SYMBOL",
-            "name": "string_literal"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "string_literal"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "madmac_string"
+              }
+            ]
           }
         },
         {
@@ -556,8 +574,17 @@
           "type": "SEQ",
           "members": [
             {
-              "type": "SYMBOL",
-              "name": "string_literal"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "string_literal"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "madmac_string"
+                }
+              ]
             },
             {
               "type": "REPEAT",
@@ -569,8 +596,17 @@
                     "value": ","
                   },
                   {
-                    "type": "SYMBOL",
-                    "name": "string_literal"
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "string_literal"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "madmac_string"
+                      }
+                    ]
                   }
                 ]
               }
@@ -741,12 +777,30 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "PATTERN",
-          "value": "include|INCLUDE"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "PATTERN",
+              "value": "include|INCLUDE"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".include|.INCLUDE"
+            }
+          ]
         },
         {
-          "type": "SYMBOL",
-          "name": "string_literal"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "string_literal"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "madmac_string"
+            }
+          ]
         }
       ]
     },
@@ -883,6 +937,30 @@
         {
           "type": "SYMBOL",
           "name": "importer"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "regequ"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "madmac_macro"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "endm"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "madmac_dc"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "madmac_simple"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "madmac_decl"
         }
       ]
     },
@@ -1015,8 +1093,16 @@
           "name": "_identifier"
         },
         {
-          "type": "SYMBOL",
-          "name": "macro_args"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "macro_args"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "SYMBOL",
@@ -2553,34 +2639,26 @@
         }
       ]
     },
-    "char_literal": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "'"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "escape_sequence"
-            },
-            {
-              "type": "IMMEDIATE_TOKEN",
-              "content": {
-                "type": "PATTERN",
-                "value": "[^\\n']"
-              }
-            }
-          ]
-        },
-        {
-          "type": "STRING",
-          "value": "'"
-        }
-      ]
+    "madmac_string": {
+      "type": "PREC",
+      "value": 30,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "'"
+          },
+          {
+            "type": "PATTERN",
+            "value": "[^'\\n]*"
+          },
+          {
+            "type": "STRING",
+            "value": "'"
+          }
+        ]
+      }
     },
     "_expression": {
       "type": "CHOICE",
@@ -2603,7 +2681,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "char_literal"
+          "name": "madmac_string"
         },
         {
           "type": "SYMBOL",
@@ -2768,7 +2846,7 @@
     },
     "regset_mnemonics": {
       "type": "PATTERN",
-      "value": "pshs|puls|pshu|pulu|PSHS|PULS|PSHU|PULU"
+      "value": "pshs|pshu|puls|pulu|PSHS|PSHU|PULS|PULU"
     },
     "reg_set": {
       "type": "SEQ",
@@ -2839,11 +2917,61 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "immediate"
+          "name": "indirect"
         },
         {
           "type": "SYMBOL",
-          "name": "extended"
+          "name": "zero_index"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "post_inc"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "post_inc_inc"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "pre_dec"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "pre_dec_dec"
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_generic_operand"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": ","
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "_generic_operand"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "_generic_operand": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "immediate"
         },
         {
           "type": "SYMBOL",
@@ -2851,7 +2979,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "_indexed"
+          "name": "_expression"
         }
       ]
     },
@@ -2893,8 +3021,16 @@
           "name": "_identifier"
         },
         {
-          "type": "STRING",
-          "value": ":"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ":"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "PATTERN",
@@ -2903,6 +3039,245 @@
         {
           "type": "SYMBOL",
           "name": "_expression"
+        }
+      ]
+    },
+    "regequ": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_identifier"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ":"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "PATTERN",
+          "value": "regequ|REGEQU"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_expression"
+        }
+      ]
+    },
+    "madmac_macro": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "PATTERN",
+          "value": "macro|MACRO"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_identifier"
+        }
+      ]
+    },
+    "endm": {
+      "type": "PATTERN",
+      "value": "endm|ENDM"
+    },
+    "madmac_dc": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "PATTERN",
+              "value": ".dc.b|.DC.B"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".dc.w|.DC.W"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".dc.l|.DC.L"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".ds.b|.DS.B"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".ds.w|.DS.W"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".ds.l|.DS.L"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".dcb.b|.DCB.B"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".dcb.w|.DCB.W"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".dcb.l|.DCB.L"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".org|.ORG"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".fill|.FILL"
+            }
+          ]
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "string_literal"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "madmac_string"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "_expression"
+                    }
+                  ]
+                },
+                {
+                  "type": "REPEAT",
+                  "content": {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "STRING",
+                        "value": ","
+                      },
+                      {
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "SYMBOL",
+                            "name": "string_literal"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "madmac_string"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "_expression"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "madmac_simple": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "PATTERN",
+          "value": ".phrase|.PHRASE"
+        },
+        {
+          "type": "PATTERN",
+          "value": ".dphrase|.DPHRASE"
+        },
+        {
+          "type": "PATTERN",
+          "value": ".qphrase|.QPHRASE"
+        },
+        {
+          "type": "PATTERN",
+          "value": ".even|.EVEN"
+        },
+        {
+          "type": "PATTERN",
+          "value": ".text|.TEXT"
+        },
+        {
+          "type": "PATTERN",
+          "value": ".data|.DATA"
+        },
+        {
+          "type": "PATTERN",
+          "value": ".bss|.BSS"
+        }
+      ]
+    },
+    "madmac_decl": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "PATTERN",
+              "value": ".extern|.EXTERN"
+            },
+            {
+              "type": "PATTERN",
+              "value": ".globl|.GLOBL"
+            },
+            {
+              "type": "PATTERN",
+              "value": "globl|GLOBL"
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_identifier"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "STRING",
+                    "value": ","
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "_identifier"
+                  }
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -3364,7 +3739,7 @@
       "value": 1,
       "content": {
         "type": "PATTERN",
-        "value": "neg|com|lsr|ror|asr|lsl|asl|rol|dec|inc|tst|jmp|clr|nop|sync|lbra|lbsr|daa|orcc|andcc|sex|exg|tfr|bra|brn|bhi|bls|bcs|bhs|bne|beq|bvc|bvs|bpl|bmi|bge|blt|bgt|ble|leax|leay|leas|leau|pshs|puls|pshu|pulu|rts|abx|rti|cwai|mul|swi|nega|coma|lsra|rora|asra|lsla|asla|rola|deca|inca|tsta|clra|negb|comb|lsrb|rorb|asrb|aslb|lslb|rolb|decb|incb|tstb|clrb|neg|com|lsr|ror|asr|lsl|asl|rol|dec|inc|tst|jmp|clr|neg|com|lsr|ror|asr|asl|lsl|rol|dec|inc|tst|jmp|clr|suba|cmpa|sbca|subd|anda|bita|lda|eora|adca|ora|adda|cmpx|bsr|ldx|suba|cmpa|sbca|subd|anda|bita|lda|sta|eora|adca|ora|adda|cmpx|jsr|ldx|stx|suba|cmpa|sbca|subd|anda|bita|lda|sta|eora|adca|ora|adda|cmpx|jsr|ldx|stx|suba|cmpa|sbca|subd|anda|bita|lda|sta|eora|adca|ora|adda|cmpx|jsr|ldx|stx|subb|cmpb|sbcb|addd|andb|bitb|ldb|eorb|adcb|orb|addb|ldd|ldu|subb|cmpb|sbcb|addd|andb|bitb|ldb|stb|eorb|adcb|orb|addb|ldd|std|ldu|stu|subb|cmpb|sbcb|addd|andb|bitb|ldb|stb|eorb|adcb|orb|addb|ldd|std|ldu|stu|subb|cmpb|sbcb|addd|andb|bitb|ldb|stb|eorb|adcb|orb|addb|ldd|std|ldu|stu|lbrn|lbhi|lbls|lbcc|lbhs|bcc|lblo|lbcs|lbne|lbeq|lbvc|lbvs|lbpl|lbmi|lbge|lblt|lbgt|lble|swi2|cmpd|cmpy|ldy|cmpd|cmpy|ldy|sty|cmpd|cmpy|ldy|sty|cmpd|cmpy|ldy|sty|lds|lds|sts|lds|sts|lds|sts|swi3|cmps|cmpu|cmps|cmpu|cmps|cmpu|cmpu|cmps|blo|NEG|COM|LSR|ROR|ASR|LSL|ASL|ROL|DEC|INC|TST|JMP|CLR|NOP|SYNC|LBRA|LBSR|DAA|ORCC|ANDCC|SEX|EXG|TFR|BRA|BRN|BHI|BLS|BCS|BHS|BNE|BEQ|BVC|BVS|BPL|BMI|BGE|BLT|BGT|BLE|LEAX|LEAY|LEAS|LEAU|PSHS|PULS|PSHU|PULU|RTS|ABX|RTI|CWAI|MUL|SWI|NEGA|COMA|LSRA|RORA|ASRA|LSLA|ASLA|ROLA|DECA|INCA|TSTA|CLRA|NEGB|COMB|LSRB|RORB|ASRB|ASLB|LSLB|ROLB|DECB|INCB|TSTB|CLRB|NEG|COM|LSR|ROR|ASR|LSL|ASL|ROL|DEC|INC|TST|JMP|CLR|NEG|COM|LSR|ROR|ASR|ASL|LSL|ROL|DEC|INC|TST|JMP|CLR|SUBA|CMPA|SBCA|SUBD|ANDA|BITA|LDA|EORA|ADCA|ORA|ADDA|CMPX|BSR|LDX|SUBA|CMPA|SBCA|SUBD|ANDA|BITA|LDA|STA|EORA|ADCA|ORA|ADDA|CMPX|JSR|LDX|STX|SUBA|CMPA|SBCA|SUBD|ANDA|BITA|LDA|STA|EORA|ADCA|ORA|ADDA|CMPX|JSR|LDX|STX|SUBA|CMPA|SBCA|SUBD|ANDA|BITA|LDA|STA|EORA|ADCA|ORA|ADDA|CMPX|JSR|LDX|STX|SUBB|CMPB|SBCB|ADDD|ANDB|BITB|LDB|EORB|ADCB|ORB|ADDB|LDD|LDU|SUBB|CMPB|SBCB|ADDD|ANDB|BITB|LDB|STB|EORB|ADCB|ORB|ADDB|LDD|STD|LDU|STU|SUBB|CMPB|SBCB|ADDD|ANDB|BITB|LDB|STB|EORB|ADCB|ORB|ADDB|LDD|STD|LDU|STU|SUBB|CMPB|SBCB|ADDD|ANDB|BITB|LDB|STB|EORB|ADCB|ORB|ADDB|LDD|STD|LDU|STU|LBRN|LBHI|LBLS|LBCC|LBHS|BCC|LBLO|LBCS|LBNE|LBEQ|LBVC|LBVS|LBPL|LBMI|LBGE|LBLT|LBGT|LBLE|SWI2|CMPD|CMPY|LDY|CMPD|CMPY|LDY|STY|CMPD|CMPY|LDY|STY|CMPD|CMPY|LDY|STY|LDS|LDS|STS|LDS|STS|LDS|STS|SWI3|CMPS|CMPU|CMPS|CMPU|CMPS|CMPU|CMPU|CMPS|BLO"
+        "value": "aba|abcd|abcd|abcd.b|abcd.b|abs|abx|adc|adca|adca|adca|adca|adca|adcb|adcb|adcb|adcb|adcb|add|add|add|add|add|add|add|add.b|add.b|add.l|add.l|add.w|add.w|adda|adda|adda|adda|adda|adda|adda|adda.l|adda.w|addb|addb|addb|addb|addb|addc|addd|addd|addd|addd|addi|addi|addi|addi.b|addi.l|addi.w|addq|addq|addq|addq|addq.b|addq.l|addq.w|addqmod|addqt|addx|addx|addx|addx|addx|addx|addx.b|addx.b|addx.l|addx.l|addx.w|addx.w|and|and|and|and|and|and|and|and|and.b|and.b|and.l|and.l|and.w|and.w|anda|anda|anda|anda|anda|andb|andb|andb|andb|andb|andcc|andi|andi|andi|andi|andi|andi.b|andi.b|andi.l|andi.w|andi.w|asl|asl|asl|asl|asl|asl|asl|asl|asl|asl.b|asl.b|asl.l|asl.l|asl.w|asl.w|asl.w|asla|aslb|asr|asr|asr|asr|asr|asr|asr|asr|asr|asr|asr|asr.b|asr.b|asr.l|asr.l|asr.w|asr.w|asr.w|asra|asra|asrb|asrb|bcc|bcc|bcc|bcc|bchg|bchg|bclr|bclr|bclr|bcs|bcs|bcs|bcs|beq|beq|beq|beq|beq|bge|bge|bge|bge|bgt|bgt|bgt|bgt|bhi|bhi|bhi|bhi|bhs\\/bcc|bit|bita|bita|bita|bita|bita|bitb|bitb|bitb|bitb|bitb|ble|ble|ble|ble|blo\\/bcs|bls|bls|bls|bls|blt|blt|blt|blt|bmi|bmi|bmi|bmi|bmi|bne|bne|bne|bne|bne|bpl|bpl|bpl|bpl|bpl|bra|bra|bra|bra|bra|brk|brn|bset|bset|bset|bsr|bsr|bsr|bsr|bsr|btst|btst|btst|bvc|bvc|bvc|bvc|bvc|bvs|bvs|bvs|bvs|bvs|cba|chk|chk.w|clc|clc|cld|cli|cli|clr|clr|clr|clr|clr|clr|clr|clr.b|clr.l|clr.w|clra|clra|clrb|clrb|clv|clv|cmp|cmp|cmp|cmp|cmp|cmp.b|cmp.l|cmp.w|cmpa|cmpa|cmpa|cmpa|cmpa|cmpa|cmpa|cmpa.l|cmpa.w|cmpb|cmpb|cmpb|cmpb|cmpb|cmpd|cmpd|cmpd|cmpd|cmpi|cmpi|cmpi|cmpi.b|cmpi.l|cmpi.w|cmpm|cmpm|cmpm|cmpm.b|cmpm.l|cmpm.w|cmpq|cmps|cmps|cmps|cmps|cmpu|cmpu|cmpu|cmpu|cmpx|cmpx|cmpx|cmpx|cmpy|cmpy|cmpy|cmpy|com|com|com|com|coma|coma|comb|comb|cpx|cpx|cpy|cwai|daa|daa|dbcc|dbcs|dbeq|dbge|dbgt|dbhi|dble|dbls|dblt|dbmi|dbne|dbpl|dbra|dbt|dbvc|dbvs|dc.w|dc.w|dec|dec|dec|dec|dec|deca|deca|decb|decb|des|dex|dex|dey|div|divs|divs.w|divu|divu.w|eor|eor|eor|eor|eor.b|eor.l|eor.w|eora|eora|eora|eora|eora|eorb|eorb|eorb|eorb|eorb|eori|eori|eori|eori|eori|eori.b|eori.b|eori.l|eori.w|eori.w|exg|exg|exg|exg|exg.l|exg.l|exg.l|ext|ext|ext.l|ext.w|illegal|imacn|imult|imultn|inc|inc|inc|inc|inc|inca|inca|incb|incb|ins|inx|inx|iny|jmp|jmp|jmp|jmp|jmp|jmp|jr|jsr|jsr|jsr|jsr|jsr|jsr|jump|lbeq|lbge|lbgt|lbhi|lbhs\\/lbcc|lble|lblo\\/lbcs|lbls|lblt|lbmi|lbne|lbpl|lbra|lbrn|lbsr|lbvc|lbvs|lda|lda|lda|lda|lda|ldaa|ldab|ldb|ldb|ldb|ldb|ldd|ldd|ldd|ldd|lds|lds|lds|lds|lds|ldu|ldu|ldu|ldu|ldx|ldx|ldx|ldx|ldx|ldx|ldy|ldy|ldy|ldy|ldy|lea|lea.l|leas|leau|leax|leay|link|load|loadb|loadp|loadw|lsl|lsl|lsl|lsl|lsl|lsl|lsl|lsl.b|lsl.b|lsl.l|lsl.l|lsl.w|lsl.w|lsl.w|lsl\\/asl|lsl\\/asl|lsl\\/asl|lsla\\/asla|lslb\\/aslb|lsr|lsr|lsr|lsr|lsr|lsr|lsr|lsr|lsr|lsr|lsr|lsr|lsr.b|lsr.b|lsr.l|lsr.l|lsr.w|lsr.w|lsr.w|lsra|lsra|lsrb|lsrb|mirror|mmult|move|move|move|move|move|move|move|move|move|move|move.b|move.b|move.b|move.l|move.l|move.l|move.w|move.w|move.w|movea|movea|movea.l|movea.w|movefa|movei|movem|movem|movem|movem|movem|movem|movem.l|movem.l|movem.l|movem.w|movem.w|movem.w|movep|movep|movep|movep|movep.l|movep.l|movep.w|movep.w|moveq|moveq|moveq.l|moveta|mtoi|mul|muls|muls.w|mult|mulu|mulu.w|nbcd|nbcd.b|neg|neg|neg|neg|neg|neg|neg|neg|neg|neg.b|neg.l|neg.w|nega|nega|negb|negb|negx|negx|negx|negx.b|negx.l|negx.w|nop|nop|nop|nop|nop|normi|not|not|not|not|not.b|not.l|not.w|or|or|or|or|or|or|or|or.b|or.b|or.l|or.l|or.w|or.w|ora|ora|ora|ora|ora|oraa|orab|orb|orb|orb|orb|orcc|ori|ori|ori|ori|ori|ori.b|ori.b|ori.l|ori.w|ori.w|pack|pea|pea.l|pha|php|pla|plp|psha|pshb|pshs|pshu|pula|pulb|puls|pulu|reset|resmac|rol|rol|rol|rol|rol|rol|rol|rol|rol|rol|rol|rol|rol.b|rol.b|rol.l|rol.l|rol.w|rol.w|rol.w|rola|rola|rolb|rolb|rolq|ror|ror|ror|ror|ror|ror|ror|ror|ror|ror|ror|ror|ror|ror.b|ror.b|ror.l|ror.l|ror.w|ror.w|ror.w|rora|rora|rorb|rorb|rorq|roxl|roxl|roxl|roxl|roxl|roxl|roxl|roxl.b|roxl.b|roxl.l|roxl.l|roxl.w|roxl.w|roxl.w|roxr|roxr|roxr|roxr|roxr|roxr|roxr|roxr.b|roxr.b|roxr.l|roxr.l|roxr.w|roxr.w|roxr.w|rte|rti|rti|rti|rtr|rts|rts|rts|rts|sat16|sat16s|sat24|sat32s|sat8|sba|sbc|sbca|sbca|sbca|sbca|sbca|sbcb|sbcb|sbcb|sbcb|sbcb|sbcd|sbcd|sbcd.b|sbcd.b|scc|scc.b|scs|scs.b|sec|sec|sed|sei|sei|seq|seq.b|sev|sex|sf|sf.b|sge|sge.b|sgt|sgt.b|sh|sha|sharq|shi|shi.b|shlq|shrq|sle|sle.b|sls|sls.b|slt|slt.b|smi|smi.b|sne|sne.b|spl|spl.b|st|st.b|sta|sta|sta|sta|staa|stab|stb|stb|stb|std|std|std|stop|store|storeb|storep|storew|sts|sts|sts|sts|stu|stu|stu|stx|stx|stx|stx|stx|sty|sty|sty|sty|sub|sub|sub|sub|sub|sub|sub|sub.b|sub.b|sub.l|sub.l|sub.w|sub.w|suba|suba|suba|suba|suba|suba|suba|suba.l|suba.w|subb|subb|subb|subb|subb|subc|subd|subd|subd|subd|subi|subi|subi|subi.b|subi.l|subi.w|subq|subq|subq|subq|subq.b|subq.l|subq.w|subqmod|subqt|subx|subx|subx|subx|subx|subx|subx.b|subx.b|subx.l|subx.l|subx.w|subx.w|svc|svc.b|svs|svs.b|swap|swap.w|swi|swi|swi2|swi3|sync|tab|tap|tas|tas.b|tax|tay|tba|tfr|tpa|trap|trapv|tst|tst|tst|tst|tst|tst|tst|tst.b|tst.l|tst.w|tsta|tsta|tstb|tstb|tsx|tsx|txa|txs|txs|tya|unlk|unpack|wai|xor|ABA|ABCD|ABCD|ABCD.B|ABCD.B|ABS|ABX|ADC|ADCA|ADCA|ADCA|ADCA|ADCA|ADCB|ADCB|ADCB|ADCB|ADCB|ADD|ADD|ADD|ADD|ADD|ADD|ADD|ADD.B|ADD.B|ADD.L|ADD.L|ADD.W|ADD.W|ADDA|ADDA|ADDA|ADDA|ADDA|ADDA|ADDA|ADDA.L|ADDA.W|ADDB|ADDB|ADDB|ADDB|ADDB|ADDC|ADDD|ADDD|ADDD|ADDD|ADDI|ADDI|ADDI|ADDI.B|ADDI.L|ADDI.W|ADDQ|ADDQ|ADDQ|ADDQ|ADDQ.B|ADDQ.L|ADDQ.W|ADDQMOD|ADDQT|ADDX|ADDX|ADDX|ADDX|ADDX|ADDX|ADDX.B|ADDX.B|ADDX.L|ADDX.L|ADDX.W|ADDX.W|AND|AND|AND|AND|AND|AND|AND|AND|AND.B|AND.B|AND.L|AND.L|AND.W|AND.W|ANDA|ANDA|ANDA|ANDA|ANDA|ANDB|ANDB|ANDB|ANDB|ANDB|ANDCC|ANDI|ANDI|ANDI|ANDI|ANDI|ANDI.B|ANDI.B|ANDI.L|ANDI.W|ANDI.W|ASL|ASL|ASL|ASL|ASL|ASL|ASL|ASL|ASL|ASL.B|ASL.B|ASL.L|ASL.L|ASL.W|ASL.W|ASL.W|ASLA|ASLB|ASR|ASR|ASR|ASR|ASR|ASR|ASR|ASR|ASR|ASR|ASR|ASR.B|ASR.B|ASR.L|ASR.L|ASR.W|ASR.W|ASR.W|ASRA|ASRA|ASRB|ASRB|BCC|BCC|BCC|BCC|BCHG|BCHG|BCLR|BCLR|BCLR|BCS|BCS|BCS|BCS|BEQ|BEQ|BEQ|BEQ|BEQ|BGE|BGE|BGE|BGE|BGT|BGT|BGT|BGT|BHI|BHI|BHI|BHI|BHS\\/BCC|BIT|BITA|BITA|BITA|BITA|BITA|BITB|BITB|BITB|BITB|BITB|BLE|BLE|BLE|BLE|BLO\\/BCS|BLS|BLS|BLS|BLS|BLT|BLT|BLT|BLT|BMI|BMI|BMI|BMI|BMI|BNE|BNE|BNE|BNE|BNE|BPL|BPL|BPL|BPL|BPL|BRA|BRA|BRA|BRA|BRA|BRK|BRN|BSET|BSET|BSET|BSR|BSR|BSR|BSR|BSR|BTST|BTST|BTST|BVC|BVC|BVC|BVC|BVC|BVS|BVS|BVS|BVS|BVS|CBA|CHK|CHK.W|CLC|CLC|CLD|CLI|CLI|CLR|CLR|CLR|CLR|CLR|CLR|CLR|CLR.B|CLR.L|CLR.W|CLRA|CLRA|CLRB|CLRB|CLV|CLV|CMP|CMP|CMP|CMP|CMP|CMP.B|CMP.L|CMP.W|CMPA|CMPA|CMPA|CMPA|CMPA|CMPA|CMPA|CMPA.L|CMPA.W|CMPB|CMPB|CMPB|CMPB|CMPB|CMPD|CMPD|CMPD|CMPD|CMPI|CMPI|CMPI|CMPI.B|CMPI.L|CMPI.W|CMPM|CMPM|CMPM|CMPM.B|CMPM.L|CMPM.W|CMPQ|CMPS|CMPS|CMPS|CMPS|CMPU|CMPU|CMPU|CMPU|CMPX|CMPX|CMPX|CMPX|CMPY|CMPY|CMPY|CMPY|COM|COM|COM|COM|COMA|COMA|COMB|COMB|CPX|CPX|CPY|CWAI|DAA|DAA|DBCC|DBCS|DBEQ|DBGE|DBGT|DBHI|DBLE|DBLS|DBLT|DBMI|DBNE|DBPL|DBRA|DBT|DBVC|DBVS|DC.W|DC.W|DEC|DEC|DEC|DEC|DEC|DECA|DECA|DECB|DECB|DES|DEX|DEX|DEY|DIV|DIVS|DIVS.W|DIVU|DIVU.W|EOR|EOR|EOR|EOR|EOR.B|EOR.L|EOR.W|EORA|EORA|EORA|EORA|EORA|EORB|EORB|EORB|EORB|EORB|EORI|EORI|EORI|EORI|EORI|EORI.B|EORI.B|EORI.L|EORI.W|EORI.W|EXG|EXG|EXG|EXG|EXG.L|EXG.L|EXG.L|EXT|EXT|EXT.L|EXT.W|ILLEGAL|IMACN|IMULT|IMULTN|INC|INC|INC|INC|INC|INCA|INCA|INCB|INCB|INS|INX|INX|INY|JMP|JMP|JMP|JMP|JMP|JMP|JR|JSR|JSR|JSR|JSR|JSR|JSR|JUMP|LBEQ|LBGE|LBGT|LBHI|LBHS\\/LBCC|LBLE|LBLO\\/LBCS|LBLS|LBLT|LBMI|LBNE|LBPL|LBRA|LBRN|LBSR|LBVC|LBVS|LDA|LDA|LDA|LDA|LDA|LDAA|LDAB|LDB|LDB|LDB|LDB|LDD|LDD|LDD|LDD|LDS|LDS|LDS|LDS|LDS|LDU|LDU|LDU|LDU|LDX|LDX|LDX|LDX|LDX|LDX|LDY|LDY|LDY|LDY|LDY|LEA|LEA.L|LEAS|LEAU|LEAX|LEAY|LINK|LOAD|LOADB|LOADP|LOADW|LSL|LSL|LSL|LSL|LSL|LSL|LSL|LSL.B|LSL.B|LSL.L|LSL.L|LSL.W|LSL.W|LSL.W|LSL\\/ASL|LSL\\/ASL|LSL\\/ASL|LSLA\\/ASLA|LSLB\\/ASLB|LSR|LSR|LSR|LSR|LSR|LSR|LSR|LSR|LSR|LSR|LSR|LSR|LSR.B|LSR.B|LSR.L|LSR.L|LSR.W|LSR.W|LSR.W|LSRA|LSRA|LSRB|LSRB|MIRROR|MMULT|MOVE|MOVE|MOVE|MOVE|MOVE|MOVE|MOVE|MOVE|MOVE|MOVE|MOVE.B|MOVE.B|MOVE.B|MOVE.L|MOVE.L|MOVE.L|MOVE.W|MOVE.W|MOVE.W|MOVEA|MOVEA|MOVEA.L|MOVEA.W|MOVEFA|MOVEI|MOVEM|MOVEM|MOVEM|MOVEM|MOVEM|MOVEM|MOVEM.L|MOVEM.L|MOVEM.L|MOVEM.W|MOVEM.W|MOVEM.W|MOVEP|MOVEP|MOVEP|MOVEP|MOVEP.L|MOVEP.L|MOVEP.W|MOVEP.W|MOVEQ|MOVEQ|MOVEQ.L|MOVETA|MTOI|MUL|MULS|MULS.W|MULT|MULU|MULU.W|NBCD|NBCD.B|NEG|NEG|NEG|NEG|NEG|NEG|NEG|NEG|NEG|NEG.B|NEG.L|NEG.W|NEGA|NEGA|NEGB|NEGB|NEGX|NEGX|NEGX|NEGX.B|NEGX.L|NEGX.W|NOP|NOP|NOP|NOP|NOP|NORMI|NOT|NOT|NOT|NOT|NOT.B|NOT.L|NOT.W|OR|OR|OR|OR|OR|OR|OR|OR.B|OR.B|OR.L|OR.L|OR.W|OR.W|ORA|ORA|ORA|ORA|ORA|ORAA|ORAB|ORB|ORB|ORB|ORB|ORCC|ORI|ORI|ORI|ORI|ORI|ORI.B|ORI.B|ORI.L|ORI.W|ORI.W|PACK|PEA|PEA.L|PHA|PHP|PLA|PLP|PSHA|PSHB|PSHS|PSHU|PULA|PULB|PULS|PULU|RESET|RESMAC|ROL|ROL|ROL|ROL|ROL|ROL|ROL|ROL|ROL|ROL|ROL|ROL|ROL.B|ROL.B|ROL.L|ROL.L|ROL.W|ROL.W|ROL.W|ROLA|ROLA|ROLB|ROLB|ROLQ|ROR|ROR|ROR|ROR|ROR|ROR|ROR|ROR|ROR|ROR|ROR|ROR|ROR|ROR.B|ROR.B|ROR.L|ROR.L|ROR.W|ROR.W|ROR.W|RORA|RORA|RORB|RORB|RORQ|ROXL|ROXL|ROXL|ROXL|ROXL|ROXL|ROXL|ROXL.B|ROXL.B|ROXL.L|ROXL.L|ROXL.W|ROXL.W|ROXL.W|ROXR|ROXR|ROXR|ROXR|ROXR|ROXR|ROXR|ROXR.B|ROXR.B|ROXR.L|ROXR.L|ROXR.W|ROXR.W|ROXR.W|RTE|RTI|RTI|RTI|RTR|RTS|RTS|RTS|RTS|SAT16|SAT16S|SAT24|SAT32S|SAT8|SBA|SBC|SBCA|SBCA|SBCA|SBCA|SBCA|SBCB|SBCB|SBCB|SBCB|SBCB|SBCD|SBCD|SBCD.B|SBCD.B|SCC|SCC.B|SCS|SCS.B|SEC|SEC|SED|SEI|SEI|SEQ|SEQ.B|SEV|SEX|SF|SF.B|SGE|SGE.B|SGT|SGT.B|SH|SHA|SHARQ|SHI|SHI.B|SHLQ|SHRQ|SLE|SLE.B|SLS|SLS.B|SLT|SLT.B|SMI|SMI.B|SNE|SNE.B|SPL|SPL.B|ST|ST.B|STA|STA|STA|STA|STAA|STAB|STB|STB|STB|STD|STD|STD|STOP|STORE|STOREB|STOREP|STOREW|STS|STS|STS|STS|STU|STU|STU|STX|STX|STX|STX|STX|STY|STY|STY|STY|SUB|SUB|SUB|SUB|SUB|SUB|SUB|SUB.B|SUB.B|SUB.L|SUB.L|SUB.W|SUB.W|SUBA|SUBA|SUBA|SUBA|SUBA|SUBA|SUBA|SUBA.L|SUBA.W|SUBB|SUBB|SUBB|SUBB|SUBB|SUBC|SUBD|SUBD|SUBD|SUBD|SUBI|SUBI|SUBI|SUBI.B|SUBI.L|SUBI.W|SUBQ|SUBQ|SUBQ|SUBQ|SUBQ.B|SUBQ.L|SUBQ.W|SUBQMOD|SUBQT|SUBX|SUBX|SUBX|SUBX|SUBX|SUBX|SUBX.B|SUBX.B|SUBX.L|SUBX.L|SUBX.W|SUBX.W|SVC|SVC.B|SVS|SVS.B|SWAP|SWAP.W|SWI|SWI|SWI2|SWI3|SYNC|TAB|TAP|TAS|TAS.B|TAX|TAY|TBA|TFR|TPA|TRAP|TRAPV|TST|TST|TST|TST|TST|TST|TST|TST.B|TST.L|TST.W|TSTA|TSTA|TSTB|TSTB|TSX|TSX|TXA|TXS|TXS|TYA|UNLK|UNPACK|WAI|XOR"
       }
     },
     "opcode": {
@@ -3626,6 +4001,10 @@
     [
       "_identifier",
       "scoped_label"
+    ],
+    [
+      "_expression",
+      "madmac_dc"
     ]
   ],
   "precedences": [],

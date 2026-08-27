@@ -1,0 +1,130 @@
+==================
+68000 (Tempest 2000)
+==================
+        move.l d0,d1
+        moveq #0,d0
+        lea $802000,a0
+        jsr VideoIni
+        move.w n_vde,d0
+        bne rreset
+G_END EQU $4040
+        .phrase
+        .data
+        .extern foo
+        .globl bar
+        dc.b "demo fire to play",0
+        dc.l 0,0,0
+
+---
+(source_file
+  (opcode
+    (mnemonic)
+    (operand
+      (label)
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (immediate
+        (dec_num))
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (hex_num)
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (label)
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (label)))
+  (equate
+    (label)
+    (hex_num))
+  (madmac_simple)
+  (madmac_simple)
+  (madmac_decl
+    (label))
+  (madmac_decl
+    (label))
+  (madmac_dc
+    (string_literal)
+    (dec_num))
+  (madmac_dc
+    (dec_num)
+    (dec_num)
+    (dec_num)))
+
+==================
+JRISC (GPU)
+==================
+        movei #gpu_mode,r0
+        load (r0),r1
+        cmpq #1,r1
+        jump mi,(r31)
+        jr z,label
+label:  store r27,(a1_n+_clip)
+        moveta y1_n,y1_n
+cmd     REGEQU r5
+        MACRO sdiv
+        ENDM
+
+---
+(source_file
+  (opcode
+    (mnemonic)
+    (operand
+      (immediate
+        (label))
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (parenthesized_expression
+        (label))
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (immediate
+        (dec_num))
+      (label)))
+  (opcode
+    (mnemonic)
+    (operand
+      (label)
+      (parenthesized_expression
+        (label))))
+  (opcode
+    (mnemonic)
+    (operand
+      (label)
+      (label)))
+  (label)
+  (opcode
+    (mnemonic)
+    (operand
+      (label)
+      (parenthesized_expression
+        (binary_expression
+          left: (label)
+          right: (label)))))
+  (opcode
+    (mnemonic)
+    (operand
+      (label)
+      (label)))
+  (regequ
+    (label)
+    (label))
+  (madmac_macro
+    (label))
+  (endm))

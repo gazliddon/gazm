@@ -1,1962 +1,4931 @@
 {
   "actions": {},
   "addr_modes": {},
-  "unknown": {
-    "addr_mode": "Inherent",
-    "cycles": 1,
-    "opcode": "00",
-    "action": "unknown",
-    "size": 1
-  },
   "instructions": [
     {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "00",
-      "action": "NEG",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "03",
-      "action": "COM",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "04",
-      "action": "LSR",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "06",
-      "action": "ROR",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "07",
-      "action": "ASR",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "08",
-      "action": "LSL",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "08",
-      "action": "ASL",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "09",
-      "action": "ROL",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "0A",
-      "action": "DEC",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "0C",
-      "action": "INC",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "0D",
-      "action": "TST",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 3,
-      "opcode": "0E",
-      "action": "JMP",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "0F",
-      "action": "CLR",
-      "size": 2
-    },
-    {
+      "action": "Aba",
       "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "12",
-      "action": "NOP",
-      "size": 1
+      "cpu": "6800"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "13",
-      "action": "SYNC",
-      "size": 1
+      "action": "abcd",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
     },
     {
-      "addr_mode": "Relative16",
-      "cycles": 5,
-      "opcode": "16",
-      "action": "LBRA",
-      "size": 3
+      "action": "abcd",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
     },
     {
-      "addr_mode": "Relative16",
-      "cycles": 9,
-      "opcode": "17",
-      "action": "LBSR",
-      "size": 3,
-      "subroutine": true
+      "action": "abcd.b",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "19",
-      "action": "DAA",
-      "size": 1
+      "action": "abcd.b",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
     },
     {
-      "addr_mode": "Immediate8",
-      "cycles": 3,
-      "opcode": "1A",
-      "action": "ORCC",
-      "size": 2
+      "action": "abs",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
     },
     {
-      "addr_mode": "Immediate8",
-      "cycles": 3,
-      "opcode": "1C",
-      "action": "ANDCC",
-      "size": 2
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "1D",
-      "action": "SEX",
-      "size": 1
-    },
-    {
-      "addr_mode": "RegisterPair",
-      "cycles": 8,
-      "opcode": "1E",
-      "action": "EXG",
-      "size": 2
-    },
-    {
-      "addr_mode": "RegisterPair",
-      "cycles": 6,
-      "opcode": "1F",
-      "action": "TFR",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "20",
-      "action": "BRA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "21",
-      "action": "BRN",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "22",
-      "action": "BHI",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "23",
-      "action": "BLS",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "24",
-      "action": "BCS",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "24",
-      "action": "BHS",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "26",
-      "action": "BNE",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "27",
-      "action": "BEQ",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "28",
-      "action": "BVC",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "29",
-      "action": "BVS",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "2A",
-      "action": "BPL",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "2B",
-      "action": "BMI",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "2C",
-      "action": "BGE",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "2D",
-      "action": "BLT",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "2E",
-      "action": "BGT",
-      "size": 2
-    },
-    {
-      "addr_mode": "Relative",
-      "cycles": 3,
-      "opcode": "2F",
-      "action": "BLE",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "30",
-      "action": "LEAX",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "31",
-      "action": "LEAY",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "32",
-      "action": "LEAS",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "33",
-      "action": "LEAU",
-      "size": 2
-    },
-    {
-      "addr_mode": "RegisterSet",
-      "cycles": 5,
-      "opcode": "34",
-      "action": "PSHS",
-      "size": 2
-    },
-    {
-      "addr_mode": "RegisterSet",
-      "cycles": 5,
-      "opcode": "35",
-      "action": "PULS",
-      "size": 2
-    },
-    {
-      "addr_mode": "RegisterSet",
-      "cycles": 5,
-      "opcode": "36",
-      "action": "PSHU",
-      "size": 2
-    },
-    {
-      "addr_mode": "RegisterSet",
-      "cycles": 5,
-      "opcode": "37",
-      "action": "PULU",
-      "size": 2
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 5,
-      "opcode": "39",
-      "action": "RTS",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 3,
-      "opcode": "3A",
       "action": "ABX",
-      "size": 1
+      "addr_mode": "Inherent",
+      "cpu": "6809"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 6,
-      "opcode": "3B",
-      "action": "RTI",
-      "size": 1
+      "action": "Adc",
+      "addr_mode": "Implied",
+      "cpu": "6502"
     },
     {
+      "action": "AdcA",
       "addr_mode": "Inherent",
-      "cycles": 22,
-      "opcode": "3C",
-      "action": "CWAI",
-      "size": 2
+      "cpu": "6800"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 11,
-      "opcode": "3D",
-      "action": "MUL",
-      "size": 1
+      "action": "ADCA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 19,
-      "opcode": "3F",
-      "action": "SWI",
-      "size": 1,
-      "subroutine": true
+      "action": "ADCA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "40",
-      "action": "NEGA",
-      "size": 1
+      "action": "ADCA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "43",
-      "action": "COMA",
-      "size": 1
+      "action": "ADCA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
     },
     {
+      "action": "AdcB",
       "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "44",
-      "action": "LSRA",
-      "size": 1
+      "cpu": "6800"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "46",
-      "action": "RORA",
-      "size": 1
+      "action": "ADCB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
     },
     {
+      "action": "ADCB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADCB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADCB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "add",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "add",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "add",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "add",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "add",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "add",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "add",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "add.b",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "add.b",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "add.l",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "add.l",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "add.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "add.w",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "adda",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "adda",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "AddA",
       "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "47",
+      "cpu": "6800"
+    },
+    {
+      "action": "ADDA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "adda.l",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "adda.w",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "AddB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "ADDB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "addc",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "ADDD",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDD",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDD",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ADDD",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "addi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "addi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "addi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "addi.b",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "addi.l",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "addi.w",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "addq",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "addq",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "addq",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "addq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "addq.b",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "addq.l",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "addq.w",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "addqmod",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "addqt",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "addx",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx.b",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx.b",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx.l",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx.l",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx.w",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "addx.w",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "and",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "and",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "and",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "and",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "and",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "and",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "and",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "And",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "and.b",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "and.b",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "and.l",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "and.l",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "and.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "and.w",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "AndA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "ANDA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "ANDA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ANDA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ANDA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "AndB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "ANDB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "ANDB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ANDB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ANDB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "ANDCC",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "andi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi.b",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi.b",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi.l",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi.w",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "andi.w",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Asl",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Asl",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "asl.b",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl.b",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl.l",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl.l",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl.w",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl.w",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asl.w",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "AslA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "AslB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "asr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Asr",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "ASR",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ASR",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ASR",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "asr.b",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr.b",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr.l",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr.l",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr.w",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr.w",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "asr.w",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "AsrA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
       "action": "ASRA",
-      "size": 1
+      "addr_mode": "Inherent",
+      "cpu": "6809"
     },
     {
+      "action": "AsrB",
       "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "48",
-      "action": "LSLA",
-      "size": 1
+      "cpu": "6800"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "48",
-      "action": "ASLA",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "49",
-      "action": "ROLA",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "4A",
-      "action": "DECA",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "4C",
-      "action": "INCA",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "4D",
-      "action": "TSTA",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "4F",
-      "action": "CLRA",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "50",
-      "action": "NEGB",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "53",
-      "action": "COMB",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "54",
-      "action": "LSRB",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "56",
-      "action": "RORB",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "57",
       "action": "ASRB",
-      "size": 1
-    },
-    {
       "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "58",
-      "action": "ASLB",
-      "size": 1
+      "cpu": "6809"
     },
     {
+      "action": "bcc",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bcc",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bcc",
       "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "58",
-      "action": "LSLB",
-      "size": 1
+      "cpu": "6800"
     },
     {
+      "action": "Bcc",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "bchg",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "bchg",
+      "addr_mode": "bitimm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "bclr",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "bclr",
+      "addr_mode": "bitimm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "bclr",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "bcs",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bcs",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bcs",
       "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "59",
-      "action": "ROLB",
-      "size": 1
+      "cpu": "6800"
     },
     {
+      "action": "Bcs",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "beq",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "beq",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Beq",
       "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "5A",
-      "action": "DECB",
-      "size": 1
+      "cpu": "6800"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "5C",
-      "action": "INCB",
-      "size": 1
+      "action": "Beq",
+      "addr_mode": "Implied",
+      "cpu": "6502"
     },
     {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "5D",
-      "action": "TSTB",
-      "size": 1
-    },
-    {
-      "addr_mode": "Inherent",
-      "cycles": 2,
-      "opcode": "5F",
-      "action": "CLRB",
-      "size": 1
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "60",
-      "action": "NEG",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "63",
-      "action": "COM",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "64",
-      "action": "LSR",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "66",
-      "action": "ROR",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "67",
-      "action": "ASR",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "68",
-      "action": "LSL",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "68",
-      "action": "ASL",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "69",
-      "action": "ROL",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "6A",
-      "action": "DEC",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "6C",
-      "action": "INC",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "6D",
-      "action": "TST",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 3,
-      "opcode": "6E",
-      "action": "JMP",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "6F",
-      "action": "CLR",
-      "size": 2
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "70",
-      "action": "NEG",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "73",
-      "action": "COM",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "74",
-      "action": "LSR",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "76",
-      "action": "ROR",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "77",
-      "action": "ASR",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "78",
-      "action": "ASL",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "78",
-      "action": "LSL",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "79",
-      "action": "ROL",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "7A",
-      "action": "DEC",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "7C",
-      "action": "INC",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "7D",
-      "action": "TST",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 4,
-      "opcode": "7E",
-      "action": "JMP",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "7F",
-      "action": "CLR",
-      "size": 3
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "80",
-      "action": "SUBA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "81",
-      "action": "CMPA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "82",
-      "action": "SBCA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate16",
-      "cycles": 4,
-      "opcode": "83",
-      "action": "SUBD",
-      "size": 3
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "84",
-      "action": "ANDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "85",
-      "action": "BITA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "86",
-      "action": "LDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "88",
-      "action": "EORA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "89",
-      "action": "ADCA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "8A",
-      "action": "ORA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "8B",
-      "action": "ADDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate16",
-      "cycles": 4,
-      "opcode": "8C",
-      "action": "CMPX",
-      "size": 3
-    },
-    {
+      "action": "BEQ",
       "addr_mode": "Relative",
-      "cycles": 7,
-      "opcode": "8D",
+      "cpu": "6809"
+    },
+    {
+      "action": "bge",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bge",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bge",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BGE",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bgt",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bgt",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bgt",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BGT",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bhi",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bhi",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bhi",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BHI",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "BHS/BCC",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "Bit",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "BitA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BITA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "BITA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "BITA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "BITA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "BitB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BITB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "BITB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "BITB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "BITB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "ble",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "ble",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Ble",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BLE",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "BLO/BCS",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bls",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bls",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bls",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BLS",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "blt",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "blt",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Blt",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BLT",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bmi",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bmi",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bmi",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Bmi",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "BMI",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bne",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bne",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bne",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Bne",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "BNE",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bpl",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bpl",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bpl",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Bpl",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "BPL",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bra",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bra",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "bra",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bra",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "BRA",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "Brk",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "BRN",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bset",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "bset",
+      "addr_mode": "bitimm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "bset",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "bsr",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bsr",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "bsr",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bsr",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
       "action": "BSR",
-      "size": 2,
-      "subroutine": true
-    },
-    {
-      "addr_mode": "Immediate16",
-      "cycles": 3,
-      "opcode": "8E",
-      "action": "LDX",
-      "size": 3
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "90",
-      "action": "SUBA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "91",
-      "action": "CMPA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "92",
-      "action": "SBCA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "93",
-      "action": "SUBD",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "94",
-      "action": "ANDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "95",
-      "action": "BITA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "96",
-      "action": "LDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "97",
-      "action": "STA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "98",
-      "action": "EORA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "99",
-      "action": "ADCA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "9A",
-      "action": "ORA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "9B",
-      "action": "ADDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "9C",
-      "action": "CMPX",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 7,
-      "opcode": "9D",
-      "action": "JSR",
-      "size": 2,
-      "subroutine": true
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 5,
-      "opcode": "9E",
-      "action": "LDX",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 5,
-      "opcode": "9F",
-      "action": "STX",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A0",
-      "action": "SUBA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A1",
-      "action": "CMPA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A2",
-      "action": "SBCA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "A3",
-      "action": "SUBD",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A4",
-      "action": "ANDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A5",
-      "action": "BITA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A6",
-      "action": "LDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A7",
-      "action": "STA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A8",
-      "action": "EORA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "A9",
-      "action": "ADCA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "AA",
-      "action": "ORA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "AB",
-      "action": "ADDA",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "AC",
-      "action": "CMPX",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 7,
-      "opcode": "AD",
-      "action": "JSR",
-      "size": 2,
-      "subroutine": true
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 5,
-      "opcode": "AE",
-      "action": "LDX",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 5,
-      "opcode": "AF",
-      "action": "STX",
-      "size": 2
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B0",
-      "action": "SUBA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B1",
-      "action": "CMPA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B2",
-      "action": "SBCA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "B3",
-      "action": "SUBD",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B4",
-      "action": "ANDA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B5",
-      "action": "BITA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B6",
-      "action": "LDA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B7",
-      "action": "STA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B8",
-      "action": "EORA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "B9",
-      "action": "ADCA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "BA",
-      "action": "ORA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "BB",
-      "action": "ADDA",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "BC",
-      "action": "CMPX",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 8,
-      "opcode": "BD",
-      "action": "JSR",
-      "size": 3,
-      "subroutine": true
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 6,
-      "opcode": "BE",
-      "action": "LDX",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 6,
-      "opcode": "BF",
-      "action": "STX",
-      "size": 3
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "C0",
-      "action": "SUBB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "C1",
-      "action": "CMPB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "C2",
-      "action": "SBCB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate16",
-      "cycles": 4,
-      "opcode": "C3",
-      "action": "ADDD",
-      "size": 3
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "C4",
-      "action": "ANDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "C5",
-      "action": "BITB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "C6",
-      "action": "LDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "C8",
-      "action": "EORB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "C9",
-      "action": "ADCB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "CA",
-      "action": "ORB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate8",
-      "cycles": 2,
-      "opcode": "CB",
-      "action": "ADDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Immediate16",
-      "cycles": 3,
-      "opcode": "CC",
-      "action": "LDD",
-      "size": 3
-    },
-    {
-      "addr_mode": "Immediate16",
-      "cycles": 3,
-      "opcode": "CE",
-      "action": "LDU",
-      "size": 3
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D0",
-      "action": "SUBB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D1",
-      "action": "CMPB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D2",
-      "action": "SBCB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 6,
-      "opcode": "D3",
-      "action": "ADDD",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D4",
-      "action": "ANDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D5",
-      "action": "BITB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D6",
-      "action": "LDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D7",
-      "action": "STB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D8",
-      "action": "EORB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "D9",
-      "action": "ADCB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "DA",
-      "action": "ORB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 4,
-      "opcode": "DB",
-      "action": "ADDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 5,
-      "opcode": "DC",
-      "action": "LDD",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 5,
-      "opcode": "DD",
-      "action": "STD",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 5,
-      "opcode": "DE",
-      "action": "LDU",
-      "size": 2
-    },
-    {
-      "addr_mode": "Direct",
-      "cycles": 5,
-      "opcode": "DF",
-      "action": "STU",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E0",
-      "action": "SUBB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E1",
-      "action": "CMPB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E2",
-      "action": "SBCB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 6,
-      "opcode": "E3",
-      "action": "ADDD",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E4",
-      "action": "ANDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E5",
-      "action": "BITB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E6",
-      "action": "LDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E7",
-      "action": "STB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E8",
-      "action": "EORB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "E9",
-      "action": "ADCB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "EA",
-      "action": "ORB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 4,
-      "opcode": "EB",
-      "action": "ADDB",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 5,
-      "opcode": "EC",
-      "action": "LDD",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 5,
-      "opcode": "ED",
-      "action": "STD",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 5,
-      "opcode": "EE",
-      "action": "LDU",
-      "size": 2
-    },
-    {
-      "addr_mode": "Indexed",
-      "cycles": 5,
-      "opcode": "EF",
-      "action": "STU",
-      "size": 2
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F0",
-      "action": "SUBB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F1",
-      "action": "CMPB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F2",
-      "action": "SBCB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 7,
-      "opcode": "F3",
-      "action": "ADDD",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F4",
-      "action": "ANDB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F5",
-      "action": "BITB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F6",
-      "action": "LDB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F7",
-      "action": "STB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F8",
-      "action": "EORB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "F9",
-      "action": "ADCB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "FA",
-      "action": "ORB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 5,
-      "opcode": "FB",
-      "action": "ADDB",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 6,
-      "opcode": "FC",
-      "action": "LDD",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 6,
-      "opcode": "FD",
-      "action": "STD",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 6,
-      "opcode": "FE",
-      "action": "LDU",
-      "size": 3
-    },
-    {
-      "addr_mode": "Extended",
-      "cycles": 6,
-      "opcode": "FF",
-      "action": "STU",
-      "size": 3
-    },
-    {
       "addr_mode": "Relative",
-      "cycles": 5,
-      "opcode": "1021",
-      "action": "LBRN",
-      "size": 4
+      "cpu": "6809"
     },
     {
+      "action": "btst",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "btst",
+      "addr_mode": "bitimm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "btst",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "bvc",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bvc",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bvc",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Bvc",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "BVC",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "bvs",
+      "addr_mode": "bcc8",
+      "cpu": "68000"
+    },
+    {
+      "action": "bvs",
+      "addr_mode": "bcc16",
+      "cpu": "68000"
+    },
+    {
+      "action": "Bvs",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Bvs",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "BVS",
+      "addr_mode": "Relative",
+      "cpu": "6809"
+    },
+    {
+      "action": "Cba",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "chk",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "chk.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "Clc",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Clc",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Cld",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Cli",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Cli",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "clr",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "clr",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "clr",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Clr",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "CLR",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "CLR",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "CLR",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "clr.b",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "clr.l",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "clr.w",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "ClrA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "CLRA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "ClrB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "CLRB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "Clv",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Clv",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "cmp",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmp",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmp",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmp",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "Cmp",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "cmp.b",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmp.l",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmp.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpa",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpa",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "CmpA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "CMPA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "cmpa.l",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpa.w",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "CmpB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "CMPB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPD",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPD",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPD",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPD",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "cmpi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpi.b",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpi.l",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpi.w",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpm",
+      "addr_mode": "postinc_postinc",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpm",
+      "addr_mode": "postinc_postinc",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpm",
+      "addr_mode": "postinc_postinc",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpm.b",
+      "addr_mode": "postinc_postinc",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpm.l",
+      "addr_mode": "postinc_postinc",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpm.w",
+      "addr_mode": "postinc_postinc",
+      "cpu": "68000"
+    },
+    {
+      "action": "cmpq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "CMPS",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPS",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPS",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPS",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPU",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPU",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPU",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPU",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPX",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPX",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPX",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPX",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPY",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPY",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPY",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "CMPY",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "Com",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "COM",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "COM",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "COM",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "ComA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "COMA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "ComB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "COMB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "Cpx",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Cpx",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Cpy",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "CWAI",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "Daa",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "DAA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "dbcc",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbcs",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbeq",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbge",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbgt",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbhi",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dble",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbls",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dblt",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbmi",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbne",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbpl",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbra",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbt",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbvc",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dbvs",
+      "addr_mode": "dbcc",
+      "cpu": "68000"
+    },
+    {
+      "action": "dc.w",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "dc.w",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "Dec",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Dec",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "DEC",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "DEC",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "DEC",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "DecA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "DECA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "DecB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "DECB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "Des",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Dex",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Dex",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Dey",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "div",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "divs",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "divs.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "divu",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "divu.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "eor",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eor",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eor",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Eor",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "eor.b",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eor.l",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eor.w",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "EorA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "EORA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "EORA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "EORA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "EORA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "EorB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "EORB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "EORB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "EORB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "EORB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "eori",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori.b",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori.b",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori.l",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori.w",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "eori.w",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "exg",
+      "addr_mode": "exg",
+      "cpu": "68000"
+    },
+    {
+      "action": "exg",
+      "addr_mode": "exg",
+      "cpu": "68000"
+    },
+    {
+      "action": "exg",
+      "addr_mode": "exg",
+      "cpu": "68000"
+    },
+    {
+      "action": "EXG",
+      "addr_mode": "RegisterPair",
+      "cpu": "6809"
+    },
+    {
+      "action": "exg.l",
+      "addr_mode": "exg",
+      "cpu": "68000"
+    },
+    {
+      "action": "exg.l",
+      "addr_mode": "exg",
+      "cpu": "68000"
+    },
+    {
+      "action": "exg.l",
+      "addr_mode": "exg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ext",
+      "addr_mode": "dreg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ext",
+      "addr_mode": "dreg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ext.l",
+      "addr_mode": "dreg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ext.w",
+      "addr_mode": "dreg",
+      "cpu": "68000"
+    },
+    {
+      "action": "illegal",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "imacn",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "imult",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "imultn",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "Inc",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Inc",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "INC",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "INC",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "INC",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "IncA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "INCA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "IncB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "INCB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "Ins",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Inx",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Inx",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Iny",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "jmp",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Jmp",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Jmp",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "JMP",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "JMP",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "JMP",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "jr",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "jsr",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Jsr",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Jsr",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "JSR",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "JSR",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "JSR",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "jump",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "LBEQ",
       "addr_mode": "Relative16",
-      "cycles": 5,
-      "opcode": "1022",
+      "cpu": "6809"
+    },
+    {
+      "action": "LBGE",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
+    },
+    {
+      "action": "LBGT",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
+    },
+    {
       "action": "LBHI",
-      "size": 4
+      "addr_mode": "Relative16",
+      "cpu": "6809"
     },
     {
+      "action": "LBHS/LBCC",
       "addr_mode": "Relative16",
-      "cycles": 5,
-      "opcode": "1023",
+      "cpu": "6809"
+    },
+    {
+      "action": "LBLE",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
+    },
+    {
+      "action": "LBLO/LBCS",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
+    },
+    {
       "action": "LBLS",
-      "size": 4
-    },
-    {
       "addr_mode": "Relative16",
-      "cycles": 5,
-      "opcode": "1024",
-      "action": "LBCC",
-      "size": 4
+      "cpu": "6809"
     },
     {
+      "action": "LBLT",
       "addr_mode": "Relative16",
-      "cycles": 5,
-      "opcode": "1024",
-      "action": "LBHS",
-      "size": 4
-    },
-
-    {
-        "addr_mode": "Relative",
-        "cycles": 3,
-        "opcode": "24",
-        "action": "BCC",
-        "size": 2
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "1025",
-        "action": "LBLO",
-        "size": 4
+      "action": "LBMI",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "1025",
-        "action": "LBCS",
-        "size": 4
+      "action": "LBNE",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "1026",
-        "action": "LBNE",
-        "size": 4
+      "action": "LBPL",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "1027",
-        "action": "LBEQ",
-        "size": 4
+      "action": "LBRA",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "1028",
-        "action": "LBVC",
-        "size": 4
+      "action": "LBRN",
+      "addr_mode": "Relative",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "1029",
-        "action": "LBVS",
-        "size": 4
+      "action": "LBSR",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "102A",
-        "action": "LBPL",
-        "size": 4
+      "action": "LBVC",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "102B",
-        "action": "LBMI",
-        "size": 4
+      "action": "LBVS",
+      "addr_mode": "Relative16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "102C",
-        "action": "LBGE",
-        "size": 4
+      "action": "Lda",
+      "addr_mode": "Implied",
+      "cpu": "6502"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "102D",
-        "action": "LBLT",
-        "size": 4
+      "action": "LDA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "102E",
-        "action": "LBGT",
-        "size": 4
+      "action": "LDA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Relative16",
-        "cycles": 5,
-        "opcode": "102F",
-        "action": "LBLE",
-        "size": 4
+      "action": "LDA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Inherent",
-        "cycles": 20,
-        "opcode": "103F",
-        "action": "SWI2",
-        "size": 2,
-        "subroutine": true
+      "action": "LDA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Immediate16",
-        "cycles": 5,
-        "opcode": "1083",
-        "action": "CMPD",
-        "size": 4
+      "action": "LdaA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
     },
     {
-        "addr_mode": "Immediate16",
-        "cycles": 5,
-        "opcode": "108C",
-        "action": "CMPY",
-        "size": 4
+      "action": "LdaB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
     },
     {
-        "addr_mode": "Immediate16",
-        "cycles": 5,
-        "opcode": "108E",
-        "action": "LDY",
-        "size": 4
+      "action": "LDB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Direct",
-        "cycles": 7,
-        "opcode": "1093",
-        "action": "CMPD",
-        "size": 3
+      "action": "LDB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Direct",
-        "cycles": 7,
-        "opcode": "109C",
-        "action": "CMPY",
-        "size": 3
+      "action": "LDB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Direct",
-        "cycles": 6,
-        "opcode": "109E",
-        "action": "LDY",
-        "size": 3
+      "action": "LDB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Direct",
-        "cycles": 6,
-        "opcode": "109F",
-        "action": "STY",
-        "size": 3
+      "action": "LDD",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Indexed",
-        "cycles": 7,
-        "opcode": "10A3",
-        "action": "CMPD",
-        "size": 3
+      "action": "LDD",
+      "addr_mode": "Direct",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Indexed",
-        "cycles": 7,
-        "opcode": "10AC",
-        "action": "CMPY",
-        "size": 3
+      "action": "LDD",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Indexed",
-        "cycles": 6,
-        "opcode": "10AE",
-        "action": "LDY",
-        "size": 3
+      "action": "LDD",
+      "addr_mode": "Extended",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Indexed",
-        "cycles": 6,
-        "opcode": "10AF",
-        "action": "STY",
-        "size": 3
+      "action": "Lds",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
     },
     {
-        "addr_mode": "Extended",
-        "cycles": 8,
-        "opcode": "10B3",
-        "action": "CMPD",
-        "size": 4
+      "action": "LDS",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Extended",
-        "cycles": 8,
-        "opcode": "10BC",
-        "action": "CMPY",
-        "size": 4
+      "action": "LDS",
+      "addr_mode": "Direct",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Extended",
-        "cycles": 7,
-        "opcode": "10BE",
-        "action": "LDY",
-        "size": 4
+      "action": "LDS",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Extended",
-        "cycles": 7,
-        "opcode": "10BF",
-        "action": "STY",
-        "size": 4
+      "action": "LDS",
+      "addr_mode": "Extended",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Immediate16",
-        "cycles": 4,
-        "opcode": "10CE",
-        "action": "LDS",
-        "size": 4
+      "action": "LDU",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Direct",
-        "cycles": 6,
-        "opcode": "10DE",
-        "action": "LDS",
-        "size": 3
+      "action": "LDU",
+      "addr_mode": "Direct",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Direct",
-        "cycles": 6,
-        "opcode": "10DF",
-        "action": "STS",
-        "size": 3
+      "action": "LDU",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Indexed",
-        "cycles": 6,
-        "opcode": "10EE",
-        "action": "LDS",
-        "size": 3
+      "action": "LDU",
+      "addr_mode": "Extended",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Indexed",
-        "cycles": 6,
-        "opcode": "10EF",
-        "action": "STS",
-        "size": 3
+      "action": "Ldx",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
     },
     {
-        "addr_mode": "Extended",
-        "cycles": 7,
-        "opcode": "10FE",
-        "action": "LDS",
-        "size": 4
+      "action": "Ldx",
+      "addr_mode": "Implied",
+      "cpu": "6502"
     },
     {
-        "addr_mode": "Extended",
-        "cycles": 7,
-        "opcode": "10FF",
-        "action": "STS",
-        "size": 4
+      "action": "LDX",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Inherent",
-        "cycles": 20,
-        "opcode": "113F",
-        "action": "SWI3",
-        "size": 2,
-        "subroutine": true
+      "action": "LDX",
+      "addr_mode": "Direct",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Indexed",
-        "cycles": 7,
-        "opcode": "11AC",
-        "action": "CMPS",
-        "size": 3
+      "action": "LDX",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Immediate16",
-        "cycles": 5,
-        "opcode": "1183",
-        "action": "CMPU",
-        "size": 4
+      "action": "LDX",
+      "addr_mode": "Extended",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Immediate16",
-        "cycles": 5,
-        "opcode": "118C",
-        "action": "CMPS",
-        "size": 4
+      "action": "Ldy",
+      "addr_mode": "Implied",
+      "cpu": "6502"
     },
     {
-        "addr_mode": "Direct",
-        "cycles": 7,
-        "opcode": "1193",
-        "action": "CMPU",
-        "size": 3
+      "action": "LDY",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Direct",
-        "cycles": 7,
-        "opcode": "119C",
-        "action": "CMPS",
-        "size": 3
+      "action": "LDY",
+      "addr_mode": "Direct",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Indexed",
-        "cycles": 7,
-        "opcode": "11A3",
-        "action": "CMPU",
-        "size": 3
+      "action": "LDY",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Extended",
-        "cycles": 8,
-        "opcode": "11B3",
-        "action": "CMPU",
-        "size": 4
+      "action": "LDY",
+      "addr_mode": "Extended",
+      "cpu": "6809"
     },
     {
-        "addr_mode": "Extended",
-        "cycles": 8,
-        "opcode": "11BC",
-        "action": "CMPS",
-        "size": 4
+      "action": "lea",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
     },
-
     {
-        "addr_mode": "Relative",
-        "cycles": 3,
-        "opcode": "25",
-        "action": "BLO",
-        "size": 2
+      "action": "lea.l",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "LEAS",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "LEAU",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "LEAX",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "LEAY",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "link",
+      "addr_mode": "link",
+      "cpu": "68000"
+    },
+    {
+      "action": "load",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "loadb",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "loadp",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "loadw",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "lsl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl.b",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl.b",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl.l",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl.l",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl.w",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl.w",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsl.w",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "LSL/ASL",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "LSL/ASL",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "LSL/ASL",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "LSLA/ASLA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "LSLB/ASLB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "lsr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Lsr",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Lsr",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "LSR",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "LSR",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "LSR",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "lsr.b",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr.b",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr.l",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr.l",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr.w",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr.w",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "lsr.w",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "LsrA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "LSRA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "LsrB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "LSRB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "mirror",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "mmult",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "move",
+      "addr_mode": "move",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "move",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "move",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "areg",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "areg",
+      "cpu": "68000"
+    },
+    {
+      "action": "move",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "move.b",
+      "addr_mode": "move",
+      "cpu": "68000"
+    },
+    {
+      "action": "move.b",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "move.b",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "move.l",
+      "addr_mode": "move",
+      "cpu": "68000"
+    },
+    {
+      "action": "move.l",
+      "addr_mode": "areg",
+      "cpu": "68000"
+    },
+    {
+      "action": "move.l",
+      "addr_mode": "areg",
+      "cpu": "68000"
+    },
+    {
+      "action": "move.w",
+      "addr_mode": "move",
+      "cpu": "68000"
+    },
+    {
+      "action": "move.w",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "move.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "movea",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "movea",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "movea.l",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "movea.w",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "movefa",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "movei",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "movem",
+      "addr_mode": "movem_pd",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem",
+      "addr_mode": "movem_pd",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem",
+      "addr_mode": "movem_re",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem",
+      "addr_mode": "movem_re",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem",
+      "addr_mode": "movem_er",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem",
+      "addr_mode": "movem_er",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem.l",
+      "addr_mode": "movem_pd",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem.l",
+      "addr_mode": "movem_re",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem.l",
+      "addr_mode": "movem_er",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem.w",
+      "addr_mode": "movem_pd",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem.w",
+      "addr_mode": "movem_re",
+      "cpu": "68000"
+    },
+    {
+      "action": "movem.w",
+      "addr_mode": "movem_er",
+      "cpu": "68000"
+    },
+    {
+      "action": "movep",
+      "addr_mode": "movep",
+      "cpu": "68000"
+    },
+    {
+      "action": "movep",
+      "addr_mode": "movep",
+      "cpu": "68000"
+    },
+    {
+      "action": "movep",
+      "addr_mode": "movep",
+      "cpu": "68000"
+    },
+    {
+      "action": "movep",
+      "addr_mode": "movep",
+      "cpu": "68000"
+    },
+    {
+      "action": "movep.l",
+      "addr_mode": "movep",
+      "cpu": "68000"
+    },
+    {
+      "action": "movep.l",
+      "addr_mode": "movep",
+      "cpu": "68000"
+    },
+    {
+      "action": "movep.w",
+      "addr_mode": "movep",
+      "cpu": "68000"
+    },
+    {
+      "action": "movep.w",
+      "addr_mode": "movep",
+      "cpu": "68000"
+    },
+    {
+      "action": "moveq",
+      "addr_mode": "moveq",
+      "cpu": "68000"
+    },
+    {
+      "action": "moveq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "moveq.l",
+      "addr_mode": "moveq",
+      "cpu": "68000"
+    },
+    {
+      "action": "moveta",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "mtoi",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "MUL",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "muls",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "muls.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "mult",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "mulu",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "mulu.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "nbcd",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "nbcd.b",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "neg",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "neg",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "neg",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "neg",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "Neg",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "NEG",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "NEG",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "NEG",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "NEG",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "neg.b",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "neg.l",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "neg.w",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "NegA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "NEGA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "NegB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "NEGB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "negx",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "negx",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "negx",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "negx.b",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "negx.l",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "negx.w",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "nop",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "nop",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "Nop",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Nop",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "NOP",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "normi",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "not",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "not",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "not",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "not",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "not.b",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "not.l",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "not.w",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "or",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "or",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "or",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "or",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "or",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "or",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "or",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "or.b",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "or.b",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "or.l",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "or.l",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "or.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "or.w",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Ora",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "ORA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "ORA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ORA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ORA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "OraA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "OraB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "ORB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "ORB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ORB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ORB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "ORCC",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "ori",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori.b",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori.b",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori.l",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori.w",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "ori.w",
+      "addr_mode": "imm_only",
+      "cpu": "68000"
+    },
+    {
+      "action": "pack",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "pea",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "pea.l",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Pha",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Php",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Pla",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Plp",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "PshA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "PshB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "PSHS",
+      "addr_mode": "RegisterSet",
+      "cpu": "6809"
+    },
+    {
+      "action": "PSHU",
+      "addr_mode": "RegisterSet",
+      "cpu": "6809"
+    },
+    {
+      "action": "PulA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "PulB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "PULS",
+      "addr_mode": "RegisterSet",
+      "cpu": "6809"
+    },
+    {
+      "action": "PULU",
+      "addr_mode": "RegisterSet",
+      "cpu": "6809"
+    },
+    {
+      "action": "reset",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "resmac",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "rol",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Rol",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Rol",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "ROL",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ROL",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ROL",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "rol.b",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol.b",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol.l",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol.l",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol.w",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol.w",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "rol.w",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "RolA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "ROLA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "RolB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "ROLB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "rolq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "ror",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "Ror",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Ror",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "ROR",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "ROR",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "ROR",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "ror.b",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror.b",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror.l",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror.l",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror.w",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror.w",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "ror.w",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "RorA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "RORA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "RorB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "RORB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "rorq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "roxl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl.b",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl.b",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl.l",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl.l",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl.w",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl.w",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxl.w",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr.b",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr.b",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr.l",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr.l",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr.w",
+      "addr_mode": "shift_imm",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr.w",
+      "addr_mode": "shift_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "roxr.w",
+      "addr_mode": "shift_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "rte",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "Rti",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Rti",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "RTI",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "rtr",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "rts",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "Rts",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Rts",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "RTS",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "sat16",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "sat16s",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "sat24",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "sat32s",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "sat8",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "Sba",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Sbc",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "SbcA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "SBCA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "SBCA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "SBCA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "SBCA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "SbcB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "SBCB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "SBCB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "SBCB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "SBCB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "sbcd",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "sbcd",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "sbcd.b",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "sbcd.b",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "scc",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "scc.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "scs",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "scs.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "Sec",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Sec",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Sed",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Sei",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Sei",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "seq",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "seq.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "Sev",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "SEX",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "sf",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sf.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sge",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sge.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sgt",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sgt.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sh",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "sha",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "sharq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "shi",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "shi.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "shlq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "shrq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "sle",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sle.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sls",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sls.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "slt",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "slt.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "smi",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "smi.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sne",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "sne.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "spl",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "spl.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "st",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "st.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "Sta",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "STA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "STA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "STA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "StaA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "StaB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "STB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "STB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "STB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "STD",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "STD",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "STD",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "stop",
+      "addr_mode": "imm16",
+      "cpu": "68000"
+    },
+    {
+      "action": "store",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "storeb",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "storep",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "storew",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "Sts",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "STS",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "STS",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "STS",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "STU",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "STU",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "STU",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "Stx",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Stx",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "STX",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "STX",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "STX",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "Sty",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "STY",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "STY",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "STY",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "sub",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "sub.b",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub.b",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub.l",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub.l",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub.w",
+      "addr_mode": "ea_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "sub.w",
+      "addr_mode": "reg_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "suba",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "suba",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "SubA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "SUBA",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBA",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBA",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBA",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "suba.l",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "suba.w",
+      "addr_mode": "ea_addr",
+      "cpu": "68000"
+    },
+    {
+      "action": "SubB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "SUBB",
+      "addr_mode": "Immediate8",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBB",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBB",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBB",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "subc",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "SUBD",
+      "addr_mode": "Immediate16",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBD",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBD",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "SUBD",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "subi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "subi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "subi",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "subi.b",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "subi.l",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "subi.w",
+      "addr_mode": "imm_ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "subq",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "subq",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "subq",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "subq",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "subq.b",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "subq.l",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "subq.w",
+      "addr_mode": "addq",
+      "cpu": "68000"
+    },
+    {
+      "action": "subqmod",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "subqt",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "subx",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx.b",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx.b",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx.l",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx.l",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx.w",
+      "addr_mode": "reg_reg",
+      "cpu": "68000"
+    },
+    {
+      "action": "subx.w",
+      "addr_mode": "predec_predec",
+      "cpu": "68000"
+    },
+    {
+      "action": "svc",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "svc.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "svs",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "svs.b",
+      "addr_mode": "scc",
+      "cpu": "68000"
+    },
+    {
+      "action": "swap",
+      "addr_mode": "dreg",
+      "cpu": "68000"
+    },
+    {
+      "action": "swap.w",
+      "addr_mode": "dreg",
+      "cpu": "68000"
+    },
+    {
+      "action": "Swi",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "SWI",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "SWI2",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "SWI3",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "SYNC",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "Tab",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Tap",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "tas",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "tas.b",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Tax",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Tay",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Tba",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "TFR",
+      "addr_mode": "RegisterPair",
+      "cpu": "6809"
+    },
+    {
+      "action": "Tpa",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "trap",
+      "addr_mode": "trap",
+      "cpu": "68000"
+    },
+    {
+      "action": "trapv",
+      "addr_mode": "none",
+      "cpu": "68000"
+    },
+    {
+      "action": "tst",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "tst",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "tst",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "Tst",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "TST",
+      "addr_mode": "Direct",
+      "cpu": "6809"
+    },
+    {
+      "action": "TST",
+      "addr_mode": "Indexed",
+      "cpu": "6809"
+    },
+    {
+      "action": "TST",
+      "addr_mode": "Extended",
+      "cpu": "6809"
+    },
+    {
+      "action": "tst.b",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "tst.l",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "tst.w",
+      "addr_mode": "ea",
+      "cpu": "68000"
+    },
+    {
+      "action": "TstA",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "TSTA",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "TstB",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "TSTB",
+      "addr_mode": "Inherent",
+      "cpu": "6809"
+    },
+    {
+      "action": "Tsx",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Tsx",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Txa",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Txs",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "Txs",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "Tya",
+      "addr_mode": "Implied",
+      "cpu": "6502"
+    },
+    {
+      "action": "unlk",
+      "addr_mode": "areg",
+      "cpu": "68000"
+    },
+    {
+      "action": "unpack",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
+    },
+    {
+      "action": "Wai",
+      "addr_mode": "Inherent",
+      "cpu": "6800"
+    },
+    {
+      "action": "xor",
+      "addr_mode": "Jrisc",
+      "cpu": "jrisc"
     }
   ]
 }

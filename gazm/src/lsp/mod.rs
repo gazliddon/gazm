@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 
 use grl_sources::{AsmSource, SourceFile};
+use grl_utils::FileIo;
 use unraveler::Severity;
 
 use crate::{
@@ -25,25 +26,40 @@ use crate::{
 
 mod analysis;
 use analysis::ProjectAnalysis;
+mod semantic;
+use semantic::semantic_tokens_full;
 
 struct AnalysisJob {
     generation: u64,
     uri: String,
     documents: HashMap<String, String>,
     opts: Opts,
+    /// Index into the server's target list, used to attribute project
+    /// files to targets via the include graph.
+    target_index: usize,
 }
 
 fn format_cpu(cpu: crate::cpukind::CpuKind) -> &'static str {
+    use crate::cpukind::CpuKind::*;
     match cpu {
-        crate::cpukind::CpuKind::Cpu6800 => "6800",
-        crate::cpukind::CpuKind::Cpu6809 => "6809",
-        _ => "unknown",
+        Cpu6800 => "6800",
+        Cpu6809 => "6809",
+        Cpu6502 => "6502",
+        Cpu65c02 => "65c02",
+        CpuZ80 => "z80",
+        Cpu68000 => "68000",
+        CpuJagrisc => "jrisc",
     }
 }
 
-fn target_for_document(uri: &str, opts: &[Opts]) -> usize {
+fn target_for_document(uri: &str, opts: &[Opts], file_targets: &HashMap<PathBuf, usize>) -> usize {
     let path = uri_to_path(uri);
     let canonical = path.canonicalize().unwrap_or(path);
+    // The include-graph map is authoritative: it records which target's
+    // project file transitively pulled this document into the build.
+    if let Some(idx) = file_targets.get(&canonical) {
+        return *idx;
+    }
     opts.iter()
         .position(|target| {
             let Some(root) = target.assemble_dir.as_ref() else {
@@ -95,9 +111,15 @@ fn run_server(
     let mut documents = HashMap::<String, String>::new();
     let fallback_opts = opts.first().cloned().unwrap_or_default();
 
-    let selected_opts = |uri: &str| -> &Opts {
-        opts.get(target_for_document(uri, opts))
-            .unwrap_or(&fallback_opts)
+    // file path -> target index, derived from each target's include graph
+    // after a build. Populated by the analysis worker; consulted when a
+    // document's target is looked up.
+    let file_targets = Arc::new(Mutex::new(HashMap::<PathBuf, usize>::new()));
+
+    let selected_opts = |uri: &str| -> (&Opts, usize) {
+        let ft = file_targets.lock().unwrap_or_else(|e| e.into_inner());
+        let idx = target_for_document(uri, opts, &ft);
+        (opts.get(idx).unwrap_or(&fallback_opts), idx)
     };
 
     let mut current_generation: u64 = 0;
@@ -111,6 +133,7 @@ fn run_server(
         let worker_analysis = Arc::clone(&analysis);
         let worker_completed = Arc::clone(&latest_completed);
         let worker_writer = Arc::clone(&writer);
+        let worker_targets = Arc::clone(&file_targets);
 
         scope.spawn(move || {
             let mut assembler: Option<Assembler> = None;
@@ -125,6 +148,33 @@ fn run_server(
                     rebuild_analysis(&latest_job.documents, &latest_job.opts, assembler.take());
                 assembler = new_assembler;
 
+                // Record which files this target's build pulled in.
+                // Accumulate across targets (do not clear) so a multi-target
+                // project keeps every target's file mapping; a file shared
+                // between targets takes the most recently built one.
+                //
+                // Two sources feed the map:
+                //  * files read through the loader (bin references etc.)
+                //    belong to this target by construction — the job built
+                //    it; and
+                //  * source-table files (project sources plus open
+                //    documents) are resolved through the same
+                //    `target_for_document` heuristic the request threads
+                //    use, so open documents of OTHER targets are not
+                //    re-mapped to this one.
+                if let (Some(asm), Ok(mut ft)) = (assembler.as_ref(), worker_targets.lock()) {
+                    for p in asm.source_file_loader.get_files_read() {
+                        let p = p.canonicalize().unwrap_or(p);
+                        ft.insert(p, latest_job.target_index);
+                    }
+                    for sf in asm.source_file_loader.sources.id_to_source_file.values() {
+                        let uri = format!("file://{}", sf.file.to_string_lossy());
+                        let idx = target_for_document(&uri, opts, &ft);
+                        let p = sf.file.canonicalize().unwrap_or_else(|_| sf.file.clone());
+                        ft.insert(p, idx);
+                    }
+                }
+
                 let completed = worker_completed.load(Ordering::SeqCst);
                 if latest_job.generation >= completed {
                     worker_completed.store(latest_job.generation, Ordering::SeqCst);
@@ -138,7 +188,24 @@ fn run_server(
                                 &latest_job.uri,
                                 &analysis_lock,
                             );
-                            let _ = publish_target(&mut **w, &latest_job.uri, &latest_job.opts);
+                            // Tell the client the target (and CPU) of every
+                            // file the project includes, so it can pick
+                            // filetypes/grammars per buffer.  Each file is
+                            // announced with the opts of the target it maps
+                            // to — not the job's — so a multi-target project
+                            // keeps every file's own cpu.
+                            if let Ok(ft) = worker_targets.lock() {
+                                let mut files: Vec<PathBuf> = ft.keys().cloned().collect();
+                                files.sort();
+                                for file in files {
+                                    if let Some(&idx) = ft.get(&file) {
+                                        if let Some(target) = opts.get(idx) {
+                                            let uri = format!("file://{}", file.to_string_lossy());
+                                            let _ = publish_target(&mut **w, &uri, target);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -176,7 +243,14 @@ fn run_server(
                             "referencesProvider": true,
                             "renameProvider": {"prepareProvider": true},
                             "documentFormattingProvider": true,
-                            "documentRangeFormattingProvider": true
+                            "documentRangeFormattingProvider": true,
+                            "semanticTokensProvider": {
+                                "legend": {
+                                    "tokenTypes": semantic::TOKEN_TYPES,
+                                    "tokenModifiers": []
+                                },
+                                "full": true
+                            }
                         },
                         "serverInfo": {
                             "name": "gazm",
@@ -189,7 +263,7 @@ fn run_server(
                 "textDocument/didOpen" => {
                     if let Some((uri, text)) = open_document(&message) {
                         documents.insert(uri.clone(), text);
-                        let target_opts = selected_opts(&uri);
+                        let (target_opts, target_index) = selected_opts(&uri);
                         current_generation += 1;
                         if let Ok(mut w) = writer.lock() {
                             if let Err(e) =
@@ -204,6 +278,7 @@ fn run_server(
                             uri: uri.clone(),
                             documents: documents.clone(),
                             opts: target_opts.clone(),
+                            target_index,
                         });
                     }
                     None
@@ -211,7 +286,7 @@ fn run_server(
                 "textDocument/didChange" => {
                     if let Some((uri, text)) = changed_document(&message) {
                         documents.insert(uri.clone(), text);
-                        let target_opts = selected_opts(&uri);
+                        let (target_opts, target_index) = selected_opts(&uri);
                         current_generation += 1;
                         if let Ok(mut w) = writer.lock() {
                             if let Err(e) =
@@ -226,6 +301,7 @@ fn run_server(
                             uri: uri.clone(),
                             documents: documents.clone(),
                             opts: target_opts.clone(),
+                            target_index,
                         });
                     }
                     None
@@ -233,7 +309,7 @@ fn run_server(
                 "textDocument/didSave" => {
                     if let Some(uri) = document_uri(&message) {
                         if let Some(text) = documents.get(&uri) {
-                            let target_opts = selected_opts(&uri);
+                            let (target_opts, target_index) = selected_opts(&uri);
                             current_generation += 1;
                             if let Ok(mut w) = writer.lock() {
                                 if let Err(e) =
@@ -248,6 +324,7 @@ fn run_server(
                                 uri: uri.clone(),
                                 documents: documents.clone(),
                                 opts: target_opts.clone(),
+                                target_index,
                             });
                         }
                     }
@@ -256,7 +333,7 @@ fn run_server(
                 "textDocument/didClose" => {
                     if let Some(uri) = document_uri(&message) {
                         documents.remove(&uri);
-                        let target_opts = selected_opts(&uri);
+                        let (target_opts, target_index) = selected_opts(&uri);
                         current_generation += 1;
                         if let Ok(mut w) = writer.lock() {
                             let notification = json!({
@@ -276,16 +353,27 @@ fn run_server(
                             uri: uri.clone(),
                             documents: documents.clone(),
                             opts: target_opts.clone(),
+                            target_index,
                         });
                     }
                     None
+                }
+                "textDocument/semanticTokens/full" => {
+                    let result = document_uri(&message)
+                        .and_then(|uri| {
+                            documents
+                                .get(&uri)
+                                .map(|text| semantic_tokens_full(text, selected_opts(&uri).0.cpu))
+                        })
+                        .unwrap_or_else(|| json!({"data": []}));
+                    Some(success(id, result))
                 }
                 "textDocument/documentSymbol" => {
                     let result = document_uri(&message)
                         .and_then(|uri| {
                             documents
                                 .get(&uri)
-                                .map(|text| document_symbols(text, selected_opts(&uri)))
+                                .map(|text| document_symbols(text, selected_opts(&uri).0))
                         })
                         .unwrap_or_default();
                     Some(success(id, Value::Array(result)))
@@ -296,7 +384,7 @@ fn run_server(
                         &message,
                         &documents,
                         &analysis_guard,
-                        selected_opts(&document_uri(&message).unwrap_or_default()),
+                        selected_opts(&document_uri(&message).unwrap_or_default()).0,
                     );
                     Some(success(id, result))
                 }

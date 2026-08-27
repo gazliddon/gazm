@@ -22,11 +22,10 @@ fdb ptable::size
   (opcode
     (mnemonic)
     (operand
-      (constant_offset
-        (scoped_label
-          (label)
-          (label))
-        (x))))
+      (scoped_label
+        (label)
+        (label))
+      (label)))
   (fdb
     (scoped_label
       (label)
@@ -75,12 +74,12 @@ lda >FOO,x
   (opcode
     (mnemonic)
     (operand
-      (constant_offset
-        (label)
-        (u))))
+      (direct_page
+        (label))
+      (label)))
   (opcode
     (mnemonic)
     (operand
-      (constant_offset
-        (label)
-        (x)))))
+      (direct_page
+        (label))
+      (label))))

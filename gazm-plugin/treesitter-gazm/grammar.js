@@ -4,6 +4,7 @@ const fs = require('fs')
 
 const PREC = {
     LONG_DOC: 100,
+    STRING: 30,
     PAREN_DECLARATOR: -10,
     ASSIGNMENT: -1,
     CONDITIONAL: -2,
@@ -66,6 +67,9 @@ module.exports = grammar({
         // bare label could also begin a scoped_name. The parser resolves
         // it: without a following `::` only the bare label completes.
         [$._identifier, $.scoped_label],
+        // A `dc.b 'x',...` element can be a single-quoted string or an
+        // expression; keep both parses live.
+        [$._expression, $.madmac_dc],
     ],
 
     rules: {
@@ -97,8 +101,8 @@ module.exports = grammar({
             optional(seq(',', field('len', $._expression)))
         ),
 
-        incbin: $ => seq(asRegex('incbin'),
-            field('file', $.string_literal),
+        incbin: $ => seq(choice(asRegex('incbin'), asRegex('.incbin')),
+            field('file', choice($.string_literal, $.madmac_string)),
             optional($._incbinargs)
         ),
 
@@ -134,7 +138,7 @@ module.exports = grammar({
 
         fdb: $ => seq(asRegex( 'fdb' ), commaSep1($._expression)),
         fcb: $ => seq(asRegex( 'fcb' ), commaSep1($._expression)),
-        fcc: $ => seq(asRegex( 'fcc' ), commaSep1($.string_literal)),
+        fcc: $ => seq(asRegex('fcc'), commaSep1(choice($.string_literal, $.madmac_string))),
 
         zmb: $ => seq(asRegex( 'zmb' ), $._expression),
         zmd: $ => seq(asRegex( 'zmd' ), $._expression),
@@ -149,7 +153,10 @@ module.exports = grammar({
         ),
 
         exec_addr: $ => seq(asRegex( 'exec_addr' ), $._expression),
-        include: $ => seq(asRegex( 'include' ), $.string_literal),
+        include: $ => seq(
+            choice(asRegex('include'), asRegex('.include')),
+            choice($.string_literal, $.madmac_string),
+        ),
 
         _incbinargs: $ =>
             choice(
@@ -178,6 +185,13 @@ module.exports = grammar({
                 $.zmd,
                 $.rmb,
 				$.importer,
+            // MadMac / multi-CPU spellings
+            $.regequ,
+            $.madmac_macro,
+            $.endm,
+            $.madmac_dc,
+            $.madmac_simple,
+            $.madmac_decl,
         ),
 
         struct_def: $ => seq(
@@ -190,7 +204,7 @@ module.exports = grammar({
         elem_type: $ => seq(choice('byte', 'word', 'dword', 'qword'), optional($.array)),
         array: $ => seq('[', $._expression, ']'),
 
-        macro_def: $ => seq("macro", $._identifier, $.macro_args, $.macro_body),
+        macro_def: $ => seq("macro", $._identifier, optional($.macro_args), $.macro_body),
         macro_args: $ => seq('(', commaSep($._identifier), ')'),
         macro_body: $ => seq('{', repeat($._block_content), '}'),
 
@@ -397,21 +411,16 @@ module.exports = grammar({
             '"',
         ),
 
-        char_literal: $ => seq(
-            '\'',
-            choice(
-                $.escape_sequence,
-                token.immediate(/[^\n']/)
-            ),
-            '\''
-        ),
+        // MadMac single-quoted strings (`include 'jaguar.inc'`,
+        // `dc.b 'demo fire to play'`) — no escapes.
+        madmac_string: $ => prec(PREC.STRING, seq("'", /[^'\n]*/, "'")),
 
         _expression: $ => choice(
             $.binary_expression,
             $.unary_expression,
             $._identifier,
             $._number_literal,
-            $.char_literal,
+            $.madmac_string,
             $.pc_expr,
             $.parenthesized_expression,
             $.call_expression,
@@ -442,14 +451,58 @@ module.exports = grammar({
         xfer_mnemonics: $ => mnemonicRegex('RegisterPair'),
         reg_xfer: $ => seq($._reg, ',', $._reg),
 
-        operand: $ => choice($.immediate, $.extended, $.direct_page, $._indexed),
+        // Generic operand list covering every dialect: `lda 1234`,
+        // `move d0,d1`, `load (r0),r1`, `tfr a,cc`, `5,x`. The 6809
+        // specific forms (extended/constant_offset/reg_xfer/...) are
+        // intentionally collapsed into this one shape; only the forms a
+        // generic list cannot express — those starting with ',' or '['
+        // — keep their own nodes.
+        operand: $ => choice(
+            $.indirect,
+            $.zero_index,
+            $.post_inc,
+            $.post_inc_inc,
+            $.pre_dec,
+            $.pre_dec_dec,
+            commaSep1($._generic_operand),
+        ),
+
+        _generic_operand: $ => choice($.immediate, $.direct_page, $._expression),
 
         immediate: $ => seq('#', $._expression),
         extended: $ => $._expression,
         direct_page: $ => seq('>', $._expression),
 
         // equate
-        equate: $ => seq($._identifier, ':', asRegex('equ'), $._expression),
+        equate: $ => seq($._identifier, optional(':'), asRegex('equ'), $._expression),
+
+        // MadMac `NAME REGEQU rN` — equate a name to a JRISC register.
+        regequ: $ => seq($._identifier, optional(':'), asRegex('regequ'), $._expression),
+
+        // MadMac macro definitions (`MACRO name` ... `ENDM`, no braces or
+        // formal argument list) and the `ENDM` terminator.
+        madmac_macro: $ => seq(asRegex('macro'), $._identifier),
+        endm: $ => asRegex('endm'),
+
+        // MadMac data/reserve directives with dot spellings.
+        madmac_dc: $ => seq(
+            choice(
+                asRegex('.dc.b'), asRegex('.dc.w'), asRegex('.dc.l'),
+                asRegex('.ds.b'), asRegex('.ds.w'), asRegex('.ds.l'),
+                asRegex('.dcb.b'), asRegex('.dcb.w'), asRegex('.dcb.l'),
+                asRegex('.org'), asRegex('.fill'),
+            ),
+            commaSep(choice($.string_literal, $.madmac_string, $._expression))),
+
+        // MadMac alignment / section / declaration directives.
+        madmac_simple: $ => choice(
+            asRegex('.phrase'), asRegex('.dphrase'), asRegex('.qphrase'),
+            asRegex('.even'), asRegex('.text'), asRegex('.data'), asRegex('.bss'),
+        ),
+
+        madmac_decl: $ => seq(
+            choice(asRegex('.extern'), asRegex('.globl'), asRegex('globl')),
+            commaSep1($._identifier)),
 
         // Regs
         a: $ => /A|a/,

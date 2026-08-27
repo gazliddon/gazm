@@ -9,6 +9,19 @@
 [(incbin) (org) (section) (scope) (fdb) (fcb) (fill) (rmb) (fcc) (include)
  (writebin) (setdp) (bsz) (zmb) (zmd) (exec_addr)] @keyword.directive
 
+; MadMac / JRISC directives (dot spellings, REGEQU, MACRO/ENDM)
+[(madmac_simple) (madmac_decl) (madmac_dc) (madmac_macro) (endm) (regequ)] @keyword.directive
+
+; MadMac register equates and macro names read as labels; the directive word
+; itself is an anonymous token inside the parent rule, so these come AFTER
+; the directive captures above to let the name win over the keyword colour.
+(regequ (label) @label)
+(regequ (scoped_label) @label)
+(regequ (local_label) @label)
+(madmac_macro (label) @label)
+(madmac_macro (scoped_label) @label)
+(madmac_macro (local_label) @label)
+
 ; `repeat` is not a reserved token (REPEAT stays a usable symbol), so it is
 ; matched as a plain identifier in statement position and highlighted via
 ; the keyword field instead.
@@ -42,7 +55,6 @@
 (scope (local_label) @module)
 (import_group scope: (label) @module)
 (import_group name: (label) @label)
-(import_group scope: (scoped_label) @module)
 
 ;; Punctuation
 ["{" "}" "[" "]"] @punctuation.bracket
@@ -57,6 +69,15 @@
 ;; Registers
 (fcb (label) @number)
 [(x) (y) (s) (u) (dp) (a) (b) (d) (pc)] @variable.builtin
+
+; Registers that lex as plain identifiers on their CPU: 68000 dN/aN/SP/SR/
+; CCR/USP, JRISC r0-r31, z80 HL/BC/DE/AF/IX/IY, 6800/6502 SP.  Must come
+; after `(label) @label` so the register colour wins.  The outer parens are
+; required: a predicate only attaches to the node pattern when both are
+; wrapped in one parenthesised pattern.
+((label) @variable.builtin
+  (#match? @variable.builtin
+    "^(a|b|x|y|s|u|d|sp|pc|sr|ccr|usp|d[0-7]|a[0-7]|r([0-9]|[12][0-9]|3[01])|hl|bc|de|af|ix|iy)$"))
 
 ;; Comments & Docs
 (comment) @comment @spell

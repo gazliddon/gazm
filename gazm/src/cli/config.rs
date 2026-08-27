@@ -67,13 +67,18 @@ impl std::fmt::Debug for ConfigErrorType {
 impl TomlConfig {
     pub fn new_from_file<P: AsRef<std::path::Path>>(file: P) -> ConfigError<Self> {
         let file = file.as_ref();
+        // Resolve the config to an absolute path up front so `run_dir`
+        // (below) is never empty — a bare `gazm.toml` argument (as the LSP
+        // client passes) otherwise loses its directory and every target
+        // ends up with `assemble_dir = None`.
+        let config_path = std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf());
 
-        let run_dir = file
+        let run_dir = config_path
             .parent()
             .filter(|p| !p.as_os_str().is_empty())
             .map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf()));
 
-        let f = std::fs::read_to_string(file).expect("can't read");
+        let f = std::fs::read_to_string(&config_path).expect("can't read");
         let toml = toml::from_str::<LoadedTomlConfig>(&f);
 
         match toml {
@@ -111,7 +116,7 @@ impl TomlConfig {
                     .collect();
 
                 let config = TomlConfig {
-                    file: file.to_path_buf(),
+                    file: config_path,
                     opts,
                     targets,
                 };

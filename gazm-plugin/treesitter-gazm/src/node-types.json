@@ -101,10 +101,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -122,6 +118,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -164,10 +164,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -185,6 +181,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -232,10 +232,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -253,6 +249,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -308,10 +308,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -329,6 +325,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -444,10 +444,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -465,6 +461,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -517,6 +517,10 @@
         },
         {
           "type": "doc",
+          "named": true
+        },
+        {
+          "type": "endm",
           "named": true
         },
         {
@@ -592,6 +596,22 @@
           "named": true
         },
         {
+          "type": "madmac_dc",
+          "named": true
+        },
+        {
+          "type": "madmac_decl",
+          "named": true
+        },
+        {
+          "type": "madmac_macro",
+          "named": true
+        },
+        {
+          "type": "madmac_simple",
+          "named": true
+        },
+        {
           "type": "opcode",
           "named": true
         },
@@ -601,6 +621,10 @@
         },
         {
           "type": "put",
+          "named": true
+        },
+        {
+          "type": "regequ",
           "named": true
         },
         {
@@ -687,10 +711,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -708,6 +728,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -745,10 +769,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -766,6 +786,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -828,10 +852,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -852,6 +872,10 @@
           "named": true
         },
         {
+          "type": "madmac_string",
+          "named": true
+        },
+        {
           "type": "parenthesized_expression",
           "named": true
         },
@@ -865,21 +889,6 @@
         },
         {
           "type": "unary_expression",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "char_literal",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": false,
-      "types": [
-        {
-          "type": "escape_sequence",
           "named": true
         }
       ]
@@ -911,10 +920,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -932,6 +937,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -1006,10 +1015,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -1027,6 +1032,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -1134,10 +1143,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -1155,6 +1160,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -1197,10 +1206,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -1221,66 +1226,7 @@
           "named": true
         },
         {
-          "type": "parenthesized_expression",
-          "named": true
-        },
-        {
-          "type": "pc_expr",
-          "named": true
-        },
-        {
-          "type": "scoped_label",
-          "named": true
-        },
-        {
-          "type": "unary_expression",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "extended",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "bin_num",
-          "named": true
-        },
-        {
-          "type": "binary_expression",
-          "named": true
-        },
-        {
-          "type": "call_expression",
-          "named": true
-        },
-        {
-          "type": "char_literal",
-          "named": true
-        },
-        {
-          "type": "dec_num",
-          "named": true
-        },
-        {
-          "type": "float_num",
-          "named": true
-        },
-        {
-          "type": "hex_num",
-          "named": true
-        },
-        {
-          "type": "label",
-          "named": true
-        },
-        {
-          "type": "local_label",
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -1323,10 +1269,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -1344,6 +1286,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -1374,6 +1320,10 @@
       "required": true,
       "types": [
         {
+          "type": "madmac_string",
+          "named": true
+        },
+        {
           "type": "string_literal",
           "named": true
         }
@@ -1401,10 +1351,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -1422,6 +1368,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -1464,10 +1414,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -1485,6 +1431,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -1522,10 +1472,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -1543,6 +1489,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -1586,10 +1536,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -1607,6 +1553,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -1672,10 +1622,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -1693,6 +1639,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -1761,10 +1711,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -1782,6 +1728,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -1819,10 +1769,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -1840,6 +1786,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -1883,10 +1833,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -1904,6 +1850,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -1971,10 +1921,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -1992,6 +1938,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -2081,6 +2031,10 @@
         "required": true,
         "types": [
           {
+            "type": "madmac_string",
+            "named": true
+          },
+          {
             "type": "string_literal",
             "named": true
           }
@@ -2103,10 +2057,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -2124,6 +2074,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -2161,10 +2115,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -2182,6 +2132,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -2235,10 +2189,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -2256,6 +2206,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -2293,10 +2247,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -2314,6 +2264,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -2344,6 +2298,10 @@
       "multiple": false,
       "required": true,
       "types": [
+        {
+          "type": "madmac_string",
+          "named": true
+        },
         {
           "type": "string_literal",
           "named": true
@@ -2384,10 +2342,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "constant_offset",
           "named": true
         },
@@ -2409,6 +2363,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -2491,10 +2449,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -2512,6 +2466,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -2582,10 +2540,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -2603,6 +2557,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -2680,6 +2638,10 @@
           "named": true
         },
         {
+          "type": "endm",
+          "named": true
+        },
+        {
           "type": "equate",
           "named": true
         },
@@ -2752,6 +2714,22 @@
           "named": true
         },
         {
+          "type": "madmac_dc",
+          "named": true
+        },
+        {
+          "type": "madmac_decl",
+          "named": true
+        },
+        {
+          "type": "madmac_macro",
+          "named": true
+        },
+        {
+          "type": "madmac_simple",
+          "named": true
+        },
+        {
           "type": "opcode",
           "named": true
         },
@@ -2761,6 +2739,10 @@
         },
         {
           "type": "put",
+          "named": true
+        },
+        {
+          "type": "regequ",
           "named": true
         },
         {
@@ -2842,6 +2824,129 @@
     }
   },
   {
+    "type": "madmac_dc",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "bin_num",
+          "named": true
+        },
+        {
+          "type": "binary_expression",
+          "named": true
+        },
+        {
+          "type": "call_expression",
+          "named": true
+        },
+        {
+          "type": "dec_num",
+          "named": true
+        },
+        {
+          "type": "float_num",
+          "named": true
+        },
+        {
+          "type": "hex_num",
+          "named": true
+        },
+        {
+          "type": "label",
+          "named": true
+        },
+        {
+          "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
+          "named": true
+        },
+        {
+          "type": "parenthesized_expression",
+          "named": true
+        },
+        {
+          "type": "pc_expr",
+          "named": true
+        },
+        {
+          "type": "scoped_label",
+          "named": true
+        },
+        {
+          "type": "string_literal",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "madmac_decl",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "label",
+          "named": true
+        },
+        {
+          "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "scoped_label",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "madmac_macro",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "label",
+          "named": true
+        },
+        {
+          "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "scoped_label",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "madmac_simple",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "madmac_string",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "mnemonic",
     "named": true,
     "fields": {}
@@ -2878,23 +2983,23 @@
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
         {
-          "type": "add_a",
+          "type": "bin_num",
           "named": true
         },
         {
-          "type": "add_b",
+          "type": "binary_expression",
           "named": true
         },
         {
-          "type": "add_d",
+          "type": "call_expression",
           "named": true
         },
         {
-          "type": "constant_offset",
+          "type": "dec_num",
           "named": true
         },
         {
@@ -2902,7 +3007,11 @@
           "named": true
         },
         {
-          "type": "extended",
+          "type": "float_num",
+          "named": true
+        },
+        {
+          "type": "hex_num",
           "named": true
         },
         {
@@ -2914,11 +3023,23 @@
           "named": true
         },
         {
-          "type": "pc_offset",
+          "type": "label",
           "named": true
         },
         {
-          "type": "pc_offset_rel",
+          "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
+          "named": true
+        },
+        {
+          "type": "parenthesized_expression",
+          "named": true
+        },
+        {
+          "type": "pc_expr",
           "named": true
         },
         {
@@ -2935,6 +3056,14 @@
         },
         {
           "type": "pre_dec_dec",
+          "named": true
+        },
+        {
+          "type": "scoped_label",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
           "named": true
         },
         {
@@ -2965,10 +3094,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -2986,6 +3111,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -3028,10 +3157,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -3049,6 +3174,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -3096,10 +3225,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -3117,6 +3242,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -3159,10 +3288,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -3180,6 +3305,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -3330,10 +3459,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -3351,6 +3476,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -3483,6 +3612,69 @@
     }
   },
   {
+    "type": "regequ",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "bin_num",
+          "named": true
+        },
+        {
+          "type": "binary_expression",
+          "named": true
+        },
+        {
+          "type": "call_expression",
+          "named": true
+        },
+        {
+          "type": "dec_num",
+          "named": true
+        },
+        {
+          "type": "float_num",
+          "named": true
+        },
+        {
+          "type": "hex_num",
+          "named": true
+        },
+        {
+          "type": "label",
+          "named": true
+        },
+        {
+          "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
+          "named": true
+        },
+        {
+          "type": "parenthesized_expression",
+          "named": true
+        },
+        {
+          "type": "pc_expr",
+          "named": true
+        },
+        {
+          "type": "scoped_label",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "repeat",
     "named": true,
     "fields": {
@@ -3503,10 +3695,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -3524,6 +3712,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -3625,6 +3817,10 @@
           "named": true
         },
         {
+          "type": "endm",
+          "named": true
+        },
+        {
           "type": "equate",
           "named": true
         },
@@ -3697,6 +3893,22 @@
           "named": true
         },
         {
+          "type": "madmac_dc",
+          "named": true
+        },
+        {
+          "type": "madmac_decl",
+          "named": true
+        },
+        {
+          "type": "madmac_macro",
+          "named": true
+        },
+        {
+          "type": "madmac_simple",
+          "named": true
+        },
+        {
           "type": "opcode",
           "named": true
         },
@@ -3706,6 +3918,10 @@
         },
         {
           "type": "put",
+          "named": true
+        },
+        {
+          "type": "regequ",
           "named": true
         },
         {
@@ -3776,10 +3992,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -3797,6 +4009,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -3896,10 +4112,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -3917,6 +4129,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -3963,10 +4179,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -3984,6 +4196,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -4036,6 +4252,10 @@
         },
         {
           "type": "doc",
+          "named": true
+        },
+        {
+          "type": "endm",
           "named": true
         },
         {
@@ -4115,6 +4335,22 @@
           "named": true
         },
         {
+          "type": "madmac_dc",
+          "named": true
+        },
+        {
+          "type": "madmac_decl",
+          "named": true
+        },
+        {
+          "type": "madmac_macro",
+          "named": true
+        },
+        {
+          "type": "madmac_simple",
+          "named": true
+        },
+        {
           "type": "opcode",
           "named": true
         },
@@ -4124,6 +4360,10 @@
         },
         {
           "type": "put",
+          "named": true
+        },
+        {
+          "type": "regequ",
           "named": true
         },
         {
@@ -4263,10 +4503,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -4284,6 +4520,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -4349,10 +4589,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -4370,6 +4606,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -4433,10 +4673,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -4454,6 +4690,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -4501,10 +4741,6 @@
             "named": true
           },
           {
-            "type": "char_literal",
-            "named": true
-          },
-          {
             "type": "dec_num",
             "named": true
           },
@@ -4522,6 +4758,10 @@
           },
           {
             "type": "local_label",
+            "named": true
+          },
+          {
+            "type": "madmac_string",
             "named": true
           },
           {
@@ -4592,10 +4832,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -4613,6 +4849,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -4655,10 +4895,6 @@
           "named": true
         },
         {
-          "type": "char_literal",
-          "named": true
-        },
-        {
           "type": "dec_num",
           "named": true
         },
@@ -4676,6 +4912,10 @@
         },
         {
           "type": "local_label",
+          "named": true
+        },
+        {
+          "type": "madmac_string",
           "named": true
         },
         {
@@ -4907,6 +5147,10 @@
   },
   {
     "type": "else_keyword",
+    "named": true
+  },
+  {
+    "type": "endm",
     "named": true
   },
   {

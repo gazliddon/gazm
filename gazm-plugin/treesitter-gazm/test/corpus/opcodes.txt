@@ -24,7 +24,7 @@ Opcodes
 
       (opcode (mnemonic) (operand (immediate (hex_num)) ))
       (opcode (mnemonic) (operand (immediate (label)) ))
-      (opcode (mnemonic) (operand (extended (label)) ))
+      (opcode (mnemonic) (operand (label) ))
 
       (opcode (mnemonic) (operand (immediate (binary_expression (dec_num) (dec_num))) ))
 
