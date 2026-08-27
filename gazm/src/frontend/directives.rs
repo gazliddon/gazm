@@ -153,7 +153,12 @@ pub const DIRECTIVES_68000: &[(&str, CommandKind)] = &[
     (".ds.w", CommandKind::ReserveWords),
     (".ds.l", CommandKind::ReserveLongs),
     (".include", CommandKind::Include),
+    (".incbin", CommandKind::IncBin),
+    ("incbin", CommandKind::IncBin),
     (".extern", CommandKind::Extern),
+    // rmac `.globl name` — a global declaration, same no-op as .extern.
+    (".globl", CommandKind::Extern),
+    ("globl", CommandKind::Extern),
     (".text", CommandKind::Text),
     (".data", CommandKind::Data),
     (".bss", CommandKind::Bss),

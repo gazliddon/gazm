@@ -666,24 +666,27 @@ impl Assembler {
 
         let mut r = 0..data_len;
 
+        // `.incbin "file"` (whole file) or `.incbin "file", offset, size`.
         let mut children = node.children();
-        if let (Some(offset), Some(size)) = (children.next(), children.next()) {
-            let offset = asm.eval_node(offset, current_scope_id)?;
-            let size = asm.eval_node(size, current_scope_id)?;
-            let offset_usize = offset as usize;
-            let size_usize = size as usize;
-            let last = (offset_usize + size_usize) - 1;
+        match (children.next(), children.next()) {
+            (Some(offset), Some(size)) => {
+                let offset = asm.eval_node(offset, current_scope_id)?;
+                let size = asm.eval_node(size, current_scope_id)?;
+                let offset_usize = offset as usize;
+                let size_usize = size as usize;
+                let last = (offset_usize + size_usize) - 1;
 
-            if !(r.contains(&offset_usize) && r.contains(&last)) {
-                let msg =
-                    format!("Trying to grab {offset:04X} {size:04X} from file size {data_len:X}");
-                return Err(asm.make_user_error(msg, node, true).into());
-            };
+                if !(r.contains(&offset_usize) && r.contains(&last)) {
+                    let msg = format!(
+                        "Trying to grab {offset:04X} {size:04X} from file size {data_len:X}"
+                    );
+                    return Err(asm.make_user_error(msg, node, true).into());
+                };
 
-            r.start = offset_usize;
-            r.end = offset_usize + size_usize;
-        } else {
-            panic!("Should not happen!")
+                r.start = offset_usize;
+                r.end = offset_usize + size_usize;
+            }
+            _ => {}
         }
 
         Ok(r)
