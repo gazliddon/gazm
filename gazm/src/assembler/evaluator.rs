@@ -74,7 +74,11 @@ impl Assembler {
     }
 
     pub fn eval_node(&self, node: AstNodeRef, current_scope_id: u64) -> GResult<i64> {
-        let info = self.get_source_info(&node.value().pos).unwrap();
+        // The source map may not cover the position (the JRISC macro
+        // preprocessor rewrites the source text, so error positions can
+        // land past the end of the on-disk file); degrade to a
+        // position-less diagnostic rather than panicking.
+        let info = self.get_source_info(&node.value().pos).ok();
         let reader = self.asm_out.symbols.get_reader(current_scope_id);
 
         eval(&reader, &self.asm_out.struct_sizes, node).map_err(|err| {
@@ -86,9 +90,15 @@ impl Assembler {
                         .unwrap_or_default();
                     let mut err = err.clone();
                     err.source = EvalErrorEnum::SymbolNotFoud(format!("{scope}::{name}"));
-                    Diagnostic::from_ast_error(err.into(), &info)
+                    match &info {
+                        Some(info) => Diagnostic::from_ast_error(err.into(), info),
+                        None => Diagnostic::from_ast_error_missing_position(err.into()),
+                    }
                 }
-                _ => Diagnostic::from_ast_error(err.into(), &info),
+                _ => match &info {
+                    Some(info) => Diagnostic::from_ast_error(err.into(), info),
+                    None => Diagnostic::from_ast_error_missing_position(err.into()),
+                },
             };
             e.into()
         })

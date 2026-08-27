@@ -22,13 +22,14 @@ pub enum CpuKind {
     Cpu65c02,
     CpuZ80,
     Cpu68000,
+    CpuJagrisc,
 }
 
 impl CpuKind {
     pub fn endianness(self) -> Endianness {
         use Endianness::*;
         match self {
-            CpuKind::Cpu6809 | CpuKind::Cpu6800 | CpuKind::Cpu68000 => Big,
+            CpuKind::Cpu6809 | CpuKind::Cpu6800 | CpuKind::Cpu68000 | CpuKind::CpuJagrisc => Big,
             CpuKind::Cpu6502 | CpuKind::Cpu65c02 | CpuKind::CpuZ80 => Little,
         }
     }

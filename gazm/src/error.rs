@@ -9,6 +9,7 @@ use crate::{
 
 use thin_vec::ThinVec;
 
+use grl_sources::AsmSource;
 use grl_sources::{EditErrorKind, Position, SourceFile, SourceFiles, SourceInfo, TextEditTrait};
 use grl_utils::FileError;
 
@@ -709,6 +710,24 @@ impl Diagnostic {
             info,
             error.failure,
         )
+    }
+
+    /// Diagnostic for an AST error whose source position is not covered by
+    /// the source map (e.g. JRISC macro-expanded text). Uses a synthetic
+    /// zero position so the error can still be shown.
+    pub fn from_ast_error_missing_position(error: AstError) -> Self {
+        Self {
+            severity: if error.failure {
+                DiagnosticSeverity::Fatal
+            } else {
+                DiagnosticSeverity::Error
+            },
+            message: error.message.unwrap_or_else(|| "Error".to_string()),
+            code: None,
+            help: None,
+            position: Position::new(0, 0, 0..0, AsmSource::FileId(0)),
+            file: std::path::PathBuf::from("<unknown>"),
+        }
     }
 
     pub fn from_text<S: Into<String>>(message: S, info: &SourceInfo, failure: bool) -> Self {

@@ -28,6 +28,9 @@ macro_rules! cpu_dispatch {
             crate::frontend::CpuSpecific::Cpu68000(nk) => {
                 crate::cpu68000::assembler::compile_node($self, $node, nk, $scope)
             }
+            crate::frontend::CpuSpecific::CpuJagrisc(nk) => {
+                crate::cpujrisc::assembler::compile_node($self, $node, nk, $scope)
+            }
         }
     };
     (size, $self:ident, $sizer:ident, $id:ident, $node_kind:ident) => {
@@ -43,6 +46,9 @@ macro_rules! cpu_dispatch {
             }
             crate::frontend::CpuSpecific::Cpu68000(nk) => {
                 crate::cpu68000::assembler::size_node_internal($sizer, $self, $id, nk)
+            }
+            crate::frontend::CpuSpecific::CpuJagrisc(nk) => {
+                crate::cpujrisc::assembler::size_node_internal($sizer, $self, $id, nk)
             }
         }
     };
@@ -60,6 +66,9 @@ macro_rules! cpu_dispatch {
             crate::cpukind::CpuKind::Cpu68000 => {
                 crate::cpu68000::frontend::parse_multi_opcode_vec($input)
             }
+            crate::cpukind::CpuKind::CpuJagrisc => {
+                crate::cpujrisc::frontend::parse_multi_opcode_vec($input)
+            }
             _ => {
                 return Err(crate::frontend::error::FrontEndError::error(
                     $input,
@@ -74,6 +83,7 @@ macro_rules! cpu_dispatch {
             crate::cpukind::CpuKind::Cpu6800 => crate::cpu6800::frontend::lex_identifier($text),
             crate::cpukind::CpuKind::CpuZ80 => crate::cpu_z80::frontend::lex_identifier($text),
             crate::cpukind::CpuKind::Cpu68000 => crate::cpu68000::frontend::lex_identifier($text),
+            crate::cpukind::CpuKind::CpuJagrisc => crate::cpujrisc::frontend::lex_identifier($text),
             // Unimplemented backends: no opcodes are recognized yet, so any
             // word that is not a directive classifies as a label.
             _ => crate::frontend::TokenKind::Label,

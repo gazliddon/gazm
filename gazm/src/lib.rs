@@ -17,6 +17,7 @@ pub mod cpu6800;
 pub mod cpu68000;
 pub mod cpu6809;
 pub mod cpu_z80;
+pub mod cpujrisc;
 pub mod cpukind;
 pub mod error;
 pub mod fmt;

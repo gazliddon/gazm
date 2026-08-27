@@ -67,6 +67,12 @@ impl GazmParser {
             Extern => Self::parse_extern(args),
             Phrase | DPhrase | QPhrase | Even => Self::parse_align(k, args),
             SetDp => crate::cpu6809::frontend::parse_set_dp(args),
+            // `name REGEQU rN` is parsed via the label path
+            // (parse_label_statement), like `equ`.
+            RegEqu => Err(crate::frontend::error::FrontEndError::error(
+                args,
+                crate::frontend::FrontEndErrorKind::Unexpected,
+            )),
             Target | Macro | Struct | Equ => Err(crate::frontend::error::FrontEndError::error(
                 args,
                 crate::frontend::FrontEndErrorKind::Unexpected,
@@ -362,6 +368,9 @@ impl GazmParser {
         match rest_after_label.first().map(|token| token.kind) {
             Some(OpenBracket) => Self::parse_macro_call(input),
             _ if keyword("equ")(rest_after_label).is_ok() => Self::parse_equate(input),
+            _ if keyword("regequ")(rest_after_label).is_ok() => {
+                crate::cpujrisc::frontend::parse_reg_equate(input)
+            }
             _ => Self::parse_label(input).and_then(|(rest, node)| {
                 let (rest, _) = Self::consume_label_colon(rest)?;
                 Ok((rest, Self::mk_pc_equate(&node)))

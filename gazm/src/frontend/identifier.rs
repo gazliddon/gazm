@@ -25,6 +25,7 @@ pub static DIRECTIVES: LazyLock<HashMap<CpuKind, HashMap<String, CommandKind>>> 
             CpuKind::Cpu65c02,
             CpuKind::CpuZ80,
             CpuKind::Cpu68000,
+            CpuKind::CpuJagrisc,
         ] {
             by_cpu.insert(
                 cpu,

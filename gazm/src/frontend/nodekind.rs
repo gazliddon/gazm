@@ -17,6 +17,7 @@ pub enum CpuSpecific {
     Cpu6800(NodeKind6800),
     CpuZ80(NodeKindZ80),
     Cpu68000(crate::cpu68000::frontend::NodeKind68000),
+    CpuJagrisc(crate::cpujrisc::frontend::NodeKindJrisc),
 }
 
 use super::{BaseNode, CtxTrait};

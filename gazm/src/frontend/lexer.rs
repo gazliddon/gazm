@@ -93,6 +93,8 @@ pub enum CommandKind {
     DcbB,
     DcbW,
     DcbL,
+    /// `name REGEQU rN` — equate a name to a JRISC register (rmac).
+    RegEqu,
 }
 
 ////////////////////////////////////////////////////////////////////////////////

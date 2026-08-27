@@ -194,6 +194,30 @@ pub const DIRECTIVES_Z80: &[(&str, CommandKind)] = &[
 
 /// The full directive vocabulary for a CPU: canonical names plus aliases.
 /// Unimplemented CPUs inherit the shared table as a placeholder.
+/// The JRISC vocabulary: the shared set (no 6800/9 spellings) plus
+/// `regequ` (name REGEQU rN). `macro`/`endm` are consumed by the JRISC
+/// text preprocessor before lexing and need no command kinds here.
+pub const DIRECTIVES_JRISC: &[(&str, CommandKind)] = &[
+    ("scope", CommandKind::Scope),
+    ("grabmem", CommandKind::GrabMem),
+    ("put", CommandKind::Put),
+    ("incbin", CommandKind::IncBin),
+    ("incbinref", CommandKind::IncBinRef),
+    ("writebin", CommandKind::WriteBin),
+    ("fill", CommandKind::Fill),
+    ("org", CommandKind::Org),
+    ("include", CommandKind::Include),
+    ("exec", CommandKind::Exec),
+    ("require", CommandKind::Require),
+    ("import", CommandKind::Import),
+    ("struct", CommandKind::Struct),
+    ("macro", CommandKind::Macro),
+    ("equ", CommandKind::Equ),
+    ("target", CommandKind::Target),
+    ("section", CommandKind::Section),
+    ("regequ", CommandKind::RegEqu),
+];
+
 pub fn directives_for(cpu: CpuKind) -> &'static [(&'static str, CommandKind)] {
     match cpu {
         CpuKind::Cpu6809 => DIRECTIVES_6809,
@@ -201,6 +225,7 @@ pub fn directives_for(cpu: CpuKind) -> &'static [(&'static str, CommandKind)] {
         CpuKind::Cpu6502 | CpuKind::Cpu65c02 => DIRECTIVES_6502,
         CpuKind::CpuZ80 => DIRECTIVES_Z80,
         CpuKind::Cpu68000 => DIRECTIVES_68000,
+        CpuKind::CpuJagrisc => DIRECTIVES_JRISC,
     }
 }
 

@@ -104,6 +104,22 @@ impl TokenizeRequest {
 impl TokenizeRequest {
     pub fn tokenize(&mut self) -> (Node, NewErrorCollector<FrontEndError>) {
         use crate::frontend::{make_tspan, to_tokens_no_comment_with_errors, LexErrorKind};
+
+        // The JRISC backend uses rmac-style text macros (`MACRO name` /
+        // `ENDM` with `\1`..`\N` parameters and `\~label` local labels),
+        // which no token-level grammar can express. Expand them on the
+        // source text first; the lexer never sees a backslash.
+        if self.opts.cpu == crate::cpukind::CpuKind::CpuJagrisc {
+            let expanded = crate::cpujrisc::preprocess::expand_jrisc_macros(
+                &self.source_file.get_text().source,
+            );
+            if expanded != self.source_file.get_text().source {
+                let file_id = self.source_file.file_id;
+                self.source_file =
+                    grl_sources::SourceFile::new(self.source_file.file.clone(), &expanded, file_id);
+            }
+        }
+
         let (tokens, lex_errors) = to_tokens_no_comment_with_errors(&self.source_file);
         let mut final_nodes = vec![];
         let mut errors: NewErrorCollector<FrontEndError> =
