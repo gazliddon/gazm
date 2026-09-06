@@ -183,19 +183,44 @@ mod test {
 
     #[test]
     fn metadata_switch_reaches_target_opts() {
+        use crate::opts::Metadata;
         let dir = std::env::temp_dir().join("gazm_cfg_meta_test");
         std::fs::create_dir_all(&dir).unwrap();
         let toml_path = dir.join("gazm.toml");
+
         std::fs::write(
             &toml_path,
             "[[targets]]\nname = \"demo\"\ncpu = \"Cpu6809\"\nproject-file = \"demo.gazm\"\nmetadata = true\n",
         )
         .unwrap();
-
         let cfg = TomlConfig::new_from_file(&toml_path).expect("config should parse");
-        assert!(
+        assert_eq!(
             cfg.targets[0].metadata,
+            Some(Metadata::Derived(true)),
             "`metadata = true` in a target must reach Opts.metadata (contract §5)"
+        );
+
+        std::fs::write(
+            &toml_path,
+            "[[targets]]\nname = \"demo\"\ncpu = \"Cpu6809\"\nproject-file = \"demo.gazm\"\nmetadata = \"demo.meta\"\n",
+        )
+        .unwrap();
+        let cfg = TomlConfig::new_from_file(&toml_path).expect("config should parse");
+        assert_eq!(
+            cfg.targets[0].metadata,
+            Some(Metadata::File("demo.meta".to_string())),
+            "`metadata = \"demo.meta\"` must name the bundle file explicitly"
+        );
+
+        std::fs::write(
+            &toml_path,
+            "[[targets]]\nname = \"demo\"\ncpu = \"Cpu6809\"\nproject-file = \"demo.gazm\"\n",
+        )
+        .unwrap();
+        let cfg = TomlConfig::new_from_file(&toml_path).expect("config should parse");
+        assert_eq!(
+            cfg.targets[0].metadata, None,
+            "an absent `metadata` option must write nothing"
         );
 
         let _ = std::fs::remove_dir_all(&dir);

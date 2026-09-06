@@ -193,17 +193,17 @@ impl Assembler {
     /// in parallel. Binary artifacts carry a versioned envelope so consumers
     /// can reject formats they do not understand.
     ///
-    /// Writing is driven by the `metadata` switch (contract §5):
-    /// `metadata = true` writes one file per target — `<target>.meta` —
-    /// holding the source-map and symbols v5 envelopes concatenated back
-    /// to back, each carrying the `TargetInfo` header. The old two-file
-    /// `.map`/`.sym` layout is removed. Absent/false writes nothing.
+    /// Writing is driven by the `metadata` option (contract §5):
+    /// `metadata = true` writes the derived `<target>.meta` bundle, a
+    /// string names the bundle file explicitly, and an absent option
+    /// writes nothing. The bundle holds the source-map and symbols v5
+    /// envelopes concatenated back to back, each carrying the
+    /// `TargetInfo` header. The old two-file `.map`/`.sym` layout is
+    /// removed.
     fn write_metadata_outputs(&self) -> GResult<()> {
-        if !self.opts.metadata {
+        let Some((target, bundle_path)) = self.metadata_paths()? else {
             return Ok(());
-        }
-
-        let (target, bundle_path) = self.metadata_paths()?;
+        };
 
         // The header is part of the metadata bundle.
         let target_info = Some(TargetInfo {
@@ -301,11 +301,14 @@ impl Assembler {
         Ok(())
     }
 
-    /// Derived `<target>.meta` output path (contract §5). The target name
-    /// is the configured `[[targets]] name`, falling back to the project
-    /// file stem. Shared by the metadata and deps writers so the derivation
-    /// lives in one place.
-    fn metadata_paths(&self) -> GResult<(String, std::path::PathBuf)> {
+    /// The metadata bundle target name and output path (contract §5), or
+    /// `None` when the `metadata` option does not request one.  The target
+    /// name is the configured `[[targets]] name`, falling back to the
+    /// project file stem; the file is the derived `<target>.meta` for
+    /// `metadata = true` or the configured name, resolved through
+    /// `output_path` (the build directory). Shared by the metadata and
+    /// deps writers so the derivation lives in one place.
+    fn metadata_paths(&self) -> GResult<Option<(String, std::path::PathBuf)>> {
         let target = self.opts.target_name.clone().unwrap_or_else(|| {
             self.opts
                 .project_file
@@ -313,13 +316,20 @@ impl Assembler {
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "gazm".to_string())
         });
-        Ok((target.clone(), self.output_path(format!("{target}.meta"))?))
+        let Some(bundle_name) = self
+            .opts
+            .metadata
+            .as_ref()
+            .and_then(|m| m.bundle_name(&target))
+        else {
+            return Ok(None);
+        };
+        Ok(Some((target, self.output_path(bundle_name)?)))
     }
 
     pub fn write_deps_file(&mut self) -> GResult<()> {
         if let Some(deps) = &self.opts.deps_file {
-            if self.opts.metadata {
-                let (_, bundle_file) = self.metadata_paths()?;
+            if let Some((_, bundle_file)) = self.metadata_paths()? {
                 let deps = self.output_path(deps)?;
                 let sf = self.get_source_file_loader();
                 let read = join_paths(sf.get_files_read().iter(), " \\\n");
@@ -375,7 +385,7 @@ impl Assembler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::opts::Opts;
+    use crate::opts::{Metadata, Opts};
 
     use gazm_metadata::envelope::{AccessType as ReaderAccess, CpuKind as ReaderCpu};
     use gazm_metadata::{decode_artifact, Magic};
@@ -481,7 +491,7 @@ mod tests {
         let opts = Opts {
             project_file: path.clone(),
             assemble_dir: Some(dir.clone()),
-            metadata: true,
+            metadata: Some(Metadata::Derived(true)),
             target_name: Some("mytest".to_string()),
             ..Default::default()
         };

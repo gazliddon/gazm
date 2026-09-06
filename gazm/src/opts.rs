@@ -34,6 +34,28 @@ pub struct CheckSum {
     pub sha1: String,
 }
 
+/// Per-target metadata output (contract §5).  Absent writes nothing;
+/// `metadata = true` writes the derived `<target>.meta` bundle; a string
+/// names the bundle file explicitly, resolved to the same place as the
+/// derived name (the build directory).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum Metadata {
+    Derived(bool),
+    File(String),
+}
+
+impl Metadata {
+    /// The bundle file name this mode requests, if any.
+    pub fn bundle_name(&self, target: &str) -> Option<String> {
+        match self {
+            Metadata::Derived(true) => Some(format!("{target}.meta")),
+            Metadata::Derived(false) => None,
+            Metadata::File(name) => Some(name.clone()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
@@ -44,10 +66,12 @@ pub struct Opts {
     pub project_file: PathBuf,
 
     pub assemble_dir: Option<PathBuf>,
-    /// Write the metadata bundle — `<target>.meta`, the name derived from
-    /// the target name — with a v5 `TargetInfo` header. Absent/false writes
+    /// Write the metadata bundle — a v5 `TargetInfo` header plus the
+    /// source-map and symbols envelopes — when set: `metadata = true`
+    /// writes the derived `<target>.meta`, a string names the bundle
+    /// explicitly (resolved to the build directory). Absent writes
     /// nothing.
-    pub metadata: bool,
+    pub metadata: Option<Metadata>,
     pub deps_file: Option<PathBuf>,
     pub ast_file: Option<PathBuf>,
 
@@ -113,7 +137,7 @@ impl Default for Opts {
             assemble_dir: Default::default(),
             ignore_relative_offset_errors: false,
             madmac_compat: false,
-            metadata: false,
+            metadata: None,
             deps_file: Default::default(),
             project_file: Default::default(),
             ast_file: Default::default(),

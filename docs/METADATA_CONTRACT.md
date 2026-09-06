@@ -112,23 +112,29 @@ neither direction breaks. Do not reorder or remove existing field names.
 `struct_sizes` is a plain name→size list (`Proc -> 15`); the debugger can
 ignore it until it displays structs.
 
-## 5. Config: one switch for "write metadata or nothing"
+## 5. Config: one option for "write metadata or nothing"
 
-One boolean per target:
+One option per target, either the boolean switch or an explicit bundle
+file name (the reader looks the bundle up by the configured name, so
+keep it `<target>.meta` unless the reader follows):
 
 ```toml
 [[targets]]
 name = "stargate"
-metadata = true          # or omit/false -> write nothing
+metadata = "stargate.meta"   # explicit bundle file (build directory)
+# metadata = true            # derived name: <target>.meta
+# metadata = false / absent  # write nothing
 ```
 
 - `metadata = true` writes the whole bundle: one file `<target>.meta`
   (source-map + symbols envelopes concatenated, v5 headers) relative to
   the build directory.
+- `metadata = "<name>"` writes the same bundle to the configured file,
+  resolved to the same build directory.
 - `metadata = false`/absent writes nothing — no file, no header.
 - The migration is complete: the old per-target `source-mapping`/
   `syms-file` explicit paths are **removed**, and the two-file
-  `.map`/`.sym` layout is deprecated in favour of the single `.meta`
+  `.map`/`.sym` layout is removed in favour of the single `.meta`
   bundle.
 - `as6809_sym` removed (it was unused).
 
