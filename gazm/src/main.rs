@@ -206,6 +206,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    if opts
+        .first()
+        .is_some_and(|o| matches!(o.build_type, BuildType::Build | BuildType::Check))
+    {
+        eprintln!("GAZM v{}", env!("CARGO_PKG_VERSION"));
+    }
+
     let started = std::time::Instant::now();
     let results = if opts.len() > 1
         && opts
