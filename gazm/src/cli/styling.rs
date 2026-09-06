@@ -69,3 +69,14 @@ pub fn get_banner() -> String {
         Stylize::yellow(format!("v{}", env!("CARGO_PKG_VERSION")))
     )
 }
+
+/// Single-line header for non-verbose builds.
+pub fn get_title() -> String {
+    use termimad::crossterm::style::Stylize;
+    format!(
+        "{} {} {}",
+        Stylize::green("Gazm"),
+        Stylize::white("Assembler"),
+        Stylize::yellow(format!("v{}", env!("CARGO_PKG_VERSION")))
+    )
+}

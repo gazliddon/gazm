@@ -2,7 +2,7 @@
 #![allow(clippy::result_large_err)]
 use gazm::{
     assembler::Assembler,
-    cli::{parse_command_line, styling::get_banner},
+    cli::{parse_command_line, styling::get_banner, styling::get_title},
     error::{ErrorCollectorTrait, GazmErrorKind},
     messages::{self, format_count, format_duration, TimingReport},
     opts::{BuildType, Opts},
@@ -199,11 +199,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    if opts
+    if let Some(first) = opts
         .first()
-        .is_some_and(|o| matches!(o.build_type, BuildType::Build | BuildType::Check))
+        .filter(|o| matches!(o.build_type, BuildType::Build | BuildType::Check))
     {
-        eprintln!("{}", get_banner());
+        if first.verbose as u8 >= messages::Verbosity::Normal as u8 {
+            eprintln!("{}", get_banner());
+        } else {
+            eprintln!("{}", get_title());
+        }
     }
 
     let started = std::time::Instant::now();
