@@ -197,7 +197,7 @@ impl Assembler {
     /// `metadata = true` writes one file per target — `<target>.meta` —
     /// holding the source-map and symbols v5 envelopes concatenated back
     /// to back, each carrying the `TargetInfo` header. The old two-file
-    /// `.map`/`.sym` layout is deprecated. Absent/false writes nothing.
+    /// `.map`/`.sym` layout is removed. Absent/false writes nothing.
     fn write_metadata_outputs(&self) -> GResult<()> {
         if !self.opts.metadata {
             return Ok(());
@@ -301,10 +301,10 @@ impl Assembler {
         Ok(())
     }
 
-    /// Derived `<target>.map` / `<target>.sym` output paths (contract §5).
-    /// The target name is the configured `[[targets]] name`, falling back
-    /// to the project file stem. Shared by the metadata and deps writers so
-    /// the derivation lives in one place.
+    /// Derived `<target>.meta` output path (contract §5). The target name
+    /// is the configured `[[targets]] name`, falling back to the project
+    /// file stem. Shared by the metadata and deps writers so the derivation
+    /// lives in one place.
     fn metadata_paths(&self) -> GResult<(String, std::path::PathBuf)> {
         let target = self.opts.target_name.clone().unwrap_or_else(|| {
             self.opts
@@ -463,9 +463,9 @@ mod tests {
         assert_eq!(decoded, payload);
     }
 
-    /// End to end: `metadata = true` writes `<target>.map` + `<target>.sym`
-    /// with the header, the in-asm sections are persisted, and the reader's
-    /// `Target::load` accepts the pair.
+    /// End to end: `metadata = true` writes `<target>.meta` with the
+    /// header, the in-asm sections are persisted, and the reader's
+    /// `Target::load_file` accepts the bundle.
     #[test]
     fn metadata_bundle_written_by_assembler_loads_in_reader() {
         let src = r#"
@@ -531,7 +531,6 @@ mod tests {
         asm.write_outputs().unwrap();
         let _ = std::fs::remove_file(&path);
 
-        assert!(!dir.join("quiet.map").exists());
-        assert!(!dir.join("quiet.sym").exists());
+        assert!(!dir.join("quiet.meta").exists());
     }
 }

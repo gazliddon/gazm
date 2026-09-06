@@ -44,8 +44,8 @@ pub struct Opts {
     pub project_file: PathBuf,
 
     pub assemble_dir: Option<PathBuf>,
-    /// Write the whole metadata bundle (.map + .sym, names derived from the
-    /// target name) with a v4 `TargetInfo` header. Absent/false writes
+    /// Write the metadata bundle — `<target>.meta`, the name derived from
+    /// the target name — with a v5 `TargetInfo` header. Absent/false writes
     /// nothing.
     pub metadata: bool,
     pub deps_file: Option<PathBuf>,

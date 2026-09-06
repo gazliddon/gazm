@@ -5,8 +5,6 @@ name = "errors"
 verbose="Silent"
 mem-size = 94208
 project-file = "three_errors.gazm"
-source-mapping = "$(OUT_DIR)/errors.map"
-syms-file = "$(OUT_DIR)/errors.sym"
 cpu="Cpu6809"
 
 [vars]
