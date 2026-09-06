@@ -35,7 +35,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 ```
 
 `*.gazm` files always map to the `gazm` filetype. The common assembler
-extensions (`.s`, `.asm`, `.gas`, `.68`, `.inc`) map to `gazm` too, but
+extensions (`.s`, `.asm`, `.gas`, `.src`, `.68`, `.inc`) map to `gazm` too, but
 only when the file lives inside a gazm project (a directory tree containing
 a `gazm.toml`); outside one they keep whatever filetype other plugins
 assign, so unrelated assembler projects are not hijacked.
@@ -53,7 +53,7 @@ Passed to `setup` via lazy's `opts` (or `require('gazm').setup(...)`):
 
 ## Features
 
-- `gazm` filetype for `.gazm` files (and for `.s`/`.asm`/`.gas`/`.68`/`.inc`
+- `gazm` filetype for `.gazm` files (and for `.s`/`.asm`/`.gas`/`.src`/`.68`/`.inc`
   inside a gazm project); `;` comments via vim-commentary
 - Tree-sitter highlighting (one CPU-agnostic grammar for all targets),
   injections, and indentation queries

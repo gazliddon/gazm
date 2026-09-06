@@ -1,11 +1,11 @@
 -- ftdetect/gazm.lua
 --
 -- The `.gazm` extension always maps to the gazm filetype.  The common
--- assembler extensions (`.s`, `.asm`, `.gas`, `.68`, `.inc`) are only
--- claimed when the file lives inside a gazm project — a directory tree that
--- contains a `gazm.toml`; outside one the detection function returns nil
--- and other plugins' mappings keep working, so unrelated assembler projects
--- are not hijacked.
+-- assembler extensions (`.s`, `.asm`, `.gas`, `.src`, `.68`, `.inc`) are
+-- only claimed when the file lives inside a gazm project — a directory
+-- tree that contains a `gazm.toml`; outside one the detection function
+-- returns nil and other plugins' mappings keep working, so unrelated
+-- assembler projects are not hijacked.
 --
 -- The entries use a positive priority so they win over generic `.s`/`.asm`
 -- mappings from other plugins *inside* a gazm project.  Once the LSP is
@@ -21,8 +21,9 @@ local function gazm_in_project(path, _bufnr)
     end
 end
 
--- Ambiguous extensions: only gazm inside a gazm project.
-local ambiguous = { 's', 'asm', 'gas', '68', 'inc' }
+-- Ambiguous extensions: only gazm inside a gazm project.  `.src` covers
+-- e.g. robotron's sound-target sources (snd_src/main.src).
+local ambiguous = { 's', 'asm', 'gas', 'src', '68', 'inc' }
 local patterns = {}
 for _, ext in ipairs(ambiguous) do
     patterns['.*%.' .. ext] = { gazm_in_project, { priority = 10 } }
