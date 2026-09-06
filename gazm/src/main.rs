@@ -277,7 +277,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("one or more targets failed".into());
     }
 
-    eprintln!("All done in {}", format_duration(started.elapsed()));
+    use colored::Colorize;
+    eprintln!(
+        "{} All done in {}",
+        "✔".green(),
+        format_duration(started.elapsed())
+    );
 
     Ok(())
 }
