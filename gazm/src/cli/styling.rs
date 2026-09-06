@@ -63,5 +63,9 @@ pub fn get_banner() -> String {
  |___/ Assembler";
 
     rainbow_lines(banner);
-    Stylize::green(banner).to_string()
+    format!(
+        "{} {}",
+        Stylize::green(banner),
+        Stylize::yellow(format!("v{}", env!("CARGO_PKG_VERSION")))
+    )
 }

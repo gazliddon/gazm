@@ -2,7 +2,7 @@
 #![allow(clippy::result_large_err)]
 use gazm::{
     assembler::Assembler,
-    cli::parse_command_line,
+    cli::{parse_command_line, styling::get_banner},
     error::{ErrorCollectorTrait, GazmErrorKind},
     frontend,
     messages::{self, format_count, format_duration, TimingReport},
@@ -210,7 +210,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .first()
         .is_some_and(|o| matches!(o.build_type, BuildType::Build | BuildType::Check))
     {
-        eprintln!("GAZM v{}", env!("CARGO_PKG_VERSION"));
+        eprintln!("{}", get_banner());
     }
 
     let started = std::time::Instant::now();
