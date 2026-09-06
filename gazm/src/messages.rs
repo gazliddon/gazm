@@ -234,8 +234,10 @@ where
 {
     let text = text.into();
     let started = Instant::now();
-    let span = tracing::info_span!("status", message = %text);
-    tracing::info!("{text}");
+    // Stage lines are `-vv` noise: `-v` shows only the timing table and
+    // the final "All done" line.
+    let span = tracing::debug_span!("status", message = %text);
+    tracing::debug!("{text}");
     let _entered = span.enter();
     let result = f(());
     CAPTURED_TIMING.with(|timing| {

@@ -2,7 +2,7 @@
 #![allow(clippy::result_large_err)]
 use gazm::{
     assembler::Assembler,
-    cli::{parse_command_line, styling::get_banner},
+    cli::parse_command_line,
     error::{ErrorCollectorTrait, GazmErrorKind},
     frontend,
     messages::{self, format_count, format_duration, TimingReport},
@@ -21,7 +21,12 @@ fn stage_time(report: &TimingReport, name: &str) -> Option<std::time::Duration> 
 }
 
 fn print_timing_report(rows: &[(Opts, TimingReport)]) {
-    if rows.is_empty() || rows.iter().all(|(_, report)| report.stages.is_empty()) {
+    // The timing table is the `-v` output; without `-v` the build is
+    // silent apart from the final "All done" line.
+    let verbose = rows
+        .first()
+        .is_some_and(|(opts, _)| opts.verbose as u8 >= messages::Verbosity::Normal as u8);
+    if !verbose || rows.is_empty() || rows.iter().all(|(_, report)| report.stages.is_empty()) {
         return;
     }
     eprintln!(" INFO Timing");
@@ -128,7 +133,7 @@ fn append_timing_history(
     Ok(())
 }
 
-fn do_build(opts: &Opts, show_banner: bool) -> Result<(), GazmErrorKind> {
+fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
     let mut asm = Assembler::new(opts.clone()).map_err(GazmErrorKind::Misc)?;
 
     match opts.build_type {
@@ -158,23 +163,14 @@ fn do_build(opts: &Opts, show_banner: bool) -> Result<(), GazmErrorKind> {
 
         // Build of check to see if build is okay
         BuildType::Build | BuildType::Check => {
-            if show_banner {
-                status_mess!("{}", get_banner());
-            }
             let target_name = opts.target_name.as_deref().unwrap_or_else(|| {
                 opts.project_file
                     .file_stem()
                     .and_then(|name| name.to_str())
                     .unwrap_or("target")
             });
-            status_mess!("Target: {} ({:?})", target_name, opts.cpu);
             let target_span = tracing::info_span!("target", name = target_name, cpu = ?opts.cpu);
             let _target_guard = target_span.enter();
-            status_mess!("Verbosity: {:?}", &opts.verbose);
-
-            if opts.no_async {
-                status_mess!("Async: NO ASYNC");
-            }
 
             asm.assemble()?;
 
@@ -203,9 +199,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if !is_lsp {
             _trace_guard = messages::init(first, trace_file.as_deref());
         }
-        if matches!(first.build_type, BuildType::Build | BuildType::Check) {
-            status_mess!("{}", get_banner());
-        }
     }
 
     if is_lsp {
@@ -213,6 +206,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    let started = std::time::Instant::now();
     let results = if opts.len() > 1
         && opts
             .first()
@@ -221,7 +215,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::scope(|scope| {
             let handles = opts.into_iter().map(|opts| {
                 scope.spawn(move || {
-                    let (ret, output, timing) = messages::capture(|| do_build(&opts, false));
+                    let (ret, output, timing) = messages::capture(|| do_build(&opts));
                     (opts, ret, output, timing)
                 })
             });
@@ -232,7 +226,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         opts.into_iter()
             .map(|opts| {
-                let (ret, output, timing) = messages::capture(|| do_build(&opts, false));
+                let (ret, output, timing) = messages::capture(|| do_build(&opts));
                 (opts, ret, output, timing)
             })
             .collect()
@@ -282,6 +276,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if failed {
         return Err("one or more targets failed".into());
     }
+
+    eprintln!("All done in {}", format_duration(started.elapsed()));
 
     Ok(())
 }
