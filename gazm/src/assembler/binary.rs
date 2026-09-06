@@ -505,15 +505,23 @@ impl Binary {
     }
 
     pub fn write_byte(&mut self, val: u8) -> Result<WriteStatus, BinaryError> {
+        // Capture the location *before* the write: write_byte_internal
+        // advances the cursor, and the mismatch must name the byte being
+        // written, not the next one.
+        let loc = self.get_write_location();
         let physical = self.write_byte_internal(val)?;
-        self.check_byte(physical, val)?;
+        self.check_byte(loc, physical, val)?;
         Ok(WriteStatus::Checked)
     }
 
-    fn check_byte(&mut self, physical_address: usize, val: u8) -> Result<WriteStatus, BinaryError> {
+    fn check_byte(
+        &mut self,
+        loc: MemoryLocation,
+        physical_address: usize,
+        val: u8,
+    ) -> Result<WriteStatus, BinaryError> {
         if let Some((expected, reference_file)) = self.get_expected(physical_address) {
             if expected != val {
-                let loc = self.get_write_location();
                 let mismatch = ReferenceMismatch {
                     reference_file: reference_file.to_path_buf(),
                     addr: loc.physical,
@@ -534,6 +542,18 @@ impl Binary {
                 }
                 return Ok(WriteStatus::Checked);
             }
+            // A later write that agrees with the reference undoes an
+            // earlier divergence at the same address (patch-over layouts:
+            // robotron's JAPDATA bytes are overwritten by RRELESE6's gap
+            // fill).  Only a byte that is *still* wrong in the final image
+            // is a real mismatch.
+            let corrected = self
+                .mismatches
+                .first()
+                .is_some_and(|first| first.addr == physical_address);
+            if corrected {
+                self.mismatches.clear();
+            }
         }
         Ok(WriteStatus::Checked)
     }
@@ -541,8 +561,9 @@ impl Binary {
     pub fn fill(&mut self, count: usize, byte: u8) -> Result<(), BinaryError> {
         let mut ret = Ok(());
         for _i in 0..count {
+            let loc = self.get_write_location();
             let phys = self.write_byte_internal(byte)?;
-            if let Err(e) = self.check_byte(phys, byte) {
+            if let Err(e) = self.check_byte(loc, phys, byte) {
                 ret = Err(e)
             }
         }
@@ -586,8 +607,9 @@ impl Binary {
         };
         let mut status = WriteStatus::Checked;
         for b in bytes {
+            let loc = self.get_write_location();
             let p = self.write_byte_internal(b)?;
-            status = self.check_byte(p, b)?;
+            status = self.check_byte(loc, p, b)?;
         }
         Ok(status)
     }
@@ -599,8 +621,9 @@ impl Binary {
         };
         let mut status = WriteStatus::Checked;
         for b in bytes {
+            let loc = self.get_write_location();
             let p = self.write_byte_internal(b)?;
-            status = self.check_byte(p, b)?;
+            status = self.check_byte(loc, p, b)?;
         }
         Ok(status)
     }
@@ -612,8 +635,9 @@ impl Binary {
         };
         let mut status = WriteStatus::Checked;
         for b in bytes {
+            let loc = self.get_write_location();
             let p = self.write_byte_internal(b)?;
-            status = self.check_byte(p, b)?;
+            status = self.check_byte(loc, p, b)?;
         }
         Ok(status)
     }
@@ -677,5 +701,49 @@ mod tests {
         let mut b = Binary::default();
         b.write_word_check_size(0x1234).unwrap();
         assert_eq!(&b.data[..2], &[0x12, 0x34]);
+    }
+
+    #[test]
+    fn overwrite_matching_reference_clears_mismatch() {
+        // robotron-style patch-over layout: JAPDATA's divergent byte at
+        // $26B7 is overwritten by RRELESE6's gap fill with the
+        // reference-correct value.  A reference mismatch should only
+        // report bytes that are *still* wrong in the final image, so the
+        // corrected write must clear the recorded mismatch.
+        let mut b = Binary::new(0x4000, AccessType::ReadWrite);
+        b.collect_reference_mismatches(); // editor mode: keep assembling
+        let reference = vec![0x55u8; 16];
+        b.add_bin_reference(
+            &BinRef::new("rom03.bin", 0x2000..0x2010, 0x2000),
+            &reference,
+        );
+
+        // Divergent intermediate write (like JAPDATA's `FCB $65`).
+        b.set_write_address(0x2007, 0);
+        b.write_byte(0x65).unwrap();
+        assert_eq!(
+            b.reference_mismatches().len(),
+            1,
+            "divergent write recorded"
+        );
+        assert_eq!(b.reference_mismatches()[0].val, 0x65);
+        assert_eq!(b.reference_mismatches()[0].expected, 0x55);
+
+        // Later write to the same address agrees with the reference
+        // (like RRELESE6's gap fill): the mismatch is corrected.
+        b.set_write_address(0x2007, 0);
+        b.write_byte(0x55).unwrap();
+        assert_eq!(
+            b.reference_mismatches().len(),
+            0,
+            "a write matching the reference clears the recorded mismatch"
+        );
+
+        // An uncorrected divergence still reports against the final byte.
+        b.set_write_address(0x2008, 0);
+        b.write_byte(0x66).unwrap();
+        assert_eq!(b.reference_mismatches().len(), 1);
+        assert_eq!(b.reference_mismatches()[0].addr, 0x2008);
+        assert_ne!(b.data[0x2008], reference[8]);
     }
 }
