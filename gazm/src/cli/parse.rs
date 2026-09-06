@@ -77,17 +77,6 @@ impl Opts {
                 opts
             }
 
-            Some(("test", m)) => {
-                let opts = Opts {
-                    build_type: BuildType::Test,
-                    project_file: m.get_one::<PathBuf>("project-file").unwrap().into(),
-                    assemble_dir: Some(std::env::current_dir().unwrap()),
-                    ..Default::default()
-                };
-
-                vec![opts]
-            }
-
             Some(("asm", m)) => {
                 let mut opts = Opts {
                     deps_file: m.get_one::<String>("deps").map(PathBuf::from),
@@ -246,13 +235,6 @@ pub fn parse_command_line() -> ArgMatches {
                 ),
         )
         .subcommand(
-            Command::new("test").about("Some test shit").arg(
-                Arg::new("project-file")
-                    .value_parser(PathBufValueParser::new())
-                    .required(true),
-            ),
-        )
-        .subcommand(
             Command::new("asm")
                 .about("Assemble using command line switches")
                 .arg(
@@ -261,30 +243,9 @@ pub fn parse_command_line() -> ArgMatches {
                         .required(true),
                 )
                 .arg(
-                    Arg::new("symbol-file")
-                        .value_parser(PathBufValueParser::new())
-                        .help("File symbols are written to")
-                        .long("symbol-file")
-                        .help("symbol file")
-                        .num_args(1)
-                        .short('s'),
-                )
-                .arg(
                     Arg::new("ignore-relative-offset-errors")
                         .long("ignore-relative-offset-errors")
                         .help("ignore relative offset errors"),
-                )
-                .arg(
-                    Arg::new("trailing-comments")
-                        .long("trailing-comments")
-                        .help("Text at end of line treated as a comment")
-                        .short('t'),
-                )
-                .arg(
-                    Arg::new("star-comments")
-                        .long("star-comments")
-                        .help("Lines that start with '*' parsed as comments")
-                        .short('q'),
                 )
                 .arg(
                     Arg::new("deps")

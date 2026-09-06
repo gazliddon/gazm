@@ -18,7 +18,6 @@ pub enum BuildType {
     Lsp,
     Check,
     Format,
-    Test,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -4,7 +4,6 @@ use gazm::{
     assembler::Assembler,
     cli::{parse_command_line, styling::get_banner},
     error::{ErrorCollectorTrait, GazmErrorKind},
-    frontend,
     messages::{self, format_count, format_duration, TimingReport},
     opts::{BuildType, Opts},
     status_mess,
@@ -137,12 +136,6 @@ fn do_build(opts: &Opts) -> Result<(), GazmErrorKind> {
     let mut asm = Assembler::new(opts.clone()).map_err(GazmErrorKind::Misc)?;
 
     match opts.build_type {
-        BuildType::Test => {
-            status_mess!("Testing! {}", opts.project_file.to_string_lossy());
-            frontend::test_it(opts);
-            status_mess!("Done!");
-        }
-
         BuildType::Format => {
             let project_path = if let Some(dir) = &opts.assemble_dir {
                 dir.join(&opts.project_file)
